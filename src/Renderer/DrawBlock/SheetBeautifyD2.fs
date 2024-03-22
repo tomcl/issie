@@ -36,6 +36,8 @@ open ModelType
 open DrawModelType
 open Sheet.SheetInterface
 open BusWireRoute
+open System
+open System.Diagnostics
 let symbolModel_ = SheetT.symbol_
 
 let inline mapValues (map:Map<'a,'b>) = map |> Map.toArray |> Array.map snd 
@@ -66,6 +68,8 @@ type symbolScript = {
 // script to describe a model
 type modelScript = list<ComponentId * symbolScript>
 
+
+
 let rec combinations list =
     match list with
     | [] -> [[]] // The only permutation of an empty list is a list containing an empty list
@@ -74,6 +78,44 @@ let rec combinations list =
             let tail = list |> List.filter (fun x -> x <> head)
             combinations tail |> List.map (fun perm -> head :: perm))
 
+let rec cartesianProduct lists =
+        match lists with
+        | [] -> [[]]
+        | head::tail ->
+            let rec combineWithAll x list =
+                match list with
+                | [] -> []
+                | head::tail -> (x::head) :: combineWithAll x tail
+            let tailProduct = cartesianProduct tail
+            head |> List.collect (fun x -> combineWithAll x tailProduct)
+
+let generatePortOrderCombs (symbol: SymbolT.Symbol) =
+    match symbol.Component.Type with
+    | Custom _ -> 
+        let edgePermutations = 
+            symbol.PortMaps.Order
+            |> Map.map (fun _ orderList -> combinations orderList)
+        
+        let portOrderCombs = 
+            edgePermutations[Edge.Left] |> List.collect (fun leftConfig ->
+                edgePermutations[Edge.Right] |> List.collect (fun rightConfig ->
+                    edgePermutations[Edge.Top] |> List.collect (fun topConfig ->
+                        edgePermutations[Edge.Bottom] |> List.map (fun bottomConfig ->
+                            Map.ofList [
+                                (Edge.Left, leftConfig);
+                                (Edge.Right, rightConfig);
+                                (Edge.Top, topConfig);
+                                (Edge.Bottom, bottomConfig)
+                            ]
+                        )
+                    )
+                )
+            )
+        portOrderCombs
+    
+    | _ ->
+        [symbol.PortMaps.Order]
+
 
 /// <summary> generate all possible symbolScripts for a symbol </summary>
 /// <param name="symbol"> The symbol to generate scripts for </param>
@@ -81,35 +123,6 @@ let rec combinations list =
 let generateSymbolScript (symbol: SymbolT.Symbol) =
     let flips = [Some FlipHorizontal; Some FlipVertical; None]
     let reversedInputs = [true; false]
-    // let portEdges = [Edge.Left; Edge.Right; Edge.Top; Edge.Bottom]
-
-    let generatePortOrderCombs (symbol: SymbolT.Symbol) =
-        match symbol.Component.Type with
-        | Custom _ -> 
-            let edgePermutations = 
-                symbol.PortMaps.Order
-                |> Map.map (fun _ orderList -> combinations orderList)
-            
-            let portOrderCombs = 
-                edgePermutations[Edge.Left] |> List.collect (fun leftConfig ->
-                    edgePermutations[Edge.Right] |> List.collect (fun rightConfig ->
-                        edgePermutations[Edge.Top] |> List.collect (fun topConfig ->
-                            edgePermutations[Edge.Bottom] |> List.map (fun bottomConfig ->
-                                Map.ofList [
-                                    (Edge.Left, leftConfig);
-                                    (Edge.Right, rightConfig);
-                                    (Edge.Top, topConfig);
-                                    (Edge.Bottom, bottomConfig)
-                                ]
-                            )
-                        )
-                    )
-                )
-            portOrderCombs
-        
-        | _ ->
-            [symbol.PortMaps.Order]
-
     let portOrderCombs = generatePortOrderCombs symbol
 
     let allCombs =
@@ -138,17 +151,6 @@ let generateModelScript (model: SheetT.Model): list<modelScript> =
         |> List.map fst
     
     let symbolScriptLists = symbols |> List.map generateSymbolScript
-    
-    let rec cartesianProduct lists =
-        match lists with
-        | [] -> [[]]
-        | head::tail ->
-            let rec combineWithAll x list =
-                match list with
-                | [] -> []
-                | head::tail -> (x::head) :: combineWithAll x tail
-            let tailProduct = cartesianProduct tail
-            head |> List.collect (fun x -> combineWithAll x tailProduct)
             
     // Generating all possible combinations
     symbolScriptLists
@@ -163,7 +165,6 @@ let applyScriptToSymbol (script: symbolScript) =
     let a_, updateMuxFlip = reversedInputPorts_
 
     let handleFlip (flip: SymbolT.FlipType option) =
-
         match flip with
         | Some SymbolT.FlipType.FlipHorizontal -> 
             SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
@@ -171,7 +172,6 @@ let applyScriptToSymbol (script: symbolScript) =
             SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal 
             >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
         | None -> id
-    
     
     let handlePortOrder (symbol: SymbolT.Symbol): SymbolT.Symbol =
         match symbol.Component.Type with
@@ -221,10 +221,8 @@ let applyScriptToModel (model: SheetT.Model) (modelScript: modelScript): SheetT.
 let evaluateModel (model: SheetT.Model) =
     numOfWireRightAngleCrossings model
 
-// Get optimized model
-let getOptimizedModel (model: SheetT.Model): SheetT.Model =
-    
-    let randomSample list =
+
+let randomSample list =
     // Check if the list has at least 10,000 elements
         if List.length list >= 10000 then
             let rnd = System.Random()
@@ -237,98 +235,26 @@ let getOptimizedModel (model: SheetT.Model): SheetT.Model =
             shuffledList |> List.take sampleNum
         else
             list
-    
+
+// Get optimized model
+let optimizeModelExhaustive (model: SheetT.Model): SheetT.Model =
+        
     let scripts = 
         model
         |> generateModelScript
         |> randomSample
 
-    let modelsWithScores = 
+    let bestModel, bestScore = 
         scripts
         |> List.map (applyScriptToModel model)
         |> List.map (fun model -> (model, evaluateModel model))
-
-    let bestModel = 
-        modelsWithScores
         |> List.minBy snd
-        |> fst
     
-    let bestScore = 
-        modelsWithScores
-        |> List.minBy snd
-        |> snd
-    
-    printfn "Best score: %A" bestScore
-
+    // printfn "Best score: %A" bestScore
     bestModel
 
-//------------------------------------test function---------------------------------------//
-// inrevelent to the main code, used for testing
 
-let printSymbolScript (script: symbolScript) =
-    let flippedMessage = match script.Flipped with
-                         | Some flipType -> sprintf "Some(%A)" flipType
-                         | None -> "None"
-    let portOrderStr = 
-        script.PortOrder 
-        |> Map.toList 
-        |> List.map (fun (edge, orders) ->
-            sprintf "%A: [%s]" edge (String.concat "; " orders)) // Adjusted to use String.concat
-        |> String.concat ", "
-    let message = 
-        sprintf "Flipped: %s, ReversedInput: %b, PortOrder: {%s}" 
-            flippedMessage script.ReversedInput portOrderStr
-    printfn "%s" message
-    1
-
-
-
-let printModelScript (script: modelScript) =
-    let a = 
-        script
-        |> List.map snd
-        |> List.map printSymbolScript
-    1
-
-
-let randomPossibleModels (model: SheetT.Model) = 
-    let scripts = generateModelScript model
-    
-    printModelScript scripts.[0]
-    |> ignore
-
-
-    let models = 
-        scripts
-        |> List.map (applyScriptToModel model)
-    
-
-    let random = System.Random()
-    let randomModel = models.[random.Next(models.Length)]
-    
-    printfn "Best score: %A" (evaluateModel randomModel)
-
-    randomModel
-
-
-let certainModel (model: SheetT.Model) = 
-
-    let scripts = generateModelScript model
-    
-    printModelScript scripts.[0]
-    |> ignore
-
-
-    let models = 
-        scripts
-        |> List.map (applyScriptToModel model)
-    
-    models[0]
-
-
-// Heuristic Algorithm
-// Use a heuristic to partition components into independent connected groups
-// TODO
+// Iterated local search
 
 let findAllMuxAndGate (model: SheetT.Model) = 
     let symbols = 
@@ -340,7 +266,7 @@ let findAllMuxAndGate (model: SheetT.Model) =
         symbols
         |> List.filter (fun sym -> 
             match sym.Component.Type with
-            | Mux2 | Mux4 | Mux8 | GateN _ | Not -> true
+            | Mux2 | Mux4 | Mux8 | GateN _ | Not | NbitsXor _| NbitsAnd _| NbitsNot _ | NbitsOr _| NbitsXor _-> true
             | _ -> false)
     
     muxAndGateSymbols
@@ -361,16 +287,18 @@ let optimizeOneSymbol (model: SheetT.Model) (symbol: SymbolT.Symbol) =
     (bestModel, bestScore)
 
 let optimizeModelOnce (model: SheetT.Model) = 
-    let newModel, score = 
+    let bestModel, score = 
         model
         |> findAllMuxAndGate
         |> List.fold (fun (currentModel, _) symbol ->
                 optimizeOneSymbol currentModel symbol
             ) (model, 999)
     
-    newModel, score
+    bestModel, score
 
-let optimizeModel (model: SheetT.Model) =
+
+let optimizeModelILS (model: SheetT.Model) =
+
     let mutable currentModel = model
     let mutable currentScore = 999
     let mutable continueOptimization = true
@@ -385,9 +313,10 @@ let optimizeModel (model: SheetT.Model) =
         else
             // If no improvement, stop the optimization loop
             continueOptimization <- false
-
-    printfn "Final score: %A" currentScore
     
+    // 
+    //     printfn "current score: %A" currentScore
+    // printfn "Final score: %A" currentScore
     currentModel
 
 
@@ -482,3 +411,67 @@ let optimizeModel (model: SheetT.Model) =
 //         group idList []
     
 // groupComponents connectionListMap idList 
+
+//------------------------------------test function---------------------------------------//
+// inrevelent to the main code, used for testing
+
+// let printSymbolScript (script: symbolScript) =
+//     let flippedMessage = match script.Flipped with
+//                          | Some flipType -> sprintf "Some(%A)" flipType
+//                          | None -> "None"
+//     let portOrderStr = 
+//         script.PortOrder 
+//         |> Map.toList 
+//         |> List.map (fun (edge, orders) ->
+//             sprintf "%A: [%s]" edge (String.concat "; " orders)) // Adjusted to use String.concat
+//         |> String.concat ", "
+//     let message = 
+//         sprintf "Flipped: %s, ReversedInput: %b, PortOrder: {%s}" 
+//             flippedMessage script.ReversedInput portOrderStr
+//     printfn "%s" message
+//     1
+
+
+
+// let printModelScript (script: modelScript) =
+//     let a = 
+//         script
+//         |> List.map snd
+//         |> List.map printSymbolScript
+//     1
+
+
+// let randomPossibleModels (model: SheetT.Model) = 
+//     let scripts = generateModelScript model
+    
+//     printModelScript scripts.[0]
+//     |> ignore
+
+
+//     let models = 
+//         scripts
+//         |> List.map (applyScriptToModel model)
+    
+
+//     let random = System.Random()
+//     let randomModel = models.[random.Next(models.Length)]
+    
+//     printfn "Best score: %A" (evaluateModel randomModel)
+
+//     randomModel
+
+
+// let certainModel (model: SheetT.Model) = 
+
+//     let scripts = generateModelScript model
+    
+//     printModelScript scripts.[0]
+//     |> ignore
+
+
+//     let models = 
+//         scripts
+//         |> List.map (applyScriptToModel model)
+    
+//     models[0]
+

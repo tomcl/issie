@@ -52,7 +52,7 @@ open System
 module Constants = 
     // () // dummy to make skeleton type check - remove when other content exists
     let wireLabelThreshold = 200.0 
-    let seed = 100
+    let seed = 101
 
 // ------------------------------------ Team work ------------------------------------------
 let applyAlignSinglyConnectedComponents (model : SheetT.Model) = 
@@ -61,7 +61,8 @@ let applyAlignSinglyConnectedComponents (model : SheetT.Model) =
     |> Ok
 let applyOptimizedModel (model : SheetT.Model) = 
     model
-    |> getOptimizedModel
+    // |> optimizeModelExhaustive
+    |> optimizeModelILS
     |> Ok
 let applySheetWireLabelSymbol (model : SheetT.Model) = 
     model

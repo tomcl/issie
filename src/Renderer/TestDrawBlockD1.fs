@@ -359,7 +359,7 @@ module TestD1 =
         |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 1) )
-        |> getOkOrFail
+        |> getOkOrFail  
 
     let makeTest2Circuit (andPos:XYPos) =
         let model =
@@ -409,6 +409,14 @@ module TestD1 =
         let cc2Pos = middleOfSheet + {X = 30.0; Y = 0.0} + { X = andPos.X ; Y = andPos.Y}
         
         { APos = aPos; BPos = bPos; CPos = cPos; M2Pos = m2Pos; M3Pos = m3Pos; S1Pos = s1Pos; S2Pos = s2Pos; CC2Pos = cc2Pos }
+
+    // Define a sample project
+ (*   let customProject = {
+        ProjectPath = "C:\Users\talha\HLP_Project\HLP_project"
+        OpenFileName = "custcomp"
+        WorkingFileName = Some "main"
+        LoadedComponents = 
+    }  *)
 
         /// Returns the number of straight wires in a sheet   
     let numOfStraightWires (sheet: SheetT.Model) : int =
@@ -480,16 +488,22 @@ module TestD1 =
             |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "C" 0) ) 
             |> getOkOrFail
 
-        let testPreAlign = numOfStraightWires model
+ (*       let testPreAlignMetric1 = numOfStraightWires model
+       // let testPreAlignMetric2 = numOfIntersectedSymPairs model
 
-        let alignedModel = Beautify.sheetSingly model
+        let alignedModel = Beautify.sheetAlignScale model
 
-        let testPostAlign = numOfStraightWires alignedModel
-        let straightenedWires = findNumDiff testPreAlign testPostAlign
+        let testPostAlignMetric1 = numOfStraightWires alignedModel
+        let testPostAlignMetric2 = numOfIntersectedSymPairs alignedModel
+
+        let straightenedWires = findNumDiff testPreAlignMetric1 testPostAlignMetric1
+        let symbolOverlaps = testPostAlignMetric2
 
         printf "Number of straightened wires: %d" straightenedWires
+        printf "Number of symbol overlaps : %d" symbolOverlaps
 
-        alignedModel
+        alignedModel *)
+        model
 
 
     ///Create circuit containing 4x Input Ports, 3x MUX2
@@ -519,14 +533,22 @@ module TestD1 =
             |> getOkOrFail
 
 
-        let testPreAlign = numOfStraightWires model
+ (*       let testPreAlignMetric1 = numOfStraightWires model
+       // let testPreAlignMetric2 = numOfIntersectedSymPairs model
+
         let alignedModel = Beautify.sheetAlignScale model
-        let testPostAlign = numOfStraightWires alignedModel
-        let straightenedWires = findNumDiff testPreAlign testPostAlign
+
+        let testPostAlignMetric1 = numOfStraightWires alignedModel
+        let testPostAlignMetric2 = numOfIntersectedSymPairs alignedModel
+
+        let straightenedWires = findNumDiff testPreAlignMetric1 testPostAlignMetric1
+        let symbolOverlaps = testPostAlignMetric2
 
         printf "Number of straightened wires: %d" straightenedWires
+        printf "Number of symbol overlaps : %d" symbolOverlaps
 
-        alignedModel
+        alignedModel *)
+        model
 
     ///Same as above but with rotated S1
     let makeD1Test3Circuit (andPos: XYPos) =
@@ -555,14 +577,22 @@ module TestD1 =
             |> getOkOrFail
 
 
-        let testPreAlign = numOfStraightWires model
-        let alignedModel = Beautify.sheetSingly model
-        let testPostAlign = numOfStraightWires alignedModel
-        let straightenedWires = findNumDiff testPreAlign testPostAlign
+(*        let testPreAlignMetric1 = numOfStraightWires model
+       // let testPreAlignMetric2 = numOfIntersectedSymPairs model
+
+        let alignedModel = Beautify.sheetAlignScale model
+
+        let testPostAlignMetric1 = numOfStraightWires alignedModel
+        let testPostAlignMetric2 = numOfIntersectedSymPairs alignedModel
+
+        let straightenedWires = findNumDiff testPreAlignMetric1 testPostAlignMetric1
+        let symbolOverlaps = testPostAlignMetric2
 
         printf "Number of straightened wires: %d" straightenedWires
+        printf "Number of symbol overlaps : %d" symbolOverlaps
 
-        alignedModel
+        alignedModel *)
+        model
 
 
     module Asserts =
@@ -597,6 +627,36 @@ module TestD1 =
             |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
             |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                          | false -> None)
+
+        //referenced from indiv-ccc121
+        let failOnLongerWireRouting (threshold: float) (sample: int) (sheet: SheetT.Model) = 
+            let oldRoutingLength = calcVisWireLength sheet
+            let newRoutingLength = Beautify.sheetAlignScale sheet |> calcVisWireLength 
+            match newRoutingLength, oldRoutingLength with
+            | _ when newRoutingLength - oldRoutingLength > threshold -> 
+                Some $"Wire routing length exceeded threshold in Sample {sample}. From {oldRoutingLength} to {newRoutingLength}"
+            | _ -> 
+                let printSuccess x = printf $"Routing length went from {oldRoutingLength} to {newRoutingLength}" ; x
+                printSuccess None
+
+        //referenced from indiv-ccc121
+        let failOnComponentOverlap (sample: int) (sheet: SheetT.Model) =
+            let numOfCompOverlap = Beautify.sheetAlignScale sheet |> numOfIntersectedSymPairs 
+            match numOfCompOverlap with
+            | _ when numOfCompOverlap > 0 -> 
+                Some $"{numOfCompOverlap} component intersections detected in Sample {sample}"
+            | _ -> None
+
+        //referenced from indiv-ccc121
+        let failOnFewerStraightWires (sample:int) (sheet: SheetT.Model) = 
+            let oldStraightLinesCount = numOfStraightWires sheet
+            let newStraightLinesCount = Beautify.sheetAlignScale sheet |> numOfStraightWires
+            match oldStraightLinesCount, newStraightLinesCount with
+            | _ when newStraightLinesCount < oldStraightLinesCount ->
+                Some $"Straight lines decreased. Straight lines before: {oldStraightLinesCount}. Straight lines after: {newStraightLinesCount} detected in Sample {sample}"
+            | _ -> 
+                let printSuccess x = printf $"Straight lines increased from {oldStraightLinesCount} to {newStraightLinesCount}" ; x
+                printSuccess None
 
 
     module Tests =
@@ -662,7 +722,7 @@ module TestD1 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeD1Test1Circuit
-                Asserts.failOnAllTests
+                Asserts.failOnFewerStraightWires
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -672,7 +732,7 @@ module TestD1 =
                 firstSample
                 filteredSampleDataWithDeviation
                 makeD1Test2Circuit
-                (Asserts.failOnSampleNumber 0)
+                Asserts.failOnComponentOverlap
                 dispatch
             |> recordPositionInTest testNum dispatch
 

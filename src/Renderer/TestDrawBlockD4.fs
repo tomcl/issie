@@ -175,7 +175,7 @@ module TestData =
     //                         }
     //     toList posGen
     let getTestRand n =
-        (nRandComps n, randomPos)
+        (nRandComps n, fromList randomPos)
         ||> product (fun compL posL -> (compL, posL))
         |> toArray
         |> shuffleA
@@ -251,7 +251,7 @@ module Tests =
         |> recordPositionInTest testNum showTargetSheet dispatch
 
 
-    let genTestRand = getTestRand 2
+    let genTestRand = getTestRand 3
     let testRand testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "random circuit"

@@ -312,7 +312,7 @@ module Tests =
         runTestOnSheets
             "Test for label placement"
             firstSample
-            test3Builder
+            test2Builder
             showTargetSheet
             (Some beautifySheetBasic)
             makeTest2Circuit

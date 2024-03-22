@@ -325,7 +325,7 @@ let updateData (wModel: BusWireT.Model) (symbol: Symbol) (symConnData: SymConnDa
     let otherSymbol =
         match symS, symT with
         | _ when symS.Id <> symbol.Id && symT.Id = symbol.Id -> Some symS
-        | _ when symS = symbol && symT.Id <> symbol.Id -> Some symT
+        | _ when symS = symbol && symT <> symbol -> Some symT
         | _ -> None
 
     match otherSymbol with

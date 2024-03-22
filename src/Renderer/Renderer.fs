@@ -318,6 +318,7 @@ let editMenu dispatch' =
                makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
                menuSeparator
                makeElmItem "Beautify" "CmdOrCtrl+B" (fun () -> dispatch SheetT.KeyboardMsg.CtrlB)
+               makeElmItem "Test beautify" "CmdOrCtrl+T" (fun () -> dispatch SheetT.KeyboardMsg.CtrlT)
                menuSeparator
                makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')

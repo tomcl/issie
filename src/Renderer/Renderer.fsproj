@@ -87,6 +87,7 @@
 	<Compile Include="DrawBlock\SheetBeautifyHelpers2.fs" />
 	<Compile Include="DrawBlock\SheetBeautifyD2.fs" />
 	<Compile Include="DrawBlock\SheetBeautify.fs" />
+	<Compile Include="DrawBlock\SheetBeautifyTest.fs" />
 	<Compile Include="DrawBlock\SheetUpdate.fs" />
     <!-- UI -->
     <Compile Include="UI\ModelHelpers.fs" />

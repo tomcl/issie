@@ -81,9 +81,9 @@ let sheetScore
     // Square and add metrics to encourage optimisation algorithms to make them all moderately small,
     // as opposed to sacrificing one in order to make the others very small.
     // Same concept as L1 vs L2 regularisation in neural networks (?).
-    numCrossingsSq*D2Params.NumCrossingsNorm +
-    visibleLengthSq*D2Params.VisibleLengthNorm +
-    numRightAnglesSq*D2Params.RightAnglesNorm
+    numCrossingsSq * D2Params.NumCrossingsNorm +
+    visibleLengthSq * D2Params.VisibleLengthNorm +
+    numRightAnglesSq * D2Params.RightAnglesNorm
 
 let inline (%!) a b = (a % b + b) % b
 
@@ -224,9 +224,9 @@ let generateAllRotations
      SheetBeautifyHelpers2.rotateSymbol Degree270 symbol, penalty + D2Params.Rotate90Penalty;
     ]
 
-// TODO think about all rotations vs limited rotations
 /// Takes a symbol and returns all possible rotations of that symbol except for 180 degrees,
 /// with associated penalty weights.
+/// This is mostly for performance reasons - may become necessary in future.
 let generateLimitedRotations
         (symbol: SymbolT.Symbol, penalty: float)
         : (SymbolT.Symbol*float) list =
@@ -249,6 +249,46 @@ type OptimResult = {
     Score: float option
 }
 
+/// Given a symbol, returns a list of all possible symbol choices considered by D2
+/// and their associated penalties.
+let getSymbolChoices
+        (symbol: SymbolT.Symbol)
+        : (SymbolT.Symbol * float) list =
+
+    match symbol.Component.Type with
+
+        // MUXes
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 ->
+            [symbol, 0.0]
+            |> List.collect generateFlips
+            |> List.collect generateRevInputs
+            |> List.collect generateAllRotations
+
+        // Flip and rotate
+        | GateN _ | MergeWires | SplitWire _ ->
+            [symbol, 0.0]
+            |> List.collect generateFlips
+            |> List.collect generateAllRotations
+
+        // Rotate-only (typically single input / single output)
+        | Not | Viewer _ | BusCompare1 _ | BusSelection _ | Constant1 _ | NbitSpreader _ ->
+            [symbol, 0.0]
+            |> List.collect generateAllRotations
+
+        // Flip-only (typically larger units like adders)
+        | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _
+        | NbitsXor _ | NbitsAnd _ | NbitsOr _ | NbitsNot _ | MergeN _ | SplitN _
+        | DFF | DFFE | Register _ | RegisterE _ | Counter _ | CounterNoLoad _
+        | CounterNoEnable _ | CounterNoEnableLoad _ | AsyncROM1 _ | ROM1 _ | RAM1 _
+        | AsyncRAM1 _ ->
+            [symbol, 0.0]
+            |> List.collect generateFlips
+
+        // Everything else: do not transform (includes legacy components)
+        // Non-legacy components shown for clarity
+        | Input1 _ | Output _ | Custom _ | _ ->
+            [symbol, 0.0]
+
 /// Takes a sheet and a list of symbols to manipulate (flip, reverse inputs and reorder ports),
 /// and returns a new sheet with the changed symbols (optimising for the beautify function),
 /// and the score of this sheet.
@@ -267,42 +307,7 @@ let rec bruteForceOptimise
     match symbols with
     | sym::remSyms ->
 
-        let symbolChoices =
-            match sym.Component.Type with
-
-            // MUXes
-            | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 ->
-                [sym, 0.0]
-                |> List.collect generateFlips
-                |> List.collect generateRevInputs
-                |> List.collect generateLimitedRotations
-
-            // Flip and rotate
-            | GateN _ | MergeWires | SplitWire _ ->
-                [sym, 0.0]
-                |> List.collect generateFlips
-                |> List.collect generateLimitedRotations
-
-            // Rotate-only (typically single input / single output)
-            | Not | Viewer _ | BusCompare1 _ | BusSelection _ | Constant1 _ | NbitSpreader _ ->
-                [sym, 0.0]
-                |> List.collect generateLimitedRotations
-
-            // Flip-only (typically larger units like adders)
-            | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _
-            | NbitsXor _ | NbitsAnd _ | NbitsOr _ | NbitsNot _ | MergeN _ | SplitN _
-            | DFF | DFFE | Register _ | RegisterE _ | Counter _ | CounterNoLoad _
-            | CounterNoEnable _ | CounterNoEnableLoad _ | AsyncROM1 _ | ROM1 _ | RAM1 _
-            | AsyncRAM1 _ ->
-                [sym, 0.0]
-                |> List.collect generateFlips
-
-            // Everything else: do not transform (includes legacy components)
-            // Non-legacy components shown for clarity
-            | Input1 _ | Output _ | Custom _ | _ ->
-                [sym, 0.0]
-
-        symbolChoices
+        getSymbolChoices sym
         |> List.filter (fun (sym, _) -> noSymbolIntersections sheet sym)
            // Immediately reject solutions with overlapping symbols.
         |> List.map (fun (sym, penalty) -> replaceSymbolAndBB sheet sym, penalty)
@@ -564,8 +569,6 @@ let beautifyCluster
             |> replaceSymbol sheet
         | _ -> currSheet
     )
-    //|> Optic.set DrawModelType.SheetT.wire_ (reRouteWiresFrom compIds sheet'.Wire)
-    // TODO why exactly doesn't this work?
     |> fun sheet'' -> {sheet'' with Wire = reRouteWiresFrom compIds sheet''.Wire}
 
 /// Beautify the sheet using ILS.
@@ -631,6 +634,9 @@ let sheetOrderFlip
     printf "Average length: %A" (totalLength / totalIts)
     printf "Average angles: %A" (totalAngles / totalIts)
     sheet'
+    //let symbols = sheet.Wire.Symbol.Symbols |> Map.toList |> List.map snd
+    //(sheet, symbols)
+    //||> List.fold (fun currSheet symbol -> replaceSymbol currSheet (SheetBeautifyHelpers2.flipSymbol SymbolT.FlipVertical symbol))
 
 //let sheetOrderFlip (sheet: SheetT.Model) : SheetT.Model =
 //    sheet.Wire.Symbol.Symbols

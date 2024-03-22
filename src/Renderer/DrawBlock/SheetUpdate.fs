@@ -94,6 +94,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         SheetBeautify.beautifySheet model,
         Cmd.none
 
+    | KeyPress CtrlT ->
+        SheetBeautifyTest.sheetBeautifyTest model, Cmd.none
+
     | KeyPress AltShiftZ ->
         TimeHelpers.printStats()
         model, Cmd.none

@@ -708,3 +708,14 @@ let sheetWireLabelSymbol (sheet: SheetT.Model) =
 
     // todo use lenses
     {newSymbolsModel with Wire = {sheet.Wire with Wires = updatedWires; Symbol = {newSymbolsModel.Wire.Symbol with Symbols = remainingSymbols}}}
+
+/// Top level function to beautify the sheet
+/// Aims to straighten wires, reduce right angles in wire, reduce the number of wire intersections and Converts IOlabels to wires based on heuristics
+let beautifySheet (model: SheetT.Model) =
+    
+    let beautifiedModel =
+        sheetWireLabelSymbol model
+        |> straightenWiresByMovingSyms 
+        |> sheetWireLabelSymbol 
+
+    beautifiedModel

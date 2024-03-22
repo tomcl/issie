@@ -7,16 +7,18 @@ Members: Han Jiao (), Yiming Chen (), Edward Chen (), Harry Ni (02024219), Linmo
 
 ## Using The function
 
-## Modules
-Top-level Implementation: [SheetBeautify.fs](src/Renderer/DrawBlock/SheetBeautify.fs)
-D1: [SheetBeautifyAlign.fs](src/Renderer/DrawBlock/SheetBeautifyAlign.fs)
-D2: [SheetBeautifyFlip.fs](src/Renderer/DrawBlock/SheetBeautifyFlip.fs)
-D3: [SheetBeautifyWireLabel.fs](src/Renderer/DrawBlock/SheetBeautifyWireLabel.fs)
 
-Top-level Test: [TestDrawBlock.fs](src/Renderer/TestDrawBlock.fs)
-D1: [TestDrawBlockAlign.fs](src/Renderer/TestDrawBlockAlign.fs)
-D2: [TestDrawBlockFlip.fs](src/Renderer/TestDrawBlockFlip.fs)
-D3: [TestDrawBlockWireLabel.fs](src/Renderer/TestDrawBlockWireLabel.fs)
+## Modules
+### Beautify
+Top-level: [SheetBeautify.fs](src/Renderer/DrawBlock/SheetBeautify.fs)  
+D1: [SheetBeautifyAlign.fs](src/Renderer/DrawBlock/SheetBeautifyAlign.fs)  
+D2: [SheetBeautifyFlip.fs](src/Renderer/DrawBlock/SheetBeautifyFlip.fs)  
+D3: [SheetBeautifyWireLabel.fs](src/Renderer/DrawBlock/SheetBeautifyWireLabel.fs)  
+### Test
+Top-level Test: [TestDrawBlock.fs](src/Renderer/TestDrawBlock.fs)  
+D1: [TestDrawBlockAlign.fs](src/Renderer/TestDrawBlockAlign.fs)  
+D2: [TestDrawBlockFlip.fs](src/Renderer/TestDrawBlockFlip.fs)  
+D3: [TestDrawBlockWireLabel.fs](src/Renderer/TestDrawBlockWireLabel.fs)  
 
 ## Additional Notes
 

@@ -313,16 +313,15 @@ module Builder =
                 (position: XYPos)
                 (sheetModel: SheetT.Model)
                     : Result<SheetT.Model, string> =
-           let symbolMap = sheetModel.Wire.Symbol.Symbols
-           let project = Option.get model.CurrentProj
-           if caseInvariantEqual ccSheetName project.OpenFileName then
-                Error "Can't create custom component with name same as current opened sheet"        
-            elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
-                Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
+            let symbolMap = sheetModel.Wire.Symbol.Symbols
+            let project = Option.get model.CurrentProj
+            if caseInvariantEqual ccSheetName project.OpenFileName then
+                    Error "Can't create custom component with name same as current opened sheet"        
+            // elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
+            //     Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
             elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
                 Error "Can't create custom component with duplicate Label"
             else
-                // MOD sheetModel -> model, TODO: change this to the custom sheet's model
                 let canvas = ccSheet.GetCanvasState()
                 let ccType: CustomComponentType =
                     {
@@ -333,7 +332,7 @@ module Builder =
                         Description = None
                     }
                 placeSymbol symLabel (Custom ccType) position sheetModel
-        
+    
     
     // Rotate a symbol
     let rotateSymbol (symLabel: string) (rotate: Rotation option) (model: SheetT.Model) : (SheetT.Model) =

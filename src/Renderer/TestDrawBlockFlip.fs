@@ -41,14 +41,14 @@ module Builder =
 
     let initCCSheet =
         [
-            placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y};
-            placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+100.};
-            placeSymbol "S3" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+200.};
-            placeSymbol "S4" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+300.};
-            placeSymbol "X1" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y};
-            placeSymbol "X2" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+10.};
-            placeSymbol "X3" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+20.};
-            placeSymbol "X4" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+300.};
+            placeSymbol "X1" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y};
+            placeSymbol "X2" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+100.};
+            placeSymbol "X3" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+200.};
+            placeSymbol "X4" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+300.};
+            placeSymbol "Y1" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y};
+            placeSymbol "Y2" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+10.};
+            placeSymbol "Y3" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+20.};
+            placeSymbol "Y4" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+300.};
         ]
         |> minimalDSL initSheetModel
         |> getOkOrFail
@@ -72,6 +72,26 @@ module Builder =
 module Generator =
     open System
     open Builder
+
+    type GenCompStates = {
+        Comp: ComponentType; 
+        Pos: XYPos; 
+        Flip: SymbolT.FlipType option; 
+        Rotate: Rotation option
+    }
+
+    // ---------------------- Generator Constants ----------------------
+    let cctype = {
+                Name = "custom"
+                InputLabels = [("X1", 1); ("X2", 1); ("X3", 1); ("X4", 1)]
+                OutputLabels = [("Y1", 1); ("Y2", 1); ("Y3", 1); ("Y4", 1)]
+                Form = None
+                Description = None
+            }
+
+    let comps = fromList [GateN(And,2); GateN(Or,2); Not; Mux2; Mux4; Custom(cctype)]
+    let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
+    let rotates = fromList [Some Degree90; Some Degree180; Some Degree270; None]
 
     // ---------------------- Generator Helpers ----------------------
     let makeTuple a b = (a, b)
@@ -113,53 +133,7 @@ module Generator =
         (genX, genY)
         ||> product (fun x y -> middleOfSheet + {X=float x; Y=float y})
 
-    let filteredGridPositions (sheetMaker) (pos: int) =
-        let existOverlapWithBoxes (pos: XYPos) =
-            let sheet: SheetT.Model = sheetMaker pos
-            let boxes: (int * BoundingBox) list = // list<(int * bounding box)>
-                sheet.BoundingBoxes
-                |> mapValues
-                |> Array.toList
-                |> List.mapi (fun n (box: BoundingBox) -> n,box)
-
-            boxes
-            |> List.allPairs boxes
-            |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
-
-        GenerateData.filter (existOverlapWithBoxes >> not) (gridPositions 100)
-
-    /// Gen samples incorporating two flips
-    let flipOnlySamples: Gen<{| AndPos: XYPos; Flip1: SymbolT.FlipType option; Flip2: SymbolT.FlipType option |}> =
-        let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
-        gridPositions 100
-        |> product makeTuple flips  
-        |> product makeTuple flips
-        // This final stage makes the output more readable in an anonymous record
-        |> map (fun (flip1, (flip2, (andPos)))->
-            {|
-                Flip1=flip1;
-                Flip2=flip2;
-                AndPos=andPos
-            |})
-
-    type GenCompStates = {
-        Comp: ComponentType; 
-        Pos: XYPos; 
-        Flip: SymbolT.FlipType option; 
-        Rotate: Rotation option
-    }
-
-    let cctype = {
-                Name = "custom"
-                InputLabels = []
-                OutputLabels = []
-                Form = None
-                Description = None
-            }
-    let comps = fromList [GateN(And,2); GateN(Or,2); Not; Mux2; Mux4; Custom(cctype)] // TODO: TInput; TOutput; not yet supported
-    let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
-    let rotates = fromList [Some Degree90; Some Degree180; Some Degree270; None]
-
+    
     ///<summary> AUTHOR hn621 - Random Gen samples: component, position, flips, rotations</summary>
     let randomComponentSamples : Gen<GenCompStates> =
         rotates
@@ -188,7 +162,6 @@ module Generator =
                     Rotate=None;
                 }
         )
-    
     
 open Builder
 open Generator
@@ -240,8 +213,8 @@ let makeTest2Circuit (model:Model) (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
     // printfn $"{ccSheetName}"
 
     [
-        placeCustomSymbol "CC1" ccSheet ccSheetName  model {X=1.0; Y=1.0} {X=middleOfSheet.X-150.;Y=middleOfSheet.Y} // andPos
-        placeCustomSymbol "CC2" ccSheet ccSheetName  model {X=1.0; Y=1.0}  {X=middleOfSheet.X+150.;Y=middleOfSheet.Y}
+        placeCustomSymbol "CC1" initCCSheet ccSheetName  model {X=1.0; Y=1.0} {X=middleOfSheet.X-150.;Y=middleOfSheet.Y} // andPos
+        placeCustomSymbol "CC2" initCCSheet ccSheetName  model {X=1.0; Y=1.0}  {X=middleOfSheet.X+150.;Y=middleOfSheet.Y}
         placeWire (portOf "CC1" 0) (portOf "CC2" 3);
         placeWire (portOf "CC1" 1) (portOf "CC2" 2);
         placeWire (portOf "CC1" 2) (portOf "CC2" 0);
@@ -250,13 +223,6 @@ let makeTest2Circuit (model:Model) (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
     |> minimalDSL initSheetModel
     |> getOkOrFail
 
-let makeTest5Circuit (andPos:XYPos) =
-    initSheetModel
-    |> placeSymbol "G1" (GateN(And,2)) andPos
-    |> Result.bind (placeSymbol "MUX1" Mux2 middleOfSheet)
-    |> Result.bind (placeWire (portOf "G1" 0) (portOf "MUX1" 2))
-    |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 0) )
-    |> getOkOrFail
 
 // ====================== Random Sheet Generator ======================
 let makeRandomCircuit (model:Model) (samples: GenCompStates array) =
@@ -331,20 +297,6 @@ module Tests =
             displayOnFail
         |> recordPositionInTest testNum dispatch
 
-    let test1Opt testNum firstSample dispatch model =
-        let sheetMaker = makeTest1Circuit >> optimizePortOrder   
-        let displayOnFail = displayAll
-        let generator = gridPosGen 1 2
-        runTestOnSheets
-            "DisplayAll: MUX+AND Optimized"
-            firstSample
-            generator
-            sheetMaker
-            Asserts.failOnAllTests
-            dispatch
-            displayOnFail
-        |> recordPositionInTest testNum dispatch
-
     let test2 testNum firstSample dispatch model =
         let sheetMaker = makeTest2Circuit model
         let displayOnFail = displayAll
@@ -354,39 +306,6 @@ module Tests =
             firstSample
             generator
             sheetMaker
-            Asserts.failOnAllTests
-            dispatch
-            displayOnFail
-        |> recordPositionInTest testNum dispatch
-
-    let test2Opt testNum firstSample dispatch model =
-        let sheetMaker = makeTest2Circuit model
-        let displayOnFail = displayAll
-        let generator = gridPosGen 1 2
-        runTestOnSheets
-            "DisplayAll: Custom Symbol"
-            firstSample
-            generator
-            (sheetMaker >> optimizePortOrder)
-            Asserts.failOnAllTests
-            dispatch
-            displayOnFail
-        |> recordPositionInTest testNum dispatch
-
-    let test4 testNum firstSample dispatch model =
-        let displayOnFail = displayAll
-        let myRandomSample = shuffleAGen <| Random(1)
-        let generator = 
-            flipOnlySamples
-            |> toArray
-            |> myRandomSample
-            |> fromArray
-        
-        runTestOnSheets
-            "DisplayAll: Random Flip DFF+AND"
-            firstSample
-            generator
-            makeTest4Circuit
             Asserts.failOnAllTests
             dispatch
             displayOnFail

@@ -241,7 +241,7 @@ module Tests =
         runTestOnSheets
             "General Test on complex circuit"
             firstSample
-            test2Builder
+            test3Builder
             showTargetSheet
             (Some beautifySheetBasic)
             makeTest3Circuit

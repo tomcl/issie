@@ -43,6 +43,7 @@ let beautifySheet (initialModel : SheetT.Model) : SheetT.Model =
 
     modelToUpdate
     |> SheetBeautifyD2.sheetOrderFlip
+    |> SheetBeautifyD1.sheetAlignScale
     |> SheetBeautifyD3.sheetWireLabelSymbol
 
 

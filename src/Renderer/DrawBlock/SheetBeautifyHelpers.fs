@@ -615,7 +615,10 @@ let numVisibleWireRightAngle (sheet: SheetT.Model) =
 
 // find the number of squashed wires in the sheet
 let numOfSquashedWires (sheet: SheetT.Model) : int =
-    let allVisSegments = getVisibleSegOnSheet sheet
+    let shortVisSegments = 
+        getVisibleSegOnSheet sheet
+        |> List.filter (fun (start, endComp) -> euclideanDistance start endComp < 30.0)
+    
     /// list of all the symbol bounding boxes from sheet model, for each bounding box, generate position vector for its edges
     let symbolBoundingBoxesVectors =
         sheet.BoundingBoxes
@@ -635,7 +638,7 @@ let numOfSquashedWires (sheet: SheetT.Model) : int =
         let (startPos, endPos) = seg
         let (startBB, endBB) = bbVector
         let isInBetween = ((startBB.X < startPos.X) && (startPos.X < endBB.X)) || ((startBB.X < endPos.X) && (endPos.X < endBB.X))
-        let isYClose = (startPos.Y - startBB.Y) <= 5 
+        let isYClose = (startPos.Y - startBB.Y) < 2 
         match isInBetween with
         | true -> 
             match isYClose with
@@ -647,7 +650,7 @@ let numOfSquashedWires (sheet: SheetT.Model) : int =
         let (startPos, endPos) = seg
         let (startBB, endBB) = bbVector
         let isInBetween = ((startBB.Y < startPos.Y) && (startPos.Y < endBB.Y)) || ((startBB.Y < endPos.Y) && (endPos.Y < endBB.Y))
-        let isXClose = (startPos.X - startBB.X) <= 5
+        let isXClose = (startPos.X - startBB.X) < 2
         match isInBetween with
         | true -> 
             match isXClose with
@@ -660,7 +663,8 @@ let numOfSquashedWires (sheet: SheetT.Model) : int =
         abs(startPos.Y - endPos.Y) < 1e-9
     
     // for each segment, check if it is squashed by any symbol, return the number of squashed segments
-    List.map (fun seg -> 
+    shortVisSegments
+    |> List.map (fun seg -> 
         match checkIfHor seg with
         | true -> 
             horizontalBBVectors
@@ -668,5 +672,5 @@ let numOfSquashedWires (sheet: SheetT.Model) : int =
         | _ ->
             verticalBBVectors
             |> List.sumBy (fun bbVector -> isCloseToSymbolVer seg bbVector)
-    ) allVisSegments
+    )
     |> List.sum

@@ -382,9 +382,9 @@ module HLPTick3 =
 
     type XYPosRFlip = {X: float; Y: float; Rotation: Rotation; Flip: SymbolT.FlipType}
 
-    let bounds = 120
+    let bounds = 660
     let step = 30
-    let horizVertLinePositions: Gen<XYPos> =
+    let horizVertLinePositions1: Gen<XYPos> =
         let horizLinePositionsSparse =
             fromList [ -bounds .. step .. bounds ]
             |> map (fun n -> { X = float n; Y = 0. })
@@ -392,11 +392,11 @@ module HLPTick3 =
             fromList [ -bounds .. step .. bounds ]
             |> map (fun n -> { X = 0.; Y = float n })
         product (fun x y -> x + y) horizLinePositionsSparse vertLinePositionsSparse
-        |> filter (fun pos -> not (abs pos.X <= 60 && abs pos.Y <= 60))
+        |> filter (fun pos -> not (abs pos.X <= 300 && abs pos.Y <= 300))
         // after measuring, keep the absolute distances less than 60 together
         |> map (fun pos -> middleOfSheet + pos)
 
-    let hVLinePosFlipRotate: Gen<XYPosRFlip> =
+    let hVLinePosFlipRotate1: Gen<XYPosRFlip> =
         let rotateList = fromList [ Degree0; Degree90; Degree180; Degree270 ]
         let flipList = fromList [ SymbolT.FlipHorizontal; SymbolT.FlipVertical ]
 
@@ -409,7 +409,7 @@ module HLPTick3 =
 
         let hVData =
             product (fun x y -> x + y) horizLinePositionsSparse vertLinePositionsSparse
-            |> filter (fun pos -> not (abs pos.X <= 60 && abs pos.Y <= 60))
+            |> filter (fun pos -> not (abs pos.X <= 300 && abs pos.Y <= 300))
             // after measuring, keep the absolute distances less than 60 together
             |> map (fun pos -> middleOfSheet + pos)
 
@@ -418,6 +418,7 @@ module HLPTick3 =
             hVData
             flipList
             rotateList
+            
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -428,11 +429,9 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
     
-
+    //-------------------D3T Deliverable----------------//
     // Demux4 and Mux4 test circuit configuration
-    let makeD3Test1Circuit (andParameters: XYPos) =
-        let andPos = {X = andParameters.X; Y = andParameters.Y}
-        
+    let makeD3Test1Circuit (andPos: XYPos) =
         initSheetModel
         |> placeSymbol "DM1" Demux4 andPos
         |> Result.bind (placeSymbol "MUX1" Mux4 middleOfSheet)
@@ -442,7 +441,8 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "DM1" 3)(portOf "MUX1" 3))
 
         |> getOkOrFail
-    
+
+    //-------------------D3T Deliverable----------------//
     // flips and rotations of the MUX4, + DEMUX4
     let makeD3Test2Circuit (andParameters: XYPosRFlip) =
         let andPos = {X = andParameters.X; Y = andParameters.Y}
@@ -462,7 +462,22 @@ module HLPTick3 =
         |> rotateSymbol "MUX1" andRotation
         |> flipSymbol "MUX1" andFlip
 
+    //-------------------D3T Deliverable----------------//
+    // Test circuit of SplitN and MergeN for testing bit legends as seen in Figure C2 
+    let makeD3Test3Circuit (andParameters: XYPosRFlip) =
+        let andPos = {X = andParameters.X; Y = andParameters.Y}
+        let andRotation = andParameters.Rotation
+        let andFlip = andParameters.Flip
 
+        initSheetModel
+        |> placeSymbol "SN1" (SplitN(3,[4;4;4],[0;1;2])) andPos
+        |> Result.bind (placeSymbol "MN1" (MergeN(3)) middleOfSheet)
+        |> Result.bind (placeWire (portOf "SN1" 0 ) (portOf "MN1" 0))
+        |> Result.bind (placeWire (portOf "SN1" 1 ) (portOf "MN1" 1))
+        |> Result.bind (placeWire (portOf "SN1" 2 ) (portOf "MN1" 2))
+        |> getOkOrFail
+        |> rotateSymbol "MN1" andRotation
+        |> flipSymbol "MN1" andFlip
 
 
 
@@ -530,6 +545,38 @@ module HLPTick3 =
             | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}. Total instances of bends in the current sheet are {totalWireBendNum}."
             | false -> Some $"No symbol overlaps. Total instances of bends in the current sheet are {totalWireBendNum}.")
 
+        let failOnWireBends (sample: int) (sheet: SheetT.Model) = 
+            let totalWiredBendNum = totalWireBendNum sample sheet
+            if totalWiredBendNum > 0 then
+                Some $"Total instances of wire bends are {totalWiredBendNum}."
+            else
+                Some $"No instances of wire bends"
+
+        //--------------------------D3T Deliverable--------------------------//
+        // Better incorporates failOnSymIntersectsSymbol with failOnWireBends into a single func
+        
+        let failWireBendSymIntersectSym (sample: int) (sheet: SheetT.Model) = 
+            let totalWireBendNum = totalWireBendNum sample sheet
+            
+            let boundingBoxes = sheet.BoundingBoxes
+            let boxes =
+                mapValues boundingBoxes
+                |> Array.toList
+                |> List.mapi (fun n box -> n, box)
+            let symbolIntersectSymbol =
+                List.allPairs boxes boxes 
+                |> List.exists (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
+
+            let wireBendMsg = 
+                if totalWireBendNum > 0 then
+                    Some $"Total instances of wire bends are {totalWireBendNum}."
+                else
+                    Some $"No instances of wire bends"
+
+            match symbolIntersectSymbol, wireBendMsg with
+            | true, Some msg -> Some $"Symbol outline intersects another symbol outline in Sample {sample}. {msg}"
+            | false, Some msg -> Some $"No symbol overlaps. {msg}"
+            | _, _ -> None
 
 
         
@@ -596,25 +643,36 @@ module HLPTick3 =
             |> recordPositionInTest testNum dispatch
 
 
-        // D3Test1 - Randomly positioned DEMUX4 + MUX4 tests
+        // D3Test1 - Randomly positioned DEMUX4 + MUX4 testing for failWireBendSymIntersectSym
         let D3Test1 testNum firstSample dispatch =
             runTestOnSheets
                 "Randomly positioned MUX4 + DEMUX4"
                 firstSample
-                hVLinePosFlipRotate
+                horizVertLinePositions2
                 makeD3Test1Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                Asserts.failWireBendSymIntersectSym
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        // D3Test2 - Random positioned DEMUX4 and MUX4 tests
+        // D3Test2 - Random positioned DEMUX4 and MUX4 tests for FailWireBendSymIntersectSym
         let D3Test2 testNum firstSample dispatch =
             runTestOnSheets
                 "Randomly positioned, rotated and flipped MUX4, + DEMUX4"
                 firstSample
-                hVLinePosFlipRotate
+                hVLinePosFlipRotate1
                 makeD3Test2Circuit
-                Asserts.failOnSymbolIntersectsSymbol
+                Asserts.failWireBendSymIntersectSym
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        // D3Test3 - "Randomly positioned, rotated and flipped MN1, + SN1" for failWireBendSymIntersectSym
+        let D3Test3 testNum firstSample dispatch =
+            runTestOnSheets
+                "Randomly positioned, rotated and flipped MN1, + SN1"
+                firstSample
+                hVLinePosFlipRotate1
+                makeD3Test3Circuit
+                Asserts.failWireBendSymIntersectSym
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -628,12 +686,13 @@ module HLPTick3 =
                 "Test2", test2 // example
                 "Test3", test3 // example
                 "Test4", test4 
-                "Test5", D3Test1
-                "Test6", D3Test2
-                "Test8", fun _ _ _ -> printf "Test8"
+                "D3Test1", D3Test1
+                "D3Test2", D3Test2
+                "D3Test3", D3Test3
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]
+
 
         /// Display the next error in a previously started test
         let nextError (testName, testFunc) firstSampleToTest dispatch =

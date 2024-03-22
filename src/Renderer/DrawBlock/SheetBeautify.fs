@@ -27,12 +27,9 @@ open SheetUpdateHelpers
 open SheetBeautifyHelpers
 open Optics
 
-
 open SheetBeautifyD1
 open SheetBeautifyD2
 open SheetBeautifyD3
-
-
 
 let beautifySheet (initialModel : SheetT.Model) : SheetT.Model =
 
@@ -46,6 +43,7 @@ let beautifySheet (initialModel : SheetT.Model) : SheetT.Model =
     |> SheetBeautifyD2.sheetOrderFlip
     |> SheetBeautifyD1.sheetAlignScale
     |> SheetBeautifyD3.sheetWireLabelSymbol
+
 
 
 /// constants used by SheetBeautify

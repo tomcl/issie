@@ -1009,3 +1009,4 @@ let integratedBeautify (model: SheetT.Model) (userThreshold: float) : SheetT.Mod
     model
     |> d2iteratedLocalSearchSingleComponent
     |> d3Function userThreshold
+    |> sheetAlignScale

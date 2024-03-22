@@ -266,7 +266,7 @@ let testsToRunFromSheetMenu =
     [ "Test 1: testRotateScale1", testRotateScale1
       "Test 2: testRemoveWireInvisibleSegments", testRemoveWireInvisibleSegments
       "Test 3: testRemoveWireInvisSegsAndRestoreNubs", testRemoveWireInvisSegsAndRestoreNubs
-      "Test 4", testD2
+      "Test 4: testsheetOrderFlip", testD2
       "Test 5: cleanUpAlmostStraightSinglyConnWires", cleanUpAlmostStraightSinglyConnWires
       "Test 6: tryGeneralCleanup", tryGeneralCleanUp
       "Test 7: testResizeSymbolTopLevelImproved", testResizeSymbolTopLevelImproved

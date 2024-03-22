@@ -56,10 +56,8 @@ module Builder =
     /// DSL for symbol placer, automatically names the symbol using a given index
     let symPlacerDSL (idx: int) (compType: ComponentType) (pos: XYPos) (model: Model) (sheetModel: SheetT.Model) : Result<SheetT.Model, string> =
         match compType with
-        | Custom(_) -> placeCustomSymbol (sprintf "S%d" idx) initCCSheet "custom" model {X=1.0; Y=1.0} pos sheetModel
+        | Custom(ccType) -> placeCustomSymbol (sprintf "S%d" idx) ccType model pos sheetModel
         | comp -> placeSymbol (sprintf "S%d" idx) comp pos sheetModel
-        // TODO: input and output symbols have only one of input/output port
-        // need an algorithm to conenct them
 
     /// DSL for wire placer
     let wirePlacerDSL (sourceSymLabel: string) (targetSymLabel: string) (sourceIdx) (targetIdx) (sheetModel: SheetT.Model) : Result<SheetT.Model, string> =
@@ -81,17 +79,17 @@ module Generator =
     }
 
     // ---------------------- Generator Constants ----------------------
-    let cctype = {
-                Name = "custom"
-                InputLabels = [("X1", 1); ("X2", 1); ("X3", 1); ("X4", 1)]
-                OutputLabels = [("Y1", 1); ("Y2", 1); ("Y3", 1); ("Y4", 1)]
-                Form = None
-                Description = None
-            }
+    let ccType: CustomComponentType = {
+        Name = "custom"
+        InputLabels = [("X1", 1); ("X2", 1); ("X3", 1); ("X4", 1)]
+        OutputLabels = [("Y1", 1); ("Y2", 1); ("Y3", 1); ("Y4", 1)]
+        Form = None
+        Description = None
+    }
 
-    let comps = fromList [GateN(And,2); GateN(Or,2); Not; Mux2; Mux4; Custom(cctype)]
-    let flips = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
-    let rotates = fromList [Some Degree90; Some Degree180; Some Degree270; None]
+    let comps: Gen<ComponentType> = fromList [GateN(And,2); GateN(Or,2); Not; Mux2; Mux4; Custom(ccType)]
+    let flips: Gen<SymbolT.FlipType option> = fromList [Some SymbolT.FlipType.FlipHorizontal; Some SymbolT.FlipType.FlipVertical; None]
+    let rotates: Gen<Rotation option> = fromList [Some Degree90; Some Degree180; Some Degree270; None]
 
     // ---------------------- Generator Helpers ----------------------
     let makeTuple a b = (a, b)
@@ -166,7 +164,6 @@ module Generator =
 open Builder
 open Generator
 // ====================== Fixed Circuit Generator ======================
-
 let makeTest1Circuit (andPos:XYPos) =
     [
         placeSymbol "G1" (GateN(And,2)) {X=middleOfSheet.X+100.;Y=middleOfSheet.Y-100.};
@@ -184,8 +181,7 @@ let makeTest1Circuit (andPos:XYPos) =
     |> minimalDSL initSheetModel
     |> getOkOrFail
 
-let makeTest2Circuit (model:Model) (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
-    // TODO: fix the custom component placing, currently missing the ports
+let makeTest2Circuit (model:Model) (andPos:XYPos) = 
     let project = Option.get model.CurrentProj
     let curSheetName = project.OpenFileName
     let sheetNames = 
@@ -193,28 +189,13 @@ let makeTest2Circuit (model:Model) (andPos:XYPos) = //(dispatch: Dispatch<Msg>)
         |> List.map (fun ldc -> ldc.Name)
         |> List.filter (fun name -> name <> curSheetName)
 
-    let ccEmptySheet = DiagramMainView.init().Sheet
-    let ccSheet: SheetT.Model =
-        [
-            placeSymbol "S1" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y};
-            placeSymbol "S2" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+100.};
-            placeSymbol "S3" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+200.};
-            placeSymbol "S4" (Input1(1, None)) {X=middleOfSheet.X-150.; Y=middleOfSheet.Y+300.};
-            placeSymbol "X1" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y};
-            placeSymbol "X2" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+10.};
-            placeSymbol "X3" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+20.};
-            placeSymbol "X4" (Output(1)) {X=middleOfSheet.X+150.; Y=middleOfSheet.Y+300.};
-        ]
-        |> minimalDSL ccEmptySheet
-        |> getOkOrFail
-    let ccSheetName = "custom" // sheetNames.Head
-    
+    let ccSheetName = "custom"
     // CustomCompPorts.printSheetNames model
     // printfn $"{ccSheetName}"
 
     [
-        placeCustomSymbol "CC1" initCCSheet ccSheetName  model {X=1.0; Y=1.0} {X=middleOfSheet.X-150.;Y=middleOfSheet.Y} // andPos
-        placeCustomSymbol "CC2" initCCSheet ccSheetName  model {X=1.0; Y=1.0}  {X=middleOfSheet.X+150.;Y=middleOfSheet.Y}
+        placeCustomSymbol "CC1" ccType  model {X=middleOfSheet.X-150.;Y=middleOfSheet.Y}
+        placeCustomSymbol "CC2" ccType  model {X=middleOfSheet.X-150.;Y=middleOfSheet.Y}
         placeWire (portOf "CC1" 0) (portOf "CC2" 3);
         placeWire (portOf "CC1" 1) (portOf "CC2" 2);
         placeWire (portOf "CC1" 2) (portOf "CC2" 0);
@@ -247,23 +228,6 @@ let makeRandomCircuit (model:Model) (samples: GenCompStates array) =
     |> Array.fold folder (initSheetModel, 0)
     |> fst
 
-let makeTest4Circuit (sample: {|
-    Flip1: SymbolT.FlipType option;
-    Flip2: SymbolT.FlipType option;
-    AndPos: XYPos
-|}) =
-    initSheetModel
-    |> placeSymbol "G1" (GateN(And,2)) sample.AndPos
-    |> match sample.Flip2 with
-        | Some f -> Result.map (flipSymbol "G1" (Some SymbolT.FlipType.FlipHorizontal))
-        | None -> id
-    |> Result.bind (placeSymbol "FF1" DFF middleOfSheet)
-    |> match sample.Flip1 with
-        | Some f -> Result.map (flipSymbol "G1" (Some SymbolT.FlipType.FlipHorizontal))
-        | None -> id
-    |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
-    |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
-    |> getOkOrFail
 
 //-------------------------------------------------------------------------------------//
 //-----------------------------D2 Tests on Draw Block code-----------------------------//

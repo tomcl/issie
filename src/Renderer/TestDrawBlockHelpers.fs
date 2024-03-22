@@ -305,33 +305,20 @@ module Builder =
     /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
     /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
     let placeCustomSymbol
-                (symLabel: string)
-                (ccSheet : SheetT.Model)
-                (ccSheetName: string)
-                (model: Model)
-                (scale: XYPos)
-                (position: XYPos)
-                (sheetModel: SheetT.Model)
-                    : Result<SheetT.Model, string> =
-            let symbolMap = sheetModel.Wire.Symbol.Symbols
-            let project = Option.get model.CurrentProj
-            if caseInvariantEqual ccSheetName project.OpenFileName then
-                    Error "Can't create custom component with name same as current opened sheet"        
-            // elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
-            //     Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
-            elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
-                Error "Can't create custom component with duplicate Label"
-            else
-                let canvas = ccSheet.GetCanvasState()
-                let ccType: CustomComponentType =
-                    {
-                        Name = ccSheetName
-                        InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
-                        OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
-                        Form = None
-                        Description = None
-                    }
-                placeSymbol symLabel (Custom ccType) position sheetModel
+            (symLabel: string)
+            (ccType: CustomComponentType)
+            (model: Model)
+            (position: XYPos)
+            (sheetModel: SheetT.Model)
+                : Result<SheetT.Model, string> =
+        let symbolMap = sheetModel.Wire.Symbol.Symbols
+        let project = Option.get model.CurrentProj
+        if caseInvariantEqual ccType.Name project.OpenFileName then
+                Error "Can't create custom component with name same as current opened sheet"        
+        elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
+            Error "Can't create custom component with duplicate Label"
+        else
+            placeSymbol symLabel (Custom ccType) position sheetModel
     
     
     // Rotate a symbol

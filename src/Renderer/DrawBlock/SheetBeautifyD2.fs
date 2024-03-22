@@ -30,7 +30,7 @@ open Optics
 open Operators
 
 /// constants used by SheetBeautify
-module Constants =
+module Parameters =
     type PermutePenalty = {
         VerticalFlip : float;
         HorizontalFlip: float;
@@ -48,6 +48,14 @@ module Constants =
         HorizontalFlip = 2.5;
         Rotation90 = 3.0;
     }
+
+    /// Scale the number of wire crossing caused by a symbol, where a higher number means the symbol is "beautified first"
+    let scaleSymbolOrder ( sym : SymbolT.Symbol ) = 
+        match sym.Component.Type with
+        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> 3.0
+        | GateN _ -> 1.5
+        | Custom _ -> 2.0
+        | _ -> 1.0
 
 module mySheetBeautifyHelpers = 
     /// <summary>
@@ -148,10 +156,6 @@ module mySheetBeautifyHelpers =
         |> List.distinct
         |> List.length
 
-    // function 11 : The number of distinct pairs of segments that cross each other at right angles. 
-    // Does not include 0 length segments or segments on same net intersecting at one end, or segments on same net on top of each other. Count over whole sheet.
-    // T3R
-    // This function was tested by running it in issie and visually inspecting behaviour at various corner cases
     /// <summary>
     /// Counts the number of distinct wire segments that intersect orthogonally on a sheet.
     /// </summary>
@@ -178,6 +182,21 @@ module mySheetBeautifyHelpers =
 
         countSegmentPairIntersections allSegments
 
+    /// <summary>
+    /// Counts the number of distinct wire segments that intersect orthogonally on a sheet excluding 
+    /// those belonging to any wire connected to the provided symbol.
+    /// </summary>
+    /// <param name="sheet">The sheet containing wire segments.</param>
+    /// <param name="sym">The symbol whose wires are to be ignored.</param>
+    /// <returns>
+    /// An integer representing the count of distinct wire segments that intersect at right angles.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The IntersectionType D.U. is used to distinguish between different types of intersections: CrossJunction and TJunction.
+    /// If a TJunction is found within segments belonging to the same net it is ignored.
+    /// </para>
+    /// </remarks>
     let countVisibleSegmentIntersectionWithoutSymbol ( sheet : SheetT.Model) (sym : SymbolT.Symbol) = 
         let inputPortIds =  Optic.get (component_ >-> inputPorts_) sym |> List.map (fun port -> port.Id)
         let outputPortIds =  Optic.get (component_ >-> outputPorts_) sym |> List.map (fun port -> port.Id)
@@ -198,10 +217,12 @@ module mySheetBeautifyHelpers =
 
 
 open mySheetBeautifyHelpers
-open Constants
+open Parameters
 
 module D2Helpers = 
 
+    /// Given a symbol, returns the symbol with its' inputs reversed
+    /// (Main application is flipping the location of the select symbol in a mux)
     let changeReversedInputs symbol =
         let newValue =
             match symbol.ReversedInputPorts with
@@ -214,15 +235,20 @@ module D2Helpers =
             |None -> None
         let newcompo = {symbol.Component with SymbolInfo = newSymbolInfo }
         {symbol with Component = newcompo; ReversedInputPorts = newValue}
-
+    
+    /// Given a scaling factor, weight and symbol 
+    /// returns a pair containing the unchanged symbol and weight and the permuted symbol with corresponding weight
     let rotationPermute scalingFactor ( scale, symbol : SymbolT.Symbol )  =
         let centre = getBlock [symbol] |> (fun block -> block.Centre())
         [scale, symbol; (scale * scalingFactor), rotateSymbolInBlock Degree90 centre symbol]
 
+    /// Given a flip type, scaling factor, weight and symbol 
+    /// returns a pair containing the unchanged symbol and weight and the permuted symbol with corresponding weight
     let flipPermute flip (scalingFactor : float) (scale,sym : SymbolT.Symbol)  =
         let centre = getBlock [sym] |> (fun block -> block.Centre())
         [(scale, sym) ; ((scale * scalingFactor),flipSymbolInBlock flip centre sym)]
 
+    /// Given a list, returns a list containing all possible permutations of the input list
     let rec permute lst  =
         lst
         |> List.mapi (fun n xn ->
@@ -231,12 +257,15 @@ module D2Helpers =
             |> List.map (fun permL -> xn :: permL))
         |> List.concat
 
+    /// Given a set of penalties and a list of symbols with some weighting, 
+    /// applies vertical and horizontal flip and 90 degree rotation permutations returning a list containing all permutations
     let permuteMux ( penalty : PermutePenalty ) ( symbolL : (float * SymbolT.Symbol) list ) = 
         symbolL
         |> List.collect (flipPermute FlipVertical penalty.VerticalFlip)
         |> List.collect (flipPermute FlipHorizontal penalty.HorizontalFlip)
         |> List.collect (rotationPermute penalty.Rotation90)
 
+    /// Given a sheet and a symbol-componentId pair applies the symbol into the list, updating the relevant wires
     let updateSymbolInSheet sheet (cid,newSym) = 
         sheet
         |> Optic.map (symbols_) (Map.add cid newSym)
@@ -271,43 +300,43 @@ module D2Helpers =
         |> List.minBy fst
         |> snd
         
+    /// Sort a symbol list by the number of wire crossings each symbol causes, considering the scaling factor based on the symbol type  
+    let sortSymbolsByCrossings sheet syms = 
+        let initWireCrossings = countVisibleSegmentIntersection sheet
 
-    /// Scale the number of wire crossing caused by a symbol, where a higher number means the symbol is "beautified first"
-    let scaleSymbolOrder ( sym : SymbolT.Symbol ) = 
-        match sym.Component.Type with
-        | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> 3.0
-        | GateN _ -> 1.5
-        | Custom _ -> 2.0
-        | _ -> 1.0
+        syms
+        |> List.map (fun (cid, sym) -> 
+            let crossingsWithoutSym = countVisibleSegmentIntersectionWithoutSymbol sheet sym
+            ((cid,sym),float (initWireCrossings - crossingsWithoutSym) * (scaleSymbolOrder sym))
+        )
+        |> List.sortByDescending (fun (_, crossings) -> crossings)
+        |> List.unzip 
+        |> fst
 
     /// Given a Symbol and a Sheet return a Sheet where the symbol has been modified to reduce the number of wire crossings
-    let reduceWireCrossings ( sheet: SheetT.Model ) ((cid,sym : SymbolT.Symbol)) = 
+    /// Customised are applied to specific component types to encourage/discourage rotation behaviour
+    let reduceWireCrossings ( sheet: SheetT.Model ) ((cid: ComponentId,sym : SymbolT.Symbol)) = 
         match sym.Component.Type with
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8 -> optimisePermuteSymbol sheet cid [1.0, sym; 1.0, changeReversedInputs sym] MuxPenalty
         | GateN _ -> optimisePermuteSymbol sheet cid [1.0, sym] GateNPenalty
-        | _ -> sheet
+        | _ -> optimisePermuteSymbol sheet cid [1.0, sym] {VerticalFlip=100.0; HorizontalFlip=100.0; Rotation90=100.0}
+
+    /// Given a sheet and a list of sorted symbols, traverses the list by finding the optimal symbol and recalculating the symbol list
+    let rec beautifySheet sheet syms = 
+        match syms with
+        | [] -> sheet
+        | [sym] -> reduceWireCrossings sheet sym
+        | h::t ->
+            let optimisedSheet = reduceWireCrossings sheet h
+
+            sortSymbolsByCrossings optimisedSheet t
+            |> beautifySheet optimisedSheet
+            
 
 open D2Helpers
 
 let sheetOrderFlip ( sheet : SheetT.Model ) = 
-
-    let initWireCrossings = countVisibleSegmentIntersection sheet
-
     sheet.Wire.Symbol.Symbols
-    |> Map.map (fun cid sym -> 
-        let crossingsWithoutSym = countVisibleSegmentIntersectionWithoutSymbol sheet sym
-        printf "sym: %A bef: %A after: %A diff: %A" sym.Component.Label initWireCrossings crossingsWithoutSym (initWireCrossings - crossingsWithoutSym);
-        (sym,(initWireCrossings - crossingsWithoutSym))
-    )
-    |> Map.map (fun cid (sym, crossings) -> 
-        (sym, float crossings * (scaleSymbolOrder sym))
-    )
     |> Map.toList
-    |> List.sortByDescending (fun (cid, (sym, crossings)) -> crossings)
-    |> List.map (fun (cid, (sym, crossings)) -> (cid,sym))
-    // |> List.map (fun (cid, (sym, crossings)) ->
-    //     printf "%A %A %A" sym.Component.Label sym.Component.Type crossings
-    // )
-    |> List.fold reduceWireCrossings sheet
-
-    // sheet
+    |> sortSymbolsByCrossings sheet
+    |> beautifySheet sheet

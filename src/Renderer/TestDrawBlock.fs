@@ -1,6 +1,7 @@
 ﻿module TestDrawBlock
 open GenerateData
 open Elmish
+open SheetBeautifyHelpers
 
 
 //-------------------------------------------------------------------------------------------//
@@ -563,6 +564,29 @@ module HLPTick3 =
             |> Array.sumBy (function | (symA,symB) when symA.Id <= symB.Id -> calcAlignSym symA symB
                                      | _ -> 0.)
             |> (fun x -> x / (float (n * n))) // Scales to lots of symbols
+
+        /// Evaluates number of crosses of wires compared to number of visible segments in sheet
+        /// Returns 1 if no wire crosses
+        /// Calculates the proportion of wire crossings compared to the total number of wires
+        let wireCrossProp (sheet: SheetT.Model) =
+            let numCrossing = numOfWireRightAngleCrossings sheet
+            let numVisSeg = 
+                getVisibleSegOnSheet sheet
+                |> SegmentHelpers.distinctVisSegs
+                |> List.length
+            match numCrossing with
+            | 0 -> 1.
+            | _ -> 1. - (float numCrossing / float numVisSeg)
+        
+        /// Evaluates wire squashing between symbols
+        /// Returns 1 if no wire is squashed
+        /// Calculates the proportion of squashed wires compared to the total number of wires
+        let wireSquashProp (sheet: SheetT.Model) =
+            let numSquash = numOfSquashedWires sheet
+            let numWires = mapValues sheet.Wire.Wires |> Array.length
+            match numSquash with
+            | 0 -> 1.
+            | _ -> 1. - (float numSquash / float numWires)
 
 
 //---------------------------------------------------------------------------------------//

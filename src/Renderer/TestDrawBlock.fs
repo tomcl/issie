@@ -506,8 +506,8 @@ module HLPTick3 =
         /// Evaluates sheet to 0
         let nullEvaluator : Evaluator<SheetT.Model> =
             {
-                EvalFunc = (fun _ -> 1.)
-                Penalty = 0
+                EvalFunc = (fun _ -> 0.)
+                Penalty = 1.
             }
 
 //---------------------------------------------------------------------------------------//

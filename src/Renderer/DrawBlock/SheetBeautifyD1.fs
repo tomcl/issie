@@ -75,7 +75,7 @@ let alignTopPorts (targetPortPos: XYPos) (currentSymbol: Symbol) edge sheet =
 
     match edge with
     | Right | Left -> updateSymPos {X=currentSymbol.Component.X; Y=targetPortPos.Y-portToCorner} currentSymbol
-    | Top | Bottom -> updateSymPos {X=targetPortPos.X-portToCorner; Y=currentSymbol.Component.Y} currentSymbol
+    | Top | Bottom -> updateSymPos {X=targetPortPos.X-portSep; Y=currentSymbol.Pos.Y} currentSymbol
 
 /// Update symbols in sheet according to a new list of symbols to update
 /// Returns updated sheet
@@ -89,14 +89,17 @@ let updateSymbols updatedSymbols priorSheet =
 /// Returns updated sheet
 let updateAllComponents targetPorts (sourcePorts: Edge list) priorSheet=   
     let updatedSymbols = 
-        targetPorts
-        |> List.map fst 
-        |> List.map getPortPos 
-        |> List.map (fun curried -> curried priorSheet.Wire.Symbol) // target port positions
-        |> List.map alignTopPorts
-        |> List.mapi (fun i curried -> curried <| snd targetPorts[i])
-        |> List.mapi (fun i curried -> curried sourcePorts[i])
-        |> List.map (fun curried -> curried priorSheet)
+        match sourcePorts.Length with 
+        | 0 -> []
+        | _ -> 
+            targetPorts
+            |> List.map fst 
+            |> List.map getPortPos 
+            |> List.map (fun curried -> curried priorSheet.Wire.Symbol) // target port positions
+            |> List.map alignTopPorts
+            |> List.mapi (fun i curried -> curried <| snd targetPorts[i])
+            |> List.mapi (fun i curried -> curried sourcePorts[i])
+            |> List.map (fun curried -> curried priorSheet)
 
     updateSymbols updatedSymbols priorSheet
 
@@ -124,11 +127,12 @@ let getConnectingPort (sheet: SheetT.Model) portAndSym =
 // In that case, we get the input ports of the symbol
 let getCorrectSide sheet sym = 
     let potentialPort = 
+        // This is logic for clockwise rotation, may not be correct but it worked with our test cases??
         match sym.STransform.Flipped, sym.STransform.Rotation with // assuming flipped means flipped along y axis of symbol
             | false, Degree0 | true, Degree180->  List.tryItem 0 sym.PortMaps.Order[Right], sym
-            | false, Degree90 | true, Degree270 -> List.tryItem 0 sym.PortMaps.Order[Top], sym
+            | false, Degree90 | true, Degree270 -> List.tryItem 0 sym.PortMaps.Order[Bottom], sym
             | false, Degree180 | true, Degree0 -> List.tryItem 0 sym.PortMaps.Order[Left], sym
-            | false, Degree270 | true, Degree90 -> List.tryItem 0 sym.PortMaps.Order[Bottom], sym
+            | false, Degree270 | true, Degree90 -> List.tryItem 0 sym.PortMaps.Order[Top], sym
     
     let connectingPort = 
         match fst potentialPort with 
@@ -145,12 +149,12 @@ let getCorrectSide sheet sym =
         match sym.STransform.Flipped, sym.STransform.Rotation with // assuming flipped means flipped along y axis of symbol
             | false, Degree0 | true, Degree180 when connectingPortPos.X > sym.Pos.X ->  sym.PortMaps.Order[Right], sym
             | false, Degree0 | true, Degree180 when connectingPortPos.X < sym.Pos.X ->  sym.PortMaps.Order[Left], sym
-            | false, Degree90 | true, Degree270 when connectingPortPos.Y < sym.Pos.Y -> sym.PortMaps.Order[Top], sym
             | false, Degree90 | true, Degree270 when connectingPortPos.Y > sym.Pos.Y -> sym.PortMaps.Order[Bottom], sym
+            | false, Degree90 | true, Degree270 when connectingPortPos.Y < sym.Pos.Y -> sym.PortMaps.Order[Top], sym
             | false, Degree180 | true, Degree0 when connectingPortPos.X < sym.Pos.X -> sym.PortMaps.Order[Left], sym
             | false, Degree180 | true, Degree0 when connectingPortPos.X > sym.Pos.X -> sym.PortMaps.Order[Right], sym
-            | false, Degree270 | true, Degree90 when connectingPortPos.Y < sym.Pos.Y -> sym.PortMaps.Order[Bottom], sym
-            | false, Degree270 | true, Degree90 when connectingPortPos.Y > sym.Pos.Y -> sym.PortMaps.Order[Top], sym
+            | false, Degree270 | true, Degree90 when connectingPortPos.Y < sym.Pos.Y -> sym.PortMaps.Order[Top], sym
+            | false, Degree270 | true, Degree90 when connectingPortPos.Y > sym.Pos.Y -> sym.PortMaps.Order[Bottom], sym   
             | _ -> sym.PortMaps.Order[Right], sym
     ret
         
@@ -379,16 +383,13 @@ let sheetAlignScale (sheet: SheetT.Model) =
             match (List.distinct (List.collect id portConnectedSymbols)).Length with 
             | 1 -> false
             | _ -> true
-        
-
-        
+                
     let case1TargetPort = getCaseTargetPorts sheet case1Comparer multiplyConnected
     let case2TargetPort = getCaseTargetPorts sheet case2Comparer multiplyConnected
     let case3TargetPort = getCaseTargetPorts sheet case3Comparer multiplyConnected 
     let case4TargetPort = getCaseTargetPorts sheet case4Comparer multiplyConnected
     let case1SourcePort = getCaseSourcePorts sheet case1Comparer multiplyConnected
     let case3SourcePort = getCaseSourcePorts sheet case3Comparer multiplyConnected
-
 
 
     // 6. Include, where this is worthwhile (heuristic) aligning arrays of components. Note that
@@ -424,9 +425,9 @@ let sheetAlignScale (sheet: SheetT.Model) =
             fun sym -> 
                 match sym.STransform.Flipped, sym.STransform.Rotation with // assuming flipped means flipped along y axis of symbol
                 | false, Degree0 | true, Degree180->  Right
-                | false, Degree90 | true, Degree270 -> Top
+                | false, Degree90 | true, Degree270 -> Bottom
                 | false, Degree180 | true, Degree0 -> Left
-                | false, Degree270 | true, Degree90 -> Bottom
+                | false, Degree270 | true, Degree90 -> Top
         )
     
     let newCoords = 
@@ -481,7 +482,6 @@ let sheetAlignScale (sheet: SheetT.Model) =
 
     let singlyConnectedTargetPort = getCaseTargetPorts sheet alwaysTrue singlyConnected
     let singlyConnectedSourcePort = getCaseSourcePorts sheet alwaysTrue singlyConnected
-    
     // 4. Scale custom symbols to reduce wire bends in parallel wires between two custom components
     // get custom symbols and the custom symbols they are connected to
 
@@ -518,7 +518,8 @@ let sheetAlignScale (sheet: SheetT.Model) =
                 | true ->
                     {snd customSymbolPairs[i] with VScale=Some (scale*Option.defaultValue 1. (snd customSymbolPairs[i]).VScale)}
                 | false -> 
-                    {snd customSymbolPairs[i] with HScale=Some (scale*Option.defaultValue 1. (snd customSymbolPairs[i]).HScale)} 
+                    // TODO: FIX THIS - are custom components weird in that rotating them makes their scaled mismatch?
+                    {snd customSymbolPairs[i] with VScale=Some (scale*Option.defaultValue 1. (snd customSymbolPairs[i]).HScale)} 
             )
     
     // count number of ports on both symbol edges and their current dimensions to find scale factor

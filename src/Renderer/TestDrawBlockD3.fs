@@ -396,8 +396,8 @@ module Asserts =
             let ISSScore = (float ISS)/(float (numSegs+numSymPairs))
             let SCR = numSegmentCrossRightAngle model //number of wire intersections
             let SCRScore = (float SCR)/(float numSegs)
-            let score = System.Math.Round ((ISPScore + ISSScore + SCRScore),10) 
-            printf $" ===========Sample {sample} scored average {score}/3 with ISP {ISP}, ISS {ISS}, SCR {SCR}============"
+            let score = System.Math.Round ((ISPScore + ISSScore + SCRScore + wireScore),10) 
+            printf $" ===========Sample {sample} scored average {score}/4 with ISP {ISP}, ISS {ISS}, SCR {SCR}, WireWaste {wireScore}============"
             match failAll with
             |true -> Some $"=====Failing all, sample {sample}====="
             |_ ->

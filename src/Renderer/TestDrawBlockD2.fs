@@ -378,11 +378,11 @@ module Asserts =
 let targetSheetD2 (sheet: SheetT.Model) = 
     let crossings = 
         sheet
-        |> numSegmentCrossRightAngle
+        |> numOfWireRightAngleCrossings
     let beautifiedSheet = sheetOrderFlip sheet
     let crossingsAfter = 
         beautifiedSheet
-        |> numSegmentCrossRightAngle
+        |> numSegmentCrossRightAngle//numOfWireRightAngleCrossings
     let wireBendBefore = 
         sheet
         |> numVisibleWireRightAngle

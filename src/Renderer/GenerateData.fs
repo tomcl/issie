@@ -58,13 +58,15 @@
     let toList (g: Gen<'a>) =
         List.init g.Size g.Data
 
-    /// return a shuffled range of integers
+    /// returns a shuffled range of integers
     let randomInt (min:int) (step:int) (max:int) : Gen<int> =
             [|min..step..max|]
             |> shuffleA
             |> fromArray
 
-    /// return some shuffled integer lists
+    /// return some shuffled integer lists. min and max are the range of the random integers desired. 
+    /// testlen is the size of the returned Gen. 
+    /// variableLen is the length of the list in each Gen i.e. the number of random parameters to generate values for
     let randomIntList (min:int) (max:int) (testLen:int) (variableLen:int): Gen<int list>  =
             [1..testLen]
             |> List.map (fun _ -> [|min..1..max|]
@@ -88,6 +90,7 @@
     let map3 (f: 'a1 -> 'a2 -> 'a3 -> 'b) (g1: Gen<'a1>) (g2: Gen<'a2>) (g3: Gen<'a3>): Gen<'b> =
         {Data = (fun i -> f (g1.Data i) (g2.Data i) (g3.Data i)); Size = g1.Size}
 
+    ///  Map four sequences elementwise to make a fifth using f to combine them.
     let map4 (f: 'a1 -> 'a2 -> 'a3 -> 'a4 -> 'b) (g1: Gen<'a1>) (g2: Gen<'a2>) (g3: Gen<'a3>) (g4: Gen<'a4>): Gen<'b> =
         {Data = (fun i -> f (g1.Data i) (g2.Data i) (g3.Data i) (g4.Data i)); Size = g1.Size}
 

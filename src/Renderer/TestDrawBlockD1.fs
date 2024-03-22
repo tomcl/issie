@@ -671,7 +671,7 @@ module TestD1 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail all tests
+        /// Main Test for singly and multiply
         let D1TestMain testNum firstSample dispatch =
             runD1TestOnSheets
                 "D1 Test with both singly and multiply connected components"

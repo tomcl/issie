@@ -28,7 +28,6 @@ open SheetBeautifyD1
 open SheetBeautifyD2
 open SheetBeautifyD3
 
-
 (*
 Purpose of the TestSheetFunctions:
 It is more focused on testing heuristics, helper functions, and beautify functions
@@ -126,6 +125,11 @@ let testResizeSymbolTopLevelImproved (model: ModelType.Model) : ModelType.Model 
             |> (fun customSymbols ->
                 List.allPairs customSymbols customSymbols
                 |> List.filter (fun ((i1, _), (i2, _)) -> i1 < i2))
+            |> List.sortBy (fun ((_, sym1), (_, sym2)) -> (max sym1.Pos.X sym2.Pos.X))
+            |> List.map (fun ((i1, sym1), (i2, sym2)) ->
+                match sym1.Pos.X >= sym2.Pos.X with
+                | true -> ((i1, sym1), (i2, sym2))
+                | false -> ((i2, sym2), (i1, sym1)))
 
         let newWire =
             customSymbolsPairs

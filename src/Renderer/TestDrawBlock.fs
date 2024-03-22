@@ -83,14 +83,13 @@ module HLPTick3 =
     open EEExtensions
     open Optics
     open Optics.Operators
-    open DrawHelpers
+    open TestLib
     open Helpers
     open CommonTypes
     open ModelType
     open DrawModelType
     open Sheet.SheetInterface
-    open GenerateData
-    open TestLib
+    open SheetUpdateHelpers
 
     /// create an initial empty Sheet Model 
     let initSheetModel = DiagramMainView.init().Sheet
@@ -112,7 +111,6 @@ module HLPTick3 =
     let caseInvariantEqual str1 str2 =
         String.toUpper str1 = String.toUpper str2
  
-
     /// Identify a port from its component label and number.
     /// Usually both an input and output port will mathc this, so
     /// the port is only unique if it is known to be input or output.
@@ -129,6 +127,9 @@ module HLPTick3 =
     // visibleSegments is included here as ahelper for info, and because it is needed in project work
     //-----------------------------------------------------------------------------------------------
 
+    /// helper to match even and off integers in patterns (active pattern)
+    let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
+
     /// The visible segments of a wire, as a list of vectors, from source end to target end.
     /// Note that in a wire with n segments a zero length (invisible) segment at any index [1..n-2] is allowed 
     /// which if present causes the two segments on either side of it to coalesce into a single visible segment.
@@ -136,9 +137,6 @@ module HLPTick3 =
     let visibleSegments (wId: ConnectionId) (model: SheetT.Model): XYPos list =
 
         let wire = model.Wire.Wires[wId] // get wire from model
-
-        /// helper to match even and off integers in patterns (active pattern)
-        let (|IsEven|IsOdd|) (n: int) = match n % 2 with | 0 -> IsEven | _ -> IsOdd
 
         /// Convert seg into its XY Vector (from start to end of segment).
         /// index must be the index of seg in its containing wire.
@@ -166,19 +164,10 @@ module HLPTick3 =
         |> coalesce
                 
 
-
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
-
-
-                
-
-            
-
-
-
         /// Place a new symbol with label symLabel onto the Sheet with given position.
         /// Return error if symLabel is not unique on sheet, or if position is outside allowed sheet coordinates (0 - maxSheetCoord).
         /// To be safe place components close to (maxSheetCoord/2.0, maxSheetCoord/2.0).
@@ -199,9 +188,6 @@ module HLPTick3 =
                 |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
                 |> Ok
         
-
-
-    
         /// Place a new symbol onto the Sheet with given position and scaling (use default scale if this is not specified).
         /// The ports on the new symbol will be determined by the input and output components on some existing sheet in project.
         /// Return error if symLabel is not unique on sheet, or ccSheetName is not the name of some other sheet in project.
@@ -232,16 +218,6 @@ module HLPTick3 =
                     }
                 placeSymbol symLabel (Custom ccType) position model
             
-        
-
-        // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
-
-        // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType) (model: SheetT.Model) : (SheetT.Model) =
-            failwithf "Not Implemented"
-
         /// Add a (newly routed) wire, source specifies the Output port, target the Input port.
         /// Return an error if either of the two ports specified is invalid, or if the wire duplicates and existing one.
         /// The wire created will be smart routed but not separated from other wires: for a nice schematic
@@ -279,11 +255,20 @@ module HLPTick3 =
             |> Optic.map busWireModel_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations (model.Wire.Wires.Keys |> Seq.toList))
 
         /// Copy testModel into the main Issie Sheet making its contents visible
-        let showSheetInIssieSchematic (testModel: SheetT.Model) (dispatch: Dispatch<Msg>) =
+        let showSheetInIssieSchematic(dispatch: Dispatch<Msg>)  (testModel: SheetT.Model) =
             let sheetDispatch sMsg = dispatch (Sheet sMsg)
             dispatch <| UpdateModel (Optic.set sheet_ testModel) // set the Sheet component of the Issie model to make a new schematic.
             sheetDispatch <| SheetT.KeyPress SheetT.CtrlW // Centre & scale the schematic to make all components viewable.
-
+        
+        // Applies specified beautify function to the sheet from ModelType Model and displays the result in Issie
+        let applyBeautify beautifyFunc (dispatch: Dispatch<Msg>) (model: ModelType.Model) =
+            printfn ""
+            dispatch <| UpdateDrawBlockTestState(fun _ -> Some {LastTestNumber=0; LastTestSampleIndex=0})
+            let sheet = Optic.get sheet_ model
+            sheet
+            |> beautifyFunc 
+            |> fun sheet' -> {sheet' with SheetT.UndoList = appendUndoList sheet.UndoList sheet}
+            |> showSheetInIssieSchematic dispatch
 
         /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
         /// 2. Check each ciruit with sheetChecker.
@@ -315,7 +300,7 @@ module HLPTick3 =
             | (n,first):: _ -> // display in Issie editor and print out first error
                 printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
                 match catchException "" sheetMaker (samples.Data n) with
-                | Ok sheet -> showSheetInIssieSchematic sheet dispatch
+                | Ok sheet -> showSheetInIssieSchematic dispatch sheet
                 | Error mess -> ()
             result
 //--------------------------------------------------------------------------------------------------//
@@ -325,8 +310,44 @@ module HLPTick3 =
     open Builder
     /// Sample data based on 11 equidistant points on a horizontal line
     let horizLinePositions =
-        fromList [-100..20..100]
+        fromList [-100..20..100]        
         |> map (fun n -> middleOfSheet + {X=float n; Y=0.})
+
+        
+    let randOffsets =
+        (randomInt -100 10 100, randomInt -100 10 100)
+        ||> product (fun x y -> (x,y))
+        |> filter (fun (x,y) -> (abs x >= 60) || (abs y >= 60))
+        |> map (fun (n, m) -> {X=float n; Y=float m})
+
+    // Rotate or Flip a symbol
+    let flipOrRotateSymbol flipOrRotate model flipOrRotateFunc =
+        model
+        |> Optic.map symbolModel_ (fun symbModel ->
+            flipOrRotateFunc(List.ofSeq symbModel.Symbols.Keys, flipOrRotate)
+            |> (fun msg -> SymbolUpdate.update msg symbModel) 
+            |> fst)
+
+    // Rotates a symbol by 90, 180 or 270 degrees
+    let rotateSymbolN90 n model =
+        match n with
+        | 1 -> flipOrRotateSymbol Degree90  model SymbolT.RotateAntiClockAng
+        | 2 -> flipOrRotateSymbol Degree180 model SymbolT.RotateAntiClockAng
+        | 3 -> flipOrRotateSymbol Degree270 model SymbolT.RotateAntiClockAng
+        | _ -> model
+
+    // Flips a symbol horizontally or vertically
+    let flipSymbolHOrV n model =
+        match n with
+        | 1 -> flipOrRotateSymbol SymbolT.FlipHorizontal model SymbolT.Flip
+        | 2 -> flipOrRotateSymbol SymbolT.FlipVertical   model SymbolT.Flip
+        | _ -> model
+
+    // Randomly rotates a symbol by 90, 180 or 270 degrees and then flips it horizontally or vertically
+    let randomTransformSymbol model =
+        model
+        |> rotateSymbolN90 ((randomInt 0 1 4).Data 0)
+        |> flipSymbolHOrV  ((randomInt 1 1 2).Data 0)
 
     /// demo test circuit consisting of a DFF & And gate
     let makeTest1Circuit (andPos:XYPos) =
@@ -336,13 +357,30 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "G1" 0) (portOf "FF1" 0))
         |> Result.bind (placeWire (portOf "FF1" 0) (portOf "G1" 0) )
         |> getOkOrFail
-
-
+    /// demo test circuit consisting of a DFF & And gate
+    let makeTest2Circuit (offset:XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And,2)) middleOfSheet
+        |> Result.bind (placeSymbol "G2" (GateN(And,2)) (middleOfSheet + offset))
+        |> Result.map randomTransformSymbol
+        // |> Result.map randomTransformSymbol
+        |> Result.bind (placeSymbol "G3" (GateN(And,2)) (middleOfSheet + offset * 2.0))
+        // |> Result.map randomTransformSymbol
+        |> Result.bind (placeSymbol "G4" (GateN(And,2)) (middleOfSheet + offset * 3.0))
+        // |> Result.map randomTransformSymbol
+        |> Result.bind (placeSymbol "G5" (GateN(And,2)) (middleOfSheet + offset * 4.0))
+        // |> Result.map randomTransformSymbol
+        |> Result.bind (placeSymbol "G6" (GateN(And,2)) (middleOfSheet + offset * 5.0))
+        |> Result.bind (placeWire (portOf "G1" 0) (portOf "G2" 0))
+        |> Result.bind (placeWire (portOf "G2" 0) (portOf "G3" 0) )
+        |> Result.bind (placeWire (portOf "G3" 0) (portOf "G4" 0) )
+        |> Result.bind (placeWire (portOf "G4" 0) (portOf "G5" 0) )
+        |> Result.bind (placeWire (portOf "G5" 0) (portOf "G6" 0) )
+        |> getOkOrFail
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
 //------------------------------------------------------------------------------------------------//
-
 
     module Asserts =
 
@@ -400,8 +438,7 @@ module HLPTick3 =
                 | (numb, _) :: _ ->
                     printf $"Sample {numb}"
                     Some { LastTestNumber=testNumber; LastTestSampleIndex= numb})
-            
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 0
+
         let test1 testNum firstSample dispatch =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail on sample 0"
@@ -412,14 +449,14 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        /// Example test: Horizontally positioned AND + DFF: fail on sample 10
+        /// Tests Cascaded AND blocks with random rotations and same offsets
         let test2 testNum firstSample dispatch =
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on sample 10"
+                "Cascaded AND blocks"
                 firstSample
-                horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 10)
+                randOffsets
+                makeTest2Circuit
+                Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
 
@@ -445,6 +482,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+
+
         /// List of tests available which can be run ftom Issie File Menu.
         /// The first 9 tests can also be run via Ctrl-n accelerator keys as shown on menu
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
@@ -455,10 +494,10 @@ module HLPTick3 =
                 "Test2", test2 // example
                 "Test3", test3 // example
                 "Test4", test4 
-                "Test5", fun _ _ _ -> printf "Test5" // dummy test - delete line or replace by real test as needed
-                "Test6", fun _ _ _ -> printf "Test6"
-                "Test7", fun _ _ _ -> printf "Test7"
-                "Test8", fun _ _ _ -> printf "Test8"
+                "Test5", fun _ _ _ -> printf "Test5"
+                "BeautifyD1", fun _ _ _ -> printf "Running D1 Beautify"; // dummy test - delete line or replace by real test as needed
+                "BeautifyD2", fun _ _ _ -> printf "Running D2 Beautify"
+                "BeautifyD3", fun _ _ _ -> printf "Running D3 Beautify"
                 "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
 
             ]
@@ -472,7 +511,7 @@ module HLPTick3 =
             testFunc testNum firstSampleToTest dispatch
 
         /// common function to execute any test.
-        /// testIndex: index of test in testsToRunFromSheetMenu
+        /// testIndex: index of test in testsToRunFromSheetMenuModelType.
         let testMenuFunc (testIndex: int) (dispatch: Dispatch<Msg>) (model: Model) =
             let name,func = testsToRunFromSheetMenu[testIndex] 
             printf "%s" name
@@ -481,10 +520,10 @@ module HLPTick3 =
                 nextError testsToRunFromSheetMenu[state.LastTestNumber] (state.LastTestSampleIndex+1) dispatch
             | "Next Test Error", None ->
                 printf "Test Finished"
-                ()
-            | _ ->
-                func testIndex 0 dispatch
-        
+            | "BeautifyD1", _ -> applyBeautify SheetBeautifyD2.sheetOrderFlip dispatch model; ()
+            | "BeautifyD2", _ -> applyBeautify SheetBeautifyD2.sheetOrderFlip dispatch model; ()
+            | "BeautifyD3", _ -> (* applyBeautify SheetBeautifyD3.___ dispatch model; *) ()
+            | _ -> func testIndex 0 dispatch
 
 /// a module for testing of the sheetOrderFlip function for Sheet Beautification
 module TestDrawblockD2 =

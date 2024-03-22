@@ -1,4 +1,4 @@
-The followwing features will be shown on the demo:
+The following features will be shown on the demo:
 
 1. The D1 beautify function (wire straightening algorithm) on the A2 circuit in Appendix, with random vertical positioning of the Mux2's.
 2. Two versions of the D2 beautify function (minimise wire crossings), one using an exhaustive search algorithm and one using a local algorithm. Two different test circuits will be used.

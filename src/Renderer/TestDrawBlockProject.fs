@@ -812,7 +812,7 @@ let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) l
         "Test7", test7
 
         // Integrated Test
-        "Test7", test8
+        "Test8", test8
         "Next Test Error", fun _ _ _ -> printf "Next Error:" // Go to the next error in a test
 
     ]

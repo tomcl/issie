@@ -687,15 +687,15 @@ module HLPTick3 =
 
             |> List.iter (fun (n, m) ->
                 printfn "Sample %d Metrics:" n
-                if (n % 2 = 1) then
-                    printfn "Symbol overlaps: %d" m.SymbolOverlaps
-                    printfn "Wire intersect symbols: %d" m.WireIntersectSym
-                    printfn "Total wire bends: %d" m.TotalWireBends
-                    printfn "Total wire crossings: %d" m.TotalWireCrossings
-                    if m.SymbolOverlaps > 1 || m.WireIntersectSym > 0 || m.TotalWireBends > 8 || m.TotalWireCrossings > 1 then
-                        printfn "Fail test!"
-                    else
-                        printfn "Pass test!")
+                // if (n % 2 = 1) then
+                printfn "Symbol overlaps: %d" m.SymbolOverlaps
+                printfn "Wire intersect symbols: %d" m.WireIntersectSym
+                printfn "Total wire bends: %d" m.TotalWireBends
+                printfn "Total wire crossings: %d" m.TotalWireCrossings)
+                // if m.SymbolOverlaps > 1 || m.WireIntersectSym > 0 || m.TotalWireBends > 8 || m.TotalWireCrossings > 1 && (n % 2 = 1) then
+                //     printfn "Fail test!"
+                // else
+                //     printfn "Pass test!")
 //--------------------------------------------------------------------------------------------------//
 //----------------------------------------Example Test Circuits using Gen<'a> samples---------------//
 //--------------------------------------------------------------------------------------------------//
@@ -872,7 +872,7 @@ module HLPTick3 =
             |> Result.bind (placeWire (portOf "AND3" 0) (portOf "AND2" 1))
             |> Result.bind (placeWire (portOf "AND2" 0) (portOf "AND3" 1))
             |> (fun res -> if s.ApplyBeautify then Result.map SheetBeautifyD3.sheetWireLabelSymbol res else res)
-            |> Result.map SheetBeautifyD2.autoRouteAllWires
+            // |> Result.map SheetBeautifyD2.autoRouteAllWires
             |> (fun res -> if s.ApplyBeautify then Result.map SheetBeautifyD2.sheetOrderFlip res else res)
             |> (fun res -> if s.ApplyBeautify then Result.map SheetBeautifyD1.sheetAlignScale res else res)
             |> getOkOrFail

@@ -3,13 +3,14 @@
 // I try to section the helpers out handling symbol/custom components
 // next are wire helpers
 
-
+open EEExtensions
 open Optics
 open Optics.Operators
 open CommonTypes
 open DrawModelType
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
+open BusWireRoute
 open Helpers
 open Symbol
 open BlockHelpers
@@ -18,21 +19,28 @@ open RotateScale
 open BusWire
     module D1Helpers =
         // D1 HELPER FUNCTIONS ----------------------------------------------------------------------
-        
+
+        /// Almost the same as numOfIntersectSegSym from SheetBeautifyHelpers but takes in wModel as an argument
+        let numOfIntersectWireSym (wModel: BusWireT.Model) : int =
+            let allWires = wModel.Wires
+                           |> Map.values
+            allWires
+            |> Array.map (findWireSymbolIntersections wModel)
+            |> Array.sumBy (function [] -> 0 | _ -> 1)
 
         /// Attempts to create degrees of freedom for any symbols overlapping
         /// Will translate the symbol by half the width/height of the the host symbol based on port Orientation
-        let handleSymOverlap (sModel:SymbolT.Model) (sym: Symbol) (side: Edge): Symbol =
+        let handleSymOverlap (wModel:BusWireT.Model) (sym: Symbol) (side: Edge): Symbol =
             let h,w = getRotatedHAndW sym
             let symId = sym.Component.Id
             let symBox = getSymbolBoundingBox sym
-            let otherSyms = sModel.Symbols |> Map.filter (fun id _ -> not(string id = symId))
+            let otherSyms = wModel.Symbol.Symbols |> Map.filter (fun id _ -> not(string id = symId))
             let otherSymBoxes = otherSyms |> Map.values |> Seq.map (fun sym -> getSymbolBoundingBox sym) |> Seq.toList
             let otherSym =
                 otherSymBoxes
                 |>
                 List.filter (fun otherSymBox -> overlap2DBox symBox otherSymBox )
-            if not(List.isEmpty otherSym) then
+            if not(List.isEmpty otherSym) || (numOfIntersectWireSym wModel > 1) then
                 let sym' =
                     match side with
                     | Top -> moveSymbol {X=0.0;Y = - h/2.0} sym
@@ -47,6 +55,10 @@ open BusWire
         /// returns true if the wire connecting the ports is a loop shape
         let handleWireLoop (movePortInfo: PortInfo) (otherPortInfo: PortInfo): bool =
             let portPos,otherPortPos = calculatePortRealPos movePortInfo, calculatePortRealPos otherPortInfo
+            printfn $"PortPos: {portPos}, {movePortInfo.sym.Component.Label}"
+            printfn $"PortPos Side: {movePortInfo.side}"
+            printfn $"OtherPortPos: {otherPortPos}, {otherPortInfo.sym.Component.Label}"
+            printfn $"OtherPortPos Side: {otherPortInfo.side}"
             let isLoop =
                 match otherPortInfo.side with
                 | Left ->
@@ -69,6 +81,7 @@ open BusWire
                         true
                     else
                         false
+            printfn $"isLoop: {isLoop}"
             isLoop
 
 
@@ -78,7 +91,7 @@ open BusWire
             (portA: Port)
             (symB: Symbol)
             (portB: Port)
-            : BusWireT.Model =
+            : Symbol =
             
             // Only attempt to align symbols if they are connected by ports on parallel edges.
             let (movePortInfo, otherPortInfo) = (makePortInfo symA portA,makePortInfo symB portB) 
@@ -88,11 +101,13 @@ open BusWire
                             printfn $"SKIP"
                             {X=0.0;Y=0.0}
                           else
-                            offset            
+                            offset
+            printfn $"OFFSET {offset'}"
             let symbol' = moveSymbol offset' symA
-            let symbol'' = handleSymOverlap wModel.Symbol symbol' movePortInfo.side
-            let model' = Optic.set (symbolOf_ symA.Id) symbol'' wModel
-            BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id
+            let symbol'' = handleSymOverlap wModel symbol' movePortInfo.side
+            symbol''
+            (*let model' = Optic.set (symbolOf_ symA.Id) symbol'' wModel
+            BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id*)
 
         let alignSinglyComponents 
             (wModel: BusWireT.Model)
@@ -111,7 +126,7 @@ open BusWire
                           else
                             offset 
             let symbol' = moveSymbol offset' symA
-            let symbol'' = handleSymOverlap wModel.Symbol symbol' movePortInfo.side
+            let symbol'' = handleSymOverlap wModel symbol' movePortInfo.side
             let model' = Optic.set (symbolOf_ symA.Id) symbol'' wModel
             BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id
 
@@ -158,10 +173,16 @@ open BusWire
         let getPortSym (model: SymbolT.Model) (sym: Symbol): Map<string,Port>  =
             let portId = sym ^. (portMaps_ >-> orientation_) |> Map.keys
             portId
-            |> Seq.fold (fun acc id -> 
+            |> Seq.choose (fun id ->
+                match Map.tryFind id model.Ports with
+                | Some port -> Some (id, port)
+                | None -> None)
+            |> Map.ofSeq
+
+            (*|> Seq.fold (fun acc id -> 
                 match Map.tryFind id model.Ports with
                 | Some port -> Map.add id port acc
-                | None -> acc) Map.empty
+                | None -> acc) Map.empty*)
     
         /// Finds the corresponding WId(s) and other port(s) for a given Port based on connections.
         /// `port` is the given port to find matches for.
@@ -277,23 +298,37 @@ open BusWire
 
         /// Align all multiply components where possible
         let alignMultiplyComp (wModel: BusWireT.Model) (syms: Symbol list): BusWireT.Model =
-            syms
-            |> List.fold (fun wModel' sym ->
-                let outputPorts = getPortSym wModel'.Symbol sym
-                                 |> Map.filter (fun _ port -> port.PortType = PortType.Output)
-                                 |> Map.values
-                                 |> Seq.toList
-                match outputPorts with
-                | [] -> wModel' // If there are no output ports, return the sheet as is
-                | _ -> 
-                    let portPair = choosePortAlign wModel' outputPorts
-                    match portPair with
-                        | Some portPair -> 
-                            let otherPort = snd portPair
-                            let otherSym = getSym wModel' otherPort
-                            alignMultiplyComponents  wModel' sym (fst portPair) otherSym otherPort
-                        | _ -> wModel'
-             ) wModel
+            let adjustments =
+                syms
+                |> List.map (fun sym ->
+                    let outputPorts = getPortSym wModel.Symbol sym
+                                     |> Map.filter (fun _ port -> port.PortType = PortType.Output)
+                                     |> Map.values
+                                     |> Seq.toList
+                    printfn $"Output Ports {outputPorts}, {List.length outputPorts}"
+                    match outputPorts with
+                    | [] -> (sym,sym) // If there are no output ports, return the sheet as is
+                    | _ -> 
+                        match choosePortAlign wModel outputPorts with
+                            | Some (portA, portB) -> 
+                                let otherSym = getSym wModel portB
+                                let sym' = alignMultiplyComponents wModel sym portA otherSym portB
+                                (sym,sym')
+                            | None -> (sym,sym))
+                 
+            let wModel' =
+                adjustments
+                |> List.fold (fun model (sym, sym') ->
+                    printfn $"HMMMMMMMMMMMMMMMMMMMM"
+                    // Update the model for each sym to sym' adjustment.
+                    // This assumes 'Optic.set' can update the model based on sym.Id, and 'symbolOf_' gets the appropriate lens/path.
+                    let model' = Optic.set (symbolOf_ sym.Id) sym' model
+                    BusWireSeparate.routeAndSeparateSymbolWires model' sym.Id
+                ) wModel
+            printfn $"FINI"
+            wModel'
+            (*let model' = Optic.set (symbolOf_ sym.Id) sym' wModel
+            BusWireSeparate.routeAndSeparateSymbolWires model' sym.Id*)
                
                
     module Beautify =
@@ -343,13 +378,13 @@ open BusWire
                 | Some multiplySyms ->
                     List.filter (fun sym -> not (List.contains sym customSymbols)) multiplySyms
                 | None -> [] // If there are no multiplySyms, use an empty list for alignSyms
-                
             // Iterate over each pair in custPairs for processing
             let wModel' =
                 if List.isEmpty custPairs then
                     wModel
                 else
-                    List.fold (fun wModel' (symA, symB) -> 
+                    List.fold (fun wModel' (symA, symB) ->
+                        printfn $"CUSTY"
                         match getOppEdgePortInfo wModel' symA symB with
                         | Some (portInfoA, portInfoB) ->
                             let custEdges = (portInfoA.side, portInfoB.side)
@@ -361,7 +396,7 @@ open BusWire
                 match alignSyms with
                 | [] -> wModel' // If no symbols to align, skip this step
                 | _ -> alignMultiplyComp wModel' alignSyms // Proceed with alignment if there are symbols to align
-
+            printfn $"READY"
             // Return the final model after adjustments
             wModel''
 
@@ -378,6 +413,8 @@ open BusWire
         let sheetAlignScale (sheet: SheetT.Model): SheetT.Model =
            let multiplyModel = alignScaleComp sheet.Wire
            let multiplySheet = Optic.set SheetT.wire_ multiplyModel sheet
+           printfn $"SETTING MULTIPLY"
            let singlyModel = alignSinglyComp multiplySheet.Wire
            let sheet' = Optic.set SheetT.wire_ singlyModel multiplySheet
+           printfn $"SETTING SINGLY"
            sheet'  

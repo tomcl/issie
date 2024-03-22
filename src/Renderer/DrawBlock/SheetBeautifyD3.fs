@@ -76,7 +76,7 @@ let wirePortPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWir
 let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
     // Easily customisable threshold conditions
     let conditions =  
-        { Threshold = 0.5; 
+        { Threshold = 500; 
           Gap = {X = 40; Y=0}}
 
     // Generate the number of Wirelabels currently on the sheet

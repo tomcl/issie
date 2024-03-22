@@ -25,8 +25,9 @@ open RotateScale
 open BusWireSeparate
 open BusWireUpdateHelpers
 open SheetBeautifyD1
-
 open SheetBeautifyD2
+open SheetBeautifyD3
+
 
 (*
 Purpose of the TestSheetFunctions:
@@ -161,6 +162,9 @@ let testRemoveWireInvisSegsAndRestoreNubs (model: ModelType.Model) : ModelType.M
 
 let testBeautifyFunction (model: ModelType.Model) = model.Sheet
 
+let testLongwires (model: ModelType.Model) =
+    model
+    |> Optic.set sheet_ (sheetWireLabelSymbol model.Sheet)
 //-----------------------------------------------------------------------//
 // --------------------Top-Level-Calls for Renderer--------------------- //
 //-----------------------------------------------------------------------//
@@ -214,7 +218,7 @@ let testsToRunFromSheetMenu =
       "Test 5: cleanUpAlmostStraightSinglyConnWires", cleanUpAlmostStraightSinglyConnWires
       "Test 6: tryGeneralCleanup", tryGeneralCleanUp
       "Test 7: testResizeSymbolTopLevelImproved", testResizeSymbolTopLevelImproved
-      "Test 8", (fun (model: ModelType.Model) -> model)
+      "Test 8: long wires", testLongwires
       "Test 9", (fun (model: ModelType.Model) -> model) ]
 
 /// Run any kind of function on the model.ModelType from the menu (Alt/Option + 1-9)

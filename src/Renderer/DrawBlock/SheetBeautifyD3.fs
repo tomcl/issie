@@ -68,7 +68,6 @@ let placeSymbol
         |> Optic.set symbolModel_ symModel
         |> SheetUpdateHelpers.updateBoundingBoxes // could optimise this by only updating symId bounding boxes
         |> Ok
-
 let wireLabelPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWireT.Model) =
     let outputPos = getPortPos (outputID.ToString()) model
 
@@ -78,6 +77,7 @@ let wireLabelPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWi
               getPortPos (inputPort.ToString()) model ]
 
     outputPos :: inputPosList
+
 
     
     
@@ -99,7 +99,7 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
         |> List.filter (fun (_, length) -> length > 500.0) // Some threshold e.g 500
         |> List.map fst // Remove the length from snd as Wire list is now filtered
     let OutputPortIds = longWires |> getOutputPortId |> List.distinct
-    let gap: XYPos = { X = 10; Y = 0 }
+    let gap: XYPos = { X = 40; Y = 0 }
         // for outputPort in OutputPortIds do
         // let posList = wireLabelPositions outputPort wires model.Wire
         // let outputSymModel, outputSymId =
@@ -118,28 +118,29 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
         // Accumulator is currentModel. We repeat this List.fold for each outputPort
         |> List.fold (fun currentModel outputPort ->
             let posList = wireLabelPositions outputPort wires currentModel.Wire
-
+            let label = outputPort.ToString()
+            // find the symbol the port is connected to
             // add the IOLabel for the output symbol to the SymbolT.Model
             let (outputSymModel: SymbolT.Model), outputSymId =
-                SymbolUpdate.addSymbol [] (currentModel.Wire.Symbol) posList.Head IOLabel "I1"
+                SymbolUpdate.addSymbol [] (currentModel.Wire.Symbol) (posList.Head + gap) IOLabel label
             // Find the portID for the outputportID
             let outPortIDs = outputSymModel.Symbols[outputSymId].Component.OutputPorts
             let outputPortOptions =
                 outPortIDs
                 |> List.map (fun port -> Some port)
             // create a new BusWireT.Model with the wire deleted
-            let (wireModelWithDeletedWires: BusWireT.Model) = BusWireUpdateHelpers.deleteWiresWithPort outputPortOptions currentModel.Wire
+            let (wireModelWithDeletedWires: BusWireT.Model) = deleteWiresWithPort outputPortOptions currentModel.Wire
             // create a new SheetT.model with long wires deleted
-            let (modelWithOutputSym: SheetT.Model) = currentModel |> Optic.set SheetT.wire_ wireModelWithDeletedWires
+            let (modelWithDeletedWires: SheetT.Model) = currentModel |> Optic.set SheetT.wire_ wireModelWithDeletedWires
             // create a new SheetT.Model with the output symbol added
-            let (modelWithOutputSym: SheetT.Model) = modelWithOutputSym |> Optic.set SheetT.symbol_ outputSymModel
+            let (modelWithOutputSym: SheetT.Model) = currentModel |> Optic.set SheetT.symbol_ outputSymModel
 
             // take the postList.Tail list of XYPos and add the IOLabel for each symbol to the SymbolT.Model
             posList.Tail
             // Accumulator is currentModelWithOutputSym. Smaller inside loop, we repeat this List.fold for each inputPort pos
             |> List.fold (fun currentModelAddingInputSyms pos ->
                 let inputSymModel, inputSymId =
-                    SymbolUpdate.addSymbol [] (currentModelAddingInputSyms.Wire.Symbol) pos IOLabel "I1"
+                    SymbolUpdate.addSymbol [] (currentModelAddingInputSyms.Wire.Symbol) (pos - gap) IOLabel label
                 currentModelAddingInputSyms |> Optic.set SheetT.symbol_ inputSymModel
             ) modelWithOutputSym // feed modelWithOutputSym as our initial starting point (aka default value)
 

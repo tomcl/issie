@@ -288,20 +288,20 @@ let makeTest3Circuit (data: float*Rotation)=
 
     let noWireModel =
         initSheetModel
-        |> placeSymbol "IN1" (Input1( BusWidth=2 , DefaultValue=None)) middleOfSheet Degree180 None
-        |> Result.bind(placeSymbol "IN2" (Input1( BusWidth=2 , DefaultValue=None)) Pos1 Degree180 None )
-        |> Result.bind(placeSymbol "SW1" (SplitWire(BusWidth=1)) Pos2 Degree180 None )
-        |> Result.bind(placeSymbol "SW2" (SplitWire(BusWidth=1)) Pos3 Degree180 None )
-        |> Result.bind(placeSymbol "G1" (GateN(GateType=And,NumInputs=2)) Pos4 Degree180 None )
-        |> Result.bind(placeSymbol "G2" (GateN(GateType=And,NumInputs=2)) Pos5 Degree180 None )
-        |> Result.bind(placeSymbol "G3" (GateN(GateType=And,NumInputs=2)) Pos6 Degree180 None )
-        |> Result.bind(placeSymbol "G4" (GateN(GateType=And,NumInputs=2)) Pos7 Degree180 None )
-        |> Result.bind(placeSymbol "G5" (GateN(GateType=And,NumInputs=2)) Pos8 Degree180 None )
-        |> Result.bind(placeSymbol "G6" (GateN(GateType=And,NumInputs=2)) Pos9 Degree180 None )
-        |> Result.bind(placeSymbol "G7" (GateN(GateType=Xor,NumInputs=2)) Pos10 Degree180 None )
-        |> Result.bind(placeSymbol "G8" (GateN(GateType=Xor,NumInputs=2)) Pos11 Degree180 None )
-        |> Result.bind(placeSymbol "MN1" (MergeN(NumInputs=4)) Pos12 Degree180 None )
-        |> Result.bind(placeSymbol "OUT" (Output( BusWidth=4)) Pos13 Degree180 None)
+        |> placeSymbol "IN1" (Input1( BusWidth=2 , DefaultValue=None)) middleOfSheet Degree0 None
+        |> Result.bind(placeSymbol "IN2" (Input1( BusWidth=2 , DefaultValue=None)) Pos1 Degree0 None )
+        |> Result.bind(placeSymbol "SW1" (SplitWire(BusWidth=1)) Pos2 Degree0 None )
+        |> Result.bind(placeSymbol "SW2" (SplitWire(BusWidth=1)) Pos3 Degree0 None )
+        |> Result.bind(placeSymbol "G1" (GateN(GateType=And,NumInputs=2)) Pos4 Degree0 None )
+        |> Result.bind(placeSymbol "G2" (GateN(GateType=And,NumInputs=2)) Pos5 Degree0 None )
+        |> Result.bind(placeSymbol "G3" (GateN(GateType=And,NumInputs=2)) Pos6 Degree0 None )
+        |> Result.bind(placeSymbol "G4" (GateN(GateType=And,NumInputs=2)) Pos7 Degree0 None )
+        |> Result.bind(placeSymbol "G5" (GateN(GateType=And,NumInputs=2)) Pos8 Degree0 None )
+        |> Result.bind(placeSymbol "G6" (GateN(GateType=And,NumInputs=2)) Pos9 Degree0 None )
+        |> Result.bind(placeSymbol "G7" (GateN(GateType=Xor,NumInputs=2)) Pos10 Degree0 None )
+        |> Result.bind(placeSymbol "G8" (GateN(GateType=Xor,NumInputs=2)) Pos11 Degree0 None )
+        |> Result.bind(placeSymbol "MN1" (MergeN(NumInputs=4)) Pos12 Degree0 None )
+        |> Result.bind(placeSymbol "OUT" (Output( BusWidth=4)) Pos13 Degree0 None)
         |> getOkOrFail
     let model =
         noWireModel
@@ -365,14 +365,39 @@ let makeTest4Circuit (data: float*Rotation)=
 
 
 module Asserts =
+
     let failOnAllTests (sample: int) _ =
             Some <| $"Sample {sample}"
+
+            
+
+    let failOnMetric (failAll:bool) (sample: int) (model: SheetT.Model) =
+            let ISP =  numOfIntersectedSymPairs model
+            let numSymPairs = 
+                (float (mapKeys model.Wire.Symbol.Symbols |> Array.toList).Length)/2.
+                |> (System.Math.Round)
+                |> int 
+            let ISPScore = (float ISP)/(float numSymPairs)
+            let numSegs = 
+                (getVisibleSegOnSheet model).Length
+            let ISS = float (numOfIntersectSegSym model)
+            let ISSScore = (float ISS)/(float (numSegs+numSymPairs))
+            let SCR = numSegmentCrossRightAngle model
+            let SCRScore = (float SCR)/(float numSegs)
+            let score = System.Math.Round ((ISPScore + ISSScore + SCRScore),10) 
+            printf $" Sample {sample} scored average {score}/3 with ISP {ISP}, ISS {ISS}, SCR {SCR}"
+            match failAll with
+            |true -> Some $"Failing all, sample {sample}"
+            |_ ->
+                match score with
+                |0.0 -> None
+                |_ -> Some $"Sample {sample} failed with score > 0" 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
 //---------------------------------------------------------------------------------------//
 
 module Tests =
-    
+    open Asserts
     let D3Test1 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "Mux conected to 2 demux"
@@ -381,7 +406,7 @@ module Tests =
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest1Circuit
-            (AssertFunc failOnAllTests)
+            (AssertFunc (failOnMetric false))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
@@ -394,7 +419,7 @@ module Tests =
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest2Circuit
-            (AssertFunc failOnAllTests)
+            (AssertFunc (failOnMetric false))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
@@ -407,7 +432,7 @@ module Tests =
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest3Circuit
-            (AssertFunc failOnAllTests)
+            (AssertFunc (failOnMetric false))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
@@ -420,7 +445,7 @@ module Tests =
             showTargetSheet
             (Some sheetWireLabelSymbol)
             makeTest4Circuit
-            (AssertFunc failOnAllTests)
+            (AssertFunc (failOnMetric false))
             Evaluations.nullEvaluator
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch

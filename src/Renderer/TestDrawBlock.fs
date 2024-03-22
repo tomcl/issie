@@ -912,7 +912,7 @@ module HLPTick3 =
             randomConnectCircuitGen components threshold genSamples
 
     module sheetAlignScaleTests =
-        let twoMuxTest (_: XYPos) =
+        let twoMuxTest (increments: int) =
             initSheetModel
             |> Builder.placeSymbol "AND" (GateN(And, 2)) middleOfSheet
             |> Result.bind(Builder.placeSymbol "I1" (Mux2) {X = middleOfSheet.X - 150.0; Y = middleOfSheet.Y - 75.0})
@@ -920,9 +920,9 @@ module HLPTick3 =
             |> Result.bind(Builder.placeWire (portOf "I1" 0) (portOf "AND" 0))
             |> Result.bind(Builder.placeWire (portOf "I2" 0) (portOf "AND" 1))
             |> getOkOrFail
-            |> SheetBeautifyD1.sheetAlignScale
+            |> beautifyIncrementally increments
 
-        let andGateTest (_: XYPos) =
+        let andGateTest (increments: int) =
             initSheetModel
             |> Builder.placeSymbol "AND" Mux2 middleOfSheet
             |> Result.bind(Builder.placeSymbol "I1" (Input1(1, None)) {X = middleOfSheet.X - 150.0; Y = middleOfSheet.Y - 75.0})
@@ -933,10 +933,10 @@ module HLPTick3 =
             |> Builder.placeWire (portOf "I1" 0) (portOf "AND" 0)
             |> Result.bind(Builder.placeWire (portOf "I2" 0) (portOf "AND" 1))
             |> getOkOrFail
-            |> SheetBeautifyD1.alignOnePortSymbolsPhase
+            |> beautifyIncrementally increments
 
         // Circuit demonstrating enough degrees of freedom to straighten non singly constrained components.
-        let multipleMUXTest (_: XYPos) =
+        let multipleMUXTest (increments: int) =
             initSheetModel
             |> Builder.placeSymbol "MUX2" Mux2 middleOfSheet
             |> Result.bind (Builder.placeSymbol "MUX1" Mux2 {X = middleOfSheet.X - 175.0; Y = middleOfSheet.Y - 20.0})
@@ -950,7 +950,7 @@ module HLPTick3 =
             |> Result.bind (Builder.placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
             |> Result.bind (Builder.placeWire (portOf "MUX2" 0) (portOf "C" 0))
             |> TestLib.getOkOrFail
-            |> SheetBeautifyD1.sheetAlignScale
+            |> beautifyIncrementally increments
 
 
         // Defined custom component
@@ -965,7 +965,7 @@ module HLPTick3 =
 
 
         // Aligning and scaling of circuits with custom components
-        let customComponentScaling (_: XYPos) =
+        let customComponentScaling (increments: int) =
             initSheetModel
             |> Builder.placeSymbol "MAIN1" (Custom(customMain)) middleOfSheet
             |> Result.bind (Builder.placeSymbol "MAIN2" (Custom(customMain)) {X = middleOfSheet.X + 200.0; Y = middleOfSheet.Y - 100.0})
@@ -973,7 +973,7 @@ module HLPTick3 =
             |> Result.bind (Builder.placeWire (portOf "MAIN1" 1) (portOf "MAIN2" 1))
             |> Result.bind (Builder.placeWire (portOf "MAIN1" 2) (portOf "MAIN2" 2))
             |> TestLib.getOkOrFail
-            |> SheetBeautifyD1.scaleSymbolAlignPhase
+            |> beautifyIncrementally increments
 
         let testTripleMUX (increments: int) =
             initSheetModel
@@ -997,7 +997,7 @@ module HLPTick3 =
 
 
         // Circuit emulating results from orderFlip, for compatibility with the other beautify algorithms.
-        let orderFlipCompatibilityTest (_: XYPos) =
+        let orderFlipCompatibilityTest (increments: int) =
             initSheetModel
             |> Builder.placeSymbol "S1" (Input1(1, None)) {X = middleOfSheet.X - 275.0; Y = middleOfSheet.Y - 40.0}
             |> Result.bind (Builder.placeSymbol "S2" (Input1(1, None)) {X = middleOfSheet.X - 275.0; Y = middleOfSheet.Y + 60.0})
@@ -1010,17 +1010,17 @@ module HLPTick3 =
             |> Result.bind (Builder.placeWire (portOf "MUX1" 0) (portOf "G1" 0))
             |> Result.bind (Builder.placeWire (portOf "MUX2" 0) (portOf "G1" 1))
             |> TestLib.getOkOrFail
-            |> SheetBeautifyD1.sheetAlignScale
+            |> beautifyIncrementally increments
 
         // Circuit with multiple connections between the same two components
-        let scalingMultipleConnections (_: XYPos) =
+        let scalingMultipleConnections (increments: int) =
             initSheetModel
             |> Builder.placeSymbol "DEMUX" Demux4 middleOfSheet
             |> Result.bind (Builder.placeSymbol "AND" (GateN(And, 3)) {middleOfSheet with X = middleOfSheet.X + 200.0})
             |> Result.bind (Builder.placeWire (portOf "DEMUX" 0) (portOf "AND" 0))
             |> Result.bind (Builder.placeWire (portOf "DEMUX" 1) (portOf "AND" 1))
             |> TestLib.getOkOrFail
-            |> SheetBeautifyD1.sheetAlignScale
+            |> beautifyIncrementally increments
 
 
 
@@ -1232,20 +1232,20 @@ module HLPTick3 =
             (collectMetricsOfTests makeSamplesD3Easy (D3Tests.makeTestD3Easy threshold))
 
         /// Example test: Horizontally positioned AND + DFF: fail on symbols intersect
-        let beforeMultiConnect testNum firstSample dispatch =
+        let multiConnect testNum firstSample dispatch =
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail on symbols intersect"
+                "Demux and 3 input and gate showcasing capabilities of D1 to scale"
                 firstSample
-                horizLinePositions
+                (fromList [0;1;2;3])
                 sheetAlignScaleTests.scalingMultipleConnections
                 (Asserts.failOnSampleNumber 0)
                 dispatch
             |> recordPositionInTest testNum dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail all tests
-        let beforeTripleMUX testNum firstSample dispatch =
+        let tripleMUX testNum firstSample dispatch =
             runTestOnSheets
-                "Horizontally positioned AND + DFF: fail all tests"
+                "Complicated triple mux circuit with multiple degrees of freedom"
                 firstSample
                 (fromList [0;1;2;3])
                 sheetAlignScaleTests.testTripleMUX
@@ -1253,25 +1253,24 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
-        // let afterTripleMUX testNum firstSample dispatch =
-        //     runTestOnSheets
-        //         "Horizontally positioned AND + DFF: fail all tests"
-        //         firstSample
-        //         horizLinePositions
-        //         sheetAlignScaleTests.testTripleMUXAfter
-        //         (Asserts.failOnSampleNumber 0)
-        //         dispatch
-        //     |> recordPositionInTest testNum dispatch
-        //
-        // let afterMultiConnect testNum firstSample dispatch =
-        //     runTestOnSheets
-        //         "Horizontally positioned AND + DFF: fail on symbols intersect"
-        //         firstSample
-        //         horizLinePositions
-        //         sheetAlignScaleTests.scalingMultipleConnectionsAfter
-        //         (Asserts.failOnSampleNumber 0)
-        //         dispatch
-        //     |> recordPositionInTest testNum dispatch
+        let customComponents testNum firstSample dispatch =
+            runTestOnSheets
+                "Classic custom component scaling test"
+                firstSample
+                (fromList [0;1;2;3])
+                sheetAlignScaleTests.customComponentScaling
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
+        let andGate testNum firstSample dispatch =
+            runTestOnSheets
+                "Rotated and gate"
+                firstSample
+                (fromList [0;1;2;3])
+                sheetAlignScaleTests.andGateTest
+                Asserts.failOnAllTests
+                dispatch
+            |> recordPositionInTest testNum dispatch
 
 
         let testsToRunFromSheetMenu : (string * (int -> int -> Dispatch<Msg> -> Unit)) list =
@@ -1282,10 +1281,10 @@ module HLPTick3 =
                 "Test2", testD3EasyIndiv // set of tests to evaluate D3 designed using DSL with given components and connections list
                 "Test3", testD3Easy // set of easy tests to evaluate D3
                 "Test4", testD3Hard // set of hard tests to evaluate D3
-                "Test5", beforeMultiConnect // set of test with more spaced out components to evaluate D3
-                "Test6", beforeTripleMUX // set of test with more compressed components to evaluate D3
-                "Test7", beforeMultiConnect
-                "Test8", beforeMultiConnect  // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
+                "Test5", multiConnect // set of test with more spaced out components to evaluate D3
+                "Test6", tripleMUX // set of test with more compressed components to evaluate D3
+                "Test7", customComponents
+                "Test8", andGate  // set of tests to evaluate D3 designed using DSL with only components list, randomly connect components
                 "Next Test Error", fun _ _ _ -> printf "Next Error:"
             ]
             // Easy, EasyIndiv, testD3Hard

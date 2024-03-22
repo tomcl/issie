@@ -257,6 +257,8 @@ module Circuit =
         Result.bind (scaleSym lbl scale)
 
 
+    /// Specify all ports of symbol to reorder
+    // Doesn't require extra sheet to reorder custom component
     let orderSymPortsInSheet
         lbl
         leftIn leftOut
@@ -687,14 +689,6 @@ module Tests =
             "Toggle Beautify", fun _ _ _ _ -> printf "Beautify Toggled"
             "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
         ]
-
-    /// Display the next error in a previously started test
-    let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
-        let testNum =
-            testsToRunFromSheetMenu
-            |> List.tryFindIndex (fun (name,_) -> name = testName)
-            |> Option.defaultValue 0
-        testFunc testNum firstSampleToTest showTargetSheet dispatch
 
     open MenuHelpers
     /// common function to execute any test.

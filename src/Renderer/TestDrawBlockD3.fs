@@ -480,18 +480,6 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-    // ac2021: CAUSED COMPILE ERRORS SO COMMENTED
-    // ac2021: I think it was caused by Alina's pr?
-    // let D3Test2 testNum firstSample dispatch =
-    //     runTestOnSheets
-    //         "two custom components with random offset: fail all tests"
-    //         firstSample
-    //         offsetXY
-    //         makeTest2Circuit
-    //         Asserts.failOnAllTests
-    //         dispatch
-    //     |> recordPositionInTest testNum dispatch
-
     let testsToRunFromSheetMenu: (string * (int -> int -> bool -> Dispatch<Msg> -> Unit)) list =
         // Change names and test functions as required
         // delete unused tests from list
@@ -506,13 +494,6 @@ module Tests =
           "Next Test Error",
           fun _ _ _ _ -> printf "Next Error:" ] // Go to the nexterror in a test
 
-    /// Display the next error in a previously started test
-    let nextError (testName, testFunc) firstSampleToTest showTargetSheet dispatch =
-        let testNum =
-            testsToRunFromSheetMenu
-            |> List.tryFindIndex (fun (name, _) -> name = testName)
-            |> Option.defaultValue 0
-        testFunc testNum firstSampleToTest showTargetSheet dispatch
 
     /// common function to execute any test.
     /// testIndex: index of test in testsToRunFromSheetMenu

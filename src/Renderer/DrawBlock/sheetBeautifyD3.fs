@@ -2,6 +2,9 @@
 
 open DrawModelType
 open CommonTypes
+open Symbol
+
+
 
 let sheetWireLabelSymbol (sheet: SheetT.Model) = 
     // Note for confused readers: in Issie, a 'wire label' is a flying wire 'virtually' connecting two points on the sheet

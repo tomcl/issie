@@ -187,7 +187,7 @@ module HLPTick3 =
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
-
+        open SheetBeautifyD3
 
                 
 
@@ -655,6 +655,7 @@ module HLPTick3 =
         |> Result.bind (placeSymbol "IO1" (IOLabel) ({X = 2150.15; Y = 1677.11}+(fst posRots)[9]))
         |> Result.bind (placeWire (portOf "IO1" 0) (portOf "OUT1" 0))
         |> getOkOrFail
+        |> alignSymbols
 
     let makeCircuit =
          initSheetModel
@@ -820,14 +821,8 @@ module HLPTick3 =
         //|> Result.bind (optimalEdgeOrder)
         |> getOkOrFail
         |> alignSymbols
-    
-    /// <summary>HLP 24: AUTHOR kv221 - Circuit maker that outputs a model containing a random number of 
-    /// randomly chosen ISSIE components from a provided list. <para></para> 
-    /// Helpful for generating testcases for D4 (SheetBeautify) verification and demonstration.</summary>
-    /// <param name="posRots"> Tuple of: a list of random positions (XYPos), and a list of random rotation states (int)</param>
-    /// <param name="possibleComps"> List of component types (ComponentType list) that can be randomly selected for placement</param>
-    /// <returns>SheetT.model containing the randomly generated circuit</returns>
-    let makeD4TestCircuitRandom (posRots:XYPos list * int list) = // (possibleComps: ComponentType list) (maxNumSymbols: int) =
+
+    let makeD4TestCircuitRandomAlignedNOT (posRots:XYPos list * int list) = // (possibleComps: ComponentType list) (maxNumSymbols: int) =
         // Parameters. TODO: Make these provided as arguments to the function, and passed as Gens to the testrunner
         let maxNumSymbols = 5
         // let possibleComps = [Mux2; Mux4; Demux2; GateN(And,2); GateN(Or,2); GateN(Xor,2); GateN(Nand,2); GateN(Nor,2); GateN(Xnor,2); Input1(1,None); Output 1;]
@@ -857,7 +852,45 @@ module HLPTick3 =
         model
         |> Result.bind placeRandomWiresOnModel
         |> getOkOrFail
-        // |> alignSymbols
+    
+    /// <summary>HLP 24: AUTHOR kv221 - Circuit maker that outputs a model containing a random number of 
+    /// randomly chosen ISSIE components from a provided list. <para></para> 
+    /// Helpful for generating testcases for D4 (SheetBeautify) verification and demonstration.</summary>
+    /// <param name="posRots"> Tuple of: a list of random positions (XYPos), and a list of random rotation states (int)</param>
+    /// <param name="possibleComps"> List of component types (ComponentType list) that can be randomly selected for placement</param>
+    /// <returns>SheetT.model containing the randomly generated circuit</returns>
+    let makeD4TestCircuitRandomAligned (posRots:XYPos list * int list) = // (possibleComps: ComponentType list) (maxNumSymbols: int) =
+        // Parameters. TODO: Make these provided as arguments to the function, and passed as Gens to the testrunner
+        let maxNumSymbols = 5
+        // let possibleComps = [Mux2; Mux4; Demux2; GateN(And,2); GateN(Or,2); GateN(Xor,2); GateN(Nand,2); GateN(Nor,2); GateN(Xnor,2); Input1(1,None); Output 1;]
+        let possibleComps = [Mux2; Mux4; Demux2; GateN(And,2); GateN(Or,2); GateN(Xor,2); GateN(Nand,2); GateN(Nor,2); GateN(Xnor,2);]
+        
+        // Random number of components
+        let numComps = fromList (List.init maxNumSymbols (fun _ -> 0))
+
+        // Generate a list of random symbols of length maxNumSymbols
+        let random = System.Random()
+        let randomComponents = List.init maxNumSymbols (fun _ -> List.item (random.Next(possibleComps.Length)) possibleComps)
+
+        // Place all symbols
+        let model: Result<SheetT.Model,string> = 
+            randomComponents
+            |> List.mapi (fun index comp -> placeSymbol (index.ToString()) comp ((fst posRots).[index])) // for the list of random components, create a function to place them. TODO: make labels relevant to their component
+            |> List.fold (fun (acc: (Result<SheetT.Model, string>)) (symbolPlacer: (SheetT.Model -> Result<SheetT.Model,string>)) -> 
+                Result.bind symbolPlacer acc) (Ok initSheetModel) // place each symbol in the sheet and return the final model
+            
+        // Randomly place wires between random components
+        let placeRandomWiresOnModel (model: SheetT.Model) =
+            List.init (maxNumSymbols - 1) (fun i -> (i, i + 1)) // component pairs [(0,1); (1,2); ...]
+            |> List.mapi (fun index pair  -> swap2 ((snd posRots)[index]) ((snd pair).ToString()) ((fst pair).ToString()))
+            |> List.fold (fun (acc: (Result<SheetT.Model,string>)) (wirePlacer: (SheetT.Model -> Result<SheetT.Model,string>)) -> 
+                Result.bind wirePlacer acc) (Ok model)
+
+        model
+        |> Result.bind placeRandomWiresOnModel
+        |> getOkOrFail
+        |> alignSymbols
+        //|> SheetBeautifyD3.sheetWireLabelSymbol
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -1007,7 +1040,17 @@ module HLPTick3 =
                 "D4 Test 1. Fail on all tests." 
                 firstSample
                 (randomCompPosVal 5 20 (-300,300) (100,200))
-                makeD4TestCircuitRandom
+                makeD4TestCircuitRandomAlignedNOT
+                Asserts.failOnAllTests 
+                dispatch
+            |> recordPositionInTest testNum dispatch
+
+        let D4Test2 testNum firstSample dispatch =
+            runTestOnSheets
+                "D4 Test 1. Fail on all tests." 
+                firstSample
+                (randomCompPosVal 5 20 (-300,300) (100,200))
+                makeD4TestCircuitRandomAligned
                 Asserts.failOnAllTests 
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -1101,8 +1144,8 @@ module HLPTick3 =
             // Change names and test functions as required
             // delete unused tests from list
             [
-                "Test1", D1Test1
-                "Test2", D4Test1
+                "Test1", D4Test1
+                "Test2", D4Test2
                 "Test3", (fun a b c -> test3 minorDiviationRandomizedTen a b c)
                 "Test4", (fun a b c -> test4 minorDiviationRandomizedTen a b c)
                 "Test5", (fun a b c -> test5 minorDiviationRandomized a b c)

@@ -117,6 +117,7 @@ let generateWireLabel (model: Model) (prefix: string) =
         |> List.filter rx.IsMatch
         |> List.map getLabelNumber
         |> List.sort
+        |> List.distinct
         |> fun sortedList ->
             sortedList
             |> (@) [-1] // expand to search to find values between 0 and first number, if they exist
@@ -132,7 +133,7 @@ let generateWireLabel (model: Model) (prefix: string) =
                     else 0
         |> (string)
     
-    prefix + generateLabelNumberFromPrefix listSymbols prefix
+    prefix + (generateLabelNumberFromPrefix listSymbols prefix)
 
 
 /// Initialises and returns the PortMaps of a pasted symbolcon

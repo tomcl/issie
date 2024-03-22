@@ -189,19 +189,22 @@ let checkInOutPortOpp (model: SheetT.Model) (wire: BusWireT.Wire) =
         | _ -> None
     match inputSymbol, outputSymbol with
     | Some inputSymbol, Some outputSymbol ->
-        let inputPort, outputPort = getPortAB  model.Wire {SymA = inputSymbol; SymB = outputSymbol; Wire = wire}
+        let ports = getPortsABConnectedByWire  model.Wire {SymA = inputSymbol; SymB = outputSymbol; Wire = wire}
 
-        let inputPortOrientation = getSymbolPortOrientation inputSymbol inputPort
-        let outputPortOrientation = getSymbolPortOrientation outputSymbol outputPort
+        match ports with
+        | Some (inputPort, outputPort) -> 
+            let inputPortOrientation = getSymbolPortOrientation inputSymbol inputPort
+            let outputPortOrientation = getSymbolPortOrientation outputSymbol outputPort
 
-        match (inputPortOrientation: Edge), (outputPortOrientation: Edge) with
-        | Left , Right -> true
-        | Right, Left -> true
-        | Top, Bottom -> true
-        | Bottom, Top -> true
-        | _ ->
-            printfn "Symbol IN: %A, and Symbol OUT: %A Input and output ports are not opposite" inputSymbol.Component.Label outputSymbol.Component.Label
-            false
+            match (inputPortOrientation: Edge), (outputPortOrientation: Edge) with
+            | Left , Right -> true
+            | Right, Left -> true
+            | Top, Bottom -> true
+            | Bottom, Top -> true
+            | _ ->
+                printfn "Symbol IN: %A, and Symbol OUT: %A Input and output ports are not opposite" inputSymbol.Component.Label outputSymbol.Component.Label
+                false
+        | None -> failwithf "What? No ports found connected by the wire"
     | _, _ ->   false 
 
 

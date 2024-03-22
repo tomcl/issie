@@ -287,95 +287,41 @@ module Asserts =
 // relative to ideal beautification.
 
 module Evaluations =
-    /// Calculates the proportion of wire bends compared to the ideal solution.
-    /// Same as evaluating the number of visual segments
-    let wireBendProp (sheet: SheetT.Model) =
-        let wires = mapValues sheet.Wire.Wires
-        let symMap = sheet.Wire.Symbol
+    open TestDrawBlock.HLPTick3.Evaluations
 
-        // Ideal min turn with no position constraints
-        let wireMinTurns (wire: BusWireT.Wire) =
-            let inpEdge = getInputPortOrientation symMap wire.InputPort
-            let outEdge = getOutputPortOrientation symMap wire.OutputPort
-            match inpEdge, outEdge with
-            | edge1, edge2 when edge1 = edge2 -> 2
-            | Left, Right | Right, Left | Top, Bottom | Bottom, Top -> 0
-            | _ -> 1
-
-        let rightAngs = numOfVisRightAngles sheet
-        let idealRightAngs =
-            wires
-            |> Array.map wireMinTurns
-            |> Array.sum
-
-        match rightAngs with
-        | 0 -> 1.
-        | _ -> float idealRightAngs / float rightAngs
-
-    /// Evaluates number of crosses of wires compared to number of visible segments in sheet
-    /// Returns 1 if no wire crosses
-    /// Calculates the proportion of wire crossings compared to the total number of wires
-    let wireCrossProp (sheet: SheetT.Model) =
-        let numCrossing = numOfWireRightAngleCrossings sheet
-        let numVisSeg = 
-            getVisibleSegOnSheet sheet
-            |> distinctVisSegs
-            |> List.length
-        match numCrossing with
-        | 0 -> 1.
-        | _ -> 1. - (float numCrossing / float numVisSeg)
-
-    /// Evaluates wire squashing between symbols
-    /// Returns 1 if no wire is squashed
-    /// Calculates the proportion of squashed wires compared to the total number of wires
-    let wireSquashProp (sheet: SheetT.Model) =
-        let numSquash = numOfSquashedWires sheet
-        let numWires = mapValues sheet.Wire.Wires |> Array.length
-        match numSquash with
-        | 0 -> 1.
-        | _ -> 1. - (float numSquash / float numWires)
-
-    // For each symbol in sheet
-    // evaluates alignment with all other symbols
-    // getSymbolPos
-    /// Evaluates symbol alignment with all other symbols
-    let symCentreAlignmentProp (sheet: SheetT.Model) : float =
-        let syms = mapValues sheet.Wire.Symbol.Symbols
-        
-        /// Scores how aligned two symbols are
-        let calcAlignment (symA: SymbolT.Symbol) (symB: SymbolT.Symbol) =
-            // getSymBoundingBox
-            failwithf "not implemented"
-
-        Array.allPairs syms syms
-        |> Array.sumBy (function | (symA,symB) when symA.Id <= symB.Id -> calcAlignment symA symB
-                                 | _ -> 0.)
-        |> (fun x -> x / (float (Array.length syms))) // Scales to lots of symbols
-
-    type ConfigD1 =
+    /// Weights to choose metrics' imprortance.
+    /// D1-specific metrics only
+    type ConfigD2 =
         {
-            wireBendWeight: float
-            wireCrossWeight: float // numOfWireRightAngleCrossings
+            wBendWeight: float
+            wCrossWeight: float
             wireSquashWeight: float
-            wireLengthWeight: float // calcVisWireLength
-            failPenalty: float // -1
         }
 
-    let combEval evalA weightA evalB weightB (sheet: SheetT.Model) =
-        weightA * (evalA sheet) + weightB * (evalB sheet)
-
-    /// Combines all evaluations into one score
-    let evaluateD1 (c: ConfigD1) (sheet: SheetT.Model) : float =
-        c.wireBendWeight * (wireBendProp sheet)
-        |> (+) (c.wireCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
-        |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
-        |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
+    /// combined evaluation function for D1
+    let evaluateD2 (c: ConfigD2) =
+        combEval3 
+            wireBendProp c.wBendWeight 
+            (float << numOfWireRightAngleCrossings) c.wCrossWeight
+            wireSquashProp c.wireSquashWeight
     
-    let evaluatorD2 : Evaluator<SheetT.Model> =
+    let d2Conf = 
         {
-            EvalFunc = wireCrossProp
-            Penalty = 0
+            wBendWeight = 0.75
+            wCrossWeight = 1
+            wireSquashWeight = 0.5
         }
+
+    let d2Evaluator = 
+        {
+            EvalFunc = evaluateD2 d2Conf
+            Penalty = -1
+        }
+
+
+//---------------------------------------------------------------------------------------//
+//-----------------------------TestData--------------------------------------------------//
+//---------------------------------------------------------------------------------------//
 
 module TestData = 
     open Builder
@@ -522,7 +468,7 @@ module Tests =
                 (Some targetSheetD2)
                 makeTestCircuit2
                 (AssertFunc failOnAllTests)
-                Evaluations.evaluatorD2
+                Evaluations.d2Evaluator
                 dispatch
             |> recordPositionInTest testNum showTargetSheet dispatch
         

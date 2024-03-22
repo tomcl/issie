@@ -234,9 +234,9 @@ module Evaluations =
 
     /// Combines all evaluations into one score
     let evalBeauty (c: ConfigD4) (sheet: SheetT.Model) : float =
-        c.wBendWeight * (wireBendProp sheet)
+        c.wBendWeight * (Evaluations.wireBendProp sheet)
         |> (+) (c.wCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
-        |> (+) (c.wSquashWeight * (float (wireSquashProp sheet)))
+        |> (+) (c.wSquashWeight * (float (Evaluations.wireSquashProp sheet)))
         // |> (+) (c.wLenWeight * (float (wireSquashProp sheet)))
 
     let evalD4 =

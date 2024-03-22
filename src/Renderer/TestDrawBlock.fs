@@ -509,6 +509,10 @@ module HLPTick3 =
         /// Combine two evaluation metrics
         let combEval evalA weightA evalB weightB (sheet: SheetT.Model) : float =
             weightA * (evalA sheet) + weightB * (evalB sheet)
+        
+        /// Combine three evaluation metrics
+        let combEval3 evalA weightA evalB weightB evalC weightC (sheet: SheetT.Model) : float =
+            weightA * (evalA sheet) + weightB * (evalB sheet) + weightC * (evalC sheet)
 
         /// Evaluates sheet to 0
         let nullEvaluator : Evaluator<SheetT.Model> =

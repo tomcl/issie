@@ -75,7 +75,6 @@ let rec combinations list =
             combinations tail |> List.map (fun perm -> head :: perm))
 
 
-
 /// <summary> generate all possible symbolScripts for a symbol </summary>
 /// <param name="symbol"> The symbol to generate scripts for </param>
 /// <returns> A list of all possible symbolScripts for the symbol </returns>
@@ -214,8 +213,6 @@ let applyScriptToModel (model: SheetT.Model) (modelScript: modelScript): SheetT.
         
         {newModel with Wire =  (updateWires newModel.Wire [symId] {X = 0.0; Y = 0.0})}
         
-        
-    
     modelScript
     |> List.fold (fun model (symId, symScript) -> updateOneSymbol symScript symId model) model
 
@@ -332,3 +329,156 @@ let certainModel (model: SheetT.Model) =
 // Heuristic Algorithm
 // Use a heuristic to partition components into independent connected groups
 // TODO
+
+let findAllMuxAndGate (model: SheetT.Model) = 
+    let symbols = 
+        model.Wire.Symbol.Symbols
+        |> Map.toList
+        |> List.map snd
+    
+    let muxAndGateSymbols = 
+        symbols
+        |> List.filter (fun sym -> 
+            match sym.Component.Type with
+            | Mux2 | Mux4 | Mux8 | GateN _ | Not -> true
+            | _ -> false)
+    
+    muxAndGateSymbols
+
+
+let optimizeOneSymbol (model: SheetT.Model) (symbol: SymbolT.Symbol) = 
+    let symbolScripts = generateSymbolScript symbol
+    let modelScripts = 
+        symbolScripts
+        |> List.map (fun symbolScript -> [(symbol.Id, symbolScript)])
+    
+    let bestModel, bestScore = 
+        modelScripts
+        |> List.map (applyScriptToModel model)
+        |> List.map (fun model -> (model, evaluateModel model))
+        |> List.minBy snd
+    
+    (bestModel, bestScore)
+
+let optimizeModelOnce (model: SheetT.Model) = 
+    let newModel, score = 
+        model
+        |> findAllMuxAndGate
+        |> List.fold (fun (currentModel, _) symbol ->
+                optimizeOneSymbol currentModel symbol
+            ) (model, 999)
+    
+    newModel, score
+
+let optimizeModel (model: SheetT.Model) =
+    let mutable currentModel = model
+    let mutable currentScore = 999
+    let mutable continueOptimization = true
+
+    while continueOptimization do
+        let newModel, newScore = optimizeModelOnce currentModel
+
+        // Check if the score has improved (decreased)
+        if newScore < currentScore then
+            currentModel <- newModel
+            currentScore <- newScore
+        else
+            // If no improvement, stop the optimization loop
+            continueOptimization <- false
+
+    printfn "Final score: %A" currentScore
+    
+    currentModel
+
+
+    
+
+// Unused code
+
+// let splitComponents (sym1: Symbol) (model: SheetT.Model) = 
+//     let connections = 
+//         model.Wire.Wires
+//         |> Map.toList
+//         |> List.map snd
+    
+//     let components = 
+//         model.Wire.Symbol.Symbols
+//         |> Map.toList
+//         |> List.map snd
+
+//     let idList = 
+//         components
+//         |> List.map (fun sym -> sym.Id)
+    
+//     let portList = 
+//         components
+//         |> List.map (fun sym -> sym.PortMaps.Order)
+//         |> List.map (Map.toList)
+//         |> List.map (List.collect snd)
+    
+//     // componentId -> portId
+//     let compIdToPortIdMap = 
+//         List.zip idList portList
+//         |> Map.ofList
+    
+//     let invertMap map =
+//         Map.fold (fun acc key valueList ->
+//             List.fold (fun accInner value -> 
+//                 Map.add value key accInner) acc valueList) Map.empty map
+
+//     let portIdToCompIdMap = invertMap compIdToPortIdMap
+
+//     let mapOutputToInput (connections: List<Wire>) =
+//         let connectionsList = 
+//             connections
+//             |> List.collect (fun wire -> [(wire.InputPort, wire.OutputPort); (wire.InputPort, wire.OutputPort)])
+//         let groupedConnections = 
+//             connectionsList
+//             |> Seq.groupBy fst
+//             |> Seq.map (fun (port, connectedPorts) -> port, connectedPorts |> Seq.map snd |> Seq.toList)
+//         Map.ofSeq groupedConnections
+
+
+//     let mapIO = mapOutputToInput connections
+
+
+//     let outputPortIds = 
+//         sym1.Component.OutputPorts
+//         |> List.map (fun port -> port.Id)
+    
+//     let getConnectedCompId (symId: ComponentId) =  
+        
+//         let portIdList = compIdToPortIdMap.[symbol.Id]
+
+//         let symbolPortIdList = 
+//             portIdList
+//             |> List.map (fun portId -> mapIO.[portId])
+//             |> List.collect id
+//             |> List.distinct
+        
+//         symbolPortIdList
+//         |> List.map (fun ele -> portIdToCompIdMap[ele])
+//         |> List.distinct
+    
+//     let connectionListMap = 
+//         idList
+//         |> List.map (fun id -> (id, getConnectedCompId id))
+//         |> Map.ofList
+
+//     let groupComponents connectionListMap idList =
+
+//         let rec isConnected comp1 comp2 =
+//             match Map.tryFind comp1 connectionListMap with
+//             | Some connections -> List.contains comp2 connections || List.exists (fun c -> isConnected c comp2) connections
+//             | None -> false
+
+//         let rec group remainingIds grouped =
+//             match remainingIds with
+//             | [] -> grouped
+//             | head::tail ->
+//                 let related, unrelated = List.partition (fun id -> isConnected head id || isConnected id head) tail
+//                 group unrelated ((head::related)::grouped)
+
+//         group idList []
+    
+// groupComponents connectionListMap idList 

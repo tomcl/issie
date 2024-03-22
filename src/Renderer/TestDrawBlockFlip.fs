@@ -79,6 +79,7 @@ module Generator =
     }
 
     // ---------------------- Generator Constants ----------------------
+    // These are the default values for the random generator
     let ccType: CustomComponentType = {
         Name = "custom"
         InputLabels = [("X1", 1); ("X2", 1); ("X3", 1); ("X4", 1)]
@@ -104,7 +105,7 @@ module Generator =
             |> fun (iv, rv) -> tmpA[r] <- iv;  tmpA[i]  <- rv
         tmpA
 
-    /// Chunk the generator into smaller arrays of equal lengths
+    /// Shuffle and chunk the generator into a generator of smaller arrays of equal lengths
     let chunkShuffledGen (gen: Gen<'a>) (seed: int) (length: int) =
         gen
         |> toArray
@@ -147,7 +148,7 @@ module Generator =
                 }
         )
 
-    ///<summary> AUTHOR hn621 - Random Gen samples: component, position, flips, rotations</summary>
+    ///<summary> AUTHOR hn621 - Random Gen samples: no rotations</summary>
     let randomComponentSamplesNoRotate : Gen<GenCompStates> =
         flips
         |> product makeTuple (gridPosGen 400 100)
@@ -275,18 +276,14 @@ module Tests =
             displayOnFail
         |> recordPositionInTest testNum dispatch
 
+    /// Random N Components Test
     let testRandomComp testNum firstSample dispatch model =
         let nComponents = 10 // note that the position generation is fixed, too large nComponents will not have non-overlapping test cases
         let sheetMaker = makeRandomCircuit model
         let displayOnFail = displayAll
         let generator = nComponents |> chunkShuffledGen (randomComponentSamples) 1
-        // this assertion fails on all tests without symbol intersection!
-        let assertion (sample: int) (sheetModel: SheetT.Model) = 
-            sheetModel
-            |> Asserts.failOnSymbolIntersectsSymbol sample
-            |> function
-                | Some str -> None
-                | None -> Some "Random Component Test Failed"
+        // this assertion show tests without symbol intersection
+        let assertion = Asserts.showNoSymIntersectSym
         
         runTestOnSheets
             "DisplayAll: Random N Components"
@@ -304,12 +301,7 @@ module Tests =
         let displayOnFail = displayAll
         let generator = nComponents |> chunkShuffledGen (randomComponentSamplesNoRotate) 1
         // this assertion fails on all tests without symbol intersection!
-        let assertion (sample: int) (sheetModel: SheetT.Model) = 
-            sheetModel
-            |> Asserts.failOnSymbolIntersectsSymbol sample
-            |> function
-                | Some str -> None
-                | None -> Some "Random Component Test Failed"
+        let assertion = Asserts.showNoSymIntersectSym
         
         runTestOnSheets
             "DisplayAll: Random N Components No Rotate"
@@ -322,7 +314,6 @@ module Tests =
         |> recordPositionInTest testNum dispatch
 
     let testD3Regular testNum firstSample dispatch model =
-        
         runTestOnSheets
             "DisplayAll D3: Regular Shifts"
             firstSample

@@ -469,6 +469,18 @@ module Asserts =
         |> (function | true -> Some $"Symbol outline intersects another symbol outline in Sample {sample}"
                         | false -> None)
 
+    /// Show on sheet contains no symbol overlaps
+    let showNoSymIntersectSym (sample: int) (sheet: SheetT.Model) =
+        let wireModel = sheet.Wire
+        let boxes =
+            mapValues sheet.BoundingBoxes
+            |> Array.toList
+            |> List.mapi (fun n box -> n,box)
+        List.allPairs boxes boxes 
+        |> List.exists (fun ((n1,box1),(n2,box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
+        |> (function | false -> Some $"Sample {sample}: No symbol overlap"
+                        | true -> None)
+
     let failOnAllTestsPrintWireSeg (sample: int) (sheet: SheetT.Model) =
         let wireModel: BusWireT.Model = sheet.Wire
         let listOfWires = wireModel.Wires |> Map.toList |> List.map (fun (wid: ConnectionId,wire) -> wire.InitialOrientation,wire.StartPos)

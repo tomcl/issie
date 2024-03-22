@@ -29,7 +29,7 @@ open DrawModelType
 //open DrawModelType.SheetT
 open SheetUpdateHelpers
 open SheetBeautifyHelpers
-open SheetBeautifyHelpers.SegmentHelpers
+//open SheetBeautifyHelpers.SegmentHelpers
 open Optics
 open BlockHelpers
 open BusWireRoute

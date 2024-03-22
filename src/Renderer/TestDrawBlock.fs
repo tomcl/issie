@@ -93,7 +93,6 @@ module HLPTick3 =
     open Sheet.SheetInterface
     open GenerateData
     open TestLib
-    open SheetBeautifyD2
     open SheetBeautify
 
     /// create an initial empty Sheet Model 
@@ -721,7 +720,7 @@ module HLPTick3 =
         |> Result.bind (MUX2Connection2)
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
-        |> Result.bind (optimalEdgeOrder) // Call D2 algorithm to beautify model
+        |> Result.bind (sheetOrderFlip) // Call D2 algorithm to beautify model
         |> getOkOrFail
         // |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
 

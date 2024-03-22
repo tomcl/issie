@@ -137,10 +137,10 @@ let developerModeView (model: ModelType.Model) dispatch =
           ("Sym-Sym Intersects", (countIntersectingSymbolPairs model.Sheet).ToString())
           ("90º Degree Wire Bends", (countVisibleBends model.Sheet).ToString())
           ("Near-Straight Wires", (countAlmostStraightWiresOnSheet model.Sheet).ToString())
+          ("More Bent Wires", (countBentWiresOnSheet model.Sheet).ToString())
           ("Singly-Conn Wires", (countSinglyConnectedWires model.Sheet).ToString())
-          ("Vis. Seg. Length", (countVisibleSegmentLength model.Sheet).ToString("F1"))
-          //   ("Sym-Sym Overlap", (countIntersectingSymbolPairsWithOverlapArea model.Sheet).ToString()) ]
-          ("Free Space!!!", ":)") ]
+          ("Vis. Seg. Length", (countVisibleSegmentLength model.Sheet).ToString("F1")) ]
+    //   ("Free Space!!!", ":)") ]
 
     let menuItem menuName description (level: BeautifyLevel) dispatch =
 
@@ -198,6 +198,13 @@ let developerModeView (model: ModelType.Model) dispatch =
     /// Create a counter item (a title + number) for the sheet stats menu
     let createCounterItem title value (cache: string option) =
         match cache with
+        | Some cache when cache = ":)" -> // handle easter egg :)
+            Level.item
+                [ Level.Item.HasTextCentered ]
+                [ div
+                      [ Style [ Width "170px" ] ]
+                      [ Level.heading [] [ str title ]
+                        strong [ Style [ FontSize "17px" ] ] [ str (value) ] ] ]
         | Some cache ->
             Level.item
                 [ Level.Item.HasTextCentered ]
@@ -217,19 +224,21 @@ let developerModeView (model: ModelType.Model) dispatch =
         let cachedSheetStats = counterItems |> List.map snd
 
         div
-            [ Style [ Margin "5px 0" ] ]
+            [ Style [ MarginTop "20px" ] ]
             [ Level.level
                   []
                   [ Level.item
                         [ Level.Item.HasTextCentered ]
                         [ div
-                              []
+                              [ Style [ Width "170px"; FontSize "14px" ] ]
                               [ Menu.list
                                     []
-                                    [ trackingMenuItem "Turn On Tracker" (true) (Some cachedSheetStats) dispatch ] ] ]
+                                    [ trackingMenuItem "Freeze Current Value" (true) (Some cachedSheetStats) dispatch ] ] ]
                     Level.item
                         [ Level.Item.HasTextCentered ]
-                        [ div [] [ Menu.list [] [ trackingMenuItem "Turn Off Tracker" (false) None dispatch ] ]
+                        [ div
+                              [ Style [ Width "170px"; FontSize "14px" ] ]
+                              [ Menu.list [] [ trackingMenuItem "Forget Current Value" (false) None dispatch ] ]
 
                           ] ]
 
@@ -246,7 +255,7 @@ let developerModeView (model: ModelType.Model) dispatch =
             (cachedChunks, counterChunks)
             ||> List.map2 (fun cachedChunk counterChunk ->
                 div
-                    [ Style [ Margin "5px 0" ] ]
+                    [ Style [ Margin "0 0" ] ]
                     [ Level.level
                           []
                           ((cachedChunk, counterChunk)
@@ -257,7 +266,7 @@ let developerModeView (model: ModelType.Model) dispatch =
             (counterChunks)
             |> List.map (fun counterChunk ->
                 div
-                    [ Style [ Margin "5px 0" ] ]
+                    [ Style [ Margin "0 0" ] ]
                     [ Level.level
                           []
                           (counterChunk

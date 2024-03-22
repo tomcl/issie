@@ -28,7 +28,7 @@ open BusWireRoutingHelpers
 module Constants =
     /// Constant that decides if a wire is classified as almost-straight, if its longest segment in the minority direction is shorter than this length
     let maxDeviationLengthThresholdAlmostStraight = 30.0
-    let maxDeviationLengthThresholdGeneral = 60.0
+    let maxDeviationLengthThresholdGeneral = 100.0
     /// Constant that decides if a wire is classified as almost-straight, if its overall displacement in the minority direction is shorter than this length
     let maxMinorityDisplacementThreshold = 300
 
@@ -216,6 +216,16 @@ let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) =
     let straightWires =
         sheetModel.Wire.Wires
         |> Map.filter (fun _ wire -> checkAlmostStraightWire wire maxDeviationLengthThresholdAlmostStraight)
+    straightWires.Count
+
+/// <summary>
+/// Function that counts the number of bent wires on a sheet, being more tolerant than countAlmostStraightWires. A heuristic to show on DeveloperModeView SheetStats
+/// Author: tdc21/Tim
+/// </summary>
+let countBentWiresOnSheet (sheetModel: SheetT.Model) =
+    let straightWires =
+        sheetModel.Wire.Wires
+        |> Map.filter (fun _ wire -> checkAlmostStraightWire wire maxDeviationLengthThresholdGeneral)
     straightWires.Count
 
 /// <summary>

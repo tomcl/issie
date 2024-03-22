@@ -36,6 +36,18 @@ open BusWireRoute
 open RotateScale
 open Symbol
 
+open SheetBeautifyHelpers
+open DrawModelType
+open CommonTypes
+open DrawModelType.SymbolT
+open DrawModelType.BusWireT
+open DrawModelType.SheetT
+open Optics
+open Operators
+open Sheet
+open RotateScale
+open BusWireSeparate
+
 
 type Directions = DIR_Left | DIR_Right | DIR_Up | DIR_Down
 type SymbolClassification = ClassInput | ClassOutput
@@ -708,6 +720,222 @@ let sheetWireLabelSymbol (sheet: SheetT.Model) =
 
     // todo use lenses
     {newSymbolsModel with Wire = {sheet.Wire with Wires = updatedWires; Symbol = {newSymbolsModel.Wire.Symbol with Symbols = remainingSymbols}}}
+
+let getCustomConfigs (sym:Symbol): Symbol list =
+    
+    let currPortOrder = sym.PortMaps.Order
+    let edge = Left
+    let ports = currPortOrder[edge]
+
+    // Take a list, and returns different permutations of that list.
+    let permute list =
+        let rec inserts e = function
+            | [] -> [[e]]
+            | x::xs as list -> (e::list)::[for xs' in inserts e xs -> x::xs']
+
+        List.fold (fun accum x -> List.collect (inserts x) accum) [[]] list
+
+    let possibleOrders = permute ports
+
+    let symbolPortMapsLens = portMaps_
+    let PortMapsPortOrderLens = order_
+    let symbolPortOrderLens = symbolPortMapsLens >-> PortMapsPortOrderLens
+
+    let alteredOrdersMaps = List.map (fun possibleOrder -> Map.add edge possibleOrder currPortOrder) possibleOrders
+    let orderSetter = snd symbolPortOrderLens
+    List.map (fun alteredOrdersMap -> orderSetter alteredOrdersMap sym) alteredOrdersMaps
+
+let getInputReversalList (sym:Symbol): Symbol list =
+    let reverseSetter = snd reversedInputPorts_
+    [sym; (reverseSetter (Some true) sym)]
+
+let getFlipList (sym:Symbol): Symbol list =
+    // let flipSetter = snd symbol_flipped_
+    let flippedSymbol = flipSymbolInBlock FlipVertical {X=sym.Pos.X + 0.5*sym.Component.H; Y=sym.Pos.Y + 0.75*sym.Component.W} sym
+    [flippedSymbol]
+
+let getRotationList (sym:Symbol): Symbol list =
+    let rotationSetter = snd symbol_rotation_
+    [sym; (rotationSetter Degree90 sym); (rotationSetter Degree180 sym); (rotationSetter Degree270 sym)]
+
+// Configs due to input reversal, flipping and rotation.
+let getMuxConfigs (sym:Symbol): Symbol list =
+    // getInputReversalList sym
+    getFlipList sym
+    //|> List.concat
+    //|> List.map getRotationList
+    //|> List.concat
+
+let getGateConfigs (sym:Symbol): Symbol list =
+    getFlipList sym
+
+let getAdderConfigs (sym:Symbol): Symbol list =
+    getInputReversalList sym
+    |> List.map getFlipList
+    |> List.concat
+
+let getConfigurations (sym:Symbol): Symbol list =
+    match sym.Component.Type with
+    | Mux2 -> getMuxConfigs sym
+    //| GateN _ -> getGateConfigs sym
+    //| NbitsAnd _ -> getAdderConfigs sym
+    //| Custom _ -> getCustomConfigs sym
+    | _ -> [sym]
+
+let sheetOrderFlip (model: SheetT.Model):Result<SheetT.Model, string> =
+
+    //Quadrant Heuristic Begin//
+    let three = 3.0
+    let four = 4.0
+    let GetCanvasSize = fst canvasSize_
+    let canvasSize = GetCanvasSize model
+    let quarterCanvas = canvasSize/four
+
+    let topLeftCentre = {X=quarterCanvas;Y=quarterCanvas}
+    let topRightCentre = {X=three*quarterCanvas;Y=quarterCanvas}
+    let bottomLeftCentre = {X=quarterCanvas;Y=three*quarterCanvas}
+    let bottomRightCentre = {X=three*quarterCanvas;Y=three*quarterCanvas}
+
+    let quadrantCentres = [topLeftCentre; topRightCentre; bottomLeftCentre; bottomRightCentre]
+    let quadrantCompIdLists = List.map (fun pos -> findNearbyComponents model pos quarterCanvas) quadrantCentres
+    //Quadrant Heuristic End//
+
+    let idSymbolMap = model.Wire.Symbol.Symbols
+    let idListToSymList (idList:ComponentId List) =
+        List.map (fun id -> idSymbolMap[id]) idList
+    
+    let allIds = 
+        idSymbolMap 
+        |> Map.toList 
+        |> List.map (fun (key, _) -> key)
+
+    let allIds2 = [allIds]
+
+    // Takes a list of lists. Returns possible lists by picking one element from each input list.
+    let rec cartesian lstlst =
+        match lstlst with
+        | h::[] ->
+            List.fold (fun acc elem -> [elem]::acc) [] h
+        | h::t ->
+            List.fold (fun cacc celem ->
+                (List.fold (fun acc elem -> (elem::celem)::acc) [] h) @ cacc
+                ) [] (cartesian t)
+        | _ -> []
+    
+    // IDList and symList must be the same length.
+    let buildMap (idList:ComponentId list) (symList:Symbol list):Map<ComponentId,Symbol> =
+        List.zip idList symList
+        |> Map.ofList
+
+    let symbolsGetter = fst symbols_
+    let symbolsSetter = snd symbols_
+
+    let quadrantOptimisation (iDList: ComponentId list) =
+
+        let symbolList = idListToSymList iDList
+
+        let configs = List.map getConfigurations symbolList
+        let configsOfHead =
+            List.head (List.filter (fun symConfig -> (List.head symConfig).Component.Type = Mux2) configs)
+        
+        let combos = cartesian configs
+        let possibleMaps = List.map (fun symList -> buildMap iDList symList) combos
+        let possibleModels = List.map (fun possibleMap -> symbolsSetter possibleMap model) possibleMaps
+
+        possibleModels
+        |> List.map (fun x -> numOfWireRightAngleCrossings x)
+        |> (fun x ->printf $"ALL WIRE CROSSINGS : {x}")
+        |> ignore
+
+        let bestModel = List.fold (fun minModel newModel -> if ((numOfWireRightAngleCrossings newModel) < (numOfWireRightAngleCrossings minModel)) then newModel else minModel) model possibleModels
+
+        symbolsGetter bestModel
+
+    let optimisedCompMap =
+        List.map quadrantOptimisation allIds2
+        |> List.map Map.toList
+        |> List.concat
+        |> Map.ofList
+
+    let allSyms = 
+        optimisedCompMap 
+        |> Map.toList 
+        |> List.map (fun (_, value) -> value)
+    let modelBeforeRouteAndSeparate = symbolsSetter optimisedCompMap model
+
+    let finalSymIds = modelBeforeRouteAndSeparate.Wire.Symbol.Symbols
+    let keysList = 
+        finalSymIds 
+        |> Map.toList 
+        |> List.map (fun (key, _) -> key) 
+
+    let finalBusModel = List.fold (fun acc id -> routeAndSeparateSymbolWires acc id) modelBeforeRouteAndSeparate.Wire keysList
+    let mySetter = snd wire_
+    let finalModel = mySetter finalBusModel modelBeforeRouteAndSeparate
+
+    Ok finalModel
+
+let dummyFunc (model: SheetT.Model):Result<SheetT.Model, string> =
+
+    let idSymbolMap = model.Wire.Symbol.Symbols
+
+    let idListToSymList (idList:ComponentId List) =
+        List.map (fun id -> idSymbolMap[id]) idList
+    
+    let allIds = 
+        idSymbolMap 
+        |> Map.toList 
+        |> List.map (fun (key, _) -> key)
+
+    let allIds2 = [allIds]
+
+    let rec cartesian lstlst =
+        match lstlst with
+        | h::[] ->
+            List.fold (fun acc elem -> [elem]::acc) [] h
+        | h::t ->
+            List.fold (fun cacc celem ->
+                (List.fold (fun acc elem -> (elem::celem)::acc) [] h) @ cacc
+                ) [] (cartesian t)
+        | _ -> []
+    
+    let buildMap (idList:ComponentId list) (symList:Symbol list):Map<ComponentId,Symbol> =
+        List.zip idList symList
+        |> Map.ofList
+
+    let idSymbolMap = model.Wire.Symbol.Symbols
+    let allIds = 
+        idSymbolMap 
+        |> Map.toList 
+        |> List.map (fun (key, _) -> key)
+
+    let allIds2 = [allIds]
+    let symbolList = idListToSymList allIds
+
+    let configs = List.map getConfigurations symbolList
+    let configsOfHead =
+        List.head (List.filter (fun symConfig -> (List.head symConfig).Component.Type = Mux2) configs)
+    
+    let combos = cartesian configs
+
+    let possibleMaps = List.map (fun symList -> buildMap allIds symList) combos
+    let symbolsSetter = snd symbols_
+
+    let possibleModels = List.map (fun possibleMap -> symbolsSetter possibleMap model) possibleMaps
+
+    let modelBeforeRouteAndSeparate = List.head possibleModels
+
+    let finalSymIds = modelBeforeRouteAndSeparate.Wire.Symbol.Symbols
+    let keysList = 
+        finalSymIds 
+        |> Map.toList 
+        |> List.map (fun (key, _) -> key) 
+
+    let finalBusModel = List.fold (fun acc id -> routeAndSeparateSymbolWires acc id) modelBeforeRouteAndSeparate.Wire keysList
+    let mySetter = snd wire_
+    let finalModel = mySetter finalBusModel modelBeforeRouteAndSeparate
+
+    Ok finalModel
 
 /// Top level function to beautify the sheet
 /// Aims to straighten wires, reduce right angles in wire, reduce the number of wire intersections and Converts IOlabels to wires based on heuristics

@@ -390,9 +390,9 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
         |> getOkOrFail
         |> alignSinglyConnectedComponents
-        |> alignSinglyConnectedComponents
-        |> alignMultipleComponents
         // |> alignSinglyConnectedComponents
+        |> alignMultipleComponents
+        |> alignSinglyConnectedComponents
         // |> alignSinglyConnectedComponents
         
 

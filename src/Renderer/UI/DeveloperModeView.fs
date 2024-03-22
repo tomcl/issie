@@ -137,7 +137,7 @@ let developerModeView (model: ModelType.Model) dispatch =
           ("Sym-Sym Intersects", (countIntersectingSymbolPairs model.Sheet).ToString())
           ("90º Degree Wire Bends", (countVisibleBends model.Sheet).ToString())
           ("Near-Straight Wires", (countAlmostStraightWiresOnSheet model.Sheet).ToString())
-          ("More Bent Wires", (countBentWiresOnSheet model.Sheet).ToString())
+          ("Less-Straight Wires", (countBentWiresOnSheet model.Sheet).ToString())
           ("Singly-Conn Wires", (countSinglyConnectedWires model.Sheet).ToString())
           ("Vis. Seg. Length", (countVisibleSegmentLength model.Sheet).ToString("F1")) ]
     //   ("Free Space!!!", ":)") ]
@@ -149,25 +149,31 @@ let developerModeView (model: ModelType.Model) dispatch =
               Menu.Item.OnClick(fun _ -> dispatch (SelectBeautifyLevel level)) ]
             [ strong [] [ str menuName ]; p [] [ str description ] ]
 
-    let trackingMenuItem trackingMenuName (tracking: bool) (cachedStringData: (string list) option) dispatch =
+    let trackingMenuItem trackingMenuName (cachedStringData: (string list) option) dispatch =
         Menu.Item.li
-            [ (Menu.Item.IsActive(tracking = model.Tracking))
-              Menu.Item.OnClick(fun _ -> dispatch (SelectTracking(tracking, cachedStringData))) ]
+            [ (Menu.Item.IsActive(model.Tracking))
+              Menu.Item.OnClick(fun _ ->
+                  let cachedStringData =
+                      if model.Tracking then
+                          None
+                      else
+                          cachedStringData
+                  dispatch (SelectTracking((not model.Tracking), cachedStringData))) ]
             [ strong [] [ str trackingMenuName ] ]
 
-    let settingsMenu =
-        let settingsMenu =
-            Menu.menu
-                []
-                [ Menu.list
-                      []
-                      [ trackingMenuItem "Turn On Tracker" true None dispatch
-                        trackingMenuItem "Turn Off Tracker" false None dispatch ] ]
+    // let settingsMenu =
+    //     let settingsMenu =
+    //         Menu.menu
+    //             []
+    //             [ Menu.list
+    //                   []
+    //                   [ trackingMenuItem "Turn On Tracker" true None dispatch
+    //                     trackingMenuItem "Turn Off Tracker" false None dispatch ] ]
 
-        details
-            [ Open(model.SettingsMenuExpanded) ]
-            [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSettingsMenu)) ] [ str "Settings " ]
-              div [] [ settingsMenu ] ]
+    // details
+    //     [ Open(model.SettingsMenuExpanded) ]
+    //     [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSettingsMenu)) ] [ str "Settings " ]
+    //       div [] [ settingsMenu ] ]
 
     /// A drop down menu that allows the user to select the level of beautification. Open/close state persists between updates thanks to
     /// a bool in the model called model.BeautifyMenuExpanded
@@ -196,82 +202,77 @@ let developerModeView (model: ModelType.Model) dispatch =
               p [] [ str "Sample Text 3" ] ]
 
     /// Create a counter item (a title + number) for the sheet stats menu
-    let createCounterItem title value (cache: string option) =
-        match cache with
-        | Some cache when cache = ":)" -> // handle easter egg :)
-            Level.item
-                [ Level.Item.HasTextCentered ]
-                [ div
-                      [ Style [ Width "170px" ] ]
-                      [ Level.heading [] [ str title ]
-                        strong [ Style [ FontSize "17px" ] ] [ str (value) ] ] ]
-        | Some cache ->
-            Level.item
-                [ Level.Item.HasTextCentered ]
-                [ div
-                      [ Style [ Width "170px" ] ]
-                      [ Level.heading [] [ str title ]
-                        strong [ Style [ FontSize "17px" ] ] [ str ((value) + "   (" + cache + ")") ] ] ]
-        | _ ->
-            Level.item
-                [ Level.Item.HasTextCentered ]
-                [ div
-                      []
-                      [ Level.heading [] [ str title ]
-                        strong [ Style [ FontSize "17px" ] ] [ str (value) ] ] ]
+    let createCounterItem title value =
+        Level.item
+            [ Level.Item.HasTextCentered ]
+            [ div
+                  []
+                  [ Level.heading [] [ str title ]
+                    strong [ Style [ FontSize "17px" ] ] [ str (value) ] ] ]
+
+    /// Create a counter item that is dimmed, for the sheet stats menu
+    let createCounterItemSaved title value =
+        Level.item
+            [ Level.Item.HasTextCentered ]
+            [ div
+                  []
+                  [ Level.heading [] [ str title ]
+                    strong [ Style [ FontSize "17px"; Color "#777" ] ] [ str (value) ] ] ]
 
     let trackerSetting =
         let cachedSheetStats = counterItems |> List.map snd
 
         div
-            [ Style [ MarginTop "20px" ] ]
+            [ Style [ Margin "5px 0 10px 0" ] ]
             [ Level.level
                   []
                   [ Level.item
                         [ Level.Item.HasTextCentered ]
                         [ div
-                              [ Style [ Width "170px"; FontSize "14px" ] ]
-                              [ Menu.list
-                                    []
-                                    [ trackingMenuItem "Freeze Current Value" (true) (Some cachedSheetStats) dispatch ] ] ]
-                    Level.item
-                        [ Level.Item.HasTextCentered ]
-                        [ div
-                              [ Style [ Width "170px"; FontSize "14px" ] ]
-                              [ Menu.list [] [ trackingMenuItem "Forget Current Value" (false) None dispatch ] ]
+                              [ Style [ FontSize "14px"; Width "100%"; Border "1.1px solid #555" ] ]
+                              [ Menu.list [] [ trackingMenuItem "Hold/Unhold Values" (Some cachedSheetStats) dispatch ] ] ]
 
-                          ] ]
-
-              ]
-    // trackingMenuItem "Turn On Tracker" "Keep track of changes across stats" (true) dispatch
+                    ] ]
 
     /// Create a list of counter items for the sheet stats menu. Can be expanded to include more stats
     /// Functions take in a SheetT.Model and output a string/int/float
     let counters =
+        let counterChunks = counterItems |> List.chunkBySize 2
+        (counterChunks)
+        |> List.map (fun counterChunk ->
+            div
+                [ Style [ Margin "0 0" ] ]
+                [ Level.level
+                      []
+                      (counterChunk
+                       |> List.map (fun (title, value) -> createCounterItem title value)) ])
+        |> div []
+
+    let savedCounters =
         match model.CachedSheetStats with
         | Some cachedSheetStats ->
-            let cachedChunks = cachedSheetStats |> List.chunkBySize 2
-            let counterChunks = counterItems |> List.chunkBySize 2
-            (cachedChunks, counterChunks)
-            ||> List.map2 (fun cachedChunk counterChunk ->
-                div
-                    [ Style [ Margin "0 0" ] ]
-                    [ Level.level
-                          []
-                          ((cachedChunk, counterChunk)
-                           ||> List.map2 (fun cache (title, value) -> createCounterItem title value (Some cache))) ])
-            |> div []
-        | _ ->
-            let counterChunks = counterItems |> List.chunkBySize 2
-            (counterChunks)
-            |> List.map (fun counterChunk ->
-                div
-                    [ Style [ Margin "0 0" ] ]
-                    [ Level.level
-                          []
-                          (counterChunk
-                           |> List.map (fun (title, value) -> createCounterItem title value None)) ])
-            |> div []
+            let savedCounterItems =
+                cachedSheetStats
+                |> List.map2 (fun (title, _) value -> title, value) counterItems
+            let savedCounterChunks = savedCounterItems |> List.chunkBySize 2
+            let savedCounters =
+                (savedCounterChunks)
+                |> List.map (fun counterChunk ->
+                    div
+                        [ Style [ Margin "0 0" ] ]
+                        [ Level.level
+                              []
+                              (counterChunk
+                               |> List.map (fun (title, value) -> createCounterItemSaved title value)) ])
+                |> div []
+            savedCounters
+        | None -> div [] []
+
+    let savedCountersWrapper =
+        if model.Tracking then
+            div [ Style [ Background "#f4f4f4"; Padding " 5px" ] ] [ savedCounters ]
+        else
+            div [] []
 
     /// Stores string details of the currently hovered comp to be used in sheetStatsMenu
     let hoveredType, hoveredId = findHoveredID model.Sheet.LastMousePos model.Sheet
@@ -301,7 +302,8 @@ let developerModeView (model: ModelType.Model) dispatch =
                           code [] [ str (hoveredId) ] ]
 
                     counters
-                    trackerSetting ] ]
+                    trackerSetting
+                    savedCountersWrapper ] ]
 
     /// Function to programmatically generate a html table from PortMaps.Order
     let createTableFromPortMapsOrder (map: Map<Edge, string list>) =

@@ -61,30 +61,20 @@ let distFromSymCentreToPort (portID: string) (model: SheetT.Model) (sym: Symbol)
 
 (* Converts a given XYPos distance to a bearing in radians, from Top-Left:
 
-Bearing from North      Bearing from Top-Left
-  0rad                  0rad
- ___||___                 \\_______
-|   ||   |                | \\     |
-|   ||   |                |   \\   |
-|        |                |        | 
-|________|                |________|
+Bearing from North   
+  0rad     
+ ___||___         
+|   ||   |         
+|   ||   |                
+|        |              
+|________|                
 
 *)
 let XYPosToRadians (xyPos: XYPos) : double =
     let Pi = System.Math.PI
     let angleFromHorizontal = atan2 (abs xyPos.Y) (abs xyPos.X)
     let angleFromVertical = (Pi/2.0 - angleFromHorizontal)
-
-    (*
-    let bearingFromNorth = match xyPos.X, xyPos.Y with
-                           | x, y when x >= 0.0 && y <= 0.0 -> angleFromVertical // Quadrant 1
-                           | x, y when x >= 0.0 && y >= 0.0 -> angleFromHorizontal + Pi/2.0 // Quadrant 2
-                           | x, y when x <= 0.0 && y >= 0.0 -> angleFromVertical + Pi // Quadrant 3
-                           | x, y when x <= 0.0 && y <= 0.0 -> angleFromHorizontal + Pi*3.0/2.0 // Quadrant 4
-                           | _ -> 0.0 // Should never happen
-    let bearingFromTopLeft = (bearingFromNorth + Pi/4.0) % (2.0 * Pi)
-    bearingFromTopLeft
-    *)
+    
     match xyPos.X, xyPos.Y with
     | x, y when x >= 0.0 && y <= 0.0 -> angleFromVertical // Quadrant 1
     | x, y when x >= 0.0 && y >= 0.0 -> angleFromHorizontal + Pi/2.0 // Quadrant 2
@@ -203,10 +193,12 @@ let sheetOrderFlip (model: SheetT.Model) : SheetT.Model =
     // First rotationally sort the ports of all the custom components
     let currBends = countVisibleBends model
     let currCross = countVisibleSegsPerpendicularCrossings model
-    let (newBends, newCross, cusRotatedModel) = List.fold rotationallySortCustomSymPorts (currBends, currCross, model) [cusSyms[0]]
+    let (newBends, newCross, cusRotatedModel) = List.fold rotationallySortCustomSymPorts (currBends, currCross, model) cusSyms
 
     // Try different permutations of flips/rotations on Muxes
     let (_, _, optimModel) = List.fold testSymbolFlip (newBends, newCross, cusRotatedModel) muxSyms
+    
+    printfn "count crossings: %A" (countVisibleSegsPerpendicularCrossings optimModel)
 
     // Return the optimal model
     optimModel

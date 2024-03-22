@@ -781,6 +781,82 @@ let cleanUpAlmostStraightSinglyConnWires (model: ModelType.Model) =
                         IsPortInput = symbolsToMove[0] |> snd
                         MajorityDisplacementOffset = 0.0 } ])
 
+    // let updatedSheetModel: SheetT.Model =
+    //     symbolsWireOffsetUpdates
+    //     |> List.fold // better way to do this?
+    //         (fun currentSheetModel (cleanUpRecord: CleanUpRecord) ->
+    //             // create a new straight wire
+    //             let newStraightWire, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
+    //             let newSheetModel =
+    //                 currentSheetModel
+    //                 |> updateSheetSymWithNewSym newMovedSymbol
+    //                 // |> (fun modelWithNewSymb ->
+    //                 //     updateSheetWireWithNewWire
+    //                 //         (smartAutoroute modelWithNewSymb.Wire cleanUpRecord.Wire)
+    //                 //         modelWithNewSymb)
+    //                 |> updateSheetWireWithNewWire newStraightWire
+
+    //             // check for intersections. If there are none, then return the new model else return the old model
+    //             if (checkIfGainedOrMaintainedIntersections currentSheetModel newSheetModel) then
+    //                 newSheetModel
+    //             else
+    //                 printf "another pass with symbol id %A" cleanUpRecord.Symbol.Id
+    //                 // we do another pass.
+    //                 let intersectingBBoxes =
+    //                     findAllBoundingBoxesOfSymIntersections newMovedSymbol newSheetModel
+    //                 let newOffset, majorityDisplacementOffset =
+    //                     match
+    //                         ((List.length intersectingBBoxes) > 0),
+    //                         cleanUpRecord.IsPortInput,
+    //                         cleanUpRecord.Wire.InitialOrientation
+    //                     with
+    //                     | true, true, Horizontal ->
+    //                         let addedXOffset =
+    //                             intersectingBBoxes
+    //                             |> List.minBy (fun box -> box.TopLeft.X)
+    //                             |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X)
+    //                         // can add another condition to set to zero, cancelling the operatio if we have to move the symbol
+    //                         // too far back
+    //                         // { X = 10.0; Y = 0.0 }, -10.0
+    //                         { X = addedXOffset; Y = 0.0 }, -addedXOffset
+    //                     | true, false, Horizontal ->
+    //                         let addedXOffset =
+    //                             intersectingBBoxes
+    //                             |> List.maxBy (fun box -> box.TopLeft.X + box.W)
+    //                             |> (fun box -> box.TopLeft.X - newMovedSymbol.Pos.X)
+    //                         { X = -addedXOffset; Y = 0.0 }, addedXOffset
+
+    //                     | true, true, Vertical ->
+    //                         let addedYOffset =
+    //                             intersectingBBoxes
+    //                             |> List.minBy (fun box -> box.TopLeft.Y)
+    //                             |> (fun box -> newMovedSymbol.Pos.Y - box.TopLeft.Y)
+    //                         { X = 0.0; Y = addedYOffset }, -addedYOffset
+    //                     | true, false, Vertical ->
+    //                         let addedYOffset =
+    //                             intersectingBBoxes
+    //                             |> List.maxBy (fun box -> box.TopLeft.Y)
+    //                             |> (fun box -> box.TopLeft.Y - newMovedSymbol.Pos.Y)
+    //                         { X = 0.0; Y = -addedYOffset }, addedYOffset
+    //                     | _ -> { X = 0; Y = 0 }, 0.0
+    //                 let newCleanUpRecord =
+    //                     { cleanUpRecord with
+    //                         Offset = newOffset
+    //                         Symbol = newMovedSymbol
+    //                         Wire = newStraightWire
+    //                         MajorityDisplacementOffset = majorityDisplacementOffset }
+    //                 let newNewStraightWire, newNewMovedSymbol =
+    //                     moveSymbolWireCleanUpRecord newCleanUpRecord
+    //                 let newNewSheetModel =
+    //                     newSheetModel
+    //                     |> updateSheetSymWithNewSym newNewMovedSymbol
+    //                     |> updateSheetWireWithNewWire newNewStraightWire
+    //                 if (checkIfGainedOrMaintainedIntersections currentSheetModel newSheetModel) then
+    //                     newNewSheetModel
+    //                 else
+    //                     printf "second pass unsuccessful"
+    //                     currentSheetModel
+
     let updatedSheetModel: SheetT.Model =
         symbolsWireOffsetUpdates
         |> List.fold // better way to do this?
@@ -950,7 +1026,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
             (fun currentSheetModel (cleanUpRecord: CleanUpRecord) ->
                 printf "doing a pass with symbol id %A" cleanUpRecord.Symbol.Id
                 // create a new straight wire
-                let _, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
+                let testNewStraightWire, newMovedSymbol = moveSymbolWireCleanUpRecord cleanUpRecord
                 let newSheetModelBeforeReroute =
                     currentSheetModel
                     |> updateSheetSymWithNewSym newMovedSymbol
@@ -958,6 +1034,8 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                         updateSheetWireWithNewWire
                             (smartAutoroute modelWithNewSymb.Wire cleanUpRecord.Wire)
                             modelWithNewSymb)
+                // let newSheetModel =
+                //     updateSheetWireWithNewWire testNewStraightWire newSheetModelBeforeReroute
                 let routedWires =
                     newSheetModelBeforeReroute.Wire
                     |> perturbAllSymbols 100.0
@@ -992,7 +1070,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                             let addedXOffset = // get the x coordinate of the x bounding box furthest away from the symbol and adjust symbol to avoid it
                                 intersectingBBoxes
                                 |> List.minBy (fun box -> box.TopLeft.X)
-                                |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X - 10.0)
+                                |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X - 30.0)
                             // can add another condition to set to zero, cancelling the operation if we have to move the symbol
                             // too far back
                             // { X = 10.0; Y = 0.0 }, -10.0
@@ -1001,7 +1079,7 @@ let tryGeneralCleanUp (model: ModelType.Model) =
                             let addedXOffset = // get the x coordinate of the x bounding box furthest away from the symbol and adjust symbol to avoid it
                                 intersectingBBoxes
                                 |> List.maxBy (fun box -> box.TopLeft.X)
-                                |> (fun box -> box.TopLeft.X - newMovedSymbol.Pos.X + 10.0)
+                                |> (fun box -> box.TopLeft.X - newMovedSymbol.Pos.X + 30.0)
                             { X = -addedXOffset; Y = 0.0 }, addedXOffset
 
                         | true, Vertical, true ->
@@ -1432,65 +1510,6 @@ let findSymbolsConnectedToSymbol (wModel: BusWireT.Model) (symbol: Symbol) =
         | Some sym -> [ sym ]
         | None -> [])
 
-// let reSizeCustomComponent (wModel: BusWireT.Model) (symbolToSize: Symbol) =
-//     let otherSymbols =findSymbolsConnectedToSymbol wModel symbolToSize
-
-//     // we keep track of a longestContiguousHorizontalSequence (Edge, Symbol*ContiguousSequenceRecord)
-//     // and a longestContiguousVerticalSequence (Edge, Symbol*ContiguousSequenceRecord)
-
-//     // a valid contigiuous sequence: has nonzero sequence length AND the StartPointA and StartPointB are not -1. Easier to check nonzero length
-
-//     // for each symbol, we find the longest, valid contiguous sequence with the symbolToSize, and whether it is on a Top/Bottom edge or Left/Right edge
-//     // we then update the longestContiguousHorizontalSequence or longestContiguousVerticalSequence if the sequence is longer than the current one
-
-//     // we then resize the symbolToSize to match the longestContiguousHorizontalSequence, then the longestContiguousVerticalSequence
-
-//     let defaultHorizSeq = { StartPointA = -1; StartPointB = -1; SequenceLength = 0  EdgeA = Left; SymbolB = symbolToSize }
-//     let defaultVertSeq = { StartPointA = -1; StartPointB = -1; SequenceLength = 0  EdgeA = Top; SymbolB = symbolToSize }
-
-//     let (longestContHorizSeq : ContiguousSequenceRecordEdge), (longestContVertSeq: ContiguousSequenceRecordEdge) =
-//         otherSymbols
-//         |> List.fold (fun (longestContHorizSeq, longestContVertSeq) otherSymbol ->
-//             let longestContiguousSequencesByEdge =
-//                 [ Top; Bottom; Left; Right ]
-//                 |> List.map (fun edge ->
-//                     let symToSizeEdgePorts, otherSymbolEdgePorts =
-
-//                         match edge with
-//                         | Top ->
-//                             (List.rev (Map.find Top symbolToSize.PortMaps.Order)), (Map.find Bottom otherSymbol.PortMaps.Order)
-//                         | Bottom ->
-//                             (Map.find Bottom symbolToSize.PortMaps.Order), (List.rev (Map.find Top otherSymbol.PortMaps.Order))
-//                         | Left ->
-//                             (Map.find Left symbolToSize.PortMaps.Order), (List.rev (Map.find Right otherSymbol.PortMaps.Order))
-//                         | Right ->
-//                             (List.rev (Map.find Right symbolToSize.PortMaps.Order)), (Map.find Left otherSymbol.PortMaps.Order)
-
-//                     edge,
-//                     findLongestContiguousSequence
-//                         ({ StartPointA = -1; StartPointB = -1; SequenceLength = 0 })
-//                         ({ StartPointA = -1; StartPointB = -1; SequenceLength = 0 })
-//                         0
-//                         0
-//                         (symToSizeEdgePorts.Length - 1)
-//                         (otherSymbolEdgePorts.Length - 1)
-//                         symToSizeEdgePorts
-//                         otherSymbolEdgePorts
-//                         (wModel.Wires
-//                          |> Map.values
-//                          |> Seq.collect (fun (wire: Wire) ->
-//                              [ (wire.InputPort.ToString(), wire.OutputPort.ToString())
-//                                (wire.OutputPort.ToString(), wire.InputPort.ToString()) ])
-//                          |> Map.ofList)
-
-//                 )) defaultHorizSeq, defaultVertSeq
-
-// let h, w = calculateResizedDimensions
-
-// set the symbolToSize's vscale to match otherSymbol's vscale
-
-// note that we can only resize H and W. So we choose between considering satisfying the top or bottom edge,
-
 /// <summary>
 /// D1 spec 4: High level call for reSizeSymbolImproved
 /// Author: tdc21/Tim
@@ -1508,27 +1527,7 @@ let reSizeSymbolImprovedTopLevel (wModel: BusWireT.Model) (symbolA: Symbol) (sym
     let scaledSymbol, symbolToSizeId =
         match symbolA.Component.Type, symbolB.Component.Type with
         | Custom _, Custom _ -> (reSizeSymbolImproved wModel symbolA symbolB), symbolA.Id
-        | Custom _, _ -> (reSizeSymbolImproved wModel symbolA symbolB), symbolA.Id
-        | _, Custom _ -> (reSizeSymbolImproved wModel symbolB symbolA), symbolB.Id
         | _ -> symbolA, symbolA.Id
-
-    // match symbolAWireCount >= symbolBWireCount, symbolA.Component.Type, symbolB.Component.Type with
-    // | true, (Custom _), (Custom _) -> (reSizeSymbolImproved wModel symbolB symbolA), symbolB.Id
-    // | false, (Custom _), (Custom _) -> (reSizeSymbolImproved wModel symbolA symbolB), symbolA.Id
-    // | _, _, (Custom _) -> (reSizeSymbolImproved wModel symbolB symbolA), symbolB.Id
-    // | _, (Custom _), _ -> (reSizeSymbolImproved wModel symbolA symbolB), symbolA.Id
-    // | _, _, _ -> symbolA, symbolA.Id
-    // match symbolA.Component.Type, symbolB.Component.Type with
-    // | Custom _, Custom _ ->
-    //     printf "case 1"
-    //     (reSizeSymbolImproved wModel symbolA symbolB), symbolA.Id
-    // | _, Custom _ ->
-    //     printf "case 2"
-    //     (reSizeSymbolImproved wModel symbolB symbolA), symbolB.Id
-    // | Custom _, _ ->
-    //     printf "case 3"
-    //     (reSizeSymbolImproved wModel symbolA symbolB), symbolA.Id
-    // | _ -> symbolA, symbolA.Id
 
     wModel
     |> Optic.set (symbolOf_ symbolToSizeId) scaledSymbol
@@ -1566,221 +1565,3 @@ minimum value should not allowed, so a nonlinear dependence of objective functio
 techniques to be used.
 
 *)
-
-// // count if
-// let symbolToSizeInputPorts =
-//     wires // count if each wire's InputPort.toString() is in symbolToSizeAllPorts
-//     |> List.filter (fun wire -> symbolToSizeAllPorts |> List.contains (wire.InputPort.ToString()))
-//     |> List.map (fun wire -> wire.InputPort.ToString())
-
-// let symbolToSizeOutputPorts =
-//     wires // count if each wire's OutputPort.toString() is in symbolToSizeAllPorts
-//     |> List.filter (fun wire -> symbolToSizeAllPorts |> List.contains (wire.OutputPort.ToString()))
-//     |> List.map (fun wire -> wire.OutputPort.ToString())
-
-// let otherSymbolInputPorts =
-//     wires // count if each wire's InputPort.toString() is in otherSymbolAllPorts
-//     |> List.filter (fun wire -> otherSymbolAllPorts |> List.contains (wire.InputPort.ToString()))
-//     |> List.map (fun wire -> wire.InputPort.ToString())
-
-// let otherSymbolOutputPorts =
-//     wires // count if each wire's OutputPort.toString() is in otherSymbolAllPorts
-//     |> List.filter (fun wire -> otherSymbolAllPorts |> List.contains (wire.OutputPort.ToString()))
-//     |> List.map (fun wire -> wire.OutputPort.ToString())
-
-// let symbolToSizeEdgePorts, otherSymbolEdgePorts =
-//     match (List.length(symbolToSizeInputPorts)) > (wires.Length / 2) with
-//     | true -> // a majority of the symbolToSize's ports are input ones. Get those that share a majority edge
-//         let symToSizeEdgePorts =
-//             symbolToSizeInputPorts
-//             |> List.groupBy (fun port -> symbolToSize.PortMaps.Orientation.[port])
-//             //  get the ports on the edge that is shared by the majority of the ports
-//             |> List.maxBy (fun (orientation, ports) -> ports.Length)
-//             |> snd
-//             // thus, a majority of otherSymbol's ports are output ones. Get those that share a majority edge
-//         let otherSymbolEdgePorts =
-//             otherSymbolOutputPorts
-//             |> List.groupBy (fun port -> otherSymbol.PortMaps.Orientation.[port])
-//             //  get the ports on the edge that is shared by the majority of the ports
-//             |> List.maxBy (fun (orientation, ports) -> ports.Length)
-//             |> snd
-//         symToSizeEdgePorts, otherSymbolEdgePorts
-//     | false -> // a majority of the symbolToSize's ports are output ones. Get those that share a majority edge
-//         let symToSizeEdgePorts  =
-//             symbolToSizeOutputPorts
-//             |> List.groupBy (fun port -> symbolToSize.PortMaps.Orientation.[port])
-//             //  get the ports on the edge that is shared by the majority of the ports
-//             |> List.maxBy (fun (orientation, ports) -> ports.Length)
-//             |> snd
-//             // thus, a majority of otherSymbol's ports are input ones. Get those that share a majority edge
-//         let otherSymbolEdgePorts =
-//             otherSymbolInputPorts
-//             |> List.groupBy (fun port -> otherSymbol.PortMaps.Orientation.[port])
-//             //  get the ports on the edge that is shared by the majority of the ports
-//             |> List.maxBy (fun (orientation, ports) -> ports.Length)
-//             |> snd
-//         symToSizeEdgePorts, otherSymbolEdgePorts
-
-// algo: take in two symbols
-// find which symbol has least ports/wires connected, that is the symbolToSize, the other is called otherSymbol.
-// use existing helpers to get a list of ports on symbolToSize connected to ports on the other, then sort by edge
-// ideally they should all share one edge, but if not, choose only ports on the edge that is shared by the majority of the ports
-// Get the ports on otherSymbol as well, that are connected to symbolToSize, and that are on the same majority edge
-
-// sort the ports by the edge
-// find the longest contiguous segment of ports on the edge of a and b that are connected to each other
-// if that segment length is just one, then just align and skip (call reSizeSymbol)
-// get the port distances on symbolToSize, call it x
-// get the port distances on otherSymbol, call it y
-
-(*  More notes: Cases for detecting Straightenable Wires (note we consider more cases than AlmostStraightWires )
-                                                         __________
-            ______                                      |         | probably not, but is an edge case where ports are vertical (only for custom comps),
-    _______|     |________ can be straightened          |         | plus the first and last segment travel in the minority direction.
-
-                                                          ________________
-                                                         |               |
-                                                         |               |
-                                                _________|               |__________
-                                                |                                   |
-                                                possible!
-                                                This is the case where the initial segments are in minority direction and that its final
-                                                minority displacement is small.
-
-                                                draft algorithm:
-
-    |
-    |
-    ____                                     ____
-        |                                        |  probably not,           __________            __________
-        |   can be straightened                  |                                   |                     |
-        |   uncommon case with vertical          |                                   | impossible          |          _______
-    ––––    ports of custom comps            ––––                                                          |__________|
-    |
-    |                                                                                                       possible!
-
-
-
-    Easy heuristic: get vertices of all segements and locate the vertices that are farthest away from the startpos and endpos.
-    One way to do this is to measure perpendicular distance of each vertice from the 'optimal wire' which is a straight line drawn between startpos
-    and endpos. Obviously this straight line isn't an actual wire
-*)
-
-// let rec processSheetModel
-//     passCount
-//     maxPasses
-//     currentSheetModel
-//     cleanUpRecord
-//     newSheetModel
-//     newMovedSymbol
-//     newStraightWire
-//     =
-//     if passCount > maxPasses then
-//         printfn "Maximum passes reached"
-//         currentSheetModel
-//     elif checkIfGainedOrMaintainedIntersections currentSheetModel newSheetModel then
-//         newSheetModel
-//     else
-//         printfn "Pass %d with symbol id %A" passCount cleanUpRecord.Symbol.Id
-//         let intersectingBBoxes =
-//             findAllBoundingBoxesOfSymIntersections newMovedSymbol newSheetModel // find intersecting boxes
-//         let newOffset, majorityDisplacementOffset =
-//             match
-//                 cleanUpRecord.IsPortInput,
-//                 cleanUpRecord.Wire.InitialOrientation,
-//                 (intersectingBBoxes.Length > 0)
-//             with
-//             | true, Horizontal, true ->
-//                 let addedXOffset = // get the x coordinate of the x bounding box furthest away from the symbol and adjust symbol to avoid it
-//                     intersectingBBoxes
-//                     |> List.minBy (fun box -> box.TopLeft.X)
-//                     |> (fun box -> newMovedSymbol.Pos.X - box.TopLeft.X - 10.0)
-//                 // can add another condition to set to zero, cancelling the operatio if we have to move the symbol
-//                 // too far back
-//                 // { X = 10.0; Y = 0.0 }, -10.0
-//                 { X = addedXOffset; Y = 0.0 }, -addedXOffset
-//             | false, Horizontal, true ->
-//                 let addedXOffset = // get the x coordinate of the x bounding box furthest away from the symbol and adjust symbol to avoid it
-//                     intersectingBBoxes
-//                     |> List.maxBy (fun box -> box.TopLeft.X)
-//                     |> (fun box -> box.TopLeft.X - newMovedSymbol.Pos.X + 10.0)
-//                 { X = -addedXOffset; Y = 0.0 }, addedXOffset
-
-//             | true, Vertical, true ->
-//                 let addedYOffset = // get the y coordinate of the y bounding box furthest away from the symbol and adjust symbol to avoid it
-//                     intersectingBBoxes
-//                     |> List.minBy (fun box -> box.TopLeft.Y + box.H)
-//                     |> (fun box -> newMovedSymbol.Pos.Y - box.TopLeft.Y - box.H)
-//                 { X = 0.0; Y = addedYOffset }, -addedYOffset
-//             | false, Vertical, true ->
-//                 let addedYOffset =
-//                     intersectingBBoxes
-//                     |> List.maxBy (fun box -> box.TopLeft.Y + box.H)
-//                     |> (fun box -> box.TopLeft.Y + box.H - newMovedSymbol.Pos.Y)
-//                 { X = 0.0; Y = -addedYOffset }, addedYOffset
-//             | _, _, _ -> cleanUpRecord.Offset, cleanUpRecord.MajorityDisplacementOffset
-//         let newCleanUpRecord =
-//             if abs (majorityDisplacementOffset) > maxOffset then
-//                 printfn "Offset too large"
-//                 cleanUpRecord
-//             else
-//                 { cleanUpRecord with
-//                     Offset = newOffset
-//                     Symbol = newMovedSymbol
-//                     Wire = newStraightWire
-//                     MajorityDisplacementOffset = majorityDisplacementOffset }
-//         let newNewStraightWire, newNewMovedSymbol =
-//             moveSymbolWireCleanUpRecord newCleanUpRecord
-//         let newNewSheetModel =
-//             newSheetModel
-//             |> updateSheetSymWithNewSym newNewMovedSymbol
-//             |> updateSheetWireWithNewWire newNewStraightWire
-//         processSheetModel
-//             (passCount + 1)
-//             maxPasses
-//             newSheetModel
-//             newCleanUpRecord
-//             newNewSheetModel
-//             newNewMovedSymbol
-//             newNewStraightWire
-
-// // Call the function with initial values
-// processSheetModel
-//     0
-//     maxPasses
-//     currentSheetModel
-//     cleanUpRecord
-//     newSheetModel
-//     newMovedSymbol
-//     newStraightWire
-//
-// check for intersections. If there are none, then return the new model else return the old model
-
-// for every port on the symbol to size, try find if it is connected to a port on the other symbol
-// let sortedEdgeConnections : (Edge * (PortId * PortId) list ) list =
-//     let edgeConnections =
-//         symbolToSizeAllPorts
-//             |> List.groupBy (fun portId -> symbolToSize.PortMaps.Orientation[portId.ToString()])
-//             |> List.map (fun (edge, symToSizeEdgePorts) ->
-//                 // for each port on the symToSize, count it if it is connected to a port on the other symbol that is on the opposite edge
-//                 // find other symbol's ports using the connection map
-//                 let oppositeEdgePortPairs =
-//                     symToSizeEdgePorts
-//                     |> List.map (fun symToSizeEdgePort ->
-//                         symToSizeEdgePort, (connectionMap |> Map.tryFind symToSizeEdgePort))
-//                     |> List.choose (fun (symToSizeEdgePort, otherSymbolPortOption) ->
-//                         match otherSymbolPortOption with
-//                         | Some otherSymbolPort ->
-//                             if
-//                                 otherSymbolAllPorts
-//                                 |> List.contains otherSymbolPort
-//                             then
-//                                 Some(symToSizeEdgePort, otherSymbolPort)
-//                             else
-//                                 None
-//                         | None -> None)
-//                     |> List.filter (fun (_, otherPort) ->
-//                         otherSymbol.PortMaps.Orientation[(otherPort.ToString())] = findOpposite edge)
-//                 (edge, oppositeEdgePortPairs))
-//     edgeConnections
-//         |> List.sortByDescending (fun (_, oppositeEdgePortPairs) -> oppositeEdgePortPairs.Length)

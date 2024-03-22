@@ -24,6 +24,7 @@ open PopupHelpers
 open Optics.Optic
 open Optics.Operators
 open EEExtensions
+open SheetBeautifyHelpers
 
 module Constants =
     let memoryUpdateCheckTime = 300.
@@ -268,6 +269,7 @@ type RightClickElement =
     | DBScalingBox of list<ComponentId>
     | DBComp of SymbolT.Symbol
     | DBWire of Wire: BusWireT.Wire * ASeg: BusWireT.ASegment list
+    | DBLabelledWire of Wire: BusWireT.Wire * ASeg: BusWireT.ASegment list
     | DBCanvas of XYPos
     | DBInputPort of string
     | DBOutputPort of string
@@ -354,7 +356,9 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
                             | [] ->
                                 NoMenu
                             | segs ->
-                                DBWire(wire, segs)
+                                match wire.OriginalOutputPort with
+                                | Some _ -> DBLabelledWire(wire, segs)
+                                | _ -> DBWire(wire, segs)
 
         | SheetT.MouseOn.InputPort (InputPortId s, _),_ , _ ->
             DBInputPort s
@@ -376,6 +380,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         "Canvas"
     | DBWire _ ->
         "Wire"
+    | DBLabelledWire _ ->
+        "LabelledWire"
     | WaveSimHelp ->
         "WaveSimHelp"
     | _ ->
@@ -497,6 +503,16 @@ let processContextMenuClick
         model
         |> map (sheet_ >-> SheetT.wireOf_ wire.WId >-> BusWireT.segments_)  (List.map changeManualSegToAuto)
         |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
+        |> withNoCmd
+
+    | DBWire (wire, aSeg), "Convert to Label" ->
+        {model with Sheet = model.Sheet |> replaceWireWithLabel wire}
+        // |> replaceWireWithLabel wire
+        |> withNoCmd
+
+    | DBLabelledWire (wire, aSeg), "Revert to Wire" ->
+        {model with Sheet = model.Sheet |> restoreWire wire}
+        // |> withWireMsg (BusWireT.Msg.DeleteWires [wire.WId])
         |> withNoCmd
     
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->

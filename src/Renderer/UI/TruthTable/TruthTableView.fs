@@ -135,12 +135,14 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
         PortNumber = None
         PortType = PortType.Input
         HostId = "DummyIn_Host"
+        WireToLabel = None
     }
     let dummyOutputPort = {
         Id = "DummyOut"
         PortNumber = None
         PortType = PortType.Output
         HostId = "DummyOut_Host"
+        WireToLabel = None
     }
 
     // Mapping between PortIds and their corresponding port widths.
@@ -364,7 +366,8 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                             Id = JSHelpers.uuid()
                             PortNumber = Some 0
                             PortType = PortType.Output
-                            HostId = newId}
+                            HostId = newId
+                            WireToLabel = None}
                         let extraInput = {
                             Id = newId
                             Type = Input1 (pw,None)
@@ -404,7 +407,8 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                             Id = JSHelpers.uuid()
                             PortNumber = Some 0
                             PortType = PortType.Input
-                            HostId = newId}
+                            HostId = newId
+                            WireToLabel = None}
                         let extraOutput = {
                             Id = newId
                             Type = Output(pw)

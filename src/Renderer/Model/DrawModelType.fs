@@ -320,7 +320,7 @@ module BusWireT =
 
     [<StringEnum>]
     type RoutingMode = Manual | Auto
-    
+
     /// Used to represent a segment in a wire
     type Segment = 
         {
@@ -363,8 +363,10 @@ module BusWireT =
             Color: HighLightColor
             Width: int
             Segments: list<Segment>
-            StartPos : XYPos
-            InitialOrientation : Orientation
+            StartPos: XYPos
+            InitialOrientation: Orientation
+            // If this wire connects to a WireLabel which was placed by using Convert to Label, then it can be reversed
+            OriginalOutputPort: option<OutputPortId>
         }
 
     let segments_ = Lens.create (fun m -> m.Segments) (fun s m -> {m with Segments = s})

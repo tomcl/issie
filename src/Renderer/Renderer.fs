@@ -141,7 +141,7 @@ let reRouteWires dispatch =
 //-----------------------------------------------------------------------------------------------------------//
 
 let fileMenu (dispatch) =
-    /// generate a menu item from a (name, function) list. See testDrawBlock.testsToRunFromSheetMenu
+    // generate a menu item from a (name, function) list. See testDrawBlock.testsToRunFromSheetMenu
     // let makeTestItem (name:string) (accelNumber:int)  =
     //     // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
     //     makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->

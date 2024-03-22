@@ -612,3 +612,24 @@ let getCustomComponentType =
     | Custom custom -> custom
     | _ -> failwithf "what? getCustomComponentType should only be called with custom components"
                     
+// These three functions make it easier to print without interrupting a pipeline (easy to comment in and out)
+
+/// <summary> Print the argument as "${param}"</summary>
+/// <param name="print">The value to print and pass</param>
+/// <returns>The unchanged argument</returns>
+let printPipelineContents print = printf $"{print}"; print
+
+/// <summary> Print each element of the list as "${param}"</summary>
+/// <param name="print">The list of values to print and pass</param>
+/// <returns>The unchanged list</returns>
+let printPipelineContentsAsList list = List.map (fun elem -> printf $"{elem}") list |> ignore; list
+
+/// <summary> Print an argument as "${param}"</summary>
+/// <param name="print">The value to print</param>
+/// <param name="pass">The value to return</param>
+/// <returns>The unchanged argument</returns>
+let printAndPass print pass = printf $"{print}"; pass
+
+let printPipelinedContentsFunced func print = printf $"{func print}"; print
+let printPipelinedContentsFuncedAsList func list = List.map (fun print -> printf $"{func print}") list |> ignore; list
+let funcListInline func list = List.map (fun print -> func print) list |> ignore; list

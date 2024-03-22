@@ -184,6 +184,49 @@ module SheetBeautifyD1 =
         sheet |> alignSymbols |> scaleCustomComponents
 
 
+let visibleWireNetLength (wModel: BusWireT.Model) (wire: BusWireT.Wire) =
+  let thisNet = 
+    wModel.Wires
+    |> Helpers.mapValues
+    |> Seq.toList
+    |> List.filter (fun w -> w.OutputPort = wire.OutputPort)
 
+  thisNet
+  |> List.map BlockHelpers.getNonZeroAbsSegments
+  |> List.concat
+  |> List.distinctBy (fun seg -> seg.Start, seg.End) // remove obvious overlaps
+  |> (fun segs -> 
+    List.fold (fun length (seg: BusWireT.ASegment) -> 
+      segs
+      |> List.tryFind (fun seg' ->
+        // do not double count near T junction
+        seg'.Segment.GetId <> seg.Segment.GetId 
+        && seg'.Segment.Length < seg.Segment.Length
+        && (seg'.Start = seg.Start
+          || seg'.End = seg.End))
+      |> function
+      | Some dupl -> length + (abs seg.Segment.Length) - (abs dupl.Segment.Length)
+      | None -> length + (abs seg.Segment.Length)
+    ) 0.0 segs
+  )
 
+let getLongWires (sheet: SheetT.Model) threshold =
+  let totalWireLength = calcVisWireLength sheet
+
+  sheet.Wire.Wires
+  |> Helpers.mapValues
+  |> Seq.toList
+  |> List.filter (fun w -> 
+    let score = (BlockHelpers.getWireLength w) / (totalVisibleWireLength sheet.Wire * (float)(Map.count sheet.Wire.Wires))
+    printfn $"this ratio {score}"
+     
+    score > threshold // criterion: relative length
+    // visibleWireNetLength sheet.Wire w > threshold // criterion: absolute length
+  )
+
+  // visibleWireNetsLength sheet.Wire (sheet.Wire.Wires |> Helpers.mapValues |> Seq.head)
+let beautifyD3 (sheet: SheetT.Model) =
+//   getLongWires sheet 0.5
+  getLongWires sheet 0.005
+  |> List.fold (fun previousSheet wire -> replaceWireWithLabel wire previousSheet) sheet
         

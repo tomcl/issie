@@ -286,7 +286,7 @@ let makeTestCircuit1(andPos:XYPos) =
 
 let makeTestCircuit2 (andPos:XYPos) = 
         initSheetModel
-        |> placeSymbol "S2" (Input1(1,None)) andPos
+        |> placeSymbol "S2" (Input1(1,None)) {X = (andPos.X - 100.); Y = andPos.Y}
         |> addSym "G2" (GateN(And,2)) 0 0
         |> addSym "G1" (GateN(And,2)) 0 -100.
         |> addSym "MUX1" Mux2 200. -100.
@@ -389,7 +389,14 @@ let targetSheetD2 (sheet: SheetT.Model) =
     let wireBendAfter =     
         beautifiedSheet
         |> numVisibleWireRightAngle
+    let wireSquashBefore = 
+        sheet
+        |> numOfSquashedWires
+    let wireSquashAfter = 
+        beautifiedSheet
+        |> numOfSquashedWires
     printfn "Crossings before: %d , Crossings after: %d , Crossings reduced: %d" crossings crossingsAfter (crossings - crossingsAfter)
+    printfn "Squashed before: %d , Squashed after: %d " wireSquashBefore wireSquashAfter
     printfn "Bends before: %d , Bends after: %d , Bends reduced: %d" wireBendBefore wireBendAfter (wireBendBefore - wireBendAfter)
     beautifiedSheet
 
@@ -433,15 +440,18 @@ module Evaluations =
     let visualSegmentProp (sheet: SheetT.Model) =
         failwithf "Not implemented"
 
-    /// Evaluates number of crosses of wires compared to number of wires in sheet
+    /// Evaluates number of crosses of wires compared to number of visible segments in sheet
     /// Returns 1 if no wire crosses
     /// Calculates the proportion of wire crossings compared to the total number of wires
     let wireCrossProp (sheet: SheetT.Model) =
         let numCrossing = numOfWireRightAngleCrossings sheet
-        let numWires = mapValues sheet.Wire.Wires |> Array.length
+        let numVisSeg = 
+            getVisibleSegOnSheet sheet
+            |> distinctVisSegs
+            |> List.length
         match numCrossing with
         | 0 -> 1.
-        | _ -> 1. - (float numCrossing / float numWires)
+        | _ -> 1. - (float numCrossing / float numVisSeg)
 
     /// Evaluates wire squashing between symbols
     /// Returns 1 if no wire is squashed
@@ -494,12 +504,6 @@ module Evaluations =
         |> (+) (c.wireCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
         |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
         |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
-    let D2Evaluator : Evaluator<SheetT.Model> =
-        {
-            EvalFunc = wireCrossProp
-            Penalty = -1
-        }
-
 
 //---------------------------------------------------------------------------------------//
 //-----------------------------Demo tests on Draw Block code-----------------------------//
@@ -526,7 +530,7 @@ module Tests =
             runTestOnSheets
                 "D2 Test Circuit 2: Annie's test"
                 firstSample
-                horizLinePositions
+                offset
                 showTargetSheet
                 (Some targetSheetD2)
                 makeTestCircuit2
@@ -537,14 +541,17 @@ module Tests =
         
         let test3 testNum firstSample showTargetSheet dispatch =
             runTestOnSheets
-                "D3 Test Circuit 3"
+                "D2 Test Circuit 3, Mux2 and And gate"
                 firstSample
-                horizLinePositions
+                offset
                 showTargetSheet
                 (Some targetSheetD2)
                 makeTestCircuit3
-                (AssertFunc failOnAllTests)
-                Evaluations.nullEvaluator
+                TargetFuncWorse
+                { 
+                    EvalFunc = wireCrossProp
+                    Penalty = -0.5
+                }
                 dispatch
             |> recordPositionInTest testNum showTargetSheet dispatch
         
@@ -557,16 +564,13 @@ module Tests =
                 showTargetSheet
                 (Some targetSheetD2)
                 makeRandomTestCircuitTest
-                (AssertFunc failOnAllTests)
-                Evaluations.nullEvaluator
+                TargetFuncWorse
+                { 
+                    EvalFunc = wireCrossProp
+                    Penalty = -0.5
+                }
                 dispatch
             |> recordPositionInTest testNum showTargetSheet dispatch
-        
-            // TargetFuncWorse
-            // { 
-            //     EvalFunc = wireBendProp
-            //     Penalty = -1
-            // }
 
         let testCC testNum firstSample showTargetSheet dispatch =
             runTestOnSheets

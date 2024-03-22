@@ -535,7 +535,7 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
         |> getOkOrFail
-        |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
+        |> straightenWiresByMovingSyms
 
 
     /// Makes a non-beautified circuit with 3 muxes, 6 inputs, 1 output and a set of IO labels. All with random minor deviations from straight wires
@@ -568,7 +568,7 @@ module HLPTick3 =
         |> Result.bind (placeSymbol "IO1" (IOLabel) ({X = 2150.15; Y = 1677.11}+(fst posRots)[9]))
         |> Result.bind (placeWire (portOf "IO1" 0) (portOf "OUT1" 0))
         |> getOkOrFail
-        |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
+        |> straightenWiresByMovingSyms
 
 
     /// Makes a non-beautified circuit with 3 muxes, 6 inputs and 1 output all with random minor deviations from straight wires
@@ -624,7 +624,7 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "S3" 0) (portOf "MUX3" 2))
         |> Result.bind (placeWire (portOf "MUX3" 0) (portOf "OUT1" 0))
         |> getOkOrFail
-        |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
+        |> straightenWiresByMovingSyms
 
     /// Makes a circuit with 2 inputs, 2 muxes and an AND gate where positions have small random deviations
     /// For testing both D1 and D2
@@ -670,7 +670,7 @@ module HLPTick3 =
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
-        |> alignSymbols // Call D1 algorithm to beautify model by straightening wires
+        |> straightenWiresByMovingSyms
 
 
     /// Creates a non-beautified circuit of two inputs, two muxes and an AND gate with random positions, random flip state, random rotations and random inversion of MUX input ports
@@ -696,6 +696,7 @@ module HLPTick3 =
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
+        |> straightenWiresByMovingSyms
 
     /// Creates a beautified circuit of two inputs, two muxes and an AND gate with random positions, random flip state, random rotations and random inversion of MUX input ports
     /// Compare to test 8 which is the beautified version
@@ -797,8 +798,8 @@ module HLPTick3 =
         model
         |> Result.bind placeRandomWiresOnModel
         |> getOkOrFail
-        |> alignSymbols
-        //|> sheetWireLabelSymbol
+        |> straightenWiresByMovingSyms
+        |> SheetBeautifyD3.sheetWireLabelSymbol
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//

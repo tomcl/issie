@@ -8,7 +8,12 @@ The function `sheetBeautify`, which unifies D1, D2, D3, can be invoked by users 
 
 
 ### D1: sheetAlignScale
+This part optimises the number of segments in a single wire by Translation and avoid component overlapping.
 
+This optimisation could be applied seperately:
+**Singly Connected Components Translation**：Model->Model function `alignSinglyConnectedComponents`
+**Multiple Connected Components Translation**：Model->Model function `alignMultipleComponents`
+**Avoiding Components Overlapping**：Model->Model function `resolveIntersectingSymbols`
 
 ### D2: sheetOrderFlip
 

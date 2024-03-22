@@ -155,8 +155,42 @@ let resolveOverlaps (overlaps: (Symbol * Symbol) list) : Symbol list -> Symbol l
     
 
 
+///<summary>
+/// Get metrics of D1 to see if improvement
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>The score of the model, lower is better</returns>
+let getSheetScore (model:SheetT.Model) original : float =
+    // Symbol overlaps
+    let numOverlaps = numOfIntersectedSymPairs model |> float
+
+    // Wire overlap symobols
+    let wireOverlaps = numOfIntersectSegSym model |> float
+
+    // Circuit dimensions (smaller is better)
+    let symbols = model |> Optic.get symbols_
+    let symbolBBs = symbols |> Map.values |> Array.toList |> List.map (fun s -> getSymbolBoundingBox s)
+    let sizeX = (symbolBBs |> List.map (fun bb -> bb.TopLeft.X) |> List.max) - (symbolBBs |> List.map (fun bb -> bb.TopLeft.X) |> List.min)
+    let sizeY = (symbolBBs |> List.map (fun bb -> bb.TopLeft.Y) |> List.max) - (symbolBBs |> List.map (fun bb -> bb.TopLeft.Y) |> List.min)
+    let size = sizeX * sizeY
+
+    // Wire length
+    let wireLength = calcVisWireLength model
+
+    //Print all of the metrics
+    if original then
+        printfn "Original Metrics: "
+    else
+        printfn "New Metrics: "
+
+    printfn "Number of intersecting pairs: %f" (4.0 * numOverlaps)
+    printfn "Number of wire overlaps: %f" (10.0 * wireOverlaps)
+    printfn "Size: %f" (0.005 * size)
+    printfn "Wire length: %f" (1.0 * wireLength)
 
 
+    // Score equation with weights
+    (4.0 * numOverlaps) + (10.0 * wireOverlaps) + (0.0001 * size) + (1.0 * wireLength)
 
 /// <summary>
 /// Aligns all singly connected symbols by their target port.
@@ -224,7 +258,18 @@ let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
     // Updating the model with the new wire positions
     // let intersectingPair = numOfIntersectedSymPairs NewSymbolModel
     // printfn "Number of intersecting pairs: %d" intersectingPair
-    Optic.set wires_ wires' NewSymbolModel
+    let FinalModel = Optic.set wires_ wires' NewSymbolModel
+
+    // Test if D1 has made things worse
+    let originalScore = getSheetScore model true
+    let newScore = getSheetScore FinalModel false
+    let improvement = originalScore - newScore // Lower score is better
+    if improvement <= 0 then
+        printfn "D1 made things worse: Original: %A, New: %A, Change: %A" originalScore newScore improvement
+        model // Original model is better
+    else
+        printfn "D1 made things better: Original: %A, New: %A, Change: %A" originalScore newScore improvement
+        FinalModel
 
 // Only scales unrotated components
 let scaleCustomSymAlign (sourceSym: Symbol) (targetSym: Symbol) =

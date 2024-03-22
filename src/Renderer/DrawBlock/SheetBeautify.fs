@@ -36,7 +36,7 @@ open Optics
 
 let sheetBeautify (model: SheetT.Model) = 
     model
-    |> optimizeModelILS    // D2
+    |> optimizeModelExhaustive    // D2
     |> sheetWireLabelSymbol     // D3
     |> alignSinglyConnectedComponents   // D1
 

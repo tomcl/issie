@@ -66,8 +66,8 @@ module Constants =
 
 let applyOptimizedModel (model : SheetT.Model) = 
     model
-    // |> optimizeModelExhaustive
-    |> optimizeModelILS
+    |> optimizeModelExhaustive
+    // |> optimizeModelILS
     |> Ok
 let applySheetWireLabelSymbol (model : SheetT.Model) = 
     model

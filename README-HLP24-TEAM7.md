@@ -11,27 +11,16 @@ The function `sheetBeautify`, which unifies D1, D2, D3, can be invoked by users 
 
 
 ### D2: sheetOrderFlip
-  
-Helper datatypes and functions are created to perform Exhaustive Search Algorithm mentioned in the project requirement
 
-**Exhaustive Search Algorithm**
-
-
-Two new data types, `symbolScript` and `modelScript`, are created, to describe the configuration of a `SheetT.Model`:
-
-- A `symbolScript` contains all parameters that can be changed for a single symbol.
-- A `modelScript` is a list of `symbolScript`, with each entry corresponding to one symbol in the model.
-
-### Functions
-
-<!-- - **`generateModelScript`**: Generates all possible `symbolScript` instances for one symbol. This function is pivotal in exploring the configuration space of individual symbols within the model.
-
-- **`generateAllModelScripts`**: Produces all possible `modelScript` configurations for the entire model. By iterating through every symbol and applying `generateModelScript`, it constructs a comprehensive list of model configurations.
-
-- **`optimizeFlipForComponents`**: Conducts an evaluation across all generated model configurations, selecting and returning the one with the lowest number of overlaps. This function is crucial for identifying the optimal model configuration with minimized component overlap. -->
+To minimise wire crossing by changing port order on custom components, flip components, flip MUX input order.
+Two optimize algorithm are implemented:
+**Exhaustive Search Algorithm**: function `optimizeModelExhaustive`
+**Iterated local search**: function `optimizeModelILS`
 
 
-<!-- ## 2. **Heuristic Approach** -->
+
+
+
 
 ### D3: sheetWireLabelSymbol
 The functions `autoWiresToWireLabels` and `autoWireLabelsToWires` are called in `sheetBeautify`, that is when automatic judgement on wires and wire labels would be made, and corresponding actions automatically taken.
@@ -55,3 +44,7 @@ The functions `selectedWiresToWireLabels` and `selectedWireLabelsToWires` can be
 - `Renderer.fs`: additions to Edit menu items.
 - `ContextMenu.fs` & `UpdateHelpers.fs`: additions to right-click menu items.
 
+## Functionality not shown in demo
+### D2
+  - Iterated local search algorithm
+  - Improved test cases and random test case generation code

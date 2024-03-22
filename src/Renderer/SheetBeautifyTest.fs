@@ -357,6 +357,7 @@ module T123 =
         sprintf "%s%d" basee id
 
     // Generating a random circuit
+    
     let makeRandomCircuit_improve (andPos:XYPos) =
         let initModel = initSheetModel
         let maxX, maxY = 800.0, 600.0 // Define bounds for component placement
@@ -401,12 +402,14 @@ module T123 =
         // Connect components randomly, or with a specific pattern if required
         fullyPlacedModel
         |> placeWire (portOf "MUX1" 0) (portOf "COMP2" 0)
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "COMP3" 0))
         |> Result.bind (placeWire (portOf "COMP2" 0) (portOf "COMP3" 0))
         |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 1))
         |> Result.bind (applyOptimizedModel)
         |> getOkOrFail
         
+
     let makeRandomCircuit_ (andPos:XYPos) =
         let initModel = initSheetModel
         let maxX, maxY = 800.0, 600.0 // Define bounds for component placement
@@ -451,10 +454,14 @@ module T123 =
         // Connect components randomly, or with a specific pattern if required
         fullyPlacedModel
         |> placeWire (portOf "MUX1" 0) (portOf "COMP2" 0)
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "COMP3" 0))
         |> Result.bind (placeWire (portOf "COMP2" 0) (portOf "COMP3" 0))
         |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 0))
         |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 1))
         |> getOkOrFail
+
+        
+
 
     let makeRandomCircuit_improve_random (andPos:XYPos) =
         let initModel = initSheetModel
@@ -469,6 +476,13 @@ module T123 =
             | 1 -> flipSymbol label SymbolT.FlipType.FlipHorizontal model |> getOkOrFail // Horizontal flip
             | 2 -> flipSymbol label SymbolT.FlipType.FlipVertical model |> getOkOrFail // Vertical flip
             | _ -> failwith "Unexpected flip option"
+
+
+        let placeMuxComponent model id =
+            let muxType = if rnd.Next(0, 2) = 0 then Mux2 else Mux4 // Randomly choose between Mux2 and Mux4
+            let pos = randomXYPos rnd maxX maxY
+            let label = uniqueLabel "MUX" id
+            placeSymbol label muxType pos model |> getOkOrFail
 
         // Randomly place a fixed number of components, for example, 6
         let rec placeComponents model id remaining =
@@ -486,17 +500,23 @@ module T123 =
                 | Error msg -> failwithf "Failed to place and flip component: %s" msg
 
         // Assuming all components placed have at least one input and output for simplicity
-        let fullyPlacedModel = placeComponents initModel 1 3
+
+        let modelWithMux = placeMuxComponent initModel 1
+
+        let fullyPlacedModel = placeComponents modelWithMux 2 2
 
         // Randomly connect components, this example simply connects the first component's output to the second's input
         fullyPlacedModel
-        |> placeWire (portOf "COMP1" 0) (portOf "COMP2" 0)
+        |> placeWire (portOf "MUX1" 0) (portOf "COMP2" 0)
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "COMP3" 0))
         |> Result.bind (placeWire (portOf "COMP2" 0) (portOf "COMP3" 0))
-        |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "COMP1" 0))
-      //  |> Result.bind (placeWire (portOf "COMP4" 0) (portOf "COMP1" 0))
-
+        |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 0))
+        |> Result.bind (placeWire (portOf "COMP3" 0) (portOf "MUX1" 1))
+        
         |> Result.bind (applyOptimizedModel)
         |> getOkOrFail
+
+
 
 
     // ---------------------------- T3 ------------------------------
@@ -976,8 +996,6 @@ module T123 =
                 // ------------------------ t1 -----------------
                 "D1 A2 original", test1 
                 "D1 A2 beautify", test2 
-                "D1 A3 original", test3 
-                "D1 A3 beautify", test4 
                 "D1 A2 random original ", makeA2TestCase
                 "D1 A2 beautify random", makeA2BeautifyTestCase
                 "D1 A5 original", makeA5TestCase
@@ -997,6 +1015,8 @@ module T123 =
                 "D3 show test 4", showCircuit4
                 "D3 test 4 beautify : Overlap check", testOverlap
                 "(Dummy Test : FailAllTests)", testSheetWireLabelSymbol
+                "A3 test original", test3 
+                "A3 whole sheet beautify", test4 
             ]
 
         /// Display the next error in a previously started test

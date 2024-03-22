@@ -254,7 +254,7 @@ let optimizeModelExhaustive (model: SheetT.Model): SheetT.Model =
     bestModel
 
 
-// Iterated local search
+// Iterated local search-----------------------------------------------
 
 let findAllMuxAndGate (model: SheetT.Model) = 
     let symbols = 

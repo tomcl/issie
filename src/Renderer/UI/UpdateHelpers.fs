@@ -506,7 +506,13 @@ let processContextMenuClick
         |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
         |> withNoCmd
     
-    | DBWire (wire, aSeg), "Same-Net Wires to Wire Labels" ->
+    | DBWire (wire, _aSeg), "Single Wire to Wire Labels" ->
+        model
+        |> map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
+        |> map sheet_ (singleWireToWireLabels wire)
+        |> withNoCmd
+
+    | DBWire (wire, _aSeg), "Same-Net Wires to Wire Labels" ->
         model
         |> map sheet_ (SheetBeautifyHelpers.appendUndoListModel)
         |> map sheet_ (selectedWiresToWireLabels [wire.WId] false)

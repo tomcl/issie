@@ -22,7 +22,7 @@ open TestDrawBlock.HLPTick3.Tests
 open EEExtensions
 open Optics
 open Optics.Operators
-open DrawHelpers
+open BlockHelpers
 open Helpers
 open CommonTypes
 open ModelType
@@ -373,8 +373,17 @@ module Asserts =
             Some <| $"Sample {sample}"
 
             
-
+    let wireLengthMetric (model:SheetT.Model) = 
+        let totalLength = calcVisWireLength model
+        let minLength =
+            mapValues model.Wire.Wires
+            |> Array.map (fun w -> Symbol.getTwoPortLocations model.Wire.Symbol w.InputPort w.OutputPort)
+            |> Array.map (fun w -> manhattanDistance (fst w) (snd w))
+            |> Array.sum
+        totalLength/minLength - 1.
+    
     let failOnMetric (failAll:bool) (sample: int) (model: SheetT.Model) =
+            let wireScore = wireLengthMetric model
             let ISP =  numOfIntersectedSymPairs model //number of intersecting symbol pairs
             let numSymPairs = 
                 (float (mapKeys model.Wire.Symbol.Symbols |> Array.toList).Length)/2.
@@ -387,8 +396,8 @@ module Asserts =
             let ISSScore = (float ISS)/(float (numSegs+numSymPairs))
             let SCR = numSegmentCrossRightAngle model //number of wire intersections
             let SCRScore = (float SCR)/(float numSegs)
-            let score = System.Math.Round ((ISPScore + ISSScore + SCRScore),10) 
-            printf $" ===========Sample {sample} scored average {score}/3 with ISP {ISP}, ISS {ISS}, SCR {SCR}============"
+            let score = System.Math.Round ((ISPScore + ISSScore + SCRScore + wireScore),10) 
+            printf $" ===========Sample {sample} scored average {score}/4 with ISP {ISP}, ISS {ISS}, SCR {SCR}, WireWaste {wireScore}============"
             match failAll with
             |true -> Some $"=====Failing all, sample {sample}====="
             |_ ->

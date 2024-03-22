@@ -359,6 +359,7 @@ module Circuit =
         |> addSym "MAIN2" mainCC (160.+offsetXY.X) (0.+offsetXY.Y)
         |> Result.bind (Ok << rotateSymbol "MAIN1" Rotation.Degree270)
         |> Result.bind (Ok << rotateSymbol "MAIN2" Rotation.Degree270)
+        |> printId
         |> addWire ("MAIN1", 0) ("MAIN2", 0)
         |> addWire ("MAIN1", 1) ("MAIN2", 1)
         |> addWire ("MAIN1", 2) ("MAIN2", 2)
@@ -556,23 +557,12 @@ module Evaluations =
                                  | _ -> 0.)
         |> (fun x -> x / (float (n * n))) // Scales to lots of symbols
 
-    /// Evaluates wire squashing between symbols
-    let wireSquashProp (sheet: SheetT.Model) =
-        failwithf "Not implemented"
-        // getWiresInBox
-
-    /// Evaluates length of wires compared to ideal minimum
-    let wireLengthProp (sheet: SheetT.Model) =    
-        let idealWireLen wire =
-            BusWireRoute.getWireVertices
-        failwithf "Not implemented"
 
     type ConfigD1 =
         {
             wireBendWeight: float
             wireCrossWeight: float // numOfWireRightAngleCrossings
-            wireSquashWeight: float
-            wireLengthWeight: float // calcVisWireLength
+            // wireSquashWeight: float
             failPenalty: float // -1
         }
 
@@ -583,9 +573,19 @@ module Evaluations =
     let evaluateD1 (c: ConfigD1) (sheet: SheetT.Model) : float =
         c.wireBendWeight * (wireBendProp sheet)
         |> (+) (c.wireCrossWeight * (float (numOfWireRightAngleCrossings sheet)))
-        |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
-        |> (+) (c.wireSquashWeight * (float (wireSquashProp sheet)))
+    
+    let d1Conf = 
+        {
+            wireBendWeight = 1
+            wireCrossWeight = 1
+            failPenalty = -1
+        }
 
+    let d1Evaluator = 
+        {
+            EvalFunc = evaluateD1 d1Conf
+            Penalty = -1
+        }
 
 
 
@@ -628,7 +628,7 @@ module Tests =
             dispatch
         |> recordPositionInTest testNum showTargetSheet dispatch
 
-    let genA4 = randXY {min=(-50); step=5; max=100}
+    let genA4 = randXY {min=(-50); step=40; max=100}
     let testA4 testNum firstSample showTargetSheet dispatch =
         runTestOnSheets
             "two custom components with random offset"

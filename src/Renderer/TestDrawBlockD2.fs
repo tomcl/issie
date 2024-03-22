@@ -54,7 +54,14 @@ module D2 =
         let compId = fst (findSymbolID componentMap).[0]
         let compMap = Map.add compId (Optic.set reversedInputPorts_ (Some swap) (Map.find compId componentMap)) componentMap
         Optic.set SheetT.symbols_ compMap sheet
- 
+
+    let randomComponentPosition (topLeft: XYPos) (bottomRight:XYPos) = 
+        let randomCoordinate max min = 
+            random.NextDouble() * (max-min) + min
+
+        let X = randomCoordinate bottomRight.X topLeft.X
+        let Y = randomCoordinate bottomRight.Y topLeft.Y
+        {X = X; Y = Y}
 
     let D2StarterPositions = 
         let mux1PossibleSwaps = [true; false]
@@ -107,6 +114,62 @@ module D2 =
         |> Result.map(getTestMetrics)
         |> Result.map (reRouteWires)
         |> getOkOrFail
+
+
+    let getOptionStarterPosition (topLeft: XYPos) (bottomRight: XYPos) (comb: SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool) =
+        let mux1 = randomComponentPosition topLeft bottomRight
+        let mux2 = randomComponentPosition topLeft bottomRight
+        let s1 = randomComponentPosition topLeft bottomRight
+        let s2 = randomComponentPosition topLeft bottomRight
+        let g1 = randomComponentPosition topLeft bottomRight
+
+        // Combine the original comb values with the new values
+        let newComb = 
+            // Extract existing values for readability
+            let (a, b, c, d, e) = comb
+            // Create the new tuple with all values
+            (a, b, c, d, e, mux1, mux2, s1, s2, g1)
+
+        newComb
+        
+
+
+    let makeD2OptionCircuit (data :SymbolT.FlipType * SymbolT.FlipType * bool * SymbolT.FlipType * bool * XYPos * XYPos * XYPos * XYPos * XYPos) =
+        let gateFlip, mux2Flip, mux2Swap, mux1Flip, mux1Swap, mux1, mux2, s1, s2, g1 = data
+        let tmpFlip = flipSymbol 
+        let tmpFlipResult label  flip sheet = if true then Ok (tmpFlip label flip sheet) else Error "Won't happen"
+        let tmpSwap = swapMuxInput
+        let tmpSwapResult symLabel sheet swap = if true then Ok (tmpSwap symLabel sheet swap) else Error "Won't happen"
+        initSheetModel
+        |> placeSymbol "MUX1" Mux2  mux1 
+        |> Result.bind (placeSymbol "S1" (Input1((1,Some 1))) s1)
+        |> Result.bind (placeSymbol "S2" (Input1(1,Some 1)) s2)
+        |> Result.bind (placeSymbol "MUX2" Mux2 mux2)
+        |> Result.bind (placeSymbol "G1" (GateN(And,2)) g1)
+        |> Result.bind (placeWire (portOf "S1" 0) (portOf "MUX2" 1))
+        |> Result.bind (placeWire (portOf "S2" 0) (portOf "MUX2" 2) )
+        |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "G1" 1) )
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "G1" 0) )
+        |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0) )
+        |> Result.bind(tmpFlipResult "G1" gateFlip)
+        |> Result.bind(tmpFlipResult "MUX2" mux2Flip)
+        |> Result.bind(tmpSwapResult "MUX2" mux2Swap)
+        |> Result.bind(tmpFlipResult "MUX1" mux1Flip)
+        |> Result.bind(tmpSwapResult "MUX2" mux2Swap)
+        |> Result.map (reRouteWires)
+        |> Result.map(getTestMetrics)
+        |> Result.map (reRouteWires)
+        |> getOkOrFail
+
+    
+    let D2OptionStarterPositions = 
+        let topLeft = {middleOfSheet with X = middleOfSheet.X - 100.0 ; Y = middleOfSheet.Y - 200.0}
+        let bottomRight = {middleOfSheet with X = middleOfSheet.X + 100.0 ; Y = middleOfSheet.Y + 200.0}
+        D2StarterPositions
+        |> toList
+        |> List.map (getOptionStarterPosition topLeft bottomRight)
+        |> List.filter(fun d -> (numOfIntersectedSymPairs (makeD2OptionCircuit d)) = 0)
+        |> fromList
 
 
 
@@ -176,8 +239,8 @@ module D2 =
             runTestOnSheets
                 "Horizontally positioned AND + DFF: fail all tests"
                 firstSample
-                D2StarterPositions
-                makeD2StarterCircuit
+                D2OptionStarterPositions
+                makeD2OptionCircuit
                 Asserts.failOnAllTests
                 dispatch
             |> recordPositionInTest testNum dispatch
@@ -194,7 +257,7 @@ module D2 =
                 "Test2", test2
                 "Test3", test3
                 "Test4", test4
-                "Test5", fun _ _ _ -> printf "Test5"// dummy test - delete line or replace by real test as needed
+                "Test5", testD2Starter// dummy test - delete line or replace by real test as needed
                 "Test6", fun _ _ _ -> printf "Test6" 
                 "Test7", fun _ _ _ -> printf "Test7"
                 "Test8", fun _ _ _ -> printf "Test8"

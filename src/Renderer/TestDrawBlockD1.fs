@@ -473,6 +473,25 @@ module HLPTick3 =
         |> flipSymbol "G1" andFlip
     // |> separateAllWires does not make a difference in testing
 
+    let test3SampleComponents: (ComponentType * float * float) list =
+        [ GateN(And, 2), 45.0, 45.0
+          Not, 30.0, 30.0
+          Mux2, 90.0, 60.0
+          Input1(1, Some 1), 30.0, 60.0
+          Output 1, 30.0, 60.0
+          DFF, 75.0, 75.0 ]
+    // function to sample a random uniform number from -10, 10
+    let perturbationNoise =
+        let rnd = System.Random()
+        fun () -> rnd.Next(-10, 10)
+
+    let increasingPositions = fromList [ 1..9 ]
+    let makeTest3Circuit (startPos: XYPos) =
+        initSheetModel
+        |> placeSymbol "G1" (GateN(And, 2)) startPos
+        |> Result.bind (placeSymbol "FF1" DFF startPos)
+        |> getOkOrFail
+
     let vertLinePositions: Gen<XYPos> =
         fromList [ -100..20..100 ]
         |> map (fun n -> middleOfSheet + { X = 0.; Y = float n })
@@ -589,10 +608,21 @@ module HLPTick3 =
                 "Horizontally positioned AND + DFF: fail on sample 0"
                 firstSample
                 horizLinePositions
-                makeTest1Circuit
-                (Asserts.failOnSampleNumber 0)
+                makeTest3Circuit
+                (Asserts.failOnAllTests)
                 dispatch
             |> recordPositionInTest testNum dispatch
+
+        // let test1 testNum firstSample dispatch =
+        //     printf "Test1"
+        //     runTestOnSheets
+        //         "Horizontally positioned AND + DFF: fail on sample 0"
+        //         firstSample
+        //         horizLinePositions
+        //         makeTest1Circuit
+        //         (Asserts.failOnSampleNumber 0)
+        //         dispatch
+        //     |> recordPositionInTest testNum dispatch
 
         /// Example test: Horizontally positioned AND + DFF: fail on sample 10
         let test2 testNum firstSample dispatch =

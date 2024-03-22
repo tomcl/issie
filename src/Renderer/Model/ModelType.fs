@@ -453,6 +453,8 @@ type Msg =
     | UpdateDrawBlockTestState of ((TestState option) -> (TestState option))
     /// For Dev Mode to set params
     | SelectBeautifyLevel of BeautifyLevel
+    | SelectTracking of bool * ((string list) option)
+    | ToggleSettingsMenu
     | ToggleBeautifyMenu
     | ToggleSheetStats
     | ToggleSymbolInfoTable
@@ -620,6 +622,9 @@ type Model =
         /// Has a value after a test has been run.
         DrawBlockTestState: TestState option
         /// New feauture: set the level of beautifying the circuit
+        SettingsMenuExpanded: bool
+        Tracking: bool
+        CachedSheetStats: string list option
         BeautifyMenuExpanded: bool
         BeautifyLevel: BeautifyLevel
         SymbolInfoTableExpanded: bool

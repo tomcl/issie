@@ -32,25 +32,33 @@ let wireModel_ = SheetT.wire_
 let maxSheetCoord = Sheet.Constants.defaultCanvasSize
 
 //--------------------------------------------------------------------------------------//
+//                              Threshold Record for D3                                 //
+//--------------------------------------------------------------------------------------//
+
+type ThresholdRecord = { Threshold : float;
+                         Gap : XYPos }
+
+
+//--------------------------------------------------------------------------------------//
 //                               Helper Functions for D3                                //
 //--------------------------------------------------------------------------------------//
 
-// Returns the wire along with its length in a tuple
+/// Returns the wire along with its length in a tuple
 let getWireLength (wire: Wire) : Wire * float =
     wire, List.fold (fun sum seg -> sum + abs(seg.Length)) 0.0 wire.Segments
 
-// Get all the source ports of the wires in the list
+/// Get all the source ports of the wires in the list
 let getWireOutputPortId (wireList: Wire list) : OutputPortId list =
     List.map (fun wire -> wire.OutputPort) wireList
 
-// Get all the input ports of the wires that have the same output port
+/// Get all the input ports of the wires that have the same output port
 let getWireInputPortId (wireList: Wire list) (outputPort: OutputPortId) : InputPortId list =
     wireList
     |> List.filter (fun wire -> wire.OutputPort = outputPort)
     |> List.map (fun wire -> wire.InputPort)
 
-
-let wireLabelPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWireT.Model) =
+/// Get all the port positions in a subnet of the same output port
+let wirePortPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWireT.Model) =
     let outputPos = getPortPos (outputID.ToString()) model
 
     let inputPortList = getWireInputPortId wires outputID
@@ -60,53 +68,51 @@ let wireLabelPositions (outputID: OutputPortId) (wires: Wire list) (model: BusWi
 
     outputPos :: inputPosList
 
-let newWireModel (model: SheetT.Model) (input: InputPortId) (output: OutputPortId) =
-    let newModel, msgOpt =
-        BusWireUpdate.newWire input output model.Wire
-    newModel
+    
+//--------------------------------------------------------------------------------------//
+//                                D3                                                    //
+//--------------------------------------------------------------------------------------//
 
-//let findComponentPortID =
-    
-    
-    
-    //--------------------------------------------------------------------------------------//
-    //                                D3                                                    //
-    //--------------------------------------------------------------------------------------//
-    
-    // Very initial start to D3, currently filters wires on a sheet into long and short wires
-    
-    // TODOS:
-    // - Find a way of replacing longWires with labels (e.g using AddNotConnected).
-    // - Figure out where to position the label.
-    // - What names to give each label.
 let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
+    // Easily customisable threshold conditions
+    let conditions =  
+        { Threshold = 0.5; 
+          Gap = {X = 40; Y=0}}
+
+    // Generate the number of Wirelabels currently on the sheet
     let symbols = getAllSymbols model
-    let wirelabel = generateLabelNumber symbols IOLabel 
+    let wirelabel = generateLabelNumber symbols IOLabel
+
+    // Will be used to assign unique labels to the wire labels
+    let mutable count = int wirelabel
+    
+    // Calculate wire lengths of all wires and filter the long wires
     let wires = getAllWires model
     let wireLengths = List.map getWireLength wires
     let longWires =
         wireLengths
-        |> List.filter (fun (_, length) -> length > 500.0) // Some threshold e.g 500
+        |> List.filter (fun (_, length) -> length > conditions.Threshold) // Some threshold e.g 500
         |> List.map fst // Remove the length from snd as Wire list is now filtered
-    let OutputPortIds = longWires |> getWireOutputPortId |> List.distinct
-    let gap: XYPos = { X = 40; Y = 0 }
-    let mutable count = int wirelabel
 
+    // Get distinct output port IDs from long wires
+    let OutputPortIds = longWires |> getWireOutputPortId |> List.distinct
+
+    // Update the model with new IOlabels and wires for every subnet of wires
     let updatedModel: SheetT.Model = 
         OutputPortIds
         // Accumulator is currentModel. We repeat this List.fold for each outputPort
         |> List.fold (fun currentModel outputPort ->
+            // Get input port IDs associated with the current output port
             let InputPortIds = getWireInputPortId longWires outputPort
-            let posList = wireLabelPositions outputPort wires currentModel.Wire
-            //let label = generateLabel currentModel.Wire.Symbol IOLabel 
+
+            // Get positions of wire ports
+            let posList = wirePortPositions outputPort wires currentModel.Wire
+
+            // Generate label for the IOLabel
             let label = "I" + count.ToString()
             count <- count + 1
-            // add the IOLabel for the output symbol to the SymbolT.Model
-            let (outputSymModel: SymbolT.Model), outputSymId =
-                SymbolUpdate.addSymbol [] (currentModel.Wire.Symbol) (posList.Head + gap) IOLabel label
-            // Find the portID for the outputportID
-            let IOPortID = outputSymModel.Symbols[outputSymId].Component.InputPorts[0].Id
 
+            // ----- DELETE WIRES -----
             // create a new BusWireT.Model with the wires deleted
             let (delWireModel: BusWireT.Model) =
                 deleteWiresWithPort
@@ -118,11 +124,25 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
                 currentModel
                 |> Optic.set SheetT.wire_ delWireModel
 
+            // ----- ADD Output port IOLabel -----
+            // add the IOLabel for the output symbol to the SymbolT.Model
+            let (outputSymModel: SymbolT.Model), outputSymId =
+                SymbolUpdate.addSymbol 
+                    [] 
+                    (currentModel.Wire.Symbol) 
+                    (posList.Head + conditions.Gap) 
+                    IOLabel 
+                    label
+
+            // Find the InputPortID for the placed IOLabel
+            let IOPortID = outputSymModel.Symbols[outputSymId].Component.InputPorts[0].Id
+
             // create a new SheetT.model with output IOLabel added
             let (modelWithOutputSym: SheetT.Model) = 
                 modelDelW
                 |> Optic.set SheetT.symbol_ outputSymModel
             
+            // ----- Connect wires between component and IOLabel -----
             // create a new BusWireT.Model with wires added
             let addOutputWireModel, msgOpt =
                 BusWireUpdate.newWire 
@@ -133,17 +153,20 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
             let (modelWithNewOutputWires: SheetT.Model) = 
                 modelWithOutputSym 
                 |> Optic.set SheetT.wire_ addOutputWireModel
-                
+            
+            //  ----- INPUTS -----
+
             // take the postList.Tail list of XYPos and add the IOLabel for each symbol to the SymbolT.Model
             posList.Tail
             // Accumulator is currentModelWithOutputSym. Smaller inside loop, we repeat this List.fold for each inputPort pos
             |> List.fold (fun currentModelAddingInputSyms pos ->
-
+                
+                // Repeat for every Input Port in Subnet
                 let inputSymModel, inputSymId =
                     SymbolUpdate.addSymbol 
                         [] 
                         (currentModelAddingInputSyms.Wire.Symbol) 
-                        (pos - gap) 
+                        (pos - conditions.Gap) 
                         IOLabel 
                         label
 
@@ -154,12 +177,13 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
                     |> Optic.set SheetT.symbol_ inputSymModel
                         
                 
-                //This is not working
+                // Connect wires from IOLabel output ports to Component input ports
                 InputPortIds
                 |> List.fold (fun inputModel inputPort ->
                     let inputPortPos = getPortPos (inputPort.ToString()) inputModel.Wire
                     match inputPortPos with
-                    | x when x = pos ->
+                    | x when x = pos -> 
+                    // only place wire if it is the matching Input port to the generated IOLabel
                         let addInputWireModel, msgOpt =
                             BusWireUpdate.newWire 
                                 inputPort 
@@ -172,10 +196,10 @@ let sheetWireLabelSymbol (model: SheetT.Model) : SheetT.Model =
                         modelWithNewInputWires
                     | _ -> inputModel
                         
-                ) modelwithInputSym
+                ) modelwithInputSym // feed modelwithInputSym as our initial starting point (aka default value)
                    
                     
-            ) modelWithNewOutputWires // feed modelWithOutputSym as our initial starting point (aka default value)
+            ) modelWithNewOutputWires // feed modelWithNewOutputWires as our initial starting point (aka default value)     
 
         ) model // feed model as our initial starting point (aka default value) for the outer loop
         // return updatedModel

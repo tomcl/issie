@@ -21,12 +21,12 @@ open BusWire
         // D1 HELPER FUNCTIONS ----------------------------------------------------------------------
 
         /// Almost the same as numOfIntersectSegSym from SheetBeautifyHelpers but takes in wModel as an argument
-        (*let numOfIntersectWireSym (wModel: BusWireT.Model) : int =
+        let numOfIntersectWireSym (wModel: BusWireT.Model) : int =
             let allWires = wModel.Wires
                            |> Map.values
             allWires
             |> Array.map (findWireSymbolIntersections wModel)
-            |> Array.sumBy (function [] -> 0 | _ -> 1)*)
+            |> Array.sumBy (function [] -> 0 | _ -> 1)
 
         /// Attempts to create degrees of freedom for any symbols overlapping
         /// Will translate the symbol by half the width/height of the the host symbol based on port Orientation
@@ -40,7 +40,7 @@ open BusWire
                 otherSymBoxes
                 |>
                 List.filter (fun otherSymBox -> overlap2DBox symBox otherSymBox )
-            if not(List.isEmpty otherSym)  then
+            if not(List.isEmpty otherSym) || (numOfIntersectWireSym wModel > 1) then
                 let sym' =
                     match side with
                     | Top -> moveSymbol {X=0.0;Y = - h/2.0} sym
@@ -106,7 +106,8 @@ open BusWire
             let symbol' = moveSymbol offset' symA
             let symbol'' = handleSymOverlap wModel symbol' movePortInfo.side
             symbol''
-            
+            (*let model' = Optic.set (symbolOf_ symA.Id) symbol'' wModel
+            BusWireSeparate.routeAndSeparateSymbolWires model' symA.Id*)
 
         let alignSinglyComponents 
             (wModel: BusWireT.Model)

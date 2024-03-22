@@ -559,6 +559,20 @@ module HLPTick3 =
             | "Next Test Error", None ->
                 printf "Test Finished"
                 ()
+
+            |"D1 Test", Some state ->
+                printf "Starting DemoTest: sheetAlignScale"
+                printf $"DemoTest: # of straight lines before: {TestDrawBlockD1.TestD1.numOfStraightWires model.Sheet}"
+                printf $"DemoTest: Length of Wire Routing before: {calcVisWireLength model.Sheet}"
+                printf $"DemoTest: # of overlapping components before: {numOfIntersectedSymPairs model.Sheet}"
+
+                printf "DemoTest: Implement sheetAlignScale"
+                let alignScaleSheet = SheetBeautify.sheetAlignScale model.Sheet
+                
+                printf $"DemoTest: # of straight lines after: {TestDrawBlockD1.TestD1.numOfStraightWires alignScaleSheet}"
+                printf $"DemoTest: Length of Wire Routing after: {calcVisWireLength alignScaleSheet}"
+                printf $"DemoTest: # of overlapping components after: {numOfIntersectedSymPairs alignScaleSheet}"
+                showSheetInIssieSchematic (alignScaleSheet) dispatch
             |"D3 Replace Test", Some state ->
                 showSheetInIssieSchematic (removeComplexWires model.Sheet) dispatch
             | "D2 Test: sheetOrderFlip", Some state ->

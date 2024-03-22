@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Fable binding for the Parsimmon parser combinator library</Description>
+    <PackageProjectUrl>https://github.com/Zaid-Ajaj/Fable.Parsimmon</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Zaid-Ajaj/Fable.Parsimmon.git</RepositoryUrl>
+    <PackageLicenseUrl>https://github.com/Zaid-Ajaj/Fable.Parsimmon/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageIconUrl></PackageIconUrl>
+    <PackageTags>fsharp;parser;combinator;fable;parsimmon</PackageTags>
+    <Authors>Zaid Ajaj</Authors>
+    <Version>4.1.0</Version>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Parsimmon.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="*.fsproj; *.fs; *.js" PackagePath="fable\" />
+  </ItemGroup>
+  <Import Project="..\.paket\Paket.Restore.targets" />
+</Project>

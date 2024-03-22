@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <Description>A library for working with JSON in Fable projects</Description>
+        <PackageProjectUrl>https://github.com/Zaid-Ajaj/Fable.SimpleJson</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/Zaid-Ajaj/Fable.SimpleJson.git</RepositoryUrl>
+        <PackageLicenseUrl>https://github.com/Zaid-Ajaj/Fable.SimpleJson/blob/master/LICENSE</PackageLicenseUrl>
+        <PackageIconUrl></PackageIconUrl>
+        <PackageTags>fsharp;fable;json;parser</PackageTags>
+        <Authors>Zaid Ajaj</Authors>
+        <Version>3.24.0</Version>
+        <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="TypeCheck.fs" />
+        <Compile Include="TypeInfo.fs" />
+        <Compile Include="TypeInfo.Converter.fs" />
+        <Compile Include="Json.fs" />
+        <Compile Include="Parser.fs" />
+        <Compile Include="SimpleJson.fs" />
+        <Compile Include="Json.Converter.fs" />
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="*.fsproj; *.fs;*.js" Exclude="**\*.fs.js" PackagePath="fable\" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Fable.Core" Version="3.1.5" />
+        <PackageReference Include="Fable.Parsimmon" Version="4.0.0" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Update="FSharp.Core" Version="4.7.0" />
+    </ItemGroup>
+</Project>

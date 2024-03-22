@@ -1,18 +1,18 @@
-module TestDrawBlockD2
+module TestDrawBlockRotate
 
 open Elmish
 open TimeHelpers
 open GenerateData
-open TestDrawBlock
-open TestDrawBlock.TestLib
-open TestDrawBlock.HLPTick3
-open TestDrawBlock.HLPTick3.Tests
-open TestDrawBlock.HLPTick3.Asserts
-open TestDrawBlock.HLPTick3.Builder
+open TestDrawBlockHelpers
+open TestDrawBlockHelpers.TestLib
+open TestDrawBlockHelpers
+open TestDrawBlockHelpers.Tests
+open TestDrawBlockHelpers.Asserts
+open TestDrawBlockHelpers.Builder
 open SheetBeautifyHelpers
-open SheetBeautifyD1
-open SheetBeautifyD2
-open SheetBeautifyD3
+open SheetBeautifyAlign
+open SheetBeautifyRotate
+open SheetBeautifyWireLabel
 open SheetBeautify
 
 module D2Test =
@@ -25,270 +25,22 @@ module D2Test =
     open ModelType
     open DrawModelType
     open Sheet.SheetInterface
-    open SheetBeautifyD3
 
 
-//------------------------------------------------------------------------------------------------------------------------//
-//------------------------------additional metrics to assess improvements-------------------------------------------//
-//------------------------------------------------------------------------------------------------------------------------//
-    module Metrics =
-        // ----------------------Statistics----------------------
 
-        /// number of visible wire segments counted over whole sheet
-        let countVisibleSegments (sheetModel : SheetT.Model) : int =
-            // this gives a simple indicator of how readable the schematic is
-            let wireModel = sheetModel.Wire
 
-            wireModel.Wires
-            |> Map.toList
-            |> List.map (fun (wid, wire) -> SegmentHelpers.visibleSegments wid sheetModel)
-            |> List.map (fun segs -> segs.Length)
-            |> List.sum
-
-        // There is already a function to count segment intersections in SheetBeautifyHelpers
-        // Additional Metrics
-        let crossingPerSegment (sheetModel: SheetT.Model): float =
-            let nIntersect = numOfWireRightAngleCrossings sheetModel
-            let nSeg = 
-                sheetModel.Wire.Wires 
-                |> Map.toList 
-                |> List.map (fun (_,wire) -> wire.Segments.Length)
-                |> List.sum
-            float nIntersect / float nSeg
-
-        // wires having right angles are a necessary condition for intersection to exist
-        let rightAnglePerWire (sheetModel: SheetT.Model): float =
-            float (numOfVisRightAngles sheetModel) / float (Map.count sheetModel.Wire.Wires)
-
-        // the proportion of visible wiring length to total wiring length
-        let visibleToTotalLengthRatio (sheetModel: SheetT.Model): float =
-            let totalLength = 
-                sheetModel.Wire.Wires 
-                |> Map.toList 
-                |> List.map (fun (_,wire) -> wire.Segments |> List.fold (fun acc seg -> acc + abs seg.Length) 0.0)
-                |> List.sum
-            let visibleLength = calcVisWireLength sheetModel
-            visibleLength / totalLength
-        
-        // ----------------------Metrics----------------------
-
-        // difference for integer metrics
-        let computeMetricDifference (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->int)  =
-            metric sheetAfter - metric sheetBefore, metric sheetAfter, metric sheetBefore
-        
-        // percentage difference for float metrics
-        let computeMetricPercentageChange (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) (metric : SheetT.Model->float)  =
-            float (metric sheetAfter - metric sheetBefore)/float (metric sheetBefore)*100.0, metric sheetAfter, metric sheetBefore
-
-        /// number of segments straightened
-        let diffNWireRightAngles (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
-            computeMetricDifference sheetAfter sheetBefore numOfVisRightAngles
-
-        let diffNComponentOverlap (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
-            computeMetricDifference sheetAfter sheetBefore numOfIntersectedSymPairs
-
-        let diffNCrossingsReduced (sheetAfter : SheetT.Model) (sheetBefore : SheetT.Model) =
-            computeMetricDifference sheetAfter sheetBefore numOfWireRightAngleCrossings
 
 
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to display information of sheet model-------------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
-    module Displays =
-        open Metrics
-        /// <summary> AUTHOR hn621 - Display information or calculated metrics on the sheet model. This will be called automatically on failed tests. </summary>
-        /// <param name="displayFunc"> A list of display functions </param>
-        /// <param name="sheet"> The sheet model to display </param>
-        let display (displayFuncs: (SheetT.Model -> string) list) (sheet: SheetT.Model) =
-            let displays = 
-                displayFuncs
-                |> List.map (fun f -> f sheet)
-                |> String.concat "\n"
-            printfn $"== Display: \n{displays}"
-
-        let metricDisplay (displayFuncs: (SheetT.Model -> SheetT.Model -> string) list) (sheetAfter: SheetT.Model) (sheetBefore: SheetT.Model)  =
-            let displays = 
-                displayFuncs
-                |> List.map (fun f -> f sheetAfter sheetBefore)
-                |> String.concat "\n"
-            printfn $"== Display: \n{displays}"
-        
-        /// <summary> Display information on all symbols' position and transform state </summary>
-        let displayComponents (sheet: SheetT.Model) : string =
-            sheet.Wire.Symbol.Symbols
-            |> Map.toList
-            |> List.map (fun (id, sym) -> sprintf "> Symbol %s\n| %A\n| %A" sym.Component.Label sym.Pos sym.STransform)
-            |> String.concat "\n"
-
-        let displayer (name: string) (f: SheetT.Model -> 'a) (sheet: SheetT.Model) =
-            sheet |> f |> sprintf "> %s = %A" name
-
-        let metricDisplayer (name: string) (f: SheetT.Model -> SheetT.Model -> 'a) (sheetAfter: SheetT.Model) (sheetBefore: SheetT.Model) =
-            (sheetAfter, sheetBefore) ||> f |> sprintf "> %s = %A" name
-
-        // Diplay Functions: Statistics
-        let displayCountSymIntersectSym (sheet: SheetT.Model) : string =
-            displayer "n_sym_intersect_sym" numOfIntersectedSymPairs sheet
-
-        let displayCountSegIntersectSym (sheet: SheetT.Model) : string =
-            displayer "n_seg_intersect_sym" numOfIntersectSegSym sheet
-
-        let displaySegmentCrossing (sheet: SheetT.Model) : string =
-            displayer "n_crossings" numOfWireRightAngleCrossings sheet
-        
-        let displayVisibleSegments (sheet: SheetT.Model) : string =
-            displayer "n_visible_segments" countVisibleSegments sheet
-
-        let displayVisRightAngles (sheet: SheetT.Model) : string =
-            displayer "n_vis_right_angles" numOfVisRightAngles sheet
-
-        let displayVisibleWiringLength (sheet: SheetT.Model) : string =
-            displayer "visible_wiring_length" calcVisWireLength sheet
-
-        let displayRetracingSegments (sheet: SheetT.Model) : string =
-            displayer "n_retracing_segments" findRetracingSegments sheet
-
-        // Diplay Functions: Metrics
-        let displayDiffNCrossingsReduced sheetAfter sheetBefore =
-            metricDisplayer "diff_n_sym_intersect_sym" diffNCrossingsReduced  sheetAfter sheetBefore
-
-        let displayDiffNWireRightAngles sheetAfter sheetBefore=
-            metricDisplayer "diff_n_wire_right_angles" diffNWireRightAngles  sheetAfter sheetBefore
-
-        let displayIntersectPerSegment =
-            displayer "intersection/seg" crossingPerSegment
-
-        let displayRightAnglesPerWire =
-            displayer "right_angle/wire" rightAnglePerWire
-
-        let displayMetrics: (SheetT.Model -> SheetT.Model -> string) list = [
-            displayDiffNCrossingsReduced
-            displayDiffNWireRightAngles
-        ]
-
-        let displayAll: (SheetT.Model -> string) list = [
-            displayComponents; 
-            displayCountSegIntersectSym;
-            displaySegmentCrossing; 
-            displayVisRightAngles; 
-            displayVisibleSegments;
-            displayVisibleWiringLength; 
-            // displayRetracingSegments;
-            ]
+    
 
 //------------------------------------------------------------------------------------------------------------------------//
 //------------------------------functions to build issue schematics programmatically--------------------------------------//
 //------------------------------------------------------------------------------------------------------------------------//
     module Builder =
         open Displays
-
-        let placeCustomSymbol
-                (symLabel: string)
-                (ccSheet : SheetT.Model)
-                (ccSheetName: string)
-                (model: Model)
-                (scale: XYPos)
-                (position: XYPos)
-                (sheetModel: SheetT.Model)
-                    : Result<SheetT.Model, string> =
-           let symbolMap = sheetModel.Wire.Symbol.Symbols
-           let project = Option.get model.CurrentProj
-           if caseInvariantEqual ccSheetName project.OpenFileName then
-                Error "Can't create custom component with name same as current opened sheet"        
-            elif not <| List.exists (fun (ldc: LoadedComponent) -> caseInvariantEqual ldc.Name ccSheetName) project.LoadedComponents then
-                Error "Can't create custom component unless a sheet already exists with smae name as ccSheetName"
-            elif symbolMap |> Map.exists (fun _ sym ->  caseInvariantEqual sym.Component.Label symLabel) then
-                Error "Can't create custom component with duplicate Label"
-            else
-                // MOD sheetModel -> model, TODO: change this to the custom sheet's model
-                let canvas = ccSheet.GetCanvasState()
-                let ccType: CustomComponentType =
-                    {
-                        Name = ccSheetName
-                        InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
-                        OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
-                        Form = None
-                        Description = None
-                    }
-                placeSymbol symLabel (Custom ccType) position sheetModel
-
-        /// 1. Create a set of circuits from Gen<'a> samples by applying sheetMaker to each sample.
-        /// 2. Check each ciruit with sheetChecker.
-        /// 3. Return a TestResult record with errors those samples for which sheetChecker returns false,
-        /// or where there is an exception.
-        /// If there are any test errors display the first in Issie, and its error message on the console.
-        /// sheetMaker: generates a SheetT.model from the random sample
-        /// sheetChecker n model: n is sample number, model is the genrated model. Return false if test fails.
-        let runTestOnSheets
-            (name: string)
-            (sampleToStartFrom: int)
-            (samples : Gen<'a>)
-            (sheetMaker: 'a -> SheetT.Model)
-            (sheetChecker: int -> SheetT.Model -> string option)
-            (dispatch: Dispatch<Msg>)
-            (displayOnFail)
-                : TestResult<'a> =
-            let generateAndCheckSheet n = sheetMaker >> sheetChecker n
-            let result =
-                {
-                    Name=name;
-                    Samples=samples;
-                    StartFrom = sampleToStartFrom
-                    Assertion = generateAndCheckSheet
-                }
-                |> runTests // retuns result with added field of TestErrors
-            match result.TestErrors with
-            | [] -> // no errors
-                printf $"Test {result.TestName} has PASSED."
-            | (n,first):: _ -> // display in Issie editor and print out first error
-                printf $"Test {result.TestName} has FAILED on sample {n} with error message:\n{first}"
-                match catchException "" sheetMaker (samples.Data n) with
-                | Ok sheet -> 
-                    display displayOnFail sheet
-                    showSheetInIssieSchematic sheet dispatch
-                | Error mess -> ()
-            result // return the entire result
-
-        // ----------------------Circuit Builders Helper----------------------
-        let getSymId (symLabel: string) (symModel: SymbolT.Model): ComponentId = 
-            mapValues symModel.Symbols
-            |> Array.tryFind (fun sym -> caseInvariantEqual sym.Component.Label symLabel)
-            |> function
-                | Some x -> x.Id
-                | _ -> failwithf "TestDrawBlock.getSymId: symLabel (%A) not found" symLabel
-
-        // Rotate a symbol
-        let rotateSymbol (symLabel: string) (rotate: Rotation option) (model: SheetT.Model) : (SheetT.Model) =
-            let symId = getSymId symLabel model.Wire.Symbol
-            let rotateSymbol' = 
-                match rotate with
-                | Some degree -> SymbolResizeHelpers.rotateAntiClockByAng degree
-                | None -> id
-
-            let symModel: SymbolT.Model = 
-                SymbolUpdate.updateSymbol rotateSymbol' symId model.Wire.Symbol
-
-            model
-            |> Optic.set symbolModel_ symModel
-            |> SheetUpdateHelpers.updateBoundingBoxes
-
-        // Flip a symbol
-        let flipSymbol (symLabel: string) (flip: SymbolT.FlipType option) (model: SheetT.Model) : (SheetT.Model) =
-            let symId = getSymId symLabel model.Wire.Symbol
-            let flipSymbol' = 
-                match flip with
-                | Some SymbolT.FlipType.FlipHorizontal -> 
-                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal
-                | Some SymbolT.FlipType.FlipVertical ->
-                    SymbolResizeHelpers.flipSymbol SymbolT.FlipType.FlipHorizontal 
-                    >> SymbolResizeHelpers.rotateAntiClockByAng Degree180 
-                | None -> id
-            let symModel: SymbolT.Model = 
-                SymbolUpdate.updateSymbol flipSymbol' symId model.Wire.Symbol
-
-            model
-            |> Optic.set symbolModel_ symModel 
-            |> SheetUpdateHelpers.updateBoundingBoxes
 
         // ----------------------Circuit Builders DSL----------------------
         type TestCompType = 
@@ -456,6 +208,7 @@ module D2Test =
                         Rotate=None;
                     }
             )
+        
         
     open Builder
     open Generator
@@ -710,8 +463,8 @@ module D2Test =
             runTestOnSheets
                 "DisplayAll D3: Regular Shifts"
                 firstSample
-                TestDrawBlockD3.GenerateRegularWireLabelReplaceTestPos
-                TestDrawBlockD3.makeReplaceWireLabelTestCircuit
+                TestDrawBlockWireLabel.GenerateRegularWireLabelReplaceTestPos
+                TestDrawBlockWireLabel.makeReplaceWireLabelTestCircuit
                 Asserts.failOnAllTests
                 dispatch
                 displayAll
@@ -769,8 +522,8 @@ module D2Test =
                 "Apply Beautify D3", (applyBeautify wireLabelBeautify)
                 "Build: Random Components No Rotate", testRandomCompNoRotate 
                 "Build: Random Components", testRandomComp
-                "Test: Statistics", TestDrawBlockD1.HLPTick3.Tests.showTestCircuit5
-                "Test: Edge Case", TestDrawBlockD1.HLPTick3.Tests.runAllTests 
+                "Test: Statistics", TestDrawBlockAlign.HLPTick3.Tests.showTestCircuit5
+                "Test: Edge Case", TestDrawBlockAlign.HLPTick3.Tests.runAllTests 
                 "Test: Beautify Time Complexity", testBeautifyTimePerformance
                 "Next Test Error", fun _ _ _ _ -> printf "Next Error:" // Go to the nexterror in a test
                 "D3 regular shifts", testD3Regular

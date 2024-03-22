@@ -1,4 +1,4 @@
-﻿module SheetBeautifyD3
+﻿module SheetBeautifyWireLabel
 
 open CommonTypes
 open DrawHelpers
@@ -27,8 +27,42 @@ module DEBUG_CONSTANTS =
     let DEBUG:bool = false
     let DEBUG_MAX_LENGTH:float = 1.
 
+/// constants used by SheetBeautifyWireLabel
+module Constants =
+
+    (*
+    A few metrics are designed to define possible characteristics of wires that should be replaced by 
+    wire labels, and characteristic of wire Labels that should be changed back to wires. The specific 
+    values are temporary and should be determined later. 
+
+    Median is used to avoid the influence of outliers. 
+    
+    TODO:identify suitable values through tests or create logic for the values to be user assigned during runtime
+    TODO: confirm which order the metrics should be satified if they conflict, currently designed as the greater 
+        the line number, the more important the metric is.
+    *)
+    /// The maximum length of a wire, TODO: find a suitable value
+    let maxWireLength = 750.
+
+    /// If the length of a wire is greater than this ratio of the median length of all wires,
+    /// then the wire is considered too long.
+    let maxLengthRatio = 2.
+
+    /// If the intersection of a wire with all other wires is greater than this ratio of the median
+    /// intersection of all wires, then the wire is considered too intersecting.
+    let maxIntersectionRatio = 4.0
+
+    ///If the distance between two wire label of the same wire connection is less than this ratio of the median
+    /// length of all wires, then the wire labels are considered too close and unecesarry.
+    let minLabelDistanceRatio = 1
+
+    /// If the number of wire bends is greater than this ratio of the median number of bends of all wires,
+    /// then the wire is considered too bendy.
+    let maxBendRatio = 4.0
+
+
 /// Some Helper functions copied from Tick3 testdrawblock and edited
-module sheetBeutifyD3Helpers =
+module sheetBeutifyWireLabelHelpers =
     let busWireModel_:Lens<SheetT.Model,BusWireT.Model> = wire_
     let maxSheetCoord = Sheet.Constants.defaultCanvasSize
     let symbolModel_ = SheetT.symbol_
@@ -101,38 +135,6 @@ module sheetBeutifyD3Helpers =
     let findIOLabelConnectedToPort (port:Port) (sheet:SheetT.Model )= ()
     let replaceWireLableWithWire porta portb sheeet  = ()
 
-/// constants used by SheetBeautifyD3
-module Constants =
-
-    (*
-    A few metrics are designed to define possible characteristics of wires that should be replaced by 
-    wire labels, and characteristic of wire Labels that should be changed back to wires. The specific 
-    values are temporary and should be determined later. 
-
-    Median is used to avoid the influence of outliers. 
-    
-    TODO:identify suitable values through tests or create logic for the values to be user assigned during runtime
-    TODO: confirm which order the metrics should be satified if they conflict, currently designed as the greater 
-        the line number, the more important the metric is.
-    *)
-    /// The maximum length of a wire, TODO: find a suitable value
-    let maxWireLength = 750.
-
-    /// If the length of a wire is greater than this ratio of the median length of all wires,
-    /// then the wire is considered too long.
-    let maxLengthRatio = 2.
-
-    /// If the intersection of a wire with all other wires is greater than this ratio of the median
-    /// intersection of all wires, then the wire is considered too intersecting.
-    let maxIntersectionRatio = 4.0
-
-    ///If the distance between two wire label of the same wire connection is less than this ratio of the median
-    /// length of all wires, then the wire labels are considered too close and unecesarry.
-    let minLabelDistanceRatio = 1
-
-    /// If the number of wire bends is greater than this ratio of the median number of bends of all wires,
-    /// then the wire is considered too bendy.
-    let maxBendRatio = 4.0
 
 /// Helper functions to find illegal wires
 module findIllegalWiresHelpers =
@@ -256,7 +258,7 @@ module findIllegalWiresHelpers =
 /// top level function takes in a sheet model and outputs a new sheet model with the illegal wires replaced
 module illegalWireToWireLabels =
     open findIllegalWiresHelpers
-    open sheetBeutifyD3Helpers
+    open sheetBeutifyWireLabelHelpers
 
     /// the output type of the test
     type illegalWireMetrics = {

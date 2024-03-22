@@ -1,4 +1,4 @@
-﻿module SheetBeautifyD2
+﻿module SheetBeautifyRotate
 // open modules likely to be used
 open CommonTypes
 open DrawHelpers

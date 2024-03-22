@@ -1,12 +1,12 @@
-module TestDrawBlockD3
+module TestDrawBlockWireLabel
 
 open GenerateData
 open Elmish
-open TestDrawBlock.HLPTick3
-open TestDrawBlock.TestLib
-open TestDrawBlock.HLPTick3.Builder
-open TestDrawBlock.HLPTick3.Asserts
-open TestDrawBlock.HLPTick3.Tests
+open TestDrawBlockHelpers.HLPTick3
+open TestDrawBlockHelpers.TestLib
+open TestDrawBlockHelpers.HLPTick3.Builder
+open TestDrawBlockHelpers.HLPTick3.Asserts
+open TestDrawBlockHelpers.HLPTick3.Tests
 open CommonTypes
 open DrawModelType
 
@@ -50,5 +50,5 @@ let makeReplaceWireLabelTestCircuit(pos: wireLabelReplaceXYPos): SheetT.Model =
         |> Result.bind (placeWire (portOf "DM" 3) (portOf "M4" 3))
         |> getOkOrFail
     unoptimizedSheet
-        |> SheetBeautifyD3.wireLabelBeautify 
+        |> SheetBeautifyWireLabel.wireLabelBeautify 
         

@@ -535,7 +535,7 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
         |> getOkOrFail
-        |> straightenWiresByMovingSyms
+        |> beautifySheet
 
 
     /// Makes a non-beautified circuit with 3 muxes, 6 inputs, 1 output and a set of IO labels. All with random minor deviations from straight wires
@@ -568,7 +568,7 @@ module HLPTick3 =
         |> Result.bind (placeSymbol "IO1" (IOLabel) ({X = 2150.15; Y = 1677.11}+(fst posRots)[9]))
         |> Result.bind (placeWire (portOf "IO1" 0) (portOf "OUT1" 0))
         |> getOkOrFail
-        |> straightenWiresByMovingSyms
+        |> beautifySheet
 
 
     /// Makes a non-beautified circuit with 3 muxes, 6 inputs and 1 output all with random minor deviations from straight wires
@@ -624,7 +624,7 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "S3" 0) (portOf "MUX3" 2))
         |> Result.bind (placeWire (portOf "MUX3" 0) (portOf "OUT1" 0))
         |> getOkOrFail
-        |> straightenWiresByMovingSyms
+        |> beautifySheet
 
     /// Makes a circuit with 2 inputs, 2 muxes and an AND gate where positions have small random deviations
     /// For testing both D1 and D2
@@ -670,7 +670,7 @@ module HLPTick3 =
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
-        |> straightenWiresByMovingSyms
+        |> beautifySheet
 
 
     /// Creates a non-beautified circuit of two inputs, two muxes and an AND gate with random positions, random flip state, random rotations and random inversion of MUX input ports
@@ -696,7 +696,7 @@ module HLPTick3 =
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
-        |> straightenWiresByMovingSyms
+        |> beautifySheet
 
     /// Creates a beautified circuit of two inputs, two muxes and an AND gate with random positions, random flip state, random rotations and random inversion of MUX input ports
     /// Compare to test 8 which is the beautified version
@@ -798,8 +798,7 @@ module HLPTick3 =
         model
         |> Result.bind placeRandomWiresOnModel
         |> getOkOrFail
-        |> straightenWiresByMovingSyms
-        |> SheetBeautifyD3.sheetWireLabelSymbol
+        |> beautifySheet
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//
@@ -976,9 +975,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
         
-        /// Create a random deviated circuit based off make (see makeD4TestCircuitRandom)
-        /// that the D4 beautify function is called on
-        /// Fail on all tests to show the beautified circuits 
+        /// Create a random deviated circuit based off makeTest2Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test2 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -989,6 +987,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest3Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test3 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -999,6 +999,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest4Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test4 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1009,6 +1011,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest5Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test5 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1019,6 +1023,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest6Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test6 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1029,6 +1035,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest7Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test7 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"
@@ -1039,6 +1047,8 @@ module HLPTick3 =
                 dispatch
             |> recordPositionInTest testNum dispatch
 
+        /// Create a random deviated circuit based off makeTest8Circuit
+        /// Fail on all tests and show metrics for evaluation
         let test8 random testNum firstSample dispatch =
             runTestOnSheets
                 "Figure B2: fail on all, random flip rotate"

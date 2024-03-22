@@ -598,7 +598,7 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "MUX1" 0) (portOf "MUX2" 0))
         |> Result.bind (placeWire (portOf "MUX2" 0) (portOf "C" 0))
         |> getOkOrFail
-        |> alignSymbols
+        |> straightenWiresByMovingSyms
 
     //TODO: make automatic circuit creation
     ///Suggested circuit in appendix b (test starter 1.)
@@ -655,7 +655,7 @@ module HLPTick3 =
         |> Result.bind (placeSymbol "IO1" (IOLabel) ({X = 2150.15; Y = 1677.11}+(fst posRots)[9]))
         |> Result.bind (placeWire (portOf "IO1" 0) (portOf "OUT1" 0))
         |> getOkOrFail
-        |> alignSymbols
+        |> straightenWiresByMovingSyms
 
     let makeCircuit =
          initSheetModel
@@ -738,7 +738,7 @@ module HLPTick3 =
         |> Result.bind (placeWire (portOf "S3" 0) (portOf "MUX3" 2))
         |> Result.bind (placeWire (portOf "MUX3" 0) (portOf "OUT1" 0))
         |> getOkOrFail
-        |> alignSymbols
+        |> straightenWiresByMovingSyms
 
     let makeTest5Circuit (posRots:XYPos list * int list) =
         (*initSheetModel
@@ -794,7 +794,7 @@ module HLPTick3 =
         |> Result.bind (ANDConnection1)
         |> Result.bind (ANDConnection2)
         |> getOkOrFail
-        |> alignSymbols
+        |> straightenWiresByMovingSyms
 
 
 
@@ -820,7 +820,7 @@ module HLPTick3 =
         |> Result.bind (ANDConnection2)
         //|> Result.bind (optimalEdgeOrder)
         |> getOkOrFail
-        |> alignSymbols
+        |> straightenWiresByMovingSyms
 
     let makeD4TestCircuitRandomAlignedNOT (posRots:XYPos list * int list) = // (possibleComps: ComponentType list) (maxNumSymbols: int) =
         // Parameters. TODO: Make these provided as arguments to the function, and passed as Gens to the testrunner
@@ -889,8 +889,8 @@ module HLPTick3 =
         model
         |> Result.bind placeRandomWiresOnModel
         |> getOkOrFail
-        |> alignSymbols
-        //|> SheetBeautifyD3.sheetWireLabelSymbol
+        |> straightenWiresByMovingSyms
+        |> SheetBeautifyD3.sheetWireLabelSymbol
 
 //------------------------------------------------------------------------------------------------//
 //-------------------------Example assertions used to test sheets---------------------------------//

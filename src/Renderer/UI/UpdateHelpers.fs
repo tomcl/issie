@@ -269,6 +269,7 @@ type RightClickElement =
     | DBScalingBox of list<ComponentId>
     | DBComp of SymbolT.Symbol
     | DBWire of Wire: BusWireT.Wire * ASeg: BusWireT.ASegment list
+    | DBLabelledWire of Wire: BusWireT.Wire * ASeg: BusWireT.ASegment list
     | DBCanvas of XYPos
     | DBInputPort of string
     | DBOutputPort of string
@@ -355,7 +356,9 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
                             | [] ->
                                 NoMenu
                             | segs ->
-                                DBWire(wire, segs)
+                                match wire.OriginalOutputPort with
+                                | Some _ -> DBLabelledWire(wire, segs)
+                                | _ -> DBWire(wire, segs)
 
         | SheetT.MouseOn.InputPort (InputPortId s, _),_ , _ ->
             DBInputPort s
@@ -377,6 +380,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         "Canvas"
     | DBWire _ ->
         "Wire"
+    | DBLabelledWire _ ->
+        "LabelledWire"
     | WaveSimHelp ->
         "WaveSimHelp"
     | _ ->
@@ -505,9 +510,10 @@ let processContextMenuClick
         // |> replaceWireWithLabel wire
         |> withNoCmd
 
-    | DBWire (wire, aSeg), "Revert to Wire" ->
-
-        model |> withNoCmd
+    | DBLabelledWire (wire, aSeg), "Revert to Wire" ->
+        {model with Sheet = model.Sheet |> restoreWire wire}
+        // |> withWireMsg (BusWireT.Msg.DeleteWires [wire.WId])
+        |> withNoCmd
     
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
         rotateDispatch Degree90

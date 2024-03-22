@@ -586,9 +586,9 @@ let replaceWireWithLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
 
     let toOutputLabelWireOpt = 
         labelInputPortOpt
-        |> Option.map (fun labelInputPort -> {BusWireUpdate.makeNewWire labelInputPort wire.OutputPort modelWithNewLabels.Wire with ConversionHistory = Some <| BusWireT.WasWire (wire.InputPort, wire.OutputPort)})
+        |> Option.map (fun labelInputPort -> BusWireUpdate.makeNewWire labelInputPort wire.OutputPort modelWithNewLabels.Wire)
 
-    let toInputLabelWire = BusWireUpdate.makeNewWire wire.InputPort labelOutputPort modelWithNewLabels.Wire
+    let toInputLabelWire = {BusWireUpdate.makeNewWire wire.InputPort labelOutputPort modelWithNewLabels.Wire with OriginalOutputPort = Some wire.OutputPort}
 
     let ouputLabelWireAdder =
         toOutputLabelWireOpt
@@ -603,6 +603,100 @@ let replaceWireWithLabel (wire: BusWireT.Wire) (sheet: SheetT.Model) =
         Map.add toInputLabelWire.WId toInputLabelWire) // delete selected wire
     |> Optic.map (SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.ports_) (Map.change portIdStr (fun portOpt -> 
                     Option.map (fun port -> {port with WireToLabel = match toOutputLabelWireOpt with | Some wire -> Some (match wire.WId with | ConnectionId cid -> cid) | None -> port.WireToLabel}) portOpt))
+
+let restoreWire (wireFromInputLabel: BusWireT.Wire) (sheet: SheetT.Model) =
+    let wireLabel, inputLabelSymbol =
+        sheet.Wire.Symbol.Ports
+        |> Map.tryFind (getOutputPortIdStr <| wireFromInputLabel.OutputPort)
+        |> Option.bind (fun port -> 
+            sheet.Wire.Symbol.Symbols
+            |> Map.tryFind (ComponentId port.HostId)
+            |> Option.map (fun symb -> symb.Component.Label, symb)
+        )
+        |> function
+        | Some (foundLabel, symb) -> foundLabel, symb
+        | _ -> failwith "What? Could not find label attached to this wire"
+
+    let matchingWireLabelSymbols =
+        sheet.Wire.Symbol.Symbols
+        |> Map.filter (fun _ v -> v.Component.Label = wireLabel)
+        |> Helpers.mapValues
+        |> Seq.toList
+    
+    if matchingWireLabelSymbols.Length = 1 then failwith "what? should be more than one of this wire label to revert"
+    elif matchingWireLabelSymbols.Length = 2 then
+        let outputPort = 
+            matchingWireLabelSymbols
+            // will be one of two in list
+            |> List.tryFind (fun symb -> symb.Id <> inputLabelSymbol.Id)
+            |> Option.map (fun symb -> symb.Component.InputPorts.Head.Id)
+            |> Option.map (fun inputPortId ->
+                sheet.Wire.Wires
+                |> Helpers.mapValues
+                |> Seq.toList
+                |> List.filter (fun w -> w.InputPort = InputPortId inputPortId)
+                |> List.head
+                |> fun w -> w.OutputPort
+            ) // look through the map, find the wire which connects the input port, then get the other end of that wire
+            |> function
+            | Some res -> res
+            | _ -> failwith "what?"
+
+        let victimPortIds = 
+            matchingWireLabelSymbols
+            |> List.map (fun symb -> symb.Component.InputPorts @ symb.Component.OutputPorts)
+            |> List.concat
+            |> List.map (fun port -> port.Id)
+
+        let victimConnectionIds =
+            sheet.Wire.Wires
+            |> Map.filter (fun _ v -> List.contains (getOutputPortIdStr v.OutputPort) victimPortIds || List.contains (getInputPortIdStr v.InputPort) victimPortIds)
+            |> Helpers.mapKeys
+            |> Seq.toList
+
+        let symbolRemovals = 
+            List.map (fun symb -> Map.remove symb.Id) matchingWireLabelSymbols
+            |> List.reduce (fun a b -> a >> b)
+
+        let wireRemovals =
+            List.map (fun wId -> Map.remove wId) victimConnectionIds
+            |> List.reduce (fun a b -> a >> b)
+
+        let replacementWire = BusWireUpdate.makeNewWire wireFromInputLabel.InputPort outputPort sheet.Wire
+
+        sheet
+        |> Optic.map (SheetT.wires_) wireRemovals
+        |> Optic.map (SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_) symbolRemovals
+        |> Optic.map (SheetT.wires_) (Map.add replacementWire.WId replacementWire)
+    else
+        // delete only InputLabel as OutputLabel still used by others
+        let outputPort = 
+            matchingWireLabelSymbols
+            // will be one of two in list
+            |> List.tryFind (fun symb -> symb.Component.InputPorts.Length <> 0)
+            |> Option.map (fun symb -> symb.Component.InputPorts.Head.Id)
+            |> Option.map (fun inputPortId ->
+                sheet.Wire.Wires
+                |> Helpers.mapValues
+                |> Seq.toList
+                |> List.filter (fun w -> w.InputPort = InputPortId inputPortId)
+                |> List.head
+                |> fun w -> w.OutputPort
+            ) // look through the map, find the wire which connects the input port, then get the other end of that wire
+            |> function
+            | Some res -> res
+            | _ -> failwith "what?"
+
+        let replacementWire = BusWireUpdate.makeNewWire wireFromInputLabel.InputPort outputPort sheet.Wire
+
+        sheet
+        |> Optic.map (SheetT.wires_) (Map.remove wireFromInputLabel.WId)
+        |> Optic.map (SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_) (Map.remove inputLabelSymbol.Id)
+        |> Optic.map (SheetT.wires_) (Map.add replacementWire.WId replacementWire)
+
+
+
+        
 
 
 //----------------------------------------------------------------------------------------------//

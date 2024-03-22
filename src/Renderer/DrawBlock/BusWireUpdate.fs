@@ -69,7 +69,7 @@ let makeNewWire inputId outputId model =
         Segments = []
         StartPos = { X = 0; Y = 0 }
         InitialOrientation = Horizontal
-        ConversionHistory = None
+        OriginalOutputPort = None
     }
     |> smartAutoroute model
 
@@ -396,7 +396,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                     InitialOrientation = 
                         getOutputPortOrientation model.Symbol outputId 
                         |> getOrientationOfEdge
-                    ConversionHistory = None
+                    OriginalOutputPort = None
                 }
                 |> makeWirePosMatchSymbol false
                 |> makeWirePosMatchSymbol true

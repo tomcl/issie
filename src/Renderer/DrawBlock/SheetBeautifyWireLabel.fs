@@ -477,10 +477,15 @@ module illegalWireToWireLabels =
 
 
 /// functions to find illegal wire labels and replace them with wires
-/// Buggy, need to fix
+/// Buggy,in the final part where we remove the wire labels, therefore excluded from the overall top level
+/// working in progress
 module illgealWireLabelToWires =
-    // change wire labels back to wires
-    let findConnectedLabels (model:SheetT.Model) (label:string) =
+  
+    let CheckWirelabelPairIllegal (labela:Symbol) (labelb:Symbol) = //incomplete example objective function for illegal wire label pairs
+        if (euclideanDistance labela.Pos labelb.Pos )>100 then (Some labela.Id) else None
+
+
+    let findConnectedLabels (label:string) (model:SheetT.Model)  =
         let symbolsMap = model.Wire.Symbol.Symbols
         let labels :Symbol array = 
             mapValues symbolsMap
@@ -489,86 +494,89 @@ module illgealWireLabelToWires =
         labels
 
     let findNewWirePorts(model:SheetT.Model)(labels: Symbol array) =
-        let wires=model.Wire.Wires |> Map.toList |> List.map snd
-        let connectedInputPorts=model.Wire.Symbol.InputPortsConnected |> Set.map (fun portid -> getInputPortIdStr portid)
-        let connectedOutputPorts=
-            model.Wire.Symbol.OutputPortsConnected 
-            |>Map.toList 
-            |> List.filter (fun (pId,num) -> num>0 )
-            |> List.map fst
-            |> List.map (fun portid -> getOutputPortIdStr portid)
-        // let sourcelabel=
-        //     labels
-        //     |> Array.filter(fun label -> Set.contains(label.Component.InputPorts[0]. ) connectedInputPorts)
-
-        let sourceLabelPortId= // get the port ids of the input label, which is the output port of a wire that connects to it
+        let wires:Wire List=model.Wire.Wires |> Map.toList |> List.map snd
+        let matchWireWithInputLabel wires label=
+            // let wireInputport=string(wire.InputPort)
+            wires
+            |> List.tryFind(fun wire-> 
+                let wireInputport=string(wire.InputPort)
+                caseInvariantEqual label.Component.InputPorts[0].Id wireInputport)
+        let sourceWire=
             labels
-            |> Array.filter(fun label -> Set.contains(label.Component.InputPorts[0].Id ) connectedInputPorts)
-            |>(fun symArray -> if (Array.isEmpty symArray) then failwithf "can't find labels act as input" else symArray    )
-            |> Array.map( fun label ->label.Component.InputPorts[0].Id) // there should be only 1 source label
             |> Array.toList
-        let outputLabelPortIds= // get the port ids of the input label, which is the in port of a wire that connects to it
-            labels
-            |> Array.filter(fun label -> List.contains(label.Component.OutputPorts[0].Id ) connectedOutputPorts)
-            |>(fun symArray -> if (Array.isEmpty symArray) then failwithf "can't find labels act as output" else symArray    )
-            |> Array.map( fun label ->label.Component.OutputPorts[0].Id)
-            |> Array.toList// there can be many output labels
-
-        let sourceWire =
+            |> List.map(fun label -> matchWireWithInputLabel wires label)
+            |> List.filter(fun symOption -> 
+                match symOption with
+                | Some _ -> true
+                | None -> false )
+            |> List.map(fun symOption -> 
+                match symOption with
+                | Some symbol -> symbol
+                | None -> failwithf "prev filter not working" )
+        printf "number of sourceWires!!!!!!!!!!!!! %d" sourceWire.Length
+        let matchWireWithOutputLabel wires label=
+            // let wireInputport=string(wire.InputPort)
             wires
-            |> List.tryFind(fun wire -> List.contains(getOutputPortIdStr wire.OutputPort) sourceLabelPortId)
-            |> function
-                    | Some wire -> wire
-                    | None -> failwithf "can't find source wire"
+            |> List.tryFind(fun wire-> 
+                let wireInputport=string(wire.OutputPort)
+                caseInvariantEqual label.Component.OutputPorts[0].Id wireInputport)
         let outputWires=
-            wires
-            |> List.filter(fun wire -> List.contains(getInputPortIdStr wire.InputPort) outputLabelPortIds)
-            |>(fun wires -> if (List.isEmpty wires) then failwithf "can't find labels act as input" else wires    )
+            labels
+            |> Array.toList
+            |> List.map(fun label -> matchWireWithOutputLabel wires label)
+            |> List.filter(fun symOption -> 
+                match symOption with
+                | Some _ -> true
+                | None -> false )
+            |> List.map(fun symOption -> 
+                match symOption with
+                | Some symbol -> symbol
+                | None -> failwithf "prev filter not working" )
+        printf "number of outputWires!!!!!!!!!!!!! %d" outputWires.Length
 
         let sourceport=
-            sourceWire.InputPort
+            sourceWire[0].OutputPort
         let outputports=
-            outputWires |> List.map(fun wire ->wire.OutputPort)
+            outputWires |> List.map(fun wire ->wire.InputPort)
 
 
         sourceport, outputports
-
-
 
     let makeWire inputport outputport (sheet:SheetT.Model) =
         let newWire =  BusWireUpdate.makeNewWire inputport outputport sheet.Wire
         
         {sheet with Wire={sheet.Wire with Wires= Map.add newWire.WId newWire sheet.Wire.Wires}}
-    
-    //let findShortWiresToReplace() :string=()
         
     let replaceWireLablesWithWire (labelName:string) (sheet:SheetT.Model)  =
-        let connectedLabels:Symbol array= findConnectedLabels sheet labelName
-        //printf "connectedLabels!!!!!!!!!!!!! %d" connectedLabels.Length
+        let connectedLabels:Symbol array= findConnectedLabels labelName sheet 
+        printf "connectedLabels!!!!!!!!!!!!! %d" connectedLabels.Length
 
         let newWireports=findNewWirePorts sheet connectedLabels
         //printf "inputPort" 
         let inputPort=fst newWireports
         let outputPorts=snd newWireports
-
-        
+        let removeLabel labelId (sheet:SheetT.Model)=
+            {sheet with Wire= {sheet.Wire with Symbol = {sheet.Wire.Symbol with Symbols=sheet.Wire.Symbol.Symbols.Remove(labelId)}}}
         let sheetwithRemovedLabels=
             connectedLabels
             |> Array.toList
             |> List.map(fun label -> label.Id)
             |> List.fold( fun (sheet:SheetT.Model) labelId-> 
-                {sheet with Wire= {sheet.Wire with Symbol = {sheet.Wire.Symbol with Symbols=sheet.Wire.Symbol.Symbols.Remove(labelId)}}}) sheet
+                removeLabel labelId sheet) sheet
 
+        // printf "got to this stage line 607"
         let targetLabelSymbolSheet = 
             outputPorts
-            |>List.fold( fun (sheet:SheetT.Model) outputport -> 
-                (makeWire inputPort outputport sheet)) sheetwithRemovedLabels
+            |>List.fold( fun (sheet:SheetT.Model) (outputport: InputPortId) -> 
+                (makeWire outputport inputPort  sheet)) sheet
+        // printf "got to this stage line 612"
         targetLabelSymbolSheet
 
     ///top level function to replace all illegal wire labels with wires
     let optimizeLabels(sheet:SheetT.Model)=
         sheet
-        //|> replaceWireLablesWithWire "MUX1_I"
+        // |> replaceWireLablesWithWire "DM_I0"
+
 
 /// functions to reconnect wires that are connected to the same source port
 /// if the source port is connected to an IO label

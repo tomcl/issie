@@ -433,36 +433,35 @@ let flipSymbolInBlock
     let portOrientation = 
         sym.PortMaps.Orientation |> Map.map (fun id side -> flipSideHorizontal side)
 
-    let flipPortList currPortOrder side =
-        currPortOrder |> Map.add (flipSideHorizontal side ) sym.PortMaps.Order[side]
-
     let portOrder = 
-        (Map.empty, [Edge.Top; Edge.Left; Edge.Bottom; Edge.Right]) ||> List.fold flipPortList
-        |> Map.map (fun edge order -> List.rev order)       
+        [Edge.Top; Edge.Left; Edge.Bottom; Edge.Right]
+        |> List.map (fun side -> flipSideHorizontal side, sym.PortMaps.Order[side] |> List.rev)
+        |> Map.ofList
 
     let newSTransform = 
         {Flipped= not sym.STransform.Flipped;
         Rotation= sym.STransform.Rotation} 
 
     let newcomponent = {sym.Component with X = newTopLeft.X; Y = newTopLeft.Y}
+    
+    let updatedSymbol = 
+        { sym with
+            Pos = newTopLeft;
+            Component = newcomponent
+            STransform = newSTransform;
+            PortMaps = { Order = portOrder; Orientation = portOrientation };
+            LabelHasDefaultPos = true }
+        |> calcLabelBoundingBox
 
-    { sym with
-        Component = newcomponent
-        PortMaps = {Order=portOrder;Orientation=portOrientation}
-        STransform = newSTransform
-        LabelHasDefaultPos = true
-        Pos = newTopLeft
-    }
-    |> calcLabelBoundingBox
-    |> (fun sym -> 
-        match flip with
-        | FlipHorizontal -> sym
-        | FlipVertical -> 
-            let newblock = getBlock [sym]
-            let newblockCenter = newblock.Centre()
-            sym
-            |> rotateSymbolInBlock Degree180 newblockCenter 
-            )
+    // Apply additional rotation if flipping vertically
+    match flip with
+    | FlipHorizontal -> updatedSymbol
+    | FlipVertical -> 
+        let newBlock = getBlock [updatedSymbol]
+        let newBlockCenter = newBlock.Centre()
+        updatedSymbol
+        |> rotateSymbolInBlock Degree270 newBlockCenter
+        |> rotateSymbolInBlock Degree270 newBlockCenter
 
 /// <summary>HLP 23: AUTHOR Ismagilov - Scales selected symbol up or down.</summary>
 /// <param name="scaleType"> Scale up or down. Scaling distance is constant</param>
@@ -493,42 +492,30 @@ let scaleSymbolInBlock
 
     {sym with Pos = newPos; Component=newComponent; LabelHasDefaultPos=true}
 
-// General function to be used when applying a function on a selected group of symbols
-let updateSymbolGroup
-    (compList: ComponentId list)
-    (model: SymbolT.Model)
-    (transformFunc: XYPos -> Symbol -> Symbol) =
-    
-    let selectedSymbols =
-        compList
-        |> List.map (fun x -> model.Symbols |> Map.find x)
 
-    let block = getBlock selectedSymbols
-    let blockCentre = block.Centre()
-
-    let selectedSymbolsMap =
-        selectedSymbols
-        |> List.map (fun sym -> sym.Id, transformFunc blockCentre sym)
-
-    let unselectedSymbolsMap =
-        model.Symbols
-        |> Map.filter (fun x _ -> not (List.contains x compList))
-
-    let updatedSymbolMap =
-        (Map.ofList selectedSymbolsMap)
-        |> Map.fold (fun acc k v -> Map.add k v acc) unselectedSymbolsMap
-
-    { model with Symbols = updatedSymbolMap}
-
-
-/// <summary>Rotates a block of symbols, returning the new symbol model</summary>
+/// <summary>HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
 /// <param name="rotation"> Type of rotation to do</param>
 /// <returns>New rotated symbol model</returns>
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
-    let rotateSymBlock blockCentre sym = rotateSymbolInBlock (invertRotation rotation) blockCentre sym
-    updateSymbolGroup compList model rotateSymBlock
+
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+
+    //Get block properties of selected symbols
+    let block = getBlock SelectedSymbols
+
+    //Rotated symbols about the center
+    let newSymbols = 
+        List.map (fun x -> 
+            rotateSymbolInBlock (invertRotation rotation) (block.Centre()) x) SelectedSymbols 
+
+    //return model with block of rotated selected symbols, and unselected symbols
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}
 
 /// <summary> Determines if all selected symbol (centres) align either vertically or horizontally </summary>
 /// <returns> True if all symbols align vertically or horizontally; otherwise, false. </returns>
@@ -618,14 +605,25 @@ let groupNewSelectedSymsModel
     )}
 
 
-/// <summary>Flips a block of symbols, returning the new symbol model</summary>
+/// <summary>HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model</summary>
 /// <param name="compList"> List of ComponentId's of selected components</param>
 /// <param name="model"> Current symbol model</param>
 /// <param name="flip"> Type of flip to do</param>
 /// <returns>New flipped symbol model</returns>
 let flipBlock (compList:ComponentId list) (model:SymbolT.Model) (flip:FlipType) = 
-    let flipSymBlock blockCentre sym = flipSymbolInBlock flip blockCentre sym
-    updateSymbolGroup compList model flipSymBlock
+    //Similar structure to rotateBlock, easy to understand
+    let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
+    let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
+    
+    let block = getBlock SelectedSymbols
+  
+    let newSymbols = 
+        List.map (fun x -> flipSymbolInBlock flip (block.Centre()) x ) SelectedSymbols
+
+    {model with Symbols = 
+                ((Map.ofList (List.map2 (fun x y -> (x,y)) compList newSymbols)
+                |> Map.fold (fun acc k v -> Map.add k v acc) UnselectedSymbols)
+    )}
 
 /// After every model update this updates the "scaling box" part of the model to be correctly
 /// displayed based on whetehr multiple components are selected and if so what is their "box"

@@ -71,16 +71,8 @@ let getAllSingleConnectedSymbols (model: SheetT.Model) (wires: Wire list) =
         |> List.map (fun (sym, _) -> sym)
 
     let singleConnected = getSingleConnectedSymbols sourceTargetSymbols
-    let sourceSymbols = List.map (fun (s, _, _) -> s.Id) singleConnected
-    let targetSymbols = List.map (fun (_, t, _) -> t.Id) singleConnected
-
-    let moveSource sl tl s t=
-        (not (List.contains s tl) || List.contains t sl)
-
 
     singleConnected
-    // |> List.map (fun (s, t, w) -> (s, t, w, moveSource sourceSymbols targetSymbols s.Id t.Id))
-    // |> List.sortBy (fun (_, _, w, _) -> (w.StartPos.X, w.StartPos.Y))
 
 /// <summary>
 /// Gets all symbols associated with parallel wires in the model.
@@ -116,6 +108,11 @@ let detectOverlaps (symbols: Symbol list) : (Symbol * Symbol) list =
             |> List.map (fun (sym2, _) -> (sym1, sym2)))
     overlaps
 
+/// <summary>
+/// Resolve overlaps between symbols by moving them apart.
+/// </summary>
+/// <param name="overlaps">The list of overlapping symbols.</param>
+/// <returns>List of symbols with resolved overlaps.</returns>
 let resolveOverlaps (overlaps: (Symbol * Symbol) list) : Symbol list -> Symbol list =
     let moveApart (sym1: Symbol, sym2: Symbol) : Symbol * Symbol =
         // Calculate current bounding boxes
@@ -129,6 +126,7 @@ let resolveOverlaps (overlaps: (Symbol * Symbol) list) : Symbol list -> Symbol l
         // Determine how much to move the symbols to no longer overlap
         let moveDistanceX = if overlapX > 0.0 then overlapX + 1.0 else 0.0
         let moveDistanceY = if overlapY > 0.0 then overlapY + 1.0 else 0.0
+
 
         // Check the direction of movement needed based on your layout preference
         // This example assumes moving sym2 to the right and/or down
@@ -164,14 +162,21 @@ let getSheetScore (model:SheetT.Model) original : float =
     // Symbol overlaps
     let numOverlaps = numOfIntersectedSymPairs model |> float
 
+    let numWireBends = numOfVisRightAngles model |> float
+
     // Wire overlap symobols
     let wireOverlaps = numOfIntersectSegSym model |> float
 
     // Circuit dimensions (smaller is better)
     let symbols = model |> Optic.get symbols_
-    let symbolBBs = symbols |> Map.values |> Array.toList |> List.map (fun s -> getSymbolBoundingBox s)
-    let sizeX = (symbolBBs |> List.map (fun bb -> bb.TopLeft.X) |> List.max) - (symbolBBs |> List.map (fun bb -> bb.TopLeft.X) |> List.min)
-    let sizeY = (symbolBBs |> List.map (fun bb -> bb.TopLeft.Y) |> List.max) - (symbolBBs |> List.map (fun bb -> bb.TopLeft.Y) |> List.min)
+    let symbolBBs = symbols 
+                    |> Map.values 
+                    |> Array.toList 
+                    |> List.map (fun s -> getSymbolBoundingBox s)
+    let sizeX = (symbolBBs |> List.map (fun bb -> bb.TopLeft.X) 
+                |> List.max) - (symbolBBs |> List.map (fun bb -> bb.TopLeft.X) |> List.min)
+    let sizeY = (symbolBBs |> List.map (fun bb -> bb.TopLeft.Y) 
+                |> List.max) - (symbolBBs |> List.map (fun bb -> bb.TopLeft.Y) |> List.min)
     let size = sizeX * sizeY
 
     // Wire length
@@ -183,14 +188,16 @@ let getSheetScore (model:SheetT.Model) original : float =
     else
         printfn "New Metrics: "
 
-    printfn "Number of intersecting pairs: %f" (4.0 * numOverlaps)
-    printfn "Number of wire overlaps: %f" (10.0 * wireOverlaps)
-    printfn "Size: %f" (0.005 * size)
-    printfn "Wire length: %f" (1.0 * wireLength)
+    printfn "Number of intersecting pairs: %f" (numOverlaps)
+    printfn "Number of wire overlaps: %f" (wireOverlaps)
+    printfn "Number of wire right bends: %f" (numWireBends)
+    printfn "Size: %f" (size)
+    printfn "Wire length: %f" (wireLength)
+    
 
 
     // Score equation with weights
-    (4.0 * numOverlaps) + (10.0 * wireOverlaps) + (0.0001 * size) + (1.0 * wireLength)
+    (2.0 * numOverlaps) + (10.0 * wireOverlaps) + (0.0001 * size) + (0.5 * wireLength) + (100.0 * numWireBends)
 
 /// <summary>
 /// Aligns all singly connected symbols by their target port.
@@ -198,16 +205,6 @@ let getSheetScore (model:SheetT.Model) original : float =
 /// <param name="model">The sheet model containing wires and symbols</param>
 /// <returns>Updated model with the moved symbols</returns>
 let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
-    // let syms = getAllSingleConnectedSymbols model (parallelWires model)
-                //Prefer moving symbols with only one port to have minimal impact on the rest of the sheet
-                //Need to modify the delta function to account for different directions when moving source/target
-                // |> List.map (fun (s,t,w) ->
-                //                 printfn $"{s.PortMaps.Order.Count}, {t.PortMaps.Order.Count}"
-                //                 match (s.PortMaps.Order.Count, t.PortMaps.Order.Count) with
-                //                 | (1,1) -> (s,w)
-                //                 | (_, 1) -> (t,w)
-                //                 | (_, _) -> (s,w)
-                //             )
     let checkXCoor (s1: Symbol) (s2: Symbol) =
         if abs(s1.Pos.X - s2.Pos.X) < 80 then
             -100.
@@ -230,9 +227,6 @@ let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
 
     let overlaps = detectOverlaps (Map.toSeq symbols' |> Seq.map snd |> Seq.toList)
     let nonOverlappingSymbols = resolveOverlaps overlaps (Map.toSeq symbols' |> Seq.map snd |> Seq.toList)
-
-
-
     let NewSymbolModel = 
         Optic.set symbols_ 
             (Map.ofSeq (List.zip (Map.keys symbols' |> Seq.toList) nonOverlappingSymbols)) 
@@ -243,7 +237,6 @@ let alignSingleConnectedSyms (model: SheetT.Model) (syms) =
     let wireMap = Optic.get wires_ model
     let movedWires = wireMap |> Map.values |> List.ofSeq
                     |> List.map (fun w ->
-                    // BusWireUpdateHelpers.autoroute NewSymbolModel.Wire w)
                     BusWireRoute.smartAutoroute NewSymbolModel.Wire w)
 
     let wires' =  (wireMap, movedWires)
@@ -282,14 +275,6 @@ let scaleCustomSymAlign (sourceSym: Symbol) (targetSym: Symbol) =
     let scale = targetDimPerPort / sourceDimPerPort
     Optic.set customCompDims_ ({ X = targetDims.X; Y = targetDims.Y * scale }) targetSym
 
-// let scaleCustomSyms model =
-//     let customSyms = Optic.get symbols_ model
-//                      |> Map.filter (fun _ s  -> match s.Component.Type with
-//                                                 | Custom _ -> true
-//                                                 | _ -> false)
-//                      |> Map.filter (fun _ s -> s.Component.InputPorts > 1)
-//                      |> Map.filter (fun k s -> BusWireUpdateHelpers.getConnectedWires k model |> List.length > 1)
-//                      |> Map.toList
 
 /// <summary>
 /// Aligns and scales symbols based on the positions and bounding boxes of connected symbols.
@@ -303,6 +288,7 @@ let sheetAlignScale (model: SheetT.Model) =
         match symList with
         | [] -> model
         | _ ->
+            // Recursivly align and scale symbols, setting a max count of beautifying 10 times to avoid infinte loops where not all symbols can be aligned perfectly.
             if List.length symList > 0 && count < 10 then //
                 let model' = alignSingleConnectedSyms model symList
                 let updatedSymList = getAllSingleConnectedSymbols model' (parallelWires model')
@@ -312,8 +298,10 @@ let sheetAlignScale (model: SheetT.Model) =
                 let overlaps2 = detectOverlaps symbolsOnly2
                 let resolvedSymList1 = resolveOverlaps overlaps1 symbolsOnly1
                 let resolvedSymList2 = resolveOverlaps overlaps2 symbolsOnly2
-                let mappedResolvedSymList1 = List.map2 (fun (_, sym, wire) resolvedSym -> (resolvedSym, sym, wire)) updatedSymList resolvedSymList1
-                let mappedResolvedSymList2 = List.map2 (fun (sym, _, wire) resolvedSym -> (sym, resolvedSym, wire)) mappedResolvedSymList1 resolvedSymList2
+                let mappedResolvedSymList1 = List.map2 (fun (_, sym, wire) resolvedSym -> 
+                                        (resolvedSym, sym, wire)) updatedSymList resolvedSymList1
+                let mappedResolvedSymList2 = List.map2 (fun (sym, _, wire) resolvedSym -> 
+                                        (sym, resolvedSym, wire)) mappedResolvedSymList1 resolvedSymList2
                 runAlignSingleConnectedSyms model' mappedResolvedSymList2 (count + 1)
             else
                 model
@@ -334,7 +322,11 @@ type ComponentState =
       Rotation: Rotation
       InputsReversed: bool }
 
-/// Generates records for the specified component, for every possible  state combination
+/// <summary> 
+/// Generates records for the specified component, for every possible  state combination.
+/// </summary>
+/// <param name="compId">The component id to generate states for.</param>
+/// <returns>List of all possible states for the component.</returns>
 let generateComponentStates (compId: ComponentId) : ComponentState list =
     let flipStates = [ true; false ]
     let rotationStates = [ Degree0; Degree90; Degree180; Degree270 ]
@@ -361,7 +353,12 @@ let rec cartesianProduct =
               for ys in cartesianProduct xss do
                   yield x :: ys ]
 
-/// Applies the smartAutoRoute function to all existing wires connected to a symbol
+/// <summary> 
+/// Applies the smartAutoRoute function to all existing wires connected to a symbol.
+/// </summary>
+/// <param name="symbolId">The symbol id to reroute wires from.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Updated model with rerouted wires.</returns>
 let rerouteWire (symbolId: ComponentId) (model: SheetT.Model) : SheetT.Model =
     let wiresToReroute =
         model.Wire.Wires
@@ -384,13 +381,23 @@ let rerouteWire (symbolId: ComponentId) (model: SheetT.Model) : SheetT.Model =
 
     updateWireModel
 
-/// Find a component label from its Id
+/// <summary> 
+/// Find a component label from its Id.
+/// </summary>
+/// <param name="compId">The component id to find the label for.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Component label.</returns>
 let findComponent (compId: ComponentId) (model: SheetT.Model) : string =
     match Map.tryFind compId model.Wire.Symbol.Symbols with
     | Some sym -> sym.Component.Label
     | None -> failwith "Component not found in model"
 
+/// <summary>
 /// Flips the specified component before rerouting connected wires
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="compId">The component id to flip.</param>
+/// <returns>Updated model with flipped component and rerouted wires.</returns>
 let flipAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Model =
     let compLabel = findComponent compId model
 
@@ -399,7 +406,13 @@ let flipAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Mode
     flipSymbol compLabel FlipHorizontal model
     |> rerouteWire compId
 
+/// <summary> 
 /// Rotates the specified component before rerouting connected wires
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="compId">The component id to rotate.</param>
+/// <param name="rotate">The rotation to amount apply.</param>
+/// <returns>Updated model with rotated component and rerouted wires.</returns>
 let rotateAndRerouteComp (model: SheetT.Model) (compId: ComponentId) (rotate: Rotation) : SheetT.Model =
     let compLabel = findComponent compId model
 
@@ -408,7 +421,12 @@ let rotateAndRerouteComp (model: SheetT.Model) (compId: ComponentId) (rotate: Ro
     rotateSymbol compLabel rotate model
     |> rerouteWire compId
 
+/// <summary> 
 /// Reverses inputs of specified component before rerouting connected wires
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="compId">The component id to reverse inputs for.</param>
+/// <returns>Updated model with reversed inputs and rerouted wires.</returns>
 let reverseInputsAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : SheetT.Model =
     let updateSymbol sym =
         match sym.ReversedInputPorts with
@@ -430,7 +448,12 @@ let reverseInputsAndRerouteComp (model: SheetT.Model) (compId: ComponentId) : Sh
             Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
     newModel |> rerouteWire compId
 
+/// <summary> 
 /// Applies a ComponentState record to the sheet
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="state">The ComponentState record to apply.</param>
+/// <returns>Updated model with the applied state.</returns>
 let applyStateToModel (model: SheetT.Model) (state: ComponentState) : SheetT.Model =
     let updatedFlipModel =
         if state.Flipped = true then
@@ -444,7 +467,12 @@ let applyStateToModel (model: SheetT.Model) (state: ComponentState) : SheetT.Mod
             updatedFlipModel
     rotateAndRerouteComp updatedInputsReversedModel state.ComponentId state.Rotation
 
+/// <summary> 
 /// Finds the better performing model based off total wire crossings and right angles
+/// </summary>
+/// <param name="changedModel">The model to evaluate.</param>
+/// <param name="originalModel">The original model to compare against.</param>
+/// <returns>The models with a boolean indicating if the model has improved.</returns>
 let evaluateModels (changedModel: SheetT.Model) (originalModel: SheetT.Model) : SheetT.Model * bool =
     let originalCrossings = numOfWireRightAngleCrossings originalModel
     let originalRightAngles = numOfVisRightAngles originalModel
@@ -466,8 +494,12 @@ let evaluateModels (changedModel: SheetT.Model) (originalModel: SheetT.Model) : 
     else
         originalModel, false
 
-/// Generates, applies and evaluates all potential permutations for a specified list of componenents.
-/// Returns the best performing model
+/// <summary> 
+/// Generates, applies, and evaluates all potential permutations for a specified list of componenents.
+/// <summary> 
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="components">The list of component ids to evaluate.</param>
+/// <returns>Updated model with the best performing permutations applied.</returns>
 let evaluateAllComponents (model: SheetT.Model) (components: ComponentId list) : SheetT.Model =
     let allStates = components |> List.map generateComponentStates
     let allStateCombinations = cartesianProduct allStates
@@ -490,8 +522,12 @@ let evaluateAllComponents (model: SheetT.Model) (components: ComponentId list) :
     printfn "Total number of ComponentStates applied: %d" stateCount
     finalModel
 
+///<summary> 
 /// Partitions the components in to independent connected groups based on if they are directly
 /// or indirectly connected
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Updated model with the sub-circuits.</returns>
 let findAllSubCircuitsFunctional (model: SheetT.Model) =
     // Helper to add a component to a sub-circuit, ensuring no duplicates.
     let addToSubCircuit comp subCircuit =
@@ -564,8 +600,11 @@ let findAllSubCircuitsFunctional (model: SheetT.Model) =
 
     processWires (List.map snd (Map.toList model.Wire.Wires)) []
 
+/// <summary> 
 /// Partitions circuit and applies exhaustive search on each sub-circuit.
-/// Returns model with best performing sub-circuits
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Updated model with the best performing sub-circuits.</returns>
 let findBestModel (model: SheetT.Model) : SheetT.Model =
     let subCircuits = findAllSubCircuitsFunctional model
 
@@ -618,11 +657,14 @@ let findBestModel (model: SheetT.Model) : SheetT.Model =
 //--------------------------------------------- Iterated Local Search ------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 
+/// <summary> 
 /// Generates possible permutations for one component at a time, evaluating which permutation is best.
 /// Carried out on all components to achieve a local minimum
 /// Generates possible permutations for one component at a time, evaluating which permutation is best.
 /// Continues to optimize each component until no further improvements can be made.
-
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols that needs to be searched for differnet alignment positions and permutations.</param>
+/// <returns>Updated model with the best performing permutations applied.</returns>
 let d2iteratedLocalSearchSingleComponent (initialModel: SheetT.Model) : SheetT.Model =
     let optimiseComponent (model: SheetT.Model) (compId: ComponentId) =
         let states = generateComponentStates compId
@@ -680,7 +722,12 @@ let d2iteratedLocalSearchSingleComponent (initialModel: SheetT.Model) : SheetT.M
 //----------------------------------------------- D3 Implementation --------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
 
+/// <summary> 
 /// Find the symbols connected to each end of a wire and the respective portIds that the wire is connected to
+/// </summary>
+/// <param name="wireId">The wire id to find the connected symbols and portIds for.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Connected symbols and portIds for the wire.</returns>
 let getWireSymbolsAndPort (wireId: ConnectionId) (model: SheetT.Model) =
     let wire = model.Wire.Wires.[wireId]
     let sourceSymbol = getSourceSymbol model.Wire wire
@@ -691,7 +738,13 @@ let getWireSymbolsAndPort (wireId: ConnectionId) (model: SheetT.Model) =
 
     ((sourceSymbol, sourcePortId), (targetSymbol, targetPortId))
 
-/// Places a wire layer symbol given the desired name of that label and position
+/// <summary> 
+/// Places a wire layer symbol given the desired name of that label and position.
+/// </summary>
+/// <param name="symLabel">The name of the wire label being placed.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="position">The position to place the wire label.</param>
+/// <returns>Updated model with the wire label placed.</returns>
 let placeWireLabelSymbol
     (symLabel: string)
     (model: SheetT.Model)
@@ -712,8 +765,14 @@ let placeWireLabelSymbol
             |> updateBoundingBoxes
         Ok(updatedModel, wlSymId)
 
+/// <summary> 
 /// Places a wire given source and target symbol SymbolPortRecs.
 /// SymbolPortRecs is a record containing the symbol id and port number of each symbol.
+/// </summary>
+/// <param name="source">The source symbol and port number.</param>
+/// <param name="target">The target symbol and port number.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Updated model with the wire placed.</returns>
 let placeWireX
     (source: SymbolPortRec)
     (target: SymbolPortRec)
@@ -755,7 +814,12 @@ let placeWireX
                 |> Optic.set (busWireModel_ >-> BusWireT.wireOf_ newWire.WId) newWire
             Ok(updatedModel, newWire.WId)
 
-// Delete the wire with the corresponding wireId.
+/// <summary> 
+/// Delete the wire with the corresponding wireId.
+/// </summary>
+/// <param name="wireId">The wire id to delete.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Updated model with the wire deleted.</returns>
 let deleteWire (wireId: ConnectionId) (model: SheetT.Model) =
     let newWires =
         model.Wire.Wires
@@ -763,8 +827,15 @@ let deleteWire (wireId: ConnectionId) (model: SheetT.Model) =
 
     { model with Wire = { model.Wire with Wires = newWires } }
 
+/// <summary> 
 /// Ensures the wire label rotation is correct for all sides, orientations and flips of the connected symbol.
 /// Takes in the id of both the wire label, connected source/target symbol and the portId on the source/target symbol that the wire label is connected too.
+/// </summary>
+/// <param name="wlSymId">The wire label symbol id.</param>
+/// <param name="symId">The connected symbol id.</param>
+/// <param name="portId">The port id of the connected symbol that the wire label is connected to.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Updated model with the wire label symbol rotation adjusted.</returns>
 let autoAdjustWLRotation
     (wlSymId: ComponentId)
     (symId: ComponentId)
@@ -816,11 +887,15 @@ let autoAdjustWLRotation
             Wire = { model.Wire with Symbol = { model.Wire.Symbol with Symbols = updatedSymbols } } }
     | None -> model
 
+/// <summary> 
 /// Places and connects a wire label to a desired symbol.
+/// </summary> 
 /// <param name="wlName">The name of the wire label being placed.</param>
 /// <param name="portId">The id of the port to connect the wire label to.</param>
 /// <param name="symId">The id of the symbol the wire label is being connected to.</param>
 /// <param name="isSourceWL">Boolean parameter to indicate whether the symbol is a source or a target symbol.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Updated model with the wire label placed and connected.</returns>
 let addWireLabel
     (wlName: string)
     (portId: PortId)
@@ -893,7 +968,12 @@ let addWireLabel
         printfn "Error placing wire label: %s" errMsg
         (model, wireLabelName)
 
+/// <summary> 
 /// High level D3 function that replaces wires that exceed the length threshold, with wire labels.
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="lengthThreshold">The threshold length for wires to be replaced with wire labels.</param>
+/// <returns>Updated model with the long wires replaced with wire labels.</returns>
 let replaceLongWiresWithLabels (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
     let findLongWires =
         model.Wire.Wires
@@ -917,19 +997,34 @@ let replaceLongWiresWithLabels (model: SheetT.Model) (lengthThreshold: float) : 
 
     findLongWires |> List.fold replaceEachWire model
 
-// Checks if a symbol is a label
+/// <summary> 
+/// Checks if a symbol is a label
+/// </summary>
+/// <param name="symbolId">The symbol id to check if it is a label.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Boolean indicating if the symbol is a label.</returns>
 let isLabel (symbolId: ComponentId) (model: SheetT.Model) =
     match model.Wire.Symbol.Symbols |> Map.tryFind symbolId with
     | Some symbol -> symbol.Component.Type = IOLabel
     | None -> false
 
-// Checks if a wire is connected to any label
+/// <summary> 
+/// Checks if a wire is connected to any label
+/// </summary>
+/// <param name="wireId">The wire id to check if it is connected to a label.</param>
+/// <param name="wire">The wire to check if it is connected to a label.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Boolean indicating if the wire is connected to a label.</returns>
 let wireConnectedToLabel (wireId: ConnectionId, wire: BusWireT.Wire) (model: SheetT.Model) =
     let (sourceSymbol, _), (targetSymbol, _) = getWireSymbolsAndPort wireId model
     isLabel sourceSymbol.Id model
     || isLabel targetSymbol.Id model
 
+/// <summary> 
 /// Finds wires that are connected at one end to a wire label component
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>List of wire ids that are connected to wire labels.</returns>
 let findWiresConnectedToLabels (model: SheetT.Model) =
     let wires = model.Wire.Wires |> Map.toList
 
@@ -940,7 +1035,13 @@ let findWiresConnectedToLabels (model: SheetT.Model) =
         else
             None)
 
+/// <summary> 
 /// Finds port index of a specific component. Used for port record formation.
+/// </summary>
+/// <param name="portId">The port id to find the index for.</param>
+/// <param name="symId">The symbol id to find the port index for.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Port index and boolean indicating if the port is an input (true) or output (false) port.</returns>
 let getPortIndex (portId: PortId) (symId: ComponentId) (model: SheetT.Model) =
     let portIdStr: string = getPortIdStr portId
 
@@ -961,7 +1062,12 @@ let getPortIndex (portId: PortId) (symId: ComponentId) (model: SheetT.Model) =
             | None -> failwith "Port ID not found in model"
     | None -> failwith "Symbol ID not found in model"
 
+/// <summary> 
 /// Used to get port record for the non wire label component, wire label name and port type (input or output port)
+/// </summary>
+/// <param name="wireId">The wire id to find the non label end details for.</param>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <returns>Port record, wire label name, and boolean indicating if the port is an input port.</returns>
 let getNonLabelEndDetails (wireId: ConnectionId) (model: SheetT.Model) =
     let ((sourceSymbol, sourcePortId), (targetSymbol, targetPortId)) =
         getWireSymbolsAndPort wireId model
@@ -980,13 +1086,21 @@ let getNonLabelEndDetails (wireId: ConnectionId) (model: SheetT.Model) =
         Some({ SymbolId = sourceSymbol.Id; PortNumber = number }, targetSymbol.Component.Label, isInputPort)
     | _ -> None
 
-/// Helper function to find all possible pairs in a list
+/// <summary> 
+/// Helper function to find all possible pairs in a list.
+/// </summary>
+/// <param name="lst">The list to find all possible pairs for.</param>
+/// <returns>List of all possible pairs in the list.</returns>
 let rec allPairs lst =
     match lst with
     | [] -> []
     | hd :: tl -> List.map (fun x -> (hd, x)) tl @ allPairs tl
 
-/// Helper function for pair processing that checks port type label flags and ensures wire labels are the same
+/// <summary> 
+/// Helper function for pair processing that checks port type label flags and ensures wire labels are the same.
+/// </summary>
+/// <param name="pairs">The list of pairs to process.</param>
+/// <returns>List of pairs that have the same wire label and one is an input port and the other is an output port.</returns>
 let processPairs pairs =
     pairs
     |> List.choose (fun ((end1, label1, flag1), (end2, label2, flag2)) ->
@@ -995,7 +1109,12 @@ let processPairs pairs =
         | true, false when label1 = label2 -> Some((end2, end1), label1)
         | _ -> None)
 
+/// <summary> 
 /// Replaces Wire labels with wires if potential wire between wire labels is below threshold
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="lengthThreshold">The threshold length for wires to be replaced with wire labels.</param>
+/// 
 let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
     let wireEndsAndLabels =
         model.Wire.Wires
@@ -1049,7 +1168,12 @@ let replaceLabelsWithWires (model: SheetT.Model) (lengthThreshold: float) : Shee
 
     List.fold processPair model groupedByLabelAndCombinations
 
+/// <summary> 
 /// Overall function that implements both replacing long wires with labels and replacing wire labels if a wire between them is below threshould
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="lengthThreshold">The threshold length for wires to be replaced with wire labels.</param>
+/// <returns>Updated model with the long wires replaced with wire labels and wire labels replaced with wires.</returns>
 let d3Function (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
     let removedWiresModel = replaceLongWiresWithLabels model lengthThreshold
     replaceLabelsWithWires removedWiresModel lengthThreshold
@@ -1057,6 +1181,13 @@ let d3Function (model: SheetT.Model) (lengthThreshold: float) : SheetT.Model =
 //--------------------------------------------------------------------------------------------------------------------------//
 //------------------------------------------ Top level Beautify Function ---------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------------------------//
+///<summary> 
+/// Top level function that integrates all the beautification functions, does D3 (removing long wires with labels), and then iterated local search
+/// for each component to get ideal optimal placement, and finally aligns and scales all components to remove line bends.
+/// </summary>
+/// <param name="model">The sheet model containing wires and symbols.</param>
+/// <param name="userThreshold">The threshold length for wires to be replaced with wire labels.</param>
+/// <returns>Updated model with the integrated beautification functions applied.</returns>
 let integratedBeautify (model: SheetT.Model) (userThreshold: float) : SheetT.Model =
     userThreshold
     |> d3Function model

@@ -195,7 +195,7 @@ let adjustWireLabelPos (wireLabelSym: SymbolT.Symbol) (sheet: SheetT.Model) =
 /// or keep the wire if not enough room for label at either source or target symbol
 let generateWireLabel (isForIndivWire: bool) (wire: BusWireT.Wire) (sheet: SheetT.Model) =
     if isForIndivWire && not (isLongWire 50. sheet wire) then sheet
-    else if (getWireLength wire > 70.) then
+    else if (getWireLength wire > 120.) then
         let connectionID = wire.WId
         let startSym = getSourceSymbol sheet.Wire wire
         let sourceSymPort = getSourcePort sheet.Wire wire

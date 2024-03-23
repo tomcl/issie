@@ -138,7 +138,7 @@ module SheetInterface =
             this.DoBusWidthInference dispatch
 
         /// Given a compId and a width, update the width of the Component specified by compId
-        member this.ChangeScale (dispatch: Dispatch<Msg>) (compId: ComponentId) (newScale: float) (whichScale:ScaleAdjustment) =
+        member this.ChangeScale (dispatch: Dispatch<Msg>) (compId: ComponentId) (newScale: float) (whichScale:SymbolT.ScaleOrientation) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeScale (compId, newScale, whichScale) ) ) )
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
 
@@ -532,7 +532,7 @@ let fitCircuitToWindowParas (model:Model) =
         |> max Constants.defaultCanvasSize
     let offsetToCentreCircuit =
         {X=newCanvasSize / 2.; Y = newCanvasSize/2.} - sBox.Centre()
-    printfn $"CanvasSize=%.2f{model.CanvasSize}->%.2f{newCanvasSize}, Circuit move offset = (%.2f{offsetToCentreCircuit.X},%.2f{offsetToCentreCircuit.Y})"
+    //printfn $"CanvasSize=%.2f{model.CanvasSize}->%.2f{newCanvasSize}, Circuit move offset = (%.2f{offsetToCentreCircuit.X},%.2f{offsetToCentreCircuit.Y})"
     let modelWithMovedCircuit =
         {model with CanvasSize = newCanvasSize}
         |> moveCircuit offsetToCentreCircuit

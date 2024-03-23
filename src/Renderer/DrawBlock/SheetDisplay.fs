@@ -224,7 +224,7 @@ let view
                 //chooses the shape of curvy components so flip and rotations are correct
                 //HLP23: Author Ismagilov
                 let adjustCurvyPoints (points:XYPos[] List) = 
-                    match transform.Rotation,transform.flipped with 
+                    match transform.Rotation,transform.Flipped with 
                         | Degree0, false -> points[0]
                         | Degree0, true -> points[2]
                         | Degree90, _-> points[1]

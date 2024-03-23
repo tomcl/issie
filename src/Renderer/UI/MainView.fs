@@ -52,6 +52,7 @@ let viewOnDiagramButtons model dispatch =
 
 
 let init() = {
+    DrawBlockTestState = None
     SpinnerPayload = None
     Spinner = None
     UISheetTrail = []

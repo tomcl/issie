@@ -279,3 +279,10 @@ module Misc =
     let highLightChangedConnections dispatch =
         dispatch (Sheet (SheetT.Msg.SelectWires Extractor.debugChangedConnections))
         Extractor.debugChangedConnections <- []
+
+
+
+
+
+ 
+ 

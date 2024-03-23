@@ -140,7 +140,17 @@ let reRouteWires dispatch =
 //-----------------------------------------------------------------------------------------------------------//
 
 let fileMenu (dispatch) =
-    makeMenu false "Sheet" [
+    /// generate a menu item from a (name, function) list. See testDrawBlock.testsToRunFromSheetMenu
+    let makeTestItem (name:string) (accelNumber:int)  =
+        // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
+        makeDebugItem name (Some $"CmdOrCtrl+{accelNumber+1}") (fun _ ->
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlock.HLPTick3.Tests.testMenuFunc, accelNumber), dispatch)))
+    let makeD2TestItem (name:string) (accelNumber:int)  =
+        // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
+        makeDebugItem name (Some $"Shift+{accelNumber+1}") (fun _ ->
+            dispatch (MenuAction( MenuDrawBlockTest( TestDrawBlockD2.D2.Tests.testMenuFunc, accelNumber), dispatch)))
+            
+    makeMenu false "File" [
         makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
         makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
         makeItem "Save Project in New Format" None (fun ev -> dispatch (MenuAction(MenuSaveProjectInNewFormat,dispatch)))
@@ -149,6 +159,14 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
+        makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
+            TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
+            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
+            |> List.mapi (fun n (name,_) -> (makeTestItem name n)))
+        makeMenuGen (debugLevel > 0) false "D2 Tests" (
+            TestDrawBlockD2.D2.Tests.testDropdown // make a submenu from this list
+            |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes
+            |> List.mapi (fun n (name,_) -> (makeD2TestItem name n)))
         makeWinDebugItem "Trace all" None (fun _ ->
             debugTraceUI <- Set.ofList ["update";"view"])
         makeWinDebugItem "Trace View function" None (fun _ ->

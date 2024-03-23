@@ -198,7 +198,7 @@ let rotatePoints (points) (centre:XYPos) (transform:STransform) =
     /// Flips the points, needed some hacks to avoid saving transforms somewhere / saving current points
     /// Also can't guarantee it will work if there are changes to rotation / flip with funkier shapes
     let flipIfNecessary pts =
-        if not transform.flipped then pts
+        if not transform.Flipped then pts
         else
             match transform.Rotation with
             | _ -> Array.map (fun (point:XYPos) -> {X = -point.X; Y = point.Y}) pts
@@ -277,7 +277,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | false -> sprintf $"({msb}:{lsb})"
         let pos, align = 
             let rotate' = 
-                if not transform.flipped then 
+                if not transform.Flipped then 
                     transform.Rotation
                 else
                     match transform.Rotation with 
@@ -291,7 +291,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
 
 
     let clockTxtPos = 
-        match transform.Rotation, transform.flipped with
+        match transform.Rotation, transform.Flipped with
         | Degree0, false -> {X = 17.; Y = H - 13.}
         | Degree180, true -> {X = 17.; Y = 2.}
         | Degree90, false -> {X = float w - 8.; Y = float h - 20.}
@@ -466,7 +466,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             busSelectLine (lsb + nBits - 1) lsb
         | Constant1 (_, _, dialogVal) -> 
             let align, yOffset, xOffset= 
-                match transform.flipped, transform.Rotation with
+                match transform.Flipped, transform.Rotation with
                 | false, Degree180
                 | true, Degree0 -> "end",0.,5.
                 | _, Degree90 -> "end",-15.,-5.

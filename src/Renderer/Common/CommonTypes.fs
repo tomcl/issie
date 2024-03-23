@@ -317,37 +317,32 @@ module CommonTypes
    
     type Rotation = | Degree0 | Degree90 | Degree180 | Degree270
     
-    /// Stores the rotation and the flip of the symbol, flipped false by default
-    type STransform = {Rotation: Rotation; flipped: bool}
+    /// Stores the rotation and the flip of the symbol.
+    /// Normal state is Flipped=false, Rotation = Degrees0.
+    type STransform = {Rotation: Rotation; Flipped: bool}
     
-    /// Represents the sides of a component
-
+    /// Represents the sides of a symbol.
+    /// Used by PortMaps to document Port position and therefore
+    /// also wire initial direction.
     type Edge =
         | Top
         | Bottom
         | Left
         | Right
         
-        /// HLP23: AUTHOR dgs119
+        /// Opposite edge
         member this.Opposite =
             match this with
             | Top -> Bottom
             | Bottom -> Top
             | Left -> Right
-            | _ -> Left
+            | Right -> Left
 
-    /// Holds possible directions to sort ports.
-    /// HLP23: AUTHOR dgs119
-    
-    type Direction =
-        | Clockwise
-        | AntiClockwise
-
-        member this.Opposite =
-            match this with
-            | Clockwise -> AntiClockwise
-            | _ -> Clockwise
-
+    /// Represents a rectangle on SVG as used in
+    /// Component and Symbol types.
+    /// NB equivalent representation would be two XYPos for
+    /// TopLeft and BottomRight corners.
+    /// W & H should always be positive: this is true for Components.
     type BoundingBox = {
         /// Top left corner of the bounding box
         TopLeft: XYPos
@@ -356,16 +351,22 @@ module CommonTypes
         /// Height
         H: float
     }
-        with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
-
+        // Maybe these should all be properties, not sure what is more efficient given they are seldom used
+        // Are member functions put into records? I hope not!
+        // They would be easier to use if made properties (no () after name). They are fixed
+        // because records in F# are immutable.
+        with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.} 
+             member this.BottomRight() = this.TopLeft + {X=this.W; Y=this.H}
+             member this.RightEdge() = this.TopLeft.X + this.W
+             member this.BottomEdge() = this.TopLeft.Y + this.H
+             member this.BBSize() = {X=this.W;Y=this.H}
 
     let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> {a with TopLeft = s})
+    let size_ = Lens.create (fun (a:BoundingBox) -> a.BBSize()) (fun s a -> {a with W = s.X; H = s.Y})
 
-    [<StringEnum>]
-    type ScaleAdjustment =
-        | Horizontal
-        | Vertical
-    
+    /// All the info needed to display a symbol not provided by otehr fields in its Component.
+    /// This is used only to save geometric info from schematic with component when sheet is
+    /// saved from schemetic editor. Otherwise the same info comes from fields in Symbol record.
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option
         LabelRotation: Rotation option
@@ -383,7 +384,7 @@ module CommonTypes
 
     let getSTransformWithDefault (infoOpt: SymbolInfo option) =
         match infoOpt with
-        | None ->{Rotation=Degree0; flipped=false}
+        | None ->{Rotation=Degree0; Flipped=false}
         | Some inf -> inf.STransform
 
 
@@ -821,7 +822,7 @@ module CommonTypes
     /// Note that one output port can drive multiple NLTargets.
     type NLTarget = {
         TargetCompId: ComponentId
-        InputPort: InputPortNumber
+        TargetInputPort: InputPortNumber
         TargetConnId: ConnectionId
         }
 
@@ -829,7 +830,7 @@ module CommonTypes
     /// This is stored with a NLComponent input port number
     type NLSource = {
         SourceCompId: ComponentId
-        OutputPort: OutputPortNumber
+        TargetOutputPort: OutputPortNumber
         SourceConnId: ConnectionId
         }
 
@@ -837,14 +838,14 @@ module CommonTypes
     /// Output ports can connect to multiple components, or none.
     /// Input ports connect to a single driver, or nothing.
     type NetListComponent = {
-        Id : ComponentId
+        NLId : ComponentId
         Type : ComponentType
-        Label : string
+        NLLabel : string
         // List of input port numbers, and single mapped driving output port and component.
-        Inputs : Map<InputPortNumber, NLSource option>
+        NLInputs : Map<InputPortNumber, NLSource option>
         // Mapping from each output port number to all of the input ports and
         // Components connected to that port.
-        Outputs : Map<OutputPortNumber, NLTarget list>
+        NLOutputs : Map<OutputPortNumber, NLTarget list>
      }
 
     /// Circuit topology with connections abstracted away.

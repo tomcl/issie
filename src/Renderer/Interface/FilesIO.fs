@@ -42,10 +42,10 @@ let staticDir() =
     /// on MacOs we think it should be ../Resources/static
     /// we hope staticDir will give this?
     let isMac = Node.Api.``process``.platform = Node.Base.Darwin
-    if productionBuild  && not isMac then
+    if productionBuild && not isMac then
         "./resources/static"
     elif productionBuild && isMac then
-        "./Resources/static"
+        path.join [|__dirname; ".."; ".."; "static"|]
     else
         staticDirFromStatic()
 

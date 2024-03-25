@@ -351,11 +351,14 @@ let private openProject model dispatch =
 /// load demo project into Issie executables
 let loadDemoProject model dispatch basename =
     warnAppWidth dispatch (fun _ ->
-        let newDir = "./demos/" + basename
+        let isMac = Node.Api.``process``.platform = Node.Base.Darwin
+        let homeDir = if isMac then pathJoin [|FilesIO.staticDir(); ".."; ".."|] else "."
+
+        let newDir = homeDir + "/demos/" + basename
         let sourceDir = FilesIO.staticDir() + "/demos/" + basename
         printf "%s" $"loading demo {sourceDir} into {newDir}"
 
-        ensureDirectory "./demos/"
+        ensureDirectory (homeDir + "/demos/")
         ensureDirectory newDir
 
         readFilesFromDirectory newDir

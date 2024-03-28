@@ -237,6 +237,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
                 (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
             //|> (fun x -> printfn "makepolyline"; x)
     //printfn "end generate"
+    Helpers.printMemoryUsage()
     {wave with 
         Radix = ws.Radix
         ShownCycles = ws.ShownCycles

@@ -611,4 +611,10 @@ let getCustomComponentType =
     function
     | Custom custom -> custom
     | _ -> failwithf "what? getCustomComponentType should only be called with custom components"
+
+/// NB - this will prevent simulator being run under .Net so probably needs to be rewritten
+/// in a way safe for .Net as well
+//[<Emit("console.log(process.memoryUsage())")>]
+[<Emit("console.log(process.memoryUsage())")>]
+let printMemoryUsage (x: 'a) = jsNative
                     

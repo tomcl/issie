@@ -1,5 +1,4 @@
 module FastRun
-
 open CommonTypes
 open TimeHelpers
 open SimulatorTypes
@@ -654,6 +653,9 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
             | _ -> failwithf "Unsupported state extraction from clocked component type %s %A" fc.FullName fc.FType
         | _ -> [||])
 
+
+
+
 /// Run an existing fast simulation up to the given number of steps. This function will mutate the write-once data arrays
 /// of simulation data and only simulate the new steps needed, so it may return immediately doing no work.
 /// If the simulation data arrays are not large enough they are extended up to a limit. After that, they act as a circular buffer.
@@ -711,6 +713,9 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
 
         float stepsToDo / (getTimeMs () - simStartTime)
         |> Some
+    |> (fun fs ->
+        Helpers.printMemoryUsage()
+        fs )
 
 /// Look up a simulation (not a FastSimulation) component or return None.
 let rec findSimulationComponentOpt ((cid, ap): ComponentId * ComponentId list) (graph: SimulationGraph) =

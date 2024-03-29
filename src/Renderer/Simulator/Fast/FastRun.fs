@@ -663,6 +663,7 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
 /// Use fs.ClockTick to determine whether simulation has completed.
 /// returns speed, in clock cycles per ms, or None if complete
 let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
+    printf ">>--*Starting Fast simulation"
     if fs.MaxArraySize = 0 then
         failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
     // printfn $"running sim clocktick={fs.ClockTick}, arraySize = {fs.MaxArraySize}, laststepneeded={lastStepNeeded}"
@@ -714,8 +715,9 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
         float stepsToDo / (getTimeMs () - simStartTime)
         |> Some
     |> (fun fs ->
-        Helpers.printMemoryUsage()
-        fs )
+            printf ">>--*ending runfastSimulation"
+            Helpers.printMemoryUsage()
+            fs )
 
 /// Look up a simulation (not a FastSimulation) component or return None.
 let rec findSimulationComponentOpt ((cid, ap): ComponentId * ComponentId list) (graph: SimulationGraph) =

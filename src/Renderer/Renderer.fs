@@ -178,6 +178,9 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
             makeWinDebugItem  "Run performance check" None
                 (fun _ -> Playground.MiscTests.testMaps())
+            makeWinDebugItem  "Test Heap Size" None
+                (fun _ -> Playground.Misc.testHeapSize())
+
             makeWinDebugItem  "Print names of static asset files" None 
                 (fun _ -> Playground.MiscTests.testAssets())
             makeWinDebugItem  "Test Breadcrumbs" None 
@@ -359,11 +362,16 @@ let addDebug dispatch (msg:Msg) =
     //if str <> "" then printfn ">>Dispatch %s" str else ()
     dispatch msg
 
-let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
+let view model dispatch =
+    printfn "Starting view..."
+    DiagramMainView.displayView model (addDebug dispatch)
+    |> (fun v -> printfn "ENDV"; v)
 
 // -- Update Model
 
-let update msg model = Update.update msg model
+let update msg model =
+    printf $"Starting update with {UpdateHelpers.shortDisplayMsg msg}"
+    Update.update msg model
 
 printfn "Starting renderer..."
 

@@ -128,7 +128,7 @@ let createMainWindow () =
     // This method will be called when Electron has finished
     // initialization and is ready to create browser windows.
 let startRenderer (doAfterReady: BrowserWindow -> Unit) =
-    mainProcess.app.commandLine.appendSwitch("js-flags", "--max-old-space-size=7500") // 3.5GB should work even on 4GB machines
+    //mainProcess.app.commandLine.appendSwitch("js-flags", "--max-old-space-size=3500") // 3.5GB should work even on 4GB machines
     mainProcess.app.on_ready(fun _ _ -> 
         let window = createMainWindow()
         //printfn "window created"

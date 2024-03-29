@@ -855,7 +855,8 @@ let cancelSpinner (model:Model) =
 /// timeOut and callback from Spinner.
 /// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
 /// a constant. To get the estimate some initial execution must be completed (1 clock cycle and one waveform).
-let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
+let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> =
+    printf "Starting refreshwavesim"
     let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
         wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
     // use given (more uptodate) wsModel

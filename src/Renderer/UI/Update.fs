@@ -594,3 +594,4 @@ let update (msg : Msg) oldModel =
     |> map fst_ (fun model' -> resetDialogIfSelectionHasChanged model' oldModel)
     |> UpdateHelpers.traceMessage startOfUpdateTime msg
     |> ModelHelpers.execOneAsyncJobIfPossible
+    |> (fun x -> printf "finished update"; x)

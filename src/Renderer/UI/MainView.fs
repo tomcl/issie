@@ -299,6 +299,7 @@ let mutable lastDragModeOn = false
 /// Top-level application view: as react components that create a react virtual-DOM
 let displayView model dispatch =
     let time = int(TimeHelpers.getTimeMs()) % 10000
+    printf "starting view function.."
     //JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
@@ -392,3 +393,4 @@ let displayView model dispatch =
                 [ dividerbar model dispatch
                   // tabs for different functions
                   viewRightTabs canvasState model dispatch ] ]
+    |> (fun v -> printf "ending view"; v)

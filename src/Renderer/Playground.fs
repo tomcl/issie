@@ -275,6 +275,16 @@ module Misc =
     open ModelType
     open DrawModelType
 
+    let testHeapSize() =
+        let mutable bigList = []
+        for i = 0 to 1000000000 do
+            bigList <- [i..(i+999)] :: bigList
+            if i % 100 = 0 then
+                printf $"i={i}"
+                Helpers.printMemoryUsage()
+            
+            
+
 
     let highLightChangedConnections dispatch =
         dispatch (Sheet (SheetT.Msg.SelectWires Extractor.debugChangedConnections))

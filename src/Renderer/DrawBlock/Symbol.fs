@@ -226,7 +226,7 @@ let calcLabelBoundingBox (sym: Symbol) =
     let transform = sym.STransform
     let comp = sym.Component
     let labelRotation = 
-        match transform.flipped with
+        match transform.Flipped with
         | true -> match transform.Rotation with
                      | Degree90 -> Degree270
                      | Degree270 -> Degree90
@@ -640,7 +640,7 @@ let getComponentProperties (compType:ComponentType) (label: string)=
 
 /// make a completely new component
 let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:string) : Component =
-    let defaultSTransform = {Rotation = Degree0; flipped = false}
+    let defaultSTransform = {Rotation = Degree0; Flipped = false}
     // function that helps avoid dublicate code by initialising parameters that are the same for all component types and takes as argument the others
     let makeComponent' (n, nout, h, w) label : Component=
         let inputPorts = portLists n id PortType.Input
@@ -671,12 +671,15 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
 
 
 /// Function to generate a new symbol
+/// ldcs is only used to determine if custom components are clocked by traversing all components on
+/// the custom component sheet recursively. If ldcs = [] custom components will displayed as
+/// unclocked (clor and clock symbol) but everything else will work fine.
 let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: ComponentType) (label:string) (theme:ThemeType) =
     let id = JSHelpers.uuid ()
     let style = Constants.componentLabelStyle
     let comp = makeComponent pos comptype id label
-    let transform = {Rotation= Degree0; flipped= false}
-
+    let transform = {Rotation= Degree0; Flipped= false}
+    let symbolIsClocked = isClocked [] ldcs comp
     { 
       Pos = { X = pos.X - float comp.W / 2.0; Y = pos.Y - float comp.H / 2.0 }
       CentrePos = {X = 0.; Y = 0.}
@@ -690,7 +693,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
             HighlightLabel = false
             ShowPorts = ShowNone
             ShowCorners = DontShow // HLP23 AUTHOR: BRYAN TAN
-            Colour = getSymbolColour comptype (isClocked [] ldcs comp) theme
+            Colour = getSymbolColour comptype symbolIsClocked theme
             Opacity = 1.0
           }
       InWidth0 = None // set by BusWire
@@ -703,7 +706,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       STransform = transform
       ReversedInputPorts = Some false
       MovingPort = None
-      IsClocked = isClocked [] ldcs comp
+      IsClocked = symbolIsClocked
       MovingPortTarget = None
       HScale = None
       VScale = None

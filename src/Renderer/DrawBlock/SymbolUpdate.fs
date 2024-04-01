@@ -17,6 +17,7 @@ open Optic
 open Operators
 open System
 
+
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
 let rec extractIOPrefix (str : string) (charLst: char list) =
     let len = String.length str
@@ -766,8 +767,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let symbol = Map.find compId model.Symbols
         let newSymbol = 
             match whichScale with
-            |Horizontal -> {symbol with HScale=Some newScale}
-            |Vertical -> {symbol with VScale=Some newScale}
+            |ScaleHorizontal -> {symbol with HScale=Some newScale}
+            |ScaleVertical -> {symbol with VScale=Some newScale}
         (replaceSymbol model newSymbol compId), Cmd.none
 
     | ChangeLsb (compId, newLsb) -> 

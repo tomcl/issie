@@ -483,7 +483,7 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
                     let props = errorPropsNotification "Invalid number of bits."
                     dispatch <| SetPropertiesNotification props
                 else
-                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Horizontal
+                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth SymbolT.ScaleHorizontal
                     dispatch ClosePropertiesNotification
         )
         floatFormField "Height Scale" "60px" texth 0.0 (
@@ -493,7 +493,7 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
                     let props = errorPropsNotification "Invalid number of bits."
                     dispatch <| SetPropertiesNotification props
                 else
-                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Vertical
+                    model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth SymbolT.ScaleVertical
                     dispatch ClosePropertiesNotification
         )
     ]

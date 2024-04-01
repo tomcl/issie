@@ -142,7 +142,7 @@ let addNumberPort (pType: PortType) (pNum: int) (sym: Symbol) (edgeOpt: Edge opt
             sym.Component.InputPorts,
             sym.Component.OutputPorts[..pNum-1] @ [newPort] @ List.map portNoUp sym.Component.OutputPorts[pNum..]
     let insertIndex =
-        match sym.STransform.flipped with
+        match sym.STransform.Flipped with
         | false -> 
             match pType with
             | PortType.Input -> pNum
@@ -284,7 +284,7 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
         if addL <> [] then
             match oldCompType,newCompType with
             |NbitsAdderNoCin _,NbitsAdder _
-            |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> Some (inputEdge symbol.STransform.Rotation symbol.STransform.flipped)
+            |NbitsAdderNoCinCout _, NbitsAdderNoCout _-> Some (inputEdge symbol.STransform.Rotation symbol.STransform.Flipped)
             |NbitsAdderNoCout _, NbitsAdder _
             |NbitsAdderNoCinCout _,NbitsAdderNoCin _-> Some (Map.find oldComp.OutputPorts[0].Id symbol.PortMaps.Orientation)
             |_ -> failwithf "Can't happen"

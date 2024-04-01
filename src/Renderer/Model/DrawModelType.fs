@@ -5,6 +5,7 @@ open CommonTypes
 open DrawHelpers
 open Fable.React
 open Optics
+open Operators
 open Node.ChildProcess
 
 //--------------------------COMMON TYPES------------------------------//
@@ -36,7 +37,7 @@ let snapIndicatorPos_ = Lens.create (fun s -> s.SnapIndicatorPos) (fun u s -> {s
 type SnapInfo = {
     /// static data - set of "snap" positions
     SnapData: SnapData array 
-    /// dynamic data - present if symbol is currently snapped
+    /// dynamic data - present if symbol is currently snapped (e.g. close to a snap position)
     SnapOpt: Snap option 
     }
 
@@ -44,7 +45,14 @@ type SnapInfo = {
 let snapData_ = Lens.create (fun inf -> inf.SnapData) (fun s inf -> {inf with SnapData = s})
 let snapOpt_ = Lens.create (fun inf -> inf.SnapOpt) (fun s inf -> {inf with SnapOpt = s})
 
-type SnapXY = {SnapX: SnapInfo; SnapY: SnapInfo}
+type SnapXY = {
+    /// information to handle X coordinate snaps: where snap line is vertical
+    SnapX: SnapInfo;
+    /// Information to handle Y coordinate snaps: where snap line is horizontal
+    SnapY: SnapInfo
+    }
+
+// lenses to access fileds of SnapXY
 let snapX_ = Lens.create (fun xy -> xy.SnapX) (fun s xy -> {xy with SnapX = s})
 let snapY_ = Lens.create (fun xy -> xy.SnapY) (fun s xy -> {xy with SnapY = s})
 
@@ -56,11 +64,15 @@ module SymbolT =
     /// Represents the orientation of a wire segment or symbol flip
     [<StringEnum>]
     type FlipType =  FlipHorizontal | FlipVertical
+
     [<StringEnum>]
     //Used in scaling in SmartRotate
     //HLP23: AUTHOR Ismagilov
     type ScaleType = ScaleUp | ScaleDown
     /// Wraps around the input and output port id types
+
+    [<StringEnum>]
+    type ScaleOrientation = ScaleHorizontal | ScaleVertical
 
     type PortId = | InputId of InputPortId | OutputId of OutputPortId
 
@@ -194,6 +206,10 @@ module SymbolT =
             MovingPortTarget: (XYPos*XYPos) option
 
         }
+    /// Return the symbol outline diagonal from sym.Pos to its opposite corner as an XYPos.
+    /// Both coordinates of this vector are always positive.
+    with member this.getScaledDiagonal : XYPos =
+          {X=Option.defaultValue 1.0 this.HScale * this.Component.W; Y=Option.defaultValue 1.0 this.VScale * this.Component.H}
 
     let appearance_ = Lens.create (fun a -> a.Appearance) (fun s a -> {a with Appearance = s})
     let moving_ = Lens.create (fun a -> a.Moving) (fun s a -> {a with Moving = s})
@@ -253,7 +269,7 @@ module SymbolT =
         | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
         | ChangeLsb of compId: ComponentId * NewBits:int64 
         | ChangeInputValue of compId: ComponentId * newVal: int
-        | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
+        | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleOrientation
         | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
         | ChangeBusCompare of compId: ComponentId * NewBits:uint32 * NewText:string
         | ChangeReversedInputs of compId: ComponentId
@@ -404,8 +420,7 @@ module BusWireT =
         | RerouteWire of string
         | ToggleSnapToNet
 
-    open Optics
-    open Operators
+
     let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
     let wires_ = Lens.create (fun m -> m.Wires) (fun w m -> {m with Wires = w})
     let wireOf_ k = wires_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
@@ -665,7 +680,6 @@ module SheetT =
         DebugDevice: string option
         }
     
-    open Operators
     let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})
     let selectedComponents_ = Lens.create (fun m -> m.SelectedComponents) (fun sc m -> {m with SelectedComponents = sc})
     let selectedWires_ = Lens.create (fun m -> m.SelectedWires) (fun sw m -> {m with SelectedWires = sw})

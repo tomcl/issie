@@ -839,8 +839,24 @@ let widthTests() =
         Hex,28, 0xAF5677u
         Hex,3, 0x5u
         Bin, 22, 0x0fu
-        Dec, 15, 29999u
-        Dec, 10, 900u
-        SDec, 8, 0xF0u
+        Dec, 15, 30000u
+        Dec, 10, 1000u
+        SDec, 9, 312u
     ]
     |> List.iter (fun (r,w,n) -> checkDisplayFuncs w r n)
+    let start = TimeHelpers.getTimeMs()
+    for i = 0 to 1000000 do
+        let s = UInt32ToPaddedString 100 Hex 14 (uint32 (i % 10000))
+        //waveNumberWidth Hex 14 |> ignore
+        DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText s |> ignore
+        ()
+    printf $"******>TIME OLD={(TimeHelpers.getTimeMs() - start)/ 1000.}us"
+
+    let start = TimeHelpers.getTimeMs()
+    for i = 0 to 1000000 do
+        let s = displayUint32 Hex 14 (uint32 (i % 10000))
+        s.Length |> ignore
+        waveNumberWidth Hex 14 |> ignore
+        //DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText s |> ignore
+        ()
+    printf $"******>TIME NEW={(TimeHelpers.getTimeMs()-start)/1000.}us"

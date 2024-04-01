@@ -41,9 +41,6 @@ module Constants =
             FontSize = valueColumnFontSize
             FontFamily = valueColumnFontFamily}
 
-    let fontSizeValueOnWave = "10px"
-    /// Text used to display vlaues on non-binary waves
-    let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
     /// Whitespace padding between repeated values displayed on non-binary waves.
     let valueOnWavePadding = 75.0
 
@@ -262,13 +259,29 @@ let zoomInSVG =
         ]
 
 /// Props for displaying values on non-binary waves
-let valueOnWaveProps m i start width : IProp list = [
+let valueOnWavePropsAligned (anchor:string) m i start width : IProp list = [
     X (start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
     Y (0.6 * Constants.viewBoxHeight)
     Style [
-        FontSize Constants.fontSizeValueOnWave
+        FontSize NumberHelpers.Constants.fontSizeValueOnWave
+        TextAnchor anchor
     ]
 ]
+
+/// Props for displaying values on non-binary waves with
+/// anchor at start
+let valueOnWaveProps m i start width : IProp list =
+    valueOnWavePropsAligned "start" m i start width : IProp list
+
+/// Props for displaying values on non-binary waves with
+/// anchor at end
+let valueOnWavePropsEndAnchor m i start width : IProp list =
+    valueOnWavePropsAligned "end" m i start width : IProp list
+
+/// Props for displaying values on non-binary waves with
+/// anchor in middle
+let valueOnWavePropsMiddleAnchor m i start width : IProp list =
+    valueOnWavePropsAligned "middle" m i start width : IProp list
 
 /// Style for clock cycle buttons
 let clkCycleButtonStyle = Style [

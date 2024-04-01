@@ -50,6 +50,7 @@ module TestFonts =
         let textToTestDefault = "iiiimmmmyyyy0123456789"
         fontStyleDefault |> Some |> SetPopupConstraintErrorMsg |> TruthTableMsg |> dispatch
         textToTestDefault |> Some |> SetPopupDialogText  |> dispatch
+        NumberHelpers.widthTests()
         fun (model: Model) ->
             let dialogData = model.PopupDialogData
             let fontSpec =
@@ -67,7 +68,7 @@ module TestFonts =
                 DrawHelpers.defaultText with
                     FontFamily = fontFamily // arial,times,consolas,georgia,helvetica, verdana, trebuchet ms, impact, tahoma
                     FontSize = $"{fontSize}px"
-                    TextAnchor = "left" // left, right, middle
+                    TextAnchor = "start" // start, middle, end
                     FontWeight = fontWeight // "bold", ""
                 }
             let text = (Option.defaultValue textToTestDefault dialogData.Text)

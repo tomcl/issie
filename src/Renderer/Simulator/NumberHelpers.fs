@@ -13,6 +13,11 @@ open SimulatorTypes
 
 module Constants =
     let maxBinaryDisplayWidth = 32
+    /// size of font for text on non-binary waves
+    let fontSizeValueOnWave = "10px"
+    /// Text used to display vlaues on non-binary waves
+    let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
+
 
 /// Convert an hex string into a binary string.
 let private hexToBin (hStr: string) : string =
@@ -611,3 +616,231 @@ let toDecimal (num: string) numBase (width:string) =
     | "'h" -> 
         num.ToLower()  |> hexToBin |> convertBinToDec
     | _ -> failwithf "Wrong base, should not happen!"
+
+
+//----------------------------------------------------------------------------------------------//
+//----------------------------------------------------------------------------------------------//
+//------------------------------New numeric display Helpers-------------------------------------//
+//----------------------------------------------------------------------------------------------//
+
+/// If the first two arguments are constants this function will return be a very fast
+/// upper bound approximation to maximum text width of a number of given bit-width
+/// displayed in a given radix.
+let getUpperBoundNumericWidth (font: DrawHelpers.Text) (radix: NumberBase) : (uint32 -> float) =
+    let digit (n:int) = sprintf $"{n}"
+    /// Return all possible digits for given radix except for ones known to be not widest.
+    let rec worstDigits radix =
+        match radix with
+        | Bin -> [0] |> List.map digit
+        | Dec | SDec -> [0;2;3;4;5;6;7;8;9] |> List.map digit
+        | Hex -> ["A";"B";"C";"D";"E";"F"] @ worstDigits Dec
+    /// For given radix work out the worst possible width in pixels
+    let worstWidth (quads:int)  =
+        let valPart (d:string) : string =
+            match radix with
+            | Dec | SDec -> String.replicate (4*quads)  d
+            | _ -> String.replicate quads (String.replicate 4 d + ",")
+        let prefix =
+            match radix with
+            | Bin -> "0b"
+            | Dec -> ""
+            | SDec -> "-"
+            | Hex -> "0x"
+        worstDigits radix
+        |> List.map (fun d -> prefix + valPart d)
+        |> List.map (fun s -> s, DrawHelpers.getTextWidthInPixels font s)
+        |> List.maxBy snd
+        |> snd
+    /// maximum width of 40 digits
+    let width40 = worstWidth 10
+    /// maximum width of 4 digits (including a terminating ',')
+    let width4 = worstWidth 1
+    /// using linear approximation this is the slope of the width / number of bits graph
+    let slope = (width40 - width4)/36.
+    /// calculated width of 0 digits (from prefix + ',')
+    let width0 = width4 - slope*4.
+    /// the function returned here is fast
+    fun (numBits: uint32) ->
+  
+        let maxDigits =
+            match radix with
+            | Bin -> numBits
+            | Hex -> ((int numBits - 1) / 4) + 1 |> uint32
+            | Dec -> System.Math.Ceiling (log10 2.0 * float numBits) |> uint32
+            | SDec -> System.Math.Ceiling (log10 2.0 * float (numBits - 1u) + 0.000000001) |> uint32
+        maxDigits
+        |> (fun x -> width0 + slope * float x)
+
+/// This function should not be used directly
+/// for speed reasons it should be called via the functions below that have specific radixes
+let waveNumberWidthP = getUpperBoundNumericWidth Constants.valueOnWaveText
+        
+let getWaveNumberWidthHex =  waveNumberWidthP Hex
+let getWaveNumberWidthDec =  waveNumberWidthP Dec
+let getWaveNumberWidthSDec =  waveNumberWidthP SDec
+let getWaveNumberWidthBin =  waveNumberWidthP Bin
+
+/// Return the width in pixels of a text string printed on waveform in a given radix 
+/// for a given widthInBits 
+let waveNumberWidth (radix: NumberBase) (widthInBits: int) =
+    let w = uint32 widthInBits
+    // make sure that the radix-dependent evalutaion is done just once
+    match radix with
+    | Hex -> getWaveNumberWidthHex w
+    | Dec -> getWaveNumberWidthDec w
+    | SDec -> getWaveNumberWidthSDec w
+    | Bin -> getWaveNumberWidthBin w
+
+/// Efficiently returns a string equivalent to b in base radix
+/// If radix = Hex or bin this is as a fixed length set of width digits in given radix.
+/// with ',' markers added every 4 digits.
+/// If radix = Dec this is as a binary unsigned number.
+/// If radix = SDec the number is interpreted a two's complement signed in width numBits
+let rec displayBigint (radix: NumberBase) (numBits: int) (b: bigint) =
+    /// Deals with SDec special case
+    let displayBigintSDec (numBits: int) (b: bigint) =
+        match b with
+        | _ when b = 0I ->
+            "0"
+        | _ when b < (1I <<< numBits - 1) ->
+            displayBigint Dec numBits b
+        | _ ->
+            let twosComplementNegatedB = ((1I <<< numBits) - b)
+            "-" + displayBigint Dec numBits twosComplementNegatedB
+
+    match radix with
+    | SDec -> displayBigintSDec (numBits: int) (b: bigint)
+    | _ ->
+        /// converts byte array of digits in range 0 - 15 into hex string
+        let toHexString (bytes: byte array) (start:int) (count: int) =
+            String.init count (fun n ->
+                let n = bytes[start+n]
+                (if n < 10uy then n + 0x30uy else n + byte 'A')
+                |> char
+                |> string)    
+        let baseN = match radix with | Hex -> 16I | Dec | SDec -> 10I | Bin -> 2I
+        let width =
+            match radix with
+            | Hex -> (numBits - 1) / 4 + 1
+            | Bin -> numBits
+            | Dec | SDec -> 0 // not used
+        let rec getDigits (w: int) (b: bigint) digitL =
+            if w = 0 then  digitL
+            else
+                let digit = byte (b % baseN)
+                getDigits (w - 1) (b / baseN) (digit :: digitL)
+        let digits = getDigits width b [] |> List.toArray
+        match radix with
+        | Hex | Bin ->
+            let numOtherQuads = (width - 1) / 4
+            let msQuad = toHexString digits 0 (width - numOtherQuads*4)
+            [numOtherQuads-1 .. -1 .. 0]
+            |> List.map (fun q ->
+                    let start = width - q*4 - 4
+                    toHexString digits start 4)
+            |> (fun l -> msQuad :: l)
+            |> String.concat ","
+            |> (+)  (match radix with | Hex -> "0x" | Bin -> "0b" | _ -> "")
+        | Dec | SDec ->
+            sprintf $"{b}"
+
+
+
+
+/// Efficiently returns a string equivalent to b in base radix
+/// If radix = Hex or bin this is as a fixed length set of width digits in given radix.
+/// with ',' markers added every 4 digits.
+/// If radix = Dec this is as a binary unsigned number.
+/// If radix = SDec the number is interpreted a two's complement signed in width numBits
+let rec displayUint32 (radix: NumberBase) (numBits: int) (b: uint32) =
+    /// Deals with SDec special case
+    let displayUint32SDec (numBits: int) (b: uint32) =
+        match b with
+        | _ when b = 0u ->
+            "0"
+        | _ when b < (1u <<< numBits - 1) ->
+            displayUint32 Dec numBits b
+        | _ ->
+            let twosComplementNegatedB = (1u <<< numBits) - b
+            "-" + displayUint32 Dec numBits twosComplementNegatedB
+
+    match radix with
+    | SDec -> displayUint32SDec numBits b
+    | _ ->
+        /// converts byte array of digits in range 0 - 15 into hex string
+        let toHexString (bytes: byte array) (start:int) (count: int) =
+            String.init count (fun n ->
+                let n = bytes[start+n]
+                (if n < 10uy then n + 0x30uy else n + byte 'A' - 10uy)
+                |> char
+                |> string)               
+        let baseN = match radix with | Hex -> 16u | Dec | SDec -> 10u | Bin -> 2u
+        let width =
+            match radix with
+            | Hex -> (numBits - 1) / 4 + 1
+            | Bin -> numBits
+            | Dec | SDec -> 0 // not used
+        let rec getDigits (w: int) (b: uint32) digitL =
+            if w = 0 then  digitL
+            else
+                let digit = byte (b % baseN)
+                getDigits (w - 1) (b / baseN) (digit :: digitL)
+        let digits = getDigits width b [] |> List.toArray
+        match radix with
+        | Hex | Bin ->
+            let numOtherQuads = (width - 1) / 4
+            let msQuad = toHexString digits 0 (width - numOtherQuads*4)
+            [numOtherQuads-1 .. -1 .. 0]
+            |> List.map (fun q ->
+                    let start = width - q*4 - 4
+                    toHexString digits start 4)
+            |> (fun l -> msQuad :: l)
+            |> String.concat ","
+            |> (+)  (match radix with | Hex -> "0x" | Bin -> "0b" | _ -> "")
+        | Dec | SDec ->
+            sprintf $"{b}"
+
+
+
+let displayFastData (radix: NumberBase) (fd: FastData) =
+    match fd.Dat with
+    | Word u -> displayUint32 radix fd.Width u
+    | BigWord b -> displayBigint radix fd.Width b
+
+/// Returns a display string for the data in specified radix.
+/// If radix display is too large for given width fall back from binary to hexadecimal.
+/// If width is larger than maxBinaryDisplayWidth fall back from binary to hexadecimal.
+/// return correct string to display as Error is it still is too large for width, otherwise Ok.
+let displayFastDataInWidth (widthInPixels: float) (radix: NumberBase) (fd: FastData) =
+    let isTooWide = widthInPixels < waveNumberWidth radix fd.Width
+    let fallBackExpected = radix = Bin && (isTooWide || fd.Width > Constants.maxBinaryDisplayWidth)
+    let actualRadix = if fallBackExpected then Bin else radix
+    displayFastData actualRadix fd
+    |> match widthInPixels > waveNumberWidth actualRadix fd.Width with
+       | true -> Ok
+       | false -> Error
+
+
+let displayFastDataInWidthOrBlank (widthInPixels: float) (radix: NumberBase) (fd: FastData) =
+    displayFastDataInWidth widthInPixels radix fd
+    |> function | Ok x -> x | Error x -> ""
+
+
+let checkDisplayFuncs (width: int) (radix: NumberBase) (numb: uint32) =
+    let w1 = waveNumberWidth radix width
+    let s = displayUint32 radix width numb
+    let w2 = DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText s
+    printf $"%.2f{w2/w1} base={radix} width={width} 0x%x{numb}, %d{numb} {s}"
+
+let widthTests() =
+    [
+        Hex,12, 0x123u
+        Hex,12,0xFFFu
+        Hex,28, 0xAF5677u
+        Hex,3, 0x5u
+        Bin, 22, 0x0fu
+        Dec, 15, 29999u
+        Dec, 10, 900u
+        SDec, 8, 0xF0u
+    ]
+    |> List.iter (fun (r,w,n) -> checkDisplayFuncs w r n)

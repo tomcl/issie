@@ -46,12 +46,16 @@ let displayUInt32OnWave wsModel (width: int) (waveValues: uint32 array) (transit
         let cycleWidth = singleWaveWidth wsModel
         let availableWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
         /// Required width to display one value
-        let requiredWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
+        /// Required width to display one value
+        //let requiredWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
+        let newRequiredWidth = 1.1 * waveNumberWidth wsModel.Radix width 
+        //printf $">><- {width} {requiredWidth / newRequiredWidth}>>"
+
         /// Width of text plus whitespace between a repeat
-        let widthWithPadding = 2. * requiredWidth + Constants.valueOnWavePadding
+        let widthWithPadding = newRequiredWidth + Constants.valueOnWavePadding
 
         // Display nothing if there is not enough space
-        if availableWidth < requiredWidth then
+        if availableWidth < newRequiredWidth then
             []
         else
 
@@ -62,7 +66,7 @@ let displayUInt32OnWave wsModel (width: int) (waveValues: uint32 array) (transit
                 |> int
                 |> max 1
 
-            let repeatSpace = (availableWidth - float repeats * requiredWidth) / ((float repeats + 1.) * cycleWidth)
+            let repeatSpace = (availableWidth - float repeats * newRequiredWidth) / ((float repeats + 1.) * cycleWidth)
             let valueText i =
                 text (valueOnWaveProps wsModel i (float gap.Start + repeatSpace) widthWithPadding)
                     [ str waveValue ]
@@ -125,6 +129,7 @@ let displayBigIntOnWave wsModel (width: int) (waveValues: bigint array) (transit
             |> List.map valueText
     )
     |> List.concat
+
 
 /// Detects if SVG is correct, based on zoom & position & existence
 /// The fast simulation data is assumed unchanged

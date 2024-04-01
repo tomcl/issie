@@ -123,6 +123,12 @@ let makeMenu (topLevel: bool) (name : string) (table : MenuItemConstructorOption
 
 open JSHelpers
 
+let beautify dispatch =
+    dispatch <| UpdateModel (fun model ->
+        model
+        |> Optic.map sheet_ SheetBeautify.beautifySheet
+    )
+
 let reSeparateWires dispatch =
     dispatch <| UpdateModel (fun model ->
         model
@@ -328,6 +334,7 @@ let editMenu dispatch' =
                menuSeparator
                makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
+               makeItem "Beautify" None (fun _ -> beautify dispatch' )
             |]
             |> ResizeArray
             |> U2.Case1

@@ -33,6 +33,7 @@ let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 *
 ****************************************************************************************************)
 
+
 let menuSeparator =
    let sep = createEmpty<MenuItemConstructorOptions>
    sep.``type`` <- Some MenuItemType.Separator
@@ -140,6 +141,8 @@ let reRouteWires dispatch =
 //-----------------------------------------------------------------------------------------------------------//
 
 let fileMenu (dispatch) =
+    let beautifyMsg = (UpdateModel (Optic.map sheet_ SheetBeautify.beautifySheet))
+
     /// generate a menu item from a (name, function) list. See testDrawBlock.testsToRunFromSheetMenu
     let makeTestItem (name:string) (accelNumber:int)  =
         // note that Ctrl-0 does not work, so add one to list index to make accerlerator key digit
@@ -154,6 +157,7 @@ let fileMenu (dispatch) =
         makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
+        makeDebugItem "Beautify" None (fun _ -> dispatch beautifyMsg)
         makeMenuGen (debugLevel > 0) false "Tick3 Tests" (
             TestDrawBlock.HLPTick3.Tests.testsToRunFromSheetMenu // make a submenu from this list
             |> List.truncate 10 // allow max 10 items accelerated by keys Ctrl-0 .. Ctrl-9. Remove accelerator if keys are needed for other purposes

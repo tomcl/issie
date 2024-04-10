@@ -25,12 +25,12 @@ open Browser.Dom
 /// These could reset scroll to some previous value.
 /// Incremented by program UpdateScroll and OnScroll.
 let mutable scrollSequence: int = 0
-let mutable devModeDiv:Types.Element option = None
+let mutable rightSelectionDiv:Types.Element option = None
 
 
-let writeDevModeScroll (scrollPos:XYPos) =
+let writeRightSelectionScroll (scrollPos:XYPos) =
     // printf "%s" $"***writing devmode scroll: {scrollPos.X},{scrollPos.Y}"
-    devModeDiv
+    rightSelectionDiv
     |> Option.iter (fun el -> el.scrollLeft <- scrollPos.X; el.scrollTop <- scrollPos.Y)
 
 
@@ -134,7 +134,7 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
-    DevModeScrollPos = {X = 0; Y = 0}
+    RightSelectionScrollPos = {X = 0; Y = 0}
     SettingsMenuExpanded = false
     Tracking = false
     CachedSheetStats = None
@@ -310,13 +310,13 @@ let viewRightTabs canvasState model dispatch =
     div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
                             OnScroll (fun _ ->
                             printf "Scrolling dev mode\n"
-                            match devModeDiv with
+                            match rightSelectionDiv with
                             | None -> ()
                             | Some el ->
-                                dispatch <| UpdateScrollPosDevMode( {X = el.scrollLeft; Y = el.scrollTop}, dispatch));
+                                dispatch <| UpdateScrollPosRightSelection( {X = el.scrollLeft; Y = el.scrollTop}, dispatch));
                               Ref (fun el ->
-                                    devModeDiv <- Some el
-                                    writeDevModeScroll model.DevModeScrollPos
+                                    rightSelectionDiv <- Some el
+                                    writeRightSelectionScroll model.RightSelectionScrollPos
                                 )
     ] [
         Tabs.tabs [

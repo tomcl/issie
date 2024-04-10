@@ -16,7 +16,7 @@ type SnapData = {
     LowerLimit: float
     Snap: float
     /// DisplayLine may not be the same as Snap because when two symbols snap together the
-    /// displayed line must go through the centre of each symbol, whereas the TopLeft 
+    /// displayed line must go through the centre of each symbol, whereas the TopLeft
     /// coordinate is the one which is snapped
     IndicatorPos: float
     }
@@ -35,9 +35,9 @@ let snapIndicatorPos_ = Lens.create (fun s -> s.SnapIndicatorPos) (fun u s -> {s
 /// All the 1D data needed to manage snapping of a moving symbol
 type SnapInfo = {
     /// static data - set of "snap" positions
-    SnapData: SnapData array 
+    SnapData: SnapData array
     /// dynamic data - present if symbol is currently snapped
-    SnapOpt: Snap option 
+    SnapOpt: Snap option
     }
 
 // lenses to access fields in the above types
@@ -67,7 +67,7 @@ module SymbolT =
     /// data structures defining where ports are put on symbol boundary
     /// strings here are used for port ids
     type PortMaps =
-        {     
+        {
             /// Maps edge to list of ports on that edge, in correct order
             Order: Map<Edge, string list>
             /// Maps the port ids to which side of the component the port is on
@@ -78,8 +78,8 @@ module SymbolT =
     let orientation_ = Lens.create (fun a -> a.Orientation) (fun s a -> {a with Orientation = s})
 
     /// data here changes how the symbol looks but has no other effect
-    type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget  
-    
+    type ShowPorts = | ShowInput | ShowOutput | ShowBoth | ShowBothForPortMovement | ShowNone | ShowOneTouching of Port | ShowOneNotTouching of Port | ShowTarget
+
     // HLP23 AUTHOR: BRYAN TAN
     type ShowCorners = | ShowAll | DontShow
     type Annotation = ScaleButton | RotateButton of Rotation
@@ -94,7 +94,7 @@ module SymbolT =
             /// symbol color is determined by symbol selected / not selected, or if there are errors.
             Colour: string
             /// translucent symbols are used uring symbol copy operations.
-            Opacity: float  
+            Opacity: float
         }
 
     /// This defines the colors used in teh drawblack, and therfore also the symbol color.
@@ -123,7 +123,7 @@ module SymbolT =
 
             /// symbol's centre to the selected components' boundingBox centre when ScaleButton is pressed
             OffsetFromBBCentre: XYPos
-        
+
             /// Width of the wires connected to input ports 0 & 1
             /// This is needed on the symbol only for  bus splitter and bus merge symbols
             /// These display the bit numbers of their connections.
@@ -141,14 +141,14 @@ module SymbolT =
             LabelBoundingBox: BoundingBox
             LabelHasDefaultPos: bool
             LabelRotation: Rotation option
-        
+
             /// this filed contains transient information that alters the appearance of the symbol
             Appearance: AppearanceT
 
             /// This, for convenience, is a copy of the component Id string, used as Id for symbol
             /// Thus symbol Id = component Id.
             /// It is unique within one design sheet.
-            Id : ComponentId  
+            Id : ComponentId
 
             /// This is the electrical component.
             /// When the component is loaded into draw block the position is kept as Pos field in symbol
@@ -161,7 +161,7 @@ module SymbolT =
             /// Use Some Annotation for visible (and clickable) objects on screen
             /// In this case Component is a dummy used only to provide expected H & V
             Annotation: Annotation option
-            
+
             /// transient field to show if ports are being dragged in teh UI.
             Moving: bool
             /// determines whetehr the symbol or its contents (it it is a custom component) contain any clo9cked logic.
@@ -250,8 +250,8 @@ module SymbolT =
         | PasteSymbols of sIds: ComponentId list
         | ColorSymbols of compList : ComponentId list * colour : HighLightColor
         | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
-        | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
-        | ChangeLsb of compId: ComponentId * NewBits:int64 
+        | ChangeNumberOfBits of compId:ComponentId * NewBits:int
+        | ChangeLsb of compId: ComponentId * NewBits:int64
         | ChangeInputValue of compId: ComponentId * newVal: int
         | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
         | ChangeConstant of compId: ComponentId * NewBits:int64 * NewText:string
@@ -261,7 +261,7 @@ module SymbolT =
         | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
-        | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
+        | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration
         | WriteMemoryType of ComponentId * ComponentType
         | UpdateMemory of ComponentId * (Memory1 -> Memory1)
         | RotateLeft of compList : ComponentId list * Rotation
@@ -280,7 +280,8 @@ module SymbolT =
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
 
-    
+
+
     let symbols_ = Lens.create (fun m -> m.Symbols) (fun s m -> {m with Symbols = s})
     let ports_ = Lens.create (fun m -> m.Ports) (fun w m -> {m with Ports = w})
     let symbolOf_ k = symbols_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
@@ -290,25 +291,25 @@ module SymbolT =
     //------------------------------------------------------------------------//
     //------------------------------BusWire Types-----------------------------//
     //------------------------------------------------------------------------//
-    
+
 module BusWireT =
 
     [<StringEnum>]
     type Orientation = | Vertical | Horizontal
-    
+
     ///
     type SnapPosition = High | Mid | Low
-    
+
     /// Represents how wires are rendered
     type WireType = Radial | Modern | Jump
-    
+
     /// Represents how a wire segment is currently being routed
 
     [<StringEnum>]
     type RoutingMode = Manual | Auto
-    
+
     /// Used to represent a segment in a wire
-    type Segment = 
+    type Segment =
         {
             Index: int
             Length : float
@@ -323,7 +324,7 @@ module BusWireT =
             member inline this.GetId = this.Index,this.WireId
             /// return true if segment length is 0 to within FP tolerance
             member inline this.IsZero = abs this.Length < XYPos.epsilon
-    
+
     /// Add absolute vertices to a segment
     type ASegment = {
             Start: XYPos
@@ -340,10 +341,10 @@ module BusWireT =
                             let delta = this.Start - this.End
                             if abs delta.X > abs delta.Y then Horizontal else Vertical
 
-    
+
     type Wire =
         {
-            WId: ConnectionId 
+            WId: ConnectionId
             InputPort: InputPortId
             OutputPort: OutputPortId
             Color: HighLightColor
@@ -355,19 +356,19 @@ module BusWireT =
 
     let segments_ = Lens.create (fun m -> m.Segments) (fun s m -> {m with Segments = s})
     let mode_ = Lens.create (fun m -> m.Mode) (fun s m -> {m with Mode = s})
-   
-    
+
+
     /// Defines offsets used to render wire width text
     type TextOffset =
         static member yOffset = 7.
         static member xOffset = 1.
         static member xLeftOffset = 20.
-    
+
     type Model =
         {
             Symbol: SymbolT.Model
             Wires: Map<ConnectionId, Wire>
-            CopiedWires: Map<ConnectionId, Wire> 
+            CopiedWires: Map<ConnectionId, Wire>
             SelectedSegment: SegmentId list
             LastMousePos: XYPos
             ErrorWires: list<ConnectionId>
@@ -376,9 +377,9 @@ module BusWireT =
             ArrowDisplay: bool
             SnapToNet: bool
         }
-    
+
     //----------------------------Message Type-----------------------------------//
-    
+
     /// BusWire messages: see BusWire.update for more info
     type Msg =
         | Symbol of SymbolT.Msg // record containing messages from Symbol module
@@ -416,14 +417,14 @@ module SheetT =
     // HLP 23: AUTHOR Khoury & Ismagilov
     // Types needed for scaling box
     type ScalingBox = {
-        ScaleButton: SymbolT.Symbol 
-        RotateDeg90Button: SymbolT.Symbol 
-        RotateDeg270Button: SymbolT.Symbol 
+        ScaleButton: SymbolT.Symbol
+        RotateDeg90Button: SymbolT.Symbol
+        RotateDeg270Button: SymbolT.Symbol
         ScalingBoxBound: BoundingBox
         ButtonList: ComponentId list
     }
 
-  
+
 
     /// Used to keep mouse movement (AKA velocity) info as well as position
     type XYPosMov = {
@@ -480,10 +481,10 @@ module SheetT =
         | GrabLabel
         | GrabSymbol
         | Grabbing
-        | ResizeNESW // HLP23 AUTHOR: BRYAN TAN 
+        | ResizeNESW // HLP23 AUTHOR: BRYAN TAN
         | ResizeNWSE
     with
-        member this.Text() = 
+        member this.Text() =
             match this with
             | Default -> "default"
             | ClickablePort -> "move"
@@ -493,7 +494,7 @@ module SheetT =
             | GrabSymbol -> "cell"
             | GrabLabel -> "grab"
             | Grabbing -> "grabbing"
-            | ResizeNESW -> "nesw-resize"   
+            | ResizeNESW -> "nesw-resize"
             | ResizeNWSE -> "nwse-resize"
 
     /// For Keyboard messages
@@ -520,7 +521,7 @@ module SheetT =
         | InProgress of int
         | Failed
         | Queued
-    
+
     type CompilationStageLabel =
         | Synthesis
         | PlaceAndRoute
@@ -582,8 +583,8 @@ module SheetT =
         | TickCompilation of float
         | FinishedCompilationStage
         | DebugSingleStep
-        | DebugStepAndRead of parts: int 
-        | DebugRead of parts: int 
+        | DebugStepAndRead of parts: int
+        | DebugRead of parts: int
         | OnDebugRead of data: int * viewer: int
         | DebugConnect
         | DebugDisconnect
@@ -604,7 +605,7 @@ module SheetT =
         | NotDebugging
         | Paused
         | Running
-    
+
     type ScalingDirection = ScaleUp | ScaleDown
 
     type Model = {
@@ -664,7 +665,7 @@ module SheetT =
         DebugIsConnected: bool
         DebugDevice: string option
         }
-    
+
     open Operators
     let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})
     let selectedComponents_ = Lens.create (fun m -> m.SelectedComponents) (fun sc m -> {m with SelectedComponents = sc})

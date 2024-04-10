@@ -607,6 +607,9 @@ let update (msg : Msg) oldModel =
     | ToggleWireTable -> { model with WireTableExpanded = not model.WireTableExpanded }, Cmd.none
     | ToggleWireSegmentsTable ->
         { model with WireSegmentsTableExpanded = not model.WireSegmentsTableExpanded }, Cmd.none
+    | UpdateScrollPosDevMode(pos, dispatch) ->
+        printfn $"UpdateScrollPosDevMode: {pos}"
+        {model with DevModeScrollPos = pos}, Cmd.none
 
 
 

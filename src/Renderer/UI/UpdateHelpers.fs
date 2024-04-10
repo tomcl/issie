@@ -189,6 +189,7 @@ let shortDisplayMsg (msg:Msg) =
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
     // for Dev Mode
+    | UpdateScrollPosDevMode _ -> None
     | ToggleSettingsMenu -> None
     | SelectTracking _ -> None
     | ToggleBeautifyMenu -> None

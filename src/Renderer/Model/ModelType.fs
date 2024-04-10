@@ -431,6 +431,8 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
+    // Keep track of Dev Mode Scroll Position
+    | UpdateScrollPosDevMode of pos: XYPos * dispatch: ( Msg -> Unit)
     /// For Dev Mode to set params
     | SelectTracking of bool * ((string list) option)
     | ToggleSettingsMenu
@@ -441,6 +443,7 @@ type Msg =
     | ToggleWireTable
     | ToggleWireSegmentsTable
     | ToggleSymbolPortMapsTable
+
 
 
 //================================//
@@ -592,6 +595,7 @@ type Model = {
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
     /// used for developer mode
+    DevModeScrollPos : XYPos
     SettingsMenuExpanded: bool
     Tracking: bool
     CachedSheetStats: string list option

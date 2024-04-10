@@ -15,11 +15,23 @@ open DrawModelType
 open CommonTypes
 open PopupHelpers
 open JSHelpers
-
+open DrawModelType
+open Browser
 open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
 
+/// Used to filter out-of-sequence OnScroll messages.
+/// These could reset scroll to some previous value.
+/// Incremented by program UpdateScroll and OnScroll.
+let mutable scrollSequence: int = 0
+let mutable devModeDiv:Types.Element option = None
+
+
+let writeDevModeScroll (scrollPos:XYPos) =
+    // printf "%s" $"***writing devmode scroll: {scrollPos.X},{scrollPos.Y}"
+    devModeDiv
+    |> Option.iter (fun el -> el.scrollLeft <- scrollPos.X; el.scrollTop <- scrollPos.Y)
 
 
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
@@ -122,6 +134,7 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
+    DevModeScrollPos = {X = 0; Y = 0}
     SettingsMenuExpanded = false
     Tracking = false
     CachedSheetStats = None
@@ -177,9 +190,12 @@ let private  viewRightTab canvasState model dispatch =
     | DeveloperMode ->
         if debugLevel > 0 then
             div
-                [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ]
+                [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ];
+
+
+                 ]
                 [ Heading.h4 [] [ str "Developer Mode" ]
-                  div [ Style [ MarginBottom "15px" ] ] []
+                  div [ Style [ MarginBottom "15px" ]] []
                   DeveloperModeView.developerModeView model dispatch ]
         else
             div [] []
@@ -291,7 +307,18 @@ let viewRightTabs canvasState model dispatch =
         else
             null
 
-    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto]] [
+    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
+                            OnScroll (fun _ ->
+                            printf "Scrolling dev mode\n"
+                            match devModeDiv with
+                            | None -> ()
+                            | Some el ->
+                                dispatch <| UpdateScrollPosDevMode( {X = el.scrollLeft; Y = el.scrollTop}, dispatch));
+                              Ref (fun el ->
+                                    devModeDiv <- Some el
+                                    writeDevModeScroll model.DevModeScrollPos
+                                )
+    ] [
         Tabs.tabs [
             Tabs.IsFullWidth;
             Tabs.IsBoxed;

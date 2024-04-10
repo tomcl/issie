@@ -41,7 +41,7 @@ let update (msg : Msg) oldModel =
 
     let withMsgs (msgs: Msg list) (model : Model) = model, Cmd.batch (List.map Cmd.ofMsg msgs)
 
-    let startOfUpdateTime = TimeHelpers.getTimeMs()   
+    let startOfUpdateTime = TimeHelpers.getTimeMs()
 
     //Add the message to the pending queue if it is a mouse drag message
     let model =
@@ -49,7 +49,7 @@ let update (msg : Msg) oldModel =
             {oldModel with Pending = msg :: oldModel.Pending}
         else
             oldModel
-    
+
     //Check if the current message is stored as pending, if so execute all pending messages currently in the queue
     let testMsg, cmd =
         List.tryFind (fun x -> isSameMsg x msg) model.Pending
@@ -74,7 +74,7 @@ let update (msg : Msg) oldModel =
             | CloseProject ->
                 {model with CurrentProj = None; UIState = Some uiCmd}
                 |> withNoMsg
-            | _ -> 
+            | _ ->
                 {model with UIState = Some uiCmd}
                 |> withMsg (Sheet (SheetT.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
@@ -93,7 +93,7 @@ let update (msg : Msg) oldModel =
         match sMsg, model.PopupViewFunc with
         | SheetT.ToggleNet canvas, _ ->
             model, Cmd.none
-        | SheetT.KeyPress _, Some _ -> 
+        | SheetT.KeyPress _, Some _ ->
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none
         | _ -> sheetMsg sMsg model
@@ -109,7 +109,7 @@ let update (msg : Msg) oldModel =
         model
         |> map openLoadedComponentOfModel_ (fun ldc -> {ldc with CanvasState = canvas})
         |> withNoMsg
-        
+
     // special messages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
     | SetDragMode mode ->
         {model with DividerDragMode= mode}
@@ -121,7 +121,7 @@ let update (msg : Msg) oldModel =
 
     | SheetBackAction dispatch ->
         processSheetBackAction dispatch model
-        |> withNoMsg        
+        |> withNoMsg
 
     | UpdateUISheetTrail updateFun ->
         model
@@ -178,7 +178,7 @@ let update (msg : Msg) oldModel =
 
         model, Cmd.none
 
-    | StartSimulation simData -> 
+    | StartSimulation simData ->
         {model with CurrentStepSimulationStep = Some simData }
         |> withNoMsg
 
@@ -200,10 +200,10 @@ let update (msg : Msg) oldModel =
         updateFn model, Cmd.none
 
     | UpdateImportDecisions importDecisions' ->
-        let updatedModel = 
+        let updatedModel =
             model
             |> set (popupDialogData_ >-> importDecisions_) importDecisions'
-       
+
         updatedModel, Cmd.none
 
     | RefreshWaveSim ws ->
@@ -225,21 +225,21 @@ let update (msg : Msg) oldModel =
         let ws = getWSModel model
         WaveSim.refreshWaveSim false ws model
 
-    | SetWaveComponentSelectionOpen (fIdL, show) ->       
+    | SetWaveComponentSelectionOpen (fIdL, show) ->
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveComponentSelectionOpen ws fIdL show)
         |> withNoMsg
 
-    | SetWaveGroupSelectionOpen (fIdL, show) -> 
+    | SetWaveGroupSelectionOpen (fIdL, show) ->
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveGroupSelectionOpen ws fIdL show)
         |> withNoMsg
 
-        
-    | SetWaveSheetSelectionOpen (fIdL, show) ->       
+
+    | SetWaveSheetSelectionOpen (fIdL, show) ->
         model
         |> updateWSModel (fun ws -> WaveSimHelpers.setWaveSheetSelectionOpen ws fIdL show)
-        |> withNoMsg    
+        |> withNoMsg
 
     | TryStartSimulationAfterErrorFix simType ->
         SimulationView.tryStartSimulationAfterErrorFix simType model
@@ -274,22 +274,22 @@ let update (msg : Msg) oldModel =
         |> set currentStepSimulationStep_ None
         |> withNoMsg
 
-    | EndWaveSim -> 
+    | EndWaveSim ->
         let model =
             let model = removeAllSimulationsFromModel model
             match model.WaveSimSheet with
-            | None | Some "" -> 
+            | None | Some "" ->
                 printfn "What? can't end WaveSim when it is already ended"
                 model
-            | Some sheet -> 
-                { model with 
-                    WaveSimSheet = None; 
-                    WaveSim = Map.change sheet (Option.map (fun ws -> 
+            | Some sheet ->
+                { model with
+                    WaveSimSheet = None;
+                    WaveSim = Map.change sheet (Option.map (fun ws ->
                         {ws with State = Ended ; WaveModalActive = false})) model.WaveSim
                 }
         model, Cmd.none
 
-    | ChangeRightTab newTab -> 
+    | ChangeRightTab newTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editMsgs = [inferMsg; ClosePropertiesNotification]
         firstTip <- true
@@ -297,16 +297,17 @@ let update (msg : Msg) oldModel =
         model
         |> set rightPaneTabVisible_ newTab
         |> withMsgs
-                (match newTab with 
-                | Properties 
-                | Catalogue 
-                | Simulation 
+                (match newTab with
+                | Properties
+                | Catalogue
+                | Simulation
+                | DeveloperMode
                 | Build -> editMsgs
                 | Transition -> [])
 
     | ChangeSimSubTab subTab ->
         let inferMsg = JSDiagramMsg <| InferWidths()
-        let editMsgs = [inferMsg; ClosePropertiesNotification] 
+        let editMsgs = [inferMsg; ClosePropertiesNotification]
         model
         |> set simSubTabVisible_ subTab
         |> withMsgs editMsgs
@@ -334,7 +335,7 @@ let update (msg : Msg) oldModel =
     | SetProject project ->
         printf $"Setting project with component: '{project.OpenFileName}'"
         model
-        |> set currentProj_ (Some project) 
+        |> set currentProj_ (Some project)
         |> set (popupDialogData_ >-> projectPath_) project.ProjectPath
         |> withNoMsg
 
@@ -342,7 +343,7 @@ let update (msg : Msg) oldModel =
         CustomCompPorts.updateProjectFiles true update model
         |> withNoMsg
 
-    | UpdateProjectWithoutSyncing update -> 
+    | UpdateProjectWithoutSyncing update ->
         CustomCompPorts.updateProjectFiles false update model
         |> withNoMsg
 
@@ -408,7 +409,7 @@ let update (msg : Msg) oldModel =
                      | FirstInt -> set int_ (Option.map int32 n)
                      | SecondInt -> set int2_ n)
         |> withNoMsg
-    
+
     | SetPopupDialogIntList intlist->
         model
         |> set (popupDialogData_ >-> intlist_) intlist
@@ -492,7 +493,7 @@ let update (msg : Msg) oldModel =
     | ClosePropertiesNotification ->
         model
         |> set (notifications_ >-> fromProperties_) None
-        |> withNoMsg        
+        |> withNoMsg
 
     | SetTopMenu t ->
         { model with TopMenuOpenState = t}
@@ -506,20 +507,20 @@ let update (msg : Msg) oldModel =
         model, cmd
 
     | ExecFuncAsynch func ->
-             let cmd' = 
-                Elmish.Cmd.OfAsyncImmediate.result (async { 
+             let cmd' =
+                Elmish.Cmd.OfAsyncImmediate.result (async {
                 //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
                 //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
-                    do! (Async.Sleep 100) 
+                    do! (Async.Sleep 100)
                     if Set.contains "update" JSHelpers.debugTraceUI then
                         printfn "Starting ExecFuncAsynch payload"
-                    let cmd = func ()                    
+                    let cmd = func ()
                     return (ExecCmd cmd)})
              model, cmd'
 
     | ExecCmdAsynch cmd ->
-        let cmd' = 
-            Elmish.Cmd.OfAsyncImmediate.result (async { 
+        let cmd' =
+            Elmish.Cmd.OfAsyncImmediate.result (async {
             //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
             //this number only seems to affect the wavesim spinner cursor.
                 do! (Async.Sleep 300)
@@ -530,7 +531,7 @@ let update (msg : Msg) oldModel =
         model, SimulationView.doBatchOfMsgsAsynch msgs
 
     | MenuAction(act,dispatch) ->
-        match act with 
+        match act with
         | MenuSaveFile -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | MenuSaveProjectInNewFormat -> getMenuView act model dispatch, Cmd.ofMsg (Sheet SheetT.SaveSymbols)
         | _ -> getMenuView act model dispatch, Cmd.none
@@ -547,7 +548,7 @@ let update (msg : Msg) oldModel =
     | DiagramMouseEvent ->
         model, Cmd.none // this now does nothing and should be removed
 
-    | SelectionHasChanged -> 
+    | SelectionHasChanged ->
         { model with ConnsOfSelectedWavesAreHighlighted = true }
         |> withNoMsg
 
@@ -557,7 +558,7 @@ let update (msg : Msg) oldModel =
 
     | ReadUserData userAppDir ->
         printfn $"Got user app dir of {userAppDir}"
-        let model,cmd = readUserData userAppDir model        
+        let model,cmd = readUserData userAppDir model
         model,cmd
 
     | SetUserData (data: UserData) ->
@@ -581,14 +582,33 @@ let update (msg : Msg) oldModel =
 
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out
-    | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 
-    | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
+    | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _
+    | SetPropertiesExtraDialogText _ | SetRouterInteractive _
     | ShowExitDialog -> model, Cmd.none
     | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
         model, cmd
 
     | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
+    | ToggleSettingsMenu -> { oldModel with SettingsMenuExpanded = not oldModel.SettingsMenuExpanded }, Cmd.none
+    | SelectTracking(h: bool, cachedStringData) ->
+        match h with
+        | true -> printfn "Set Tracking to true"
+        | false -> printfn "Set Tracking to false"
+        { oldModel with Tracking = h; CachedSheetStats = cachedStringData }, Cmd.none
+    | ToggleBeautifyMenu -> { oldModel with BeautifyMenuExpanded = not oldModel.BeautifyMenuExpanded }, Cmd.none
+    | ToggleSheetStats -> { model with SheetStatsExpanded = not model.SheetStatsExpanded }, Cmd.none
+    | ToggleSymbolInfoTable -> { model with SymbolInfoTableExpanded = not model.SymbolInfoTableExpanded }, Cmd.none
+    | ToggleSymbolPortsTable -> { model with SymbolPortsTableExpanded = not model.SymbolPortsTableExpanded }, Cmd.none
+    | ToggleSymbolPortMapsTable ->
+        { model with
+            SymbolPortMapsTableExpanded = not model.SymbolPortMapsTableExpanded },
+        Cmd.none
+    | ToggleWireTable -> { model with WireTableExpanded = not model.WireTableExpanded }, Cmd.none
+    | ToggleWireSegmentsTable ->
+        { model with WireSegmentsTableExpanded = not model.WireSegmentsTableExpanded }, Cmd.none
+
+
 
     // post-processing of update function (Model * Cmd<Msg>)
     |> map fst_ (fun model' -> resetDialogIfSelectionHasChanged model' oldModel)

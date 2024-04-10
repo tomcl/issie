@@ -53,6 +53,7 @@ type RightTab =
     | Simulation
     | Build
     | Transition // hack to make a transition from Simulation to Catalog without a scrollbar artifact
+    | DeveloperMode
 
 type SimSubTab =
     | StepSim
@@ -77,7 +78,7 @@ type PopupDialogData = {
     ImportDecisions : Map<string, ImportDecision option>
     Int2: int64 option
     ProjectPath: string
-    MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
+    MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth.
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
     Progress: PopupProgress option
     ConstraintTypeSel: ConstraintType option
@@ -135,7 +136,7 @@ type UICommandType =
     | StartWaveSim
     | ViewWaveSim
     | CloseWaveSim
-    
+
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
 //---------------------------------------------------------------
@@ -274,7 +275,7 @@ type SimulationProgress =
     {
         InitialClock: int
         FinalClock: int
-        ClocksPerChunk: int       
+        ClocksPerChunk: int
     }
 
 type PopupProgress =
@@ -344,7 +345,7 @@ type Msg =
     /// of the given WaveSimModel
     | GenerateWaveforms of WaveSimModel
     /// Generate waveforms according to the model paramerts of Wavesim
-    | GenerateCurrentWaveforms 
+    | GenerateCurrentWaveforms
     /// Run, or rerun, the FastSimulation with the current state of the Canvas.
     | RefreshWaveSim of WaveSimModel
     /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)
@@ -430,6 +431,16 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
+    /// For Dev Mode to set params
+    | SelectTracking of bool * ((string list) option)
+    | ToggleSettingsMenu
+    | ToggleBeautifyMenu
+    | ToggleSheetStats
+    | ToggleSymbolInfoTable
+    | ToggleSymbolPortsTable
+    | ToggleWireTable
+    | ToggleWireSegmentsTable
+    | ToggleSymbolPortMapsTable
 
 
 //================================//
@@ -516,7 +527,7 @@ type Model = {
 
     /// If the application has a modal spinner waiting for simulation
     Spinner: (Model -> Model) option
-        
+
     /// Draw Canvas
     Sheet: DrawModelType.SheetT.Model
 
@@ -541,7 +552,7 @@ type Model = {
     SelectedComponent : Component option // None if no component is selected.
     /// used during step simulation: simgraph for current clock tick
     CurrentStepSimulationStep : Result<SimulationData,SimulationError> option // None if no simulation is running.
-    /// stores the generated truth table 
+    /// stores the generated truth table
     CurrentTruthTable: Result<TruthTable,SimulationError> option // None if no Truth Table is being displayed.
     /// style info for the truth table
     TTConfig: TTType
@@ -552,9 +563,9 @@ type Model = {
     /// components and connections which are highlighted
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
     /// Components and connections that have been selected and copied.
-    Clipboard : CanvasState 
+    Clipboard : CanvasState
     /// Track the last added component
-    LastCreatedComponent : Component option 
+    LastCreatedComponent : Component option
     /// used to enable "SAVE" button
     SavedSheetIsOutOfDate : bool
     /// the project contains, as loadable components, the state of each of its sheets
@@ -580,7 +591,19 @@ type Model = {
     UIState: UICommandType Option
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
-} 
+    /// used for developer mode
+    SettingsMenuExpanded: bool
+    Tracking: bool
+    CachedSheetStats: string list option
+    BeautifyMenuExpanded: bool
+    SymbolInfoTableExpanded: bool
+    SymbolPortsTableExpanded: bool
+    SymbolPortMapsTableExpanded: bool
+    WireTableExpanded: bool
+    WireSegmentsTableExpanded: bool
+    SheetStatsExpanded: bool
+
+}
 
     with member this.WaveSimOrCurrentSheet =
             match this.WaveSimSheet, this.CurrentProj with

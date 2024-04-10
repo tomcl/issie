@@ -1136,91 +1136,87 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 |_ ->
                     checkIfLabelIsUnique chars symbols
             )
-    let selectedComponentView =
-        match model.Sheet.SelectedComponents with
-        | [ compId ] ->
-            let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
-            div [Key comp.Id] [
-                // let label' = extractLabelBase comp.Label
-                // TODO: normalise labels so they only contain allowed chars all uppercase
-                let defaultText =
-                    match model.PopupDialogData.Text with
-                    | None -> comp.Label
-                    | Some text -> text
-                let label' = formatLabelText defaultText compId // No formatting atm
-                let labelText = match label' with Ok s -> s | Error e -> defaultText
-                readOnlyFormField "Description" <| makeDescription comp model dispatch
-                makeExtraInfo model comp labelText  dispatch
-                let required =
-                    match comp.Type with
-                    | SplitWire _ | MergeWires | BusSelection _ | NotConnected -> false | _ -> true
-                let isBad =
-                    if model.PopupDialogData.BadLabel then
-                        match label' with
-                        | Ok _ -> None
-                        | Error msg -> Some msg
-                    else    None
+    match model.Sheet.SelectedComponents with
+    | [ compId ] ->
+        let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
+        div [Key comp.Id] [
+            // let label' = extractLabelBase comp.Label
+            // TODO: normalise labels so they only contain allowed chars all uppercase
+            let defaultText =
+                match model.PopupDialogData.Text with
+                | None -> comp.Label
+                | Some text -> text
+            let label' = formatLabelText defaultText compId // No formatting atm
+            let labelText = match label' with Ok s -> s | Error e -> defaultText
+            readOnlyFormField "Description" <| makeDescription comp model dispatch
+            makeExtraInfo model comp labelText  dispatch
+            let required =
+                match comp.Type with
+                | SplitWire _ | MergeWires | BusSelection _ | NotConnected -> false | _ -> true
+            let isBad =
+                if model.PopupDialogData.BadLabel then
+                    match label' with
+                    | Ok _ -> None
+                    | Error msg -> Some msg
+                else    None
 
-                //printfn $"{comp.Label}:{label'} - {isBad} - {label'}"
-                textFormField
-                    required
-                    "Component Name"
-                    defaultText
-                    isBad
-                    (fun text -> // onChange
-                        match formatLabelText text compId with
-                        | Error errorMess ->
-                            dispatch <| SetPopupDialogBadLabel (true)
-                            dispatch <| SetPopupDialogText (Some text)
-                        | Ok label ->
-                            MenuHelpers.setComponentLabel model sheetDispatch comp label
-                            dispatch <| SetPopupDialogText (Some label)
-                            dispatch <| SetPopupDialogBadLabel (false)
-                        dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component
-                    ( fun () -> // onDeleteAtEndOfBox
-                        let sheetDispatch sMsg = dispatch (Sheet sMsg)
-                        let dispatchKey = SheetT.KeyPress >> sheetDispatch
-                        dispatchKey SheetT.KeyboardMsg.DEL)
-            ]
-        | _ ->
-            match model.CurrentProj with
-            |Some proj ->
-                let sheetName = proj.OpenFileName
-                let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
-                let sheetDescription = sheetLdc.Description
-                match sheetDescription with
-                |None ->
-                    div [] [
-                        p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]
-                        br []
-                        Label.label [] [str "Sheet Description"]
-                        Button.button
-                            [
-                                Button.Color IsSuccess
-                                Button.OnClick (fun _ ->
-                                    createSheetDescriptionPopup model None sheetName dispatch
-                                )
-                            ]
-                            [str "Add Description"]
+            //printfn $"{comp.Label}:{label'} - {isBad} - {label'}"
+            textFormField
+                required
+                "Component Name"
+                defaultText
+                isBad
+                (fun text -> // onChange
+                    match formatLabelText text compId with
+                    | Error errorMess ->
+                        dispatch <| SetPopupDialogBadLabel (true)
+                        dispatch <| SetPopupDialogText (Some text)
+                    | Ok label ->
+                        MenuHelpers.setComponentLabel model sheetDispatch comp label
+                        dispatch <| SetPopupDialogText (Some label)
+                        dispatch <| SetPopupDialogBadLabel (false)
+                    dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component
+                ( fun () -> // onDeleteAtEndOfBox
+                    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+                    let dispatchKey = SheetT.KeyPress >> sheetDispatch
+                    dispatchKey SheetT.KeyboardMsg.DEL)
+        ]
+    | _ ->
+        match model.CurrentProj with
+        |Some proj ->
+            let sheetName = proj.OpenFileName
+            let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
+            let sheetDescription = sheetLdc.Description
+            match sheetDescription with
+            |None ->
+                div [] [
+                    p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]
+                    br []
+                    Label.label [] [str "Sheet Description"]
+                    Button.button
+                        [
+                            Button.Color IsSuccess
+                            Button.OnClick (fun _ ->
+                                createSheetDescriptionPopup model None sheetName dispatch
+                            )
                         ]
-                |Some descr ->
-                    div [] [
-                        p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]
-                        br []
-                        Label.label [] [str "Sheet Description"]
-                        p [] [str descr]
-                        br []
-                        Button.button
-                            [
-                                Button.Color IsSuccess
-                                Button.OnClick (fun _ ->
-                                    createSheetDescriptionPopup model sheetDescription sheetName dispatch
-                                )
-                            ]
-                            [str "Edit Description"]
+                        [str "Add Description"]
+                    ]
+            |Some descr ->
+                div [] [
+                    p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]
+                    br []
+                    Label.label [] [str "Sheet Description"]
+                    p [] [str descr]
+                    br []
+                    Button.button
+                        [
+                            Button.Color IsSuccess
+                            Button.OnClick (fun _ ->
+                                createSheetDescriptionPopup model sheetDescription sheetName dispatch
+                            )
                         ]
-            |None -> null
-
-
-    [selectedComponentView]
+                        [str "Edit Description"]
+                    ]
+        |None -> null
 

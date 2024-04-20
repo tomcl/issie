@@ -576,6 +576,7 @@ module SheetT =
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
+        | SetModelGroupMap of Map<GroupId, ComponentId list>
         // ------------------- Compilation and Debugging ----------------------
         | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
         | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
@@ -598,6 +599,7 @@ module SheetT =
         | ToggleSnapToNet
         | BeautifySheet
         | SheetBatch of Msg list
+
 
     type ReadLog = | ReadLog of int
 
@@ -666,6 +668,8 @@ module SheetT =
         DebugDevice: string option
         // bool to keep track if developer mode tab is open
         DeveloperModeTabActive: bool
+        // Keep Groups of Components
+        GroupMap: Map<GroupId, ComponentId list>
         }
 
     open Operators

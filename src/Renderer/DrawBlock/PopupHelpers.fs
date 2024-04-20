@@ -41,14 +41,14 @@ open CommonTypes
 open CodeEditorHelpers
 
 module Constants =
-    let infoSignUnicode = "\U0001F6C8"
+    let infoSignUnicode = "\u2139"
 
 
 /////////////////////   CODE EDITOR React Component  /////////////////////////
 // Basically: a code editor wrapped in Stateful React Component
 // React Component is needed to keep track of the state -> mouse keeps track of its location on value change
 // codeEditor react element is used to store the code into PopupDialogData.Code
-// Code Highlighting is done automatically by PrismJS 
+// Code Highlighting is done automatically by PrismJS
 
 importSideEffects "../VerilogComponent/prism.css"
 
@@ -68,7 +68,7 @@ type CERSCState = { code: string; }
 
 type CodeEditorReactStatefulComponent (props) =
     inherit Component<CERSCProps, CERSCState> (props)
-    
+
     do base.setInitState({ code = "module NAME(\n  // Write your IO Port Declarations here\n  \n);  \n  // Write your Assignments here\n  \n  \n  \nendmodule" })
 
 
@@ -76,7 +76,7 @@ type CodeEditorReactStatefulComponent (props) =
 
     override this.componentDidUpdate (prevProps,prevState) =
         match (props.ReplaceCode <> None && prevProps.ReplaceCode = None) with
-        |true -> 
+        |true ->
             this.setState(fun s _-> {code = Option.get props.ReplaceCode} )
             props.Dispatch <| SetPopupDialogCode (props.ReplaceCode)
             props.Compile {props.DialogData with VerilogCode=props.ReplaceCode}
@@ -91,14 +91,14 @@ type CodeEditorReactStatefulComponent (props) =
             div [Style [Position PositionOptions.Relative; CSSProp.Left "35px";Height "100%";]]
                 [
                     codeEditor [
-                        CodeEditorProps.Placeholder ("Start Writing your Verilog Code here..."); 
-                        CodeEditorProps.Value ((sprintf "%s" this.state.code)); 
+                        CodeEditorProps.Placeholder ("Start Writing your Verilog Code here...");
+                        CodeEditorProps.Value ((sprintf "%s" this.state.code));
                         CodeEditorProps.Padding 5
-                        OnValueChange (fun txt -> 
+                        OnValueChange (fun txt ->
                             (this.setState (fun s p -> {code=txt}))
                             props.Dispatch <| SetPopupDialogCode (Some txt)
                             props.Compile {props.DialogData with VerilogCode=Some txt}
-                        )             
+                        )
                         Highlight (fun code -> Prism.highlight(code,language));]
                         []
                 ]
@@ -220,7 +220,7 @@ let dynamicClosablePopupFunc title body foot extraStyle =
 let dynamicProgressPopupFunc title (cancel: (Msg -> Unit) -> Unit) =
     let body (dispatch:Msg->Unit) (model: Model) =
         let dialog = model.PopupDialogData
-        let n = Option.defaultValue 0 dialog.Int        
+        let n = Option.defaultValue 0 dialog.Int
         Progress.progress
             [   Progress.Color IsSuccess
                 Progress.Value n
@@ -235,14 +235,14 @@ let dynamicProgressPopupFunc title (cancel: (Msg -> Unit) -> Unit) =
                 Level.item [] [
                     Button.button [
                         Button.Color IsLight
-                        Button.OnClick (fun _ -> 
+                        Button.OnClick (fun _ ->
                             cancel dispatch
                             dispatch ClosePopup)
                     ] [ str "Cancel" ]
                 ]
             ]
         ]
-        
+
     buildPopup title body foot (fun dispatch _ -> dispatch ClosePopup) []
 
 /// Create a popup and add it to the page. Body and foot are static content.
@@ -269,7 +269,7 @@ let dialogPopupBodyOnlyText before placeholder dispatch =
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
-            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]            
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]
 
         ]
 
@@ -294,18 +294,18 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
         let code = getCode dialogData
-        let linesNo = 
+        let linesNo =
             match code,codeToAdd with
             | "", Some c -> c |> String.filter (fun ch->ch='\n') |> String.length
             | _ -> code |> String.filter (fun ch->ch='\n') |> String.length
         let goodLabel =
                 (Option.defaultValue "" moduleName)
                 |> (fun s -> String.startsWithLetter s || s = "")
-        
-        let renderCERSC =
-            ofType<CodeEditorReactStatefulComponent,_,_> {CurrentCode=code; ReplaceCode=codeToAdd; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton} 
 
-        let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true 
+        let renderCERSC =
+            ofType<CodeEditorReactStatefulComponent,_,_> {CurrentCode=code; ReplaceCode=codeToAdd; Dispatch=dispatch; DialogData=dialogData;Compile=compileButton}
+
+        let codeEditorWidth, errorWidth, hide = if showExtraErrors then "56%","38%",false else "96%","0%",true
         let i = getHeight
         let editorheigth = ((float i)/2.9 |> int |> string)  + "px"
         let tableHeigth = ((float i)/1.9 |> int |> string)  + "px"
@@ -332,7 +332,7 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
                 ]
                 br []
                 //BrowserWindowConstructorOptions
-                div [ Style [Position PositionOptions.Relative; MinHeight "0px"; MaxHeight editorheigth; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue";OverflowY OverflowOptions.Auto;OverflowX OverflowOptions.Hidden]] 
+                div [ Style [Position PositionOptions.Relative; MinHeight "0px"; MaxHeight editorheigth; FontFamily ("ui-monospace,SFMono-Regular,SF Mono,Consolas,Liberation Mono,Menlo,monospace"); FontSize 16; BackgroundColor "#f5f5f5"; OutlineStyle "solid"; OutlineColor "Blue";OverflowY OverflowOptions.Auto;OverflowX OverflowOptions.Hidden]]
                         [
                         getLineCounterDiv linesNo
                         errorDiv
@@ -341,12 +341,12 @@ let dialogVerilogCompBody before moduleName errorDiv errorList showExtraErrors c
                 ]
             div [Style [Flex "2%"];] []
             div [Style [Flex "2%"]; Hidden hide] []
-            div [Style [Position PositionOptions.Relative; Flex errorWidth; MinHeight "0px"; MaxHeight tableHeigth; OverflowY OverflowOptions.Auto;OverflowX OverflowOptions.Hidden]; Hidden hide] 
+            div [Style [Position PositionOptions.Relative; Flex errorWidth; MinHeight "0px"; MaxHeight tableHeigth; OverflowY OverflowOptions.Auto;OverflowX OverflowOptions.Hidden]; Hidden hide]
                 [
                 getErrorTable errorList (addButton dialogData)
                 ]
         ]
-        
+
 
 
 
@@ -406,51 +406,51 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs di
                 else
                     "")
             |> Option.defaultValue ""
-        let newInt = 
+        let newInt =
             match getInt dialogData with
-            | n when n < 2 -> 
+            | n when n < 2 ->
                 match dialogData.IntList with
                 | None -> numOutputsDefault
                 | Some widthList -> widthList.Length
             | n -> n
-        
+
         let setupWidthList =
-            match dialogData.IntList with 
-            | None -> 
+            match dialogData.IntList with
+            | None ->
                 let setup = getIntList dialogData numOutputsDefault intDefault
                 dispatch <| SetPopupDialogIntList (Some setup)
                 setup
-            | Some outputWidthList -> 
+            | Some outputWidthList ->
                 let newNumInputs = newInt
                 match outputWidthList.Length with
-                | n when n > newNumInputs -> 
+                | n when n > newNumInputs ->
                     outputWidthList[..(newNumInputs-1)]
                 | n when n < newNumInputs ->
-                    List.append outputWidthList (List.init (newNumInputs-n) (fun _ -> 1)) 
+                    List.append outputWidthList (List.init (newNumInputs-n) (fun _ -> 1))
                 | _ -> outputWidthList
-        
+
         let setupLSBList =
-            match dialogData.IntList2 with 
-            | None -> 
+            match dialogData.IntList2 with
+            | None ->
                 let setup = getIntList2 dialogData numOutputsDefault 0
                 dispatch <| SetPopupDialogIntList2 (Some setup)
                 setup
-            | Some lsbList -> 
+            | Some lsbList ->
                 let newNumInputs = newInt
                 match lsbList.Length with
-                | n when n > newNumInputs -> 
+                | n when n > newNumInputs ->
                     lsbList[..(newNumInputs-1)]
                 | n when n < newNumInputs ->
-                    match dialogData.IntList with 
+                    match dialogData.IntList with
                     | None -> failwith "No width list in dialogData"
-                    | Some widths -> 
+                    | Some widths ->
                         let msbs = List.map2 (fun lsb width -> lsb + width - 1) lsbList widths
-                        List.append lsbList (List.init (newNumInputs-n) (fun x -> x + (List.max msbs) + 1)) 
+                        List.append lsbList (List.init (newNumInputs-n) (fun x -> x + (List.max msbs) + 1))
                 | _ -> lsbList
-        
+
         if dialogData.IntList <> Some setupWidthList then
             dispatch <| SetPopupDialogIntList (Some setupWidthList)
-        
+
         if dialogData.IntList2 <> Some setupLSBList then
             dispatch <| SetPopupDialogIntList2 (Some setupLSBList)
 
@@ -477,13 +477,13 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs di
             ]
             List.mapi2 (fun index (defaultWidthValue : int) (defaultLSBValue : int) ->
                 div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]] [
-                    label [Style [Width "105px"; MarginRight "10px";]] [str (sprintf "Output Port %d:" index)] 
+                    label [Style [Width "105px"; MarginRight "10px";]] [str (sprintf "Output Port %d:" index)]
                     Input.number [
                         Input.Props [OnPaste preventDefault; Style [Width "60px"]; ]
                         Input.DefaultValue <| sprintf "%d" defaultWidthValue
                         Input.OnChange (
-                            let setWidth = 
-                                fun newWidth -> 
+                            let setWidth =
+                                fun newWidth ->
                                     setupWidthList
                                     |> List.mapi (fun i x -> if i = index then newWidth else x)
                             getIntEventValue >> setWidth >> Some >> SetPopupDialogIntList >> dispatch)
@@ -492,8 +492,8 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs di
                         Input.Props [OnPaste preventDefault; Style [Width "60px"; MarginLeft "10px"]; ]
                         Input.DefaultValue <| sprintf "%d" defaultLSBValue
                         Input.OnChange (
-                            let setLSB = 
-                                fun newLSB -> 
+                            let setLSB =
+                                fun newLSB ->
                                     setupLSBList
                                     |> List.mapi (fun i x -> if i = index then newLSB else x)
                             getIntEventValue >> setLSB >> Some >> SetPopupDialogIntList2 >> dispatch)
@@ -503,12 +503,12 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs di
                     br []
                 ]
                 ) setupWidthList setupLSBList
-            |> div [] 
+            |> div []
             br []
             br []
 
         ]
-            
+
 /// Create the body of a dialog Popup with two ints.
 let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (width2:string) dispatch =
 
@@ -516,7 +516,7 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
         fun (n:int64) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
 
     setPopupTwoInts (FirstInt,None) (int64 intDefault1)
-    setPopupTwoInts (SecondInt, None) intDefault2 
+    setPopupTwoInts (SecondInt, None) intDefault2
 
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
@@ -549,7 +549,7 @@ let dialogPopupBodyTextAndTwoInts (focus: int) (beforeText, textPlaceholder) (be
         fun (n:int64) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
 
     setPopupTwoInts (FirstInt,None) (int64 intDefault1)
-    setPopupTwoInts (SecondInt, None) intDefault2 
+    setPopupTwoInts (SecondInt, None) intDefault2
 
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
@@ -584,7 +584,7 @@ let dialogPopupBodyTextAndTwoInts (focus: int) (beforeText, textPlaceholder) (be
 
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =
-    
+
     intDefault |> Some |> SetPopupDialogInt |> dispatch
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
@@ -598,7 +598,7 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
-            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]            
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]
             br []
             br []
             beforeInt dialogData
@@ -638,13 +638,13 @@ let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispat
 /// WordWidth, two integers.
 let dialogPopupBodyMemorySetup intDefault dispatch =
 
-    //Some (4, intDefault, FromData, None) 
+    //Some (4, intDefault, FromData, None)
     //|> SetPopupDialogMemorySetup |> dispatch
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
         let setup =
-            match dialogData.MemorySetup with 
-            | None -> 
+            match dialogData.MemorySetup with
+            | None ->
                 let setup = getMemorySetup dialogData intDefault
                 dispatch <| SetPopupDialogMemorySetup (Some setup)
                 setup
@@ -671,7 +671,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
                 Input.Props [OnPaste preventDefault; Style [Width "60px"] ; AutoFocus true]
                 Input.DefaultValue (sprintf "%d" addressWidth)
                 Input.OnChange (getIntEventValue >> fun newAddrWidth ->
-                    Some (newAddrWidth, wordWidth, source, None) 
+                    Some (newAddrWidth, wordWidth, source, None)
                     |> SetPopupDialogMemorySetup |> dispatch
                 )
             ]
@@ -683,7 +683,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
                 Input.Props [OnPaste preventDefault; Style [Width "60px"]]
                 Input.DefaultValue (sprintf "%d" wordWidth)
                 Input.OnChange (getIntEventValue >> fun newWordWidth ->
-                    Some (addressWidth, newWordWidth, source, None) 
+                    Some (addressWidth, newWordWidth, source, None)
                     |> SetPopupDialogMemorySetup |> dispatch
                 )
             ]
@@ -709,7 +709,7 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
                     Level.item [] [
                         Button.button [
                             Button.Color IsLight
-                            Button.OnClick (fun _ -> 
+                            Button.OnClick (fun _ ->
                                 dispatch ClosePopup
                                 dispatch FinishUICmd) //In case user presses cancel on 'rename sheet' popup
                         ] [ str "Cancel" ]
@@ -736,14 +736,14 @@ let dialogPopupRefresh title body extraStyle dispatch =
                     Level.item [] [
                         Button.button [
                             Button.Color IsLight
-                            Button.OnClick (fun _ -> 
+                            Button.OnClick (fun _ ->
                                 dispatch ClosePopup
-                                dispatch FinishUICmd) 
+                                dispatch FinishUICmd)
                         ] [ str "Cancel" ]
                     ]
                 ]
             ]
-    
+
     dynamicClosablePopup title body foot extraStyle dispatch
 
 /// Popup with an input textbox and two buttons.
@@ -752,10 +752,10 @@ let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveB
     let foot =
         fun (model: Model) ->
             let dialogData = model.PopupDialogData
-            let compileButtonText = 
-                if noErrors then "Compiled" 
+            let compileButtonText =
+                if noErrors then "Compiled"
                 elif showingExtraInfo then "Hide Info"
-                else "More Info" 
+                else "More Info"
             let compileButtonColor = if noErrors then IsInfo else IsDanger
             Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
                 Level.left [] []
@@ -763,7 +763,7 @@ let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveB
                     Level.item [] [
                         Button.button [
                             Button.Color IsLight
-                            Button.OnClick (fun _ -> 
+                            Button.OnClick (fun _ ->
                                 dispatch ClosePopup
                                 dispatch FinishUICmd) //In case user presses cancel on 'rename sheet' popup
                         ] [ str "Cancel" ]
@@ -804,7 +804,7 @@ let staticButtonFoot buttonAction buttonText dispatch =
                 ]
             ]
         ]
-    
+
 
 /// A static confirmation popup.
 let confirmationPopup title buttonText body buttonAction dispatch =
@@ -819,11 +819,11 @@ let dynamicConfirmationPopup title buttonText body buttonActionOpt dispatch =
     dynamicClosablePopup title body (fun _ -> foot) [] dispatch
 
 /// A static choice dialog popup returning the popup function
-let choicePopupFunc 
-        title 
-        (body:(Msg->Unit)->ReactElement) 
-        buttonTrueText 
-        buttonFalseText 
+let choicePopupFunc
+        title
+        (body:(Msg->Unit)->ReactElement)
+        buttonTrueText
+        buttonFalseText
         (buttonAction: bool -> (Msg->Unit) -> Browser.Types.MouseEvent -> Unit) =
     let foot dispatch =
         Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [

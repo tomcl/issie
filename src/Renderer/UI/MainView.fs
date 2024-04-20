@@ -184,7 +184,7 @@ let private  viewRightTab canvasState model dispatch =
         ]
     | Properties ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Component properties" ]
+            Heading.h4 [] [ str "Properties" ]
             SelectedComponentView.viewSelectedComponent model dispatch
         ]
     | DeveloperMode ->

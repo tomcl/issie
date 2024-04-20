@@ -66,7 +66,7 @@ let developerModeView (model: ModelType.Model) dispatch =
             ToolTipDescription = "Counts the number of visible wire segments \nintersecting on the sheet";
             Value=(numOfIntersectSegSym model.Sheet).ToString() |}
           {|DisplayName="T3 Vis-Wire Seg 90º Cross"  ;
-            ToolTipDescription = "Counts the number of visible wire segments that \ncross/intersect at 90 degrees.";
+            ToolTipDescription = "Counts the number of visible wire segments that \nintersect at 90 degrees.";
             Value=(numOfWireRightAngleCrossings model.Sheet).ToString() |}
           {|DisplayName="T4 Sum of Vis-Wire Segs"   ;
             ToolTipDescription = "Counts the total length of all visible \nwire segments on the sheet.\n\n Assumption: \nOverlapping segments share the same starting net, and may\ndiverge at some point but will not return to overlap.";
@@ -225,7 +225,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                         tr
                             []
                             [ td [] [ strong [] [ str "Comp. Type: " ] ]
-                              td [] [ code [] [ str (symbol.Component.Type.ToString()) ] ] ]
+                              td [] [ code [] [ str (getComponentTypeDescrFromSym symbol) ] ] ]
                         tr
                             []
                             [ td [] [ strong [] [ str "Comp. Label: " ] ]

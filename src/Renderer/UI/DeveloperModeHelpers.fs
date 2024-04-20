@@ -249,6 +249,7 @@ let createTableFromPorts (portsMap: Map<string, Edge>) (symbol: Symbol) =
     let tableRows =
         portDetailMap
         |> Map.toList
+        |> List.sortBy (fun (_,port) -> (port.PortType, port.PortNumber))
         |> List.map (fun (key, port) ->
             tr
                 []

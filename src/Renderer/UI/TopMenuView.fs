@@ -59,18 +59,18 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData newCS origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
         let newState =
             newCS
-            |> (fun (comps, conns) -> 
+            |> (fun (comps, conns) ->
                     comps
-                    |> List.map (fun comp -> 
+                    |> List.map (fun comp ->
                         match List.tryFind (fun (c:Component) -> c.Id=comp.Id) ramCheck with
-                        | Some newRam -> 
+                        | Some newRam ->
                             // TODO: create consistent helpers for messages
                             dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.WriteMemoryType (ComponentId comp.Id, newRam.Type))))
                             newRam
                         | _ -> comp), conns)
         writeComponentToBackupFile 4 1. newLdc dispatch
         Some (newLdc,newState)
-        
+
 /// save current open Verilog file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let updateVerilogFileActionWithModelUpdate (newCS:CanvasState) name (model: Model) (dispatch: Msg -> Unit) =
     let p' =
@@ -84,7 +84,7 @@ let updateVerilogFileActionWithModelUpdate (newCS:CanvasState) name (model: Mode
     let state = Option.map snd opt |> Option.defaultValue ([],[])
     match model'.CurrentProj with
     | None -> failwithf "What? Should never be able to save sheet when project=None"
-    | Some p -> 
+    | Some p ->
         // update loaded components for saved file
         updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
         |> (fun lc -> {p with LoadedComponents=lc})
@@ -94,7 +94,7 @@ let updateVerilogFileActionWithModelUpdate (newCS:CanvasState) name (model: Mode
     let p'' =
         match model'.CurrentProj with
         | None -> failwithf "What? Should never be able to save sheet when project=None"
-        | Some p -> 
+        | Some p ->
             // update loaded components for saved file
             updateLdCompsWithCompOpt ldcOpt p.LoadedComponents
             |> (fun lc -> {p with LoadedComponents=lc})
@@ -102,7 +102,7 @@ let updateVerilogFileActionWithModelUpdate (newCS:CanvasState) name (model: Mode
     SetHasUnsavedChanges false
     |> JSDiagramMsg
     |> dispatch
-    dispatch FinishUICmd     
+    dispatch FinishUICmd
     p''
 
 
@@ -119,15 +119,15 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         Form = Some User
         Description = None
     }
-    
+
 /// rename a sheet
 let renameSheet oldName newName (model:Model) dispatch =
 
-    let renameComps oldName newName (comps:Component list) : Component list = 
+    let renameComps oldName newName (comps:Component list) : Component list =
         comps
-        |> List.map (fun comp -> 
-            match comp with 
-            | {Type= Custom ({Name = compName} as customType)} when compName = oldName-> 
+        |> List.map (fun comp ->
+            match comp with
+            | {Type= Custom ({Name = compName} as customType)} when compName = oldName->
                 {comp with Type = Custom {customType with Name = newName} }
             | c -> c)
 
@@ -141,15 +141,15 @@ let renameSheet oldName newName (model:Model) dispatch =
             WorkingFileName = if proj.OpenFileName = oldName then Some newName else proj.WorkingFileName
             LoadedComponents =
                 proj.LoadedComponents
-                |> List.map (fun ldComp -> 
+                |> List.map (fun ldComp ->
                     match ldComp with
-                    | {Name = lcName} when lcName = oldName -> 
+                    | {Name = lcName} when lcName = oldName ->
                         {ldComp with Name=newName; FilePath = pathJoin [|(dirName ldComp.FilePath);newName + ".dgm"|] }
                     | _ ->
                         renameCustomComponents newName ldComp )
         }
     match updateProjectFromCanvas model dispatch with
-    | None -> 
+    | None ->
         failwithf "What? current project cannot be None at this point in renamesheet"
     | Some p ->
         let updatedModel = {model with CurrentProj = Some p}
@@ -160,7 +160,7 @@ let renameSheet oldName newName (model:Model) dispatch =
         //SetHasUnsavedChanges false
         //|> JSDiagramMsg
         //|> dispatch
-        [".dgm"] |> List.iter (fun extn -> 
+        [".dgm"] |> List.iter (fun extn ->
             renameFile extn p.ProjectPath oldName newName
             |> displayAlertOnError dispatch)
         let proj' = renameSheetsInProject oldName newName p
@@ -185,7 +185,7 @@ let renameFileInProject name project model dispatch =
                 let dialogText = getText dialogData
 
                 div []
-                    [ 
+                    [
                       str <| "Warning: the current sheet will be saved during this operation."
                       br []
                       str <| "Names of existing components in other sheets that use the renamed sheet will still reflect the old sheet name.";
@@ -263,7 +263,7 @@ let addFileToProject model dispatch =
                               LoadedComponents = newComponent :: project.LoadedComponents
                               OpenFileName = name
                               WorkingFileName = Some name }
- 
+
                     // Open the file, updating the project, saving current file
                     openFileInProject' true name updatedProject model dispatch
                     // Close the popup.
@@ -281,7 +281,7 @@ let addFileToProject model dispatch =
 /// Close current project, if any.
 let forceCloseProject model dispatch =
     dispatch (StartUICmd CloseProject)
-    let sheetDispatch sMsg = dispatch (Sheet sMsg) 
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
     dispatch EndSimulation // End any running simulation.
     dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
     // End any running simulation.
@@ -298,13 +298,13 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
         else
             dispatch nextAction
 
-    if model.SavedSheetIsOutOfDate then 
-        choicePopup 
-                $"{name}?" 
+    if model.SavedSheetIsOutOfDate then
+        choicePopup
+                $"{name}?"
                 (div [] [ str "The current sheet has unsaved changes."])
-                "Go back to sheet" 
-                $"{name} without saving changes"  
-                closeDialogButtons 
+                "Go back to sheet"
+                $"{name} without saving changes"
+                closeDialogButtons
                 dispatch
     else
         dispatch nextAction
@@ -332,13 +332,13 @@ let private newProject model dispatch  =
             dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
             setupProjectFromComponents false "main" [initialComponent] model dispatch)
 
-    
+
 
 /// open an existing project
 let private openProject model dispatch =
     //trying to force the spinner to load earlier
     //doesn't really work right now
-    warnAppWidth dispatch (fun _ -> 
+    warnAppWidth dispatch (fun _ ->
     dispatch (Sheet (SheetT.SetSpinner true))
     let dirName =
         match Option.map readFilesFromDirectory model.UserData.LastUsedDirectory with
@@ -385,7 +385,7 @@ let loadDemoProject model dispatch basename =
             copyFile (pathJoin [|sourceDir; basename|]) newPath)
 
         openDemoProjectFromPath newDir model dispatch
-        
+
     )
 
 
@@ -395,14 +395,14 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
     match model.CurrentProj with
     | Some proj -> ()
     | None ->
-    
+
         let menuItem demoInfo action =
             let basename =
                 match demoInfo with
                 | (basename, _, _) ->
                     let basenameL = String.length basename
                     basename[1..basenameL-1]
-       
+
             Menu.Item.li
                 [ Menu.Item.IsActive false
                   Menu.Item.OnClick action ] [
@@ -428,7 +428,7 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                             ]
                         | _ -> str "Information about other design"
                         //br []
-                      
+
                         //div [] [
                         //    str "Components: "
                         //    str (string <| componentsCount)
@@ -438,7 +438,7 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                   ]
 
                ]
-    
+
         let demosContent =
             fun (model' : Model) ->
                 if List.isEmpty demosInfo then
@@ -452,8 +452,8 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                     |> List.map(fun (path, componentsCount, sheetsCount) ->
                                 menuItem (path, componentsCount, sheetsCount)
                                     (fun _ -> loadDemoProject model' dispatch path))
-        
-        
+
+
         let demosList =
             fun (model' : Model) ->
                 div [] [
@@ -490,13 +490,13 @@ let viewNoProjectMenu model dispatch =
         |> List.map(fun basename ->
             (basename, 0, 0))
 
-    let recentsList = 
+    let recentsList =
         model.UserData
         |> (fun ud -> ud.RecentProjects)
         |> Option.defaultValue []
-        |> List.map (fun path -> 
-                        menuItem 
-                            (cropToLength  Constants.maxDisplayedPathLengthInRecentProjects false path) 
+        |> List.map (fun path ->
+                        menuItem
+                            (cropToLength  Constants.maxDisplayedPathLengthInRecentProjects false path)
                             (fun _ -> openProjectFromPath path model dispatch))
 
     let initialMenu =
@@ -511,7 +511,7 @@ let viewNoProjectMenu model dispatch =
 
     match model.CurrentProj with
     | Some _ -> div [] []
-    | None -> 
+    | None ->
         unclosablePopup None initialMenu None [] dispatch
 
 
@@ -533,12 +533,12 @@ let getInfoButton (name:string) (project:Project) : ReactElement =
 
     match comp.Description with
     |Some discr ->
-        div 
+        div
             [
                 HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsInfo} {Tooltip.IsTooltipRight}"
                 Tooltip.dataTooltip discr
-                Style [FontSize "20px"; MarginTop "0px"; MarginRight "10px"; Float FloatOptions.Left]] 
-            [str "\U0001F6C8"]
+                Style [FontSize "20px"; MarginTop "0px"; MarginRight "10px"; Float FloatOptions.Left]]
+            [str "\u2139"]
     | None ->
         null
 
@@ -550,7 +550,7 @@ let sheetIsLocked sheet model =
     let project = Option.get  model.CurrentProj
     let ldcOp = List.tryFind (fun ldc -> ldc.Name = sheet) project.LoadedComponents
 
-    let ldc = 
+    let ldc =
         ldcOp
         |>
         Option.defaultValue (List.find (fun ldc -> ldc.Name = project.OpenFileName) project.LoadedComponents)
@@ -559,7 +559,7 @@ let sheetIsLocked sheet model =
     | Some ProtectedTopLevel |Some ProtectedSubSheet -> true
     | _ -> false
 
-    
+
 /// Change model to alter lock of sheet as determined by updateLock.
 /// Unlockable sheets are kept the same.
 /// isSubSheet must be true only if sheet is a root of the design hierarchy.
@@ -594,15 +594,15 @@ let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
         let width = el.offsetWidth - 50.0
         //printf "%s" $"Height={height}, width={width}"
 
-        [div 
-            [Style 
+        [div
+            [Style
                 [
                     MaxHeight height;
                     MaxWidth width;
                     OverflowY OverflowOptions.Auto
                     OverflowX OverflowOptions.Auto
                 ]
-            ] 
+            ]
             r]
 
 
@@ -645,7 +645,7 @@ let viewTopMenu model dispatch =
                 dispatch (StartUICmd ChangeSheet)
                 //printfn "Starting UI Cmd"
                 dispatch <| ExecFuncInMessage(
-                    (fun model dispatch -> 
+                    (fun model dispatch ->
                         let p = Option.get model.CurrentProj
                         openFileInProject (sheet.SheetName) p model dispatch), dispatch)
 
@@ -689,14 +689,14 @@ let viewTopMenu model dispatch =
                                       DisplayOptions.None)
                                 ] ]
                       ]
-                          ([ Navbar.Item.a [ Navbar.Item.Props 
-                                [ OnClick(fun _ -> 
+                          ([ Navbar.Item.a [ Navbar.Item.Props
+                                [ OnClick(fun _ ->
                                     dispatch (StartUICmd AddSheet)
                                     addFileToProject model dispatch) ] ]
                                      [ str "New Sheet" ]
                              Navbar.divider [] []
-                             Navbar.Item.a [ Navbar.Item.Props 
-                                [ OnClick(fun _ -> 
+                             Navbar.Item.a [ Navbar.Item.Props
+                                [ OnClick(fun _ ->
                                     dispatch (StartUICmd ImportSheet)
                                     importSheet model dispatch) ] ]
                                      [ str "Import Sheet" ]
@@ -704,7 +704,7 @@ let viewTopMenu model dispatch =
                              ]
                            @ breadcrumbs
                            |> addVerticalScrollBars el)]
-                       
+
 
     div [   HTMLAttr.Id "TopMenu"
             leftSectionWidth model
@@ -717,7 +717,7 @@ let viewTopMenu model dispatch =
             [ Navbar.Props
                 [  Style
                     [ Height "100%"
-                      Width "100%" 
+                      Width "100%"
                       BorderBottom "2px solid lightgray"]
                    ] ]
             [ Navbar.Brand.div
@@ -766,31 +766,31 @@ let viewTopMenu model dispatch =
                                 ]
                              [ Breadcrumb.breadcrumb
                                    [ Breadcrumb.HasArrowSeparator ]
-                                   (if hidePath then [nameItem] else [pathItem ; nameItem])]]]                                     
-                                        
+                                   (if hidePath then [nameItem] else [pathItem ; nameItem])]]]
+
                       Navbar.Item.div []
                           [ Navbar.Item.div []
                                 [ Fulma.Button.button
-                                    ((if model.SavedSheetIsOutOfDate  then 
+                                    ((if model.SavedSheetIsOutOfDate  then
                                         []
                                       else
                                         [ Fulma.Button.Color IsLight ]) @
                                     [
-                                      Fulma.Button.Color IsSuccess  
-                                      
-                                      Fulma.Button.OnClick(fun _ -> 
+                                      Fulma.Button.Color IsSuccess
+
+                                      Fulma.Button.OnClick(fun _ ->
                                         dispatch (StartUICmd SaveSheet)
                                         saveOpenFileActionWithModelUpdate model dispatch |> ignore
                                         dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
                       Navbar.Item.div []
                           [ Navbar.Item.div []
-                                [ Fulma.Button.button 
-                                    [ Fulma.Button.OnClick(fun _ -> UIPopups.viewInfoPopup dispatch) 
+                                [ Fulma.Button.button
+                                    [ Fulma.Button.OnClick(fun _ -> UIPopups.viewInfoPopup dispatch)
                                       Fulma.Button.Color IsInfo
-                                    ] 
-                                    [ str "Info" ] 
-                                  
+                                    ]
+                                    [ str "Info" ]
+
                                 ]
                             ]
                       Navbar.Item.div []
@@ -798,25 +798,25 @@ let viewTopMenu model dispatch =
                                 []
                           else
                                 [ Navbar.Item.div []
-                                    [ Fulma.Button.button 
-                                        [   Fulma.Button.OnClick(fun _ -> dispatch <| SheetBackAction dispatch) 
+                                    [ Fulma.Button.button
+                                        [   Fulma.Button.OnClick(fun _ -> dispatch <| SheetBackAction dispatch)
                                             Fulma.Button.Color IsSuccess
-                                        ] 
-                                        [ str "Back" ] 
-                                  
+                                        ]
+                                        [ str "Back" ]
+
                                     ]
                                 ])
-                      Navbar.End.div [] [                               
-                            div [                                    
+                      Navbar.End.div [] [
+                            div [
                                     Style [
                                         Color "#5282d1"
                                         Display DisplayOptions.Flex;
-                                        Width "200px";                                    
+                                        Width "200px";
                                         AlignItems AlignItemsOptions.Center;
                                         TextAlign TextAlignOptions.Center]]
                                 [getHintPaneElement model]
-                                        
+
                             // add space padding on RH of navbar to improve top bar formatting
-                            // this is a bit of a hack - but much easier than matching styles                                 
+                            // this is a bit of a hack - but much easier than matching styles
                             Text.div [Props [Style [PaddingRight "7000px"]]] [str ""]
                         ] ]]]

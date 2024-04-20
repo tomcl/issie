@@ -407,6 +407,11 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                         symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                         wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
                         sheetCmd SheetT.UpdateBoundingBoxes]
+    | SetModelGroupMap (groupMap: Map<GroupId,ComponentId list>) ->
+        // get rid of any groups that have an empty list
+        let groupMap = groupMap |> Map.filter (fun k v -> List.length v > 0)
+        let newModel = {model with GroupMap = groupMap}
+        newModel, Cmd.none
 
 
 
@@ -908,6 +913,7 @@ let init () =
         DebugDevice = None
         ScalingBox = None
         DeveloperModeTabActive = false
+        GroupMap = Map.empty
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

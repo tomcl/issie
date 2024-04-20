@@ -156,7 +156,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             /// PERFORMANCE: calculating wavepoints takes roughly 50% of total time
             let wavePoints =
                 let waveWidth = singleWaveWidth ws
-                Array.mapi (binaryWavePoints waveWidth 0) transitions 
+                Array.mapi (binaryWavePoints waveWidth 0) transitions
                 |> Array.concat
                 |> Array.distinct
             let t2 = TimeHelpers.getTimeMs()
@@ -190,11 +190,11 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             /// TODO: generate points from transitions so that Const transitions do not generate points
             let fstPoints, sndPoints =
                 let waveWidth = singleWaveWidth ws
-                Array.mapi (nonBinaryWavePoints waveWidth 0) transitions 
+                Array.mapi (nonBinaryWavePoints waveWidth 0) transitions
                 |> Array.unzip
             let t1 = TimeHelpers.getTimeMs()
-            
-            let makePolyline points = 
+
+            let makePolyline points =
                 let points =
                     points
                     |> Array.concat
@@ -221,10 +221,10 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             /// Currently takes in 0, but this should ideally only generate the points that
             /// are shown on screen, rather than all 500 cycles.
             let fstPoints, sndPoints =
-                Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions 
+                Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions
                 |> Array.unzip
             //printfn "points"
-            let makePolyline points = 
+            let makePolyline points =
                 let points =
                     points
                     |> Array.concat
@@ -237,7 +237,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
                 (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
             //|> (fun x -> printfn "makepolyline"; x)
     //printfn "end generate"
-    {wave with 
+    {wave with
         Radix = ws.Radix
         ShownCycles = ws.ShownCycles
         StartCycle = ws.StartCycle
@@ -254,7 +254,7 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
     if newClkCycle <= endCycle wsModel then
         if newClkCycle < wsModel.StartCycle then
             dispatch <| GenerateWaveforms
-                {wsModel with 
+                {wsModel with
                     StartCycle = newClkCycle
                     CurrClkCycle = newClkCycle
                     ClkCycleBoxIsEmpty = false
@@ -286,7 +286,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
             // If number of cycles after casting to int does not change
             |> (fun nc -> if nc = wsModel.ShownCycles then nc - 1 else nc )
             // Require a minimum of cycles
-            |> (fun nc -> 
+            |> (fun nc ->
                     let minVis = min wsModel.ShownCycles Constants.minVisibleCycles
                     max nc minVis)
         else
@@ -295,7 +295,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
             wantedCycles
             // If number of cycles after casting to int does not change
             |> (fun nc -> if nc = wsModel.ShownCycles then nc + 1 else nc )
-            |> (fun nc -> 
+            |> (fun nc ->
                 let maxNc = int (wsModel.WaveformColumnWidth / float Constants.minCycleWidth)
                 max wsModel.ShownCycles (min nc maxNc))
     let startCycle =
@@ -304,7 +304,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
         let cOffset = wsModel.CurrClkCycle - sc
         sc
         // try to keep cursor on screen
-        |> (fun sc -> 
+        |> (fun sc ->
             if cOffset > shownCycles - 1 then
                 sc + cOffset - shownCycles + 1
             elif cOffset < 0 then
@@ -314,7 +314,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
         // final limits check so no cycle is outside allowed range
         |> max 0
         |> min (Constants.maxLastClk - shownCycles)
-        
+
     dispatch <| GenerateWaveforms { wsModel with ShownCycles = shownCycles; StartCycle = startCycle }
     |> TimeHelpers.instrumentInterval "changeZoom" start
 
@@ -410,8 +410,8 @@ let private radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : React
 let highlightCircuit fs comps wave (dispatch: Msg -> Unit) =
     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols comps)))
     // Filter out any non-existent wires
-    let conns = connsOfWave fs wave 
-    dispatch <| Sheet (SheetT.Msg.SelectWires conns)    
+    let conns = connsOfWave fs wave
+    dispatch <| Sheet (SheetT.Msg.SelectWires conns)
 
 /// Create label of waveform name for each selected wave.
 /// Note that this is generated after calling selectedWaves. Any changes to this function
@@ -443,11 +443,11 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                                 |> List.map (fun (_,sym) -> sym.Component)
                                 |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
                                 |> List.map (fun comp -> ComponentId comp.Id)
-                            highlightCircuit wsModel.FastSim labelComps wave dispatch                            
+                            highlightCircuit wsModel.FastSim labelComps wave dispatch
                         | Some sym ->
                             highlightCircuit wsModel.FastSim [fst wave.WaveId.Id] wave dispatch
                         | None -> ()
-                        
+
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None}
@@ -467,7 +467,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                         }
                 )
 
-                OnDrag (fun ev -> 
+                OnDrag (fun ev ->
                     ev.dataTransfer.dropEffect <- "move"
                     let nameColEl = Browser.Dom.document.getElementById "namesColumn"
                     let bcr = nameColEl.getBoundingClientRect ()
@@ -534,7 +534,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
 /// Create column of waveform names
 let namesColumn model wsModel dispatch : ReactElement =
     let start = TimeHelpers.getTimeMs ()
-    let rows = 
+    let rows =
         nameRows model wsModel dispatch
     div (namesColumnProps wsModel)
         (List.concat [ topRow; rows ])
@@ -555,7 +555,7 @@ let valueRows (wsModel: WaveSimModel) =
     |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycle wave wave.Width)
     |> List.map (fun fd ->
         match fd.Width, fd.Dat with
-        | 1, Word b -> $" {b}" 
+        | 1, Word b -> $" {b}"
         | _ -> fastDataToPaddedString valueColNumChars wsModel.Radix fd)
     |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
     |> (fun rows -> valueColWidth, rows)
@@ -643,7 +643,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         | ROM1 mem
         | AsyncROM1 mem -> mem
         | RAM1 mem
-        | AsyncRAM1 mem -> 
+        | AsyncRAM1 mem ->
             match FastRun.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
             |RamState mem -> mem
             | x -> failwithf $"What? Unexpected state {x} from cycle {wsModel.CurrClkCycle} \
@@ -673,13 +673,13 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
 
     /// transform Sparse RAM info into strings to print in a table, adding extra lines for zero gaps
     /// line styling is controlled by a RamRowtype value and added later when the table row react is generated
-    let addGapLines (items: (int64*int64*RamRowType) list) = 
+    let addGapLines (items: (int64*int64*RamRowType) list) =
         let startItem =
             match items[0] with
             | -1L,_,_ -> []
             | gStart,dStart,rw-> [print1 (gStart,dStart,rw)]
         List.pairwise items
-        |> List.collect (fun ((gStart,_,_),(gEnd,dEnd,rwe)) -> 
+        |> List.collect (fun ((gStart,_,_),(gEnd,dEnd,rwe)) ->
             let thisItem = if gEnd = lastLocation + 1L then [] else [print1 (gEnd,dEnd,rwe)]
             [printGap gStart gEnd; thisItem])
         |> List.concat
@@ -707,18 +707,18 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         let readOpt =
             match step, fc.FType with
             | 0,ROM1 _ | 0, RAM1 _ -> None
-            | _ -> 
+            | _ ->
                 addrSteps readStep
                 |> Some
         let writeOpt =
             match step, fc.FType with
-            | _, ROM1 _ 
+            | _, ROM1 _
             | _, AsyncROM1 _
             | 0, _ -> None
-            | _, RAM1 _ | _, AsyncRAM1 _ when getInt64 fc.InputLinks[2] (step-1) = 1L -> 
+            | _, RAM1 _ | _, AsyncRAM1 _ when getInt64 fc.InputLinks[2] (step-1) = 1L ->
                 addrSteps (step-1)
                 |> Some
-            | _ ->  
+            | _ ->
                 None
 
         /// Mark addr in memory map as being rType
@@ -727,7 +727,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             match Map.tryFind addr mem with
             | Some (d,_) -> Map.add addr (d,rType) mem
             | None  ->  Map.add addr (0L,rType) mem
-    
+
 
         Map.map (fun k v -> v,RAMNormal) mem
         |> (fun mem ->
@@ -738,7 +738,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
                 match writeOpt with // overwrite RAMRead here is need be
                 | Some addr -> addToMap RAMWritten addr mem
                 | None -> mem))
- 
+
 
     /// add fake locations beyong normal address range so that
     /// addGapLines fills these (if need be). These locations are then removed
@@ -749,10 +749,10 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         | _ ->
             if ad items[0] < 0L then items else List.insertAt 0 (-1L,-1L,RAMNormal) items
             |> (fun items ->
-                if ad items[items.Length-1] = lastLocation then 
-                    items else 
+                if ad items[items.Length-1] = lastLocation then
+                    items else
                 List.insertAt items.Length (lastLocation+1L,0L,RAMNormal) items)
-    
+
 
     let lineItems =
         memData.Data
@@ -761,9 +761,9 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         |> List.map (fun (a,(d,rw)) -> a,d,rw)
         |> List.filter (fun (a,d,rw) -> d<>0L || rw <> RAMNormal)
         |> List.sort
-        |> addEndPoints 
+        |> addEndPoints
         |> addGapLines
-        
+
 
 
     Level.item [
@@ -784,7 +784,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
                 ]
             ]
             tbody []
-                (List.map ramTableRow lineItems) 
+                (List.map ramTableRow lineItems)
         ] ]
         br []
     ]
@@ -798,8 +798,8 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
         let headerRow =
             ["read", RAMRead; "overwritten",RAMWritten]
             |> List.map (fun (op, opStyle) -> inlineStyle [] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
-            |> function 
-                | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
+            |> function
+                | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."]
                 | _ -> failwithf "What? Can't happen!"
         List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
         |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
@@ -809,14 +809,14 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
 
 /// This function regenerates all the waveforms listed on wavesToBeMade.
 /// Generation is subject to timeout, so may not complete.
-/// Returns tuple: 
-/// allWaves (with new waveforms); 
+/// Returns tuple:
+/// allWaves (with new waveforms);
 /// numberDone (no of waveforms made);
 /// timeToDo; Some (time actually taken) (> timeout) or None if complete with no timeOut.
 let makeWaveformsWithTimeOut
-        (timeOut: float option) 
+        (timeOut: float option)
         (ws: WaveSimModel)
-        (allWaves: Map<WaveIndexT,Wave>) 
+        (allWaves: Map<WaveIndexT,Wave>)
         (wavesToBeMade: WaveIndexT list) =
     let start = TimeHelpers.getTimeMs()
     let allWaves, numberDone, timeToDo =
@@ -825,7 +825,7 @@ let makeWaveformsWithTimeOut
                 match timeOut, TimeHelpers.getTimeMs() - start with
                 | Some timeOut, timeSoFar when timeOut < timeSoFar ->
                     all, n, Some timeSoFar
-                | _ -> 
+                | _ ->
                     (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
 //    printfn $"Making {numberDone} waveforms from {wavesToBeMade.Length}."
     allWaves, numberDone, timeToDo
@@ -838,13 +838,13 @@ let updateSpinner (name:string) payload (numToDo:int) (model: Model) =
     | _ ->
         {model with SpinnerPayload = Some {Name = name; Payload = payload; ToDo = numToDo; Total = numToDo + 1}}
 
-    
+
 
 
 /// remove the spinner popup
 let cancelSpinner (model:Model) =
     {model with SpinnerPayload = None}
-    
+
 
 /// Major function called after changes to extend simulation and/or redo waveforms.
 /// Note that after design change simulation muts be redonne externally, and function called with
@@ -854,7 +854,7 @@ let cancelSpinner (model:Model) =
 /// timeOut and callback from Spinner.
 /// Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
 /// a constant. To get the estimate some initial execution must be completed (1 clock cycle and one waveform).
-let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> = 
+let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> =
     let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
         wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
     // use given (more uptodate) wsModel
@@ -874,32 +874,32 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             match speedOpt with
             | Some speed when  float cyclesToDo / speed + Constants.initSimulationTime > Constants.maxSimulationTimeWithoutSpinner  &&
                                Option.isNone model.Spinner ->
-                // long simulation, set spinner on and dispatch another refresh 
+                // long simulation, set spinner on and dispatch another refresh
                 let spinnerFunc = fun model -> fst (refreshWaveSim newSimulation wsModel model)
                 let model = model |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
                 //printfn "ending refresh with continuation..."
                 model, Elmish.Cmd.none
                 |> TimeHelpers.instrumentInterval "refreshWaveSim" start
             | _ ->
-                if speedOpt <> None then 
+                if speedOpt <> None then
                     //printfn "Force running simulation"
                     // force simulation to finish now
-                    FastRun.runFastSimulation None lastCycleNeeded fs |> ignore                
+                    FastRun.runFastSimulation None lastCycleNeeded fs |> ignore
                 // simulation has finished so can generate waves
 
                 printfn $"Ending refresh now at Tick {fs.ClockTick}..."
-                let allWavesStart = TimeHelpers.getTimeMs ()    
+                let allWavesStart = TimeHelpers.getTimeMs ()
                     //printfn "starting getwaves"
                 // redo waves based on new simulation
-                let allWaves = 
+                let allWaves =
                     if newSimulation then
                         //printfn "making new waves..."
-                        getWaves wsModel fs 
+                        getWaves wsModel fs
                     else wsModel.AllWaves
                 let model = updateWSModel (fun ws -> {ws with AllWaves = allWaves}) model
                 // redo viewer width (and therefore shown cycles etc) based on selected waves names
                 // which are currently only calculatable after getwaves has generated waves
-                let model = updateViewerWidthInWaveSim model.WaveSimViewerWidth model 
+                let model = updateViewerWidthInWaveSim model.WaveSimViewerWidth model
                 // extract wsModel from updated model for processing below
                 let wsModel = getWSModel model
 
@@ -907,7 +907,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 
                 match simulationIsUptodate with
                 | falae ->
-                    
+
                 printfn $"Simulationuptodate: {simulationIsUptodate}"
                 // need to use isSameWave here becasue sarray index may have changed
                 let wavesToBeMade =
@@ -916,9 +916,9 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         // Only generate waveforms for selected waves.
                         // Regenerate waveforms whenever they have changed
                         let hasChanged = not <| waveformIsUptodate wsModel wave
-                        //if List.contains index ws.SelectedWaves then 
+                        //if List.contains index ws.SelectedWaves then
                         List.exists (fun wi' -> isSameWave wi wi') wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
-                    |> Map.toList                   
+                    |> Map.toList
                     |> List.map fst
 
                 let model, allWaves, spinnerPayload, numToDo =
@@ -927,11 +927,11 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     makeWaveformsWithTimeOut (Some Constants.initSimulationTime) wsModel allWaves wavesToBeMade
                     |> (fun (allWaves, numDone, timeOpt) ->
                             match wavesToBeMade.Length - numDone, timeOpt with
-                            | n, None -> 
+                            | n, None ->
                                 model, allWaves, None, n // finished
-                            | _ when numDone = 0 -> 
+                            | _ when numDone = 0 ->
                                 failwithf "What? makewaveformsWithTimeOut must make at least one waveform"
-                            | numToDo, Some t when 
+                            | numToDo, Some t when
                                     float wavesToBeMade.Length * t / float numDone < Constants.maxSimulationTimeWithoutSpinner ->
                                 let (allWaves, numDone, timeOpt) = makeWaveformsWithTimeOut None wsModel allWaves wavesToBeMade
                                 model, allWaves, None, numToDo - numDone
@@ -954,13 +954,13 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 let allWaveA = Map.keys allWaves |> Seq.toArray
                 // arrayIndex may have changed, so we have to use new arrayIndex
                 // if we cannot find it, then the selected wave no longer exists and is dropped
-                let selectedWaves = 
+                let selectedWaves =
                     wsModel.SelectedWaves
                     |> List.collect (fun wi -> match Array.tryFind (isSameWave wi) allWaveA with Some w -> [w] | None -> [])
 
                 let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
 
-                let ws =  
+                let ws =
                     {
                         wsModel with
                             State = Success
@@ -971,10 +971,10 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                             FastSim = fs
                     }
 
-                let model = 
+                let model =
                     match spinnerPayload with
                     | None -> cancelSpinner model
-                    | Some sp -> 
+                    | Some sp ->
                         updateSpinner (fst sp) (snd sp) numToDo model
                     |> updateWSModel (fun _ -> ws)
                 model, Elmish.Cmd.none
@@ -986,7 +986,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 /// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
 let refreshButtonAction canvasState model dispatch = fun _ ->
     let model = MemoryEditorView.updateAllMemoryComps model
-    let wsSheet = 
+    let wsSheet =
         match model.WaveSimSheet with
         | None ->
             printfn "Sheet was none"
@@ -995,7 +995,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
             printfn "sheet already existing"
             sheet
     printfn $"Refresh Button with width = {model.WaveSimViewerWidth}"
-    let model = 
+    let model =
         model
         |> removeAllSimulationsFromModel
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
@@ -1011,10 +1011,10 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
             SimulationView.setFastSimInputsToDefault simData.FastSim
             let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }
             dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
-            dispatch <| RefreshWaveSim wsModel 
+            dispatch <| RefreshWaveSim wsModel
         else
             dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
-           
+
 /// ReactElement showing instructions and wave sim buttons
 let topHalf canvasState (model: Model) dispatch : ReactElement =
     let title =
@@ -1031,26 +1031,26 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
     let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg "white" "20px"
 
     div [ topHalfStyle ] [
-        Columns.columns [] [
-            Column.column [Column.Props [Style [Height "100px"; OverflowY OverflowOptions.Clip]]] [
-                Heading.h4 [] [ 
+        Heading.h4 [] [
                     (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]; Id "WaveSimHelp"] [str title])
-                   
                 ]
+        Columns.columns [] [
+            Column.column [Column.Props [Style [OverflowY OverflowOptions.Clip]]] [
+
                 let startOrRenew = refreshButtonAction canvasState model dispatch
                 let waveEnd = endButtonAction canvasState model dispatch
                 let wbo = getWaveSimButtonOptions canvasState model wsModel
                 let startEndButton =
-                    button 
-                        (topHalfButtonProps wbo.StartEndColor "startEndButton") 
+                    button
+                        (topHalfButtonProps wbo.StartEndColor "startEndButton")
                         (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
                         (str wbo.StartEndMsg)
                 let needsRefresh = wbo.IsDirty && wbo.IsRunning
-                div 
-                    [Style [MarginBottom "20px" ]]                      
+                div
+                    []
                     (if not wbo.IsRunning then [
                         startEndButton
-                    ] 
+                    ]
                     else [
                         if needsRefresh then
                             button
@@ -1061,12 +1061,12 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                     ])
                 ]
 
-            Column.column 
+            Column.column
                 [
                     Column.Option.Width (Screen.All, Column.IsNarrow)
-                ] 
-                [ 
-                    div [Style [MarginBottom "50px"]] []
+                ]
+                [
+                    div [] []
 
                     Level.level [] [
                         Level.item [ ] [
@@ -1088,7 +1088,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
 /// Entry point to the waveform simulator.
 let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
-    let notRunning = 
+    let notRunning =
         div [ errorMessageStyle ] [ str "Start the waveform viewer by pressing the Start button." ]
 
     let simError e =
@@ -1108,12 +1108,12 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
                 | None, SimError e  ->
                     notRunning
                 | _,SimError e ->
-                    simError e               
+                    simError e
                 | _,NonSequential ->
                     div [ errorMessageStyle ]
                         [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms." ]
                 | _,Empty | _,Ended | None,_ | Some "", _-> notRunning
-                | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning              
+                | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning
                 | _,NoProject ->
                     div [ errorMessageStyle ]
                         [ str "Please open a project to use the waveform viewer." ]
@@ -1142,6 +1142,6 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
 
                 hr []
             ]
-        
+
     ]
 

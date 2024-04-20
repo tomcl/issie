@@ -5,6 +5,7 @@
 module CommonTypes
     open Fable.Core
     open Optics
+    open System
     #if FABLE_COMPILER
     open Thoth.Json
     #else
@@ -764,6 +765,10 @@ module CommonTypes
     /// SHA hash unique to a component - common between JS and F#
     [<Erase>]
     type ComponentId = | ComponentId of string
+
+    /// Author TDC21: For grouping components together
+    type GroupId = GroupId of DateTime
+
 
     let componentIdEncoder (cid: ComponentId) =
         match cid with

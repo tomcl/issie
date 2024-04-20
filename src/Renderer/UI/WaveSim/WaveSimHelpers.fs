@@ -53,14 +53,14 @@ module Constants =
     let clkCycleNarrowThreshold = 20
 
     /// number of extra steps simulated beyond that used in simulation. Is this needed?
-    let extraSimulatedSteps = 5 
+    let extraSimulatedSteps = 5
 
-    let infoMessage = 
+    let infoMessage =
         "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
 
     let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
 
-    let infoSignUnicode = "\U0001F6C8"
+    let infoSignUnicode = "\u2139"
 
     let waveLegendMaxChars = 35
     let valueColumnMaxChars = 35
@@ -118,7 +118,7 @@ let xShift clkCycleWidth =
     if highZoom clkCycleWidth then
         clkCycleWidth / 2.
     else Constants.nonBinaryTransLen
-        
+
 
 /// Width of one clock cycle.
 let singleWaveWidth m = max 5.0 (float m.WaveformColumnWidth / float m.ShownCycles)
@@ -136,7 +136,7 @@ let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
 /// List of selected waves (of type Wave)
-let selectedWaves (wsModel: WaveSimModel) : Wave list = 
+let selectedWaves (wsModel: WaveSimModel) : Wave list =
     wsModel.SelectedWaves
     |> List.map (fun wi -> Map.tryFind wi wsModel.AllWaves |> Option.toList)
     |> List.concat
@@ -153,17 +153,17 @@ let getWaveValue (currClkCycle: int) (wave: Wave) (width: int) : FastData =
     | w when w > 32 ->
         Array.tryItem currClkCycle wave.WaveValues.BigIntStep
         |> function
-            | Some (fData) -> 
-                { Dat = BigWord fData; Width = width}            
+            | Some (fData) ->
+                { Dat = BigWord fData; Width = width}
             | _ ->
                 // TODO: Find better default value here
                 // TODO: Should probably make it so that you can't call this function in the first place.
                 printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
                 {Dat = Word 0u; Width = width}
-    | _ ->      
+    | _ ->
         Array.tryItem currClkCycle wave.WaveValues.UInt32Step
         |> function
-            | Some (fData) -> 
+            | Some (fData) ->
                 { Dat = Word fData; Width = width}
             | _ ->
                 printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
@@ -224,13 +224,13 @@ let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (
 /// Determine transitions for each clock cycle of a binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.
 let calculateBinaryTransitions (waveValues: FData array) : BinaryTransition array =
-    let getBit = function 
-        | Data {Dat = Word bit} -> int32 bit 
+    let getBit = function
+        | Data {Dat = Word bit} -> int32 bit
         | Data {Dat = BigWord bit} -> int32 bit
         | x -> failwithf $"Malformed data: expecting single bit, not {x}"
     Array.append [|waveValues[0]|] waveValues
     |> Array.pairwise
-    |> Array.map (fun (x,y) ->       
+    |> Array.map (fun (x,y) ->
         match getBit x, getBit y with
         | 0,0 -> ZeroToZero
         | 0,1 -> ZeroToOne
@@ -277,7 +277,7 @@ let calculateNonBinaryTransitions (waveValues: 'a array) : NonBinaryTransition a
             else
                 Change)
     // Concat [| Change |] so first clock cycle always starts with Change
-    Array.append [| Change |] transitions 
+    Array.append [| Change |] transitions
 
 let isWaveSelected (wsModel: WaveSimModel) (index: WaveIndexT) : bool = List.contains index wsModel.SelectedWaves
 let isRamSelected (ramId: FComponentId) (wsModel: WaveSimModel) : bool = Map.containsKey ramId wsModel.SelectedRams
@@ -291,7 +291,7 @@ let getInputPortNumber (ipn: InputPortNumber) : int =
 let getOutputPortNumber (opn: OutputPortNumber) : int =
     match opn with
     | OutputPortNumber pn -> pn
-/// convert a string to CamelCase: 
+/// convert a string to CamelCase:
 let camelCaseDottedWords (text:string) =
     let camelWord (s:string)=
         match s.Length with
@@ -340,8 +340,8 @@ let getCompDetails fs wave =
         | Demux4 -> "4 input demultiplexer", false
         | Demux8 -> "8 input demultiplexer", false
         | Decode4 -> "2 line decoder", false
-        | NbitsAdder n | NbitsAdderNoCin n 
-        | NbitsAdderNoCout n | NbitsAdderNoCinCout n     
+        | NbitsAdder n | NbitsAdderNoCin n
+        | NbitsAdderNoCout n | NbitsAdderNoCinCout n
             -> $"{n} bit adder",false
         | NbitsXor (n,None) -> $"{n} XOR gates",false
         | NbitsXor(n, Some Multiply) -> $"{n} bit multiply",false
@@ -361,7 +361,7 @@ let getCompDetails fs wave =
         | AsyncROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false
         | ROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
         | RAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
-        | AsyncRAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false             
+        | AsyncRAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false
         | BusSelection _ | MergeWires | MergeN _ | SplitWire _ | SplitN _ ->
             failwithf "Bus select, MergeWires, MergeN, SplitWire, SplitN should not appear"
         | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
@@ -389,7 +389,7 @@ let getCompGroup fs wave =
     | DFF | DFFE | Register _ | RegisterE _ |Counter _ |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
         FFRegister
     | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
-        Memories                
+        Memories
     | BusSelection _ | MergeWires | MergeN _ | SplitWire _ | SplitN _ ->
         failwithf "Bus select, MergeWires, MergeN, SplitWire should not appear"
     | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
@@ -409,7 +409,7 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
     | ComponentItem fc->
         let descr = getCompDetails ws.FastSim (waves[0])
         str <| descr
-        
+
     | GroupItem (compGroup,_) ->
         match compGroup with
         | InputOutput -> "Inputs / Outputs / Labels / Viewers"
@@ -433,9 +433,9 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
 
 let path2fId (fastSim: FastSimulation) (path:ComponentId list) : FComponentId option=
     match path with
-    | [] -> 
+    | [] ->
         None
-    | p -> 
+    | p ->
         Some <| (p[p.Length-1], p[0..p.Length-2])
 
 
@@ -461,7 +461,7 @@ let prefixOf (pre:'a list) (whole:'a list) =
     whole.Length >= pre.Length && whole[0..pre.Length-1] = pre
 
 /// Convert Wave list to list of WaveIndexT
-let wavesToIds (waves: Wave list) = 
+let wavesToIds (waves: Wave list) =
     waves |> List.map (fun wave -> wave.WaveId)
 
 
@@ -481,7 +481,7 @@ let setWaveSheetSelectionOpen (wsModel: WaveSimModel) (subSheets: string list li
         match show with
         | false -> Set.difference wsModel.ShowSheetDetail setChange
         | true -> Set.union setChange wsModel.ShowSheetDetail
-    {wsModel with ShowSheetDetail = newSelect}   
+    {wsModel with ShowSheetDetail = newSelect}
 
 /// Sets or clears a subset of ShowComponentDetail
 let setWaveComponentSelectionOpen (wsModel: WaveSimModel) (fIds: FComponentId list)  (show: bool) =
@@ -531,21 +531,21 @@ let getFastSimualationLinkedPorts (fs:FastSimulation) ((fc,pNum, pType)) =
 let getConnectedComponentPorts (ws:WaveSimModel) ((fc, portNum, portType) as port: PortIndex) : PortIndex list =
     let fs = ws.FastSim
     let portIO = [fc,portNum,PortType.Input; fc,portNum,PortType.Output]
-    
+
     match fc.FType with
-    | Output _ -> 
+    | Output _ ->
         portIO
     | IOLabel when Map.containsKey (ComponentLabel fc.FLabel,snd fc.fId) fs.FIOActive ->
         portIO
-    | _ -> 
+    | _ ->
         [port]
 
 /// Get the name of a subsheet from its subsheet (string) path list to root of simulation.
 let nameOfSubsheet (fs:FastSimulation) (subSheet: string List) =
     match subSheet with
-    | [] -> 
+    | [] ->
         fs.SimulatedTopSheet
-    | sheets -> 
+    | sheets ->
         sheets[sheets.Length - 1]
 
 /// Work out a SheetPort from a wave, if one exists
@@ -554,7 +554,7 @@ let waveToSheetPort fs (wave:Wave) =
     let sheet = nameOfSubsheet fs wave.SubSheet
     let wi = wave.WaveId
     fs.ComponentsById
-    |> Map.tryFind (sheet.ToLower()) 
+    |> Map.tryFind (sheet.ToLower())
     |> Option.map (Map.tryFind  (fst wi.Id))
     |> Option.flatten
     |> Option.map (fun comp ->
@@ -590,7 +590,7 @@ let connectedPorts fs sheetPort =
     let name = sheetPort.Sheet
     Map.tryFind sheetPort portMap
     |> Option.defaultValue []
-    |> List.collect (fun conn -> 
+    |> List.collect (fun conn ->
         [conn.Source; conn.Target]
         |> List.map (Simulator.portSheetPort compMap[name] name)
         |> List.collect (function | None -> [] | Some sheetPort -> [sheetPort]))
@@ -599,19 +599,19 @@ let connectedPorts fs sheetPort =
 let connectedIOs (fs: FastSimulation) (sp: SheetPort) =
     let comps = fs.ComponentsById[sp.Sheet]
     match comps[ComponentId sp.PortOnComp.HostId] with
-    | {Type = IOLabel} as comp -> 
+    | {Type = IOLabel} as comp ->
         let sheet = sp.Sheet
         comps
         |> Map.values
         |> Seq.toList
         |> List.collect (
-            function | {Type=IOLabel; Label = label} as comp1 when label = comp.Label -> 
+            function | {Type=IOLabel; Label = label} as comp1 when label = comp.Label ->
                         (
                             (if comp1.OutputPorts.Length > 0 then [{Sheet = sheet; PortOnComp = comp1.OutputPorts[0]}] else [])@
                             (if comp1.InputPorts.Length > 0 then [{Sheet = sheet; PortOnComp = comp1.InputPorts[0]}] else [])@
                             [sp]
                         )
-                     | _ -> 
+                     | _ ->
                         [])
 
     | _ -> [sp]
@@ -628,9 +628,9 @@ let rec allConnectedPorts (fs: FastSimulation) (sp:SheetPort list) =
     match newSP.Length - sp.Length with
     | 0 ->
         newSP
-    | n when n >= 0 -> 
+    | n when n >= 0 ->
         allConnectedPorts fs newSP
-    | _ -> 
+    | _ ->
         newSP
 
 /// Get all the connections of a given wave signal
@@ -645,7 +645,7 @@ let connsOfWave (fs:FastSimulation) (wave:Wave) =
 
 /// info button generation function
 let infoButton  (tooltipMessage:string) (style: CSSProp list) (tooltipPosition:string)  : ReactElement =
-    div 
+    div
         [
             HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsInfo} {tooltipPosition}"
             Tooltip.dataTooltip tooltipMessage
@@ -655,7 +655,7 @@ let infoButton  (tooltipMessage:string) (style: CSSProp list) (tooltipPosition:s
 
 /// button driving a popup with a page of info about waveform simulator
 let waveInfoButton (dispatch: Msg -> Unit) : ReactElement =
-    button 
+    button
         [Button.Props [Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]]]
         (fun _ -> ())
         (str Constants.infoSignUnicode)
@@ -704,15 +704,15 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
         | false, _ -> false
 
     let running = (success || errored) && simExists
-        
-    let isDirty = 
+
+    let isDirty =
         simExists &&
-        running && 
+        running &&
         not <| FastRun.compareLoadedStates fs canv model.CurrentProj &&
         model.UIState = None &&
         not model.IsLoading
-    
-    
+
+
     let startEndMsg, startEndColor =
         match running, errored with
         | false, true -> "View Problems", IsWarning
@@ -721,16 +721,16 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
 
     //printfn $"Running= {running}, Dirty={isDirty}"
 
-    
+
     {
         IsDirty =  isDirty
         IsRunning = running
         IsErrored = errored
         StartEndMsg = startEndMsg
         StartEndColor = startEndColor
-    } 
+    }
 
-                            
+
 /// Run ws.FastSim if necessary to ensure simulation has number of steps needed to
 /// display all cycles on screen. TimeOut is an optional time out used to implement
 /// a progress bar.
@@ -740,18 +740,18 @@ let extendSimulation timeOut (ws:WaveSimModel) =
     FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
 /// returns true if any memory component in fs linked to a .ram file is outofdate because of the .ram file changing
-let checkIfMemoryCompsOutOfDate (p: Project) (fs:FastSimulation) = 
+let checkIfMemoryCompsOutOfDate (p: Project) (fs:FastSimulation) =
     fs.ComponentsById
     |> Map.exists (fun sheet m ->
         m
         |> Map.exists (fun cid comp ->
             match comp.Type with
-            | Memory ({Init=FromFile fName} as mem) -> 
+            | Memory ({Init=FromFile fName} as mem) ->
                 match FilesIO.initialiseMem mem p.ProjectPath with
                 | Ok mem' -> mem' <> mem
                 | Error _ -> false
             | _ -> true))
 
 
-        
-    
+
+

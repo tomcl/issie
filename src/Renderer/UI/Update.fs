@@ -611,7 +611,6 @@ let update (msg : Msg) oldModel =
     | ToggleWireSegmentsTable ->
         { model with WireSegmentsTableExpanded = not model.WireSegmentsTableExpanded }, Cmd.none
     | UpdateScrollPosRightSelection(pos, dispatch) ->
-        printfn $"UpdateScrollPosRightSelection: {pos}"
         {model with RightSelectionScrollPos = pos}, Cmd.none
 
 

@@ -598,7 +598,7 @@ type Model = {
     RightSelectionScrollPos : XYPos
     SettingsMenuExpanded: bool
     Tracking: bool
-    CachedSheetStats: string list option
+    HeldCounterValues: string list option
     BeautifyMenuExpanded: bool
     SymbolInfoTableExpanded: bool
     SymbolPortsTableExpanded: bool

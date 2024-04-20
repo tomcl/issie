@@ -137,7 +137,7 @@ let init() = {
     RightSelectionScrollPos = {X = 0; Y = 0}
     SettingsMenuExpanded = false
     Tracking = false
-    CachedSheetStats = None
+    HeldCounterValues = None
     BeautifyMenuExpanded = false
     SymbolInfoTableExpanded = true
     SymbolPortMapsTableExpanded = true

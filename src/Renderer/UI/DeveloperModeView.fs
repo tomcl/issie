@@ -3,6 +3,7 @@ module DeveloperModeView
 open EEExtensions
 open VerilogTypes
 open Fulma
+open Fulma.Extensions.Wikiki
 
 open Fable.React
 open Fable.React.Props
@@ -25,215 +26,68 @@ open Sheet
 open DrawModelType.SheetT
 
 
-/// function that returns the an string ID with extra formatting of a hovered wire, symbol, or ports
-let findHoveredID (pos: XYPos) (model: SheetT.Model) =
-    let dummySymbolId: ComponentId = ComponentId "dummy"
-    // we add a 'dummy symbol' to the model to represent the mouse position
-    // solely for calculation purposes, it will not be added to the actual model
-    // for convenience, we let dummy symbol be 30x30, equal to a Not gate size
-    let h, w = 30.0, 30.0
-    let mouseComponentDummy =
-        { Id = "dummy"
-          Type = Not
-          Label = "dummy"
-          InputPorts = List.empty
-          OutputPorts = List.empty
-          X = pos.X - float w / 2.0
-          Y = pos.Y - float h / 2.0
-          H = float h
-          W = float w
-          SymbolInfo = None }
 
-    // create a mouse dummy symbol, find its bounding box, add it to a dummy model
-    let mouseSymbolDummy: Symbol =
-        { (createNewSymbol [] pos NotConnected "" White) with
-            Component = mouseComponentDummy }
-    let boundingBoxes_ =
-        Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> { m with BoundingBoxes = bb })
+(*
+STRUCTURE
+1. mouseSensitiveDataSection
+    a. Mouse Position
+    b. Hovered Component Data
+2. sheetStatsMenu
+    a. Counters
+    b. Hold/Unhold Button
 
-    let dummyModel =
-        model
-        |> Optic.set (SheetT.symbols_) (Map.add dummySymbolId mouseSymbolDummy model.Wire.Symbol.Symbols)
-        // SheetUpdateHelpers has not implemented updateBoundingBoxes yet on master
-        |> Optic.set boundingBoxes_ (Symbol.getBoundingBoxes model.Wire.Symbol)
-        |> Optic.map symbols_ (Map.map (fun _ sym -> Symbol.calcLabelBoundingBox sym))
-    // we calculate the bounding box of the mouse
-    let mouseBoundingBox = getSymbolBoundingBox mouseSymbolDummy
+// If a symbol is highlighted:
+3. Symbol
+4. Ports
+5. PortMaps
 
-    // inspired by SheetBeautifyD1's findAllBoundingBoxesOfSymIntersections
-    let intersectingWiresInfo =
-        dummyModel.Wire.Wires
-        |> Map.values
-        // findWireSymbolIntersections returns a list of bounding boxes of symbols intersected by wire.
-        // we find the wires that have a boundingBox in their intersection list that contains our mouseBoundingBox
-        // we might get more than one wire – so get a list
+// If a wire is highlighted:
+3. Wire
+4. Wire Segments
+*)
 
-        |> Seq.map (fun wire -> (wire, (findWireSymbolIntersections dummyModel.Wire wire)))
-        |> Seq.choose (fun (wire, bboxes) ->
-            if
-                bboxes
-                |> List.exists (fun box ->
-
-                    // findWireSymbolIntersections returns bounding boxes that have been enlarged with minWireSeparation
-                    // we correct this
-                    let correctedBox =
-                        { W = box.W - minWireSeparation * 2.
-                          H = box.H - minWireSeparation * 2.
-                          TopLeft =
-                            box.TopLeft
-                            |> updatePos Right_ minWireSeparation
-                            |> updatePos Down_ minWireSeparation }
-                    mouseBoundingBox =~ correctedBox)
-            then
-                Some(wire.WId.ToString())
-
-            else
-                None)
-        |> Seq.toList
-        |> List.tryHead
-
-    // inspired by SheetBeautifyD1's findAllBoundingBoxesOfSymIntersections
-    let intersectingSymbolInfo =
-        model.BoundingBoxes
-        |> Map.toList
-        // get all boundingBoxes in model not equal to symbolBoundingBox, see if they overlap with symbolBoundingBox, if yes, return compId
-        |> List.filter (fun (compId, box) -> not (box =~ mouseBoundingBox))
-        |> List.choose (fun (compId, box) ->
-            match (overlapArea2DBox mouseBoundingBox box) with
-            | Some area -> Some(compId.ToString())
-            | None -> None)
-        |> List.tryHead
-
-    // inpisred by Sheet.mouseOn
-    // priority: check for mouse over ports first, then symbols, then wires
-    // the code for checking for mouse over ports is the same as in Sheet.mouseOn
-    // otherwise symbol and wire mouseover is calculated based on intersection with mouseBoundingBox
-    match intersectingWiresInfo, intersectingSymbolInfo with
-    | _, Some symbolId ->
-        let inputPorts, outputPorts =
-            Symbol.getPortLocations model.Wire.Symbol [ ComponentId symbolId ]
-            |> fun (x, y) -> Map.toList x, Map.toList y
-        match mouseOnPort inputPorts pos 2.5 with
-        | Some(portId, portLoc) -> "InputPort: ", portId.ToString()
-        | None ->
-            match mouseOnPort outputPorts pos 2.5 with
-            | Some(portId, portLoc) -> "OutputPort: ", portId.ToString()
-            | None -> "Symbol: ", symbolId.ToString()
-    | Some wireId, _ -> "Wire: ", wireId.ToString()
-    | _ -> "Component: ", "Nothing Selected"
 
 /// Top Level function for developer mode
 let developerModeView (model: ModelType.Model) dispatch =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+// --------------------------------------------------- //
+//                       Counters                      //
+//     Feel free to modify `counterItems` as needed!   //
+// --------------------------------------------------- //
 
+    /// Contains a record of a counter's display name, tooltip description, and value
+    /// A counter is a UI element for a function that takes in a SheetT.Model and outputs a string/int/float
+    /// They output useful information about the sheet
     let counterItems =
-        [ ("Wire-Sym Intersects", (countVisibleSegsIntersectingSymbols model.Sheet).ToString())
-          ("Wire-Wire Intersects", (countVisibleSegsPerpendicularCrossings model.Sheet).ToString())
-          ("Sym-Sym Intersects", (countIntersectingSymbolPairs model.Sheet).ToString())
-          ("90º Degree Wire Bends", (countVisibleBends model.Sheet).ToString())
-          ("Near-Straight Wires", (countAlmostStraightWiresOnSheet model.Sheet).ToString())
-          ("Straight Wires", (countStraightWiresOnSheet model.Sheet).ToString())
-          ("Visible Seg. Length", (countVisibleSegmentLength model.Sheet).ToString("F1")) ]
+        [
+          {|DisplayName="T1 Sym-Sym Intersections"          ;
+            ToolTipDescription = "Counts the number of symbols intersecting other \nsymbols on the sheet.";
+            Value=(numOfIntersectedSymPairs model.Sheet).ToString() |}
+          {|DisplayName="T2 Seg-Sym Intersections"      ;
+            ToolTipDescription = "Counts the number of visible wire segments \nintersecting on the sheet";
+            Value=(numOfIntersectSegSym model.Sheet).ToString() |}
+          {|DisplayName="T3 Vis-Wire Seg 90º Cross"  ;
+            ToolTipDescription = "Counts the number of visible wire segments that \ncross/intersect at 90 degrees.";
+            Value=(numOfWireRightAngleCrossings model.Sheet).ToString() |}
+          {|DisplayName="T4 Sum of Vis-Wire Segs"   ;
+            ToolTipDescription = "Counts the total length of all visible \nwire segments on the sheet.\n\n Assumption: \nOverlapping segments share the same starting net, and may\ndiverge at some point but will not return to overlap.";
+            Value=(calcVisWireLength model.Sheet).ToString("F2") |}
+          {|DisplayName="T5 Count Visible R-Angles"    ;
+            ToolTipDescription = "Counts the number of visible right angles \nfound in the wire segments on the sheet.";
+            Value=(numOfVisRightAngles model.Sheet).ToString() |}
+          {|DisplayName="T6 RetracingSegments";
+            ToolTipDescription = "Counts the number of retracing segments on sheet.\nZero-length segments with non-zero segments on \nboth sides that have lengths of opposite signs lead to a \nwire retracing itself";
+            Value=(List.length (findRetracingSegments model.Sheet).RetraceSegsInSymbol).ToString() |}
+           ]
 
-    let trackingMenuItem trackingMenuName (cachedStringData: (string list) option) dispatch =
-        Menu.Item.li
-            [ (Menu.Item.IsActive(model.Tracking))
-              Menu.Item.OnClick(fun _ ->
-                  let cachedStringData =
-                      if model.Tracking then
-                          None
-                      else
-                          cachedStringData
-                  dispatch (SelectTracking((not model.Tracking), cachedStringData))) ]
-            [ strong [] [ str trackingMenuName ] ]
-
-
-    /// Some instructions for the user (deprecated)
-    let instructionText =
-        div
-            [ Style [ Margin "15px 0 200px 0" ] ]
-            [ p [] [ str "Sample Text 1" ]
-              p [] [ str "Sample Text 2" ]
-              p [] [ str "Sample Text 3" ] ]
-
-    /// Create a counter item (a title + number) for the sheet stats menu
-    let createCounterItem title value =
-        Level.item
-            [ Level.Item.HasTextCentered ]
-            [ div
-                  []
-                  [ Level.heading [] [ str title ]
-                    strong [ Style [ FontSize "17px" ] ] [ str (value) ] ] ]
-
-    /// Create a counter item that is dimmed, for the sheet stats menu
-    let createCounterItemSaved title value =
-        Level.item
-            [ Level.Item.HasTextCentered ]
-            [ div
-                  []
-                  [ Level.heading [] [ str title ]
-                    strong [ Style [ FontSize "17px"; Color "#777" ] ] [ str (value) ] ] ]
-
-    let trackerSetting =
-        let cachedSheetStats = counterItems |> List.map snd
-
-        div
-            [ Style [ Margin "5px 0 10px 0" ] ]
-            [ Level.level
-                  []
-                  [ Level.item
-                        [ Level.Item.HasTextCentered ]
-                        [ div
-                              [ Style [ FontSize "14px"; Width "100%"; Border "1.1px solid #555" ] ]
-                              [ Menu.list [] [ trackingMenuItem "Hold/Unhold Values" (Some cachedSheetStats) dispatch ] ] ]
-
-                    ] ]
-
-    /// Create a list of counter items for the sheet stats menu. Can be expanded to include more stats
-    /// Functions take in a SheetT.Model and output a string/int/float
-    let counters =
-        let counterChunks = counterItems |> List.chunkBySize 2
-        (counterChunks)
-        |> List.map (fun counterChunk ->
-            div
-                [ Style [ Margin "0 0" ] ]
-                [ Level.level
-                      []
-                      (counterChunk
-                       |> List.map (fun (title, value) -> createCounterItem title value)) ])
-        |> div []
-
-    let savedCounters =
-        match model.CachedSheetStats with
-        | Some cachedSheetStats ->
-            let savedCounterItems =
-                cachedSheetStats
-                |> List.map2 (fun (title, _) value -> title, value) counterItems
-            let savedCounterChunks = savedCounterItems |> List.chunkBySize 2
-            let savedCounters =
-                (savedCounterChunks)
-                |> List.map (fun counterChunk ->
-                    div
-                        [ Style [ Margin "0 0" ] ]
-                        [ Level.level
-                              []
-                              (counterChunk
-                               |> List.map (fun (title, value) -> createCounterItemSaved title value)) ])
-                |> div []
-            savedCounters
-        | None -> div [] []
-
-    let savedCountersWrapper =
-        if model.Tracking then
-            div [ Style [ Background "#f4f4f4"; Padding " 5px" ] ] [ savedCounters ]
-        else
-            div [] []
+// ----------------------------------------------------------------- //
+//        Mouse Sensitive Data- Updates based on Mouse Position      //
+// ----------------------------------------------------------------- //
 
     /// Stores string details of the currently hovered comp to be used in sheetStatsMenu
     let hoveredType, hoveredId = findHoveredID model.Sheet.LastMousePos model.Sheet
 
     /// Stores the mouse position and hovered component data
-    let mouseSensitiveData =
+    let mouseSensitiveDataSection =
                     div
                         [ Style [ MarginBottom "20px" ] ]
                         [ strong [] [ str ("Mouse Position: ") ]
@@ -251,8 +105,87 @@ let developerModeView (model: ModelType.Model) dispatch =
                           br []
                           code [] [ str (hoveredId) ] ]
 
+
+// -------------------------------------------- //
+//      Sheet Stats Menu (sheetStatsMenu)       //
+// -------------------------------------------- //
+
     /// Contains the mouse position, hovered comp data, and the counters
     let sheetStatsMenu =
+        /// Selecting the (hold/unhold) button shows/hides the current sheet counter stats to a column on sheetstats. Used for comparison purposes
+        let holdUnholdButton =
+            let cachedSheetStats = counterItems |> List.map (fun counterRecord -> counterRecord.Value)
+            div
+                [ Style [ Margin "5px 0 10px 0" ] ]
+                [ Level.level
+                    []
+                    [ Level.item
+                            [ Level.Item.HasTextCentered ]
+                            [ div
+                                [ Style [ FontSize "14px"; Width "100%"; Border "1.1px solid #555" ] ]
+                                [ Menu.list []
+                                    [ Menu.Item.li
+                                        [(Menu.Item.IsActive(model.Tracking));
+                                                    Menu.Item.OnClick(fun _ ->
+                                                        let updatedCachedData =
+                                                            match model.Tracking with
+                                                            | true -> None
+                                                            | false -> Some cachedSheetStats
+                                                        dispatch (SelectTracking((not model.Tracking), updatedCachedData))
+                                                    )]
+                                        [ strong [] [ str "Hold/Unhold Values" ] ]
+                                    ]
+                                ]
+                            ]
+                    ]
+                ]
+
+        /// Contains the counters in a html table format
+        let counters =
+            let heldColumnText = (if model.HeldCounterValues.IsSome then "Held" else "")
+
+            let firstColumnWidth, secondColumnWidth, thirdColumnWidth =
+                match model.HeldCounterValues with
+                | Some _ -> "60%", "20%", "20%"
+                | None -> "72%", "0%", "28%"
+            let counterRows =
+                let combinedItems =
+                    match model.HeldCounterValues with
+                    | Some stats -> List.zip counterItems stats
+                    | None -> List.map (fun item -> (item, "")) counterItems
+
+                combinedItems
+                |> List.mapi (fun i (entry, stat) ->
+                    let isEven = i % 2 = 0
+                    let backgroundColor = if isEven then "#eee" else "transparent"
+                    let tooltip = if entry.ToolTipDescription = "" then (Id "no-tooltip") else Tooltip.dataTooltip (str entry.ToolTipDescription)
+                    tr
+                        []
+                        [
+                            td [Style [BackgroundColor backgroundColor; Width firstColumnWidth; Padding "3px 1px 3px 7px"; FontSize "13px"; LineHeight "24px";
+                                            Margin 0; BorderTop "1px solid #dbdbdb";BorderBottom "1px solid #dbdbdb" ;FontWeight "600"];]
+                                [ div [Style  [ Width "320px" ]; HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-top" ; tooltip] [str(entry.DisplayName)]]
+                            td [Style [BackgroundColor backgroundColor; Width secondColumnWidth; Padding "3px "; Margin 0; BorderTop "1px solid #dbdbdb";BorderBottom "1px solid #dbdbdb";FontWeight "500";]] [str stat]
+                            td [Style [BackgroundColor backgroundColor; Width thirdColumnWidth; Padding "3px "; Margin 0; BorderTop "1px solid #dbdbdb";BorderBottom "1px solid #dbdbdb";FontWeight "500";]] [str(entry.Value)]
+                        ])
+
+            div [] [
+                table
+                    [Style [ Width "100%"; TableLayout "fixed"; BorderCollapse "collapse";]]
+                    [
+                        tr []
+                            [
+                                th [Style [BackgroundColor "#485fc7"; Color "White";Width firstColumnWidth; Padding "3px 1px 3px 7px"; Margin 0; BorderTop "1px solid #dbdbdb";BorderBottom "1px solid #dbdbdb";FontWeight "600"]]
+                                 [str "Helper/Counter"];
+                                th [Style [BackgroundColor "#485fc7"; Color "White";Width secondColumnWidth; Padding "3px 3px"; Margin 0; BorderTop "1px solid #dbdbdb";BorderBottom "1px solid #dbdbdb";FontWeight "600"]]
+                                 [str heldColumnText];
+                                th [Style [BackgroundColor "#485fc7"; Color "White";Width thirdColumnWidth; Padding "3px 10px 3px 3px"; Margin 0; BorderTop "1px solid #dbdbdb";BorderBottom "1px solid #dbdbdb";FontWeight "600"]]
+                                 [str "Current"];
+                            ];
+                        yield! counterRows
+            ]]
+
+
         details
             [ Open(model.SheetStatsExpanded) ]
             [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSheetStats)) ] [ str "Sheet Stats " ]
@@ -260,69 +193,13 @@ let developerModeView (model: ModelType.Model) dispatch =
                   []
                   [
                     counters
-                    trackerSetting
-                    savedCountersWrapper ] ]
+                    div [HTMLAttr.ClassName $"{Tooltip.ClassName} has-tooltip-bottom";Tooltip.dataTooltip (str "Hold a copy of the existing sheet values in the \ntable ('Held' column) for comparison purposes.\nCurrent values column is always dynamic.")]
+                     [holdUnholdButton]
+                     ]  ]
 
-    /// Function to programmatically generate a html table from PortMaps.Order
-    let createTableFromPortMapsOrder (map: Map<Edge, string list>) =
-        Table.table
-            []
-            (map
-             |> Map.toList
-             |> List.map (fun (edge, strList) ->
-                 tr
-                     []
-                     [ td [] [ str (edge.ToString()) ]
-                       td
-                           []
-                           (strList
-                            |> List.collect (fun s -> [ code [] [ str ("• " + s) ]; br [] ])) ]))
-
-    /// Function to programmatically generate a html table from a Map PortMaps.Oritentation
-    let createTableFromPorts (portsMap: Map<string, Edge>) (symbol: Symbol) =
-        let referencePortTable =
-            // get a list of ports from the selected component. more efficient to search smaller list
-            // than looking of ports in model.Sheet.Wire.Symbol.Symbols
-            symbol.Component.InputPorts
-            @ symbol.Component.OutputPorts
-            |> List.map (fun port -> port.Id, port)
-            |> Map.ofList
-        let portDetailMap =
-            portsMap
-            |> Map.map (fun key _ -> Map.tryFind key referencePortTable)
-            |> Map.filter (fun _ value -> value.IsSome)
-            |> Map.map (fun _ value -> value.Value)
-        let tableRows =
-            portDetailMap
-            |> Map.toList
-            |> List.map (fun (key, port) ->
-                tr
-                    []
-                    [ td [] [ code [] [ str port.Id ] ]
-                      td
-                          []
-                          [ str (
-                                match port.PortNumber with
-                                | Some num -> num.ToString()
-                                | None -> "N/A"
-                            ) ]
-                      td
-                          []
-                          [ str (
-                                match port.PortType with
-                                | CommonTypes.PortType.Input -> "In"
-                                | CommonTypes.PortType.Output -> "Out"
-                            ) ]
-                      td [] [ code [] [ str port.HostId ] ] ])
-        Table.table
-            []
-            [ tr
-                  []
-                  [ th [] [ str "Port Id" ]
-                    th [] [ str "No." ]
-                    th [] [ str "I/O" ]
-                    th [] [ str "Host Id" ] ]
-              yield! tableRows ]
+    // ----------------- //
+    //      Symbols      //
+    // ----------------- //
 
     /// Function to programmatically generate data for a symbol. Includes the symbol's data, its port data, and portmap
     let symbolToListItem (model: ModelType.Model) (symbol: Symbol) =
@@ -402,6 +279,11 @@ let developerModeView (model: ModelType.Model) dispatch =
               [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleSymbolPortMapsTable)) ] [ str "PortMaps" ]
                 div [] [ (createTableFromPortMapsOrder symbol.PortMaps.Order) ] ] ]
 
+
+    // ---------------- //
+    //       Wire       //
+    // ---------------- //
+
     /// Function to programmatically generate data for a wire. Includes the wire's data and its segments
     let wireToListItem (wire: Wire) =
         let WireTableInfo =
@@ -435,42 +317,12 @@ let developerModeView (model: ModelType.Model) dispatch =
                         tr
                             []
                             [ td [] [ strong [] [ str "InitialOrientation: " ] ]
-                              td [] [ str (wire.InitialOrientation.ToString()) ] ] ] ])
+                              td [] [ str (wire.InitialOrientation.ToString()) ] ]
+                        tr
+                            []
+                            [ td [] [ strong [] [ str "Length: " ] ]
+                              td [] [ str ((wire.Segments |>List.sumBy (fun seg -> abs(seg.Length))).ToString("F2")) ] ] ] ])
 
-        let createTableFromASegments (segments: ASegment list) =
-            Table.table
-                []
-                [ tr
-                      []
-                      [ th [] [ str "Len" ]
-                        th [] [ str "Start" ]
-                        th [] [ str "End" ]
-                        th [] [ str "Drag?" ]
-                        th [] [ str "Route?" ] ]
-                  yield!
-                      segments
-                      |> List.map (fun seg ->
-                          tr
-                              []
-                              [ td [] [ str (sprintf "%.1f" seg.Segment.Length) ]
-                                td [] [ str (sprintf "%.1f, %.1f" seg.Start.X seg.Start.Y) ]
-                                td [] [ str (sprintf "%.1f, %.1f" seg.End.X seg.End.Y) ]
-
-                                td
-                                    []
-                                    [ str (
-                                          if seg.Segment.Draggable then
-                                              "T"
-                                          else
-                                              "F"
-                                      ) ]
-                                td
-                                    []
-                                    [ str (
-                                          match seg.Segment.Mode with
-                                          | Manual -> "M"
-                                          | Auto -> "A"
-                                      ) ] ]) ]
 
         let absSegments = getAbsSegments wire
         let WireSegmentsTableInfo = createTableFromASegments absSegments
@@ -512,4 +364,4 @@ let developerModeView (model: ModelType.Model) dispatch =
 
     /// Top level div for the developer mode view
     let viewComponentWrapper = div [] [ p [ menuLabelStyle ] []; viewComponent ]
-    div [ Style [ Margin "-10px 0 20px 0" ] ] ([ mouseSensitiveData; sheetStatsMenu; viewComponentWrapper ])
+    div [ Style [ Margin "-10px 0 20px 0" ] ] ([ mouseSensitiveDataSection; sheetStatsMenu; viewComponentWrapper ])

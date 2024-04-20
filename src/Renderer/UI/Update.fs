@@ -595,7 +595,7 @@ let update (msg : Msg) oldModel =
         match h with
         | true -> printfn "Set Tracking to true"
         | false -> printfn "Set Tracking to false"
-        { oldModel with Tracking = h; CachedSheetStats = cachedStringData }, Cmd.none
+        { oldModel with Tracking = h; HeldCounterValues = cachedStringData }, Cmd.none
     | ToggleBeautifyMenu -> { oldModel with BeautifyMenuExpanded = not oldModel.BeautifyMenuExpanded }, Cmd.none
     | ToggleSheetStats -> { model with SheetStatsExpanded = not model.SheetStatsExpanded }, Cmd.none
     | ToggleSymbolInfoTable -> { model with SymbolInfoTableExpanded = not model.SymbolInfoTableExpanded }, Cmd.none

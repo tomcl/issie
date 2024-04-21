@@ -264,8 +264,8 @@ let getSegmentIntersectBBox (box: BoundingBox) segStart segEnd =
             segEnd
     let segBBox =
         match abs ((segStart - segEnd).X), abs ((segStart - segEnd).Y) with
-        | x, y when abs x <= XYPos.epsilon ->  printf "first cond satistified"; Some { TopLeft = topLeft; W = 0.0; H = y }
-        | x, y when abs y <= XYPos.epsilon -> printf "snd cond satistified";Some { TopLeft = topLeft; W = x; H = 0.0 }
+        | x, y when abs x <= XYPos.epsilon ->   Some { TopLeft = topLeft; W = 0.0; H = y }
+        | x, y when abs y <= XYPos.epsilon -> Some { TopLeft = topLeft; W = x; H = 0.0 }
         | _, _ -> None // we don't do this for zero length segments
 
     match segBBox with

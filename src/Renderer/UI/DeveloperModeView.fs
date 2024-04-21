@@ -254,13 +254,13 @@ let developerModeView (model: ModelType.Model) dispatch =
                             ];
                         yield! counterRows
             ];
-                div [Style [MarginBottom "20px"]] [
-                    code [] [str (testSegmentIntersectsBBox model)]
-                ];
+                // div [Style [MarginBottom "20px"]] [
+                //     code [] [str (testSegmentIntersectsBBox model)]
+                // ];
 
-                div [] [
-                    code [] [str (testSegmentIntersectsBBox2 model)]
-                ]
+                // div [] [
+                //     code [] [str (testSegmentIntersectsBBox2 model)]
+                // ]
             ]
 
 

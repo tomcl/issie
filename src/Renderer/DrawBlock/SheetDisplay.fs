@@ -214,15 +214,12 @@ let view
 
 
     // rotating the default horizontal scaleButton icon to match the diagonal of the scalingBox
-    // rotating the default horizontal scaleButton icon to match the diagonal of the scalingBox
     let rotateScaleButtonPoint boxW  boxH  point =
         let diagonal =  sqrt(boxW**2.0+boxH**2.0)
         let cosTheta = - (boxW / diagonal)
         let sinTheta = boxH / diagonal
-        let sinTheta = boxH / diagonal
         let {XYPos.X = x; XYPos.Y = y} = point
         {X = x*cosTheta - y*sinTheta; Y = (y*cosTheta + x*sinTheta)}
-
 
     /// Draws an annotation on the SVG canvas - equivalent of drawSymbol but used for visual objects
     /// with no underlying electrical component.
@@ -232,17 +229,13 @@ let view
         let outlineColour, strokeWidth = "black", "1.0"
         let H,W = symbol.Component.H, symbol.Component.W
         let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour =
-        let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour =
             [makeAnyPath startingPoint pathAttr {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]
         match symbol.Annotation with
-        | None ->
         | None ->
             failwithf "Should not be getting Annotation = None for drawing scalingBox buttons "
         | Some a ->
             match a with
             | SymbolT.ScaleButton ->
-                let shapePointsPre =
-                    [   (4.5, -2.);
                 let shapePointsPre =
                     [   (4.5, -2.);
                         (4.5, -5.); (10.5, 0.); (4.5, 5.); (4.5, 2.);

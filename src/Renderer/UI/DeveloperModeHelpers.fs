@@ -43,7 +43,7 @@ open Sheet
 /// overlap2DBoxvariant from BlockHelpers. Returns a bounding box of an overlap area between two bounding boxes
 // Used in DeveloperModeView
 // INTERIM FUNCTION, WILL BE REPLACED WITH PROPER INTERSECT HELPERS
-let overlapArea2DBox (bb1: BoundingBox) (bb2: BoundingBox) : BoundingBox option =
+let overlapArea2DBox' (bb1: BoundingBox) (bb2: BoundingBox) : BoundingBox option =
     let xOverlap =
         max
             0.0
@@ -140,7 +140,7 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
         // get all boundingBoxes in model not equal to symbolBoundingBox, see if they overlap with symbolBoundingBox, if yes, return compId
         |> List.filter (fun (compId, box) -> not (box =~ mouseBoundingBox))
         |> List.choose (fun (compId, box) ->
-            match (overlapArea2DBox mouseBoundingBox box) with
+            match (overlap2DBoxInfo mouseBoundingBox box) with
             | Some area -> Some(compId.ToString())
             | None -> None)
         |> List.tryHead

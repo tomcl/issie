@@ -24,7 +24,7 @@ open BusWireRoutingHelpers.Constants
 open BusWireRoutingHelpers
 open Sheet
 open DrawModelType.SheetT
-
+open BusWire
 
 
 (*
@@ -78,6 +78,74 @@ let developerModeView (model: ModelType.Model) dispatch =
             ToolTipDescription = "Counts the number of retracing segments on sheet.\nZero-length segments with non-zero segments on \nboth sides that have lengths of opposite signs lead to a \nwire retracing itself";
             Value=(List.length (findRetracingSegments model.Sheet).RetraceSegsInSymbol).ToString() |}
            ]
+
+    let testSegmentIntersectsBBox  (model: ModelType.Model) : string =
+        // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
+        match model.Sheet.Wire.Symbol.Symbols.Count >= 1 && model.Sheet.Wire.Wires.Count >= 1 with
+        | true ->
+            let firstWire = model.Sheet.Wire.Wires |> Map.values |> Array.head
+
+            model.Sheet.Wire.Symbol.Symbols
+            |> Map.map (fun _ symbol ->
+                let bbox = getSymbolBoundingBox symbol
+                getAbsSegments firstWire
+                |> List.skip 1
+                |> fun list -> List.take (List.length list - 2 ) list
+                |> List.map (fun (aSeg: ASegment) ->
+
+                    let segStart, segEnd = aSeg.Start, aSeg.End
+                    (aSeg.GetId, segmentIntersectsBoundingBox bbox segStart segEnd))
+                // get rid of Nones and convert to strings including ID
+                |> List.choose (fun ((id, _), optIntersection) ->
+                    match optIntersection with
+                    | Some intersection -> Some (sprintf "id %A with intersect distance %f" (id.ToString()) intersection)
+                    | None -> None)
+                |> String.concat ","
+
+                )
+            |> Map.toList
+            |> List.map snd
+            |> String.concat ",   "
+
+
+        | false -> ""
+    let removeSingleWireInvisibleSegments (wire: Wire) =
+        let uniqueVertices =
+            segmentsToIssieVertices wire.Segments wire
+            |> List.distinctBy (fun (x, y, _) -> (x, y))
+        let newSegments = issieVerticesToSegments wire.WId uniqueVertices
+        // for each wire, set the segments to the new segments
+        wire |> Optic.set segments_ newSegments
+
+    let testSegmentIntersectsBBox2  (model: ModelType.Model) : string =
+        // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
+        match model.Sheet.Wire.Symbol.Symbols.Count >= 1 && model.Sheet.Wire.Wires.Count >= 1 with
+        | true ->
+            let firstWire = model.Sheet.Wire.Wires |> Map.values |> Array.head
+            model.Sheet.Wire.Symbol.Symbols
+            |> Map.map (fun _ symbol ->
+                let bbox = getSymbolBoundingBox symbol
+                getAbsSegments firstWire
+                |> List.skip 1
+                |> fun list -> List.take (List.length list - 1 ) list
+                |> List.map (fun (aSeg: ASegment) ->
+
+                    let segStart, segEnd = aSeg.Start, aSeg.End
+                    (aSeg.GetId, getSegmentIntersectBBox bbox segStart segEnd))
+                // get rid of Nones and convert to strings including ID
+                |> List.choose (fun (( id,_), optIntersection) ->
+                    match optIntersection with
+                    | Some intersection -> Some (sprintf "id %A with intersect area %A" (id.ToString()) (intersection.ToString()))
+                    | None -> None)
+                |> String.concat ", "
+
+                )
+            |> Map.toList
+            |> List.map snd
+            |> String.concat ", "
+
+
+        | false -> ""
 
 // ----------------------------------------------------------------- //
 //        Mouse Sensitive Data- Updates based on Mouse Position      //
@@ -185,7 +253,15 @@ let developerModeView (model: ModelType.Model) dispatch =
                                  [str "Current"];
                             ];
                         yield! counterRows
-            ]]
+            ];
+                div [Style [MarginBottom "20px"]] [
+                    code [] [str (testSegmentIntersectsBBox model)]
+                ];
+
+                div [] [
+                    code [] [str (testSegmentIntersectsBBox2 model)]
+                ]
+            ]
 
 
         details

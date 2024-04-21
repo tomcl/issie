@@ -348,6 +348,13 @@ module CommonTypes
             | Clockwise -> AntiClockwise
             | _ -> Clockwise
 
+    // define this first, then extend later with members to convert to bounding box
+    type Rectangle = {
+        TopLeft: XYPos
+        BottomRight: XYPos
+    }
+
+
     type BoundingBox = {
         /// Top left corner of the bounding box
         TopLeft: XYPos
@@ -359,6 +366,7 @@ module CommonTypes
 
         with
         member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
+        member this.ToRect() = {TopLeft=this.TopLeft; BottomRight=(this.TopLeft + {X=this.W; Y=this.H})}
 
         /// TDC21: allowed tolerance when comparing positions with floating point errors for equality
         /// define a static member BoundingBox for comparisons, to be used in D1
@@ -367,6 +375,15 @@ module CommonTypes
             (left.TopLeft =~ right.TopLeft)
             && abs (left.W - right.W) <= BoundingBox.epsilon
             && abs (left.H - right.H) <= BoundingBox.epsilon
+
+
+    type Rectangle
+        with
+        member this.Centre = (this.TopLeft + this.BottomRight) * 0.5
+        member this.ToBoundingBox() = {TopLeft=this.TopLeft; W=this.BottomRight.X - this.TopLeft.X; H=this.BottomRight.Y - this.TopLeft.Y}
+        static member inline epsilon = 0.0001
+        static member inline (=~)(left: Rectangle, right: Rectangle) =
+            left.TopLeft =~ right.TopLeft && left.BottomRight =~ right.BottomRight
 
 
     let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> {a with TopLeft = s})

@@ -7,6 +7,271 @@ open Optics
 open Optics.Operators
 
 
+// +-------------------------------+ //
+// |                               | //
+// |  Temporary Types and Helpers  | //
+// |                               | //
+// +-------------------------------+ //
+
+// TO PHASE OUT AND GO INTO COMMONTYPES
+// I cannot put this in commontypes and import commontypes.
+// This is because of the type name clash between ScaleAdjustment and Orientation
+// Todo: Fix CommonTypes, import it, and remove this type
+
+type Rectangle = {
+    TopLeft: XYPos
+    BottomRight: XYPos
+}
+
+    with
+    member this.Centre = (this.TopLeft + this.BottomRight) * 0.5
+    member this.ToBoundingBox() = {|TopLeft=this.TopLeft; W=this.BottomRight.X - this.TopLeft.X; H=this.BottomRight.Y - this.TopLeft.Y|}
+    static member inline epsilon = 0.0001
+    static member inline (=~)(left: Rectangle, right: Rectangle) =
+        left.TopLeft =~ right.TopLeft && left.BottomRight =~ right.BottomRight
+
+
+
+/// Helper to convert a BoundingBox to a Rectangle
+// We have to define this separately simply because we cannot import Common Types, as there is a type name clash between ScaleAdjustment and Orientation
+// Commontypes already has this built-in as a BoundingBox member
+// Todo: Fix CommonTypes and remove this function
+let boundingBoxToRect (boundingBox: BoundingBox):Rectangle =
+    let bottomRight = boundingBox.TopLeft + { X = boundingBox.W; Y = boundingBox.H }
+    { TopLeft = boundingBox.TopLeft; BottomRight = bottomRight }
+
+/// Helper to convert a Rectangle to a BoundingBox
+// We have to define this separately simply because we cannot import Common Types, as there is a type name clash between ScaleAdjustment and Orientation
+// Commontypes already has this built-in as a BoundingBox member
+// Todo: Fix CommonTypes and remove this function
+let rectToBoundingBox (rect: Rectangle) : BoundingBox =
+    let w = rect.BottomRight.X - rect.TopLeft.X
+    let h = rect.BottomRight.Y - rect.TopLeft.Y
+    { TopLeft = rect.TopLeft; W = w; H = h }
+
+let segmentToRect (segStart: XYPos) (segEnd: XYPos) : Rectangle =
+    // segments must travel strictly straight in one direction, otherwise, raise an error
+
+    // invalid case when segment travels in both directions
+    if abs (segStart.X - segEnd.X) > XYPos.epsilon && abs (segStart.Y - segEnd.Y) > XYPos.epsilon then
+        failwith "Segment must travel strictly in one direction"
+
+    let topLeft, bottomRight =
+        match segStart.X <= segEnd.X && segStart.Y <= segEnd.Y with
+        | true -> segStart, segEnd
+        | false -> segEnd, segStart
+
+    { TopLeft = topLeft; BottomRight = bottomRight }
+
+
+
+// +------------------------------+ //
+// |                              | //
+// | Intersection-Related Helpers | //
+// |                              | //
+// +------------------------------+ //
+
+/// Returns true if two 1D line segments intersect
+/// HLP23: Derek Lai (ddl20)
+/// Todo: KEEP THIS FUNCTION
+let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
+    let a_min, a_max = min a1 a2, max a1 a2
+    let b_min, b_max = min b1 b2, max b1 b2
+    a_max >= b_min && b_max >= a_min
+
+/// (new!) Returns the overlapping segment line of two 1D line segments if they intersect, else None
+let overlap1DInfo ((a1, a2): float * float) ((b1, b2): float * float) : (float * float) option =
+    let a_min, a_max = min a1 a2, max a1 a2
+    let b_min, b_max = min b1 b2, max b1 b2
+    match a_max >= b_min && b_max >= a_min with
+    | true -> Some (max a_min b_min, min a_max b_max)
+    | false -> None
+
+
+/// Converts a segment list into a list of vertices to store inside Connection
+let segmentsToIssieVertices (segList:Segment list) (wire:Wire) =
+    ((wire.StartPos, wire.InitialOrientation, false),segList)
+    ||> List.scan(fun (currPos, currOrientation, _) seg ->
+        let (nextPos, nextOrientation) =
+            match currOrientation with
+            | Horizontal -> { currPos with X = currPos.X + seg.Length}, Vertical
+            | Vertical -> { currPos with Y = currPos.Y + seg.Length}, Horizontal
+        let manual = (seg.Mode = Manual)
+        (nextPos,nextOrientation,manual))
+    |> List.map ( fun (pos,_,manual) -> pos.X,pos.Y,manual)
+
+/// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
+/// HLP23: Derek Lai (ddl20)
+let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
+    (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
+
+/// (new!) Refactored version of overlap2D to use Rectangle type. Will replace overlap2D
+let overlap2D' (rect1: Rectangle) (rect2 : Rectangle) : bool =
+    ( overlap1D (rect1.TopLeft.X, rect1.BottomRight.X) (rect2.TopLeft.X, rect2.BottomRight.X)
+        && overlap1D (rect1.TopLeft.Y, rect1.BottomRight.Y) (rect2.TopLeft.Y, rect2.BottomRight.Y))
+
+
+
+/// (new!) Returns the area of the overlap between two rectangles if they intersect, else None
+let overlap2DInfo (rect1) (rect2): Rectangle Option =
+    // these are 2 x coordinates of the overlap
+    let xOverlapVertices = overlap1DInfo (rect1.TopLeft.X, rect1.BottomRight.X) (rect2.TopLeft.X, rect2.BottomRight.X)
+    // these are 2 y coordinates of the overlap
+    let yOverlapVertices = overlap1DInfo (rect1.TopLeft.Y, rect1.BottomRight.Y) (rect2.TopLeft.Y, rect2.BottomRight.Y)
+    match xOverlapVertices, yOverlapVertices with
+    | Some (x1, x2), Some (y1, y2) ->
+        let TopLeft = { X = (min x1 x2); Y = (min y1 y2) }
+        let BottomRight = { X = (max x1 x2); Y = (max y1 y2) }
+        Some { TopLeft = TopLeft; BottomRight = BottomRight }
+    | _, _ -> None
+
+
+
+/// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
+/// HLP23: Derek Lai (ddl20)
+// Comments: This is merely a conversion to an alternate rectangle type with top right and bottom left. Phase out and replace
+let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
+    let bb1Coords =
+        { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
+        { X = bb1.TopLeft.X + bb1.W
+          Y = bb1.TopLeft.Y + bb1.H }
+
+    let bb2Coords =
+        { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
+        { X = bb2.TopLeft.X + bb2.W
+          Y = bb2.TopLeft.Y + bb2.H }
+
+    overlap2D bb1Coords bb2Coords
+
+
+let overlap2dBox' (bb1: BoundingBox) (bb2: BoundingBox) : bool =
+    // Todo: Fix commontypes and import it, so that we can use the built-in functions
+    // let rect1: Rectangle = bb1.ToRect()
+    // let rect2: Rectangle = bb2.ToRect()
+
+    let rect1, rect2 = boundingBoxToRect bb1, boundingBoxToRect bb2
+    overlap2D' rect1 rect2
+
+
+
+
+/// (new!) Returns a bounding box of intersection area between two bounding boxes if they intersect, else None
+let overlap2DBoxInfo (bb1 : BoundingBox) (bb2 : BoundingBox) : BoundingBox option =
+    // Todo: Fix commontypes and import it, so that we can use the built-in functions
+    // let rect1: Rectangle = bb1.ToRect()
+    // let rect2: Rectangle = bb2.ToRect()
+
+    let rect1, rect2 = boundingBoxToRect bb1, boundingBoxToRect bb2
+
+    match (overlap2DInfo rect1 rect2) with
+    | Some rect -> Some (rectToBoundingBox rect)
+    | None -> None
+
+
+
+
+
+
+
+
+
+//-------------------------- types and functiond related to BusWireRouting -------------//
+//-------------------------segmentIntersectsBoundingBox---------------------------------//
+
+// Type used to simplify BoundingBox intersection calculations
+// type Rectangle = {
+//     TopLeft: XYPos
+//     BottomRight: XYPos
+// }
+
+// /// Returns the X-value of an XYPos
+// let inline toX (pos: XYPos) = pos.X
+
+// /// Returns the Y-value of an XYPos
+// let inline toY (pos: XYPos) = pos.Y
+
+// /// Returns the X and Y fields of an XYPos as a pair of floats
+// let inline getXY (pos: XYPos) = pos.X, pos.Y
+
+/// Returns pos with the X and Y fields scaled by factor (I didn't like the order of parameters for the * operator in XYPos)
+let inline scalePos (factor: float) (pos: XYPos) : XYPos =
+    { X = factor * pos.X; Y = factor * pos.Y}
+
+/// Returns true if p1 is less than or equal to p2 (has both smaller X and Y values
+let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
+    p1.X <= p2.X && p1.Y <= p2.Y
+
+/// Returns the dot product of 2 XYPos
+let inline dotProduct (p1: XYPos) (p2: XYPos) : float =
+    p1.X * p2.X + p1.Y * p2.Y
+
+/// Returns the squared distance between 2 points using Pythagoras
+let inline squaredDistance (p1: XYPos) (p2: XYPos) =
+    let diff = p1 - p2
+    dotProduct diff diff
+
+/// Checks if 2 rectangles intersect
+let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
+    /// Returns the X-value of an XYPos
+    let inline toX (pos: XYPos) = pos.X
+
+    /// Returns the Y-value of an XYPos
+    let inline toY (pos: XYPos) = pos.Y
+
+    /// Checks if there is an intersection in the X or Y dimension
+    let intersect1D (xOrY: XYPos -> float): bool =
+        let qHi = min (xOrY rect1.BottomRight) (xOrY rect2.BottomRight)
+        let qLo = max (xOrY rect1.TopLeft) (xOrY rect2.TopLeft)
+        qLo <= qHi
+
+    (intersect1D toX) && (intersect1D toY)
+
+let findPerpendicularDistance (segStart:XYPos) (segEnd:XYPos) (point:XYPos) =
+    match abs (segStart.X - segEnd.X) > abs (segStart.Y - segEnd.Y) with
+    | true -> abs (segStart.Y - point.Y)
+    | false -> abs (segStart.X - point.X)
+
+/// Checks if a segment intersects a bounding box using the segment's start and end XYPos
+/// return how close teh segment runs to the box centre, if it intersects
+let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
+    let toRect p1 p2 =
+        let topLeft, bottomRight =
+            if lThanEqualPos p1 p2 then
+                p1, p2
+            else
+                p2, p1
+
+        { TopLeft = topLeft
+          BottomRight = bottomRight }
+
+    let bbBottomRight =
+        { X = box.TopLeft.X + box.W
+          Y = box.TopLeft.Y + box.H }
+
+    let bbRect = toRect box.TopLeft bbBottomRight
+    let segRect = toRect segStart segEnd
+
+    if rectanglesIntersect bbRect segRect then
+        Some <| findPerpendicularDistance segStart segEnd ((box.TopLeft + bbBottomRight) * 0.5)
+    else
+        None
+
+let getSegmentIntersectBBox (box: BoundingBox) segStart segEnd =
+    let topLeft =
+        if lThanEqualPos segStart segEnd then
+            segStart
+        else
+            segEnd
+    let segBBox =
+        match abs ((segStart - segEnd).X), abs ((segStart - segEnd).Y) with
+        | x, y when abs x <= XYPos.epsilon ->  printf "first cond satistified"; Some { TopLeft = topLeft; W = 0.0; H = y }
+        | x, y when abs y <= XYPos.epsilon -> printf "snd cond satistified";Some { TopLeft = topLeft; W = x; H = 0.0 }
+        | _, _ -> None // we don't do this for zero length segments
+
+    match segBBox with
+    | Some segBBox ->  overlap2DBoxInfo box segBBox
+    | _ -> None
+
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
 //-----------------------------------------------------------------------------------------------//
@@ -45,7 +310,7 @@ let updateModelWires (model: BusWireT.Model) (wiresToAdd: Wire list) : BusWireT.
 let moveSymbol (offset:XYPos) (sym:Symbol) :Symbol =
     let newPos = sym.Pos + offset
     let comp' = {sym.Component with X = newPos.X; Y = newPos.Y}
-    {sym with 
+    {sym with
         Component = comp'
         Pos = newPos
         LabelBoundingBox = {sym.LabelBoundingBox with TopLeft = sym.LabelBoundingBox.TopLeft + offset}
@@ -53,7 +318,7 @@ let moveSymbol (offset:XYPos) (sym:Symbol) :Symbol =
 
 let moveSymbols  (offset: XYPos) (model:SymbolT.Model) =
     {model with
-        Symbols = 
+        Symbols =
             model.Symbols
             |> Map.map (fun _ symbol -> moveSymbol offset symbol)
     }
@@ -61,45 +326,7 @@ let moveSymbols  (offset: XYPos) (model:SymbolT.Model) =
 let inline inputPortStr (InputPortId s) = s
 let inline outputPortStr (OutputPortId s) = s
 
-/// Returns true if two 1D line segments intersect
-/// HLP23: Derek Lai (ddl20)
-let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
-    let a_min, a_max = min a1 a2, max a1 a2
-    let b_min, b_max = min b1 b2, max b1 b2
-    a_max >= b_min && b_max >= a_min
 
-
-/// Converts a segment list into a list of vertices to store inside Connection
-let segmentsToIssieVertices (segList:Segment list) (wire:Wire) = 
-    ((wire.StartPos, wire.InitialOrientation, false),segList)
-    ||> List.scan(fun (currPos, currOrientation, _) seg ->
-        let (nextPos, nextOrientation) =
-            match currOrientation with
-            | Horizontal -> { currPos with X = currPos.X + seg.Length}, Vertical
-            | Vertical -> { currPos with Y = currPos.Y + seg.Length}, Horizontal
-        let manual = (seg.Mode = Manual)
-        (nextPos,nextOrientation,manual))
-    |> List.map ( fun (pos,_,manual) -> pos.X,pos.Y,manual)
-
-/// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
-/// HLP23: Derek Lai (ddl20)
-let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
-    (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
-
-/// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
-/// HLP23: Derek Lai (ddl20)
-let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
-    let bb1Coords =
-        { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
-        { X = bb1.TopLeft.X + bb1.W
-          Y = bb1.TopLeft.Y + bb1.H }
-
-    let bb2Coords =
-        { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
-        { X = bb2.TopLeft.X + bb2.W
-          Y = bb2.TopLeft.Y + bb2.H }
-
-    overlap2D bb1Coords bb2Coords
 
 
 /// Returns an XYPos shifted by length in an X or Y direction defined by orientation.
@@ -114,9 +341,9 @@ let inline switchOrientation orientation =
     | Horizontal -> Vertical
     | Vertical -> Horizontal
 
-/// <summary> Applies a function which requires the segment start and end positions to the segments in a wire, 
+/// <summary> Applies a function which requires the segment start and end positions to the segments in a wire,
 /// threading an accumulator argument through the computation. Essentially a List.fold applied to the list of segments of a wire, but with access to each segment's absolute positions. </summary>
-/// <remarks> This is used in cases where absolute segment positions are required. 
+/// <remarks> This is used in cases where absolute segment positions are required.
 /// These positions are computed on the fly and passed to the folder function. </remarks>
 /// <param name="folder"> The function to update the state given the segment start and end positions, current state and segment itself.</param>
 /// <param name="state"> The initial state.</param>
@@ -126,16 +353,16 @@ let inline foldOverSegs folder state wire =
     let initPos = wire.StartPos
     let initOrientation = wire.InitialOrientation
     ((state, initPos, initOrientation), wire.Segments)
-    ||> List.fold (fun (currState, currPos, currOrientation) seg -> 
+    ||> List.fold (fun (currState, currPos, currOrientation) seg ->
         let nextPos = addLengthToPos currPos currOrientation seg.Length
         let nextOrientation = switchOrientation currOrientation
         let nextState = folder currPos nextPos currState seg
         (nextState, nextPos, nextOrientation))
     |> (fun (state, _, _) -> state)
 
-/// <summary> Applies a function which requires the segment start and end positions to the non-zero-length segments in a wire, 
+/// <summary> Applies a function which requires the segment start and end positions to the non-zero-length segments in a wire,
 /// threading an accumulator argument through the computation. Essentially a List.fold applied to the list of segments of a wire, but with access to each segment's absolute positions. </summary>
-/// <remarks> This is used in cases where absolute segment positions are required. 
+/// <remarks> This is used in cases where absolute segment positions are required.
 /// These positions are computed on the fly and passed to the folder function. </remarks>
 /// <param name="folder"> The function to update the state given the segment start and end positions, current state and segment itself.</param>
 /// <param name="state"> The initial state.</param>
@@ -145,9 +372,9 @@ let inline foldOverNonZeroSegs folder state wire =
     let initPos = wire.StartPos
     let initOrientation = wire.InitialOrientation
     ((state, initPos, initOrientation), wire.Segments)
-    ||> List.fold (fun (currState, currPos, currOrientation) seg -> 
+    ||> List.fold (fun (currState, currPos, currOrientation) seg ->
         let nextOrientation = switchOrientation currOrientation
-        if seg.IsZero then 
+        if seg.IsZero then
             (currState, currPos, nextOrientation)
         else
             let nextPos = addLengthToPos currPos currOrientation seg.Length
@@ -161,7 +388,7 @@ let getAbsSegments (wire: Wire) : ASegment list =
     let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
         {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
     (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
-    ||> List.fold (fun (posDir, aSegL) seg -> 
+    ||> List.fold (fun (posDir, aSegL) seg ->
             let nextASeg = convertToAbs posDir seg
             let posDir' = nextASeg.End, switchOrientation (snd posDir)
             posDir', (nextASeg :: aSegL))
@@ -175,13 +402,13 @@ let getNonZeroAbsSegments (wire: Wire) : ASegment list =
     let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
         {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
     (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
-    ||> List.fold (fun (posDir, aSegL) seg -> 
+    ||> List.fold (fun (posDir, aSegL) seg ->
             let nextASeg = convertToAbs posDir seg
             let posDir' = nextASeg.End, switchOrientation (snd posDir)
             if not <| seg.IsZero then
                 posDir', (nextASeg :: aSegL)
             else
-                posDir', aSegL)                
+                posDir', aSegL)
     |> snd
     |> List.rev
 
@@ -192,18 +419,18 @@ let getFilteredAbsSegments includeSegment (wire: Wire) : ASegment list =
     let convertToAbs ((start,dir): XYPos*Orientation) (seg: Segment) =
         {Start=start; End = addLengthToPos start dir seg.Length; Segment = seg}
     (((wire.StartPos,wire.InitialOrientation),[]), wire.Segments)
-    ||> List.fold (fun ((pos,ori), aSegL) seg -> 
+    ||> List.fold (fun ((pos,ori), aSegL) seg ->
             let nextASeg = convertToAbs (pos,ori) seg
             let posDir' = nextASeg.End, switchOrientation ori
-            match includeSegment ori seg with 
+            match includeSegment ori seg with
             | true -> posDir', (nextASeg :: aSegL)
-            | false -> posDir', aSegL)                
+            | false -> posDir', aSegL)
     |> snd
     |> List.rev
 
-type Wire with 
+type Wire with
         member inline this.EndOrientation =
-            match this.Segments.Length % 2, this.InitialOrientation with 
+            match this.Segments.Length % 2, this.InitialOrientation with
             | 1, _ -> this.InitialOrientation
             | _, Vertical -> Horizontal
             | _, Horizontal -> Vertical
@@ -260,15 +487,15 @@ let partitionWiresIntoNets (model:Model) =
 //------------------------------------------------------------------------------//
 
 /// Returns true if x lies in the open interval (a,b). Endpoints are avoided by a tolerance parameter
-let inline inMiddleOf a x b = 
+let inline inMiddleOf a x b =
     let e = intervalTolerance
     a + e < x && x < b - e
 
 /// Returns true if a lies in the closed interval (a,b). Endpoints are included by a tolerance parameter
-let inline inMiddleOrEndOf a x b = 
+let inline inMiddleOrEndOf a x b =
     let e = intervalTolerance
     a - e < x && x < b + e
-   
+
 let inline getSourcePort (model:Model) (wire:Wire) =
     let portId = outputPortStr wire.OutputPort
     let port = model.Symbol.Ports[portId]
@@ -332,21 +559,21 @@ let inline getCompId (model: SymbolT.Model) (portId: string) =
     symbol.Id
 
 /// Returns the string of a PortId
-let inline getPortIdStr (portId: PortId) = 
+let inline getPortIdStr (portId: PortId) =
     match portId with
     | InputId (InputPortId id) -> id
     | OutputId (OutputPortId id) -> id
 
-let inline getInputPortIdStr (portId: InputPortId) = 
+let inline getInputPortIdStr (portId: InputPortId) =
     match portId with
     | InputPortId s -> s
 
-let inline getOutputPortIdStr (portId: OutputPortId) = 
+let inline getOutputPortIdStr (portId: OutputPortId) =
     match portId with
     | OutputPortId s -> s
 
 /// HLP23: AUTHOR dgs119
-let inline getPortOrientationFrmPortIdStr (model: SymbolT.Model) (portIdStr: string) : Edge = 
+let inline getPortOrientationFrmPortIdStr (model: SymbolT.Model) (portIdStr: string) : Edge =
     let port = model.Ports[portIdStr]
     let sId = ComponentId port.HostId
     model.Symbols[sId].PortMaps.Orientation[portIdStr]
@@ -389,7 +616,7 @@ let getWireLength (wire: Wire) : float =
 
 /// Gets total length of a set of wires.
 /// HLP23: AUTHOR dgs119
-let totalLengthOfWires (conns: Map<ConnectionId, Wire>) = 
+let totalLengthOfWires (conns: Map<ConnectionId, Wire>) =
     conns
     |> Map.map(fun _ wire -> getWireLength wire)
     |> Map.toList
@@ -488,77 +715,3 @@ let wireSymEdge wModel wire sym =
     | _ -> Top // Shouldn't happen.
 
 
-//-------------------------- types and functiond related to BusWireRouting -------------//
-//-------------------------segmentIntersectsBoundingBox---------------------------------//
-
-/// Type used to simplify BoundingBox intersection calculations
-type Rectangle = {
-    TopLeft: XYPos
-    BottomRight: XYPos
-}
-
-/// Returns the X-value of an XYPos
-let inline toX (pos: XYPos) = pos.X
-
-/// Returns the Y-value of an XYPos
-let inline toY (pos: XYPos) = pos.Y
-
-/// Returns the X and Y fields of an XYPos as a pair of floats
-let inline getXY (pos: XYPos) = pos.X, pos.Y
-
-/// Returns pos with the X and Y fields scaled by factor (I didn't like the order of parameters for the * operator in XYPos)
-let inline scalePos (factor: float) (pos: XYPos) : XYPos =
-    { X = factor * pos.X; Y = factor * pos.Y}
-
-/// Returns true if p1 is less than or equal to p2 (has both smaller X and Y values
-let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
-    p1.X <= p2.X && p1.Y <= p2.Y
-
-/// Returns the dot product of 2 XYPos
-let inline dotProduct (p1: XYPos) (p2: XYPos) : float = 
-    p1.X * p2.X + p1.Y * p2.Y
-
-/// Returns the squared distance between 2 points using Pythagoras
-let inline squaredDistance (p1: XYPos) (p2: XYPos) = 
-    let diff = p1 - p2
-    dotProduct diff diff
-
-/// Checks if 2 rectangles intersect
-let rectanglesIntersect (rect1: Rectangle) (rect2: Rectangle) =
-    /// Checks if there is an intersection in the X or Y dimension
-    let intersect1D (xOrY: XYPos -> float): bool =
-        let qHi = min (xOrY rect1.BottomRight) (xOrY rect2.BottomRight)
-        let qLo = max (xOrY rect1.TopLeft) (xOrY rect2.TopLeft)
-        qLo <= qHi
-
-    (intersect1D toX) && (intersect1D toY)
-
-let findPerpendicularDistance (segStart:XYPos) (segEnd:XYPos) (point:XYPos) =
-    match abs (segStart.X - segEnd.X) > abs (segStart.Y - segEnd.Y) with
-    | true -> abs (segStart.Y - point.Y)
-    | false -> abs (segStart.X - point.X)
-
-/// Checks if a segment intersects a bounding box using the segment's start and end XYPos
-/// return how close teh segment runs to the box centre, if it intersects
-let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
-    let toRect p1 p2 =
-        let topLeft, bottomRight =
-            if lThanEqualPos p1 p2 then
-                p1, p2
-            else
-                p2, p1
-
-        { TopLeft = topLeft
-          BottomRight = bottomRight }
-
-    let bbBottomRight =
-        { X = box.TopLeft.X + box.W
-          Y = box.TopLeft.Y + box.H }
-
-    let bbRect = toRect box.TopLeft bbBottomRight
-    let segRect = toRect segStart segEnd
-
-    if rectanglesIntersect bbRect segRect then
-        Some <| findPerpendicularDistance segStart segEnd ((box.TopLeft + bbBottomRight) * 0.5)
-    else
-        None

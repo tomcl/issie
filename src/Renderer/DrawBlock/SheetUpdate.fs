@@ -907,6 +907,7 @@ let init () =
         DebugMappings = [||]
         DebugDevice = None
         ScalingBox = None
+        DeveloperModeTabActive = false
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

@@ -664,6 +664,8 @@ module SheetT =
         DebugMappings: string array
         DebugIsConnected: bool
         DebugDevice: string option
+        // bool to keep track if developer mode tab is open
+        DeveloperModeTabActive: bool
         }
 
     open Operators
@@ -688,3 +690,5 @@ module SheetT =
     let zoom_ = Lens.create (fun m -> m.Zoom) (fun w m -> {m with Zoom = w})
 
     let scalingBox_ = Lens.create (fun m -> m.ScalingBox) (fun w m -> {m with ScalingBox = w})
+
+    let developerModeTabActive_ = Lens.create (fun m -> m.DeveloperModeTabActive) (fun w m -> {m with DeveloperModeTabActive = w})

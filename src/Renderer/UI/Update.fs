@@ -3,6 +3,7 @@
 open Elmish
 open Fable.React
 open Fable.React.Props
+open DrawModelType.SheetT
 open ModelType
 open ElectronAPI
 open FilesIO
@@ -16,6 +17,7 @@ open UpdateHelpers
 open Optics
 open Optics.Optic
 open Optics.Operators
+
 
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
@@ -295,6 +297,7 @@ let update (msg : Msg) oldModel =
         firstTip <- true
 
         model
+        |> map (sheet_ >-> developerModeTabActive_) (fun _ -> newTab = DeveloperMode)
         |> set rightPaneTabVisible_ newTab
         |> withMsgs
                 (match newTab with

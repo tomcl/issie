@@ -443,6 +443,7 @@ type Msg =
     | ToggleWireTable
     | ToggleWireSegmentsTable
     | ToggleSymbolPortMapsTable
+    | ToggleGroup
 
 
 
@@ -606,6 +607,7 @@ type Model = {
     WireTableExpanded: bool
     WireSegmentsTableExpanded: bool
     SheetStatsExpanded: bool
+    GroupMenuExpanded: bool
 
 }
 

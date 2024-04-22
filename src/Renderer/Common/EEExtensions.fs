@@ -43,13 +43,13 @@ module FableReplacements =
 module Char =
 
     [<CompiledName("IsLetterOrDigitOrUnderscore")>]
-    let inline IsLetterOrDigitOrUnderscore(ch: char): bool = 
+    let inline IsLetterOrDigitOrUnderscore(ch: char): bool =
         System.Char.IsLetterOrDigit ch || ch = '_'
 
     [<CompiledName("ToInt")>]
-    let inline toInt(ch: char): int = 
+    let inline toInt(ch: char): int =
         match ch with
-        | c when c >= '0' && c <= '9' -> int c - int '0' 
+        | c when c >= '0' && c <= '9' -> int c - int '0'
         | c when c >= 'a' && c <= 'f' -> (int c - int 'a') + 10
         | c when c >= 'A' && c <= 'F' -> (int c - int 'A') + 10
         | _ -> failwithf "What ? Error while converting character to digit"
@@ -68,7 +68,7 @@ module String =
 
     [<CompiledName("ToSeq")>]
     let inline toSeq (str: string) : char seq = str :> char seq
-     
+
     [<CompiledName("OfList")>]
     let inline ofList (chars: char list) =  chars |> Seq.ofList |> System.String.Concat
 
@@ -84,18 +84,18 @@ module String =
 
     /// splits text into its array of non-whitepace strings separated by whitespace
     [<CompiledName("SplitOnWhitespace")>]
-    let splitOnWhitespace (text:string): string array = 
+    let splitOnWhitespace (text:string): string array =
         text.Split( ([||]: char array) , System.StringSplitOptions.RemoveEmptyEntries)
 
     let [<Literal>] DefaultComparison = StringComparison.Ordinal
-    let inline emptyIfNull str = 
+    let inline emptyIfNull str =
         match str with
         | null -> String.Empty
         | _ -> str
     /// Concatenate a sequence of strings
     /// Using sep as separator
     [<CompiledName("Concat")>]
-    let concat sep (strings : seq<string>) =  
+    let concat sep (strings : seq<string>) =
         String.Join(sep, strings)
 
     [<CompiledName("Length")>]
@@ -145,7 +145,7 @@ module String =
 
     /// Split str at all of separator array elements
     /// Return array of strings
-    /// Adjacent separators do not generate strings   
+    /// Adjacent separators do not generate strings
     [<CompiledName("SplitRemoveEmptyEntries")>]
     let splitRemoveEmptyEntries (separator:char array) (str:string) =
         str.Split(separator, StringSplitOptions.RemoveEmptyEntries)
@@ -165,12 +165,12 @@ module String =
 
     /// Return true if str starts with value
     [<CompiledName("StartsWith")>]
-    let startsWith (value:string) (str:string) = 
+    let startsWith (value:string) (str:string) =
         str.StartsWith(value, DefaultComparison)
 
     /// Return true if str starts with a letter
     [<CompiledName("StartsWithLetter")>]
-    let startsWithLetter (str:string) = 
+    let startsWithLetter (str:string) =
         str <> "" && System.Char.IsLetter str[0]
 
 
@@ -206,7 +206,7 @@ module String =
     [<CompiledName("TrimStart")>]
     let trimStart (trimChars:char []) (str:string) =
         str.TrimStart(trimChars)
-    /// Remove all trailing whitespace    
+    /// Remove all trailing whitespace
     [<CompiledName("TrimEnd")>]
     let trimEnd(trimChars:char []) (str:string) =
         str.TrimEnd(trimChars)
@@ -218,10 +218,10 @@ module String =
     [<CompiledName("RegexMatchGroups")>]
     let regexMatchGroups (regex:string) (str:string) =
         let m = Text.RegularExpressions.Regex.Match(str, regex)
-        if m.Success then 
+        if m.Success then
             Some [ for n in [1..m.Groups.Count] -> m.Groups[n].Value ]
         else None
- 
+
     /// Match a regular expression
     /// Return Some m where m is the match string,
     /// return None on no match
@@ -250,7 +250,7 @@ module List =
     [<CompiledName("pairWithPreviousOrSelf")>]
     let pairWithPreviousOrSelf list =
         match list with
-        | [] -> [] 
+        | [] -> []
         | first :: rest -> (first,first) :: List.pairwise list
 
     [<CompiledName("ToString")>]
@@ -260,7 +260,7 @@ module List =
     /// Every sublist must contain at least one element.
     /// Every sublist except possibly the first starts with an element el for which pred el is true
     [<CompiledName("ChunkAt1")>]
-    let chunkAt1 pred lst = 
+    let chunkAt1 pred lst =
         let mutable i = 0 // should optimise this using sequences and yield! to group by subarray
         [ for el in lst do
             if pred el then i <- i + 1
@@ -272,10 +272,10 @@ module List =
 
     /// Split list into list of lists each such that each element for which pred returns true starts a sublist.
     /// Every sublist must contain at least one element.
-    /// Every sublist except possibly the first starts with an element el for which pred el is true.    
+    /// Every sublist except possibly the first starts with an element el for which pred el is true.
     [<CompiledName("ChunkAt")>]
-    let chunkAt pred list = 
-      let rec loop chunk chunks list = 
+    let chunkAt pred list =
+      let rec loop chunk chunks list =
         match list with
         | [] -> List.rev ((List.rev chunk)::chunks)
         | x::xs when pred x && List.isEmpty chunk -> loop [x] chunks xs
@@ -329,7 +329,7 @@ module Array =
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 [<RequireQualifiedAccess>]
 module Map =
-    /// Looks up key in table, returning defaultValue if 
+    /// Looks up key in table, returning defaultValue if
     /// key is not in table
     [<CompiledName("FindWithDefault")>]
     let findWithDefault (key:'Key) (table:Map<'Key,'Value>) (defaultValue:'Value) =
@@ -344,6 +344,36 @@ module Map =
     [<CompiledName("Keys")>]
     let keys (table:Map<'Key,'Value>) =
         table |> Map.toArray |> Array.map fst
+
+    /// Add a list of key-value tuple pairs to a table
+    [<CompiledName("AddList")>]
+    let addlist (list:('Key * 'Value) list) (table:Map<'Key,'Value>) =
+        list |> List.fold (fun acc (k,v) -> Map.add k v acc) table
+
+    /// Return list of table keys
+    [<CompiledName("KeysL")>]
+    let keysL (table:Map<'Key,'Value>) =
+        table |> Map.toList |> List.map fst
+
+    /// Return list of table values
+    [<CompiledName("ValuesL")>]
+    let valuesL (table:Map<'Key,'Value>) =
+        table |> Map.toList |> List.map snd
+
+    /// Return array of table keys
+    [<CompiledName("KeysA")>]
+    let keysA (table:Map<'Key,'Value>) =
+        table |> Map.toArray |> Array.map fst
+
+    /// Return array of table values
+    [<CompiledName("ValuesA")>]
+    let valuesA (table:Map<'Key,'Value>) =
+        table |> Map.toArray |> Array.map snd
+
+
+
+
+
 
 
 

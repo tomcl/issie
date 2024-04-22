@@ -66,7 +66,7 @@ let overlapArea2DBox (bb1: BoundingBox) (bb2: BoundingBox) : BoundingBox option 
 /// function that returns the an string ID with extra formatting of a hovered wire, symbol, or ports
 let findHoveredID (pos: XYPos) (model: SheetT.Model) =
     let dummySymbolId: ComponentId = ComponentId "dummy"
-    // we add a 'dummy symbol' to the model to represent the mouse position
+    // we add a 'dummy symbol' to the model to represent the mouse position (cursor)
     // solely for calculation purposes, it will not be added to the actual model
     // for convenience, we let dummy symbol be 30x30, equal to a Not gate size
     let h, w = 30.0, 30.0
@@ -86,9 +86,12 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
     let mouseSymbolDummy: Symbol =
         { (createNewSymbol [] pos NotConnected "" White) with
             Component = mouseComponentDummy }
+
+    // Lens to get and set bounding boxes in model
     let boundingBoxes_ =
         Lens.create (fun m -> m.BoundingBoxes) (fun bb m -> { m with BoundingBoxes = bb })
 
+    // create a dummy model with the mouse dummy symbol
     let dummyModel =
         model
         |> Optic.set (SheetT.symbols_) (Map.add dummySymbolId mouseSymbolDummy model.Wire.Symbol.Symbols)

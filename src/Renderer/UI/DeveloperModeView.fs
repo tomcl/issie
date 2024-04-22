@@ -47,7 +47,7 @@ STRUCTURE
 *)
 
 
-/// Top Level function for developer mode
+/// Top Level function for developer mode (tdc21)
 let developerModeView (model: ModelType.Model) dispatch =
 // --------------------------------------------------- //
 //                       Counters                      //
@@ -55,7 +55,7 @@ let developerModeView (model: ModelType.Model) dispatch =
 // --------------------------------------------------- //
 
     /// Contains a record of a counter's display name, tooltip description, and value
-    /// A counter is a UI element for a function that takes in a SheetT.Model and outputs a string/int/float
+    /// A counter is a React element for a function that takes in a SheetT.Model and outputs a string/int/float
     /// They output useful information about the sheet
     let counterItems =
         [
@@ -141,6 +141,8 @@ let developerModeView (model: ModelType.Model) dispatch =
                 ]
 
         /// Contains the counters in a html table format
+        /// A counter is a React element for a function that takes in a SheetT.Model and outputs a string/int/float
+        /// They output useful information about the sheet
         let counters =
             let heldColumnText = (if model.HeldCounterValues.IsSome then "Held" else "")
 

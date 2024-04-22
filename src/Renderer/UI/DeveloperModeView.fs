@@ -70,17 +70,20 @@ let developerModeView (model: ModelType.Model) dispatch =
             ToolTipDescription = "Counts the number of visible wire segments that \nintersect at 90 degrees.";
             Value=(numOfWireRightAngleCrossings model.Sheet).ToString() |}
           {|DisplayName="T4 Sum of Vis-Wire Segs"   ;
-            ToolTipDescription = "Counts the total length of all visible \nwire segments on the sheet.\n\n Assumption: \nOverlapping segments share the same starting net, and may\ndiverge at some point but will not return to overlap.";
+            ToolTipDescription = "Counts the total length of all visible \nwire segments on the sheet.\n\nAssumption: \nOverlapping segments share the same starting net, and may\ndiverge at some point but will not return to overlap.";
             Value=(calcVisWireLength model.Sheet).ToString("F2") |}
           {|DisplayName="T5 Count Visible R-Angles"    ;
             ToolTipDescription = "Counts the number of visible right angles \nfound in the wire segments on the sheet.";
             Value=(numOfVisRightAngles model.Sheet).ToString() |}
           {|DisplayName="T6 RetracingSegments";
-            ToolTipDescription = "Counts the number of retracing segments on sheet.\nZero-length segments with non-zero segments on \nboth sides that have lengths of opposite signs lead to a \nwire retracing itself";
+            ToolTipDescription = "Counts the number of retracing segments on sheet:\nZero-length segments with non-zero segments on \nboth sides that have lengths of opposite signs lead to a \nwire retracing itself";
             Value=(List.length (findRetracingSegments model.Sheet).RetraceSegsInSymbol).ToString() |}
           {|DisplayName="CountAlmostStraight Wires";
-            ToolTipDescription = "Counts the number of wires that are almost straight.\nWires that have a maximum deviation of 40px \nfrom the majority direction."
-            Value=(countAlmostStraightWiresOnSheet model.Sheet 40.0).ToString() |}
+            ToolTipDescription = "Counts the number of wires that are almost straight.\nWires that have a maximum deviation of 20px \nfrom the majority direction."
+            Value=(countAlmostStraightWiresOnSheet model.Sheet 20.0).ToString() |}
+          {|DisplayName="CountSinglyConnected Wires";
+            ToolTipDescription = "Counts the number of singly-connected wires. A singly \nconnected wire is connected to at least one component \nthat has a single wire attached to it, .i.e  a 'dead end'"
+            Value=(countSinglyConnectedWires model.Sheet).ToString() |}
            ]
 
     // let testSegmentIntersectsBBox  (model: ModelType.Model) : string =

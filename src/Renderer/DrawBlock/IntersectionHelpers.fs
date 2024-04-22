@@ -21,6 +21,7 @@ open DrawModelType.SymbolT
 open DrawModelType.SheetT
 open BusWireRoute
 open BusWireRoutingHelpers.Constants
+open SymbolPortHelpers
 open Sheet
 // --------------------------------------------------- //
 //                      Constants                      //
@@ -362,12 +363,12 @@ let findRetracingSegments (model: SheetT.Model) =
        RetraceSegsInSymbol = retracingSegsInsideSymbol |}
 
 // -------------------------------------------------------- //
-//      Other Helpers for D1 HLP2024(sheet align scale)     //
+//         Helpers for D1 HLP2024(sheet align scale)        //
 // -------------------------------------------------------- //
 
 
 /// For a given wire, checks if the wire is almost straight.
-let checkAlmostStraightWire (wire: BusWireT.Wire) (model: Model) (almostStraightMaxDeviationAmt: float ) =
+let checkAlmostStraightWire (wire: BusWireT.Wire) (model: Model) (almostStraightMaxDeviationAmt: float ): bool =
     let unzipIntoOddAndEvenElems list =
         list
         |> List.mapi (fun i x -> (i % 2 = 0, x))
@@ -390,14 +391,9 @@ let checkAlmostStraightWire (wire: BusWireT.Wire) (model: Model) (almostStraight
             evenList
             |> List.sumBy (fun (segLength, _, _) -> segLength)
 
-        let isWireTravellingInMajorityDir =
-            match oddDisplacement >= evenDisplacement, wire.InitialOrientation with
-                | true, Horizontal  ->  true
-                | false, Vertical   ->  true
-                | true, Vertical    ->  false
-                | false, Horizontal ->  false
-
-        match isWireTravellingInMajorityDir with
+        // wire is travelling in majority direction if oddDisplacement >= evenDisplacement.
+        // its majority direction will be the direction of its odd segments, and minority direction will be the direction of its even segments
+        match oddDisplacement >= evenDisplacement with
         | true ->
             let maxDeviationLength = evenList
                                     |> List.maxBy (fun (segLength, _,_) -> abs segLength)
@@ -408,11 +404,79 @@ let checkAlmostStraightWire (wire: BusWireT.Wire) (model: Model) (almostStraight
     | false -> false
 
 /// Function that counts the number of almost straight wires on the sheet, given a threshold
-let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) (maxDeviationLengthThreshold: float) =
+let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) (maxDeviationLengthThreshold: float): int =
     let straightWires =
         sheetModel.Wire.Wires
         |> Map.filter (fun _ wire -> checkAlmostStraightWire wire sheetModel maxDeviationLengthThreshold)
     straightWires.Count
+
+/// Helper function that returns the wires connected to an output port id net
+let getWiresFromPortOutputNet (sourcePort: OutputPortId) (model: SheetT.Model): Wire list =
+    model.Wire.Wires
+    |> Map.filter (fun _ wire -> wire.OutputPort = sourcePort)
+    |> Map.values
+    |> Array.toList
+
+/// Helper function that returns the wire connected to an input port id
+let getWireFromPortInput (inputPort: InputPortId) (model: SheetT.Model): Wire list =
+    model.Wire.Wires
+    |> Map.filter (fun _ wire -> wire.InputPort = inputPort)
+    |> Map.values
+    |> Array.toList
+
+/// Helper function that returns the symbol connected to a port id
+let getWiresConnectedToSymbol (sym: Symbol) (model: SheetT.Model) : {|InputWires: Wire list; OutputWires: Wire list; Count : int|} =
+    let inputWires =
+        sym.Component.InputPorts
+        |> List.collect (fun (port: Port) -> getWireFromPortInput (InputPortId port.Id) model)
+    let outputWires =
+        sym.Component.OutputPorts
+        |> List.collect (fun (port: Port) -> getWiresFromPortOutputNet (OutputPortId port.Id) model)
+
+    {|InputWires = inputWires; OutputWires = outputWires; Count = ((List.length inputWires) + (List.length outputWires)) |}
+
+/// Helper function that returns the symbol that contains a given portId
+let getSymbolFromPortId (portId: string) (model: SheetT.Model) : Symbol Option =
+    let foundPort =
+        model.Wire.Symbol.Ports
+        |> Map.tryFind portId
+
+    match foundPort with
+    | Some port -> Map.tryFind (ComponentId port.HostId) model.Wire.Symbol.Symbols
+    | None -> None
+
+
+/// Helper function that checks if a wire is singly connected
+let checkIfSinglyConnected (wire: Wire) (model:SheetT.Model)=
+    let inputSymbolOption = getSymbolFromPortID (wire.InputPort.ToString()) model
+    let outputSymbolOption = getSymbolFromPortID (wire.OutputPort.ToString()) model
+
+
+    match inputSymbolOption, outputSymbolOption with
+    | Some inputSymbol, Some outputSymbol ->
+        (getWiresConnectedToSymbol inputSymbol model).Count = 1 || (getWiresConnectedToSymbol outputSymbol model).Count = 1
+    | _ -> false // should never happen, a wire needs two symbols to exist!
+
+/// Function that counts the number of singly connected wires on the sheet
+let countSinglyConnectedWires (model: SheetT.Model): int =
+    model.Wire.Wires
+    |> Map.filter (fun _ wire -> checkIfSinglyConnected wire model)
+    |> Map.count
+
+/// Helper that finds symbols on either ends of a wire. Returns a record of the input port, input symbol option, output port and output symbol option
+let getSymbolsOnWireEnds (wire: Wire) (model: SheetT.Model) : {|InputPort: InputPortId; InputPortSymbol: Symbol option; OutputPort: OutputPortId; OutputPortSymbol: Symbol Option|}=
+    let inputSymbolOption = getSymbolFromPortId (wire.InputPort.ToString()) model
+    let outputSymbolOption = getSymbolFromPortId (wire.OutputPort.ToString()) model
+
+    {|InputPort=wire.InputPort; InputPortSymbol = inputSymbolOption; OutputPort=wire.OutputPort; OutputPortSymbol = outputSymbolOption|}
+
+
+
+
+
+
+
+
 
 
 

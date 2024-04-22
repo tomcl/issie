@@ -120,6 +120,8 @@ module SegmentHelpers =
 
     /// Filter visSegs so that if they overlap with common start only the longest is kept.
     /// ASSUMPTION: in a connected Net this will remove all overlaps
+    // tdc21: added considerEndSeg to allow for the removal of overlapping segments that share the same end point. Useful for HLP24 T5R spec.
+    // Note that there is no considerEndSeg implementation for distinctVisSegsPrecision
     let distinctVisSegs (considerEndSeg: bool) (visSegs: (XYPos * XYPos) list) =
         /// convert float to integer buckt number
         let pixBucket (pixel: float) = int (pixel / Constants.bucketSpacing)
@@ -174,6 +176,8 @@ module SegmentHelpers =
     /// input is a list of all the wires in a net.
     /// output a list of the visual segments.
     /// isDistinct = true => remove overlapping shorter segments
+    // tdc21: added considerEndSeg to allow for the removal of overlapping segments that share the same end point. Useful for HLP24 T5R spec.
+    // Note that there is no considerEndSeg implementation for distinctVisSegsPrecision
     let getVisualSegsFromNetWires (isDistinct: bool) (considerEndSeg: bool) (model: SheetT.Model) netWires =
         netWires
         |> List.collect (fun wire -> visibleSegsWithVertices wire model)
@@ -306,6 +310,7 @@ let calcVisWireLength (model: SheetT.Model) : float =
 /// Returns the number of visible wire right-angles.
 /// ASSUMPTIONS: right-angles come from two adjacent visible segments
 /// ASSUMPTION: segment overlaps as SegmentHelpers
+// tdc21: added considerEndSeg to allow for the removal of overlapping segments that share the same end point.
 let numOfVisRightAngles (model: SheetT.Model) : int =
     let nets = allWireNets model
     let numWires =
@@ -352,7 +357,7 @@ let findRetracingSegments (model: SheetT.Model) =
     let checkSegIntersectsAnySymbol (aSeg: BusWireT.ASegment) =
         symbolBoundingBoxes
         |> List.exists (fun box ->
-            segmentIntersectsBoundingBox box aSeg.Start aSeg.End
+            segmentIntersectsBoundingBoxDistance box aSeg.Start aSeg.End
             |> Option.isSome)
 
     let retracingSegsInsideSymbol =
@@ -410,21 +415,27 @@ let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) (maxDeviationLeng
         |> Map.filter (fun _ wire -> checkAlmostStraightWire wire sheetModel maxDeviationLengthThreshold)
     straightWires.Count
 
-/// Helper function that returns the wires connected to an output port id net
+
+// ----------------------------------------------------------- //
+//    Note: Looking for more helpers that take in a wire and   //
+//    output a port/symbol? Look in BlockHelpers               //
+// ----------------------------------------------------------- //
+
+/// (new!) tdc21: Helper function that returns the wires connected to an output port id net
 let getWiresFromPortOutputNet (sourcePort: OutputPortId) (model: SheetT.Model): Wire list =
     model.Wire.Wires
     |> Map.filter (fun _ wire -> wire.OutputPort = sourcePort)
     |> Map.values
     |> Array.toList
 
-/// Helper function that returns the wire connected to an input port id
+/// (new!) tdc21: Helper function that returns the wire connected to an input port id
 let getWireFromPortInput (inputPort: InputPortId) (model: SheetT.Model): Wire list =
     model.Wire.Wires
     |> Map.filter (fun _ wire -> wire.InputPort = inputPort)
     |> Map.values
     |> Array.toList
 
-/// Helper function that returns the symbol connected to a port id
+/// (new!) tdc21: Helper function that returns the wires connected to a symbol
 let getWiresConnectedToSymbol (sym: Symbol) (model: SheetT.Model) : {|InputWires: Wire list; OutputWires: Wire list; Count : int|} =
     let inputWires =
         sym.Component.InputPorts
@@ -435,7 +446,7 @@ let getWiresConnectedToSymbol (sym: Symbol) (model: SheetT.Model) : {|InputWires
 
     {|InputWires = inputWires; OutputWires = outputWires; Count = ((List.length inputWires) + (List.length outputWires)) |}
 
-/// Helper function that returns the symbol that contains a given portId
+/// (new!) tdc21: Helper function that returns the symbol that contains a given portId
 let getSymbolFromPortId (portId: string) (model: SheetT.Model) : Symbol Option =
     let foundPort =
         model.Wire.Symbol.Ports
@@ -446,29 +457,28 @@ let getSymbolFromPortId (portId: string) (model: SheetT.Model) : Symbol Option =
     | None -> None
 
 
-/// Helper function that checks if a wire is singly connected
+/// (new!) tdc21: Helper function that checks if a wire is singly connected
 let checkIfSinglyConnected (wire: Wire) (model:SheetT.Model)=
-    let inputSymbolOption = getSymbolFromPortID (wire.InputPort.ToString()) model
-    let outputSymbolOption = getSymbolFromPortID (wire.OutputPort.ToString()) model
+    let inputSymbol = getSourceSymbol model.Wire wire
+    let outputSymbol = getTargetSymbol model.Wire wire
 
+    if (getWiresConnectedToSymbol inputSymbol model).Count = 1 || (getWiresConnectedToSymbol outputSymbol model).Count = 1 then
+        true
+    else
+        false
 
-    match inputSymbolOption, outputSymbolOption with
-    | Some inputSymbol, Some outputSymbol ->
-        (getWiresConnectedToSymbol inputSymbol model).Count = 1 || (getWiresConnectedToSymbol outputSymbol model).Count = 1
-    | _ -> false // should never happen, a wire needs two symbols to exist!
-
-/// Function that counts the number of singly connected wires on the sheet
+/// (new!) tdc21: Function that counts the number of singly connected wires on the sheet
 let countSinglyConnectedWires (model: SheetT.Model): int =
     model.Wire.Wires
     |> Map.filter (fun _ wire -> checkIfSinglyConnected wire model)
     |> Map.count
 
-/// Helper that finds symbols on either ends of a wire. Returns a record of the input port, input symbol option, output port and output symbol option
-let getSymbolsOnWireEnds (wire: Wire) (model: SheetT.Model) : {|InputPort: InputPortId; InputPortSymbol: Symbol option; OutputPort: OutputPortId; OutputPortSymbol: Symbol Option|}=
-    let inputSymbolOption = getSymbolFromPortId (wire.InputPort.ToString()) model
-    let outputSymbolOption = getSymbolFromPortId (wire.OutputPort.ToString()) model
+/// (new!) tdc21: Helper that finds symbols on either ends of a wire. Returns a record of the input port, input symbol option, output port and output symbol option
+let getSymbolsOnWireEnds (wire: Wire) (model: SheetT.Model) : {|InputPort: InputPortId; InputPortSymbol: Symbol; OutputPort: OutputPortId; OutputPortSymbol: Symbol|}=
+    let inputSymbol = getSourceSymbol model.Wire wire
+    let outputSymbol = getTargetSymbol model.Wire wire
 
-    {|InputPort=wire.InputPort; InputPortSymbol = inputSymbolOption; OutputPort=wire.OutputPort; OutputPortSymbol = outputSymbolOption|}
+    {|InputPort=wire.InputPort; InputPortSymbol = inputSymbol; OutputPort=wire.OutputPort; OutputPortSymbol = outputSymbol|}
 
 
 

@@ -19,7 +19,7 @@ module Constants =
 // TO PHASE OUT AND GO INTO COMMONTYPES
 // I cannot put this in commontypes and import commontypes.
 // This is because of the type name clash between ScaleAdjustment and Orientation
-// Todo: Fix CommonTypes, import it, and remove this type
+// Todo: Fix CommonTypes, import it, and remove this Rectangle type
 
 type Rectangle = {
     TopLeft: XYPos
@@ -52,6 +52,8 @@ let rectToBoundingBox (rect: Rectangle) : BoundingBox =
     let h = rect.BottomRight.Y - rect.TopLeft.Y
     { TopLeft = rect.TopLeft; W = w; H = h }
 
+/// (new!) tdc21 Another helper to convert a BoundingBox to a Rectangle.
+// Consider having this as a property for a segment type
 let segmentToRect (segStart: XYPos) (segEnd: XYPos) : Rectangle =
     // segments must travel strictly straight in one direction, otherwise, raise an error
 
@@ -76,7 +78,6 @@ let segmentToRect (segStart: XYPos) (segEnd: XYPos) : Rectangle =
 
 /// Returns true if two 1D line segments intersect
 /// HLP23: Derek Lai (ddl20)
-/// Todo: KEEP THIS FUNCTION
 let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
     let a_min, a_max = min a1 a2, max a1 a2
     let b_min, b_max = min b1 b2, max b1 b2
@@ -95,14 +96,15 @@ let overlap1DInfo ((a1, a2): float * float) ((b1, b2): float * float) : (float *
 
 /// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
 /// HLP23: Derek Lai (ddl20)
+/// Deprecated. Please use <c>overlap2D'</c> for now, passing in a box as a rectangle type with top left and bottom right corners
 let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
     (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
 
 /// (new!) tdc21:  Refactored version of overlap2D to use Rectangle type. Will replace overlap2D
+// Todo: Refactor all uses of overlap2D to use overlap2D'
 let overlap2D' (rect1: Rectangle) (rect2 : Rectangle) : bool =
     ( overlap1D (rect1.TopLeft.X, rect1.BottomRight.X) (rect2.TopLeft.X, rect2.BottomRight.X)
         && overlap1D (rect1.TopLeft.Y, rect1.BottomRight.Y) (rect2.TopLeft.Y, rect2.BottomRight.Y))
-
 
 
 /// (new!) tdc21:  Returns the area of the overlap between two rectangles if they intersect, else None
@@ -120,28 +122,28 @@ let overlap2DInfo (rect1) (rect2): Rectangle Option =
 
 
 
-/// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
-/// HLP23: Derek Lai (ddl20)
+// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
+// HLP23: Derek Lai (ddl20)
+// tdc21: Deprecated
 // Comments: This is merely a conversion to an alternate rectangle type with top right and bottom left.
-// Todo: Phase out and replace with overlap2D'
+// let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
+//     let bb1Coords =
+//         { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
+//         { X = bb1.TopLeft.X + bb1.W
+//           Y = bb1.TopLeft.Y + bb1.H }
+
+//     let bb2Coords =
+//         { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
+//         { X = bb2.TopLeft.X + bb2.W
+//           Y = bb2.TopLeft.Y + bb2.H }
+
+//     overlap2D bb1Coords bb2Coords
+
+/// (new!) tdc21: Refactored version of Derek's overlap2DBox to use Rectangle type for internal calculations. Should be a drop-in replacement for overlap2DBox
+// Todo: fix commontypes and import it, so we we can use the built in functions currently commented out
 let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
-    let bb1Coords =
-        { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
-        { X = bb1.TopLeft.X + bb1.W
-          Y = bb1.TopLeft.Y + bb1.H }
-
-    let bb2Coords =
-        { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
-        { X = bb2.TopLeft.X + bb2.W
-          Y = bb2.TopLeft.Y + bb2.H }
-
-    overlap2D bb1Coords bb2Coords
-
-/// (new!) tdc21:  Refactored version of overlap2DBox to use Rectangle type. Should be used replace overlap2DBox
-let overlap2DBox' (bb1: BoundingBox) (bb2: BoundingBox) : bool =
-    // Todo: Fix commontypes and import it, so that we can use the built-in functions
-    // let rect1: Rectangle = bb1.ToRect()
-    // let rect2: Rectangle = bb2.ToRect()
+    // let rect1: Rectangle = bb1.ToRect
+    // let rect2: Rectangle = bb2.ToRect
 
     let rect1, rect2 = boundingBoxToRect bb1, boundingBoxToRect bb2
     overlap2D' rect1 rect2
@@ -149,10 +151,10 @@ let overlap2DBox' (bb1: BoundingBox) (bb2: BoundingBox) : bool =
 
 
 /// (new!) tdc21:  Returns a bounding box of intersection area between two bounding boxes if they intersect, else None
+// Todo: fix commontypes and import it, so we we can use the built in functions currently commented out
 let overlap2DBoxInfo (bb1 : BoundingBox) (bb2 : BoundingBox) : BoundingBox option =
-    // Todo: Fix commontypes and import it, so that we can use the built-in functions
-    // let rect1: Rectangle = bb1.ToRect()
-    // let rect2: Rectangle = bb2.ToRect()
+    // let rect1: Rectangle = bb1.ToRect
+    // let rect2: Rectangle = bb2.ToRect
 
     let rect1, rect2 = boundingBoxToRect bb1, boundingBoxToRect bb2
 
@@ -178,8 +180,7 @@ let segmentIntersectsSegmentInfo (a1: XYPos, a2: XYPos) (b1: XYPos, b2: XYPos) :
 
 
 /// (new!) tdc21:  Returns true if a segment intersects a bounding box using the segment's start and end XYPos
-/// Will replace segmentIntersectsBoundingBox
-let segmentIntersectsBoundingBox' (box: BoundingBox) segStart segEnd =
+let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
         p1.X <= p2.X && p1.Y <= p2.Y
 
@@ -295,8 +296,10 @@ let findPerpendicularDistance (segStart:XYPos) (segEnd:XYPos) (point:XYPos) =
 
 /// Checks if a segment intersects a bounding box using the segment's start and end XYPos
 /// return how close the segment runs to the box centre, if it intersects
-// This has been retained here for legacy purposes, otherwise use overlap2DBoxInfo
-let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
+//  tdc21: This was orignally called segmentIntersectsBoundingBox, but now renamed as segmentIntersectsBoundingBoxDistance
+//         to reflect it returning the closest (perpend.) distance to the box centre if it intersects the box, rather than returning a boolean (true = intersects, false = does not intersect)
+//         segmentIntersectsBoundingBox is now the name function that returns true if a segment intersects a bounding box
+let segmentIntersectsBoundingBoxDistance (box: BoundingBox) segStart segEnd =
     let toRect p1 p2 =
         let topLeft, bottomRight =
             if lThanEqualPos p1 p2 then

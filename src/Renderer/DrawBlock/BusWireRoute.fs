@@ -14,29 +14,29 @@ open Operators
 
 
 
-(* 
-NOTE:   For ease of understanding, algorithm, variable names and documentation of code below are all explained 
+(*
+NOTE:   For ease of understanding, algorithm, variable names and documentation of code below are all explained
         in the simple case of no rotated symbols (ie wire.InitialOrientation = Horizontal).
 
         However, the code implemented supports the rotated case as well.
 
 Implemented the following Smart Routing Algorithm:
 
-    1)  Check if initial autorouted wire has any intersections with symbols. 
+    1)  Check if initial autorouted wire has any intersections with symbols.
         If yes, calculate the bounding boxes of all the intersected symbols.
     2)  Attempt to shift the vertical seg of the 7 seg wire to wireSeparationFromSymbol amount left of the left most
-        bound of the intersected symbols. 
+        bound of the intersected symbols.
         If there are still intersections, try shifting to the right most bound + wireSeparationFromSymbol.
-    3)  If there are still intersections, recursively try to shift the horizontal seg of the 7 seg 
-        or 9 seg wire to either the top or bottom most bound of the intersected symbols. 
-        If both shifted wires still result in an intersection, compute the vertical distances between 
-        the start/end pos of the wire and the top/bottom bound of the intersected symbols. 
-        Using the 4 vertical distances computed, decide whether to try shifting the wire up or down 
+    3)  If there are still intersections, recursively try to shift the horizontal seg of the 7 seg
+        or 9 seg wire to either the top or bottom most bound of the intersected symbols.
+        If both shifted wires still result in an intersection, compute the vertical distances between
+        the start/end pos of the wire and the top/bottom bound of the intersected symbols.
+        Using the 4 vertical distances computed, decide whether to try shifting the wire up or down
         depending on which results in a wire with shorter vertical distance.
-        
-        A max recursion depth is defined for step 3 so that Issie will not break when there are physically 
-        no possible routes that will not intersect any symbol (eg when dragging a symbol around such that 
-        the dragged symbol is within another symbol) or when there are special corner cases that have not 
+
+        A max recursion depth is defined for step 3 so that Issie will not break when there are physically
+        no possible routes that will not intersect any symbol (eg when dragging a symbol around such that
+        the dragged symbol is within another symbol) or when there are special corner cases that have not
         been implemented yet (eg symbol A is in top left quadrant with input port facing up, connected to
         symbol B in bottom right quadrant with output port facing down, with other symbols in between the
         2 symbols).
@@ -81,7 +81,7 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
     let inputIsSelect =
         let inputSymbol = model.Symbol.Symbols.[ComponentId inputCompId]
         let inputCompInPorts = inputSymbol.Component.InputPorts
-        
+
         componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = string wire.InputPort)
 
     let inputCompRotation =
@@ -112,7 +112,7 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
             match compType, lastSeg with
             | Mux2, true | Mux4, true | Mux8, true | Demux2, true | Demux4, true | Demux8, true -> false
             | _, _ ->
-                 match segmentIntersectsBoundingBox boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
+                 match segmentIntersectsBoundingBoxDistance boundingBox startPos endPos with // do not consider the symbols that the wire is connected to
                  | Some _ -> true // segment intersects bounding box
                  | None -> false // no intersection
         )
@@ -488,16 +488,16 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
-     
+
     let initialWire = (autoroute model wire)
-    
+
     // Snapping to Net only if model.SnapToNet toggled to be true
     let snappedToNetWire =
         match model.SnapToNet with
         | _ -> initialWire // do not snap
         //| true -> snapToNet model initialWire
 
-    let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire 
+    let intersectedBoxes = findWireSymbolIntersections model snappedToNetWire
 
     match intersectedBoxes.Length with
     | 0 -> snappedToNetWire
@@ -507,7 +507,7 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
             tryShiftHorizontalSeg maxCallsToShiftHorizontalSeg model intersectedBoxes snappedToNetWire
         )
         |> Option.defaultValue snappedToNetWire
-   
+
 
 
 //-----------------------------------------------------------------------------------------------------------//
@@ -516,23 +516,23 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
 
 /// Returns a single re-routed wire from the given model.
 /// First attempts partial autorouting, and defaults to full autorouting if this is not possible.
-/// Reverse indicates if the wire should be processed in reverse, 
+/// Reverse indicates if the wire should be processed in reverse,
 /// used when an input port (end of wire) is moved.
 let updateWire (model : Model) (wire : Wire) (reverse : bool) =
-    let newPort = 
+    let newPort =
         match reverse with
         | true -> Symbol.getInputPortLocation None model.Symbol wire.InputPort
         | false -> Symbol.getOutputPortLocation None model.Symbol wire.OutputPort
     if reverse then
         partialAutoroute model (reverseWire wire) newPort true
         |> Option.map reverseWire
-    else 
+    else
         partialAutoroute model wire newPort false
     |> Option.defaultWith (fun () ->
         smartAutoroute model wire)
 
 /// Re-routes the wires in the model based on a list of components that have been altered.
-/// If the wire input and output ports are both in the list of moved components, 
+/// If the wire input and output ports are both in the list of moved components,
 /// it does not re-route wire but instead translates it.
 /// Keeps manual wires manual (up to a point).
 /// Otherwise it will auto-route wires connected to components that have moved
@@ -543,7 +543,7 @@ let updateWires (model : Model) (compIdList : ComponentId list) (diff : XYPos) =
     let newWires =
         model.Wires
         |> Map.toList
-        |> List.map (fun (cId, wire) -> 
+        |> List.map (fun (cId, wire) ->
             if List.contains cId wires.Both //Translate wires that are connected to moving components on both sides
             then (cId, moveWire wire diff)
             elif List.contains cId wires.Inputs //Only route wires connected to ports that moved for efficiency

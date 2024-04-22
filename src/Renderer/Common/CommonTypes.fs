@@ -366,7 +366,7 @@ module CommonTypes
 
         with
         member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
-        member this.ToRect() = {TopLeft=this.TopLeft; BottomRight=(this.TopLeft + {X=this.W; Y=this.H})}
+        member inline this.ToRect = {TopLeft=this.TopLeft; BottomRight=(this.TopLeft + {X=this.W; Y=this.H})}
 
         /// TDC21: allowed tolerance when comparing positions with floating point errors for equality
         /// define a static member BoundingBox for comparisons, to be used in D1
@@ -380,7 +380,7 @@ module CommonTypes
     type Rectangle
         with
         member this.Centre = (this.TopLeft + this.BottomRight) * 0.5
-        member this.ToBoundingBox() = {TopLeft=this.TopLeft; W=this.BottomRight.X - this.TopLeft.X; H=this.BottomRight.Y - this.TopLeft.Y}
+        member inline this.ToBoundingBox = {TopLeft=this.TopLeft; W=this.BottomRight.X - this.TopLeft.X; H=this.BottomRight.Y - this.TopLeft.Y}
         static member inline epsilon = 0.0001
         static member inline (=~)(left: Rectangle, right: Rectangle) =
             left.TopLeft =~ right.TopLeft && left.BottomRight =~ right.BottomRight

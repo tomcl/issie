@@ -145,6 +145,7 @@ let init() = {
     WireSegmentsTableExpanded = true
     SymbolPortsTableExpanded = true
     SheetStatsExpanded = true
+    GroupMenuExpanded = false
 }
 
 

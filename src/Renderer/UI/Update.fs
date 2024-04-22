@@ -612,6 +612,8 @@ let update (msg : Msg) oldModel =
         { model with WireSegmentsTableExpanded = not model.WireSegmentsTableExpanded }, Cmd.none
     | UpdateScrollPosRightSelection(pos, dispatch) ->
         {model with RightSelectionScrollPos = pos}, Cmd.none
+    | ToggleGroup ->
+        { model with GroupMenuExpanded = not model.GroupMenuExpanded }, Cmd.none
 
 
 

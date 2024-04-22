@@ -199,6 +199,7 @@ let shortDisplayMsg (msg:Msg) =
     | ToggleWireTable -> None
     | ToggleWireSegmentsTable -> None
     | ToggleSheetStats -> None
+    | ToggleGroup -> None
 
 
 

@@ -4,6 +4,7 @@ open EEExtensions
 open VerilogTypes
 open Fulma
 open Fulma.Extensions.Wikiki
+open System
 
 open Fable.React
 open Fable.React.Props
@@ -366,4 +367,228 @@ let developerModeView (model: ModelType.Model) dispatch =
 
     /// Top level div for the developer mode view
     let viewComponentWrapper = div [] [ p [ menuLabelStyle ] []; viewComponent ]
-    div [ Style [ Margin "-10px 0 20px 0" ] ] ([ mouseSensitiveDataSection; sheetStatsMenu; viewComponentWrapper ])
+
+
+    // --------- Grouped Components -------- //
+
+    let symbols = model.Sheet.Wire.Symbol.Symbols
+
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let groupedComponentIds =
+        model.Sheet.GroupMap
+        |> Map.toList
+        |> List.collect snd
+
+    let ungroupedComponentsMap =
+        model.Sheet.Wire.Symbol.Symbols
+        |> Map.filter (fun k v -> v.Component.Label <> "" && not (List.exists ((=) k) groupedComponentIds))
+
+
+    let groupProperties =
+
+        let addToGroup (groupMap : Map<GroupId, ComponentId list>) (groupId: GroupId) (componentId: ComponentId) =
+            match Map.tryFind groupId groupMap with
+            | Some componentIds ->
+                let newComponentIds = componentId :: componentIds
+                Map.add groupId newComponentIds groupMap
+            | None -> Map.add groupId [componentId] groupMap
+
+        let deleteFromGroup (groupMap : Map<GroupId, ComponentId list>)(groupId: GroupId) (componentId: ComponentId) =
+            match Map.tryFind groupId groupMap with
+            | Some componentIds ->
+                let newComponentIds = List.filter ((<>) componentId) componentIds
+                Map.add groupId newComponentIds groupMap
+            | None -> groupMap
+
+
+        let deleteWholeGroup (groupMap : Map<GroupId, ComponentId list>) (groupId: GroupId) =
+            match Map.tryFind groupId groupMap with
+            | Some componentIds ->
+                Map.remove groupId groupMap
+            | None -> groupMap
+
+
+        let createTableFromSymbols (symbolsMap: Map<ComponentId, SymbolT.Symbol>) (groupMap: Map<GroupId, ComponentId list>) =
+
+            let symbols = Map.toList symbolsMap |> List.map snd
+            let groupKeys = Map.toList groupMap |> List.map fst
+
+
+
+
+            let dropdownItems(compId : ComponentId) =
+                let groupItems =
+                    groupKeys
+                    |> List.mapi (fun index groupId ->
+                        Dropdown.Item.a [] [p [OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap groupId compId)))] [str ("Group " + (index + 1).ToString()) ]])
+                let newGroupItem = [Dropdown.Item.a [] [p [OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap (GroupId DateTime.Now) compId)))] [str "Create new group"]]]
+                groupItems @ newGroupItem
+
+
+            let addGroupDropDown (compId: ComponentId) =
+                Dropdown.dropdown [ Dropdown.IsHoverable; Dropdown.IsRight ]
+                    [ Dropdown.trigger [] [ Button.button [ Button.Size IsSmall ]
+                        [ str "Add to..." ;
+                        Icon.icon [ Icon.Size IsSmall ] [] ] ];
+                    Dropdown.menu []
+                        [ Dropdown.content []
+                            (dropdownItems compId)]]
+
+
+            let tableRows =
+                symbols
+                // sort alphabetically by label
+                |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
+                // remove any symbols with empty label (gets rid of annotations e.g. rotation or scale buttons for selected syms)
+                |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "")
+                |> List.map (fun symbol ->
+                    let compTypeDescr = getComponentTypeDescrFromSym symbol
+                    tr
+                        []
+                        [ td [] [ str (symbol.Component.Label.ToString())  ];
+                        td
+                            []
+                            [ code [] [ str ( compTypeDescr )] ];
+                        td [] [ addGroupDropDown (ComponentId symbol.Component.Id) ] ])
+
+            if tableRows.Length = 0 then
+                div [Style [MarginBottom "25px"; Border "1px solid lightgrey"]] [str "No ungrouped components."]
+            else
+                // div [Style [MarginBottom "25px"; MaxHeight "300px"; OverflowY OverflowOptions.Scroll; Border "1px solid lightgrey"]] [
+                div [Style [MarginBottom "25px";]] [
+                Table.table
+                    [Table.IsFullWidth;]
+                    [ tr
+                        []
+                        [ th [] [ str "Label" ];
+                            th [] [ str "Type" ];
+                            th [] [ str "Action"] ];
+                        yield! tableRows ];
+
+                ]
+
+
+
+
+
+        let highlightGroup (groupId: GroupId) (groupMap: Map<GroupId, ComponentId list>) =
+        //  returns a (compIds, connIds, colour)
+            let compIds =
+                match Map.tryFind groupId groupMap with
+                | Some compIds -> compIds
+                | None -> []
+            let connIds = []
+
+            (compIds, connIds, HighLightColor.SkyBlue)
+
+
+
+
+
+        let createGroupRows (groupId: GroupId) (groupLabel: int) (componentIds: ComponentId list) (symbolsMap: Map<ComponentId, SymbolT.Symbol>) (groupMap: Map<GroupId, ComponentId list>)=
+            let validComponentIds =
+                componentIds
+                |> List.filter (fun componentId -> Map.containsKey componentId symbolsMap)
+                |> List.filter (fun componentId ->
+                    match Map.tryFind componentId symbolsMap with
+                    | Some symbol -> symbol.Component.Label <> ""
+                    | None -> false)
+            let validComponentsCount = validComponentIds.Length
+
+            let groupRows =
+                validComponentIds
+                    |> List.mapi (fun index componentId ->
+                            match Map.tryFind componentId symbolsMap with
+                            | Some symbol ->
+                                let compTypeDescr = getComponentTypeDescrFromSym symbol
+                                let groupIdElement =
+                                    match index with
+                                    | 0 -> td [] [ str ((groupLabel+1).ToString()); Button.button [Button.Color IsDanger; Button.Size IsSmall; Button.OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(deleteWholeGroup groupMap groupId)))] [str "Delete"]]
+                                    | _ -> td [] []
+                                let borderBottomStyle =
+                                    match (index + 1 = validComponentsCount) with
+                                    | true -> "4px solid lightgrey"
+                                    | false -> "0px"
+
+                                tr [
+                                    Style [BorderBottom borderBottomStyle];
+                                ] [
+                                    // groupIdElement;
+                                    td [] [ str (symbol.Component.Label.ToString())  ];
+                                    td [] [ code [] [ str ( compTypeDescr )] ];
+                                    td [ Style [Padding "10px" ;TextAlign TextAlignOptions.Right; VerticalAlign "middle";]; OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(deleteFromGroup groupMap groupId componentId))) ] [Delete.delete [Delete.Size IsMedium] []]
+                                ]
+                            | None -> tr [] [])
+
+            let groupHeaderRow =
+                tr [Style [BorderTop "4px solid lightgrey"; BackgroundColor "WhiteSmoke"]] [
+                                           td [Style [FontWeight "bold"]] [ str ("Group " + (groupLabel + 1).ToString())];
+                                        //    td [Style [Padding "5px 10px";TextAlign TextAlignOptions.Left; ]] [ ];
+                                           td [] [];
+                                           td [Style [Padding "5px 10px";TextAlign TextAlignOptions.Right; ]] [
+
+                                            div [Style [Display DisplayOptions.Block]] [
+
+                                            Button.button [Button.Color IsInfo; Button.Size IsSmall; Button.OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.ColourSelection(highlightGroup groupId groupMap)))] [str "Highlight"];
+
+                                            span [Style[Padding "0px 2px"]] []
+
+                                            Button.button [Button.Color IsDanger; Button.Size IsSmall; Button.OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(deleteWholeGroup groupMap groupId)))] [str "Delete All"]]
+
+                                            ]
+                ]
+
+            groupHeaderRow :: groupRows
+
+
+
+        let createGroupTableFromGroupMap (symbolsMap: Map<ComponentId, SymbolT.Symbol>) (groupMap : Map<GroupId, ComponentId list>) =
+            if groupMap |> Map.isEmpty then
+                div [Style [MarginBottom "25px" ]] [str "No groups created."]
+            else
+                let tableRows =
+                    groupMap
+                    |> Map.toList
+                    |> List.mapi (fun index (groupId, componentIds) -> (index, groupId, componentIds))
+                    |> List.collect (fun (index, groupId, componentIds) ->
+                        let sortedComponentIds =
+                            componentIds
+                            |> List.sortBy (fun componentId ->
+                                match Map.tryFind componentId symbolsMap with
+                                | Some symbol -> symbol.Component.Label.ToString()
+                                | None -> "")
+                        let groupRows = createGroupRows groupId index sortedComponentIds symbolsMap groupMap
+                        groupRows)
+            // div [Style [MarginBottom "25px"; (*MaxHeight "300px"; OverflowY OverflowOptions.Scroll ;*) Border "1px solid lightgrey"]]
+                div [Style [MarginBottom "25px";]] [Table.table
+                [Table.IsFullWidth;]
+                [ tr
+                    []
+                    [
+                        // th [] [ str "Group" ];
+                        // th [] [ str "Label" ];
+                        // th [] [ str "Type" ];
+                        // th [] [ ];
+                        // th [] []
+                        ];
+                    yield! tableRows ]
+
+                    ]
+
+
+
+        details
+            [ Open(model.GroupMenuExpanded) ]
+            [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleGroup)) ] [ str "Grouped Components "];
+
+            div [Style [Margin "10px 0px"]] [
+                Heading.h5 [] [str "Grouped Components"]
+                createGroupTableFromGroupMap symbols model.Sheet.GroupMap
+                Heading.h5 [] [str "Ungrouped Components"]
+                p [Style [Margin "-10px 0 10px" ]] [str "Choose a component to add to the group."]
+                createTableFromSymbols ungroupedComponentsMap model.Sheet.GroupMap
+            ]
+        ]
+
+
+    div [ Style [ Margin "-10px 0 20px 0" ] ] ([ mouseSensitiveDataSection; sheetStatsMenu; viewComponentWrapper; groupProperties ])

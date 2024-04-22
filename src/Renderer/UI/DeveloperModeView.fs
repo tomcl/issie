@@ -25,6 +25,7 @@ open BusWireRoutingHelpers
 open Sheet
 open DrawModelType.SheetT
 open BusWire
+open IntersectionHelpers
 
 
 (*
@@ -77,75 +78,116 @@ let developerModeView (model: ModelType.Model) dispatch =
           {|DisplayName="T6 RetracingSegments";
             ToolTipDescription = "Counts the number of retracing segments on sheet.\nZero-length segments with non-zero segments on \nboth sides that have lengths of opposite signs lead to a \nwire retracing itself";
             Value=(List.length (findRetracingSegments model.Sheet).RetraceSegsInSymbol).ToString() |}
+          {|DisplayName="CountAlmostStraight Wires";
+            ToolTipDescription = "Counts the number of wires that are almost straight.\nWires that have a maximum deviation of 40px \nfrom the majority direction."
+            Value=(countAlmostStraightWiresOnSheet model.Sheet 40.0).ToString() |}
            ]
 
-    let testSegmentIntersectsBBox  (model: ModelType.Model) : string =
-        // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
-        match model.Sheet.Wire.Symbol.Symbols.Count >= 1 && model.Sheet.Wire.Wires.Count >= 1 with
-        | true ->
-            let firstWire = model.Sheet.Wire.Wires |> Map.values |> Array.head
+    // let testSegmentIntersectsBBox  (model: ModelType.Model) : string =
+    //     // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
+    //     match model.Sheet.Wire.Symbol.Symbols.Count >= 1 && model.Sheet.Wire.Wires.Count >= 1 with
+    //     | true ->
+    //         let firstWire = model.Sheet.Wire.Wires |> Map.values |> Array.head
 
-            model.Sheet.Wire.Symbol.Symbols
-            |> Map.map (fun _ symbol ->
-                let bbox = getSymbolBoundingBox symbol
-                getAbsSegments firstWire
-                |> List.skip 1
-                |> fun list -> List.take (List.length list - 2 ) list
-                |> List.map (fun (aSeg: ASegment) ->
+    //         model.Sheet.Wire.Symbol.Symbols
+    //         |> Map.map (fun _ symbol ->
+    //             let bbox = getSymbolBoundingBox symbol
+    //             getAbsSegments firstWire
+    //             |> List.skip 1
+    //             |> fun list -> List.take (List.length list - 2 ) list
+    //             |> List.map (fun (aSeg: ASegment) ->
 
-                    let segStart, segEnd = aSeg.Start, aSeg.End
-                    (aSeg.GetId, segmentIntersectsBoundingBox bbox segStart segEnd))
-                // get rid of Nones and convert to strings including ID
-                |> List.choose (fun ((id, _), optIntersection) ->
-                    match optIntersection with
-                    | Some intersection -> Some (sprintf "id %A with intersect distance %f" (id.ToString()) intersection)
-                    | None -> None)
-                |> String.concat ","
+    //                 let segStart, segEnd = aSeg.Start, aSeg.End
+    //                 (aSeg.GetId, segmentIntersectsBoundingBox bbox segStart segEnd))
+    //             // get rid of Nones and convert to strings including ID
+    //             |> List.choose (fun ((id, _), optIntersection) ->
+    //                 match optIntersection with
+    //                 | Some intersection -> Some (sprintf "id %A with intersect distance %f" (id.ToString()) intersection)
+    //                 | None -> None)
+    //             |> String.concat ","
 
-                )
-            |> Map.toList
-            |> List.map snd
-            |> String.concat ",   "
-
-
-        | false -> ""
-    let removeSingleWireInvisibleSegments (wire: Wire) =
-        let uniqueVertices =
-            segmentsToIssieVertices wire.Segments wire
-            |> List.distinctBy (fun (x, y, _) -> (x, y))
-        let newSegments = issieVerticesToSegments wire.WId uniqueVertices
-        // for each wire, set the segments to the new segments
-        wire |> Optic.set segments_ newSegments
-
-    let testSegmentIntersectsBBox2  (model: ModelType.Model) : string =
-        // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
-        match model.Sheet.Wire.Symbol.Symbols.Count >= 1 && model.Sheet.Wire.Wires.Count >= 1 with
-        | true ->
-            let firstWire = model.Sheet.Wire.Wires |> Map.values |> Array.head
-            model.Sheet.Wire.Symbol.Symbols
-            |> Map.map (fun _ symbol ->
-                let bbox = getSymbolBoundingBox symbol
-                getAbsSegments firstWire
-                |> List.skip 1
-                |> fun list -> List.take (List.length list - 1 ) list
-                |> List.map (fun (aSeg: ASegment) ->
-
-                    let segStart, segEnd = aSeg.Start, aSeg.End
-                    (aSeg.GetId, getSegmentIntersectBBox bbox segStart segEnd))
-                // get rid of Nones and convert to strings including ID
-                |> List.choose (fun (( id,_), optIntersection) ->
-                    match optIntersection with
-                    | Some intersection -> Some (sprintf "id %A with intersect area %A" (id.ToString()) (intersection.ToString()))
-                    | None -> None)
-                |> String.concat ", "
-
-                )
-            |> Map.toList
-            |> List.map snd
-            |> String.concat ", "
+    //             )
+    //         |> Map.toList
+    //         |> List.map snd
+    //         |> String.concat ",   "
 
 
-        | false -> ""
+    //     | false -> ""
+    // let removeSingleWireInvisibleSegments (wire: Wire) =
+    //     let uniqueVertices =
+    //         segmentsToIssieVertices wire.Segments wire
+    //         |> List.distinctBy (fun (x, y, _) -> (x, y))
+    //     let newSegments = issieVerticesToSegments wire.WId uniqueVertices
+    //     // for each wire, set the segments to the new segments
+    //     wire |> Optic.set segments_ newSegments
+
+    // let testSegmentIntersectsBBox2  (model: ModelType.Model) : string =
+    //     // check for at least two symbols, take the first and second, run with reSizeSymbolTopLevel
+    //     match model.Sheet.Wire.Symbol.Symbols.Count >= 1 && model.Sheet.Wire.Wires.Count >= 1 with
+    //     | true ->
+    //         let firstWire = model.Sheet.Wire.Wires |> Map.values |> Array.head
+    //         model.Sheet.Wire.Symbol.Symbols
+    //         |> Map.map (fun _ symbol ->
+    //             let bbox = getSymbolBoundingBox symbol
+    //             getAbsSegments firstWire
+    //             |> List.skip 1
+    //             |> fun list -> List.take (List.length list - 1 ) list
+    //             |> List.map (fun (aSeg: ASegment) ->
+
+    //                 let segStart, segEnd = aSeg.Start, aSeg.End
+    //                 (aSeg.GetId, getSegmentIntersectBBox bbox segStart segEnd))
+    //             // get rid of Nones and convert to strings including ID
+    //             |> List.choose (fun (( id,_), optIntersection) ->
+    //                 match optIntersection with
+    //                 | Some intersection -> Some (sprintf "id %A with intersect area %A" (id.ToString()) (intersection.ToString()))
+    //                 | None -> None)
+    //             |> String.concat ", "
+
+    //             )
+    //         |> Map.toList
+    //         |> List.map snd
+    //         |> String.concat ", "
+
+
+    //     | false -> ""
+
+    // let testOverlap1DIn2DInfo  (model: ModelType.Model)=
+    //     match model.Sheet.Wire.Symbol.Symbols.Count >= 2 && model.Sheet.Wire.Wires.Count >= 2 with
+    //     | true ->
+    //         let wires =
+    //             model.Sheet.Wire.Wires
+    //             |> Map.values
+    //             |> Array.toList
+    //             |> List.mapi (fun i wire -> (i, wire))
+
+    //         List.allPairs wires wires
+    //         |> List.filter (fun ((i1, wire1), (i2, wire2)) -> i1 > i2)
+    //         |> List.map (fun ((i1, wire1), (i2, wire2)) ->
+    //             let wire1Abs, wire2Abs = getAbsSegments wire1, getAbsSegments wire2
+    //             List.allPairs wire1Abs wire2Abs
+    //             |> List.filter (fun (seg1: ASegment, seg2) -> seg1.Segment.Index <> seg2.Segment.Index)
+    //             |> List.map (fun (seg1: ASegment, seg2) ->  overlap1DIn2DInfo (seg1.Start, seg1.End) (seg2.Start, seg2.End))
+    //             |> List.choose id
+    //             |> List.map (fun rect ->
+    //                 if rect.BottomRight = rect.TopLeft then
+    //                     rect.BottomRight.ToString()
+    //                 else
+    //                     sprintf "Overlap with TopLeft %A and BottomRight %A" rect.TopLeft rect.BottomRight
+    //             )
+    //             |> String.concat ",")
+    //         |> String.concat "; "
+    //     | false -> ""
+
+// let countIntersectingSymbolPairs (model: SheetT.Model) =
+//     let boxes =
+//         mapValues model.BoundingBoxes
+//         |> Array.toList
+//         |> List.mapi (fun n box -> n, box)
+//     List.allPairs boxes boxes
+//     |> List.filter (fun ((n1, box1), (n2, box2)) -> (n1 <> n2) && BlockHelpers.overlap2DBox box1 box2)
+//     |> List.length
+//     // divide by 2
+//     |> (fun x -> x / 2)
 
 // ----------------------------------------------------------------- //
 //        Mouse Sensitive Data- Updates based on Mouse Position      //
@@ -255,9 +297,16 @@ let developerModeView (model: ModelType.Model) dispatch =
                         yield! counterRows
             ];
                 // div [Style [MarginBottom "20px"]] [
+                //     code [] [str (testOverlap1DIn2DInfo model)]
+                // ];
+
+                // div [Style [MarginBottom "20px"]] [
                 //     code [] [str (testSegmentIntersectsBBox model)]
                 // ];
 
+                // div [] [
+                //     code [] [str (testSegmentIntersectsBBox2 model)]
+                // ]
                 // div [] [
                 //     code [] [str (testSegmentIntersectsBBox2 model)]
                 // ]

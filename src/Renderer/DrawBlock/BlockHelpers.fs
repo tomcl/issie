@@ -6,6 +6,10 @@ open DrawModelType.BusWireT
 open Optics
 open Optics.Operators
 
+module Constants =
+    let intervalTolerance = 0.0001
+
+
 
 // +-------------------------------+ //
 // |                               | //
@@ -77,7 +81,9 @@ let segmentToRect (segStart: XYPos) (segEnd: XYPos) : Rectangle =
 let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
     let a_min, a_max = min a1 a2, max a1 a2
     let b_min, b_max = min b1 b2, max b1 b2
-    a_max >= b_min && b_max >= a_min
+    // a_max >= b_min && b_max >= a_min
+    // adjust for floating point errors?
+    a_max - b_min >= -XYPos.epsilon && b_max - a_min >= -XYPos.epsilon
 
 /// (new!) Returns the overlapping segment line of two 1D line segments if they intersect, else None
 let overlap1DInfo ((a1, a2): float * float) ((b1, b2): float * float) : (float * float) option =
@@ -87,18 +93,6 @@ let overlap1DInfo ((a1, a2): float * float) ((b1, b2): float * float) : (float *
     | true -> Some (max a_min b_min, min a_max b_max)
     | false -> None
 
-
-/// Converts a segment list into a list of vertices to store inside Connection
-let segmentsToIssieVertices (segList:Segment list) (wire:Wire) =
-    ((wire.StartPos, wire.InitialOrientation, false),segList)
-    ||> List.scan(fun (currPos, currOrientation, _) seg ->
-        let (nextPos, nextOrientation) =
-            match currOrientation with
-            | Horizontal -> { currPos with X = currPos.X + seg.Length}, Vertical
-            | Vertical -> { currPos with Y = currPos.Y + seg.Length}, Horizontal
-        let manual = (seg.Mode = Manual)
-        (nextPos,nextOrientation,manual))
-    |> List.map ( fun (pos,_,manual) -> pos.X,pos.Y,manual)
 
 /// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
 /// HLP23: Derek Lai (ddl20)
@@ -129,7 +123,8 @@ let overlap2DInfo (rect1) (rect2): Rectangle Option =
 
 /// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
 /// HLP23: Derek Lai (ddl20)
-// Comments: This is merely a conversion to an alternate rectangle type with top right and bottom left. Phase out and replace
+// Comments: This is merely a conversion to an alternate rectangle type with top right and bottom left.
+// Todo: Phase out and replace with overlap2D'
 let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
     let bb1Coords =
         { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
@@ -143,15 +138,14 @@ let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
 
     overlap2D bb1Coords bb2Coords
 
-
-let overlap2dBox' (bb1: BoundingBox) (bb2: BoundingBox) : bool =
+/// (new!) Refactored version of overlap2DBox to use Rectangle type. Should be used replace overlap2DBox
+let overlap2DBox' (bb1: BoundingBox) (bb2: BoundingBox) : bool =
     // Todo: Fix commontypes and import it, so that we can use the built-in functions
     // let rect1: Rectangle = bb1.ToRect()
     // let rect2: Rectangle = bb2.ToRect()
 
     let rect1, rect2 = boundingBoxToRect bb1, boundingBoxToRect bb2
     overlap2D' rect1 rect2
-
 
 
 
@@ -168,14 +162,83 @@ let overlap2DBoxInfo (bb1 : BoundingBox) (bb2 : BoundingBox) : BoundingBox optio
     | None -> None
 
 
+/// (new!) Returns true if two 1D line segments intersect in 2D space
+let segmentIntersectsSegment (a1: XYPos, a2: XYPos) (b1: XYPos, b2: XYPos) : bool =
+    overlap1D (a1.X, a2.X) (b1.X, b2.X) && overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y)
+
+/// (new!) Returns the rectangle of the overlap between two 1D line segments if they intersect, else None
+let segmentIntersectsSegmentInfo (a1: XYPos, a2: XYPos) (b1: XYPos, b2: XYPos) : Rectangle option =
+    let xOverlapVertices = overlap1DInfo (a1.X, a2.X) (b1.X, b2.X)
+    let yOverlapVertices = overlap1DInfo (a1.Y, a2.Y) (b1.Y, b2.Y)
+    match xOverlapVertices, yOverlapVertices with
+    | Some (x1, x2), Some (y1, y2) ->
+        let TopLeft = { X = (min x1 x2); Y = (min y1 y2) }
+        let BottomRight = { X = (max x1 x2); Y = (max y1 y2) }
+        Some { TopLeft = TopLeft; BottomRight = BottomRight }
+    | _, _ -> None
+
+
+/// (new!) Returns true if a segment intersects a bounding box using the segment's start and end XYPos
+/// Will replace segmentIntersectsBoundingBox
+let segmentIntersectsBoundingBox' (box: BoundingBox) segStart segEnd =
+    let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
+        p1.X <= p2.X && p1.Y <= p2.Y
+
+    let topLeft =
+        if lThanEqualPos segStart segEnd then
+            segStart
+        else
+            segEnd
+    let segBBox =
+        match abs ((segStart - segEnd).X), abs ((segStart - segEnd).Y) with
+        | x, y when abs x <= XYPos.epsilon ->   Some { TopLeft = topLeft; W = 0.0; H = y }
+        | x, y when abs y <= XYPos.epsilon -> Some { TopLeft = topLeft; W = x; H = 0.0 }
+        | _, _ -> None // we don't do this for zero length segments
+
+    match segBBox with
+    | Some segBBox ->  overlap2DBox box segBBox
+    | _ -> false
+
+/// (new!) Returns the bounding box of the intersection between a segment and a bounding box if they intersect, else None
+let segmentIntersectsBoundingBoxInfo (box: BoundingBox) segStart segEnd =
+    let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
+        p1.X <= p2.X && p1.Y <= p2.Y
+
+    let topLeft =
+        if lThanEqualPos segStart segEnd then
+            segStart
+        else
+            segEnd
+    let segBBox =
+        match abs ((segStart - segEnd).X), abs ((segStart - segEnd).Y) with
+        | x, y when abs x <= XYPos.epsilon ->   Some { TopLeft = topLeft; W = 0.0; H = y }
+        | x, y when abs y <= XYPos.epsilon -> Some { TopLeft = topLeft; W = x; H = 0.0 }
+        | _, _ -> None // we don't do this for zero length segments
+
+    match segBBox with
+    | Some segBBox ->  overlap2DBoxInfo box segBBox
+    | _ -> None
 
 
 
 
 
+/// Converts a segment list into a list of vertices to store inside Connection
+let segmentsToIssieVertices (segList:Segment list) (wire:Wire) =
+    ((wire.StartPos, wire.InitialOrientation, false),segList)
+    ||> List.scan(fun (currPos, currOrientation, _) seg ->
+        let (nextPos, nextOrientation) =
+            match currOrientation with
+            | Horizontal -> { currPos with X = currPos.X + seg.Length}, Vertical
+            | Vertical -> { currPos with Y = currPos.Y + seg.Length}, Horizontal
+        let manual = (seg.Mode = Manual)
+        (nextPos,nextOrientation,manual))
+    |> List.map ( fun (pos,_,manual) -> pos.X,pos.Y,manual)
 
 
-//-------------------------- types and functiond related to BusWireRouting -------------//
+
+
+//-------------------------- types and functions related to BusWireRouting -------------//
 //-------------------------segmentIntersectsBoundingBox---------------------------------//
 
 // Type used to simplify BoundingBox intersection calculations
@@ -232,7 +295,8 @@ let findPerpendicularDistance (segStart:XYPos) (segEnd:XYPos) (point:XYPos) =
     | false -> abs (segStart.X - point.X)
 
 /// Checks if a segment intersects a bounding box using the segment's start and end XYPos
-/// return how close teh segment runs to the box centre, if it intersects
+/// return how close the segment runs to the box centre, if it intersects
+// This has been retained here for legacy purposes, otherwise use overlap2DBoxInfo
 let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     let toRect p1 p2 =
         let topLeft, bottomRight =
@@ -256,27 +320,11 @@ let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     else
         None
 
-let getSegmentIntersectBBox (box: BoundingBox) segStart segEnd =
-    let topLeft =
-        if lThanEqualPos segStart segEnd then
-            segStart
-        else
-            segEnd
-    let segBBox =
-        match abs ((segStart - segEnd).X), abs ((segStart - segEnd).Y) with
-        | x, y when abs x <= XYPos.epsilon ->   Some { TopLeft = topLeft; W = 0.0; H = y }
-        | x, y when abs y <= XYPos.epsilon -> Some { TopLeft = topLeft; W = x; H = 0.0 }
-        | _, _ -> None // we don't do this for zero length segments
-
-    match segBBox with
-    | Some segBBox ->  overlap2DBoxInfo box segBBox
-    | _ -> None
 
 //-----------------------------------------------------------------------------------------------//
 //---------------------------HELPERS FOR SMART DRAW BLOCK ADDITIONS------------------------------//
 //-----------------------------------------------------------------------------------------------//
-module Constants =
-    let intervalTolerance = 0.0001
+
 
 open Constants
 /// Update BusWire model with given symbols. Can also be used to add new symbols.

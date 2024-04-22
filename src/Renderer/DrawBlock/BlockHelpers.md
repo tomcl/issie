@@ -3,15 +3,19 @@
 ## Proposed Additions 
 | Function Name       | Use                                                                                      | Input                                          | Output                  | Comments |
 |---------------------|------------------------------------------------------------------------------------------|------------------------------------------------|-------------------------|----------|
-| `boundingBoxToRect` | Helper to convert a `BoundingBox` to a `Rectangle`. This function is defined separately due to a type name clash between `ScaleAdjustment` and `Orientation` in `CommonTypes`. | `boundingBox: BoundingBox`                    | `Rectangle`             |          |
-| `rectToBoundingBox` | Helper to convert a `Rectangle` to a `BoundingBox`. This function is defined separately due to a type name clash between `ScaleAdjustment` and `Orientation` in `CommonTypes`. | `rect: Rectangle`                             | `BoundingBox`           |          |
+| `boundingBoxToRect` | Helper to convert a `BoundingBox` to a `Rectangle`. This function is defined separately due to a type name clash between `ScaleAdjustment` and `Orientation` in `CommonTypes`. | `boundingBox: BoundingBox`                    | `Rectangle`             | When `CommonTypes` is fixed and imported back, can phase out and replace with in-built methods for `Bounding Box` and `Rectangle`         |
+| `rectToBoundingBox` | Helper to convert a `Rectangle` to a `BoundingBox`. This function is defined separately due to a type name clash between `ScaleAdjustment` and `Orientation` in `CommonTypes`. | `rect: Rectangle`                             | `BoundingBox`           | When `CommonTypes` is fixed and imported back, can phase out and replace with in-built methods for `Bounding Box` and `Rectangle`         |
 | `segmentToRect`     | Converts a segment (defined by its start and end points) to a Rectangle. If the segment travels in both directions, an error is raised.                        | `segStart: XYPos`, `segEnd: XYPos`            | `Rectangle`             |          |
-| `overlap1DInfo`     | Returns the range of overlap between two 1D ranges if they intersect, else None.           | `(a1, a2): float pair`, `(b1, b2): float pair` | `(float * float) option`|          |
-| `overlap2DInfo`     | Returns the area of the overlap between two rectangles if they intersect, else None.      | `rect1: Rectangle`, `rect2: Rectangle`        | `Rectangle option`      |          |
-| `overlap2DBoxInfo`  | Returns a bounding box of intersection area between two bounding boxes if they intersect, else None. | `bb1: BoundingBox`, `bb2: BoundingBox`       | `BoundingBox option`    |          |
+| `overlap1DInfo`     | Returns the range of overlap between two 1D ranges if they intersect, else None.           | `(a1, a2): float pair`, `(b1, b2): float pair` | `(float * float) option`|  Designed to pair with `overlap1D` which already exists  |
+| `overlap2DInfo`     | Returns the area of the overlap between two rectangles if they intersect, else None.      | `rect1: Rectangle`, `rect2: Rectangle`        | `Rectangle option`      |Designed to pair with `overlap2D` which already exists|
+| `overlap2DBoxInfo`  | Returns a bounding box of intersection area between two bounding boxes if they intersect, else None. | `bb1: BoundingBox`, `bb2: BoundingBox`       | `BoundingBox option`    |Designed to pair with `overlap2DBox` which already exists|
+| `segmentIntersectsSegment`| Returns true if two 1D line segments intersect in 2D space. | `(a1, a2): XYPos * XYPos`, `(b1, b2): XYPos * XYPos` | `bool` | |
+| `segmentIntersectsSegmentInfo`| Returns the rectangle of the overlap between two 1D line segments in 2D space. | `(a1, a2): XYPos * XYPos`, `(b1, b2): XYPos * XYPos` | `Rectangle option` | |
+| `segmentIntersectsBoundingBox'` | Returns true if a segment intersects a bounding box using the segment's start and end `XYPos`.  | `box : BoundingBox`, `segStart : XYPos`, `segEnd : XYPos` | `bool` | Will be used to phase out `segmentIntersectsBoundingBox` which already exists. |
+| `segmentIntersectsBoundingBoxInfo` | Returns the BoundingBox of the overlap between a segment and a bounding box. | `box : BoundingBox`, `segStart : XYPos`, `segEnd : XYPos` | `BoundingBox option` | |
 
 
-## Smart Draw Block Additions
+## Smart Draw Block 'Additions' (from HLP23)
 
 | Function Name                  | Use                                                         | Input                                         | Output          | Comments |
 |--------------------------------|-------------------------------------------------------------|-----------------------------------------------|-----------------|----------|

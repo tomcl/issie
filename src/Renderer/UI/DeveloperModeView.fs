@@ -47,6 +47,8 @@ STRUCTURE
 4. Wire Segments
 *)
 
+let buttonStyles = Style[Margin "0px 3px"; Padding "6px 10px"; Cursor "Pointer"; Height "1.1em"]
+
 
 /// Top Level function for developer mode (tdc21)
 let developerModeView (model: ModelType.Model) dispatch =
@@ -386,12 +388,19 @@ let developerModeView (model: ModelType.Model) dispatch =
 
     let groupProperties =
 
-        let addToGroup (groupMap : Map<GroupId, ComponentId list>) (groupId: GroupId) (componentId: ComponentId) =
+        let addSingleToGroup (groupMap : Map<GroupId, ComponentId list>) (groupId: GroupId) (componentId: ComponentId) =
             match Map.tryFind groupId groupMap with
             | Some componentIds ->
                 let newComponentIds = componentId :: componentIds
                 Map.add groupId newComponentIds groupMap
             | None -> Map.add groupId [componentId] groupMap
+
+        let addToGroup (groupMap : Map<GroupId, ComponentId list>) (groupId: GroupId) (componentIds: ComponentId list) =
+            match Map.tryFind groupId groupMap with
+            | Some existingComponentIds ->
+                let newComponentIds = existingComponentIds @ componentIds
+                Map.add groupId newComponentIds groupMap
+            | None -> Map.add groupId componentIds groupMap
 
         let deleteFromGroup (groupMap : Map<GroupId, ComponentId list>)(groupId: GroupId) (componentId: ComponentId) =
             match Map.tryFind groupId groupMap with
@@ -416,23 +425,23 @@ let developerModeView (model: ModelType.Model) dispatch =
 
 
 
-            let dropdownItems(compId : ComponentId) =
+            let dropdownItems(compIds : ComponentId list) =
                 let groupItems =
                     groupKeys
                     |> List.mapi (fun index groupId ->
-                        Dropdown.Item.a [] [p [OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap groupId compId)))] [str ("Group " + (index + 1).ToString()) ]])
-                let newGroupItem = [Dropdown.Item.a [] [p [OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap (GroupId DateTime.Now) compId)))] [str "Create new group"]]]
+                        Dropdown.Item.a [Dropdown.Item.Option.Props[Style[Width "inherit" ];OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap groupId compIds)))] ] [p [] [str ("Group " + (index + 1).ToString()) ]])
+                let newGroupItem = [Dropdown.Item.a [Dropdown.Item.Option.Props[Style[Width "inherit"];OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap (GroupId DateTime.Now) compIds)))] ] [div [] [str "Create new group"]]]
                 groupItems @ newGroupItem
 
 
-            let addGroupDropDown (compId: ComponentId) =
+
+            let addGroupDropDown (compIds: ComponentId list) =
                 Dropdown.dropdown [ Dropdown.IsHoverable; Dropdown.IsRight ]
-                    [ Dropdown.trigger [] [ Button.button [ Button.Size IsSmall ]
-                        [ str "Add to..." ;
-                        Icon.icon [ Icon.Size IsSmall ] [] ] ];
+                    [ Dropdown.trigger [] [ button [ buttonStyles;ClassName "button is-small  "; ]
+                        [ str "Add to..." ] ];
                     Dropdown.menu []
                         [ Dropdown.content []
-                            (dropdownItems compId)]]
+                            (dropdownItems compIds)]]
 
 
             let tableRows =
@@ -440,7 +449,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                 // sort alphabetically by label
                 |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
                 // remove any symbols with empty label (gets rid of annotations e.g. rotation or scale buttons for selected syms)
-                |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "")
+                |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "" && not (List.exists ((=) (ComponentId symbol.Component.Id)) model.Sheet.SelectedComponents))
                 |> List.map (fun symbol ->
                     let compTypeDescr = getComponentTypeDescrFromSym symbol
                     tr
@@ -449,23 +458,69 @@ let developerModeView (model: ModelType.Model) dispatch =
                         td
                             []
                             [ code [] [ str ( compTypeDescr )] ];
-                        td [] [ addGroupDropDown (ComponentId symbol.Component.Id) ] ])
+                        td [] [ addGroupDropDown ([ComponentId symbol.Component.Id]) ] ])
+            let selectedSymbols =
+                symbols
+                |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
+                |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "" && (List.exists ((=) (ComponentId symbol.Component.Id)) model.Sheet.SelectedComponents))
 
-            if tableRows.Length = 0 then
-                div [Style [MarginBottom "25px"; Border "1px solid lightgrey"]] [str "No ungrouped components."]
-            else
-                // div [Style [MarginBottom "25px"; MaxHeight "300px"; OverflowY OverflowOptions.Scroll; Border "1px solid lightgrey"]] [
-                div [Style [MarginBottom "25px";]] [
-                Table.table
-                    [Table.IsFullWidth;]
-                    [ tr
-                        []
-                        [ th [] [ str "Label" ];
-                            th [] [ str "Type" ];
-                            th [] [ str "Action"] ];
-                        yield! tableRows ];
+            let selectedSymbolsIds =
+                selectedSymbols
+                |> List.map (fun symbol -> ComponentId symbol.Component.Id)
 
+            let selectedSymbolRows =
+                selectedSymbols
+                |> List.map (fun symbol ->
+                    let compTypeDescr = getComponentTypeDescrFromSym symbol
+                    tr
+                        [Style[BackgroundColor "#efe"]]
+                        [ td [] [ str (symbol.Component.Label.ToString())  ];
+                        td
+                            []
+                            [ code [] [ str ( compTypeDescr )] ];
+                         ])
+
+            let symbolsTable =
+                if tableRows.Length = 0 then
+                    div [Style [MarginBottom "25px"; Border ""]] []
+                else
+                    div [Style [MarginBottom "25px";]] [
+                    Table.table
+                        [Table.IsFullWidth;Table.TableOption.Props[Style[MarginBottom "10px"]]]
+                        [ tr
+                            []
+                            [ th [] [ str "Label" ];
+                                th [] [ str "Type" ];
+                                th [] [ str "Action"] ];
+                            yield! tableRows ];
                 ]
+
+            let selectedSymbolsTable =
+                if selectedSymbolRows.Length = 0 then
+                    div [Style [MarginBottom "25px"; Border ""]] []
+                else
+                    div [Style[BackgroundColor "#efe"; Padding "10px"]] [
+
+                    p [] [str "Selected Components"];
+                    Table.table
+                        [Table.IsFullWidth;Table.TableOption.Props[Style[MarginBottom "10px"]]]
+                        [ tr
+                            [Style[BackgroundColor "#efe"]]
+                            [ th [] [ str "Label" ];
+                                th [] [ str "Type" ]; ];
+                            yield! selectedSymbolRows ];
+
+                    div [Style[MarginLeft "auto"]] [
+                        Dropdown.dropdown [ Dropdown.IsHoverable;  ]
+                                        [ Dropdown.trigger [] [ button [ buttonStyles;ClassName "button is-small  "; ]
+                            [ str "Add to..." ] ];
+                        Dropdown.menu []
+                            [ Dropdown.content []
+                                (dropdownItems selectedSymbolsIds)]]
+
+                    ]]
+            div [] [symbolsTable; selectedSymbolsTable]
+
 
 
 
@@ -524,18 +579,17 @@ let developerModeView (model: ModelType.Model) dispatch =
                 tr [Style [BorderTop "4px solid lightgrey"; BackgroundColor "WhiteSmoke"]] [
                                            td [Style [FontWeight "bold"]] [ str ("Group " + (groupLabel + 1).ToString())];
                                         //    td [Style [Padding "5px 10px";TextAlign TextAlignOptions.Left; ]] [ ];
-                                           td [] [];
-                                           td [Style [Padding "5px 10px";TextAlign TextAlignOptions.Right; ]] [
+                                           td [Style[TextAlign TextAlignOptions.Right; PaddingLeft 0; PaddingRight 0]] [
+                                            button [buttonStyles; ClassName "button is-info is-small"; OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.ColourSelection(highlightGroup groupId groupMap)))] [str "Highlight"]];
+                                           td [Style[TextAlign TextAlignOptions.Left; PaddingLeft 0; PaddingRight 0]] [
 
-                                            div [Style [Display DisplayOptions.Block]] [
 
-                                            Button.button [Button.Color IsInfo; Button.Size IsSmall; Button.OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.ColourSelection(highlightGroup groupId groupMap)))] [str "Highlight"];
 
-                                            span [Style[Padding "0px 2px"]] []
 
-                                            Button.button [Button.Color IsDanger; Button.Size IsSmall; Button.OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(deleteWholeGroup groupMap groupId)))] [str "Delete All"]]
 
+                                            button [buttonStyles; ClassName "is-danger button is-small"; OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(deleteWholeGroup groupMap groupId)))] [str "Delete All"]
                                             ]
+
                 ]
 
             groupHeaderRow :: groupRows
@@ -581,7 +635,7 @@ let developerModeView (model: ModelType.Model) dispatch =
             [ Open(model.GroupMenuExpanded) ]
             [ summary [ menuLabelStyle; OnClick(fun _ -> dispatch (ToggleGroup)) ] [ str "Grouped Components "];
 
-            div [Style [Margin "10px 0px"]] [
+            div [Style [Margin "10px 0px 90px 0px"]] [
                 Heading.h5 [] [str "Grouped Components"]
                 createGroupTableFromGroupMap symbols model.Sheet.GroupMap
                 Heading.h5 [] [str "Ungrouped Components"]

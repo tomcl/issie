@@ -914,6 +914,7 @@ let init () =
         ScalingBox = None
         DeveloperModeTabActive = false
         GroupMap = Map.empty
+        ComponentColours = Map.empty
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

@@ -89,6 +89,7 @@
     <Compile Include="UI\Style.fs" />
     <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI\UIPopups.fs" />
+    <Compile Include="UI\UIContextualSidebar.fs" />
     <Compile Include="UI\MemoryEditorView.fs" />
     <Compile Include="UI\MenuHelpers.fs" />
     <Compile Include="UI\MiscMenuView.fs" />

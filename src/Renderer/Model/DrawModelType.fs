@@ -670,6 +670,9 @@ module SheetT =
         DeveloperModeTabActive: bool
         // Keep Groups of Components
         GroupMap: Map<GroupId, ComponentId list>
+        // Keep track of colours for each component
+        ComponentColours: Map<ComponentId, string>
+
         }
 
     open Operators

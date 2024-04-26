@@ -146,6 +146,7 @@ let init() = {
     SymbolPortsTableExpanded = true
     SheetStatsExpanded = true
     GroupMenuExpanded = false
+    ContextualSidebar = None
 }
 
 

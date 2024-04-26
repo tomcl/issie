@@ -608,6 +608,8 @@ type Model = {
     WireSegmentsTableExpanded: bool
     SheetStatsExpanded: bool
     GroupMenuExpanded: bool
+    // Contextual Sidebar that takes up all of RightTab during a user interaction event
+    ContextualSidebar: ReactElement option
 
 }
 

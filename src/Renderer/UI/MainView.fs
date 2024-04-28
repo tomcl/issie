@@ -147,6 +147,8 @@ let init() = {
     SheetStatsExpanded = true
     GroupMenuExpanded = false
     ContextualSidebar = None
+    ContextualViewFunction = None
+    SavedWaveSimViewerWidth = rightSectionWidthViewerDefault
 }
 
 
@@ -265,7 +267,6 @@ let dividerbar (model:Model) dispatch =
             BackgroundColor "lightgray"
             Width "2px"
             Height "100%"
-
         ]
     let commonStyle = [
             heightAttr
@@ -400,10 +401,21 @@ let displayView model dispatch =
     let conns = BusWire.extractConnections model.Sheet.Wire
     let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
     let canvasState = comps,conns
+
+
+
     match model.Spinner with
     | Some fn ->
         dispatch <| UpdateModel fn
     | None -> ()
+    let contextualSidebar =
+        match UIContextualSideBar.viewSidebar model dispatch with
+        | Some sidebar ->  sidebar
+        | None -> div [] []
+    // // if a contextual sidebar is open, display it in front of the dividerbar and viewRightTabs
+    // // the contextual sidebar has an absolute position and higher z-index so it covers the right tabs
+    // // the right tabs must still render, otherwise there will be errors
+
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText
           OnMouseMove (processMouseMove false)
@@ -420,6 +432,7 @@ let displayView model dispatch =
         // transient
 
         TopMenuView.viewNoProjectMenu model dispatch
+
 
 
         UIPopups.viewPopup model dispatch
@@ -447,6 +460,8 @@ let displayView model dispatch =
             // right section has horizontal divider bar and tabs
             div [ HTMLAttr.Id "RightSection"; rightSectionStyle model ]
                   // vertical and draggable divider bar
-                [ dividerbar model dispatch
+                [
                   // tabs for different functions
-                  viewRightTabs canvasState model dispatch ] ]
+                //   rightSection
+                dividerbar model dispatch; contextualSidebar; viewRightTabs canvasState model dispatch
+                ] ]

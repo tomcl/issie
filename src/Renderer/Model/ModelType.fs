@@ -444,7 +444,9 @@ type Msg =
     | ToggleWireSegmentsTable
     | ToggleSymbolPortMapsTable
     | ToggleGroup
-
+    /// To call the contextual sidebar
+    | ShowContextualSidebar of (((Msg -> Unit) -> Model -> Fable.React.ReactElement) option )
+    | CloseContextualSidebar
 
 
 //================================//
@@ -610,6 +612,12 @@ type Model = {
     GroupMenuExpanded: bool
     // Contextual Sidebar that takes up all of RightTab during a user interaction event
     ContextualSidebar: ReactElement option
+
+    // Values for creating the contextual sidebar
+    /// function to create contextual view function if present
+    ContextualViewFunction : ((Msg -> Unit) -> Model -> Fable.React.ReactElement) option
+    /// Keep track of previous wave sim viewer width as contextual sidebar will change length to default
+    SavedWaveSimViewerWidth: int
 
 }
 

@@ -200,7 +200,9 @@ let shortDisplayMsg (msg:Msg) =
     | ToggleWireSegmentsTable -> None
     | ToggleSheetStats -> None
     | ToggleGroup -> None
-
+    // for contextual sidebar
+    | ShowContextualSidebar _ -> None
+    | CloseContextualSidebar -> None
 
 
 

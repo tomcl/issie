@@ -403,6 +403,18 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
 
     { model with Symbols = newSymbols }
 
+/// Given a model, color and a component id list, it updates the specified symbols' colour to the provided colour with max opacity, and every other symbols' colour to gray
+let inline highlightSymbols (model: Model) (compList: ComponentId list) (colour: string) =
+    let updateSymbolColour prevSymbols sId =
+        Map.add sId (set (appearance_ >-> colour_) colour (set moving_ true model.Symbols[sId])) prevSymbols
+
+    let newSymbols =
+        (model.Symbols, compList)
+        ||> List.fold updateSymbolColour
+
+    { model with Symbols = newSymbols }
+
+
 /// Given a model, a symbol id and a new label changes the label of the symbol to the new label and returns the updated model.
 let inline changeLabel (model: Model) sId newLabel=
     match Map.tryFind sId model.Symbols with

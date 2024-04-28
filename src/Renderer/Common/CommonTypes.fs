@@ -768,6 +768,12 @@ module CommonTypes
 
     /// Author TDC21: For grouping components together
     type GroupId = GroupId of DateTime
+    type GroupInfo = {
+        Id: string
+        CreationDate: DateTime
+        Components: ComponentId list
+        Color: string
+    }
 
 
     let componentIdEncoder (cid: ComponentId) =

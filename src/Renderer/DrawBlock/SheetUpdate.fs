@@ -853,11 +853,15 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | SetWireModel wModel ->
         {model with Wire = wModel}, Cmd.none
 
+    | IncrementColourDrawnCount ->
+        {model with ColourDrawnCount = model.ColourDrawnCount + 1}, Cmd.none
+
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> postUpdateChecks
     // |> Optic.map fst_ postUpdateChecks
     // |> RotateScale.postUpdateScalingBox
     |> (fun (model, (cmd: Cmd<ModelType.Msg>)) -> {issieModel with Sheet = model}, cmd)
+
 
 
 /// Init function
@@ -915,6 +919,8 @@ let init () =
         DeveloperModeTabActive = false
         GroupMap = Map.empty
         ComponentColours = Map.empty
+        ColourDrawnCount = 0
+        ColourRandomSeed = 42
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

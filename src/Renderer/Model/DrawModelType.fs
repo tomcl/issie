@@ -599,6 +599,11 @@ module SheetT =
         | ToggleSnapToNet
         | BeautifySheet
         | SheetBatch of Msg list
+        // ------------------- Colour Generation ----------------------
+        /// Every time a random colour is generated, this message is sent to increment the colour drawn count (to keep things deterministic)
+        | IncrementColourDrawnCount
+
+
 
 
     type ReadLog = | ReadLog of int
@@ -668,11 +673,14 @@ module SheetT =
         DebugDevice: string option
         // bool to keep track if developer mode tab is open
         DeveloperModeTabActive: bool
-        // Keep Groups of Components
+        /// Store Groups of Component Ids for Grouping
         GroupMap: Map<GroupId, ComponentId list>
-        // Keep track of colours for each component
+        /// Keep track of highlight colours for each component
         ComponentColours: Map<ComponentId, string>
-
+        /// How many times a colour has been drawn (in order to keep the function deterministic)
+        ColourDrawnCount: int
+        /// The seed of the colour generation algorithm
+        ColourRandomSeed: int
         }
 
     open Operators

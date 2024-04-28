@@ -24,7 +24,10 @@ open BusWireRoute
 open BusWireRoutingHelpers.Constants
 open BusWireRoutingHelpers
 open Sheet
+open UIContextualSideBar
+open UIContextualSideBar.ColourGenerator
 open DrawModelType.SheetT
+open SymbolUpdate
 
 
 
@@ -47,7 +50,7 @@ STRUCTURE
 4. Wire Segments
 *)
 
-let buttonStyles = Style[Margin "0px 3px"; Padding "6px 10px"; Cursor "Pointer"; Height "1.1em"]
+let buttonStyles = Style [ Margin "0px 3px"; Padding "6px 10px"; Cursor "Pointer"; Height "1.1em"]
 
 
 /// Top Level function for developer mode (tdc21)
@@ -107,6 +110,55 @@ let developerModeView (model: ModelType.Model) dispatch =
                           strong [] [ str ("Hovered " + hoveredType) ]
                           br []
                           code [] [ str (hoveredId) ] ]
+
+    let testHighlightSymbols (model: ModelType.Model) = // get 2 componentids
+        let compIds =
+            model.Sheet.Wire.Symbol.Symbols
+            |> Map.keys
+            |> Seq.toList
+            |> List.take 2
+
+
+
+        let _,(colour) = generateColourFromModel model.Sheet dispatch
+        // colourRGB is { R: float; G: float; B: float }. Convert to hex
+
+
+
+        let newSheetModel: SheetT.Model =
+            model.Sheet
+            |> Optic.set (SheetT.symbol_) (highlightSymbols model.Sheet.Wire.Symbol compIds colour)
+
+        model
+        |> Optic.set (ModelType.sheet_) newSheetModel
+
+
+
+    let testDiv =
+        let sidebarOptions : SidebarOptions = {
+            ExtraStyle = [];
+            TitleText = "Test Sidebar";
+            SideBarButtons = [
+                {ButtonClassNames = "button is-info"; ButtonText = "Test Button"; ButtonAction = (fun _ _ _ -> ()); ButtonPayload = ButtonDispatchPayload "Test Button"};
+                {ButtonClassNames = "button is-danger"; ButtonText = "Test Button 2"; ButtonAction = (fun _ _ _ -> ()); ButtonPayload = ButtonDispatchPayload "Test Button 2"};
+            ];
+            Cancellable = true;
+        }
+        let sidebar = buildSimpleSidebar sidebarOptions (fun _ -> div [] [str "Test Sidebar Body"])
+        div [] [
+            Button.button [Button.Color IsPrimary; Button.Size IsSmall;
+            Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebar))) ;Style [Margin "5px 10px 0 0 "]]
+
+              ] [str "Open Test Sidebar"];
+            Button.button [Button.Color IsInfo; Button.Size IsSmall;
+            Button.Props[OnClick (fun _ -> dispatch (UpdateModel(testHighlightSymbols ))) ;Style [Margin "5px 10px 0 0 "]]
+
+              ] [str "Test Highlight + Random Colour"];
+
+
+
+        ]
+
 
 
 // -------------------------------------------- //
@@ -429,8 +481,8 @@ let developerModeView (model: ModelType.Model) dispatch =
                 let groupItems =
                     groupKeys
                     |> List.mapi (fun index groupId ->
-                        Dropdown.Item.a [Dropdown.Item.Option.Props[Style[Width "inherit" ];OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap groupId compIds)))] ] [p [] [str ("Group " + (index + 1).ToString()) ]])
-                let newGroupItem = [Dropdown.Item.a [Dropdown.Item.Option.Props[Style[Width "inherit"];OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap (GroupId DateTime.Now) compIds)))] ] [div [] [str "Create new group"]]]
+                        Dropdown.Item.a [Dropdown.Item.Option.Props[Style [Width "inherit" ];OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap groupId compIds)))] ] [p [] [str ("Group " + (index + 1).ToString()) ]])
+                let newGroupItem = [Dropdown.Item.a [Dropdown.Item.Option.Props[Style [Width "inherit"];OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup groupMap (GroupId DateTime.Now) compIds)))] ] [div [] [str "Create new group"]]]
                 groupItems @ newGroupItem
 
 
@@ -473,7 +525,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                 |> List.map (fun symbol ->
                     let compTypeDescr = getComponentTypeDescrFromSym symbol
                     tr
-                        [Style[BackgroundColor "#efe"]]
+                        [Style [BackgroundColor "#efe"]]
                         [ td [] [ str (symbol.Component.Label.ToString())  ];
                         td
                             []
@@ -486,7 +538,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                 else
                     div [Style [MarginBottom "25px";]] [
                     Table.table
-                        [Table.IsFullWidth;Table.TableOption.Props[Style[MarginBottom "10px"]]]
+                        [Table.IsFullWidth;Table.TableOption.Props[Style [MarginBottom "10px"]]]
                         [ tr
                             []
                             [ th [] [ str "Label" ];
@@ -499,18 +551,18 @@ let developerModeView (model: ModelType.Model) dispatch =
                 if selectedSymbolRows.Length = 0 then
                     div [Style [MarginBottom "25px"; Border ""]] []
                 else
-                    div [Style[BackgroundColor "#efe"; Padding "10px"]] [
+                    div [Style [BackgroundColor "#efe"; Padding "10px"]] [
 
                     p [] [str "Selected Components"];
                     Table.table
-                        [Table.IsFullWidth;Table.TableOption.Props[Style[MarginBottom "10px"]]]
+                        [Table.IsFullWidth;Table.TableOption.Props[Style [MarginBottom "10px"]]]
                         [ tr
-                            [Style[BackgroundColor "#efe"]]
+                            [Style [BackgroundColor "#efe"]]
                             [ th [] [ str "Label" ];
                                 th [] [ str "Type" ]; ];
                             yield! selectedSymbolRows ];
 
-                    div [Style[MarginLeft "auto"]] [
+                    div [Style [MarginLeft "auto"]] [
                         Dropdown.dropdown [ Dropdown.IsHoverable;  ]
                                         [ Dropdown.trigger [] [ button [ buttonStyles;ClassName "button is-small  "; ]
                             [ str "Add to..." ] ];
@@ -579,9 +631,9 @@ let developerModeView (model: ModelType.Model) dispatch =
                 tr [Style [BorderTop "4px solid lightgrey"; BackgroundColor "WhiteSmoke"]] [
                                            td [Style [FontWeight "bold"]] [ str ("Group " + (groupLabel + 1).ToString())];
                                         //    td [Style [Padding "5px 10px";TextAlign TextAlignOptions.Left; ]] [ ];
-                                           td [Style[TextAlign TextAlignOptions.Right; PaddingLeft 0; PaddingRight 0]] [
+                                           td [Style [TextAlign TextAlignOptions.Right; PaddingLeft 0; PaddingRight 0]] [
                                             button [buttonStyles; ClassName "button is-info is-small"; OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.ColourSelection(highlightGroup groupId groupMap)))] [str "Highlight"]];
-                                           td [Style[TextAlign TextAlignOptions.Left; PaddingLeft 0; PaddingRight 0]] [
+                                           td [Style [TextAlign TextAlignOptions.Left; PaddingLeft 0; PaddingRight 0]] [
 
 
 
@@ -645,4 +697,4 @@ let developerModeView (model: ModelType.Model) dispatch =
         ]
 
 
-    div [ Style [ Margin "-10px 0 20px 0" ] ] ([ mouseSensitiveDataSection; sheetStatsMenu; viewComponentWrapper; groupProperties ])
+    div [ Style [ Margin "-10px 0 20px 0" ] ] ([ mouseSensitiveDataSection; testDiv; sheetStatsMenu; viewComponentWrapper; groupProperties ])

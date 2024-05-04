@@ -617,11 +617,9 @@ let update (msg : Msg) oldModel =
         { model with GroupMenuExpanded = not model.GroupMenuExpanded }, Cmd.none
 
     | ShowContextualSidebar (sidebar :  ((Msg -> Unit) -> Model -> Fable.React.ReactElement) option )->
-    // set the wavesim viewer width to minwidth so contextual sidebar is always same length
-    // dump current draggable width into saved width
-        { model with ContextualSidebarViewFunction = sidebar ; }, Cmd.none
+        // reset the rightSelectionDiv's scroll position.
+        { model with ContextualSidebarViewFunction = sidebar}, Cmd.none
     | CloseContextualSidebar ->
-    // restore the wavesim viewer width to saved width
         { model with ContextualSidebarViewFunction = None;}, Cmd.none
 
 

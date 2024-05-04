@@ -22,6 +22,7 @@ open Optics
 open Optics.Operators
 open TestParser
 open ContextMenus
+open DeveloperModeView
 
 importSideEffects "./scss/main.css"
 
@@ -190,6 +191,13 @@ let fileMenu (dispatch) =
 
             makeDebugItem "Web worker performance test" None
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
+
+            // testing to open test sidebar when wavesim tab is open, and ensure that the lengths are correctly set
+            makeDebugItem "Open test sidebar" None
+                (fun _ -> dispatch <| (ShowContextualSidebar(Some sidebar)))
+            makeDebugItem "Close test sidebar" None
+                (fun _ -> dispatch <| (ShowContextualSidebar(None)))
+
 
 
         ]

@@ -173,65 +173,71 @@ let viewSimSubTab canvasState model dispatch =
             [ viewWaveSim canvasState model dispatch ]
 
 /// Display the content of the right tab.
-let private  viewRightTab canvasState model dispatch =
-    let pane = model.RightPaneTabVisible
-    match pane with
-    | Catalogue | Transition ->
+let private viewRightTab canvasState model dispatch =
 
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
-            Heading.h4 [] [ str "Catalogue" ]
-            div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ]
-                [ str "Click on a component to add it to the diagram. Hover on components for details." ]
-            CatalogueView.viewCatalogue model dispatch
-        ]
-    | Properties ->
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Properties" ]
-            SelectedComponentView.viewSelectedComponent model dispatch
-        ]
-    | DeveloperMode ->
-        if debugLevel > 0 then
-            div
-                [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ];
+    let normalSidebar =
+        let pane = model.RightPaneTabVisible
+        match pane with
+        | Catalogue | Transition ->
 
-
-                 ]
-                [ Heading.h4 [] [ str "Developer Mode" ]
-                  div [ Style [ MarginBottom "15px" ]] []
-                  DeveloperModeView.developerModeView model dispatch ]
-        else
-            div [] []
-    | Simulation ->
-        let subtabs =
-            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs";
-                        Tabs.Props [Style [Margin 0] ] ]
-                    [
-                    Tabs.tab // step simulation subtab
-                        [ Tabs.Tab.IsActive (model.SimSubTabVisible = StepSim) ]
-                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ]
-
-                    (Tabs.tab // truth table tab to display truth table for combinational logic
-                    [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
-                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Tables"] ])
-
-                    (Tabs.tab // wavesim tab
-                    [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
-                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ])
-
-
-                    ]
-        div [ HTMLAttr.Id "RightSelection2"; Style [Height "100%"]]
-            [
-                //br [] // Should there be a gap between tabs and subtabs for clarity?
-                subtabs
-                viewSimSubTab canvasState model dispatch
+            div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
+                Heading.h4 [] [ str "Catalogue" ]
+                div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ]
+                    [ str "Click on a component to add it to the diagram. Hover on components for details." ]
+                CatalogueView.viewCatalogue model dispatch
             ]
-    | Build ->
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Build" ]
-            div [ Style [ MarginBottom "15px" ] ] [ str "Compile your design and upload it to one of the supported devices" ]
-            BuildView.viewBuild model dispatch
-        ]
+        | Properties ->
+            div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+                Heading.h4 [] [ str "Properties" ]
+                SelectedComponentView.viewSelectedComponent model dispatch
+            ]
+        | DeveloperMode ->
+            if debugLevel > 0 then
+                div
+                    [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ];]
+                    [ Heading.h4 [] [ str "Developer Mode" ];
+                    div [ Style [ MarginBottom "15px" ]] [];
+                    DeveloperModeView.developerModeView model dispatch ]
+            else
+                div [] []
+        | Simulation ->
+            let subtabs =
+                Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs";
+                            Tabs.Props [Style [Margin 0] ] ]
+                        [
+                        Tabs.tab // step simulation subtab
+                            [ Tabs.Tab.IsActive (model.SimSubTabVisible = StepSim) ]
+                            [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ]
+
+                        (Tabs.tab // truth table tab to display truth table for combinational logic
+                        [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
+                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Tables"] ])
+
+                        (Tabs.tab // wavesim tab
+                        [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
+                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ])
+
+
+                        ]
+            div [ HTMLAttr.Id "RightSelection2"; Style [Height "100%"]]
+                [
+                    //br [] // Should there be a gap between tabs and subtabs for clarity?
+                    subtabs
+                    viewSimSubTab canvasState model dispatch
+                ]
+        | Build ->
+            div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+                Heading.h4 [] [ str "Build" ]
+                div [ Style [ MarginBottom "15px" ] ] [ str "Compile your design and upload it to one of the supported devices" ]
+                BuildView.viewBuild model dispatch
+            ]
+
+    // match UIContextualSideBar.viewSidebar model dispatch with
+    // | Some sidebar ->
+    //     div [ Style [Width "100%"; Height "100%"] ] [ sidebar ]
+    // | None ->
+    //     normalSidebar
+    normalSidebar
 
 /// determine whether moving the mouse drags the bar or not
 let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
@@ -307,7 +313,27 @@ let viewRightTabs canvasState model dispatch =
                 [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab DeveloperMode) ] [ str "Dev Mode" ] ]
         else
             null
+    match UIContextualSideBar.viewSidebar model dispatch with
+    | Some contextualSidebar ->
+        div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
+                                // Cache the scroll position of the right selection div to persist between updates
+                                // Similar to the canvas, see Sheet.fs
+                                OnScroll (fun _ ->
+                                // printf "Scrolling dev mode\n"
+                                match rightSelectionDiv with
+                                | None -> ()
+                                | Some el ->
+                                    dispatch <| UpdateScrollPosRightSelection( {X = el.scrollLeft; Y = el.scrollTop}, dispatch));
+                                Ref (fun el ->
+                                        rightSelectionDiv <- Some el
+                                        writeRightSelectionScroll model.RightSelectionScrollPos
+                                    )
+        ] [
 
+            div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [contextualSidebar]
+
+        ]
+    | None ->
     div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
                             // Cache the scroll position of the right selection div to persist between updates
                             // Similar to the canvas, see Sheet.fs
@@ -408,13 +434,11 @@ let displayView model dispatch =
     | Some fn ->
         dispatch <| UpdateModel fn
     | None -> ()
-    let contextualSidebar =
-        match UIContextualSideBar.viewSidebar model dispatch with
-        | Some sidebar ->  sidebar
-        | None -> div [] []
-    // // if a contextual sidebar is open, display it in front of the dividerbar and viewRightTabs
-    // // the contextual sidebar has an absolute position and higher z-index so it covers the right tabs
-    // // the right tabs must still render, otherwise there will be errors
+
+    let sidebar = viewRightTabs canvasState model dispatch
+
+    // // if a contextual sidebar is open in the model, display it after the dividerbar, and hide the viewRightTabs (normal sidebar) with Display = None
+    // // the normal sidebar aka viewRightTabs must still render, otherwise there will be errors
 
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText
@@ -458,10 +482,10 @@ let displayView model dispatch =
             //--------------------------------------------------------------------------------------//
             //---------------------------------right section----------------------------------------//
             // right section has horizontal divider bar and tabs
-            div [ HTMLAttr.Id "RightSection"; rightSectionStyle model ]
+            div [ HTMLAttr.Id "RightSection"; rightSectionStyle model;  ]
                   // vertical and draggable divider bar
                 [
                   // tabs for different functions
                 //   rightSection
-                dividerbar model dispatch; contextualSidebar; viewRightTabs canvasState model dispatch
+                dividerbar model dispatch; sidebar
                 ] ]

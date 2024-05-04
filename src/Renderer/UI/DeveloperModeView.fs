@@ -33,7 +33,7 @@ open DrawModelType.SheetT
 open SymbolUpdate
 
 
-
+// AUTHOR: TDC21
 
 (*
 STRUCTURE
@@ -55,6 +55,98 @@ STRUCTURE
 *)
 
 let buttonStyles = Style [ Margin "0px 3px"; Padding "6px 10px"; Cursor "Pointer"; Height "1.1em"]
+
+
+// +-----------------------------------------------+ //
+// |         Guide to Building a Sidebar           | //
+// +-----------------------------------------------+ //
+let sidebar =
+
+// +-------- First, Define SidebarOptions. --------+
+    let sidebarOptions : SidebarOptions = {
+        ExtraStyle = [];
+        TitleText = "Test Sidebar"; // this will be displayed on the sidebar
+        SideBarButtons = [
+            {
+// +-------- Add classes for the button. "button" is already pre-pended for you. https://bulma.io/documentation/elements/button/
+                ButtonClassNames = "is-info";
+// +-------- Add text for the button. --------+
+                ButtonText = "Test Button 1: Pan Right";
+
+// +-------- Define the action for the button. --------+
+// +-------- Onclick Type signature: ModelType.Model -> (Msg -> Unit) -> Browser.Types.MouseEvent -> Unit
+// +-------- You usually don't need to access the browser event so in this example, an underscore is used.
+// +-------- This button triggers moves the sheet to the right by 20 units.
+                ButtonAction = (fun model dispatch _ ->
+                    printf "Test Button 1: Move Sheet\n"
+                    dispatch (UpdateModel (fun model -> {model with Sheet = {model.Sheet with ScreenScrollPos = model.Sheet.ScreenScrollPos + {X=20.; Y=0.}}}))
+                );
+                };
+            {
+                ButtonClassNames = "is-danger";
+                ButtonText = "Test Button 2: Centre";
+                ButtonAction = (fun model dispatch _ ->
+                    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+                    printf "Test Button 2: Centre\n"
+// +-------- This button triggers moves the sheet to centre, equal to pressing CtrlW.
+                    (sheetDispatch (KeyPress CtrlW))
+                );
+                };
+
+        ];
+// +-------- If true, a cancel button will be displayed. Put false if you want a mandatory action
+        Cancellable = true;
+        }
+
+
+
+// +-------- Next, Define the sidebarBody. --------+
+// +--------  sidebarBody must be type (Msg -> Unit) -> Model ->  ReactElement
+//                                           |            |
+//                                       dispatch   ModelType.Model
+
+    let sidebarBody =
+// +-------- define the sidebarBody as a function that takes in dispatch and model, and returns a ReactElement
+        fun dispatch model ->
+        let numberOfComponents = model.Sheet.Wire.Symbol.Symbols |> Map.count
+
+// +-------- define the div to return
+        div [] [
+            p [] [str "You are currently viewing the sidebar! This example one is was using the function buildSimpleSidebar. A sidebar contains a body and buttons, which both have access to dispatch."]
+
+            br []
+
+
+            p [] [str $"This a dynamic body and can access the current model. For example, there are now {numberOfComponents} components on the sheet. Note that annotations (the resize/rotate buttons) are also counted."]
+
+            br []
+
+// +-------- I have defined a codeblock reactelement that can display fsharp code
+            codeBlock "fsharp" ("
+type SidebarOptions = {
+    ExtraStyle: CSSProp list;
+    TitleText: string;
+    SideBarButtons: SidebarButton list;
+    Cancellable: bool;
+}
+
+type SidebarButton = {
+    ButtonClassNames: string; // for colours with fulma
+    ButtonText: string; // for the text on the button
+    ButtonAction: ModelType.Model -> (Msg->Unit) -> Browser.Types.MouseEvent -> Unit
+}
+                    ")
+
+            br []
+            p [] [str "The sidebar buttons OnClick functions are of type"; codeInline "fsharp" "ModelType.Model -> (Msg->Unit) -> Browser.Types.MouseEvent -> Unit"; str ". In order to define a function for the button, modify " ; codeInline "fsharp" "ButtonAction" ; str "field, using a signature such as" ; codeInline "fsharp" "fun model dispatch _ -> ..."; str ". The underscore is a placeholder for the browser event, which is not commonly used. See the DeveloperModeView code for a guide and example."]
+
+            br []
+
+                ]
+
+// +-------- Make the sidebar.
+    buildSimpleSidebar sidebarOptions sidebarBody
+
 
 
 /// Top Level function for developer mode (tdc21)
@@ -137,101 +229,10 @@ let developerModeView (model: ModelType.Model) dispatch =
         |> Optic.set (ModelType.sheet_) newSheetModel
 
 
-// +-----------------------------------------------+ //
-// |         Guide to Building a Sidebar           | //
-// +-----------------------------------------------+ //
-
-
-// +-------- First, Define SidebarOptions. --------+
-
-
-    let sidebarOptions : SidebarOptions = {
-        ExtraStyle = [];
-        TitleText = "Test Sidebar"; // this will be displayed on the sidebar
-        SideBarButtons = [
-            {
-// +-------- Add classes for the button. "button" is already pre-pended for you. https://bulma.io/documentation/elements/button/
-                ButtonClassNames = "is-info";
-// +-------- Add text for the button. --------+
-                ButtonText = "Test Button 1: Pan Right";
-
-// +-------- Define the action for the button. --------+
-// +-------- Onclick Type signature: ModelType.Model -> (Msg -> Unit) -> Browser.Types.MouseEvent -> Unit
-// +-------- You usually don't need to access the browser event so in this example, an underscore is used.
-// +-------- This button triggers moves the sheet to the right by 20 units.
-                ButtonAction = (fun model dispatch _ ->
-                    printf "Test Button 1: Move Sheet\n"
-                    dispatch (UpdateModel (fun model -> {model with Sheet = {model.Sheet with ScreenScrollPos = model.Sheet.ScreenScrollPos + {X=20.; Y=0.}}}))
-                );
-                };
-            {
-                ButtonClassNames = "is-danger";
-                ButtonText = "Test Button 2: Centre";
-                ButtonAction = (fun model dispatch _ ->
-                    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-                    printf "Test Button 2: Centre\n"
-// +-------- This button triggers moves the sheet to centre, equal to pressing CtrlW.
-                    (sheetDispatch (KeyPress CtrlW))
-                );
-                };
-
-        ];
-// +-------- If true, a cancel button will be displayed. Put false if you want a mandatory action
-        Cancellable = true;
-        }
-
-
-
-// +-------- Next, Define the sidebarBody. --------+
-// +--------  sidebarBody must be type (Msg -> Unit) -> Model ->  ReactElement
-//                                           |            |
-//                                       dispatch   ModelType.Model
-
-    let sidebarBody =
-// +-------- define the sidebarBody as a function that takes in dispatch and model, and returns a ReactElement
-        fun dispatch model ->
-        let numberOfComponents = model.Sheet.Wire.Symbol.Symbols |> Map.count
-
-// +-------- define the div to return
-        div [] [
-            p [] [str "You are currently viewing the sidebar! This example one is was using the function buildSimpleSidebar. A sidebar also contains a body and buttons, which both have access to dispatch."]
-
-            br []
-
-
-            p [] [str $"This a dynamic body and can access the current model. For example, there are now {numberOfComponents} components on the sheet. Note that annotations (the resize/rotate buttons) are also counted."]
-
-            br []
-
-
-            codeBlock "fsharp" ("
-type SidebarOptions = {
-    ExtraStyle: CSSProp list;
-    TitleText: string;
-    SideBarButtons: SidebarButton list;
-    Cancellable: bool;
-}
-
-type SidebarButton = {
-    ButtonClassNames: string; // for colours with fulma
-    ButtonText: string; // for the text on the button
-    ButtonAction: ModelType.Model -> (Msg->Unit) -> Browser.Types.MouseEvent -> Unit
-}
-                    ")
-
-            br []
-            p [] [str "The sidebar buttons OnClick functions are of type"; codeInline "fsharp" "ModelType.Model -> (Msg->Unit) -> Browser.Types.MouseEvent -> Unit"; str ". In order to define a function for the button, modify " ; codeInline "fsharp" "ButtonAction" ; str "field, using a signature such as" ; codeInline "fsharp" "fun model dispatch _ -> ..."; str ". The underscore is a placeholder for the browser event, which is not commonly used. You can alawys check the DeveloperModeView code as an example."]
-
-            br []
-
-                ]
-
-
 
     /// The testDiv contains buttons that run tests
     let testDiv =
 
-        let sidebar = buildSimpleSidebar sidebarOptions sidebarBody
         div [] [
             Button.button [Button.Color IsPrimary; Button.Size IsSmall;
             Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebar))) ;Style [Margin "5px 10px 0 0 "]]

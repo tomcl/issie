@@ -1,11 +1,13 @@
 module UIContextualSideBar
 open EEExtensions
 open Fulma
-open VerilogTypes
+
 open Fable.Core
 open Fable.Core.JsInterop
 open Fable.React
 open Fable.React.Props
+
+
 open ElectronAPI
 open JSHelpers
 open Helpers
@@ -13,6 +15,8 @@ open ModelType
 open CommonTypes
 open CodeEditorHelpers
 open DrawModelType
+open Browser
+
 
 
 
@@ -45,7 +49,9 @@ let createButton buttonInfo (dispatch: Msg -> Unit) (model: ModelType.Model)  : 
 /// CSS for the sidebar.
 // It has absolute position so it can be placed on top of the rightbar. CSSProp.Left set to 2px so the dividerbar is visible
 // PaddingTop set to 20px to look like it covers the tabbing bar
-let sidebarDivCSS = [Position PositionOptions.Absolute; ZIndex 100; Background "white"; CSSProp.Left "2px"; CSSProp.Right 0; CSSProp.Top 0; CSSProp.Bottom 0; PaddingTop "20px"; OverflowY OverflowOptions.Auto]
+let sidebarDivCSS = [Position PositionOptions.Relative; ZIndex 100; Background "white"; Width "100%"; PaddingTop "20px"; OverflowY OverflowOptions.Auto]
+
+// let mutable sidebarDiv:Types.Element option = None
 
 /// A simple sidebar with a title and a list of buttons, with a static body
 /// Creates the sidebar with a dynamic body
@@ -62,7 +68,7 @@ let buildSimpleSidebar (options: SidebarOptions) (body: (Msg -> Unit) -> Model -
             else None
 
 
-        div [  Style (options.ExtraStyle @ sidebarDivCSS) ] [
+        div [  Style (options.ExtraStyle @ sidebarDivCSS);] [
         div [ Style [Margin "30px 20px"]] [
 
             Heading.h4 [] [ str options.TitleText ]
@@ -74,7 +80,7 @@ let buildSimpleSidebar (options: SidebarOptions) (body: (Msg -> Unit) -> Model -
         ]
         ]
 
-
+/// To be called in MainView
 let viewSidebar (model: ModelType.Model) dispatch : ReactElement option =
     match model.ContextualSidebarViewFunction with
     | Some contextualSidebar -> Some (contextualSidebar dispatch model)

@@ -146,9 +146,7 @@ let init() = {
     SymbolPortsTableExpanded = true
     SheetStatsExpanded = true
     GroupMenuExpanded = false
-    ContextualSidebar = None
-    ContextualViewFunction = None
-    SavedWaveSimViewerWidth = rightSectionWidthViewerDefault
+    ContextualSidebarViewFunction = None
 }
 
 

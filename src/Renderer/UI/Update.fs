@@ -619,10 +619,10 @@ let update (msg : Msg) oldModel =
     | ShowContextualSidebar (sidebar :  ((Msg -> Unit) -> Model -> Fable.React.ReactElement) option )->
     // set the wavesim viewer width to minwidth so contextual sidebar is always same length
     // dump current draggable width into saved width
-        { model with ContextualViewFunction = sidebar ; SavedWaveSimViewerWidth = model.WaveSimViewerWidth; WaveSimViewerWidth = minViewerWidth }, Cmd.none
+        { model with ContextualSidebarViewFunction = sidebar ; }, Cmd.none
     | CloseContextualSidebar ->
     // restore the wavesim viewer width to saved width
-        { model with ContextualViewFunction = None; WaveSimViewerWidth = model.SavedWaveSimViewerWidth }, Cmd.none
+        { model with ContextualSidebarViewFunction = None;}, Cmd.none
 
 
 

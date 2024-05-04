@@ -577,6 +577,7 @@ module SheetT =
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
         | SetModelGroupMap of Map<GroupId, ComponentId list>
+        | SetModelGroupInfoMap of Map<GroupId, GroupInfo>
         // ------------------- Compilation and Debugging ----------------------
         | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
         | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
@@ -675,6 +676,7 @@ module SheetT =
         DeveloperModeTabActive: bool
         /// Store Groups of Component Ids for Grouping
         GroupMap: Map<GroupId, ComponentId list>
+        GroupInfoMap: Map<GroupId, GroupInfo>
         /// Keep track of highlight colours for each component
         ComponentColours: Map<ComponentId, string>
         /// How many times a colour has been drawn (in order to keep the function deterministic)

@@ -25,13 +25,17 @@ let getHeaderHeight =
     |> float
 
 let rightSectionWidth (model:Model) =
-    match model.RightPaneTabVisible with
-    | RightTab.Properties | RightTab.Catalogue | RightTab.DeveloperMode | RightTab.Transition -> rightSectionWidthS
-    | RightTab.Build -> rightSectionWidthL
-    | RightTab.Simulation ->
-        match model.SimSubTabVisible with
-        | SimSubTab.StepSim -> rightSectionWidthL
-        | SimSubTab.WaveSim | SimSubTab.TruthTable -> sprintf "%dpx" model.WaveSimViewerWidth
+    // If the sidebar is open, then default immediately to rightSectionWidthS
+    match model.ContextualSidebarViewFunction with
+    | Some _ -> rightSectionWidthS
+    | None ->
+        match model.RightPaneTabVisible with
+        | RightTab.Properties | RightTab.Catalogue | RightTab.DeveloperMode | RightTab.Transition -> rightSectionWidthS
+        | RightTab.Build -> rightSectionWidthL
+        | RightTab.Simulation ->
+            match model.SimSubTabVisible with
+            | SimSubTab.StepSim -> rightSectionWidthL
+            | SimSubTab.WaveSim | SimSubTab.TruthTable -> sprintf "%dpx" model.WaveSimViewerWidth
 
 let leftSectionWidth model = Style [
     Width (sprintf "calc(100%s - %s - 10px)" "%" (rightSectionWidth model))

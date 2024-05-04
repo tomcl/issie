@@ -7,7 +7,11 @@ open Fulma.Extensions.Wikiki
 
 open Fable.React
 open Fable.React.Props
+open Fable.Core
+open Fable.Core.JsInterop
+
 open JSHelpers
+open System
 
 open DrawModelType
 open CommonTypes
@@ -33,6 +37,54 @@ open Sheet
 
 // Any functions labelled "INTERIM" are temporary and will be replaced with proper implementations of helpers in another file
 
+
+///// Bindings for PrismJS ReactElements /////
+
+importSideEffects "../UI/prism.css"
+// importSideEffects "prismjs/components/prism-clike"
+importSideEffects "prismjs/components/prism-fsharp"
+
+type PrismCore =
+    abstract highlight : string * obj -> string
+
+[<ImportAll("../UI/prism.js")>]
+let Prism: PrismCore = jsNative
+
+[<Emit("Prism.languages['fsharp']")>]
+let fsharpLanguage : obj = jsNative
+
+[<Emit("Prism.languages['clike']")>]
+let clikeLanguage : obj = jsNative
+
+
+let inline codeBlock (language: string) (codeText: string) =
+
+    let (className, lang) =
+        match language with
+        | "fsharp" -> "language-fsharp", fsharpLanguage
+        | _ ->        "language-clike", clikeLanguage
+
+    let innerHTML = Prism.highlight((codeText),fsharpLanguage)
+    div [ Style[Margin "5px"; FontFamily "monospace"]; ClassName className;  ] [
+
+        pre [ ClassName "line-numbers" ] [
+        code [DangerouslySetInnerHTML ({__html=  innerHTML}) ] []
+    ]
+    ]
+
+
+let inline codeInline (language: string) (codeText: string) =
+
+    let (className, lang) =
+        match language with
+        | "fsharp" -> "language-fsharp", fsharpLanguage
+        | _ ->        "language-clike", clikeLanguage
+
+    let innerHTML = Prism.highlight((codeText),fsharpLanguage)
+    span [ Style[Margin "5px"; FontFamily "monospace"]; ClassName className;  ] [
+
+        code [DangerouslySetInnerHTML ({__html=  innerHTML}) ] []
+    ]
 
 
 

@@ -15,15 +15,14 @@ open CodeEditorHelpers
 open DrawModelType
 
 
-type ButtonDispatchPayload = | ButtonDispatchPayload of string
+
 
 /// A button on a contextual sidebar
 /// Buttons take in a model and return a message
 type SidebarButton = {
     ButtonClassNames: string; // for colours with fulma
     ButtonText: string; // for the text on the button
-    ButtonAction: ButtonDispatchPayload -> (Msg->Unit) -> Browser.Types.MouseEvent -> Unit
-    ButtonPayload: ButtonDispatchPayload
+    ButtonAction: ModelType.Model -> (Msg->Unit) -> Browser.Types.MouseEvent -> Unit
 
 }
 
@@ -36,21 +35,21 @@ type SidebarOptions = {
 }
 
 /// Constructs a button component based on SidebarButton information
-let createButton buttonInfo (dispatch: Msg -> Unit) (model: Model)  : ReactElement =
+let createButton buttonInfo (dispatch: Msg -> Unit) (model: ModelType.Model)  : ReactElement =
     Button.button [
-        Button.Option.Props[ClassName buttonInfo.ButtonClassNames;];
-        Button.Props[Style [ Margin "0px 3px" ]];
-        Button.OnClick (buttonInfo.ButtonAction buttonInfo.ButtonPayload dispatch)
+        Button.Option.Props[ClassName ("button " + buttonInfo.ButtonClassNames);];
+        Button.Props[Style [ Margin "3px" ]];
+        Button.OnClick (buttonInfo.ButtonAction model dispatch)
     ] [ str buttonInfo.ButtonText ]
 
 /// CSS for the sidebar.
 // It has absolute position so it can be placed on top of the rightbar. CSSProp.Left set to 2px so the dividerbar is visible
 // PaddingTop set to 20px to look like it covers the tabbing bar
-let sidebarDivCSS = [Position PositionOptions.Absolute; ZIndex 100; Background "white"; CSSProp.Left "2px"; CSSProp.Right 0; CSSProp.Top 0; CSSProp.Bottom 0; PaddingTop "20px"]
+let sidebarDivCSS = [Position PositionOptions.Absolute; ZIndex 100; Background "white"; CSSProp.Left "2px"; CSSProp.Right 0; CSSProp.Top 0; CSSProp.Bottom 0; PaddingTop "20px"; OverflowY OverflowOptions.Auto]
 
 /// A simple sidebar with a title and a list of buttons, with a static body
 /// Creates the sidebar with a dynamic body
-let buildSimpleSidebar (options: SidebarOptions) (body: Model -> ReactElement) =
+let buildSimpleSidebar (options: SidebarOptions) (body: (Msg -> Unit) -> Model ->  ReactElement) =
     fun (dispatch: Msg -> Unit) (model: Model) ->
         let buttons = options.SideBarButtons |> List.map (fun buttonInfo -> createButton buttonInfo dispatch model )
         let maybeCancel =
@@ -67,16 +66,17 @@ let buildSimpleSidebar (options: SidebarOptions) (body: Model -> ReactElement) =
         div [ Style [Margin "30px 20px"]] [
 
             Heading.h4 [] [ str options.TitleText ]
-            div [ Style [ Margin "15px 0" ]] [ body model ]
+            div [ Style [ Margin "15px 0" ]] [ body dispatch model ]
             div [ Style [ Display DisplayOptions.Flex; JustifyContent "space-between"; FlexDirection FlexDirection.Row ] ] [
-                div [ Style [ Flex "1" ] ] buttons
-                div [ Style [ Flex "0" ] ] (maybeCancel |> Option.toList)
+                div [ Style [  ] ] buttons
+                div [ Style [  Display DisplayOptions.Flex; Flex "0"; AlignItems AlignItemsOptions.FlexEnd] ] (maybeCancel |> Option.toList)
             ]
         ]
         ]
 
+
 let viewSidebar (model: ModelType.Model) dispatch : ReactElement option =
-    match model.ContextualViewFunction with
+    match model.ContextualSidebarViewFunction with
     | Some contextualSidebar -> Some (contextualSidebar dispatch model)
     | None -> None
 

@@ -308,8 +308,10 @@ let viewRightTabs canvasState model dispatch =
             null
 
     div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
+                            // Cache the scroll position of the right selection div to persist between updates
+                            // Similar to the canvas, see Sheet.fs
                             OnScroll (fun _ ->
-                            printf "Scrolling dev mode\n"
+                            // printf "Scrolling dev mode\n"
                             match rightSelectionDiv with
                             | None -> ()
                             | Some el ->

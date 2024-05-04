@@ -352,7 +352,8 @@ let viewRightTabs canvasState model dispatch =
             Tabs.IsFullWidth;
             Tabs.IsBoxed;
             Tabs.CustomClass "rightSectionTabs"
-            Tabs.Props [Style [Margin 0]] ;
+            Tabs.Props [Style [Margin 0;Position PositionOptions.Sticky; CSSProp.Top "0"; ZIndex "10000"; BackgroundColor "white"]; ] ;
+
 
         ] [
             Tabs.tab // catalogue tab to add components

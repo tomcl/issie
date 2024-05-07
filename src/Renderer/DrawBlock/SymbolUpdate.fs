@@ -440,6 +440,33 @@ let inline colorSymbols (model: Model) compList colour =
 
     { model with Symbols = newSymbols }
 
+/// Given a colour lookup table, modify all symbols in the model to have the colour specified.
+/// Revert any symbols not in the lookup table to their original colour (respecting selection)
+let inline colourGroups (model: Model) (colourLookup: Map<ComponentId,string>): Map<ComponentId, Symbol> =
+    let revertedSymbols =
+        model.Symbols
+        |> Map.map (fun _ (sym: Symbol) ->
+        // this is unfortunately a hack, because we cannot access the selected symbols in SheetT.Model, as we are inside SymbolT.Model
+        // so to get around this, we assume that if the symbol is lightgreen, it has been selected
+            if not ((get (appearance_ >-> colour_) sym ) = "lightgreen") then
+                set (appearance_ >-> colour_)  (getSymbolColour model sym.Component sym.IsClocked model.Theme) sym
+            else
+                sym)
+
+    let changeSymColour (prevSymbols: Map<ComponentId, Symbol>) (sId: ComponentId) colour =
+        if Map.containsKey sId prevSymbols then
+            let newColouredSymbol = set (appearance_ >-> colour_) (string colour) prevSymbols.[sId]
+            Map.add sId newColouredSymbol prevSymbols
+        else
+            prevSymbols
+
+    Map.fold changeSymColour revertedSymbols colourLookup
+
+
+
+
+
+
 /// Initialises a symbol containing the component and returns the updated symbol map containing the new symbol
 let createSymbolRecord ldcs theme comp =
         let clocked = isClocked [] ldcs comp
@@ -880,34 +907,48 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 // --------------- Functions for modifying the model group map
     // Set the model's group map to the provided group map. Assumes there are no added/removed groups, as the colours need to be looked up
     | SetModelGroupMap (groupMap: Map<GroupId,ComponentId list>) ->
-        let reverseMap =
+        let colourLookupMap =
             groupMap
             |> Map.fold (fun acc groupId componentIds ->
                 List.fold (fun acc componentId -> Map.add componentId groupId acc) acc componentIds) Map.empty
             |> Map.map (fun componentId groupId -> (Map.find groupId model.GroupInfoMap).Colour)
 
-        {model with GroupMap = groupMap; GroupMapColourLookup = reverseMap} , Cmd.none
+
+        let newModel =
+            {model with GroupMap = groupMap; GroupMapColourLookup = colourLookupMap}
+            |> set (SymbolT.symbols_ ) (colourGroups model colourLookupMap)
+
+        newModel, Cmd.none
 
     // Set the model's group info map to the provided group info map. Assumes there are no added/removed groups, as the colours need to be looked up
+    // Also updates the colour lookup map
     | SetModelGroupInfoMap (groupInfoMap: Map<GroupId, GroupInfo>) ->
-        let reverseMap =
+        let colourLookupMap =
             model.GroupMap
             |> Map.fold (fun acc groupId componentIds ->
                 List.fold (fun acc componentId -> Map.add componentId groupId acc) acc componentIds) Map.empty
             |> Map.map (fun componentId groupId -> (Map.find groupId groupInfoMap).Colour)
 
-        {model with GroupInfoMap = groupInfoMap; GroupMapColourLookup = reverseMap}, Cmd.none
+        let newModel =
+            {model with GroupInfoMap = groupInfoMap; GroupMapColourLookup = colourLookupMap}
+            |> set (SymbolT.symbols_ ) (colourGroups model colourLookupMap)
+
+        newModel, Cmd.none
 
     // Set the model's group map and group info map
     | SetModelGroupMapAndGroupInfoMap (groupMap: Map<GroupId,ComponentId list>, groupInfoMap: Map<GroupId, GroupInfo>) ->
-        let reverseMap =
+        let colourLookupMap =
             groupMap
             |> Map.fold (fun acc groupId componentIds ->
                 List.fold (fun acc componentId -> Map.add componentId groupId acc) acc componentIds) Map.empty
             |> Map.map (fun componentId groupId -> (Map.find groupId groupInfoMap).Colour)
 
-        let newModel = {model with GroupMap = groupMap; GroupInfoMap = groupInfoMap; GroupMapColourLookup = reverseMap}
-        newModel, Cmd.none
+
+        let newModel = {model with GroupMap = groupMap; GroupInfoMap = groupInfoMap; GroupMapColourLookup = colourLookupMap}
+        let newColouredModel = newModel |> set (SymbolT.symbols_ ) (colourGroups newModel colourLookupMap)
+
+
+        newColouredModel, Cmd.none
 
 
 

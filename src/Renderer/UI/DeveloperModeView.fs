@@ -568,17 +568,18 @@ let developerModeView (model: ModelType.Model) dispatch =
 
         /// Delete a whole group. Returns the new groupMap and groupMapInfo
         let deleteWholeGroup  (sheetModel : SheetT.Model)  (groupId: GroupId) =
-            let groupMap = sheetModel.Wire.Symbol.GroupMap
             let newGroupMap =
-                match Map.tryFind groupId groupMap with
-                | Some componentIds ->
-                    Map.remove groupId groupMap
-                | None -> groupMap
+                match Map.tryFind groupId sheetModel.Wire.Symbol.GroupMap with
+                | Some _ ->
+                    Map.remove groupId sheetModel.Wire.Symbol.GroupMap
+                | None -> sheetModel.Wire.Symbol.GroupMap
+
             let newGroupInfoMap =
                 match Map.tryFind groupId sheetModel.Wire.Symbol.GroupInfoMap with
-                | Some groupInfo ->
+                | Some _ ->
                     Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
                 | None -> sheetModel.Wire.Symbol.GroupInfoMap
+
 
             (newGroupMap, newGroupInfoMap)
 

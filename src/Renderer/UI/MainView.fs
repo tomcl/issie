@@ -330,29 +330,16 @@ let viewRightTabs canvasState model dispatch =
                                     )
         ] [
 
-            div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [contextualSidebar]
+            div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; (*Style [OverflowY scrollType]*)] [contextualSidebar]
 
         ]
     | None ->
-    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
-                            // Cache the scroll position of the right selection div to persist between updates
-                            // Similar to the canvas, see Sheet.fs
-                            OnScroll (fun _ ->
-                            // printf "Scrolling dev mode\n"
-                            match rightSelectionDiv with
-                            | None -> ()
-                            | Some el ->
-                                dispatch <| UpdateScrollPosRightSelection( {X = el.scrollLeft; Y = el.scrollTop}, dispatch));
-                              Ref (fun el ->
-                                    rightSelectionDiv <- Some el
-                                    writeRightSelectionScroll model.RightSelectionScrollPos
-                                )
-    ] [
+    div [Style [Height "100vh"]] [
         Tabs.tabs [
             Tabs.IsFullWidth;
             Tabs.IsBoxed;
             Tabs.CustomClass "rightSectionTabs"
-            Tabs.Props [Style [Margin 0;Position PositionOptions.Sticky; CSSProp.Top "0"; ZIndex "10000"; BackgroundColor "white"]; ] ;
+            Tabs.Props [Style [Margin 0;CSSProp.Top "0"; ZIndex "10000"; BackgroundColor "white"]; ] ;
 
 
         ] [
@@ -372,10 +359,25 @@ let viewRightTabs canvasState model dispatch =
                 [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
             developerModeTab
             buildTab
-        ]
-        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [viewRightTab canvasState model dispatch]
+        ];
+    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
+                            // Cache the scroll position of the right selection div to persist between updates
+                            // Similar to the canvas, see Sheet.fs
+                            OnScroll (fun _ ->
+                            // printf "Scrolling dev mode\n"
+                            match rightSelectionDiv with
+                            | None -> ()
+                            | Some el ->
+                                dispatch <| UpdateScrollPosRightSelection( {X = el.scrollLeft; Y = el.scrollTop}, dispatch));
+                              Ref (fun el ->
+                                    rightSelectionDiv <- Some el
+                                    writeRightSelectionScroll model.RightSelectionScrollPos
+                                )
+    ] [
 
-    ]
+        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; (*Style [OverflowY scrollType]*)] [viewRightTab canvasState model dispatch]
+
+    ]]
 let mutable testState:CanvasState = [],[]
 let mutable lastDragModeOn = false
 

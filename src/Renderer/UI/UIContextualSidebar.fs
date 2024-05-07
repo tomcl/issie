@@ -88,38 +88,58 @@ let viewSidebar (model: ModelType.Model) dispatch : ReactElement option =
 
 
 
-// let buildSimpleSidebar (options: SidebarOptions) (body: Model -> ReactElement) =
-//     fun (dispatch: Msg -> Unit)(model:Model) ->
-//         let buttons =
-//             options.SideBarButtons
-//             |> List.map (fun buttonInfo ->
-//                 Button.button [ (*ClassName button.ButtonClassNames; OnClick (fun _ -> button.ButtonAction model dispatch)*) ] [ str buttonInfo.ButtonText ]
-//             )
-
-//         div [] [
-//         Heading.h3 [  ] [ str options.TitleText ]
-//         div [] [
-//             body model
-//         ]
-//         div [ Style [ Display DisplayOptions.Flex; JustifyContent "space-between"; Padding "0.5rem"; ] ] [
-//         ]
-//     ]
 
 
 module ColourGenerator =
+    module Constants =
+        // A colour is considered too close to another if the distance is less than minimumColourDistance (thus making it invalid)
+        let minimumColourDistance = 23.
+        // A colour is considered too close to a blacklisted colour if the distance is less than blackListedColourDistance (thus making it invalid)
+        let blackListedColourDistance = 25.
+        // how many times to resample the HSL space if an invalid colour is generated (too close to the blacklisted colours or existing colours)
+        let trialLimit = 2500
+        let satRange = (30.,80.)
+        let lumRange = (75.,92.)
+        // an increment in HSL space
+        let hIncrement = 41.
+        let sIncrement = 11.
+        let lIncrement = 5. //minimumColourDistance/3.**0.5
 
     open System
-    // the minimum distance between a valid colour and a blacklisted colour.
-    // blacklisted colours are the existing UI colours, so that users do not get confused
-    let colourDistanceThreshold = 0.2
+    open Constants
 
     // Define a color type for RGB colors
-    type ColorRGB = { R: float; G: float; B: float }
-    type ColorHSL = { H: float; S: float; L: float }
+    type ColourRGB = { R: float; G: float; B: float }
+    type ColourHSL = { H: float; S: float; L: float }
+
+
+    /// Convert RGB to HSL (helper function)
+    let rgbToHSL (color: ColourRGB) : ColourHSL =
+        let (r: float), (g: float), (b: float) = color.R, color.G, color.B
+        let max = Math.Max(r, Math.Max(g, b))
+        let min = Math.Min(r, Math.Min(g, b))
+        let l = (max + min) / 2.0
+        let (h, s) =
+            if max = min then
+                0.0, 0.0  // achromatic, hence no saturation and hue is 0
+            else
+                let d = max - min
+                let s = if l > 0.5 then d / (2.0 - max - min) else d / (max + min)
+                let h =
+                    if max = r then
+                        (g - b) / d + (if g < b then 6.0 else 0.0)
+                    elif max = g then
+                        (b - r) / d + 2.0
+                    else
+                        (r - g) / d + 4.0
+                h * 60.0, s
+        { H = h; S = s*100.; L = l*100. }
+
 
     /// Convert HSL to RGB (helper function)
-    let hslToRgb (color: ColorHSL) : ColorRGB =
-        let (h: float), (s: float), (l: float) = color.H, color.S, color.L
+    /// Note that sat and lum are in 0-100
+    let hslToRGB (color: ColourHSL) : ColourRGB =
+        let (h: float), (s: float), (l: float) = color.H, color.S/100.0, color.L/100.0
         let c = (1.0 - Math.Abs(2.0 * l - 1.0)) * s
         let x = c * (1.0 - Math.Abs((h / 60.0 % 2.0) - 1.0))
         let m = l - c / 2.0
@@ -133,85 +153,132 @@ module ColourGenerator =
             | _ -> (c, 0.0, x)
         { R = r + m; G = g + m; B = b + m }
 
+    /// Convert RGB to Hex
+    let rgbToHex (color: ColourRGB) : string =
+            let r = int (color.R * 255.0)
+            let g = int (color.G * 255.0)
+            let b = int (color.B * 255.0)
+            String.Format("#{0:X2}{1:X2}{2:X2}", r, g, b)
 
-    /// Convert RGB to HSL (helper function)
-    let rgbToHsl (color: ColorRGB) : ColorHSL =
-        let r = color.R
-        let g = color.G
-        let b = color.B
+    /// Convert Hex to HSL
+    let hexToRGB (color: string) =
+        // drop the # in front (if it exists)
+        let hex = if color.StartsWith("#") then color.Substring(1) else color
+        let r = float (Convert.ToInt32(hex.Substring(0, 2), 16)) / 255.0
+        let g = float (Convert.ToInt32(hex.Substring(2, 2), 16)) / 255.0
+        let b = float (Convert.ToInt32(hex.Substring(4, 2), 16)) / 255.0
+        { R = r; G = g; B = b }
 
-        let max = Math.Max(r, Math.Max(g, b))
-        let min = Math.Min(r, Math.Min(g, b))
-        let delta = max - min
 
-        let l = (max + min) / 2.0
+    /// Calculate perceived distance between two HSL colors.
+    /// Note that dh (difference in hue) is given more weight, so generated colours are less likely to clash with UI colours
+    let colourPerceivedDistance (c1: ColourHSL) (c2: ColourHSL) =
+        let dh: float = c1.H - c2.H
+        let ds: float = c1.S - c2.S
+        let dl: float = c1.L - c2.L
 
-        let s =
-            if delta = 0.0 then 0.0
-            else delta / (if l > 0.5 then 2.0 - max - min else max + min)
-
-        let h =
-            if delta = 0.0 then
-                0.0
-            elif max = r then
-                (g - b) / delta + (if g < b then 6.0 else 0.0)
-            elif max = g then
-                (b - r) / delta + 2.0
-            else
-                (r - g) / delta + 4.0
-
-        let hue = h * 60.0
-        { H = hue; S = s; L = l }
-
-    /// Calculate Euclidean distance between two colors
-    let colorDistance (c1: ColorRGB) (c2: ColorRGB) =
-        let dr = c1.R - c2.R
-        let dg = c1.G - c2.G
-        let db = c1.B - c2.B
-        Math.Sqrt(dr * dr + dg * dg + db * db)
+        ( (dh * dh) + (ds * ds) + (dl * dl) )**0.5
 
     /// List of blacklisted colors in RGB
-    let blacklistedColors = [
+    let blacklistedColorsRGB = [
         { R = 1.0; G = 1.0; B = 0.85 } // #FFFFD9
-        { R = 0.678; G = 0.847; B = 0.902 } // # CSS Light Blue
+        { R = 0.678; G = 0.847; B = 0.902 } // # CSS Light Blue or #ADD8E6
         { R = 0.91; G = 0.816; B = 0.663 } // #E8D0A9
         { R = 0.564; G = 0.933; B = 0.564 } // #90EE90 aka CSS Light Green
-
-
     ]
 
-    /// Check if a color is too close to any blacklisted colors
-    let isColorTooClose (color: ColorRGB) =
-        blacklistedColors |> List.exists (fun blacklisted -> colorDistance color blacklisted < colourDistanceThreshold)
+    let blacklistedColoursHSL = blacklistedColorsRGB |> List.map rgbToHSL
 
-    /// Generates a color ensuring it's not too close to blacklisted colors
-    let rec findValidColorVariant (color: ColorHSL) (random: Random) =
-        let hue = (color.H + (random : Random).NextDouble() * 30.0) % 360.0
-        let saturation = ((color.S - 0.4 + (random : Random).NextDouble() * 0.11) % 0.6) + 0.4
-        let luminance = ((color.L - 0.7 + (random : Random).NextDouble() * 0.11) % 0.3) + 0.7
-        let color = hslToRgb {H=hue; S=saturation; L=luminance}
-        if isColorTooClose color then findValidColorVariant (rgbToHsl color) random else color
+    /// Checks if a generated colour is valid
+    let isColourValid (newSample: ColourHSL) (existingColours : ColourHSL list) : bool =
+        // for every existingColour, make sure it is not too close to the newSample
+
+        let farAwayFromExistingColours = not (List.exists (fun existingColour ->
+            let distance = colourPerceivedDistance newSample existingColour
+            distance < minimumColourDistance
+        ) existingColours)
+
+        let farAwayFromBlacklistedColours = not (List.exists (fun blacklistedColour ->
+            let distance = colourPerceivedDistance newSample blacklistedColour
+            distance < blackListedColourDistance
+        ) blacklistedColoursHSL)
+
+        farAwayFromExistingColours && farAwayFromBlacklistedColours
+
+    let generateBaseHSLColour (random: Random) : ColourHSL =
+        let h: float = random.NextDouble() * 360.0
+        let s: float = float (random.NextDouble()*(snd satRange - fst satRange) + fst satRange)
+        let l: float = float (random.NextDouble()*(snd lumRange - fst lumRange) + fst lumRange)
+        { H = h; S = s; L = l }
+
+    let generateIncrementedHSLColour (sample:ColourHSL) =
+        let newH: float = (sample.H + hIncrement) % 360.0
+        let newS: float = ((sample.S - (fst satRange) + sIncrement) % (snd satRange - fst satRange)) + fst satRange
+        let newL: float = ((sample.L - (fst satRange)  + lIncrement) % (snd lumRange - fst lumRange)) + fst lumRange
+
+        { H = newH; S = newS; L = newL }
+
+    let getNewColour (existingColours : ColourHSL list) =
+        // generate a new colour using poisson-disk sampling.
+        // make this deterministic.
+        let random = Random(existingColours.Length)
+        // 1: generate initial sample
+        let newSample =
+            match existingColours.Length with
+            | 0 -> printf "No existing colours, drawing..."; generateBaseHSLColour random
+            | _ -> generateIncrementedHSLColour (List.head existingColours)
 
 
-    /// Generate a color based on a draw count, cycling through HSL systematically
-    let generateColor (drawCount: int) (randomSeed : int)  =
-        // Hue cycles every 12 steps before incrementing saturation
-        let hue = (float ((drawCount * 31) % 360))
-        let saturation = 0.4 + (float ((drawCount  / 12 * 17) % 60))/100.     // Wrap around after exceeding 1.0
-        let luminance = 0.7 +  (float ((drawCount  / 12 / 5 * 17) % 30))/100. // Wrap around after exceeding 1.0
-        let color = hslToRgb {H=hue; S=saturation; L=luminance}
-        if isColorTooClose color then
-            let random = Random(randomSeed + drawCount)
-            findValidColorVariant (rgbToHsl color) random
-        else color
+        // 2: repeat for number of trials
+        let rec generateNewColour (sample: ColourHSL) (existingColours : ColourHSL list) (trial : int) =
+            match trial with
+            | trial when trial > trialLimit + 5 ->
+                printf "Exceeded trial limits again. Generating random colour"
+                generateBaseHSLColour (Random existingColours.Length)
+            | trial when trial > trialLimit ->
+                printf "Exceeded trial limits, trying with less constraints (avoid blacklisted colours only)"
+                let newSample = generateIncrementedHSLColour sample
+                if isColourValid newSample blacklistedColoursHSL then newSample
+                else generateNewColour newSample existingColours (trial + 1)
+            | _ ->
+                let newSample = generateIncrementedHSLColour sample
+                // printf "Trial: %d with colour: %A\n" trial newSample
+                if isColourValid newSample existingColours then newSample
+                else generateNewColour newSample existingColours (trial + 1)
 
-    /// Top Level Call: given the model, generate a colour and update with the new model
-    let generateColourFromModel (model: SheetT.Model) (dispatch) =
-        let colour = generateColor model.ColourDrawnCount model.ColourRandomSeed
-        let hexColour = "#" + (colour.R * 255.0).ToString("X2") + (colour.G * 255.0).ToString("X2") + (colour.B * 255.0).ToString("X2")
-        printf "Generated colour: %s\n%A" hexColour colour
-        let sheetDispatch sMsg = dispatch (Sheet sMsg)
-        sheetDispatch (SheetT.IncrementColourDrawnCount), hexColour
+
+        generateNewColour newSample existingColours 0
+
+    let generateColourFromModel (model: SheetT.Model) =
+        let existingModelColours =
+            model.GroupInfoMap
+            |> Map.values
+            |> Array.toList
+            // convert from RGB hex (with # in front) to HSL
+            |> List.map (fun (groupInfo: GroupInfo) -> groupInfo.Colour |> hexToRGB |> rgbToHSL)
+
+
+        // let sheetDispatch = (fun sMsg -> dispatch (Sheet sMsg))
+
+        let newHSLColour = getNewColour existingModelColours
+        let newGroupInfo = {
+            Id = GroupId (uuid());
+            CreationDate = DateTime.Now;
+            Colour = (newHSLColour |> hslToRGB |> rgbToHex) ;
+        }
+
+        let closestDistanceToBlacklisted =
+            blacklistedColoursHSL
+            |> List.map (fun blacklistedColour -> colourPerceivedDistance newHSLColour blacklistedColour)
+            |> List.min
+
+        printf "Generated colour: %s Closest Distance To Blacklist: %A" (newHSLColour |> hslToRGB |> rgbToHex) (closestDistanceToBlacklisted.ToString("F2"))
+        printf "Existing Colours: %A" (existingModelColours |> List.map (fun c -> c |> hslToRGB |> rgbToHex))
+
+        newGroupInfo.Colour
+
+
+
 
 
 // module ColourGenerator =

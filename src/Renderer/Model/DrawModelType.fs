@@ -578,6 +578,7 @@ module SheetT =
         | SaveSymbols
         | SetModelGroupMap of Map<GroupId, ComponentId list>
         | SetModelGroupInfoMap of Map<GroupId, GroupInfo>
+        | SetModelGroupMapAndGroupInfoMap of Map<GroupId, ComponentId list> * Map<GroupId, GroupInfo>
         // ------------------- Compilation and Debugging ----------------------
         | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
         | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
@@ -679,10 +680,6 @@ module SheetT =
         GroupInfoMap: Map<GroupId, GroupInfo>
         /// Keep track of highlight colours for each component
         ComponentColours: Map<ComponentId, string>
-        /// How many times a colour has been drawn (in order to keep the function deterministic)
-        ColourDrawnCount: int
-        /// The seed of the colour generation algorithm
-        ColourRandomSeed: int
         }
 
     open Operators

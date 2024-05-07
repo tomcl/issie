@@ -408,12 +408,13 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                         wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
                         sheetCmd SheetT.UpdateBoundingBoxes]
     | SetModelGroupMap (groupMap: Map<GroupId,ComponentId list>) ->
-        // get rid of any groups that have an empty list
-        let groupMap = groupMap |> Map.filter (fun k v -> List.length v > 0)
         let newModel = {model with GroupMap = groupMap}
         newModel, Cmd.none
     | SetModelGroupInfoMap (groupInfoMap: Map<GroupId, GroupInfo>) ->
         let newModel = {model with GroupInfoMap = groupInfoMap}
+        newModel, Cmd.none
+    | SetModelGroupMapAndGroupInfoMap (groupMap: Map<GroupId,ComponentId list>, groupInfoMap: Map<GroupId, GroupInfo>) ->
+        let newModel = {model with GroupMap = groupMap; GroupInfoMap = groupInfoMap}
         newModel, Cmd.none
 
 
@@ -856,8 +857,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | SetWireModel wModel ->
         {model with Wire = wModel}, Cmd.none
 
-    | IncrementColourDrawnCount ->
-        {model with ColourDrawnCount = model.ColourDrawnCount + 1}, Cmd.none
 
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> postUpdateChecks
@@ -923,8 +922,6 @@ let init () =
         GroupMap = Map.empty
         GroupInfoMap = Map.empty
         ComponentColours = Map.empty
-        ColourDrawnCount = 0
-        ColourRandomSeed = 42
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

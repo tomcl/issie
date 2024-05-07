@@ -620,7 +620,7 @@ let update (msg : Msg) oldModel =
         // reset the rightSelectionDiv's scroll position.
         { model with ContextualSidebarViewFunction = sidebar; RightSelectionScrollPos={X=0; Y=0}}, Cmd.none
     | CloseContextualSidebar ->
-        { model with ContextualSidebarViewFunction = None;}, Cmd.none
+        { model with ContextualSidebarViewFunction = None; RightSelectionScrollPos={X=0; Y=0}}, Cmd.none
 
 
 

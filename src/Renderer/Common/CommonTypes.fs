@@ -767,12 +767,11 @@ module CommonTypes
     type ComponentId = | ComponentId of string
 
     /// Author TDC21: For grouping components together
-    type GroupId = GroupId of DateTime
+    type GroupId = GroupId of string
     type GroupInfo = {
-        Id: string
+        Id: GroupId
         CreationDate: DateTime
-        Components: ComponentId list
-        Color: string
+        Colour: string
     }
 
 

@@ -136,7 +136,7 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
 
     // create a mouse dummy symbol, find its bounding box, add it to a dummy model
     let mouseSymbolDummy: Symbol =
-        { (createNewSymbol [] pos NotConnected "" White) with
+        { (createNewSymbol  [] pos NotConnected "" White) with
             Component = mouseComponentDummy }
 
     // Lens to get and set bounding boxes in model

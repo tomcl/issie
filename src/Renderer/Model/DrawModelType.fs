@@ -229,6 +229,11 @@ module SymbolT =
         Theme: ThemeType
 
         HintPane: ReactElement option
+
+        /// tdc21: Store Groups of Component Ids for Grouping
+        GroupMap: Map<GroupId, ComponentId list>
+        GroupInfoMap: Map<GroupId, GroupInfo>
+        GroupMapColourLookup : Map<ComponentId, string>
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -279,6 +284,10 @@ module SymbolT =
         | SetTheme of ThemeType
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
+        // tdc21: modify the model group
+        | SetModelGroupMap of Map<GroupId, ComponentId list>
+        | SetModelGroupInfoMap of Map<GroupId, GroupInfo>
+        | SetModelGroupMapAndGroupInfoMap of Map<GroupId, ComponentId list> * Map<GroupId, GroupInfo>
 
 
 
@@ -576,9 +585,6 @@ module SheetT =
         | IssieInterface of IssieInterfaceMsg
         | MovePort of MouseT //different from mousemsg because ctrl pressed too
         | SaveSymbols
-        | SetModelGroupMap of Map<GroupId, ComponentId list>
-        | SetModelGroupInfoMap of Map<GroupId, GroupInfo>
-        | SetModelGroupMapAndGroupInfoMap of Map<GroupId, ComponentId list> * Map<GroupId, GroupInfo>
         // ------------------- Compilation and Debugging ----------------------
         | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
         | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
@@ -673,13 +679,8 @@ module SheetT =
         DebugMappings: string array
         DebugIsConnected: bool
         DebugDevice: string option
-        // bool to keep track if developer mode tab is open
+        // tdc21: bool to keep track if developer mode tab is open
         DeveloperModeTabActive: bool
-        /// Store Groups of Component Ids for Grouping
-        GroupMap: Map<GroupId, ComponentId list>
-        GroupInfoMap: Map<GroupId, GroupInfo>
-        /// Keep track of highlight colours for each component
-        ComponentColours: Map<ComponentId, string>
         }
 
     open Operators

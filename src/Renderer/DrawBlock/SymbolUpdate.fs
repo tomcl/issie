@@ -345,7 +345,7 @@ let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
 let inline symbolsHaveError model compList =
     let resetSymbols =
         model.Symbols
-        |> Map.map (fun _ sym -> set (appearance_ >-> colour_) (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) sym)
+        |> Map.map (fun _ sym -> set (appearance_ >-> colour_) (getSymbolColour model sym.Component sym.IsClocked model.Theme) sym)
 
     let setSymColorToRed prevSymbols sId =
         Map.add sId (set (appearance_ >-> colour_)  "Red" resetSymbols[sId]) prevSymbols
@@ -362,7 +362,7 @@ let inline selectSymbols model compList =
         |> Map.map (fun _ sym ->
             sym
             |> map appearance_ (
-                set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >>
+                set colour_ (getSymbolColour model sym.Component sym.IsClocked model.Theme) >>
                 set opacity_ 1.0
             )
             |> set moving_ false
@@ -382,7 +382,7 @@ let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
     let resetSymbols =
         model.Symbols
         |> Map.map
-            (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> set opacity_ 1.0) sym)
+            (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour model sym.Component sym.IsClocked model.Theme) >> set opacity_ 1.0) sym)
 
     let updateSymbolStyle prevSymbols sId =
         if not isDragAndDrop then
@@ -475,7 +475,7 @@ let createSymbolRecord ldcs theme comp =
                 ShowPorts = ShowNone //do not show input ports initially
                 ShowCorners = DontShow
                 // ShowOutputPorts = false //do not show output ports initially
-                Colour = getSymbolColour comp.Type clocked theme
+                Colour = getNewSymbolColour comp.Type clocked theme
                 Opacity = 1.0
             }
             Id = ComponentId comp.Id
@@ -874,8 +874,40 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let resetSymbols =
             model.Symbols
             |> Map.map
-                (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
+                (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour model sym.Component sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
+
+// --------------- Functions for modifying the model group map
+    // Set the model's group map to the provided group map. Assumes there are no added/removed groups, as the colours need to be looked up
+    | SetModelGroupMap (groupMap: Map<GroupId,ComponentId list>) ->
+        let reverseMap =
+            groupMap
+            |> Map.fold (fun acc groupId componentIds ->
+                List.fold (fun acc componentId -> Map.add componentId groupId acc) acc componentIds) Map.empty
+            |> Map.map (fun componentId groupId -> (Map.find groupId model.GroupInfoMap).Colour)
+
+        {model with GroupMap = groupMap; GroupMapColourLookup = reverseMap} , Cmd.none
+
+    // Set the model's group info map to the provided group info map. Assumes there are no added/removed groups, as the colours need to be looked up
+    | SetModelGroupInfoMap (groupInfoMap: Map<GroupId, GroupInfo>) ->
+        let reverseMap =
+            model.GroupMap
+            |> Map.fold (fun acc groupId componentIds ->
+                List.fold (fun acc componentId -> Map.add componentId groupId acc) acc componentIds) Map.empty
+            |> Map.map (fun componentId groupId -> (Map.find groupId groupInfoMap).Colour)
+
+        {model with GroupInfoMap = groupInfoMap; GroupMapColourLookup = reverseMap}, Cmd.none
+
+    // Set the model's group map and group info map
+    | SetModelGroupMapAndGroupInfoMap (groupMap: Map<GroupId,ComponentId list>, groupInfoMap: Map<GroupId, GroupInfo>) ->
+        let reverseMap =
+            groupMap
+            |> Map.fold (fun acc groupId componentIds ->
+                List.fold (fun acc componentId -> Map.add componentId groupId acc) acc componentIds) Map.empty
+            |> Map.map (fun componentId groupId -> (Map.find groupId groupInfoMap).Colour)
+
+        let newModel = {model with GroupMap = groupMap; GroupInfoMap = groupInfoMap; GroupMapColourLookup = reverseMap}
+        newModel, Cmd.none
 
 
 

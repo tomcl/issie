@@ -214,12 +214,7 @@ let developerModeView (model: ModelType.Model) dispatch =
             |> Seq.toList
             |> List.take 2
 
-
-
         let (colour) = generateColourFromModel model.Sheet
-        // colourRGB is { R: float; G: float; B: float }. Convert to hex
-
-
 
         let newSheetModel: SheetT.Model =
             model.Sheet
@@ -513,9 +508,11 @@ let developerModeView (model: ModelType.Model) dispatch =
 
     let symbols = model.Sheet.Wire.Symbol.Symbols
 
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let symbolDispatch symMsg =  symMsg |> Symbol |> Wire |> Sheet |> dispatch
+    let sheetDispatch sheetMsg =  sheetMsg |> Sheet |> dispatch
+
     let groupedComponentIds =
-        model.Sheet.GroupMap
+        model.Sheet.Wire.Symbol.GroupMap
         |> Map.toList
         |> List.collect snd
 
@@ -535,15 +532,15 @@ let developerModeView (model: ModelType.Model) dispatch =
                 Colour = (generateColourFromModel sheetModel)
                 }
 
-            let newGroupMapInfo = Map.add groupId groupInfo sheetModel.GroupInfoMap
+            let newGroupMapInfo = Map.add groupId groupInfo sheetModel.Wire.Symbol.GroupInfoMap
 
-            let newGroupMap = Map.add groupId componentIds sheetModel.GroupMap
+            let newGroupMap = Map.add groupId componentIds sheetModel.Wire.Symbol.GroupMap
 
             newGroupMap, newGroupMapInfo
 
         /// Add a list of componentIds to an existing group. Returns the new groupMap. If groupId does not exist, nothing is changed.
         let addToGroup (sheetModel : SheetT.Model) (groupId: GroupId) (componentIds: ComponentId list) =
-            let groupMap = sheetModel.GroupMap
+            let groupMap = sheetModel.Wire.Symbol.GroupMap
             match Map.tryFind groupId groupMap with
             | Some existingComponentIds ->
                 let newComponentIds = existingComponentIds @ componentIds
@@ -552,7 +549,7 @@ let developerModeView (model: ModelType.Model) dispatch =
 
         /// Delete a component from a group. If the group has no components left, delete it. Returns the new groupMap and groupMapInfo. If groupId does not exist, nothing is changed.
         let deleteComponentFromGroup  (sheetModel : SheetT.Model) (groupId: GroupId) (componentId: ComponentId) =
-            let groupMap = sheetModel.GroupMap
+            let groupMap = sheetModel.Wire.Symbol.GroupMap
             let newGroupMap =
                 match Map.tryFind groupId groupMap with
                 | Some componentIds ->
@@ -564,24 +561,24 @@ let developerModeView (model: ModelType.Model) dispatch =
             match newGroupMap |> Map.tryFind groupId with
             | Some [] ->
                 let newGroupMap = Map.remove groupId newGroupMap
-                let newGroupInfoMap = Map.remove groupId sheetModel.GroupInfoMap
+                let newGroupInfoMap = Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
                 (newGroupMap, newGroupInfoMap)
-            | _ -> (newGroupMap, sheetModel.GroupInfoMap)
+            | _ -> (newGroupMap, sheetModel.Wire.Symbol.GroupInfoMap)
 
 
         /// Delete a whole group. Returns the new groupMap and groupMapInfo
         let deleteWholeGroup  (sheetModel : SheetT.Model)  (groupId: GroupId) =
-            let groupMap = sheetModel.GroupMap
+            let groupMap = sheetModel.Wire.Symbol.GroupMap
             let newGroupMap =
                 match Map.tryFind groupId groupMap with
                 | Some componentIds ->
                     Map.remove groupId groupMap
                 | None -> groupMap
             let newGroupInfoMap =
-                match Map.tryFind groupId sheetModel.GroupInfoMap with
+                match Map.tryFind groupId sheetModel.Wire.Symbol.GroupInfoMap with
                 | Some groupInfo ->
-                    Map.remove groupId sheetModel.GroupInfoMap
-                | None -> sheetModel.GroupInfoMap
+                    Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
+                | None -> sheetModel.Wire.Symbol.GroupInfoMap
 
             (newGroupMap, newGroupInfoMap)
 
@@ -596,11 +593,11 @@ let developerModeView (model: ModelType.Model) dispatch =
                 let groupItems =
                     groupKeys
                     |> List.mapi (fun index groupId ->
-                        Dropdown.Item.a [Dropdown.Item.Option.Props[Style [Width "inherit" ];OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMap(addToGroup model.Sheet groupId compIds)))] ] [p [] [str ("Group " + (index + 1).ToString()) ]])
+                        Dropdown.Item.a [Dropdown.Item.Option.Props[Style [Width "inherit" ];OnClick (fun _ -> symbolDispatch (DrawModelType.SymbolT.SetModelGroupMap(addToGroup model.Sheet groupId compIds)))] ] [p [] [str ("Group " + (index + 1).ToString()) ]])
 
                 let newGroupItem =
                     [Dropdown.Item.a [Dropdown.Item.Option.Props[ Style [Width "inherit"]; OnClick (fun _ ->
-                                    sheetDispatch (DrawModelType.SheetT.SetModelGroupMapAndGroupInfoMap(createNewGroup model.Sheet compIds)))  ]]
+                                    symbolDispatch (DrawModelType.SymbolT.SetModelGroupMapAndGroupInfoMap(createNewGroup model.Sheet compIds)))  ]]
 
                     [div [] [str "Create new group"]]
                     ]
@@ -616,13 +613,22 @@ let developerModeView (model: ModelType.Model) dispatch =
                         [ Dropdown.content []
                             (dropdownItemsForGroupAddition compIds)]]
 
+            /// filter any symbols with empty label (gets rid of annotations e.g. rotation or scale buttons for selected syms). We also exclude MergeWires, can be expanded if needed
+            let filteredSymbols =
+                symbols
+                |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "" )
+                |> List.filter (fun symbol ->
+                    match symbol.Component.Type with
+                    | MergeWires | SplitWire _ | BusSelection _  | NbitSpreader _ -> false
+                    | _ -> true)
+
             /// Make a table row for each unselected symbol that is not in a group
             let unselectedSymbolsRows =
-                symbols
+                filteredSymbols
                 // sort alphabetically by label
                 |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
-                // remove any symbols with empty label (gets rid of annotations e.g. rotation or scale buttons for selected syms)
-                |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "" && not (List.exists ((=) (ComponentId symbol.Component.Id)) model.Sheet.SelectedComponents))
+                //
+                |> List.filter (fun symbol -> not (List.exists ((=) (ComponentId symbol.Component.Id)) model.Sheet.SelectedComponents))
                 |> List.map (fun symbol ->
                     let compTypeDescr = getComponentTypeDescrFromSym symbol
                     tr
@@ -635,9 +641,9 @@ let developerModeView (model: ModelType.Model) dispatch =
 
             /// Get the selected symbols of a sheet and sort them by label
             let selectedSymbols =
-                symbols
+                filteredSymbols
                 |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
-                |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "" && (List.exists ((=) (ComponentId symbol.Component.Id)) model.Sheet.SelectedComponents))
+                |> List.filter (fun symbol ->  (List.exists ((=) (ComponentId symbol.Component.Id)) model.Sheet.SelectedComponents))
 
             /// Get the ids of the selected symbols
             let selectedSymbolsIds =
@@ -707,7 +713,7 @@ let developerModeView (model: ModelType.Model) dispatch =
 
         /// Selects a group on the sheet
         let selectGroupOnSheet (groupId: GroupId) (model) =
-            let groupMap = model.Sheet.GroupMap
+            let groupMap = model.Sheet.Wire.Symbol.GroupMap
             let compIds =
                 match Map.tryFind groupId groupMap with
                 | Some compIds -> compIds
@@ -748,7 +754,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                     td [] [ str (symbol.Component.Label.ToString())  ];
                                     td [] [ code [] [ str ( compTypeDescr )] ];
                                     td [ Style [Padding "10px" ;TextAlign TextAlignOptions.Right; VerticalAlign "middle";]; OnClick (fun _ ->
-                                    sheetDispatch (DrawModelType.SheetT.SetModelGroupMapAndGroupInfoMap(deleteComponentFromGroup model.Sheet groupId componentId))
+                                    symbolDispatch (DrawModelType.SymbolT.SetModelGroupMapAndGroupInfoMap(deleteComponentFromGroup model.Sheet groupId componentId))
                                     ) ] [Delete.delete [Delete.Size IsMedium] []]
                                 ]
                             | None -> tr [] [])
@@ -762,7 +768,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                            td [Style [TextAlign TextAlignOptions.Left; PaddingLeft 0; PaddingRight 0]] [
 
 
-                                            button [buttonStyles; ClassName "is-danger button is-small"; OnClick (fun _ -> sheetDispatch (DrawModelType.SheetT.SetModelGroupMapAndGroupInfoMap(deleteWholeGroup model.Sheet groupId)))] [str "Delete All"]
+                                            button [buttonStyles; ClassName "is-danger button is-small"; OnClick (fun _ -> symbolDispatch (DrawModelType.SymbolT.SetModelGroupMapAndGroupInfoMap(deleteWholeGroup model.Sheet groupId)))] [str "Delete All"]
                                             ]
 
                 ]
@@ -771,9 +777,9 @@ let developerModeView (model: ModelType.Model) dispatch =
 
 
         /// Create a table of all groups and their components
-        let createGroupTableFromGroupMap (symbolsMap: Map<ComponentId, SymbolT.Symbol>) (model: SheetT.Model) =
-            let groupMap = model.GroupMap
-            let groupInfoMap = model.GroupInfoMap
+        let createGroupTableFromGroupMap (symbolsMap: Map<ComponentId, SymbolT.Symbol>) (sheetModel: SheetT.Model) =
+            let groupMap = sheetModel.Wire.Symbol.GroupMap
+            let groupInfoMap = sheetModel.Wire.Symbol.GroupInfoMap
             if groupMap |> Map.isEmpty then
                 div [Style [MarginBottom "25px" ]] [str "No groups created."]
             else
@@ -793,7 +799,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                 match Map.tryFind componentId symbolsMap with
                                 | Some symbol -> symbol.Component.Label.ToString()
                                 | None -> "")
-                        let groupRows = createGroupRows groupId index sortedComponentIds symbolsMap model.GroupInfoMap
+                        let groupRows = createGroupRows groupId index sortedComponentIds symbolsMap sheetModel.Wire.Symbol.GroupInfoMap
                         groupRows)
 
                 div [Style [MarginBottom "25px";]] [Table.table
@@ -818,7 +824,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                 createGroupTableFromGroupMap symbols model.Sheet
                 Heading.h5 [] [str "Ungrouped Components"]
                 p [Style [Margin "-10px 0 10px" ]] [str "Choose a component to add to the group."]
-                createGroupAssignerForSymbols ungroupedComponentsMap model.Sheet.GroupMap
+                createGroupAssignerForSymbols ungroupedComponentsMap model.Sheet.Wire.Symbol.GroupMap
             ]
         ]
 

@@ -180,9 +180,35 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
     | Degree270 -> (rot90 >> rot180) r2
 
 
-/// Returns color for the fill of a symbol (when not selected)
-/// Depends on theme and whether symbol is closed or not.
-let getSymbolColour compType clocked (theme:ThemeType) =
+/// tdc21: Returns color for the fill of a symbol (when not selected)
+/// Depends on theme and whether symbol is closed or not, and whether the symbol is part of a group
+/// (it will be coloured according to its corresponding group colour if it is)
+let getSymbolColour (symModel:SymbolT.Model) (comp: Component) (clocked: bool) (theme:ThemeType) =
+    let compType = comp.Type
+    match symModel.GroupMapColourLookup.TryFind (ComponentId(comp.Id)) with
+    | Some groupColour -> groupColour
+    | None ->
+        match theme with
+        | White | Light -> "lightgray"
+        | Colourful ->
+            match compType with
+            | Register _ | RegisterE _
+            | ROM1 _ | DFF | DFFE | RAM1 _ | AsyncRAM1 _
+            | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ -> "lightblue"
+            | Custom _ when clocked
+                -> "lightblue"  //for clocked components
+            |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _
+                -> "#E8D0A9"  //dark orange: for IO
+            | SplitWire _ | MergeWires | BusSelection _ | NbitSpreader _ | IOLabel | NotConnected ->
+                "rgb(120,120,120)"
+            | MergeN _| SplitN _ ->
+                "lightgray"
+            | _ -> "rgba(255,255,217,1)" //lightyellow: for combinational components
+
+
+/// tdc21: Returns the colour for the fill of a new symbol. Depends on theme and whether symbol is clocked (closed??) or not.
+// Since a new symbol is never in a group to begin with, we don't need to check for group colours.
+let getNewSymbolColour (compType: ComponentType) (clocked: bool) (theme:ThemeType) =
     match theme with
     | White | Light -> "lightgray"
     | Colourful ->
@@ -691,7 +717,7 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
             HighlightLabel = false
             ShowPorts = ShowNone
             ShowCorners = DontShow // HLP23 AUTHOR: BRYAN TAN
-            Colour = getSymbolColour  comptype (isClocked [] ldcs comp) theme
+            Colour = getNewSymbolColour  comptype (isClocked [] ldcs comp) theme
             Opacity = 1.0
           }
       InWidth0 = None // set by BusWire

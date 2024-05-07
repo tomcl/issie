@@ -642,4 +642,7 @@ let init () =
         Ports = Map.empty ; InputPortsConnected= Set.empty
         OutputPortsConnected = Map.empty; Theme = Colourful
         HintPane = None
+        GroupMap = Map.empty
+        GroupInfoMap = Map.empty
+        GroupMapColourLookup = Map.empty
     }, Cmd.none

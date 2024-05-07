@@ -407,15 +407,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                         symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
                         wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
                         sheetCmd SheetT.UpdateBoundingBoxes]
-    | SetModelGroupMap (groupMap: Map<GroupId,ComponentId list>) ->
-        let newModel = {model with GroupMap = groupMap}
-        newModel, Cmd.none
-    | SetModelGroupInfoMap (groupInfoMap: Map<GroupId, GroupInfo>) ->
-        let newModel = {model with GroupInfoMap = groupInfoMap}
-        newModel, Cmd.none
-    | SetModelGroupMapAndGroupInfoMap (groupMap: Map<GroupId,ComponentId list>, groupInfoMap: Map<GroupId, GroupInfo>) ->
-        let newModel = {model with GroupMap = groupMap; GroupInfoMap = groupInfoMap}
-        newModel, Cmd.none
+
 
 
 
@@ -919,9 +911,6 @@ let init () =
         DebugDevice = None
         ScalingBox = None
         DeveloperModeTabActive = false
-        GroupMap = Map.empty
-        GroupInfoMap = Map.empty
-        ComponentColours = Map.empty
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

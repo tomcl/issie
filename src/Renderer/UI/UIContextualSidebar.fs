@@ -251,7 +251,7 @@ module ColourGenerator =
 
     let generateColourFromModel (model: SheetT.Model) =
         let existingModelColours =
-            model.GroupInfoMap
+            model.Wire.Symbol.GroupInfoMap
             |> Map.values
             |> Array.toList
             // convert from RGB hex (with # in front) to HSL

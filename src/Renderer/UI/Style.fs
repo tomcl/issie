@@ -23,12 +23,12 @@ let getHeaderHeight =
     headerHeight
     |> String.filter (fun c -> (int(c) <= 57 && int(c) >= 48))
     |> float
-    
+
 let rightSectionWidth (model:Model) =
     match model.RightPaneTabVisible with
-    | RightTab.Properties | RightTab.Catalogue | RightTab.Transition -> rightSectionWidthS
+    | RightTab.Properties | RightTab.Catalogue | RightTab.DeveloperMode | RightTab.Transition -> rightSectionWidthS
     | RightTab.Build -> rightSectionWidthL
-    | RightTab.Simulation -> 
+    | RightTab.Simulation ->
         match model.SimSubTabVisible with
         | SimSubTab.StepSim -> rightSectionWidthL
         | SimSubTab.WaveSim | SimSubTab.TruthTable -> sprintf "%dpx" model.WaveSimViewerWidth
@@ -60,7 +60,7 @@ let leftSectionStyle model =
         //UserSelect UserSelectOptions.None
 ]
 
-let rightSectionStyle model = 
+let rightSectionStyle model =
     let widthRightSec = rightSectionWidth model
     Style [
         Position PositionOptions.Fixed
@@ -83,7 +83,7 @@ let belowHeaderStyle headerSize =
         Height $"calc(100%% - {headerSize})"
         ]
 
-let canvasVisibleStyle model = 
+let canvasVisibleStyle model =
     let widthRightSec = rightSectionWidth model
     Style [
         Display DisplayOptions.Block
@@ -96,15 +96,15 @@ let canvasVisibleStyle model =
         Right widthRightSec
         BorderTop "2px solid lightgray"
     ]
-    
+
 // Used by Sheet
-let canvasVisibleStyleList model = 
+let canvasVisibleStyleList model =
     let background =
         match model.Sheet.Wire.Symbol.Theme with
         |DrawModelType.SymbolT.ThemeType.White -> BackgroundColor "white"
         |DrawModelType.SymbolT.ThemeType.Light -> BackgroundColor "rgba(255,255,0,0.1)"  //light yellow
         |DrawModelType.SymbolT.ThemeType.Colourful -> BackgroundColor "rgba(0,0,0,0.05)" //light gray
-    
+
     let widthRightSec = rightSectionWidth model
     [
         Display DisplayOptions.Block
@@ -217,7 +217,7 @@ let ttGridHiddenColumnProps gridWidth= [
     Visibility "hidden"
 ]
 
-let ttGridContainerStyle model = 
+let ttGridContainerStyle model =
     let widthRightSec = rightSectionWidth model
     Style [
         Display DisplayOptions.Grid

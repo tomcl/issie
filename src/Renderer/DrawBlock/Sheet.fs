@@ -70,7 +70,7 @@ module Constants =
             CanvasBorder = 0.5 // minimum scrollable white space border as fraction of circuit size after ctrlW
             CanvasExtensionFraction = 0.1 // fraction of screen size used to extend canvas by when going off edge
         |}
-    
+
 
 //---------------------------------------Derived constants----------------------------------------//
 
@@ -148,13 +148,13 @@ module SheetInterface =
             dispatch <| (Wire (BusWireT.DeleteWiresWithPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
             //this.DoBusWidthInference dispatch
-        
+
         member this.ChangeCounterComp (dispatch: Dispatch<Msg>) (compId: ComponentId) (newComp:ComponentType) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeCounterComponent (compId,(this.GetComponentById compId), newComp) ) ) )
             let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) newComp
             dispatch <| (Wire (BusWireT.DeleteWiresWithPort delPorts))
             dispatch <| (Wire (BusWireT.UpdateSymbolWires compId))
-        
+
         /// Given a compId, update the ReversedInputs property of the Component specified by compId
         member this.ChangeReversedInputs (dispatch: Dispatch<Msg>) (compId: ComponentId) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeReversedInputs (compId) ) ) )
@@ -205,7 +205,7 @@ module SheetInterface =
         member this.ClearCanvas dispatch =
             dispatch <| ResetModel
             dispatch <| Wire BusWireT.ResetModel
-            dispatch <| Wire (BusWireT.Symbol (SymbolT.ResetModel ) ) 
+            dispatch <| Wire (BusWireT.Symbol (SymbolT.ResetModel ) )
 
         /// Returns a list of selected components
         member this.GetSelectedComponents =
@@ -215,16 +215,16 @@ module SheetInterface =
                     [SymbolUpdate.extractComponent this.Wire.Symbol compId]
                 else
                     [])
-        
+
         /// Returns a list of selected connections
         member this.GetSelectedConnections =
             this.SelectedWires
             |> List.collect (fun connId ->
                 if Map.containsKey connId this.Wire.Wires then
                     [BusWire.extractConnection this.Wire connId]
-                else 
+                else
                     [])
-        
+
         /// Returns a list of selected components and connections in the form of (Component list * Connection list)
         member this.GetSelectedCanvasState =
             this.GetSelectedComponents, this.GetSelectedConnections
@@ -248,7 +248,7 @@ module SheetInterface =
 //-------------------------------------------------------------------------------------------------//
 
 
-  
+
 
 //Calculates the symmetric difference of two lists, returning a list of the given type
 let symDiff lst1 lst2 =
@@ -282,12 +282,12 @@ let centreOfScreen model : XYPos =
 /// returns true if pos is insoie boundingbox
 let insideBox (pos: XYPos) boundingBox =
     let {BoundingBox.TopLeft={X = xBox; Y=yBox}; H=hBox; W=wBox} = boundingBox
-    pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox  
+    pos.X >= xBox && pos.X <= xBox + wBox && pos.Y >= yBox && pos.Y <= yBox + hBox
 
 /// Checks if pos is inside any of the bounding boxes of the components in boundingBoxes
-let inline insideBoxMap 
-        (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>) 
-        (pos: XYPos) 
+let inline insideBoxMap
+        (boundingBoxes: Map<CommonTypes.ComponentId, BoundingBox>)
+        (pos: XYPos)
             : CommonTypes.ComponentId Option =
     boundingBoxes
     |> Map.tryFindKey (fun k box -> insideBox pos box)// If there are multiple components overlapping (should not happen), return first one found
@@ -303,24 +303,24 @@ let inline tryInsideLabelBox  (model: Model) (pos: XYPos) =
 let inline tryInsideSymCorner (model: Model) (pos: XYPos) =
     let radius = 5.0
     let margin = 2.5
-    
+
     let insideCircle (pos: XYPos) (circleLocation: XYPos) radius margin: bool =
         let distance = ((pos.X - circleLocation.X) ** 2.0 + (pos.Y - circleLocation.Y) ** 2.0) ** 0.5
         distance <= radius + margin
 
-    let tryGetOppositeCorners corners= 
+    let tryGetOppositeCorners corners=
         match corners with
         | [||] -> None // should never match
-        | _ -> 
+        | _ ->
             Array.tryFindIndex (fun c -> insideCircle pos c radius margin) corners
             |> function
                 | Some idx -> Some (corners[(idx + 2) % 4], idx)
                 | None -> None
 
     Optic.get symbols_ model
-    |> Map.tryPick (fun (sId:ComponentId) (sym:SymbolT.Symbol) ->   
+    |> Map.tryPick (fun (sId:ComponentId) (sym:SymbolT.Symbol) ->
         match sym.Component.Type with
-        | CommonTypes.Custom _ -> 
+        | CommonTypes.Custom _ ->
             getCustomSymCorners sym
             |> (translatePoints sym.Pos)
             |> tryGetOppositeCorners
@@ -362,7 +362,7 @@ let boxUnion (box:BoundingBox) (box':BoundingBox) =
 let boxPointUnion (box: BoundingBox) (point: XYPos) =
     let pBox = {TopLeft=point; W=0.;H=0.}
     boxUnion box pBox
-    
+
 let symbolToBB (centresOnly: bool) (symbol:SymbolT.Symbol) =
     let co = symbol.Component
     let h,w = Symbol.getRotatedHAndW symbol
@@ -380,7 +380,7 @@ let symbolToCentre (symbol:SymbolT.Symbol) =
 let wireToBB (wire:BusWireT.Wire) =
     let initBox = {TopLeft=wire.StartPos;W=0.;H=0.}
     (initBox,wire)
-    ||> BlockHelpers.foldOverNonZeroSegs (fun _ ePos box _ -> 
+    ||> BlockHelpers.foldOverNonZeroSegs (fun _ ePos box _ ->
         boxPointUnion box ePos)
 
 
@@ -395,7 +395,7 @@ let symbolBBUnion (centresOnly: bool) (symbols: SymbolT.Symbol list) :BoundingBo
                 else
                     boxUnion box (boxUnion (symbolToBB centresOnly sym) (sym.LabelBoundingBox)))
         |> Some
-    
+
 
 
 /// Returns the smallest BB that contains all symbols, labels, and wire segments.
@@ -416,7 +416,7 @@ let symbolWireBBUnion (model:Model) =
         | [] -> None
         | _ -> Some <| List.reduce boxUnion labelsBB
     let wireBB =
-        let wiresBBA = 
+        let wiresBBA =
             model.Wire.Wires
             |> Helpers.mapValues
             |> Array.map wireToBB
@@ -451,10 +451,10 @@ let getWindowParasToFitBox model (box: BoundingBox)  =
     {|Scroll={X=xScroll; Y=yScroll}; MagToUse=magToUse|}
 
 let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingBox) =
-    let boxMargin = 
+    let boxMargin =
         (max box.W box.H) * fractionalMargin
-        |> max absoluteMargin 
-       
+        |> max absoluteMargin
+
     {   TopLeft = box.TopLeft - {X = boxMargin; Y = boxMargin}
         W = box.W + boxMargin*2.
         H = box.H + boxMargin*2.
@@ -467,10 +467,10 @@ let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingB
 let ensureCanvasExtendsBeyondScreen model : Model =
     let boxParas = Constants.boxParameters
     let edge = getScreenEdgeCoords model
-    let box = 
+    let box =
         symbolWireBBUnion model
         |> addBoxMargin boxParas.CanvasExtensionFraction  boxParas.BoxMin
-    let quant = boxParas.CanvasExtensionFraction * min box.H box.W       
+    let quant = boxParas.CanvasExtensionFraction * min box.H box.W
     let newSize =
         [box.H;box.W]
         |> List.map (fun x -> x + 4.*quant)
@@ -483,9 +483,9 @@ let ensureCanvasExtendsBeyondScreen model : Model =
     if xIsOk && yIsOk then
         model
     else
-        let circuitMove = 
+        let circuitMove =
             box
-            |> (fun bb -> 
+            |> (fun bb ->
                 let centre = bb.Centre()
                 {
                     X = if xIsOk then 0. else newSize/2.- centre.X
@@ -500,16 +500,16 @@ let ensureCanvasExtendsBeyondScreen model : Model =
         | None,_-> ()
         let posDelta :(XYPos -> XYPos) = ((+) circuitMove)
         let posScreenDelta :(XYPos -> XYPos) = ((+) (circuitMove*model.Zoom))
-        model 
+        model
         |> moveCircuit circuitMove
-        |> Optic.map screenScrollPos_ posDelta 
+        |> Optic.map screenScrollPos_ posDelta
         |> Optic.set canvasSize_ newSize
         |> Optic.map screenScrollPos_ posScreenDelta
         |> Optic.map lastMousePos_ posDelta
         |> Optic.map lastMousePosForSnap_ posDelta
         |> Optic.map (scrollingLastMousePos_ >-> pos_) posDelta
-        
-           
+
+
 
 
 
@@ -523,10 +523,10 @@ let fitCircuitToWindowParas (model:Model) =
     let boxParas = Constants.boxParameters
 
     let minBox = {TopLeft = {X=100.; Y=100.}; W=100.; H=100.}
-    let sBox = 
+    let sBox =
         symbolWireBBUnion model
         |> addBoxMargin boxParas.BoxMarginFraction boxParas.BoxMin
-    let newCanvasSize = 
+    let newCanvasSize =
         max sBox.W sBox.H
         |> ((*) (1. + 2. * boxParas.CanvasBorder))
         |> max Constants.defaultCanvasSize
@@ -537,7 +537,7 @@ let fitCircuitToWindowParas (model:Model) =
         {model with CanvasSize = newCanvasSize}
         |> moveCircuit offsetToCentreCircuit
 
-    let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} 
+    let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit}
     let paras = getWindowParasToFitBox model sBox
     {modelWithMovedCircuit with
         Zoom = paras.MagToUse
@@ -550,9 +550,9 @@ let isBBoxAllVisible model (bb: BoundingBox) =
     let z = model.Zoom
     let lh,rh,top,bottom = edge.Left/z,edge.Right/z,edge.Top/z,edge.Bottom/z
     let bbs = standardiseBox bb
-    lh < bb.TopLeft.Y && 
-    top < bb.TopLeft.X && 
-    bb.TopLeft.Y+bb.H < bottom && 
+    lh < bb.TopLeft.Y &&
+    top < bb.TopLeft.X &&
+    bb.TopLeft.Y+bb.H < bottom &&
     bb.TopLeft.X+bb.W < rh
 
 /// could be made more efficient, since segments contain redundant info
@@ -564,7 +564,7 @@ let getWireBBox (wire: BusWireT.Wire) =
         let newLeft = min state.TopLeft.X segEnd.X
         {TopLeft={X=newTop; Y=newLeft}; W=newRight-newLeft; H=newBottom-newTop }
     BlockHelpers.foldOverSegs updateBoundingBox {TopLeft = wire.StartPos; W=0; H=0;} wire
-    
+
 
 let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId list) =
     let wVisible =
@@ -577,7 +577,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
     let cVisible =
         comps
         |> List.collect (fun comp ->
-            if Map.containsKey comp model.Wire.Symbol.Symbols then 
+            if Map.containsKey comp model.Wire.Symbol.Symbols then
                 [Symbol.getBoundingBox model.Wire.Symbol comp]
             else
                 [])
@@ -586,7 +586,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
     wVisible && cVisible
 
 
-    
+
 /// Finds all components that touch a bounding box (which is usually the drag-to-select box)
 let findIntersectingComponents (model: Model) (box1: BoundingBox) =
     model.BoundingBoxes
@@ -600,7 +600,7 @@ let posAdd (pos : XYPos) (a : float, b : float) : XYPos =
 /// Finds all components (that are stored in the Sheet model) near pos
 let findNearbyComponents (model: Model) (pos: XYPos) (range: float)  =
     // Larger Increments -> More Efficient. But can miss small components then.
-    List.allPairs [-range .. 10.0 .. range] [-range .. 10.0 .. range] 
+    List.allPairs [-range .. 10.0 .. range] [-range .. 10.0 .. range]
     |> List.map ((fun x -> posAdd pos x) >> insideBoxMap model.BoundingBoxes)
     |> List.collect ((function | Some x -> [x] | _ -> []))
 
@@ -614,7 +614,7 @@ let mouseOnPort portList (pos: XYPos) (margin: float) =
         distance <= radius + margin
 
     // + 2.5 margin to make it a bit easier to click on, maybe it's due to the stroke width?
-    match List.tryFind (fun (_, portLocation) -> insidePortCircle pos portLocation) portList with 
+    match List.tryFind (fun (_, portLocation) -> insidePortCircle pos portLocation) portList with
     | Some (portId, portLocation) -> Some (portId, portLocation)
     | None -> None
 

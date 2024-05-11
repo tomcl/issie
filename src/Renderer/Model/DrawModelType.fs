@@ -233,7 +233,7 @@ module SymbolT =
         /// tdc21: Store Groups of Component Ids for Grouping
         GroupMap: Map<GroupId, ComponentId list>
         GroupInfoMap: Map<GroupId, GroupInfo>
-        GroupMapColourLookup : Map<ComponentId, string>
+        GroupColourLookupMap : Map<ComponentId, string>
         }
 
     //----------------------------Message Type-----------------------------------//
@@ -285,9 +285,9 @@ module SymbolT =
              //------------------------Sheet interface message----------------------------//
         | UpdateBoundingBoxes
         // tdc21: modify the model group
-        | SetModelGroupMap of Map<GroupId, ComponentId list>
-        | SetModelGroupInfoMap of Map<GroupId, GroupInfo>
-        | SetModelGroupMapAndGroupInfoMap of Map<GroupId, ComponentId list> * Map<GroupId, GroupInfo>
+        | SetGroupMap of Map<GroupId, ComponentId list>
+        | SetGroupInfoMap of Map<GroupId, GroupInfo>
+        | SetGroupMapAndInfo of Map<GroupId, ComponentId list> * Map<GroupId, GroupInfo>
 
 
 
@@ -607,9 +607,6 @@ module SheetT =
         | ToggleSnapToNet
         | BeautifySheet
         | SheetBatch of Msg list
-        // ------------------- Colour Generation ----------------------
-        /// Every time a random colour is generated, this message is sent to increment the colour drawn count (to keep things deterministic)
-        | IncrementColourDrawnCount
 
 
 

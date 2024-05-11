@@ -644,5 +644,5 @@ let init () =
         HintPane = None
         GroupMap = Map.empty
         GroupInfoMap = Map.empty
-        GroupMapColourLookup = Map.empty
+        GroupColourLookupMap = Map.empty
     }, Cmd.none

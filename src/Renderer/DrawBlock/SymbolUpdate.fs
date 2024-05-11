@@ -441,7 +441,7 @@ let inline colorSymbols (model: Model) compList colour =
     { model with Symbols = newSymbols }
 
 /// Given a colour lookup table, modify all symbols in the model to have the colour specified.
-/// Revert any symbols not in the lookup table to their original colour (respecting selection)
+/// Revert any symbols not in the lookup table to their original colour (respecting selection,, so do not revert lightgreen)
 let inline colourGroups (model: Model) (colourLookup: Map<ComponentId,string>): Map<ComponentId, Symbol> =
     let revertedSymbols =
         model.Symbols
@@ -906,7 +906,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
 // --------------- Functions for modifying the model group map
     // Set the model's group map to the provided group map. Assumes there are no added/removed groups, as the colours need to be looked up
-    | SetModelGroupMap (groupMap: Map<GroupId,ComponentId list>) ->
+    | SetGroupMap (groupMap: Map<GroupId,ComponentId list>) ->
+        // create the new colourLookup Map
         let colourLookupMap =
             groupMap
             |> Map.fold (fun acc groupId componentIds ->
@@ -915,14 +916,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
 
         let newModel =
-            {model with GroupMap = groupMap; GroupMapColourLookup = colourLookupMap}
+            {model with GroupMap = groupMap; GroupColourLookupMap = colourLookupMap}
             |> set (SymbolT.symbols_ ) (colourGroups model colourLookupMap)
 
         newModel, Cmd.none
 
     // Set the model's group info map to the provided group info map. Assumes there are no added/removed groups, as the colours need to be looked up
-    // Also updates the colour lookup map
-    | SetModelGroupInfoMap (groupInfoMap: Map<GroupId, GroupInfo>) ->
+    | SetGroupInfoMap (groupInfoMap: Map<GroupId, GroupInfo>) ->
+        // create the new colourLookup Map
         let colourLookupMap =
             model.GroupMap
             |> Map.fold (fun acc groupId componentIds ->
@@ -930,13 +931,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> Map.map (fun componentId groupId -> (Map.find groupId groupInfoMap).Colour)
 
         let newModel =
-            {model with GroupInfoMap = groupInfoMap; GroupMapColourLookup = colourLookupMap}
+            {model with GroupInfoMap = groupInfoMap; GroupColourLookupMap = colourLookupMap}
             |> set (SymbolT.symbols_ ) (colourGroups model colourLookupMap)
 
         newModel, Cmd.none
 
     // Set the model's group map and group info map
-    | SetModelGroupMapAndGroupInfoMap (groupMap: Map<GroupId,ComponentId list>, groupInfoMap: Map<GroupId, GroupInfo>) ->
+    | SetGroupMapAndInfo (groupMap: Map<GroupId,ComponentId list>, groupInfoMap: Map<GroupId, GroupInfo>) ->
+        // create the new colourLookup Map
         let colourLookupMap =
             groupMap
             |> Map.fold (fun acc groupId componentIds ->
@@ -944,7 +946,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> Map.map (fun componentId groupId -> (Map.find groupId groupInfoMap).Colour)
 
 
-        let newModel = {model with GroupMap = groupMap; GroupInfoMap = groupInfoMap; GroupMapColourLookup = colourLookupMap}
+        let newModel = {model with GroupMap = groupMap; GroupInfoMap = groupInfoMap; GroupColourLookupMap = colourLookupMap}
         let newColouredModel = newModel |> set (SymbolT.symbols_ ) (colourGroups newModel colourLookupMap)
 
 

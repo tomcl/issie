@@ -594,11 +594,11 @@ let developerModeView (model: ModelType.Model) dispatch =
                 let groupItems =
                     groupKeys
                     |> List.mapi (fun index groupId ->
-                        Dropdown.Item.a [Dropdown.Item.Option.Props[Style [Width "inherit" ];OnClick (fun _ -> symbolDispatch (DrawModelType.SymbolT.SetModelGroupMap(addToGroup model.Sheet groupId compIds)))] ] [p [] [str ("Group " + (index + 1).ToString()) ]])
+                        Dropdown.Item.a [Dropdown.Item.Option.Props[Style [Width "inherit" ];OnClick (fun _ -> symbolDispatch (DrawModelType.SymbolT.SetGroupMap(addToGroup model.Sheet groupId compIds)))] ] [p [] [str ("Group " + (index + 1).ToString()) ]])
 
                 let newGroupItem =
                     [Dropdown.Item.a [Dropdown.Item.Option.Props[ Style [Width "inherit"]; OnClick (fun _ ->
-                                    symbolDispatch (DrawModelType.SymbolT.SetModelGroupMapAndGroupInfoMap(createNewGroup model.Sheet compIds)))  ]]
+                                    symbolDispatch (DrawModelType.SymbolT.SetGroupMapAndInfo(createNewGroup model.Sheet compIds)))  ]]
 
                     [div [] [str "Create new group"]]
                     ]
@@ -755,7 +755,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                     td [] [ str (symbol.Component.Label.ToString())  ];
                                     td [] [ code [] [ str ( compTypeDescr )] ];
                                     td [ Style [Padding "10px" ;TextAlign TextAlignOptions.Right; VerticalAlign "middle";]; OnClick (fun _ ->
-                                    symbolDispatch (DrawModelType.SymbolT.SetModelGroupMapAndGroupInfoMap(deleteComponentFromGroup model.Sheet groupId componentId))
+                                    symbolDispatch (DrawModelType.SymbolT.SetGroupMapAndInfo(deleteComponentFromGroup model.Sheet groupId componentId))
                                     ) ] [Delete.delete [Delete.Size IsMedium] []]
                                 ]
                             | None -> tr [] [])
@@ -769,7 +769,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                            td [Style [TextAlign TextAlignOptions.Left; PaddingLeft 0; PaddingRight 0]] [
 
 
-                                            button [buttonStyles; ClassName "is-danger button is-small"; OnClick (fun _ -> symbolDispatch (DrawModelType.SymbolT.SetModelGroupMapAndGroupInfoMap(deleteWholeGroup model.Sheet groupId)))] [str "Delete All"]
+                                            button [buttonStyles; ClassName "is-danger button is-small"; OnClick (fun _ -> symbolDispatch (DrawModelType.SymbolT.SetGroupMapAndInfo(deleteWholeGroup model.Sheet groupId)))] [str "Delete All"]
                                             ]
 
                 ]

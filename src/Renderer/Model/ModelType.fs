@@ -447,6 +447,8 @@ type Msg =
     /// To call the contextual sidebar
     | ShowContextualSidebar of (((Msg -> Unit) -> Model -> Fable.React.ReactElement) option )
     | CloseContextualSidebar
+    | SetContextualSidebarDialogText of string option
+    | SetContextualSidebarDialogInt of int option
 
 
 //================================//

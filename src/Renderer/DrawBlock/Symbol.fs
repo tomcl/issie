@@ -185,7 +185,7 @@ let inline combineRotation (r1:Rotation) (r2:Rotation) =
 /// (it will be coloured according to its corresponding group colour if it is)
 let getSymbolColour (symModel:SymbolT.Model) (comp: Component) (clocked: bool) (theme:ThemeType) =
     let compType = comp.Type
-    match symModel.GroupMapColourLookup.TryFind (ComponentId(comp.Id)) with
+    match symModel.GroupColourLookupMap.TryFind (ComponentId(comp.Id)) with
     | Some groupColour -> groupColour
     | None ->
         match theme with

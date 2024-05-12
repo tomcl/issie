@@ -269,6 +269,8 @@ let addFileToProject model dispatch =
                     // Close the popup.
                     dispatch ClosePopup
                     dispatch FinishUICmd
+                    // tdc21: Close the contextual sidebar upon opening a new sheet
+                    dispatch CloseContextualSidebar
 
         let isDisabled =
             fun (model': Model) ->
@@ -284,6 +286,7 @@ let forceCloseProject model dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     dispatch EndSimulation // End any running simulation.
     dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
+    dispatch CloseContextualSidebar // Close any open contextual sidebar
     // End any running simulation.
     dispatch EndSimulation
     dispatch EndWaveSim
@@ -323,6 +326,7 @@ let private newProject model dispatch  =
             dispatch EndSimulation // End any running simulation.
             dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
             dispatch EndWaveSim
+            dispatch CloseContextualSidebar // Close any open contextual sidebar
             // Create empty placeholder projectFile.
             let projectFile = baseName path + ".dprj"
             writeFile (pathJoin [| path; projectFile |]) ""
@@ -367,6 +371,7 @@ let loadDemoProject model dispatch basename =
         dispatch EndSimulation // End any running simulation.
         dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
         dispatch EndWaveSim
+        dispatch CloseContextualSidebar // Close any open contextual sidebar
 
         //let projectFile = baseName newDir + ".dprj"
         //writeFile (pathJoin [| newDir; projectFile |]) ""

@@ -334,7 +334,7 @@ let viewRightTabs canvasState model dispatch =
                                     )
         ] [
 
-            div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; (*Style [OverflowY scrollType]*)] [contextualSidebar]
+            div [HTMLAttr.Id "TabBody"; (*Style [OverflowY scrollType]*)] [contextualSidebar]
 
         ]
     | None ->
@@ -379,7 +379,7 @@ let viewRightTabs canvasState model dispatch =
                                 )
     ] [
 
-        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; (*Style [OverflowY scrollType]*)] [viewRightTab canvasState model dispatch]
+        div [HTMLAttr.Id "TabBody";  (*Style [OverflowY scrollType]*)] [viewRightTab canvasState model dispatch]
 
     ]]
 let mutable testState:CanvasState = [],[]

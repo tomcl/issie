@@ -20,6 +20,7 @@ open Sheet
 open DrawModelType.SheetT
 
 /// Generate colours for groups
+// generateColourFromModel is a top level function in this module that generates a new colour for a group
 module ColourGenerator =
     module Constants =
         // A colour is considered too close to another if the distance is less than minimumColourDistance (thus making it invalid)
@@ -34,6 +35,7 @@ module ColourGenerator =
         let hIncrement = 41.
         let sIncrement = 11.
         let lIncrement = 5. //minimumColourDistance/3.**0.5
+        let seed = 42
 
     open Constants
 
@@ -150,7 +152,7 @@ module ColourGenerator =
     let getNewColour (existingColours : ColourHSL list) =
         // generate a new colour using poisson-disk sampling.
         // make this deterministic.
-        let random = Random(existingColours.Length)
+        let random = Random(existingColours.Length * seed)
         // 1: generate initial sample
         let newSample =
             match existingColours.Length with
@@ -163,7 +165,7 @@ module ColourGenerator =
             match trial with
             | trial when trial > trialLimit + 5 ->
                 printf "Exceeded trial limits again. Generating random colour"
-                generateBaseHSLColour (Random existingColours.Length)
+                generateBaseHSLColour (Random (existingColours.Length * seed))
             | trial when trial > trialLimit ->
                 printf "Exceeded trial limits, trying with less constraints (avoid blacklisted colours only)"
                 let newSample = generateIncrementedHSLColour sample
@@ -178,6 +180,8 @@ module ColourGenerator =
 
         generateNewColour newSample existingColours 0
 
+
+    /// Top level function that generates a new colour for a group
     let generateColourFromModel (model: SheetT.Model) =
         let existingModelColours =
             model.Wire.Symbol.GroupInfoMap
@@ -209,29 +213,120 @@ module ColourGenerator =
 
 open ColourGenerator
 
+// --------------- Helper Functions --------------- //
+/// A helper that returns a list of componentIds that are part of any group
+let getGroupedComponentIds (model: SymbolT.Model)  =
+    model.GroupMap
+    |> Map.values
+    |> Array.toList
+    |> List.concat
+
+
+/// A helper that returns a list of symbols in the sheet model that are ungrouped, i.e. not in any group
+/// The symbols returned are sorted in alphabetical order of their labels.
+let getUngroupedSymbols (model: SheetT.Model) =
+    let groupedComponentIds = getGroupedComponentIds model.Wire.Symbol
+
+    model.Wire.Symbol.Symbols
+    |> Map.toList
+    |> List.map snd
+    // filter out annotations (symbols with no label)
+    |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "" )
+    // filter out wire-centric components
+    |> List.filter (fun symbol ->
+        match symbol.Component.Type with
+        | MergeWires | SplitWire _ | BusSelection _  | NbitSpreader _ -> false
+        | _ -> true)
+    // make sure symbol is not part of an existing group
+    |> List.filter (fun symbol -> not (List.exists ((=) (ComponentId symbol.Component.Id)) groupedComponentIds))
+    |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
+
+/// A helper that returns a list of symbols that are selected on sheet, and are ungrouped, i.e. not in any group.
+/// /// The symbols returned are sorted in alphabetical order of their labels.
+let getUngroupedSelectedSymbols (model: SheetT.Model) =
+    getUngroupedSymbols model
+        |> List.filter (fun symbol ->  (List.exists ((=) (ComponentId symbol.Component.Id)) model.SelectedComponents))
+
+// /// A helper that returns a list of symbols that are selected on sheet, and are ungrouped, i.e. not in any group other than exceptionGroupId
+// let getUngroupedSelectedSymbolsWithException (model: SheetT.Model) (exceptionGroupId : GroupId) =
+//     let groupedComponentIds =
+//         model.Wire.Symbol.GroupMap
+//         |> Map.filter (fun groupId _ -> groupId <> exceptionGroupId)
+//         |> Map.values
+//         |> Array.toList
+//         |> List.concat
+
+//     model.Wire.Symbol.Symbols
+//     |> Map.toList
+//     |> List.map snd
+//     // filter out annotations (symbols with no label)
+//     |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "" )
+//     // filter out wire-centric components
+//     |> List.filter (fun symbol ->
+//         match symbol.Component.Type with
+//         | MergeWires | SplitWire _ | BusSelection _  | NbitSpreader _ -> false
+//         | _ -> true)
+//     // make sure symbol is not part of an existing group, but allow it if it is part of exceptionGroupId
+//     |> List.filter (fun symbol -> not (List.exists ((=) (ComponentId symbol.Component.Id)) groupedComponentIds))
+//     |> List.filter (fun symbol ->  (List.exists ((=) (ComponentId symbol.Component.Id)) model.SelectedComponents))
+//     |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
+
+
+
+
+
+
+
+
+
+
+
+
+// --------------- Core Functions --------------- //
+
 /// Create a new group with an automatically generated colour. Returns the new groupMap and groupMapInfo.
+/// Will not add duplicate componentIds if they are already part of a group.
+/// If the list of componentIds is empty, nothing is changed (cannot create a group with no components).
 let createNewGroup (sheetModel : SheetT.Model) (componentIds: ComponentId list) =
-    let groupId = (GroupId(uuid()))
-    let groupInfo = {
-        Id = groupId;
-        CreationDate = DateTime.Now;
-        Colour = (generateColourFromModel sheetModel)
-        }
+    let allCompIdsInAGroup = getGroupedComponentIds sheetModel.Wire.Symbol
+    // filter out componentIds that are already part of a group
+    let componentIdsFiltered =
+        componentIds
+        |> List.filter (fun componentId -> not (List.exists ((=) componentId) allCompIdsInAGroup))
 
-    let newGroupMapInfo = Map.add groupId groupInfo sheetModel.Wire.Symbol.GroupInfoMap
+    // if empty list, cannot create a new group, just return the existing groupMap and groupMapInfo.
+    match componentIdsFiltered with
+    | [] -> sheetModel.Wire.Symbol.GroupMap, sheetModel.Wire.Symbol.GroupInfoMap
+    | _ ->
+        let groupId = (GroupId(uuid()))
+        let groupInfo = {
+            Id = groupId;
+            CreationDate = DateTime.Now;
+            Colour = (generateColourFromModel sheetModel)
+            }
 
-    let newGroupMap = Map.add groupId componentIds sheetModel.Wire.Symbol.GroupMap
+        let newGroupMapInfo = Map.add groupId groupInfo sheetModel.Wire.Symbol.GroupInfoMap
 
-    newGroupMap, newGroupMapInfo
+        let newGroupMap = Map.add groupId componentIdsFiltered sheetModel.Wire.Symbol.GroupMap
+
+        newGroupMap, newGroupMapInfo
 
 /// Add a list of componentIds to an existing group. Returns the new groupMap. If groupId does not exist, nothing is changed.
+/// Will not add duplicate componentIds if they are already part of a group.
 let addToGroup (sheetModel : SheetT.Model) (groupId: GroupId) (componentIds: ComponentId list) =
     let groupMap = sheetModel.Wire.Symbol.GroupMap
+    let allCompIdsInAGroup = getGroupedComponentIds sheetModel.Wire.Symbol
+
+    // filter out componentIds that are already part of a group
+    let componentIdsFiltered =
+        componentIds
+        |> List.filter (fun componentId -> not (List.exists ((=) componentId) allCompIdsInAGroup))
+
     match Map.tryFind groupId groupMap with
     | Some existingComponentIds ->
-        let newComponentIds = existingComponentIds @ componentIds
+        let newComponentIds = existingComponentIds @ componentIdsFiltered
         Map.add groupId newComponentIds groupMap
-    | None -> printf "nothing found for given groupId"; Map.add groupId componentIds groupMap
+    | None -> printf "no group exists for given groupId, returning unchanged groupMap"; groupMap
 
 /// Delete a component from a group. If the group has no components left, delete it. Returns the new groupMap and groupMapInfo. If groupId does not exist, nothing is changed.
 let deleteComponentFromGroup  (sheetModel : SheetT.Model) (groupId: GroupId) (componentId: ComponentId) =
@@ -249,7 +344,7 @@ let deleteComponentFromGroup  (sheetModel : SheetT.Model) (groupId: GroupId) (co
         let newGroupMap = Map.remove groupId newGroupMap
         let newGroupInfoMap = Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
         (newGroupMap, newGroupInfoMap)
-    | _ -> (newGroupMap, sheetModel.Wire.Symbol.GroupInfoMap)
+    | _ -> printf "no group exists for groupId, returning unchanged groupMap and groupInfoMap ";(newGroupMap, sheetModel.Wire.Symbol.GroupInfoMap)
 
 
 /// Delete a whole group. Returns the new groupMap and groupMapInfo
@@ -258,13 +353,13 @@ let deleteWholeGroup  (sheetModel : SheetT.Model)  (groupId: GroupId) =
         match Map.tryFind groupId sheetModel.Wire.Symbol.GroupMap with
         | Some _ ->
             Map.remove groupId sheetModel.Wire.Symbol.GroupMap
-        | None -> sheetModel.Wire.Symbol.GroupMap
+        | None -> printf "No group exists for given groupId in GroupMap" ;sheetModel.Wire.Symbol.GroupMap
 
     let newGroupInfoMap =
         match Map.tryFind groupId sheetModel.Wire.Symbol.GroupInfoMap with
         | Some _ ->
             Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
-        | None -> sheetModel.Wire.Symbol.GroupInfoMap
+        | None -> printf "No group exists for given groupId in GroupInfoMap" ; sheetModel.Wire.Symbol.GroupInfoMap
 
     (newGroupMap, newGroupInfoMap)
 

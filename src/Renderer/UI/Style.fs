@@ -80,15 +80,7 @@ let rightSectionStyle model =
         BackgroundColor "white"
         //UserSelect UserSelectOptions.None
 ]
-/// tdc21: this style has been modified as we are now using sticky headers, so there is no need for calc.
-/// It is only the rightSelection div that scrolls/overflows.
-let belowHeaderStyle headerSize =
-    Style [
-        // OverflowY OverflowOptions.Auto
-        // Height $"calc(100%% - {headerSize})"
-        Height "100%"
 
-        ]
 
 let canvasVisibleStyle model =
     let widthRightSec = rightSectionWidth model

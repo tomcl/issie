@@ -83,7 +83,7 @@ let inline codeInline (language: string) (codeText: string) =
         | _ -> "", null
 
     let innerHTML = Prism.highlight((codeText),fsharpLanguage)
-    span [ Style[Margin "5px"; FontFamily "monospace"]; ClassName className;  ] [
+    span [ Style[ FontFamily "monospace"; Display DisplayOptions.InlineBlock]; ClassName className;  ] [
 
         code [DangerouslySetInnerHTML ({__html=  innerHTML}) ] []
     ]

@@ -28,9 +28,10 @@ open BusWireRoutingHelpers.Constants
 open BusWireRoutingHelpers
 open Sheet
 open UIContextualSideBar
-open UIContextualSideBar.ColourGenerator
+open Groups.ColourGenerator
 open DrawModelType.SheetT
 open SymbolUpdate
+open Groups
 
 
 // AUTHOR: TDC21
@@ -223,7 +224,8 @@ let sidebarWithDialog =
 
                 br []
                 p [] [str "We still have access to other parts of the sidebar body, and buttons still show up. To test the flip vertically button, select a symbol and click the button."]
-                p [] [str "To save user input, define a button that takes the model's dialogData "; codeInline "fsharp" "model.ContextualSidebarDialogData : ContextualSidebarDialogData"; str " and updates the model using the new data. The button can then also close the sidebar."]
+                br []
+                p [] [str "To save user input, define a button that takes the model's dialogData "; codeInline "fsharp" "model.ContextualSidebarDialogData : ContextualSidebarDialogData"; str " and updates the model using the new data. The button can then also close the sidebar. You can see the example code in "; code [] [str "DeveloperModeView.fs"]; str". The yellow button renames the first component label on the sheet to the text in the dialog."]
 
             ]
 
@@ -343,19 +345,19 @@ let developerModeView (model: ModelType.Model) dispatch =
 
         div [] [
             Button.button [Button.Color IsPrimary; Button.Size IsSmall;
-                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some simpleSidebar))) ;Style [Margin "5px 10px 0 0 "]]
+                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some simpleSidebar))) ;Style [Margin "5px 2.5px 0 2.5px "]]
                     ] [str "Test Simple Sidebar"];
 
             Button.button [Button.Color IsPrimary; Button.Size IsSmall;
-                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebarWithDialog))) ;Style [Margin "5px 10px 0 0 "]]
+                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebarWithDialog))) ;Style [Margin "5px 2.5px 0 2.5px "]]
                     ] [str "Test Sidebar with Dialog"];
 
             Button.button [Button.Color IsDark; Button.Size IsSmall;
-                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebarWithBoundedIntDialog))) ;Style [Margin "5px 10px 0 0 "]]
+                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebarWithBoundedIntDialog))) ;Style [Margin "5px 2.5px 0 2.5px "]]
                     ] [str "Test Sidebar with Bounded Int Dialog"];
 
             Button.button [Button.Color IsInfo; Button.Size IsSmall;
-                Button.Props[OnClick (fun _ -> dispatch (UpdateModel(testHighlightSymbols ))) ;Style [Margin "5px 10px 0 0 "]]
+                Button.Props[OnClick (fun _ -> dispatch (UpdateModel(testHighlightSymbols ))) ;Style [Margin "5px 2.5px 0 2.5px "]]
                     ] [str "Test Highlight + Random Colour"];
 
 
@@ -645,65 +647,6 @@ let developerModeView (model: ModelType.Model) dispatch =
     /// Create UI to add/delete groups, add symbols to groups, remove symbols from groups, select symbols
     let viewGroupProperties =
 
-        /// Create a new group with an automatically generated colour. Returns the new groupMap and groupMapInfo.
-        let createNewGroup (sheetModel : SheetT.Model) (componentIds: ComponentId list) =
-            let groupId = (GroupId(uuid()))
-            let groupInfo = {
-                Id = groupId;
-                CreationDate = DateTime.Now;
-                Colour = (generateColourFromModel sheetModel)
-                }
-
-            let newGroupMapInfo = Map.add groupId groupInfo sheetModel.Wire.Symbol.GroupInfoMap
-
-            let newGroupMap = Map.add groupId componentIds sheetModel.Wire.Symbol.GroupMap
-
-            newGroupMap, newGroupMapInfo
-
-        /// Add a list of componentIds to an existing group. Returns the new groupMap. If groupId does not exist, nothing is changed.
-        let addToGroup (sheetModel : SheetT.Model) (groupId: GroupId) (componentIds: ComponentId list) =
-            let groupMap = sheetModel.Wire.Symbol.GroupMap
-            match Map.tryFind groupId groupMap with
-            | Some existingComponentIds ->
-                let newComponentIds = existingComponentIds @ componentIds
-                Map.add groupId newComponentIds groupMap
-            | None -> printf "nothing found for given groupId"; Map.add groupId componentIds groupMap
-
-        /// Delete a component from a group. If the group has no components left, delete it. Returns the new groupMap and groupMapInfo. If groupId does not exist, nothing is changed.
-        let deleteComponentFromGroup  (sheetModel : SheetT.Model) (groupId: GroupId) (componentId: ComponentId) =
-            let groupMap = sheetModel.Wire.Symbol.GroupMap
-            let newGroupMap =
-                match Map.tryFind groupId groupMap with
-                | Some componentIds ->
-                    let newComponentIds = List.filter ((<>) componentId) componentIds
-                    Map.add groupId newComponentIds groupMap
-                | None -> printf "nothing found for given groupId"; groupMap
-
-            // if the last component has been removed, delete the group from the groupMap and groupInfoMap
-            match newGroupMap |> Map.tryFind groupId with
-            | Some [] ->
-                let newGroupMap = Map.remove groupId newGroupMap
-                let newGroupInfoMap = Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
-                (newGroupMap, newGroupInfoMap)
-            | _ -> (newGroupMap, sheetModel.Wire.Symbol.GroupInfoMap)
-
-
-        /// Delete a whole group. Returns the new groupMap and groupMapInfo
-        let deleteWholeGroup  (sheetModel : SheetT.Model)  (groupId: GroupId) =
-            let newGroupMap =
-                match Map.tryFind groupId sheetModel.Wire.Symbol.GroupMap with
-                | Some _ ->
-                    Map.remove groupId sheetModel.Wire.Symbol.GroupMap
-                | None -> sheetModel.Wire.Symbol.GroupMap
-
-            let newGroupInfoMap =
-                match Map.tryFind groupId sheetModel.Wire.Symbol.GroupInfoMap with
-                | Some _ ->
-                    Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
-                | None -> sheetModel.Wire.Symbol.GroupInfoMap
-
-
-            (newGroupMap, newGroupInfoMap)
 
         /// Create UI table to add any ungrouped symbols to a group
         let createGroupAssignerForSymbols (symbolsMap: Map<ComponentId, SymbolT.Symbol>) (groupMap: Map<GroupId, ComponentId list>) =

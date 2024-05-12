@@ -147,6 +147,10 @@ let init() = {
     SheetStatsExpanded = false
     GroupMenuExpanded = false
     ContextualSidebarViewFunction = None
+    ContextualSidebarDialogData = {
+        Text = None
+        Int = None
+    }
 }
 
 

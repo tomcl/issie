@@ -62,7 +62,8 @@ let inline codeBlock (language: string) (codeText: string) =
     let (className, lang) =
         match language with
         | "fsharp" -> "language-fsharp", fsharpLanguage
-        | _ ->        "language-clike", clikeLanguage
+        | "clike" ->        "language-clike", clikeLanguage
+        | _ -> "", null
 
     let innerHTML = Prism.highlight((codeText),fsharpLanguage)
     div [ Style[Margin "5px"; FontFamily "monospace"]; ClassName className;  ] [
@@ -78,7 +79,8 @@ let inline codeInline (language: string) (codeText: string) =
     let (className, lang) =
         match language with
         | "fsharp" -> "language-fsharp", fsharpLanguage
-        | _ ->        "language-clike", clikeLanguage
+        | "clike" ->        "language-clike", clikeLanguage
+        | _ -> "", null
 
     let innerHTML = Prism.highlight((codeText),fsharpLanguage)
     span [ Style[Margin "5px"; FontFamily "monospace"]; ClassName className;  ] [

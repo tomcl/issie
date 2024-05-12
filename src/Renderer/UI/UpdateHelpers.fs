@@ -203,6 +203,8 @@ let shortDisplayMsg (msg:Msg) =
     // for contextual sidebar
     | ShowContextualSidebar _ -> None
     | CloseContextualSidebar -> None
+    | SetContextualSidebarDialogInt _ -> None
+    | SetContextualSidebarDialogText _ -> None
 
 
 

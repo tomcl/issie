@@ -57,11 +57,13 @@ STRUCTURE
 let buttonStyles = Style [ Margin "0px 3px"; Padding "6px 10px"; Cursor "Pointer"; Height "1.1em"]
 
 
-// +-----------------------------------------------+ //
-// |         Guide to Building a Sidebar           | //
-// +-----------------------------------------------+ //
-let sidebar =
+// +----------------------------------------------------------+ //
+// |           Guide to Building a (Simple) Sidebar           | //
+// +----------------------------------------------------------+ //
+let simpleSidebar =
 
+
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 // +-------- First, Define SidebarOptions. --------+
     let sidebarOptions : SidebarOptions = {
         ExtraStyle = [];
@@ -91,21 +93,20 @@ let sidebar =
 // +-------- This button triggers moves the sheet to centre, equal to pressing CtrlW.
                     (sheetDispatch (KeyPress CtrlW))
                 );
-                };
+            };
 
         ];
 // +-------- If true, a cancel button will be displayed. Put false if you want a mandatory action
         Cancellable = true;
         }
 
-
-
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 // +-------- Next, Define the sidebarBody. --------+
-// +--------  sidebarBody must be type (Msg -> Unit) -> Model ->  ReactElement
-//                                           |            |
-//                                       dispatch   ModelType.Model
+// +--------  sidebarBody must be type (ModelType.Msg -> Unit) ->  ModelType.Model ->  ReactElement
+//                                           |
+//                                       dispatch
 
-    let sidebarBody =
+    let sidebarBody :((ModelType.Msg -> Unit) -> ModelType.Model ->  ReactElement) =
 // +-------- define the sidebarBody as a function that takes in dispatch and model, and returns a ReactElement
         fun dispatch model ->
         let numberOfComponents = model.Sheet.Wire.Symbol.Symbols |> Map.count
@@ -121,7 +122,7 @@ let sidebar =
 
             br []
 
-// +-------- I have defined a codeblock reactelement that can display fsharp code
+// +-------- I have defined a codeblock react element that can display fsharp code
             codeBlock "fsharp" ("
 type SidebarOptions = {
     ExtraStyle: CSSProp list;
@@ -143,9 +144,121 @@ type SidebarButton = {
             br []
 
                 ]
-
+// ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 // +-------- Make the sidebar.
-    buildSimpleSidebar sidebarOptions sidebarBody
+    buildSidebar sidebarOptions sidebarBody
+
+
+
+// +----------------------------------------------------------+ //
+// |         Guide to Building a Sidebar with Dialog          | //
+// +----------------------------------------------------------+ //
+
+let sidebarWithDialog =
+    let sidebarOptions : SidebarOptions = {
+        ExtraStyle = [];
+        TitleText = "Test Sidebar with Dialog";
+        SideBarButtons = [
+            {
+                ButtonClassNames = "is-danger is-small";
+                ButtonText = "Test Button: Flip Vertically";
+                ButtonAction = (fun model dispatch _ ->
+                    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+                    printf "Test Button: Flip Vertically\n"
+                    (sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
+                );
+            };
+            {
+                ButtonClassNames = "is-warning is-small";
+                ButtonText = $"Rename first component to Text Dialog";
+                ButtonAction = (fun model dispatch _ ->
+                    printf $"Test Button: Rename first component to Text Dialog, {model.ContextualSidebarDialogData.Text}\n";
+                    let currentSymbols = model.Sheet.Wire.Symbol.Symbols
+                    let newSymbols =
+                        match model.ContextualSidebarDialogData.Text with
+                        | None -> printf "No text provided" ; currentSymbols
+                        | Some symbolLabel ->
+                            // create new Symbols map with the first symbol label renamed
+
+                                match Map.toList currentSymbols with
+                                | (id, symbol) :: _ ->
+                                    let newSymbol = { symbol with Component = { symbol.Component with Label = symbolLabel  } }
+                                    Map.add id newSymbol currentSymbols
+                                | [] -> currentSymbols
+
+                    dispatch <| UpdateModel (fun (model: ModelType.Model) ->
+                        model
+                        |> Optic.set (ModelType.symbols_) newSymbols)
+                    dispatch CloseContextualSidebar
+                );
+            }
+            ]
+        Cancellable = true;
+        }
+
+    let sidebarBody: ((ModelType.Msg -> Unit) -> ModelType.Model ->  ReactElement) =
+        let beforeText : (ContextualSidebarDialogData -> ReactElement) =
+            (fun (beforeData: ContextualSidebarDialogData) ->
+                div [] [
+                    p [] [str "This is the dialog body for text. Unlike the sidebar body, we have acess to the beforeData, the current ContextualSidebarDialogData."]
+                    p [] [str "Currently, "; codeInline "fsharp" "ContextualSidebarDialogData"; str "contains:"]
+                    br []
+                    codeBlock "" (beforeData.ToString())]
+            )
+
+        let beforeInt : (ContextualSidebarDialogData -> ReactElement) =
+            (fun (_: ContextualSidebarDialogData) ->
+                div [] [
+                    p [] [str "This is the dialog body for int."]]
+            )
+
+        fun dispatch model ->
+            div [] [
+                textDialogSidebarElement "placeholder string" (Some "default text") beforeText dispatch model
+
+                br []
+                p [] [str "As the dialog data structure suggests, there is support for two dialogs at once where one modifies text and the other modifies int. So this means either "; codeInline "fsharp" "textDialogSidebarElement"; str " and an "; codeInline "fsharp" "intDialogSidebarElement"; str " together, or a "; codeInline "fsharp" "textDialogSidebarElement"; str " and an "; codeInline "fsharp" "boundedIntDialogSidebarElement"; str " together."]
+
+                intDialogSidebarElement  (Some 42) beforeInt dispatch model
+
+                br []
+                p [] [str "We still have access to other parts of the sidebar body, and buttons still show up. To test the flip vertically button, select a symbol and click the button."]
+                p [] [str "To save user input, define a button that takes the model's dialogData "; codeInline "fsharp" "model.ContextualSidebarDialogData : ContextualSidebarDialogData"; str " and updates the model using the new data. The button can then also close the sidebar."]
+
+            ]
+
+    buildSidebar sidebarOptions sidebarBody
+
+let sidebarWithBoundedIntDialog =
+    let sidebarOptions : SidebarOptions = {
+            ExtraStyle = [];
+            TitleText = "Test Sidebar with Dialog";
+            SideBarButtons = []
+            Cancellable = true;
+            }
+
+    let sidebarBody =
+        let beforeInt : (ContextualSidebarDialogData -> ReactElement) =
+            (fun (beforeData: ContextualSidebarDialogData) ->
+                div [] [
+                    p [] [str "This is the dialog body for int, but accepts only a bounded input. This example accepts a number between 0 to 100 inclusive."]
+                    p [] [str "Currently, "; codeInline "fsharp" "ContextualSidebarDialogData"; str "contains:"]
+                    br []
+                    codeBlock "" (beforeData.ToString())]
+
+
+            )
+
+        fun dispatch model ->
+            div [] [
+                boundedIntDialogSidebarElement 0  100 42 beforeInt dispatch model
+            ]
+
+
+    buildSidebar sidebarOptions sidebarBody
+
+
+
 
 
 
@@ -230,13 +343,22 @@ let developerModeView (model: ModelType.Model) dispatch =
 
         div [] [
             Button.button [Button.Color IsPrimary; Button.Size IsSmall;
-            Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebar))) ;Style [Margin "5px 10px 0 0 "]]
+                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some simpleSidebar))) ;Style [Margin "5px 10px 0 0 "]]
+                    ] [str "Test Simple Sidebar"];
 
-              ] [str "Open Test Sidebar"];
+            Button.button [Button.Color IsPrimary; Button.Size IsSmall;
+                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebarWithDialog))) ;Style [Margin "5px 10px 0 0 "]]
+                    ] [str "Test Sidebar with Dialog"];
+
+            Button.button [Button.Color IsDark; Button.Size IsSmall;
+                Button.Props[OnClick (fun _ -> dispatch (ShowContextualSidebar(Some sidebarWithBoundedIntDialog))) ;Style [Margin "5px 10px 0 0 "]]
+                    ] [str "Test Sidebar with Bounded Int Dialog"];
+
             Button.button [Button.Color IsInfo; Button.Size IsSmall;
-            Button.Props[OnClick (fun _ -> dispatch (UpdateModel(testHighlightSymbols ))) ;Style [Margin "5px 10px 0 0 "]]
+                Button.Props[OnClick (fun _ -> dispatch (UpdateModel(testHighlightSymbols ))) ;Style [Margin "5px 10px 0 0 "]]
+                    ] [str "Test Highlight + Random Colour"];
 
-              ] [str "Test Highlight + Random Colour"];
+
 
         ]
 

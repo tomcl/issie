@@ -94,25 +94,39 @@ type PopupDialogData = {
     IntList2: int list option;
 }
 
-let text_ = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
-let int_ = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
-let importDecisions_ = Lens.create (fun a -> a.ImportDecisions) (fun s a -> {a with ImportDecisions = s})
-let int2_ = Lens.create (fun a -> a.Int2) (fun s a -> {a with Int2 = s})
-let projectPath_ = Lens.create (fun a -> a.ProjectPath) (fun s a -> {a with ProjectPath = s})
-let memorySetup_ = Lens.create (fun a -> a.MemorySetup) (fun s a -> {a with MemorySetup = s})
-let memoryEditorData_ = Lens.create (fun a -> a.MemoryEditorData) (fun s a -> {a with MemoryEditorData = s})
-let progress_ = Lens.create (fun a -> a.Progress) (fun s a -> {a with Progress = s})
-let constraintTypeSel_ = Lens.create (fun a -> a.ConstraintTypeSel) (fun s a -> {a with ConstraintTypeSel = s})
-let constraintIOSel_ = Lens.create (fun a -> a.ConstraintIOSel) (fun s a -> {a with ConstraintIOSel = s})
-let constraintErrorMsg_ = Lens.create (fun a -> a.ConstraintErrorMsg) (fun s a -> {a with ConstraintErrorMsg = s})
-let newConstraint_ = Lens.create (fun a -> a.NewConstraint) (fun s a -> {a with NewConstraint = s})
-let algebraInputs_ = Lens.create (fun a -> a.AlgebraInputs) (fun s a -> {a with AlgebraInputs = s})
-let algebraError_ = Lens.create (fun a -> a.AlgebraError) (fun s a -> {a with AlgebraError = s})
-let verilogCode_ = Lens.create (fun a -> a.VerilogCode) (fun s a -> {a with VerilogCode = s})
-let verilogErrors_ = Lens.create (fun a -> a.VerilogErrors) (fun s a -> {a with VerilogErrors = s})
-let badLabel_ = Lens.create (fun a -> a.BadLabel) (fun s a -> {a with BadLabel = s})
-let intlist_ = Lens.create (fun a -> a.IntList) (fun s a -> {a with IntList = s})
-let intlist2_ = Lens.create (fun a -> a.IntList2) (fun s a -> {a with IntList2 = s})
+
+/// lenses for PopupDialogData
+let text_: Lens<PopupDialogData,string option> = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
+let int_: Lens<PopupDialogData,int option> = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
+let importDecisions_: Lens<PopupDialogData,Map<string,ImportDecision option>> = Lens.create (fun a -> a.ImportDecisions) (fun s a -> {a with ImportDecisions = s})
+let int2_: Lens<PopupDialogData,int64 option> = Lens.create (fun a -> a.Int2) (fun s a -> {a with Int2 = s})
+let projectPath_: Lens<PopupDialogData,string> = Lens.create (fun a -> a.ProjectPath) (fun s a -> {a with ProjectPath = s})
+let memorySetup_: Lens<PopupDialogData,(int * int * InitMemData * string option) option> = Lens.create (fun a -> a.MemorySetup) (fun s a -> {a with MemorySetup = s})
+let memoryEditorData_: Lens<PopupDialogData,MemoryEditorData option> = Lens.create (fun a -> a.MemoryEditorData) (fun s a -> {a with MemoryEditorData = s})
+let progress_: Lens<PopupDialogData,PopupProgress option> = Lens.create (fun a -> a.Progress) (fun s a -> {a with Progress = s})
+let constraintTypeSel_: Lens<PopupDialogData,ConstraintType option> = Lens.create (fun a -> a.ConstraintTypeSel) (fun s a -> {a with ConstraintTypeSel = s})
+let constraintIOSel_: Lens<PopupDialogData,CellIO option> = Lens.create (fun a -> a.ConstraintIOSel) (fun s a -> {a with ConstraintIOSel = s})
+let constraintErrorMsg_: Lens<PopupDialogData,string option> = Lens.create (fun a -> a.ConstraintErrorMsg) (fun s a -> {a with ConstraintErrorMsg = s})
+let newConstraint_: Lens<PopupDialogData,Constraint option> = Lens.create (fun a -> a.NewConstraint) (fun s a -> {a with NewConstraint = s})
+let algebraInputs_: Lens<PopupDialogData,SimulationIO list option> = Lens.create (fun a -> a.AlgebraInputs) (fun s a -> {a with AlgebraInputs = s})
+let algebraError_: Lens<PopupDialogData,SimulationError option> = Lens.create (fun a -> a.AlgebraError) (fun s a -> {a with AlgebraError = s})
+let verilogCode_: Lens<PopupDialogData,string option> = Lens.create (fun a -> a.VerilogCode) (fun s a -> {a with VerilogCode = s})
+let verilogErrors_: Lens<PopupDialogData,ErrorInfo list> = Lens.create (fun a -> a.VerilogErrors) (fun s a -> {a with VerilogErrors = s})
+let badLabel_: Lens<PopupDialogData,bool> = Lens.create (fun a -> a.BadLabel) (fun s a -> {a with BadLabel = s})
+let intlist_: Lens<PopupDialogData,int list option> = Lens.create (fun a -> a.IntList) (fun s a -> {a with IntList = s})
+let intlist2_: Lens<PopupDialogData,int list option> = Lens.create (fun a -> a.IntList2) (fun s a -> {a with IntList2 = s})
+
+/// tdc21: Possible fields that may (or may not) be used in a contextual sidebar popup.
+type ContextualSidebarDialogData = {
+    Text : string option;
+    Int : int option;
+}
+
+let contextualSidebarDialogData_ = Lens.create (fun a -> a.ContextualSidebarDialogData) (fun s a -> {a with ContextualSidebarDialogData = s})
+let contextualSidebarDialogDataText_ : Lens<ContextualSidebarDialogData,string option> = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
+let contextualSidebarDialogDataInt_ : Lens<ContextualSidebarDialogData,int option> = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
+
+
 type TopMenu = | Closed | Project | Files
 
 //==========//
@@ -615,6 +629,7 @@ type Model = {
     // Values for creating the contextual sidebar
     /// function to create contextual view function if present
     ContextualSidebarViewFunction : ((Msg -> Unit) -> Model -> Fable.React.ReactElement) option
+    ContextualSidebarDialogData: ContextualSidebarDialogData
 
 }
 
@@ -640,6 +655,8 @@ let selectedComponent_ = Lens.create (fun a -> a.SelectedComponent) (fun s a -> 
 let userData_ = Lens.create (fun a -> a.UserData) (fun s a -> {a with UserData = s})
 let uISheetTrail_ = Lens.create (fun a -> a.UISheetTrail) (fun s a -> {a with UISheetTrail = s})
 
+let symbol_ = sheet_ >-> DrawModelType.SheetT.symbol_
+let symbols_ = sheet_ >-> DrawModelType.SheetT.symbols_
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_
@@ -650,8 +667,4 @@ let ldcM = project_ >-> loadedComponents_
 let ldcOptM = projectOpt_ >?> loadedComponents_
 let nameM = project_ >-> openFileName_
 let nameOptM = projectOpt_ >?> openFileName_
-
-
-
-
 

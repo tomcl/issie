@@ -19,6 +19,7 @@
     <Compile Include="Common\DrawHelpers.fs" />
     <Compile Include="Common\Helpers.fs" />
     <Compile Include="Common\TimeHelpers.fs" />
+    <Compile Include="DrawBlock\GraphHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
 
 	  <!-- UART -->

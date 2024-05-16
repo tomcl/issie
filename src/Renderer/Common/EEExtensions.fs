@@ -332,7 +332,7 @@ module Map =
     /// Looks up key in table, returning defaultValue if 
     /// key is not in table
     [<CompiledName("FindWithDefault")>]
-    let findWithDefault (key:'Key) (table:Map<'Key,'Value>) (defaultValue:'Value) =
+    let findWithDefault (key:'Key) (defaultValue:'Value) (table:Map<'Key,'Value>)  =
         match table.TryFind key with | Some v -> v |None -> defaultValue
 
     /// Return array of all values in table
@@ -344,6 +344,45 @@ module Map =
     [<CompiledName("Keys")>]
     let keys (table:Map<'Key,'Value>) =
         table |> Map.toArray |> Array.map fst
+
+    /// Return list of all values in table
+    [<CompiledName("Values")>]
+    let valuesL (table:Map<'Key,'Value>) =
+        table |> Map.toList |> List.map snd
+
+    /// Return list of all keys in table
+    [<CompiledName("Keys")>]
+    let keysL (table:Map<'Key,'Value>) =
+        table |> Map.toList |> List.map fst
+
+    /// Add or update table with all keys in keyList and values the result of
+    /// applying the key and (if it exists) its current table value to addFunc.
+    [<CompiledName("AddList")>]
+    let addList (keyList: 'Key list) (addFunc: 'Key -> 'Value option -> 'Value) (table: Map<'Key,'Value>) =
+        (table, keyList)
+        ||> List.fold (fun table key -> Map.add key (addFunc key (Map.tryFind key table)) table)
+
+    /// Add or update table with all the (key,value) pairs in
+    /// the items list.
+    /// If keys are repeated the last instance in the list will be used.
+    [<CompiledName("AddItems")>]
+    let addItems (itemList: ('Key * 'Value) list) (table: Map<'Key,'Value>) =
+        (table, itemList)
+        ||> List.fold (fun table (key,value) -> Map.add key value table)
+
+    /// Add or update table with keys in keyList given result of
+    /// applying the key and (if it exists) its current value to changeFunc.
+    /// If the result is None, delete the key if it exists, if Some x update with value x.
+    [<CompiledName("ChangeList")>]
+    let changeList (keyList: 'Key list) (changeFunc: 'Key -> 'Value option -> 'Value option) (table: Map<'Key,'Value>) =
+        (table, keyList)
+        ||> List.fold (fun table key -> Map.change key (fun oldV -> changeFunc key oldV) table)   
+
+    /// Construct the union map of table1 and table2
+    /// If a key is in both its value will be from table2
+    [<CompiledName("Union")>]
+    let union (table1: Map<'Key,'Value>) (table2: Map<'Key,'Value>) : Map<'Key,'Value> =
+        addItems (Map.toList table2) table1
 
 
 

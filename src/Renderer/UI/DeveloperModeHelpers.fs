@@ -119,7 +119,7 @@ let findHoveredID (pos: XYPos) (model: SheetT.Model) =
         // get all boundingBoxes in model not equal to symbolBoundingBox, see if they overlap with symbolBoundingBox, if yes, return compId
         |> List.filter (fun (compId, box) -> not (box =~ mouseBoundingBox))
         |> List.choose (fun (compId, box) ->
-            match (overlap2DBoxInfo mouseBoundingBox box) with
+            match (intersect2DBoxInfo mouseBoundingBox box) with
             | Some area -> Some(compId.ToString())
             | None -> None)
         |> List.tryHead

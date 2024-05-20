@@ -36,7 +36,6 @@ open Constants
 
 //-----------------------------------SegmentHelpers Submodule-----------------------------------//
 
-// INTERIM MODULE, WILL BE REPLACED WITH PROPER INTERSECT HELPERS
 /// Helpers to work with visual segments and nets
 /// Includes functions to remove overlapping same-net segments
 /// We can assume different-net segments never overlap.
@@ -93,15 +92,15 @@ module SegmentHelpers =
 
     open BusWireT // so that Orientation D.U. members do not need qualification
 
-    /// Input must be a pair of visula segment vertices (start, end).
-    /// Returns segment orientation
+    /// Returns segment orientation of a visual segment.
+    /// Input must be a pair of visual segment vertices (start, end).
     let visSegOrientation ((vSegStart, vSegEnd): XYPos * XYPos) =
         match abs (vSegStart.X - vSegEnd.X) > abs (vSegStart.Y - vSegEnd.Y) with
         | true -> Horizontal
         | false -> Vertical
 
-    /// print a visual segment in an easy-toread form
-    let pvs (seg: XYPos * XYPos) =
+    /// Print a visual segment in an easy-toread form.
+    let printVisSeg (seg: XYPos * XYPos) =
         let ori = visSegOrientation seg
         let startS = fst seg
         let endS = snd seg
@@ -111,8 +110,9 @@ module SegmentHelpers =
             | Horizontal -> startS.Y, "Y", startS.X, "X", endS.X, "X"
         $"{ori}:{int c1}{cs1}:({int c2}{cs2}-{int c3}{cs3}) {int <| euclideanDistance startS endS}-"
 
-    /// visible segments in a wire as a pair (start,end) of vertices.
-    /// start is the segment end nearest the wire Source.
+    /// Return a list of visible segments in a wire as a pair (start,end) of vertices.
+    /// start is the segment end closest to the wire Source.
+    /// Input is a wire and the model.
     let visibleSegsWithVertices (wire: BusWireT.Wire) (model: SheetT.Model) =
         (wire.StartPos, visibleSegments wire.WId model)
         ||> List.scan (fun startP segV -> startP + segV)
@@ -120,9 +120,9 @@ module SegmentHelpers =
 
     /// Filter visSegs so that if they overlap with common start only the longest is kept.
     /// ASSUMPTION: in a connected Net this will remove all overlaps
-    // tdc21: added considerEndSeg to allow for the removal of overlapping segments that share the same end point. Useful for HLP24 T5R spec.
-    // Note that there is no considerEndSeg implementation for distinctVisSegsPrecision
-    let distinctVisSegs (considerEndSeg: bool) (visSegs: (XYPos * XYPos) list) =
+    /// KeepBothIfDifferentLength = true => keep overlapping segments that share the same end point.
+    // tdc21: added keepBothIfDifferentLength for HLP24 T5R spec.
+    let distinctVisSegs (keepBothIfDifferentLength: bool) (visSegs: (XYPos * XYPos) list) =
         /// convert float to integer buckt number
         let pixBucket (pixel: float) = int (pixel / Constants.bucketSpacing)
 
@@ -136,13 +136,15 @@ module SegmentHelpers =
         // Two segments are judged the same if X & y starting coordinates map to the same "buckets"
         // This will very rarely mean that very close but not identical position segments are viewed as different
         |> List.distinctBy (fun ((startOfSeg, endOfSeg) as vSeg) ->
-            if considerEndSeg then
+            if keepBothIfDifferentLength then
                 ((posBucket startOfSeg), (Some(posBucket endOfSeg)), visSegOrientation vSeg)
             else
                 ((posBucket startOfSeg), None, visSegOrientation vSeg))
 
     /// Filter visSegs so that if they overlap with common start only the longest is kept.
     /// More accurate version of distinctVisSegs.
+    /// There is no implementation for keepBothIfDifferentLength, so it is always false,
+    /// i.e. the function keeps segments that have a distinct start point and orientation, disregarding the end point.
     /// Use if the accuracy is needed.
     let distinctVisSegsPrecision (visSegs: (XYPos * XYPos) list) =
         // This implementation clusters the segments, so cannot go wrong
@@ -176,13 +178,14 @@ module SegmentHelpers =
     /// input is a list of all the wires in a net.
     /// output a list of the visual segments.
     /// isDistinct = true => remove overlapping shorter segments
-    // tdc21: added considerEndSeg to allow for the removal of overlapping segments that share the same end point. Useful for HLP24 T5R spec.
-    // Note that there is no considerEndSeg implementation for distinctVisSegsPrecision
-    let getVisualSegsFromNetWires (isDistinct: bool) (considerEndSeg: bool) (model: SheetT.Model) netWires =
+    /// keepBothIfDifferentLength = true => keep overlapping segments that share the same end point.
+    // tdc21: added keepBothIfDifferentLength to allow for the removal of overlapping segments that share the same end point. Useful for HLP24 T5R spec.
+
+    let getVisualSegsFromNetWires (isDistinct: bool) (keepBothIfDifferentLength: bool) (model: SheetT.Model) netWires =
         netWires
         |> List.collect (fun wire -> visibleSegsWithVertices wire model)
         |> (if isDistinct then
-                (distinctVisSegs considerEndSeg)
+                (distinctVisSegs keepBothIfDifferentLength)
             else
                 id) // comment this to test the preision implementation
     // |> (if isDistinct then distinctVisSegsPrecision else id) // uncomment this to test the precision implementation
@@ -250,7 +253,6 @@ module SegmentHelpers =
 // --------------------------------------------------- //
 //          Professor's T1-T6 (tested and fixed)       //
 // --------------------------------------------------- //
-// INTERIM FUNCTIONS, WILL HAVE TO BE PORTED TO A PROPER HELPER FILE
 open SegmentHelpers
 
 //T1 R
@@ -310,7 +312,7 @@ let calcVisWireLength (model: SheetT.Model) : float =
 /// Returns the number of visible wire right-angles.
 /// ASSUMPTIONS: right-angles come from two adjacent visible segments
 /// ASSUMPTION: segment overlaps as SegmentHelpers
-// tdc21: added considerEndSeg to allow for the removal of overlapping segments that share the same end point.
+// tdc21: added keepBothIfDifferentLength to allow for the removal of overlapping segments that share the same end point.
 let numOfVisRightAngles (model: SheetT.Model) : int =
     let nets = allWireNets model
     let numWires =
@@ -372,14 +374,17 @@ let findRetracingSegments (model: SheetT.Model) =
 // -------------------------------------------------------- //
 
 
-/// For a given wire, checks if the wire is almost straight.
-let checkAlmostStraightWire (wire: BusWireT.Wire) (model: Model) (almostStraightMaxDeviationAmt: float ): bool =
-    let unzipIntoOddAndEvenElems list =
-        list
-        |> List.mapi (fun i x -> (i % 2 = 0, x))
-        |> List.partition fst
-        |> fun (odd, even) -> (List.map snd odd, List.map snd even)
+/// Given a list, unzip it into two lists, one containing the odd-indexed elements and the other containing the even-indexed elements.
+let unzipIntoOddAndEvenElems list =
+    list
+    |> List.mapi (fun i x -> (i % 2 = 0, x))
+    |> List.partition fst
+    |> fun (odd, even) -> (List.map snd odd, List.map snd even)
 
+
+/// For a given wire, checks if the wire is almost straight.
+/// The threshold is the maximum deviation length (in the minority direction) that a wire can have, to be considered almost straight.
+let checkAlmostStraightWire (wire: BusWireT.Wire) (model: Model) (maxDeviationLengthThreshold: float ): bool =
     let visibleSegs =
         visibleSegsWithVertices wire model
         |> List.map (fun (startPos: XYPos, endPos: XYPos)  -> ((euclideanDistance startPos endPos), startPos, endPos ))
@@ -403,12 +408,13 @@ let checkAlmostStraightWire (wire: BusWireT.Wire) (model: Model) (almostStraight
             let maxDeviationLength = evenList
                                     |> List.maxBy (fun (segLength, _,_) -> abs segLength)
                                     |> fun (segLength, _,_) -> segLength
-            abs (maxDeviationLength) < almostStraightMaxDeviationAmt
+            abs (maxDeviationLength) < maxDeviationLengthThreshold
         | false -> false
 
     | false -> false
 
-/// Function that counts the number of almost straight wires on the sheet, given a threshold
+/// Function that counts the number of almost straight wires on the sheet, given a threshold.
+/// The threshold is the maximum deviation length (in the minority direction) that a wire can have, to be considered almost straight.
 let countAlmostStraightWiresOnSheet (sheetModel: SheetT.Model) (maxDeviationLengthThreshold: float): int =
     let straightWires =
         sheetModel.Wire.Wires
@@ -428,18 +434,21 @@ let getWiresFromPortOutputNet (sourcePort: OutputPortId) (model: SheetT.Model): 
     |> Map.values
     |> Array.toList
 
-/// (new!) tdc21: Helper function that returns the wire connected to an input port id
-let getWireFromPortInput (inputPort: InputPortId) (model: SheetT.Model): Wire list =
+/// (new!) tdc21: Helper function that returns the wire connected to an input port id.
+/// Since only one wire can be connected to an input port, it returns one wire.
+let getWireFromPortInput (inputPort: InputPortId) (model: SheetT.Model): Wire =
     model.Wire.Wires
     |> Map.filter (fun _ wire -> wire.InputPort = inputPort)
     |> Map.values
     |> Array.toList
+    |> List.head
 
 /// (new!) tdc21: Helper function that returns the wires connected to a symbol
+/// Returns a record with the input wires, output wires and the total count of wires connected to the symbol
 let getWiresConnectedToSymbol (sym: Symbol) (model: SheetT.Model) : {|InputWires: Wire list; OutputWires: Wire list; Count : int|} =
     let inputWires =
         sym.Component.InputPorts
-        |> List.collect (fun (port: Port) -> getWireFromPortInput (InputPortId port.Id) model)
+        |> List.collect (fun (port: Port) -> [ getWireFromPortInput (InputPortId port.Id) model] )
     let outputWires =
         sym.Component.OutputPorts
         |> List.collect (fun (port: Port) -> getWiresFromPortOutputNet (OutputPortId port.Id) model)
@@ -447,6 +456,7 @@ let getWiresConnectedToSymbol (sym: Symbol) (model: SheetT.Model) : {|InputWires
     {|InputWires = inputWires; OutputWires = outputWires; Count = ((List.length inputWires) + (List.length outputWires)) |}
 
 /// (new!) tdc21: Helper function that returns the symbol that contains a given portId
+/// If the portId is not found, returns None
 let getSymbolFromPortId (portId: string) (model: SheetT.Model) : Symbol Option =
     let foundPort =
         model.Wire.Symbol.Ports

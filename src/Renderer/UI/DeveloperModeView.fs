@@ -47,6 +47,22 @@ STRUCTURE
 4. Wire Segments
 *)
 
+let test1DSegIntersect (model:ModelType.Model) =
+    let wire1 = model.Sheet.Wire.Wires |> Map.values |> Array.head
+    let symbol1 = model.Sheet.Wire.Symbol.Symbols |> Map.values |> Array.head
+
+    let wire1Abs =
+        getAbsSegments wire1
+        |> List.map (fun aseg -> (aseg.Start, aseg.End))
+    let bbox = getSymbolBoundingBox symbol1
+
+    wire1Abs
+    |> List.map (fun (s,e) -> segmentIntersectsBoundingBoxInfo bbox s e )
+    |> List.choose id
+
+
+
+
 
 /// Top Level function for developer mode (tdc21)
 let developerModeView (model: ModelType.Model) dispatch =
@@ -83,7 +99,9 @@ let developerModeView (model: ModelType.Model) dispatch =
             Value=(countAlmostStraightWiresOnSheet model.Sheet 20.0).ToString() |}
           {|DisplayName="CountSinglyConnected Wires";
             ToolTipDescription = "Counts the number of singly-connected wires. A singly \nconnected wire is connected to at least one component \nthat has a single wire attached to it, .i.e  a 'dead end'"
-            Value=(countSinglyConnectedWires model.Sheet).ToString() |}
+            Value=(countSinglyConnectedWires model.Sheet).ToString() |};
+          {|DisplayName="CheckWireIntersectSegs";
+            ToolTipDescription = "asb"; Value=(test1DSegIntersect model).ToString() |}
            ]
 
     // let testSegmentIntersectsBBox  (model: ModelType.Model) : string =

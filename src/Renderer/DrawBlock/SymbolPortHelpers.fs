@@ -40,7 +40,7 @@ let findDeletedPorts (symModel: Model) (compId: ComponentId) (oldComp:Component)
     removedIds
     |> List.map (fun x -> Map.tryFind x symModel.Ports)
 
-//////////////  Show Ports Helpers  /////////////////////
+//------------ Optics for Show Port Helpers--------------//
 
 let showSymbolInPorts _ sym =
     set (appearance_ >-> showPorts_) ShowInput sym
@@ -57,7 +57,7 @@ let hideSymbolPorts _ sym =
 let showSymbolPorts sym =
     set (appearance_ >-> showPorts_) ShowBoth sym
 
-/////////////////////////////////////////////////////////
+//------------ Show Port Helpers--------------//
 
 /// Given a model it shows all input ports and hides all output ports, then returns the updated model
 let inline showAllInputPorts (model: Model) =
@@ -133,7 +133,7 @@ let inline showCustomPorts (model: Model) compList =
 
     { model with Symbols = newSymbols}
 
-
+/// Helper popup that shows when a custom component is selected, and (Edit menu > Move Component Ports) is clicked.
 let moveCustomPortsPopup() : ReactElement =
     let styledSpan styles txt = span [Style styles] [str <| txt]
     let bSpan txt = styledSpan [FontWeight "bold"] txt
@@ -218,6 +218,7 @@ let getPosIndex (sym: Symbol) (pos: XYPos) (edge: Edge): int =
     | _, Top ->
         -1 * int (pos'.X * (float (ports.Length + 1) + 2.0*gap - 1.0) / float(w) - float( ports.Length + 1) + 1.0 - gap - 0.5)
 
+/// Given a symbol, a position and a portId, it returns the updated symbol with the port moved to the new position
 let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
     match sym.Component.Type with
     | Custom x ->
@@ -385,7 +386,8 @@ let movePortUpdate (model:Model) (portId:string) (pos:XYPos) : Model*Cmd<'a> =
 
 
 /// <summary>
-/// Helper that to get a Symbol from PortId. Needs to be given a SheetT.Model to search
+/// Helper that returns the Symbol corresponding to a given PortId. Needs to be given a SheetT.Model to search
+/// If no symbol found, returns None
 /// Author: tdc21/Tim
 /// </summary>
 let getSymbolFromPortID (portId: string) (model: DrawModelType.SheetT.Model) =

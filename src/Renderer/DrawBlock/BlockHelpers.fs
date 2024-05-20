@@ -35,7 +35,7 @@ type Rectangle = {
 
 
 
-/// (new!) tdc21: Helper to convert a BoundingBox to a Rectangle
+/// tdc21: Helper to convert a BoundingBox to a Rectangle
 // We have to define this separately simply because we cannot import Common Types, as there is a type name clash between ScaleAdjustment and Orientation
 // Commontypes already has this built-in as a BoundingBox member
 // Todo: Fix CommonTypes and remove this function
@@ -43,7 +43,7 @@ let boundingBoxToRect (boundingBox: BoundingBox):Rectangle =
     let bottomRight = boundingBox.TopLeft + { X = boundingBox.W; Y = boundingBox.H }
     { TopLeft = boundingBox.TopLeft; BottomRight = bottomRight }
 
-/// (new!) tdc21: Helper to convert a Rectangle to a BoundingBox
+/// tdc21: Helper to convert a Rectangle to a BoundingBox
 // We have to define this separately simply because we cannot import Common Types, as there is a type name clash between ScaleAdjustment and Orientation
 // Commontypes already has this built-in as a BoundingBox member
 // Todo: Fix CommonTypes and remove this function
@@ -52,8 +52,8 @@ let rectToBoundingBox (rect: Rectangle) : BoundingBox =
     let h = rect.BottomRight.Y - rect.TopLeft.Y
     { TopLeft = rect.TopLeft; W = w; H = h }
 
-/// (new!) tdc21 Another helper to convert a BoundingBox to a Rectangle.
-// Consider having this as a property for a segment type
+/// tdc21 Helper to convert a 2D line segment (start position and end position) to a rectangle.
+/// Will fail if segment travels in both directions
 let segmentToRect (segStart: XYPos) (segEnd: XYPos) : Rectangle =
     // segments must travel strictly straight in one direction, otherwise, raise an error
 
@@ -76,8 +76,10 @@ let segmentToRect (segStart: XYPos) (segEnd: XYPos) : Rectangle =
 // |                              | //
 // +------------------------------+ //
 
-/// Returns true if two 1D line segments intersect
+/// DEPRECATED: Please use intersect1D instead.
+/// Returns true if two 1D line segments intersect. Will account for point intersections (if ends are equal)
 /// HLP23: Derek Lai (ddl20)
+// Todo: Refactor all of codebase to use intersect1D, which is a drop-in replacement for overlap1D
 let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
     let a_min, a_max = min a1 a2, max a1 a2
     let b_min, b_max = min b1 b2, max b1 b2
@@ -85,8 +87,18 @@ let overlap1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
     // adjust for floating point errors?
     a_max - b_min >= -XYPos.epsilon && b_max - a_min >= -XYPos.epsilon
 
-/// (new!) tdc21:  Returns the overlapping segment line of two 1D line segments if they intersect, else None
-let overlap1DInfo ((a1, a2): float * float) ((b1, b2): float * float) : (float * float) option =
+
+/// tdc21: Returns true if two 1D line segments intersect. Will account for point intersections (if ends are equal)
+let intersect1D ((a1, a2): float * float) ((b1, b2): float * float) : bool =
+    let a_min, a_max = min a1 a2, max a1 a2
+    let b_min, b_max = min b1 b2, max b1 b2
+    a_max - b_min >= -XYPos.epsilon && b_max - a_min >= -XYPos.epsilon
+
+
+/// tdc21:  Returns the overlapping segment line of two 1D line segments if they intersect, else None.
+/// Will account for point intersections (if ends are equal)
+/// If intersection is a point, the overlapping segment returned will have the same start and end points
+let intersect1DInfo ((a1, a2): float * float) ((b1, b2): float * float) : (float * float) option =
     let a_min, a_max = min a1 a2, max a1 a2
     let b_min, b_max = min b1 b2, max b1 b2
     match a_max >= b_min && b_max >= a_min with
@@ -94,25 +106,29 @@ let overlap1DInfo ((a1, a2): float * float) ((b1, b2): float * float) : (float *
     | false -> None
 
 
-/// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples
+/// DEPRECATED: Please use intersect2D instead with the rectangle type.
+/// Returns true if two Boxes intersect, where each box is passed in as top right and bottom left XYPos tuples. Will account for point intersections (if ends are equal)
 /// HLP23: Derek Lai (ddl20)
-/// Deprecated. Please use <c>overlap2D'</c> for now, passing in a box as a rectangle type with top left and bottom right corners
+// Todo: Refactor all of codebase to use intersect2D
 let overlap2D ((a1, a2): XYPos * XYPos) ((b1, b2): XYPos * XYPos) : bool =
     (overlap1D (a1.X, a2.X) (b1.X, b2.X)) && (overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y))
 
-/// (new!) tdc21:  Refactored version of overlap2D to use Rectangle type. Will replace overlap2D
-// Todo: Refactor all uses of overlap2D to use overlap2D'
-let overlap2D' (rect1: Rectangle) (rect2 : Rectangle) : bool =
-    ( overlap1D (rect1.TopLeft.X, rect1.BottomRight.X) (rect2.TopLeft.X, rect2.BottomRight.X)
-        && overlap1D (rect1.TopLeft.Y, rect1.BottomRight.Y) (rect2.TopLeft.Y, rect2.BottomRight.Y))
+/// tdc21:  Returns the area of the overlap between two Rectangles if they intersect. Will account for point intersections (if ends are equal)
+/// Refactored version of overlap2D to use Rectangle type. Replaces overlap2D
+let intersect2D (rect1: Rectangle) (rect2 : Rectangle) : bool =
+    ( intersect1D (rect1.TopLeft.X, rect1.BottomRight.X) (rect2.TopLeft.X, rect2.BottomRight.X)
+        && intersect1D (rect1.TopLeft.Y, rect1.BottomRight.Y) (rect2.TopLeft.Y, rect2.BottomRight.Y))
 
 
-/// (new!) tdc21:  Returns the area of the overlap between two rectangles if they intersect, else None
-let overlap2DInfo (rect1) (rect2): Rectangle Option =
+/// tdc21:  Returns the area of the overlap between two rectangles if they intersect, else None
+/// Accounts for point intersections (if endpoints/corners are equal).
+/// If intersection is a point, the rectangle returned will have TopLeft as the point coordinate, BottomRight as the same point
+/// If intersection is a line, the rectangle returned will have the TopLeft and BottomRight sharing either the same X or Y coordinate (zero width or height)
+let intersect2DInfo (rect1) (rect2): Rectangle Option =
     // these are 2 x coordinates of the overlap
-    let xOverlapVertices = overlap1DInfo (rect1.TopLeft.X, rect1.BottomRight.X) (rect2.TopLeft.X, rect2.BottomRight.X)
+    let xOverlapVertices = intersect1DInfo (rect1.TopLeft.X, rect1.BottomRight.X) (rect2.TopLeft.X, rect2.BottomRight.X)
     // these are 2 y coordinates of the overlap
-    let yOverlapVertices = overlap1DInfo (rect1.TopLeft.Y, rect1.BottomRight.Y) (rect2.TopLeft.Y, rect2.BottomRight.Y)
+    let yOverlapVertices = intersect1DInfo (rect1.TopLeft.Y, rect1.BottomRight.Y) (rect2.TopLeft.Y, rect2.BottomRight.Y)
     match xOverlapVertices, yOverlapVertices with
     | Some (x1, x2), Some (y1, y2) ->
         let TopLeft = { X = (min x1 x2); Y = (min y1 y2) }
@@ -121,56 +137,64 @@ let overlap2DInfo (rect1) (rect2): Rectangle Option =
     | _, _ -> None
 
 
-
-// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
-// HLP23: Derek Lai (ddl20)
-// tdc21: Deprecated
-// Comments: This is merely a conversion to an alternate rectangle type with top right and bottom left.
-// let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
-//     let bb1Coords =
-//         { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
-//         { X = bb1.TopLeft.X + bb1.W
-//           Y = bb1.TopLeft.Y + bb1.H }
-
-//     let bb2Coords =
-//         { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
-//         { X = bb2.TopLeft.X + bb2.W
-//           Y = bb2.TopLeft.Y + bb2.H }
-
-//     overlap2D bb1Coords bb2Coords
-
-/// (new!) tdc21: Refactored version of Derek's overlap2DBox to use Rectangle type for internal calculations. Should be a drop-in replacement for overlap2DBox
-// Todo: fix commontypes and import it, so we we can use the built in functions currently commented out
+/// DEPRECATED. Please use intersect2DBox instead. It is a drop-in replacement so functionality/arguments are identical.
+/// Returns true if two Boxes intersect, where each box is passed in as a BoundingBox
+/// HLP23: Derek Lai (ddl20)
 let overlap2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
-    // let rect1: Rectangle = bb1.ToRect
-    // let rect2: Rectangle = bb2.ToRect
+    let bb1Coords =
+        { X = bb1.TopLeft.X; Y = bb1.TopLeft.Y },
+        { X = bb1.TopLeft.X + bb1.W
+          Y = bb1.TopLeft.Y + bb1.H }
 
-    let rect1, rect2 = boundingBoxToRect bb1, boundingBoxToRect bb2
-    overlap2D' rect1 rect2
+    let bb2Coords =
+        { X = bb2.TopLeft.X; Y = bb2.TopLeft.Y },
+        { X = bb2.TopLeft.X + bb2.W
+          Y = bb2.TopLeft.Y + bb2.H }
+
+    overlap2D bb1Coords bb2Coords
 
 
 
-/// (new!) tdc21:  Returns a bounding box of intersection area between two bounding boxes if they intersect, else None
+/// tdc21: Returns true if two Boxes intersect, where each box is passed in as a BoundingBox.
+/// Accounts for point intersections (if endpoints/corners are equal)
+/// Drop-in replacement for overlap2DBox.
 // Todo: fix commontypes and import it, so we we can use the built in functions currently commented out
-let overlap2DBoxInfo (bb1 : BoundingBox) (bb2 : BoundingBox) : BoundingBox option =
+let intersect2DBox (bb1: BoundingBox) (bb2: BoundingBox) : bool =
+    // let rect1: Rectangle = bb1.ToRect
+    // let rect2: Rectangle = bb2.ToRect
+
+    let rect1, rect2 = boundingBoxToRect bb1, boundingBoxToRect bb2
+    intersect2D rect1 rect2
+
+
+
+/// tdc21:  Returns a bounding box of intersection area between two bounding boxes if they intersect, else None
+/// Accounts for point intersections (if endpoints/corners are equal).
+/// If intersection is a point, the boundingBox returned will have TopLeft as the point coordinate, H=0, W=0
+/// If intersection is a line, the boundingBox returned will have the either H=0 or W=0 but not both
+/// If intersection is in 2D, the boundingBox returned will have both H and W > 0
+// Todo: fix commontypes and import it, so we we can use the built in functions currently commented out
+let intersect2DBoxInfo (bb1 : BoundingBox) (bb2 : BoundingBox) : BoundingBox option =
     // let rect1: Rectangle = bb1.ToRect
     // let rect2: Rectangle = bb2.ToRect
 
     let rect1, rect2 = boundingBoxToRect bb1, boundingBoxToRect bb2
 
-    match (overlap2DInfo rect1 rect2) with
+    match (intersect2DInfo rect1 rect2) with
     | Some rect -> Some (rectToBoundingBox rect)
     | None -> None
 
 
-/// (new!) tdc21:  Returns true if two 1D line segments intersect in 2D space
+/// tdc21:  Returns true if two 1D line segments intersect in 2D space. Will account for point intersections (if ends are equal)
 let segmentIntersectsSegment (a1: XYPos, a2: XYPos) (b1: XYPos, b2: XYPos) : bool =
-    overlap1D (a1.X, a2.X) (b1.X, b2.X) && overlap1D (a1.Y, a2.Y) (b1.Y, b2.Y)
+    intersect1D (a1.X, a2.X) (b1.X, b2.X) && intersect1D (a1.Y, a2.Y) (b1.Y, b2.Y)
 
-/// (new!) tdc21:  Returns the rectangle of the overlap between two 1D line segments if they intersect, else None
+/// tdc21: Returns the rectangle of the overlap between two 1D line segments if they intersect, else None.
+/// The rectangle can either be 1D (TopLeft = BottomRight) or 2D
+/// Will account for point intersections (if ends are equal)
 let segmentIntersectsSegmentInfo (a1: XYPos, a2: XYPos) (b1: XYPos, b2: XYPos) : Rectangle option =
-    let xOverlapVertices = overlap1DInfo (a1.X, a2.X) (b1.X, b2.X)
-    let yOverlapVertices = overlap1DInfo (a1.Y, a2.Y) (b1.Y, b2.Y)
+    let xOverlapVertices = intersect1DInfo (a1.X, a2.X) (b1.X, b2.X)
+    let yOverlapVertices = intersect1DInfo (a1.Y, a2.Y) (b1.Y, b2.Y)
     match xOverlapVertices, yOverlapVertices with
     | Some (x1, x2), Some (y1, y2) ->
         let TopLeft = { X = (min x1 x2); Y = (min y1 y2) }
@@ -179,7 +203,8 @@ let segmentIntersectsSegmentInfo (a1: XYPos, a2: XYPos) (b1: XYPos, b2: XYPos) :
     | _, _ -> None
 
 
-/// (new!) tdc21:  Returns true if a segment intersects a bounding box using the segment's start and end XYPos
+/// tdc21:  Returns true if a segment intersects a bounding box using the segment's start and end XYPos
+/// Will account for point intersections (if ends are equal).
 let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
         p1.X <= p2.X && p1.Y <= p2.Y
@@ -199,7 +224,11 @@ let segmentIntersectsBoundingBox (box: BoundingBox) segStart segEnd =
     | Some segBBox ->  overlap2DBox box segBBox
     | _ -> false
 
-/// (new!) tdc21:  Returns the bounding box of the intersection between a segment and a bounding box if they intersect, else None
+/// tdc21:  Returns the bounding box of the intersection between a segment and a bounding box if they intersect, else None
+/// Accounts for point intersections.
+/// If intersection is a point, the boundingBox returned will have TopLeft as the point coordinate, H=0, W=0
+/// If intersection is a line, the boundingBox returned will have the either H=0 or W=0 but not both
+/// There should be no 2D intersections
 let segmentIntersectsBoundingBoxInfo (box: BoundingBox) segStart segEnd =
     let inline lThanEqualPos (p1: XYPos) (p2: XYPos) : bool =
         p1.X <= p2.X && p1.Y <= p2.Y
@@ -216,7 +245,7 @@ let segmentIntersectsBoundingBoxInfo (box: BoundingBox) segStart segEnd =
         | _, _ -> None // we don't do this for zero length segments
 
     match segBBox with
-    | Some segBBox ->  overlap2DBoxInfo box segBBox
+    | Some segBBox ->  intersect2DBoxInfo box segBBox
     | _ -> None
 
 
@@ -224,6 +253,9 @@ let segmentIntersectsBoundingBoxInfo (box: BoundingBox) segStart segEnd =
 
 
 /// Converts a segment list into a list of vertices to store inside Connection
+/// It is assumed the segments in segList are updated to match the wire segments.
+/// This is guaranteed if they all come from updated wire segments.
+/// To update, call updateWireSegmentJumpsAndSeparations from BusWireSeparate.fs before
 let segmentsToIssieVertices (segList:Segment list) (wire:Wire) =
     ((wire.StartPos, wire.InitialOrientation, false),segList)
     ||> List.scan(fun (currPos, currOrientation, _) seg ->
@@ -296,7 +328,7 @@ let findPerpendicularDistance (segStart:XYPos) (segEnd:XYPos) (point:XYPos) =
 
 /// Checks if a segment intersects a bounding box using the segment's start and end XYPos
 /// return how close the segment runs to the box centre, if it intersects
-//  tdc21: This was orignally called segmentIntersectsBoundingBox, but now renamed as segmentIntersectsBoundingBoxDistance
+// tdc21: This was orignally called segmentIntersectsBoundingBox, but now renamed as segmentIntersectsBoundingBoxDistance
 //         to reflect it returning the closest (perpend.) distance to the box centre if it intersects the box, rather than returning a boolean (true = intersects, false = does not intersect)
 //         segmentIntersectsBoundingBox is now the name function that returns true if a segment intersects a bounding box
 let segmentIntersectsBoundingBoxDistance (box: BoundingBox) segStart segEnd =
@@ -742,7 +774,7 @@ let groupWiresByNet (conns: Map<ConnectionId, Wire>) =
     |> List.groupBy (fun (_, wire) -> wire.OutputPort)
     |> List.map (snd >> List.map snd)
 
-/// Scales a symbol so it has the provided height and width.
+/// Scales a symbol so it has the provided height and width. Works ONLY for custom components.
 /// HLP23: AUTHOR BRYAN TAN
 let setCustomCompHW (h: float) (w: float) (sym: Symbol) =
     let hScale = w / sym.Component.W
@@ -753,7 +785,8 @@ let setCustomCompHW (h: float) (w: float) (sym: Symbol) =
         VScale = Some vScale }
 
 /// For a wire and a symbol, return the edge of the symbol that the wire is connected to.
-/// /// HLP23: AUTHOR BRYAN TAN
+/// If the wire does not connect to the symbol, defaults to returning Top.
+/// HLP23: AUTHOR BRYAN TAN
 let wireSymEdge wModel wire sym =
     let sPort, tPort = getSourcePort wModel wire, getTargetPort wModel wire
     let sEdge = Map.tryFind sPort.Id sym.PortMaps.Orientation

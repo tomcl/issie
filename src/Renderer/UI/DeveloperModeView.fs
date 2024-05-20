@@ -71,13 +71,15 @@ let simpleSidebar =
         { ExtraStyle = []
           TitleText = "Test Sidebar" // this will be displayed on the sidebar
           // +-------- If true, a cancel button will be displayed. Put false if you want a mandatory action
-          Cancellable = Cancellable.Bool true
+          Cancellable = ContextualSidebarCancellable.Bool true
           SideBarButtons =
             [ {
                 // +-------- Add classes for the button. "button" is already pre-pended for you. https://bulma.io/documentation/elements/button/
-                ButtonClassNames = "is-info"
+                ButtonClassNames = fun _ -> "is-info"
                 // +-------- Add text for the button.
-                ButtonText = "Test Button 1: Pan Right"
+                ButtonText = fun _ ->  "Test Button 1: Pan Right"
+                // +-------- Add props for the button.  https://fulma.github.io/Fulma/#fulma/elements/button
+                ButtonProps = fun _ -> [];
                 // +-------- Define the action for the button.
                 // +-------- Onclick Type signature: ModelType.Model -> (Msg -> Unit) -> Browser.Types.MouseEvent -> Unit
                 // +-------- You usually don't need to access the browser event so in this example, an underscore is used.
@@ -92,8 +94,9 @@ let simpleSidebar =
                                       { model.Sheet with
                                           ScreenScrollPos = model.Sheet.ScreenScrollPos + { X = 20.; Y = 0. } } })
                       )) }
-              { ButtonClassNames = "is-danger"
-                ButtonText = "Test Button 2: Centre"
+              { ButtonClassNames = fun _ -> "is-danger"
+                ButtonText = fun _ -> "Test Button 2: Centre"
+                ButtonProps = fun _ -> [];
                 ButtonAction =
                   (fun model dispatch _ ->
                       let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -179,17 +182,19 @@ let sidebarWithDialog =
     let sidebarOptions: SidebarOptions =
         { ExtraStyle = []
           TitleText = "Test Sidebar with Dialog"
-          Cancellable = Cancellable.Bool true
+          Cancellable = ContextualSidebarCancellable.Bool true
           SideBarButtons =
-            [ { ButtonClassNames = "is-danger is-small"
-                ButtonText = "Test Button: Flip Vertically"
+            [ { ButtonClassNames = fun _ -> "is-danger is-small"
+                ButtonText = fun _ -> "Test Button: Flip Vertically"
+                ButtonProps = fun _ -> [];
                 ButtonAction =
                   (fun model dispatch _ ->
                       let sheetDispatch sMsg = dispatch (Sheet sMsg)
                       printf "Test Button: Flip Vertically\n"
                       (sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)) }
-              { ButtonClassNames = "is-warning is-small"
-                ButtonText = $"Rename first component to Text Dialog"
+              { ButtonClassNames = fun _ -> "is-warning is-small"
+                ButtonText = fun _ -> $"Rename first component to Text Dialog"
+                ButtonProps = fun _ -> [];
                 ButtonAction =
                   (fun model dispatch _ ->
                       printf
@@ -283,7 +288,7 @@ let sidebarWithBoundedIntDialog =
         { ExtraStyle = []
           TitleText = "Test Sidebar with Dialog"
           SideBarButtons = []
-          Cancellable = Cancellable.Bool true }
+          Cancellable = ContextualSidebarCancellable.Bool true }
 
     let sidebarBody =
         let beforeInt: (ContextualSidebarDialogData -> ReactElement) =
@@ -892,12 +897,10 @@ let developerModeView (model: ModelType.Model) dispatch =
             /// Create a table for unselected symbols/components
             let unselectedSymbolsTable =
                 if unselectedSymbolsRows.Length = 0 then
-                    div [ Style [ MarginBottom "25px"; Border "" ] ] []
+                    div [ Style [ MarginBottom "25px" ] ] []
                 else
-                    let bottomSpace = (25 + groupMap.Count * 40).ToString() + "px" // bottom space for the group table so the dropdown has space to expand
-                    // let bottomSpace = "25px"
                     div
-                        [ Style [ MarginBottom(bottomSpace) ] ]
+                        [ Style [MarginBottom "25px"] ]
                         [ Table.table
                               [ Table.IsFullWidth; Table.TableOption.Props[Style [ MarginBottom "10px" ]] ]
                               [ tr [] [ th [] [ str "Label" ]; th [] [ str "Type" ]; th [] [ str "Action" ] ]
@@ -905,11 +908,12 @@ let developerModeView (model: ModelType.Model) dispatch =
 
             /// mass-add selected symbols/components to a group
             let selectedSymbolsTable =
+                let bottomSpace = (25 + groupMap.Count * 40).ToString() + "px" // bottom space for the group table so the dropdown has space to expand
                 if selectedSymbolRows.Length = 0 then
-                    div [ Style [ MarginBottom "250px"; Border "" ] ] []
+                    div [ Style [MarginBottom (bottomSpace) ] ] []
                 else
                     div
-                        [ Style [ BackgroundColor "#efe"; Padding "10px" ] ]
+                        [ Style [ BackgroundColor "#efe"; Padding "10px";  MarginBottom (bottomSpace) ] ]
                         [
 
                           p [] [ str "Selected Components" ]

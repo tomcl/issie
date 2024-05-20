@@ -24,7 +24,7 @@ open DrawModelType.SheetT
 module ColourGenerator =
     module Constants =
         // A colour is considered too close to another if the distance is less than minimumColourDistance (thus making it invalid)
-        let minimumColourDistance = 23.
+        let minimumColourDistance = 26.
         // A colour is considered too close to a blacklisted colour if the distance is less than blackListedColourDistance (thus making it invalid)
         let blackListedColourDistance = 25.
         // how many times to resample the HSL space if an invalid colour is generated (too close to the blacklisted colours or existing colours)
@@ -32,10 +32,10 @@ module ColourGenerator =
         let satRange = (30.,80.)
         let lumRange = (75.,92.)
         // an increment in HSL space
-        let hIncrement = 41.
-        let sIncrement = 11.
+        let hIncrement = 111.
+        let sIncrement = 12.
         let lIncrement = 5. //minimumColourDistance/3.**0.5
-        let seed = 42
+        let seed = 36
 
     open Constants
 
@@ -246,34 +246,6 @@ let getUngroupedSymbols (model: SheetT.Model) =
 let getUngroupedSelectedSymbols (model: SheetT.Model) =
     getUngroupedSymbols model
         |> List.filter (fun symbol ->  (List.exists ((=) (ComponentId symbol.Component.Id)) model.SelectedComponents))
-
-// /// A helper that returns a list of symbols that are selected on sheet, and are ungrouped, i.e. not in any group other than exceptionGroupId
-// let getUngroupedSelectedSymbolsWithException (model: SheetT.Model) (exceptionGroupId : GroupId) =
-//     let groupedComponentIds =
-//         model.Wire.Symbol.GroupMap
-//         |> Map.filter (fun groupId _ -> groupId <> exceptionGroupId)
-//         |> Map.values
-//         |> Array.toList
-//         |> List.concat
-
-//     model.Wire.Symbol.Symbols
-//     |> Map.toList
-//     |> List.map snd
-//     // filter out annotations (symbols with no label)
-//     |> List.filter (fun symbol -> symbol.Component.Label.ToString() <> "" )
-//     // filter out wire-centric components
-//     |> List.filter (fun symbol ->
-//         match symbol.Component.Type with
-//         | MergeWires | SplitWire _ | BusSelection _  | NbitSpreader _ -> false
-//         | _ -> true)
-//     // make sure symbol is not part of an existing group, but allow it if it is part of exceptionGroupId
-//     |> List.filter (fun symbol -> not (List.exists ((=) (ComponentId symbol.Component.Id)) groupedComponentIds))
-//     |> List.filter (fun symbol ->  (List.exists ((=) (ComponentId symbol.Component.Id)) model.SelectedComponents))
-//     |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
-
-
-
-
 
 
 

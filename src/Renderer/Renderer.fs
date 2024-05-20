@@ -195,7 +195,7 @@ let fileMenu (dispatch) =
             // testing to open test sidebar when wavesim tab is open, and ensure that the lengths are correctly set
             makeDebugItem "Open test sidebar" None
                 (fun _ -> dispatch <| (ShowContextualSidebar(Some simpleSidebar)))
-            makeDebugItem "Close test sidebar" None
+            makeDebugItem "Force close any sidebar" None
                 (fun _ -> dispatch <| (ShowContextualSidebar(None)))
 
 

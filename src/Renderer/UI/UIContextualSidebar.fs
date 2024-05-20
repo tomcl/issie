@@ -32,25 +32,29 @@ open Groups.ColourGenerator
 //------------------- TypeDefs -------------------//
 
 /// A button on a contextual sidebar
-/// Buttons take in a model and return a message
+/// A button can be dynamic, based on the current model.
+/// Button actions take in a model + dispatch + the Button.button MouseEvent (usually ignored), then return a message
 type SidebarButton = {
-    ButtonClassNames: string; // for colours with fulma
-    ButtonText: string; // for the text on the button
-    ButtonAction: ModelType.Model -> (ModelType.Msg->Unit) -> Browser.Types.MouseEvent -> Unit
+    /// className "button" is automatically prepended to the classnames1
+    ButtonClassNames: (ModelType.Model -> string); // for colours with fulma
+    ButtonProps: (ModelType.Model -> Button.Option list); // for additional props
+    ButtonText: (ModelType.Model -> string); // for the text on the button
+    ButtonAction: ModelType.Model -> (ModelType.Msg->Unit) -> Browser.Types.MouseEvent -> Unit // defines the action of the button when clicked and given the model and dispatch (and browser mouseevent)
 }
 
-/// A type that defines whether sidebar can be cancelleable or not.
-// The cancellability of a sidebar is defined by being either statically true or false, but sometimes, we would like dynamic behaviour.
+/// A type that defines whether sidebar can be user-cancelleable or not.
+// The user-cancellability of a sidebar can be statically set to either true or false, but sometimes, we would like dynamic behaviour at times.
 // For example, consider the developer mode's non-cancellable group-selection sidebar, mandating the user to choose a nonzero amount of components for a group. You can call this from the red "Test Choose Group Sidebar" in the developer mode.
 // What happens if the user decides to delete all the components while the sidebar is open? Or what if there are even no components left to make into a group?
 // Then the user is stuck, as the sidebar cannot be dismissed as there are no valid actions to take.
-// We would like the sidebar to be cancellable in this case.
+// We would like the sidebar to be user-cancellable in this case.
 // Unlike popups, the user can still modify some parts of the sheet while the sidebar is open, so we need to be able to dynamically change the cancellability of the sidebar.`
-type Cancellable =
-    | Bool of bool
-    | Func of (ModelType.Model -> bool)
 
-let isCancellable (cancellable : Cancellable) (model:ModelType.Model) : bool=
+type ContextualSidebarCancellable =
+    | Bool of bool // statically set to true or false
+    | Func of (ModelType.Model -> bool) // dynamically set to true or false based on the state of the model
+
+let isCancellable (cancellable : ContextualSidebarCancellable) (model:ModelType.Model) : bool=
     match cancellable with
     | Bool b -> b
     | Func f -> f model
@@ -60,18 +64,18 @@ type SidebarOptions = {
     ExtraStyle: CSSProp list;
     TitleText: string;
     SideBarButtons: SidebarButton list;
-    Cancellable: Cancellable;
+    Cancellable: ContextualSidebarCancellable;
 }
 
 
 //------------------- Core Functions -------------------//
 /// Constructs a button component based on SidebarButton information
 let createButton buttonInfo (dispatch: ModelType.Msg -> Unit) (model: ModelType.Model)  : ReactElement =
-    Button.button [
-        Button.Option.Props[ClassName ("button " + buttonInfo.ButtonClassNames);];
+    Button.button ([
+        Button.Option.Props[ClassName ("button " + (buttonInfo.ButtonClassNames model));];
         Button.Props[Style [ Margin "3px" ]];
         Button.OnClick (buttonInfo.ButtonAction model dispatch)
-    ] [ str buttonInfo.ButtonText ]
+    ] @ (buttonInfo.ButtonProps model))  [ str (buttonInfo.ButtonText model) ]
 
 /// CSS for the sidebar
 let sidebarDivCSS = [Position PositionOptions.Relative; ZIndex 100; Background "white"; Width "100%"; Padding "20px 0"; OverflowY OverflowOptions.Auto]
@@ -199,9 +203,9 @@ let viewSidebar (model: ModelType.Model) dispatch : ReactElement option =
 
 //------------------- Helpers  -------------------//
 // Duplicate of DeveloperModeHelpers's getComponentTypeDescrFromSym.
-// Unfortunately not available due to compile order
+// Unfortunately not available in this file due to compile order
 
-/// A helper printing function that returns a string of the symbol's component type description
+/// A helper printing function that returns a string that describes a symbol's component type
 let getComponentTypeDescrFromSym (symbol : SymbolT.Symbol)  =
     match symbol.Component.Type with
     | Input1 _ -> "Input1"
@@ -260,11 +264,30 @@ let getComponentTypeDescrFromSym (symbol : SymbolT.Symbol)  =
 //------------------- Sidebar for Group Selection -------------------//
 /// Sidebar that allows the user to select symbols to add to a new group
 let sidebarToCreateNewGroup : (ModelType.Msg -> Unit) -> ModelType.Model -> ReactElement =
+    let confirmButton = {
+        ButtonClassNames = (fun model ->
+            match getUngroupedSelectedSymbols model.Sheet with
+            | [] -> ""
+            | _ -> "is-primary");
+        ButtonProps  = (fun model ->
+            let ungroupedSelectSymIds = getUngroupedSelectedSymbols model.Sheet |> List.map (fun s -> s.Id)
+            match ungroupedSelectSymIds with
+            | [] -> [Button.Disabled true; Button.IsGhost; Button.Props[Style [Margin "3px"]]]
+            | _ -> [Button.Props[Style [Margin "3px"]]]
+            );
+        ButtonText = (fun _ -> "Confirm Group");
+        ButtonAction = (fun model dispatch _ ->
+            let symbolDispatch symMsg =  symMsg |> Symbol |> Wire |> Sheet |> dispatch
+            symbolDispatch (DrawModelType.SymbolT.SetGroupMapAndInfo( createNewGroup model.Sheet  (getUngroupedSelectedSymbols model.Sheet |> List.map (fun s -> s.Id) )))
+            dispatch CloseContextualSidebar
+        )
+    }
+
     let sidebarOptions : SidebarOptions = {
         ExtraStyle = [];
         TitleText = "Choose Components for Group";
-        Cancellable = (Cancellable.Func (fun model -> (getUngroupedSymbols model.Sheet).Length <= 0));
-        SideBarButtons =[]; // we need a dynamic button whose colour/css depends on the model. so we will have to define the sidebar buttons in the sidebarBody
+        Cancellable = (ContextualSidebarCancellable.Func (fun model -> (getUngroupedSymbols model.Sheet).Length <= 0));
+        SideBarButtons =[confirmButton]; // we need a dynamic button whose colour/css depends on the model. so we will have to define the sidebar buttons in the sidebarBody
         }
     let sidebarBody =
         fun dispatch model ->
@@ -296,28 +319,7 @@ let sidebarToCreateNewGroup : (ModelType.Msg -> Unit) -> ModelType.Model -> Reac
                             yield! selectedSymbolRows ];
                         ]
 
-            let confirmButton (model) : ReactElement =
 
-                let ungroupedSelectedSymIds = ungroupedSelectedSymbols |> List.map (fun s -> s.Id)
-                match ungroupedSelectedSymbols with
-                | [] ->
-                    Button.button [
-                        Button.Option.Props[ClassName "button"];
-                        Button.Disabled true;
-                        Button.IsGhost;
-                        Button.Props[Style [Margin "3px"]];
-                    ] [ str "Confirm Group" ]
-                | _ ->
-                    Button.button [
-                        Button.Option.Props[ClassName "button is-primary"];
-                        Button.Props[Style [Margin "3px"]];
-                        Button.OnClick (fun _ ->
-
-                                let symbolDispatch symMsg =  symMsg |> Symbol |> Wire |> Sheet |> dispatch
-                                symbolDispatch (DrawModelType.SymbolT.SetGroupMapAndInfo( createNewGroup model.Sheet ungroupedSelectedSymIds ))
-                                dispatch CloseContextualSidebar
-                        )
-                    ] [ str "Confirm Group" ]
 
 
 
@@ -326,30 +328,42 @@ let sidebarToCreateNewGroup : (ModelType.Msg -> Unit) -> ModelType.Model -> Reac
                                         selectedSymbolsTable;
                                         div [ Style [ Display DisplayOptions.Flex; JustifyContent "space-between"; FlexDirection FlexDirection.Row ] ]
                                         [
-                                            div [ Style [  ] ] [confirmButton model]
+                                            div [ Style [  ] ] []
                                             ]]
 
     buildSidebar sidebarOptions sidebarBody
 
 /// Sidebar that allows the user to select symbols to add to an existing group
 let sidebarToAddToExistingGroup (groupId: GroupId) =
+    let confirmButton = {
+        ButtonClassNames = (fun model ->
+            match getUngroupedSelectedSymbols model.Sheet with
+            | [] -> " "
+            | _ -> "is-primary");
+        ButtonProps  = (fun model ->
+            let ungroupedSelectSymIds = getUngroupedSelectedSymbols model.Sheet |> List.map (fun s -> s.Id)
+            match ungroupedSelectSymIds with
+            | [] -> [Button.Disabled true; Button.IsGhost; Button.Props[Style [Margin "3px"]]]
+            | _ -> [Button.Props[Style [Margin "3px"]]]
+            );
+        ButtonText = (fun _ -> "Confirm Group");
+        ButtonAction = (fun model dispatch _ ->
+            let symbolDispatch symMsg =  symMsg |> Symbol |> Wire |> Sheet |> dispatch
+            symbolDispatch (DrawModelType.SymbolT.SetGroupMap( addToGroup model.Sheet groupId (getUngroupedSelectedSymbols model.Sheet |> List.map (fun s -> s.Id) )))
+            dispatch CloseContextualSidebar
+        )
+    }
+
+
     let sidebarOptions : SidebarOptions = {
         ExtraStyle = [];
         TitleText = "Choose Components for Group";
-        Cancellable = (Cancellable.Func (fun model -> (getUngroupedSymbols model.Sheet).Length <= 0));
-        SideBarButtons =[]; // we need a dynamic button whose colour/css depends on the model. so we will have to define the sidebar buttons in the sidebarBody
+        Cancellable = (ContextualSidebarCancellable.Func (fun model -> (getUngroupedSymbols model.Sheet).Length <= 0));
+        SideBarButtons =[confirmButton];
         }
     let sidebarBody =
         fun dispatch model ->
-
-            let groupedComponentIds =
-                model.Sheet.Wire.Symbol.GroupMap
-                |> Map.toList
-                |> List.collect snd
-
-
             let ungroupedSelectedSymbols = getUngroupedSelectedSymbols model.Sheet
-
             let selectedSymbolRows =
                 ungroupedSelectedSymbols
                 |> List.map (fun symbol ->
@@ -376,37 +390,12 @@ let sidebarToAddToExistingGroup (groupId: GroupId) =
                             yield! selectedSymbolRows ];
                         ]
 
-            let confirmButton (model) : ReactElement =
-
-                let ungroupedSelectedSymIds = ungroupedSelectedSymbols |> List.map (fun s -> s.Id)
-                match ungroupedSelectedSymbols with
-                | [] ->
-                    Button.button [
-                        Button.Option.Props[ClassName "button"];
-                        Button.Disabled true;
-                        Button.IsGhost;
-                        Button.Props[Style [Margin "3px"]];
-                    ] [ str "Confirm Group" ]
-                | _ ->
-                    Button.button [
-                        Button.Option.Props[ClassName "button is-primary"];
-                        Button.Props[Style [Margin "3px"]];
-                        Button.OnClick (fun _ ->
-
-                                let symbolDispatch symMsg =  symMsg |> Symbol |> Wire |> Sheet |> dispatch
-                                symbolDispatch (DrawModelType.SymbolT.SetGroupMap( addToGroup model.Sheet groupId ungroupedSelectedSymIds ))
-                                dispatch CloseContextualSidebar
-                        )
-                    ] [ str "Confirm Group" ]
-
-
-
 
             div [] [  str "Choose symbols via Cmd/Ctrl + click, or clicking and dragging.";
                                         selectedSymbolsTable;
                                         div [ Style [ Display DisplayOptions.Flex; JustifyContent "space-between"; FlexDirection FlexDirection.Row ] ]
                                         [
-                                            div [ Style [  ] ] [confirmButton model]
+                                            div [ Style [  ] ] []
                                             ]]
 
     buildSidebar sidebarOptions sidebarBody

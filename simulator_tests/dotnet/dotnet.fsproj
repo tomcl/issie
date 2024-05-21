@@ -5,6 +5,8 @@
     <TargetFramework>net6.0</TargetFramework>
     <SelfContained>true</SelfContained>
   </PropertyGroup>
+      <PropertyGroup>
+    </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Renderer\Renderer.fsproj" />
     <Compile Include="Program.fs" />

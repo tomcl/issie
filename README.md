@@ -225,7 +225,7 @@ layout: post
 title:  [title here]
 date:   [ ISO 8601 UTC datetime, etc f2021-07-04 15:52:01 +0100]
 category: Updates
-index: [index that decides the order of the update. later updates have higher index]
+index: [index that decides the order of the update. later updates have greater indexes]
 ---
 # your markdown content below
 ```

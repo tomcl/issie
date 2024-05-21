@@ -19,13 +19,13 @@ open BlockHelpers
 //---------------------------------------------------------------------------------//
 
 /// Initialises an empty BusWire Model
-let init () = 
+let init () =
     let symbols,_ = SymbolView.init()
-    {   
+    {
         Wires = Map.empty;
-        Symbol = symbols; 
-        CopiedWires = Map.empty; 
-        SelectedSegment = []; 
+        Symbol = symbols;
+        CopiedWires = Map.empty;
+        SelectedSegment = [];
         LastMousePos = {X = 0.0; Y = 0.0};
         ErrorWires = []
         Notifications = None
@@ -36,21 +36,21 @@ let init () =
 
 let dragSegment wire index (mMsg: MouseT) model =
     match List.tryItem index wire.Segments with
-    | None -> 
+    | None ->
         printfn "Bad segment in Dragsegment... ignoring drag"
         model
     | Some seg when index < 1 || index > wire.Segments.Length-2 ->
         printfn "Bad index - can't move that segment"
         model
-    | Some seg ->        
+    | Some seg ->
         let (startPos,endPos) = getAbsoluteSegmentPos wire index
         if seg.Draggable then
-            let distanceToMove = 
+            let distanceToMove =
                 match getSegmentOrientation startPos endPos with
                 | Horizontal -> mMsg.Pos.Y - startPos.Y
                 | Vertical -> mMsg.Pos.X - startPos.X
 
-            let newWire = moveSegment model seg distanceToMove 
+            let newWire = moveSegment model seg distanceToMove
             let newWires = Map.add seg.WireId newWire model.Wires
 
             { model with Wires = newWires }
@@ -78,7 +78,7 @@ let newWire inputId outputId model =
             model, None
         else
             printfn "Separating new wire"
-            let newModel = 
+            let newModel =
                 model
                 |> Optic.set (wireOf_ nWire.WId) nWire
                 |> BusWireSeparate.updateWireSegmentJumpsAndSeparations [nWire.WId]
@@ -94,7 +94,7 @@ let calculateBusWidths model =
                     match connWidths[wire.WId] with
                     | Some a -> a
                     | None -> wire.Width
-                let newColor = 
+                let newColor =
                     if wire.Color = Purple || wire.Color = Brown then Purple else DarkSlateGrey
                 wireMap.Add ( wire.WId, { wire with Width = width ; Color = newColor} )
 
@@ -109,7 +109,7 @@ let calculateBusWidths model =
                         | Some 0 -> {symbol with InWidth0 = Some wire.Width}
                         | x -> failwithf $"What? wire found with input port {x} other than 0 connecting to SplitWire"
                         |> (fun sym -> Map.add symId sym m)
-                    | SplitN _ -> 
+                    | SplitN _ ->
                         match inPort.PortNumber with
                         | Some 0 -> {symbol with InWidth0 = Some wire.Width}
                         | x -> failwithf $"What? wire found with input port {x} other than 0 connecting to SplitN"
@@ -121,19 +121,19 @@ let calculateBusWidths model =
                         | Some 1 ->
                             Map.add symId {symbol with InWidth1 = Some wire.Width} m
                         | x -> failwithf $"What? wire found with input port {x} other than 0 or 1 connecting to MergeWires"
-                    | MergeN nInps -> 
+                    | MergeN nInps ->
                         match inPort.PortNumber with
-                        | Some n when (n < nInps && n >= 0) -> 
-                            let newInWidths: int option list = 
+                        | Some n when (n < nInps && n >= 0) ->
+                            let newInWidths: int option list =
                                 match symbol.InWidths with
-                                | None -> List.init nInps (fun i -> 
+                                | None -> List.init nInps (fun i ->
                                     if i = n then Some wire.Width else None)
-                                | Some list -> 
-                                    match list.Length with 
+                                | Some list ->
+                                    match list.Length with
                                     | len when len = nInps ->
-                                        List.mapi (fun i x -> 
+                                        List.mapi (fun i x ->
                                             if i = n then Some wire.Width else x) list
-                                    | _ -> List.init nInps (fun i -> 
+                                    | _ -> List.init nInps (fun i ->
                                         if i = n then Some wire.Width else None)
                             Map.add symId {symbol with InWidths = Some newInWidths} m
                         | x -> failwithf $"What? wire found with input port {x} other than [0..{nInps-1}] connecting to MergeN"
@@ -144,14 +144,14 @@ let calculateBusWidths model =
             let symbolsWithWidths =
                 (model.Symbol.Symbols, newWires) ||> Map.fold addSymbolWidthFolder
 
- 
+
             { model with
-                Wires = newWires; 
+                Wires = newWires;
                 Notifications = None;
                 ErrorWires=[];
                 Symbol = {model.Symbol with Symbols = symbolsWithWidths}
             }
-                    
+
         let canvasState = (SymbolUpdate.extractComponents model.Symbol, extractConnections model)
 
         match BusWidthInferer.inferConnectionsWidth canvasState with
@@ -173,13 +173,13 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
 
     /// Command to issie level
     let withIssieMsg (msg: ModelType.Msg) (model: ModelType.Model) = model, Cmd.ofMsg msg
-    
+
     /// Command to Sheet level
     let withSheetMsg (msg: DrawModelType.SheetT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet msg)
-    
+
     /// Command to BusWire level
     let withMsg (msg: DrawModelType.BusWireT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire msg))
-    
+
     /// Command to Symbol level
     let withSymbolMsg (msg: DrawModelType.SymbolT.Msg) (model: ModelType.Model) = model, Cmd.ofMsg (ModelType.Msg.Sheet (DrawModelType.SheetT.Msg.Wire (DrawModelType.BusWireT.Symbol msg)))
 
@@ -211,11 +211,11 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
     | AddWire ( (inputId, outputId) : (InputPortId * OutputPortId) ) ->
         // add a newly created wire to the model
         // then send BusWidths message which will re-infer bus widths
-        // the new wires (extarcted as connections) are not added back into Issie model. 
+        // the new wires (extarcted as connections) are not added back into Issie model.
         // This happens on save or when starting a simulation (I think)
         let newModel, msgOpt = newWire inputId outputId model
         {issieModel with Sheet={issieModel.Sheet with Wire=newModel}} |> (if msgOpt.IsSome then withMsg (Option.get msgOpt) else withNoMsg)
-    
+
     | BusWidths ->
         let newModel, msgOpt = calculateBusWidths model
         toIssieModel newModel
@@ -228,7 +228,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
 
     | ErrorWires (connectionIds : list<ConnectionId>) ->
         // record these wires in model.ErrorWires and highlight them as red.
-        // reset the wires that were remobed from model.ErrorWires dark grey 
+        // reset the wires that were remobed from model.ErrorWires dark grey
         // (what if they are supposed to be something else?? Colors carry too muhc state!)
         let newWires =
             model.Wires
@@ -243,7 +243,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
 
         {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires ; ErrorWires = connectionIds }}} |> withNoMsg
 
-    | SelectWires (connectionIds : list<ConnectionId>) -> 
+    | SelectWires (connectionIds : list<ConnectionId>) ->
         // selects all wires in connectionIds, and also deselects all other wires
         let newWires =
             model.Wires
@@ -308,20 +308,20 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         |> fun model -> {issieModel with Sheet={ issieModel.Sheet with Wire=model}}
         |> withNoMsg
 
-    | ColorWires (connIds, color) -> 
+    | ColorWires (connIds, color) ->
         // Just Changes the colour of the wires, Sheet calls pasteWires before this
         let newWires =
             (List.fold (fun prevWires cId ->
                 let oldWireOpt = Map.tryFind cId model.Wires
                 match oldWireOpt with
-                | None -> 
+                | None ->
                     prevWires
                 | Some oldWire ->
                     Map.add cId { oldWire with Color = color } prevWires) model.Wires connIds)
         {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = newWires }}} |> withNoMsg
 
     | ResetJumps connIds ->
-        // removes wire 'jumps' at start of drag operation for neater component movement 
+        // removes wire 'jumps' at start of drag operation for neater component movement
         // without jump recalculation
         // makejumps at end of a drag operation restores new jumps
         let newModel = resetWireSegmentJumps connIds model
@@ -336,27 +336,27 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                 updateWireSegmentJumps connIds model
         {issieModel with Sheet={ issieModel.Sheet with Wire=newModel}} |> withNoMsg
 
-    | ResetModel -> 
+    | ResetModel ->
         // How we start with nothing loaded
         {issieModel with Sheet={ issieModel.Sheet with Wire={ model with Wires = Map.empty; ErrorWires = []; Notifications = None }}} |> withNoMsg
 
-    | LoadConnections conns -> 
+    | LoadConnections conns ->
         // we assume components (and hence ports) are loaded before connections
         // Issie connections are loaded as wires
-        // vertices on Issie connections contains routing info so wires can be 
+        // vertices on Issie connections contains routing info so wires can be
         // reconstructed precisely
 
         /// check whether a laoded wires position matches a symbol vertex
         /// If the vertices lits is empty the evrtex will be None, and not match
         let posMatchesVertex (pos:XYPos) (vertexOpt: (float*float) option) =
             match vertexOpt with
-            | None -> 
+            | None ->
                 false
             | Some vertex ->
                 let epsilon = Constants.vertexLoadMatchTolerance
                 abs (pos.X - (fst vertex)) < epsilon &&
                 abs (pos.Y - (snd vertex)) < epsilon
-        
+
         // get the newly loaded wires
         let newWires =
             conns
@@ -368,7 +368,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                 let segments = issieVerticesToSegments connId conn.Vertices
                 let makeWirePosMatchSymbol inOut (wire:Wire) =
                     match inOut with
-                    | true -> 
+                    | true ->
                         posMatchesVertex
                                 (Symbol.getInputPortLocation None model.Symbol inputId)
                                 (List.tryLast conn.Vertices |> Option.map getVertex)
@@ -382,7 +382,7 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                         else
                             updateWire model wire inOut)
                 connId,
-                { 
+                {
                     WId = ConnectionId conn.Id
                     InputPort = inputId
                     OutputPort = outputId
@@ -390,8 +390,8 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
                     Width = 1
                     Segments = segments
                     StartPos = Symbol.getOutputPortLocation None model.Symbol outputId
-                    InitialOrientation = 
-                        getOutputPortOrientation model.Symbol outputId 
+                    InitialOrientation =
+                        getOutputPortOrientation model.Symbol outputId
                         |> getOrientationOfEdge
                 }
                 |> makeWirePosMatchSymbol false
@@ -421,10 +421,10 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         // partial or full autoroutes all ends of wires conencted to given symbols
         // typically used after rotating or flipping symbols
         printfn "Updating connected wires"
-        let updatePortIdMessages: seq<Cmd<ModelType.Msg>> = 
+        let updatePortIdMessages: seq<Cmd<ModelType.Msg>> =
             componentIds
             |> Symbol.getPortLocations model.Symbol
-            |> (fun (m1,m2) -> 
+            |> (fun (m1,m2) ->
                 let inputPorts = Seq.map (fun (InputPortId portId) -> portId) m1.Keys |> Seq.toList
                 let outputPorts = Seq.map (fun (OutputPortId portId) -> portId) m2.Keys |> Seq.toList
                 inputPorts @ outputPorts
@@ -437,14 +437,14 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         // parially or fully autoroutes wires connected to port
         // typically used after port has moved
         // NB if direction of port has changed wire must be autorouted.
-        let portOpt = Map.tryFind portId model.Symbol.Ports 
+        let portOpt = Map.tryFind portId model.Symbol.Ports
 
-        let rerouteInputEnd (wire:Wire) = 
+        let rerouteInputEnd (wire:Wire) =
             wire.InputPort = InputPortId portId
-        
-        let wiresToReroute = 
+
+        let wiresToReroute =
             model.Wires
-            |> Map.filter (fun _id wire -> 
+            |> Map.filter (fun _id wire ->
                 wire.InputPort = InputPortId portId  || wire.OutputPort = OutputPortId portId)
             |> Map.toList
 
@@ -457,11 +457,11 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         {issieModel with Sheet={ issieModel.Sheet with Wire={model with Wires = newWires}}} |> withNoMsg
     | ToggleSnapToNet ->
         {issieModel with Sheet={ issieModel.Sheet with Wire={model with SnapToNet = not model.SnapToNet}}} |> withNoMsg
-    
 
-//---------------------------------------------------------------------------------//        
+
+//---------------------------------------------------------------------------------//
 //---------------------------Other interface functions-----------------------------//
-//---------------------------------------------------------------------------------//        
+//---------------------------------------------------------------------------------//
 
 
 /// Checks if a wire intersects a bounding box by checking if any of its segments intersect
@@ -470,8 +470,8 @@ let wireIntersectsBoundingBox (wire : Wire) (box : BoundingBox) =
     let segmentIntersectsBox segStart segEnd state seg =
         match state with
         | Some x -> Some x
-        | None -> segmentIntersectsBoundingBox box segStart segEnd
-    
+        | None -> segmentIntersectsBoundingBoxDistance box segStart segEnd
+
     foldOverSegs segmentIntersectsBox None wire
 
 /// Returns a list of wire IDs in the model that intersect the given selectBox
@@ -503,7 +503,7 @@ let pasteWires (wModel : Model) (newCompIds : list<ComponentId>) : (Model * list
             match SymbolUpdate.getEquivalentCopiedPorts wModel.Symbol oldCompIds newCompIds  oldPorts with
             | Some (newInputPort, newOutputPort) ->
 
-                let portOnePos, portTwoPos = 
+                let portOnePos, portTwoPos =
                     Symbol.getTwoPortLocations wModel.Symbol (InputPortId newInputPort) (OutputPortId newOutputPort)
                 let outputPortOrientation = getOutputPortOrientation wModel.Symbol (OutputPortId newOutputPort)
                 let segmentList = makeInitialSegmentsList newId portOnePos portTwoPos outputPortOrientation

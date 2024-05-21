@@ -22,13 +22,13 @@ let rec extractIOPrefix (str : string) (charLst: char list) =
     let len = String.length str
     match len with
     |0 -> "",-1
-    |_ -> 
+    |_ ->
         match str[len-1] with
-        |c when Char.IsNumber(Convert.ToChar(c)) -> 
+        |c when Char.IsNumber(Convert.ToChar(c)) ->
             let newstr = str.Remove(len-1)
             extractIOPrefix newstr ([str[len-1]]@charLst)
-        | _ -> 
-            let strNo = 
+        | _ ->
+            let strNo =
                 match List.length charLst with
                 |0 -> ""
                 |_ -> ("", charLst) ||> List.fold (fun s v -> s+(string v))
@@ -44,7 +44,7 @@ let generateIOLabel (model: Model) (compType: ComponentType) (name:string) : str
         |> List.collect (fun sym ->
             match sym.Component.Type with
             |IOLabel | NotConnected -> []
-            |_ -> 
+            |_ ->
                 let baseName,no = extractIOPrefix sym.Component.Label []
                 if baseName = newCompBaseName then
                     [no]
@@ -56,16 +56,16 @@ let generateIOLabel (model: Model) (compType: ComponentType) (name:string) : str
         if newCompNo = -1 then
             name+"1"
         else name
-    |lst -> 
+    |lst ->
         let max = List.max existingNumbers
         if List.exists (fun x -> x=newCompNo) lst then
             newCompBaseName + (string (max+1))
-        else 
+        else
             name
 
 
 /// Returns the number of the component label (i.e. the number 1 from IN1 or ADDER16.1)
-let getLabelNumber (str : string) = 
+let getLabelNumber (str : string) =
     let index = Regex.Match(str, @"\d+$")
     match index with
     | null -> 0
@@ -77,11 +77,11 @@ let generateLabelNumber listSymbols compType =
         let compType = symbol.Component.Type
         (getPrefix target) = (getPrefix compType)
 
-    let samePrefixLst = 
+    let samePrefixLst =
         listSymbols
         |> List.filter (samePrefix compType)
 
-    if List.isEmpty samePrefixLst then 1 
+    if List.isEmpty samePrefixLst then 1
     else samePrefixLst
         |> List.map (fun sym -> getLabelNumber sym.Component.Label)
         |> List.max
@@ -90,14 +90,14 @@ let generateLabelNumber listSymbols compType =
 
 /// Generates the label for a component type
 let generateLabel (model: Model) (compType: ComponentType) : string =
-    let listSymbols = List.map snd (Map.toList model.Symbols) 
+    let listSymbols = List.map snd (Map.toList model.Symbols)
     let prefix = getPrefix compType
     match compType with
     | IOLabel | BusSelection _ | NotConnected -> prefix
     | _ -> prefix + (generateLabelNumber listSymbols compType)
 
 let generateCopiedLabel (model: Model) (oldSymbol:Symbol) (compType: ComponentType) : string =
-    let listSymbols = List.map snd (Map.toList model.Symbols) 
+    let listSymbols = List.map snd (Map.toList model.Symbols)
     let prefix = getPrefix compType
     match compType with
     | IOLabel | NotConnected -> oldSymbol.Component.Label
@@ -110,28 +110,28 @@ let generateCopiedLabel (model: Model) (oldSymbol:Symbol) (compType: ComponentTy
 let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
     let inPortIds = List.map (fun (p:Port) -> p.Id)  newComp.InputPorts
     let outPortIds = List.map (fun (p:Port) -> p.Id) newComp.OutputPorts
-    let oldInPortIds =  
+    let oldInPortIds =
         List.map (fun (p:Port) -> p.Id) oldSymbol.Component.InputPorts
     let oldOutPortIds =
         List.map (fun (p:Port) -> p.Id) oldSymbol.Component.OutputPorts
-    let equivPortIds = 
+    let equivPortIds =
         List.zip oldInPortIds inPortIds @ List.zip oldOutPortIds outPortIds
         |> Map.ofList
-    let portOrientation = 
+    let portOrientation =
         (Map.empty,oldSymbol.PortMaps.Orientation)
-        ||> Map.fold 
+        ||> Map.fold
             (fun currMap oldPortId edge -> Map.add equivPortIds[oldPortId] edge currMap)
 
-    let emptyPortOrder = 
+    let emptyPortOrder =
         (Map.empty, [Edge.Top; Edge.Bottom; Edge.Left; Edge.Right])
         ||> List.fold (fun currMap edge -> Map.add edge [] currMap)
     let portOrder =
         (emptyPortOrder, oldSymbol.PortMaps.Order)
-        ||> Map.fold 
-            (fun currMap side oldList -> 
+        ||> Map.fold
+            (fun currMap side oldList ->
                 let newList =
                     ([], oldList)
-                    ||> List.fold 
+                    ||> List.fold
                         (fun currList oldPortId ->
                             currList @ [equivPortIds[oldPortId]])
                 Map.add side newList currMap)
@@ -142,49 +142,49 @@ let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
 /// Currently drag-and-drop.
 /// Pastes a list of symbols into the model and returns the new model and the id of the pasted modules.
 let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT.Wire>) (newBasePos: XYPos) : (Model * ComponentId list) =
-    
+
     let oldSymbolsList =
             model.CopiedSymbols
             |> Map.toList
             |> List.map snd
-    
+
     let addNewSymbol (basePos: XYPos) ((currSymbolModel, pastedIdsList) : Model * ComponentId List) (oldSymbol: Symbol): Model * ComponentId List =
-        
+
         let newId = JSHelpers.uuid()
         let newPos = oldSymbol.Pos - basePos + newBasePos
         let compType = oldSymbol.Component.Type
-        let newLabel = 
+        let newLabel =
             match compType with
             | IOLabel  -> //Wire label is special case: if the driver of the wire label is not included -> keep same name
                           //else generate new label (cannot have wire labels with same name driven by 2 different components)
                 let inPortId = oldSymbol.Component.InputPorts[0].Id
                 let wires = wireMap |> Map.toList |> List.map snd
-                let targetWire = 
+                let targetWire =
                     wires
-                    |> List.tryFind (fun w -> w.InputPort = (InputPortId inPortId)) 
+                    |> List.tryFind (fun w -> w.InputPort = (InputPortId inPortId))
                 match targetWire with
-                |Some w -> 
+                |Some w ->
                     let origSymPortId = match w.OutputPort with |OutputPortId id -> id
-                    let origSym = 
-                        oldSymbolsList 
+                    let origSym =
+                        oldSymbolsList
                         |> List.tryFind (fun s -> (List.exists (fun (p:Port) -> p.Id = origSymPortId) s.Component.OutputPorts))
-                    
-                    match origSym with 
+
+                    match origSym with
                     |Some s -> generateIOLabel { model with Symbols = currSymbolModel.Symbols} compType oldSymbol.Component.Label
                     |None -> generateCopiedLabel { model with Symbols = currSymbolModel.Symbols} oldSymbol compType
                 |None -> generateCopiedLabel { model with Symbols = currSymbolModel.Symbols} oldSymbol compType
-            | _ -> 
+            | _ ->
                 compType
                 |> generateCopiedLabel { model with Symbols = currSymbolModel.Symbols} oldSymbol
 
         let newComp = makeComponent newPos compType newId newLabel
-       
+
         let newSymbol =
             { oldSymbol with
                 Id = ComponentId newId
                 Component = newComp
                 Pos = newPos
-                Appearance = 
+                Appearance =
                     {oldSymbol.Appearance with
                         ShowPorts = ShowNone
                         // ShowOutputPorts = false
@@ -194,22 +194,22 @@ let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT
             }
             |> Symbol.autoScaleHAndW
 
-        
-             
+
+
         let newSymbolMap = currSymbolModel.Symbols.Add (ComponentId newId, newSymbol)
         let newPorts = addToPortModel currSymbolModel newSymbol
         let newModel = { currSymbolModel with Symbols = newSymbolMap; Ports = newPorts }
         let newPastedIdsList = pastedIdsList @ [ newSymbol.Id ]
         newModel, newPastedIdsList
-        
+
 
     match oldSymbolsList with
     | [] -> model, []
-    | _ -> 
+    | _ ->
         let baseSymbol = List.minBy (fun sym -> sym.Pos.X) oldSymbolsList
         let basePos = baseSymbol.Pos + { X = (float baseSymbol.Component.W) / 2.0; Y = (float baseSymbol.Component.H) / 2.0 }
         ((model, []), oldSymbolsList) ||> List.fold (addNewSymbol basePos)
- 
+
 /// Returns the hostId of the port in model
 let getPortHostId (model: Model) portId =
    model.Ports[portId].HostId
@@ -218,7 +218,7 @@ let getPortHostId (model: Model) portId =
 /// Returns Some if there is exactly one element in copiedIds matching the target AND if there is an element in pastedIds at that same index, None otherwise.
 let tryGetPastedEl copiedIds pastedIds target =
     // try to look for a symbol in copiedIds, get the index and return pastedIds[index]
-    let indexedTarget = 
+    let indexedTarget =
         copiedIds
         |> List.indexed
         |> List.filter (fun (_, id) -> id = target)
@@ -229,7 +229,7 @@ let tryGetPastedEl copiedIds pastedIds target =
 
 /// Returns a tuple of the list of input ports of a given input symbol, and list of output ports of a given output symbol
 let getPortIds (input: Symbol) (output: Symbol) : (string list * string list)=
-    let inPortIds = 
+    let inPortIds =
         input.Component.InputPorts
         |> List.map (fun port -> port.Id)
     let outPortIds =
@@ -256,31 +256,31 @@ let getEquivalentCopiedPorts (model: Model) (copiedIds) (pastedIds) (InputPortId
     let findEquivalentPorts compId1 compId2 =
         let copiedComponent = model.CopiedSymbols[compId1].Component
         let pastedComponent = model.Symbols[compId2].Component // TODO: These can be different for an output gate for some reason.
-        
+
         let tryFindEquivalentPort (copiedPorts: Port list) (pastedPorts: Port list) targetPort =
             if copiedPorts.Length = 0 || pastedPorts.Length = 0
             then None
             else
                 match List.tryFindIndex ( fun (port: Port) -> port.Id = targetPort ) copiedPorts with
-                | Some portIndex -> 
+                | Some portIndex ->
 
                     Some pastedPorts[portIndex].Id // Get the equivalent port in pastedPorts. Assumes ports at the same index are the same (should be the case unless copy pasting went wrong).
                 | _ -> None
-        
+
         let pastedInputPortId = tryFindEquivalentPort copiedComponent.InputPorts pastedComponent.InputPorts copiedInputPort
         let pastedOutputPortId = tryFindEquivalentPort copiedComponent.OutputPorts pastedComponent.OutputPorts copiedOutputPort
-    
+
         pastedInputPortId, pastedOutputPortId
-        
+
     let foundPastedPorts =
         List.zip copiedIds pastedIds
         |> List.map (fun (compId1, compId2) -> findEquivalentPorts compId1 compId2)
-    
+
     let foundPastedInputPort = List.collect (function | Some a, _ -> [a] | _ -> []) foundPastedPorts
     let foundPastedOutputPort = List.collect (function | _, Some b -> [b] | _ -> []) foundPastedPorts
-    
-    match foundPastedInputPort, foundPastedOutputPort with 
-    | [pastedInputPort], [pastedOutputPort] -> Some (pastedInputPort, pastedOutputPort) 
+
+    match foundPastedInputPort, foundPastedOutputPort with
+    | [pastedInputPort], [pastedOutputPort] -> Some (pastedInputPort, pastedOutputPort)
     | _ -> None // If either of source or target component of the wire was not copied then we discard the wire
 
 /// Creates and adds a symbol into model, returns the updated model and the component id
@@ -296,20 +296,20 @@ let addSymbol (ldcs: LoadedComponent list) (model: Model) pos compType lbl =
 
 /// Given a model and a list of component ids deletes the specified components from the model and returns the updated model
 let inline deleteSymbols (model: Model) compIds =
-    let newSymbols = 
+    let newSymbols =
         (model.Symbols, compIds)
-        ||> List.fold (fun prevModel sId -> Map.remove sId prevModel) 
+        ||> List.fold (fun prevModel sId -> Map.remove sId prevModel)
     { model with Symbols = newSymbols }
 
 /// Given a model and a list of component ids copies the specified components and returns the updated model
 let copySymbols (model: Model) compIds =
-    let copiedSymbols = 
+    let copiedSymbols =
         model.Symbols
-        |> Map.filter (fun compId _ -> List.contains compId compIds) 
+        |> Map.filter (fun compId _ -> List.contains compId compIds)
 
     { model with CopiedSymbols = copiedSymbols }
 
-    
+
 /// Move a symbol by the amount specified by move
 let private moveSymbol (move: XYPos) (sym: Symbol) : Symbol =
     {sym with
@@ -326,9 +326,9 @@ let private moveSymbol (move: XYPos) (sym: Symbol) : Symbol =
 
 /// Given a model, a component id list and an offset, moves the components by offset and returns the updated model
 let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
-    let resetSymbols = 
+    let resetSymbols =
         model.Symbols
-        |> Map.map (fun _ sym -> { sym with Moving = false}) 
+        |> Map.map (fun _ sym -> { sym with Moving = false})
 
     let moveSymbolInMap prevSymbols sId =
         prevSymbols
@@ -343,7 +343,7 @@ let moveSymbols (model:Model) (compList: ComponentId list) (offset: XYPos)=
 
 /// Given a model and a component id list, sets the color of the sepcified symbols to red and every other symbol's color to gray
 let inline symbolsHaveError model compList =
-    let resetSymbols = 
+    let resetSymbols =
         model.Symbols
         |> Map.map (fun _ sym -> set (appearance_ >-> colour_) (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) sym)
 
@@ -352,55 +352,55 @@ let inline symbolsHaveError model compList =
 
     let newSymbols =
         (resetSymbols, compList)
-        ||> List.fold setSymColorToRed 
+        ||> List.fold setSymColorToRed
     { model with Symbols = newSymbols }
 
 /// Given a model and a component id list, it updates the specified symbols' colour to green with max opacity, and every other symbols' colour to gray
 let inline selectSymbols model compList =
-    let resetSymbols = 
+    let resetSymbols =
         model.Symbols
-        |> Map.map (fun _ sym -> 
+        |> Map.map (fun _ sym ->
             sym
             |> map appearance_ (
-                set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> 
-                set opacity_ 1.0 
+                set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >>
+                set opacity_ 1.0
             )
             |> set moving_ false
         )
 
     let updateSymbolColour prevSymbols sId =
         Map.add sId (set (appearance_ >-> colour_) "lightgreen" (set moving_ true resetSymbols[sId])) prevSymbols
-    
+
     let newSymbols =
         (resetSymbols, compList)
-        ||> List.fold updateSymbolColour 
+        ||> List.fold updateSymbolColour
 
     { model with Symbols = newSymbols}
 
 /// Given a model, an error component list, a selected component id list, it updates the selected symbols' color to green if they are not selected, and changes the symbols with errors to red. It returns the updated model.
 let inline errorSymbols model (errorCompList,selectCompList,isDragAndDrop) =
-    let resetSymbols = 
+    let resetSymbols =
         model.Symbols
-        |> Map.map 
+        |> Map.map
             (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked model.Theme) >> set opacity_ 1.0) sym)
-            
+
     let updateSymbolStyle prevSymbols sId =
-        if not isDragAndDrop then 
+        if not isDragAndDrop then
             Map.add sId (set (appearance_ >-> colour_) "lightgreen" resetSymbols[sId]) prevSymbols
-        else 
+        else
             Map.add sId (set (appearance_ >-> opacity_) 0.2 resetSymbols[sId]) prevSymbols
 
     let selectSymbols =
         (resetSymbols, selectCompList)
-        ||> List.fold updateSymbolStyle 
+        ||> List.fold updateSymbolStyle
 
     let setSymColourToRed prevSymbols sId =
         Map.add sId (set (appearance_ >-> colour_) "Red" resetSymbols[sId]) prevSymbols
 
-    let newSymbols = 
+    let newSymbols =
         (selectSymbols, errorCompList)
         ||> List.fold setSymColourToRed
-        
+
     { model with Symbols = newSymbols }
 
 /// Given a model, a symbol id and a new label changes the label of the symbol to the new label and returns the updated model.
@@ -410,7 +410,7 @@ let inline changeLabel (model: Model) sId newLabel=
         model // do nothing if symbol has been deleted
     | Some oldSym ->
         let newComp = {oldSym.Component with Label = newLabel}
-        let newSym = 
+        let newSym =
             { oldSym with Component = newComp; LabelHasDefaultPos = true}
             |> calcLabelBoundingBox
         set (symbolOf_ sId) newSym model
@@ -419,7 +419,7 @@ let inline changeLabel (model: Model) sId newLabel=
 /// Given a model, a component id list and a color, updates the color of the specified symbols and returns the updated model.
 let inline colorSymbols (model: Model) compList colour =
     let changeSymColour (prevSymbols: Map<ComponentId, Symbol>) (sId: ComponentId) =
-        let newSymbol = set (appearance_ >-> colour_) (string colour) prevSymbols[sId] 
+        let newSymbol = set (appearance_ >-> colour_) (string colour) prevSymbols[sId]
         prevSymbols |> Map.add sId newSymbol
 
     let newSymbols =
@@ -431,11 +431,11 @@ let inline colorSymbols (model: Model) compList colour =
 /// Initialises a symbol containing the component and returns the updated symbol map containing the new symbol
 let createSymbolRecord ldcs theme comp =
         let clocked = isClocked [] ldcs comp
-        let portMaps = 
+        let portMaps =
             match comp.SymbolInfo with
-                | None -> 
+                | None ->
                     initPortOrientation comp
-                | Some info -> 
+                | Some info ->
                     {Order=info.PortOrder; Orientation=info.PortOrientation}
         let xyPos = {X = comp.X; Y = comp.Y}
         let (h,w) =
@@ -451,7 +451,7 @@ let createSymbolRecord ldcs theme comp =
             match comp.SymbolInfo with
             | Some {LabelBoundingBox=Some info} ->  false, info
             | _ -> true, {TopLeft=xyPos; W=0.;H=0.}
-        { 
+        {
             Pos = xyPos
             CentrePos = {X = 0.; Y = 0}
             OffsetFromBBCentre = {X = 0.; Y = 0.}
@@ -476,7 +476,7 @@ let createSymbolRecord ldcs theme comp =
             STransform = getSTransformWithDefault comp.SymbolInfo
             ReversedInputPorts = match comp.SymbolInfo with |Some si -> si.ReversedInputPorts |_ -> None
             PortMaps = portMaps
-                
+
             MovingPort = None
             IsClocked = clocked
             MovingPortTarget = None
@@ -518,7 +518,7 @@ let createAnnotation (theme: ThemeType) (a:Annotation) (pos: XYPos)  =
     (14.0,14.0)
     ||> createDummyComponent pos
     |> createSymbolRecord [] theme
-    |> (fun sym -> {sym with Annotation= Some a; Moving = true}) 
+    |> (fun sym -> {sym with Annotation= Some a; Moving = true})
 
 /// Given a model and a list of components, it creates and adds the symbols containing
 /// the specified components and returns the updated model.
@@ -527,7 +527,7 @@ let loadComponents loadedComponents model comps=
         (model.Symbols, comps) ||> List.fold (createSymbol loadedComponents model.Theme)
     let addPortsToModel currModel _ sym =
         { currModel with Ports = addToPortModel currModel sym }
-        
+
     let newModel = ( model, symbolMap ) ||> Map.fold addPortsToModel
 
     { newModel with Symbols = symbolMap }
@@ -549,40 +549,40 @@ let inline writeMemoryLine model (compId, addr, value) =
     let newSym = (set (component_ >-> type_) newCompType symbol)
     set (symbolOf_ compId) newSym model
 
-    
+
 /// Given a model, a component Id and a memory component type, updates the type of the component to the specified memory type and returns the updated model.
 let inline writeMemoryType model compId memory =
     let symbol = model.Symbols[compId]
-    let comp = symbol.Component 
-    
+    let comp = symbol.Component
+
     let newCompType =
         match comp.Type with
         | RAM1 _ | AsyncRAM1 _ | ROM1 _ | AsyncROM1 _ -> memory
-        | _ -> 
+        | _ ->
             printfn $"Warning: improper use of WriteMemoryType on {comp} ignored"
             comp.Type
-    
+
     let newComp = { comp with Type = newCompType }
-    
+
     set (symbolOf_ compId >-> component_) newComp model
 
 /// Given a model, a component Id and a memory component type, updates the type of the component to the specified memory and returns the updated model.
 let inline updateMemory model compId updateFn =
     let symbol = model.Symbols[compId]
-    let comp = symbol.Component 
-    
+    let comp = symbol.Component
+
     let newCompType =
         match comp.Type with
         | RAM1 m -> RAM1 (updateFn m)
         | ROM1 m -> ROM1 (updateFn m)
         | AsyncROM1 m -> AsyncROM1 (updateFn m)
         | AsyncRAM1 m -> AsyncRAM1 (updateFn m)
-        | _ -> 
+        | _ ->
             printfn $"Warning: improper use of WriteMemoryType on {comp} ignored"
             comp.Type
-    
+
     let newComp = { comp with Type = newCompType }
-    
+
     Optic.set (symbolOf_ compId >-> component_) newComp model
 
 
@@ -613,12 +613,12 @@ let inline updateSymbol (updateFn: Symbol->Symbol) (compId: ComponentId) (model:
     { model with Symbols = model.Symbols.Add (compId, updateFn model.Symbols[compId]) }
 
 let inline transformSymbols transform model compList =
-    let transformedSymbols = 
+    let transformedSymbols =
         compList |> List.map (fun id-> transform model.Symbols[id])
-    let newSymbolMap = 
-        (model.Symbols, transformedSymbols) 
+    let newSymbolMap =
+        (model.Symbols, transformedSymbols)
         ||> List.fold (fun currSymMap sym -> currSymMap |> Map.add sym.Id sym)
-    
+
 
     set symbols_ newSymbolMap model
 
@@ -629,7 +629,7 @@ let inline transformSymbols transform model compList =
 /// Move a symbol's label by the amount specified by move
 let private moveLabel (move: XYPos) (sym: Symbol) : Symbol =
     {sym with
-        LabelBoundingBox = 
+        LabelBoundingBox =
             {sym.LabelBoundingBox with TopLeft = sym.LabelBoundingBox.TopLeft + move}
         LabelHasDefaultPos = false
     }
@@ -652,12 +652,12 @@ let getLayoutInfoFromSymbol symbol =
     { STransform = symbol.STransform
       ReversedInputPorts = symbol.ReversedInputPorts
       PortOrientation = symbol.PortMaps.Orientation
-      PortOrder = symbol.PortMaps.Order 
+      PortOrder = symbol.PortMaps.Order
       LabelRotation = symbol.LabelRotation
-      LabelBoundingBox = 
-        if symbol.LabelHasDefaultPos then 
-            None 
-        else 
+      LabelBoundingBox =
+        if symbol.LabelHasDefaultPos then
+            None
+        else
             Some symbol.LabelBoundingBox
       HScale = symbol.HScale
       VScale = symbol.VScale
@@ -679,24 +679,24 @@ let checkSymbolIntegrity (sym: Symbol) =
 let ChangeGate (compId, gateType, numInputs) model =
     let newSymbol = changeGateComponent model compId gateType numInputs
     let newPorts = addToPortModel model newSymbol
-    let newModel = {model with Ports = newPorts}  
+    let newModel = {model with Ports = newPorts}
     (replaceSymbol newModel newSymbol compId)
-    
+
 let ChangeMergeN (compId, numInputs) model =
     let newSymbol = changeMergeNComponent model compId numInputs
     let newPorts = addToPortModel model newSymbol
-    let newModel = {model with Ports = newPorts}  
+    let newModel = {model with Ports = newPorts}
     (replaceSymbol newModel newSymbol compId)
 
 let ChangeSplitN (compId, numInputs, widths, lsbs) model =
         let newSymbol = changeSplitNComponent model compId numInputs widths lsbs
         let newPorts = addToPortModel model newSymbol
-        let newModel = {model with Ports = newPorts}  
+        let newModel = {model with Ports = newPorts}
         (replaceSymbol newModel newSymbol compId)
 
 
 /// Update function which displays symbols
-let update (msg : Msg) (model : Model): Model*Cmd<'a>  =     
+let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
     | UpdateBoundingBoxes ->
         // message used to update symbol bounding boxes in sheet.
@@ -720,14 +720,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         (showAllOutputPorts model), Cmd.none
 
     | DeleteAllPorts ->
-        (deleteAllPorts model), Cmd.none 
+        (deleteAllPorts model), Cmd.none
 
     | ShowPorts compList ->
         (showPorts model compList), Cmd.none
 
     | ShowCustomOnlyPorts compList ->
         (showCustomPorts model compList), Cmd.none
-    | MoveSymbols (compList, move) -> 
+    | MoveSymbols (compList, move) ->
         (moveSymbols model compList move), Cmd.none
 
     | MoveLabel (compId, move) ->
@@ -738,11 +738,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | SelectSymbols compList ->
         // printfn "update msg: selectsymbols"
-        (selectSymbols model compList), Cmd.none  
+        (selectSymbols model compList), Cmd.none
 
-    | ErrorSymbols (errorCompList,selectCompList,isDragAndDrop) -> 
-        (errorSymbols model (errorCompList,selectCompList,isDragAndDrop)), Cmd.none 
-        
+    | ErrorSymbols (errorCompList,selectCompList,isDragAndDrop) ->
+        (errorSymbols model (errorCompList,selectCompList,isDragAndDrop)), Cmd.none
+
     | MouseMsg _ -> model, Cmd.none // allow unused mouse messages
 
     | ChangeLabel (sId, newLabel) ->
@@ -751,26 +751,26 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | PasteSymbols compList ->
         let newSymbols =
             (model.Symbols, compList)
-            ||> List.fold (fun prevSymbols sId -> 
-                Map.add sId (set (appearance_ >-> opacity_) 0.4 model.Symbols[sId]) prevSymbols) 
-        { model with Symbols = newSymbols }, Cmd.none  
-    
-    | ColorSymbols (compList, colour) -> 
-        (colorSymbols model compList colour), Cmd.none 
-    
+            ||> List.fold (fun prevSymbols sId ->
+                Map.add sId (set (appearance_ >-> opacity_) 0.4 model.Symbols[sId]) prevSymbols)
+        { model with Symbols = newSymbols }, Cmd.none
+
+    | ColorSymbols (compList, colour) ->
+        (colorSymbols model compList colour), Cmd.none
+
     | ChangeNumberOfBits (compId, newBits) ->
         let newsymbol = changeNumberOfBitsf model compId newBits
         (replaceSymbol model newsymbol compId), Cmd.none
-    
+
     | ChangeScale (compId,newScale,whichScale) ->
         let symbol = Map.find compId model.Symbols
-        let newSymbol = 
+        let newSymbol =
             match whichScale with
             |Horizontal -> {symbol with HScale=Some newScale}
             |Vertical -> {symbol with VScale=Some newScale}
         (replaceSymbol model newSymbol compId), Cmd.none
 
-    | ChangeLsb (compId, newLsb) -> 
+    | ChangeLsb (compId, newLsb) ->
         let newsymbol = changeLsbf model compId newLsb
         (replaceSymbol model newsymbol compId), Cmd.none
 
@@ -784,57 +784,57 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | ChangeAdderComponent (compId, oldComp, newComp) ->
         let newSymbol = changeAdderComponent model compId oldComp newComp
         let newPorts = addToPortModel model newSymbol
-        let newModel = {model with Ports = newPorts}  
+        let newModel = {model with Ports = newPorts}
         (replaceSymbol newModel newSymbol compId), Cmd.none
     | ChangeCounterComponent (compId, oldComp, newComp) ->
         let newSymbol = changeCounterComponent model compId oldComp newComp
         let newPorts = addToPortModel model newSymbol
-        let newModel = {model with Ports = newPorts}  
+        let newModel = {model with Ports = newPorts}
         (replaceSymbol newModel newSymbol compId), Cmd.none
-    | ChangeConstant (compId, newVal, newText) -> 
+    | ChangeConstant (compId, newVal, newText) ->
         let newsymbol = changeConstantf model compId newVal newText
         (replaceSymbol model newsymbol compId), Cmd.none
-    
-    | ChangeBusCompare (compId, newVal, newText) -> 
+
+    | ChangeBusCompare (compId, newVal, newText) ->
         let newsymbol = changeBusComparef model compId newVal newText
         (replaceSymbol model newsymbol compId), Cmd.none
 
-    | ResetModel -> 
+    | ResetModel ->
         { model with Symbols = Map.empty; Ports = Map.empty; }, Cmd.none
-    
+
     | LoadComponents (ldcs,comps) ->
         (loadComponents ldcs model comps), Cmd.none
- 
+
     | WriteMemoryLine (compId, addr, value) ->
         writeMemoryLine model (compId, addr, value), Cmd.none
 
     | WriteMemoryType (compId, memory) ->
         (writeMemoryType model compId memory), Cmd.none
 
-    | UpdateMemory (compId, updateFn) ->  
+    | UpdateMemory (compId, updateFn) ->
         (updateMemory model compId updateFn), Cmd.none
 
     | RotateLeft(compList, rotation) ->
         (transformSymbols (rotateSymbol rotation) model compList), Cmd.none
-    
+
     | RotateAntiClockAng (compList, rotationDeg) ->
         (transformSymbols (rotateAntiClockByAng rotationDeg) model compList), Cmd.none
 
     | Flip(compList, orientation) ->
         (transformSymbols (flipSymbol orientation) model compList), Cmd.none
 
-    | MovePort (portId, pos) ->      
+    | MovePort (portId, pos) ->
         movePortUpdate model portId pos
 
     | MovePortDone (portId, pos)->
         let port = model.Ports[portId]
         let symId = ComponentId port.HostId
         let oldSymbol = model.Symbols[symId]
-        let newSymbol = 
+        let newSymbol =
             {(updatePortPos oldSymbol pos portId) with MovingPortTarget = None}
             |> autoScaleHAndW
         set (symbolOf_ symId) newSymbol model, Cmd.ofMsg (unbox UpdateBoundingBoxes)
-    
+
     // HLP23 AUTHOR: BRYAN TAN
     | ShowCustomCorners compId ->
         showCompCorners model ShowAll compId, Cmd.none
@@ -853,22 +853,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         | None ->
             let newSymbol = set (appearance_ >-> showCorners_) DontShow model.Symbols[compId]
             set (symbolOf_ compId) newSymbol model, Cmd.none
-    
+
     | SaveSymbols -> // want to add this message later, currently not used
         let newSymbols = Map.map storeLayoutInfoInComponent model.Symbols
         { model with Symbols = newSymbols }, Cmd.none
 
     | SetTheme (theme) ->
-        let resetSymbols = 
+        let resetSymbols =
             model.Symbols
-            |> Map.map 
+            |> Map.map
                 (fun _ sym ->  Optic.map appearance_ (set colour_ (getSymbolColour sym.Component.Type sym.IsClocked theme)) sym)
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
 
 
 
+
+
 // ----------------------interface to Issie----------------------------- //
-let extractComponent (symModel: Model) (sId:ComponentId) : Component = 
+let extractComponent (symModel: Model) (sId:ComponentId) : Component =
     let symbol = symModel.Symbols[sId]
     let symWithInfo = storeLayoutInfoInComponent () symbol
     symWithInfo.Component

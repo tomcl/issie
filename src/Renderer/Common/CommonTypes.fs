@@ -3,7 +3,7 @@
 *)
 
 module CommonTypes
-    open Fable.Core               
+    open Fable.Core
     open Optics
     #if FABLE_COMPILER
     open Thoth.Json
@@ -21,34 +21,34 @@ module CommonTypes
         }
 
         static member inline zero: XYPos = {X=0.; Y=0.}
-    
+
         /// allowed tolerance when comparing positions with floating point errors for equality
         static member inline epsilon = 0.0000001
-    
+
         /// Add postions as vectors (overlaoded operator)
         static member inline ( + ) (left: XYPos, right: XYPos) =
             { X = left.X + right.X; Y = left.Y + right.Y }
-    
+
         /// Subtract positions as vectors (overloaded operator)
         static member inline ( - ) (left: XYPos, right: XYPos) =
             { X = left.X - right.X; Y = left.Y - right.Y }
-    
+
         /// Scale a position by a number (overloaded operator).
         static member inline ( * ) (pos: XYPos, scaleFactor: float) =
             { X = pos.X*scaleFactor; Y = pos.Y * scaleFactor }
-    
-        /// Compare positions as vectors. Comparison is approximate so 
+
+        /// Compare positions as vectors. Comparison is approximate so
         /// it will work even with floating point errors. New infix operator.
         static member inline ( =~ ) (left: XYPos, right: XYPos) =
             abs (left.X - right.X) <= XYPos.epsilon && abs (left.Y - right.Y) <= XYPos.epsilon
-    
-    let inline euclideanDistance (pos1: XYPos) (pos2:XYPos) = 
+
+    let inline euclideanDistance (pos1: XYPos) (pos2:XYPos) =
         let vec = pos1 - pos2
         sqrt(vec.X**2 + vec.Y**2)
-    
+
     /// example use of comparison operator: note that F# type inference will not work without at least
     /// one of the two operator arguments having a known XYPos type.
-    let private testXYPosComparison a  (b:XYPos) = 
+    let private testXYPosComparison a  (b:XYPos) =
         a =~ b
 
     /// display XYPos as string nicely for debugging
@@ -56,7 +56,7 @@ module CommonTypes
         if max (abs x) (abs y) > 20. then
             $"(%.0f{x},%.0f{y})"
         else
-            $"(%.2f{x},%.2f{y})" 
+            $"(%.2f{x},%.2f{y})"
 
 
     //==========================================//
@@ -84,7 +84,7 @@ module CommonTypes
     6. For symbols port numbers determine the vertical order in which ports are displayed.
     7. Thus when changing the order of number of I/Os on a custom component port numbers can be changed
        as long as port lists and port name lists are similarly re-ordered.
-    8. In the simulation port numbers are not relevant for custom comps - connections match port names with the 
+    8. In the simulation port numbers are not relevant for custom comps - connections match port names with the
        sheet input or output component for the port
     9. In the simulation port numbers matter for all other ports: the simulator defines operation based on them.
     10.In model.Symbol ports are kept in a single global map, including port numbers. If port numbers are permuted on
@@ -97,7 +97,7 @@ module CommonTypes
     /// A component I/O.
     ///
     /// Id (like any other Id) is a string generated with 32 random hex charactes,
-    /// so it is (practically) globally unique. These Ids are used 
+    /// so it is (practically) globally unique. These Ids are used
     /// to uniquely refer to ports and components. They are generated via uuid().
     ///
     /// PortNumber is used to identify which port is which on a component, contiguous from 0
@@ -108,13 +108,13 @@ module CommonTypes
     type Port = {
         Id : string
         // For example, an And would have input ports 0 and 1, and output port 0.
-        // If the port is used in a Connection record as Source or Target, the Number is None. 
+        // If the port is used in a Connection record as Source or Target, the Number is None.
         PortNumber : int option
-        PortType : PortType 
+        PortType : PortType
         HostId : string
     }
 
-    
+
     type PortId = | PortId of string
 
     // NB - this.Text() is not currently used.
@@ -132,8 +132,8 @@ module CommonTypes
             | Six -> "6px"
             | Seven -> "7px"
             | Eight -> "8px"
-            
-            
+
+
     /// Type to specify the origin of a custom component
     type CCForm =
         |User
@@ -162,7 +162,7 @@ module CommonTypes
     type Memory = {
         // How many bits the address should have.
         // The memory will have 2^AddressWidth memory locations.
-        AddressWidth : int 
+        AddressWidth : int
         // How wide each memory word should be, in bits.
         WordWidth : int
         // Data is a list of <2^AddressWidth> elements, where each element is a
@@ -172,8 +172,8 @@ module CommonTypes
         Data : Map<int64,int64>
     }
 
-   
-    type InitMemData = 
+
+    type InitMemData =
         | FromData // old method (from data field)
         | FromFile of string // FromFile fName => read a file fName.ram for data
         | ToFile of string // ToFile fName => write data to a file fName.ram
@@ -187,22 +187,22 @@ module CommonTypes
     Init: InitMemData
     // How many bits the address should have.
     // The memory will have 2^AddressWidth memory locations.
-    AddressWidth : int 
+    AddressWidth : int
     // How wide each memory word should be, in bits.
     WordWidth : int
     // Data is a list of <2^AddressWidth> elements, where each element is a
     // 64 bit integer. This makes words longer than 64 bits not supported.
     // This can be changed by using strings instead of int64, but that is way
     // less memory efficient.
-    Data : Map<int64,int64>  
-    } 
+    Data : Map<int64,int64>
+    }
 
-    
+
     type ShiftComponentType =
         |LSL
         |LSR
         |ASR
-    
+
     [<StringEnum>]
     type GateComponentType =
         | And
@@ -214,14 +214,14 @@ module CommonTypes
 
     /// Option of this qualifies NBitsXOr to allow many different components
     /// None => Xor
-    /// TODO to reduce technical debt: 
+    /// TODO to reduce technical debt:
     ///     Rename NbitsXor as NBitsCustom, put all the Nbits ops into this D.U.
     ///     Change catalog entries for all NBits ops to use NBitsCustom, alter load to remain compatibility.
     type NBitsArithmetic =
         | Multiply
         //Divide   uncomment or add new cases to implement additional N bit operations. (match warnings will show what must be added)
         //Modulo
-    
+
     // Each case contains the data needed to define a digital component of given Type
     // Used to read .dgm files, which may contain legacy ComponentType D.U. cases no longer used
     // Any NEW case added here must also be added (with identical from) to JSONComponentType
@@ -240,10 +240,10 @@ module CommonTypes
         | Not | Decode4
         | GateN of GateType: GateComponentType * NumInputs: int
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
-        | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
-        | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
+        | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int
+        | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int
         | NbitsXor of BusWidth:int * ArithmeticOp: NBitsArithmetic option
-        | NbitsAnd of BusWidth: int 
+        | NbitsAnd of BusWidth: int
         | NbitsNot of BusWidth: int
         | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
         | Custom of CustomComponentType // schematic sheet used as component
@@ -262,7 +262,7 @@ module CommonTypes
         // legacy cases to be deleted?
         | BusCompare of BusWidth: int * CompareValue: uint32
         | Input of BusWidth: int
-        | Constant of Width: int * ConstValue: int64 
+        | Constant of Width: int * ConstValue: int64
 
 
 
@@ -273,12 +273,12 @@ module CommonTypes
         match cType with
          | GateN (_, n) when n = 2 -> IsBinaryGate
          | _ -> NotBinaryGate
-    
+
     let inline isNegated gateType =
         match gateType with
         | Nand | Nor | Xnor -> true
         | And | Or | Xor -> false
-    
+
     let (|IsGate|NoGate|) cType =
         match cType with
         | GateN _ -> IsGate
@@ -296,7 +296,7 @@ module CommonTypes
 
     let (|Memory|_|) (typ:ComponentType) =
         match typ with
-        | RAM1 mem 
+        | RAM1 mem
         | AsyncRAM1 mem
         | ROM1 mem
         | AsyncROM1 mem -> Some mem
@@ -314,12 +314,12 @@ module CommonTypes
     // --------------- Types needed for symbol ---------------- //
     /// Represents the rotation of a symbol in degrees, Degree0 is the default symbol rotation.
     /// Angle is anticlockwise
-   
+
     type Rotation = | Degree0 | Degree90 | Degree180 | Degree270
-    
+
     /// Stores the rotation and the flip of the symbol, flipped false by default
     type STransform = {Rotation: Rotation; flipped: bool}
-    
+
     /// Represents the sides of a component
 
     type Edge =
@@ -327,7 +327,7 @@ module CommonTypes
         | Bottom
         | Left
         | Right
-        
+
         /// HLP23: AUTHOR dgs119
         member this.Opposite =
             match this with
@@ -338,7 +338,7 @@ module CommonTypes
 
     /// Holds possible directions to sort ports.
     /// HLP23: AUTHOR dgs119
-    
+
     type Direction =
         | Clockwise
         | AntiClockwise
@@ -348,6 +348,13 @@ module CommonTypes
             | Clockwise -> AntiClockwise
             | _ -> Clockwise
 
+    // define this first, then extend later with members to convert to bounding box
+    type Rectangle = {
+        TopLeft: XYPos
+        BottomRight: XYPos
+    }
+
+
     type BoundingBox = {
         /// Top left corner of the bounding box
         TopLeft: XYPos
@@ -355,8 +362,28 @@ module CommonTypes
         W: float
         /// Height
         H: float
-    }
-        with member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
+        }
+
+        with
+        member this.Centre() = this.TopLeft + {X=this.W/2.; Y=this.H/2.}
+        member inline this.ToRect = {TopLeft=this.TopLeft; BottomRight=(this.TopLeft + {X=this.W; Y=this.H})}
+
+        /// TDC21: allowed tolerance when comparing positions with floating point errors for equality
+        /// define a static member BoundingBox for comparisons, to be used in D1
+        static member inline epsilon = 0.0000001
+        static member inline (=~)(left: BoundingBox, right: BoundingBox) =
+            (left.TopLeft =~ right.TopLeft)
+            && abs (left.W - right.W) <= BoundingBox.epsilon
+            && abs (left.H - right.H) <= BoundingBox.epsilon
+
+
+    type Rectangle
+        with
+        member this.Centre = (this.TopLeft + this.BottomRight) * 0.5
+        member inline this.ToBoundingBox = {TopLeft=this.TopLeft; W=this.BottomRight.X - this.TopLeft.X; H=this.BottomRight.Y - this.TopLeft.Y}
+        static member inline epsilon = 0.0001
+        static member inline (=~)(left: Rectangle, right: Rectangle) =
+            left.TopLeft =~ right.TopLeft && left.BottomRight =~ right.BottomRight
 
 
     let topLeft_ = Lens.create (fun a -> a.TopLeft) (fun s a -> {a with TopLeft = s})
@@ -365,7 +392,7 @@ module CommonTypes
     type ScaleAdjustment =
         | Horizontal
         | Vertical
-    
+
     type SymbolInfo = {
         LabelBoundingBox: BoundingBox option
         LabelRotation: Rotation option
@@ -394,11 +421,11 @@ module CommonTypes
         Id : string
         Type : ComponentType
         /// All components have a label that may be empty: label is not unique
-        Label : string 
+        Label : string
         // position on this list determines inputPortNumber
-        InputPorts : Port list 
+        InputPorts : Port list
         /// position in this list determines OutputPortNumber
-        OutputPorts : Port list 
+        OutputPorts : Port list
         X : float
         Y : float
         /// Height
@@ -410,10 +437,10 @@ module CommonTypes
         SymbolInfo : SymbolInfo option
     }
 
-    with member this.getPort (PortId portId: PortId) = 
+    with member this.getPort (PortId portId: PortId) =
             List.tryFind (fun (port:Port) -> port.Id = portId ) (this.InputPorts @ this.OutputPorts)
-     
-     
+
+
     let type_ = Lens.create (fun c -> c.Type) (fun n c -> {c with Type = n})
     let inputPorts_ = Lens.create (fun c -> c.InputPorts) (fun n c -> {c with InputPorts = n})
     let outputPorts_ = Lens.create (fun c -> c.OutputPorts) (fun n c -> {c with OutputPorts = n})
@@ -433,7 +460,7 @@ module CommonTypes
     /// F# data describing the contents of a single schematic sheet.
     type CanvasState = Component list * Connection list
 
-    
+
 
     /// reduced version of CanvasState for electrical comparison, all geometry removed, components ordered
     type ReducedCanvasState = | ReducedCanvasState of CanvasState
@@ -469,10 +496,10 @@ module CommonTypes
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
             | GateN of GateType: GateComponentType * NumInputs: int
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
-            | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int 
-            | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int 
+            | NbitsAdder of BusWidth: int | NbitsAdderNoCin of BusWidth: int
+            | NbitsAdderNoCout of BusWidth: int | NbitsAdderNoCinCout of BusWidth: int
             | NbitsXor of BusWidth:int * ArithmeticOp: NBitsArithmetic option
-            | NbitsAnd of BusWidth: int 
+            | NbitsAnd of BusWidth: int
             | NbitsNot of BusWidth: int
             | NbitsOr of BusWidth: int | NbitSpreader of BusWidth: int
             | Custom of CustomComponentType // schematic sheet used as component
@@ -491,7 +518,7 @@ module CommonTypes
             //---------------Legacy cases not in the Issie ComponentType here-------------------//
             | BusCompare of BusWidth: int * CompareValue: uint32
             | Input of BusWidth: int
-            | Constant of Width: int * ConstValue: int64 
+            | Constant of Width: int * ConstValue: int64
 
 
 
@@ -516,7 +543,7 @@ module CommonTypes
     /// The default transform unboxes the value which works when there is no chnage in the JS value
     /// representation
     let convertFromJSONComponent (comp: JSONComponent.Component) : Component =
-        let newType (ct: JSONComponent.ComponentType) : ComponentType = 
+        let newType (ct: JSONComponent.ComponentType) : ComponentType =
             match ct with
             | JSONComponent.ComponentType.Input1 (a,b) -> Input1 (a,b)
             | JSONComponent.ComponentType.Output x -> Output x
@@ -558,7 +585,7 @@ module CommonTypes
             | JSONComponent.ComponentType.DFF -> DFF
             | JSONComponent.ComponentType.DFFE -> DFFE
             | JSONComponent.ComponentType.Register x -> Register x
-            | JSONComponent.ComponentType.RegisterE x -> RegisterE x 
+            | JSONComponent.ComponentType.RegisterE x -> RegisterE x
             | JSONComponent.ComponentType.Counter x -> Counter x
             | JSONComponent.ComponentType.CounterNoLoad x -> CounterNoLoad x
             | JSONComponent.ComponentType.CounterNoEnable x -> CounterNoEnable x
@@ -679,20 +706,20 @@ module CommonTypes
 
 
 
-        
 
-            
-            
+
+
+
     // This code is for VERY OLD circuits...
     let legacyTypesConvert (lComps, lConns) =
         let convertConnection (c:LegacyCanvas.LegacyConnection) : Connection =
             {
-                Id=c.Id; 
+                Id=c.Id;
                 Source=c.Source;
                 Target=c.Target;
-                Vertices = 
+                Vertices =
                     c.Vertices
-                    |> List.map (function 
+                    |> List.map (function
                         | (x,y) when x >= 0. && y >= 0. -> (x,y,false)
                         | (x,y) -> (abs x, abs y, true))
             }
@@ -709,7 +736,7 @@ module CommonTypes
                 H = comp.H
                 W = comp.W
                 SymbolInfo = None
-                    
+
             }
         let comps = List.map convertComponent lComps
         let conns = List.map convertConnection lConns
@@ -732,7 +759,7 @@ module CommonTypes
     /// The Text() method converts it to the correct HTML string
     /// Where speed matters the color must be added as a case in the match statement
     type HighLightColor = Red | Blue | Yellow | Green | Orange | Grey | White | Purple | DarkSlateGrey | Thistle | Brown |SkyBlue
-    with 
+    with
         member this.Text() = // the match statement is used for performance
             match this with
             | Red -> "Red"
@@ -745,8 +772,8 @@ module CommonTypes
             | DarkSlateGrey -> "darkslategrey"
             | Thistle -> "thistle"
             | c -> sprintf "%A" c
-            
-            
+
+
 
     // The next types are not strictly necessary, but help in understanding what is what.
     // Used consistently they provide type protection that greatly reduces coding errors
@@ -769,7 +796,7 @@ module CommonTypes
             | invalid -> Decode.fail (sprintf "Invalid case name: %s" invalid))
 
     /// Unique identifier for a fast component.
-    /// The list is the access path, a list of all the containing custom components 
+    /// The list is the access path, a list of all the containing custom components
     /// from the top sheet of the simulation (root first)
     type FComponentId = ComponentId * ComponentId list
 
@@ -854,7 +881,7 @@ module CommonTypes
     (*-----------------------------------------------------------------------------*)
     // Types used within waveform Simulation code, and for saved wavesim configuartion
 
-    
+
     /// Uniquely identifies a wave by the component it comes from, and the port on which that
     /// wave is from. Two waves can be identical but have a different index (e.g. a wave with
     /// PortType Input must be driven by another wave of PortType Output).
@@ -866,7 +893,7 @@ module CommonTypes
     }
 
 
-    
+
 
 
     /// Info saved by Wave Sim.
@@ -894,14 +921,14 @@ module CommonTypes
 
     /// Info regarding sheet saved in the .dgm file
     type SheetInfo = {
-        Form: CCForm option 
+        Form: CCForm option
         Description: string option
     }
 
     (*--------------------------------------------------------------------------------------------------*)
 
     /// Static data describing a schematic sheet loaded as a custom component.
-    /// Every sheet is always identified with a file from which it is loaded/saved. 
+    /// Every sheet is always identified with a file from which it is loaded/saved.
     /// Name is human readable (and is the filename - without extension) and identifies sheet.
     /// File path is the sheet directory and name (with extension).
     /// InputLabels, OutputLabels are the I/O connections.
@@ -917,7 +944,7 @@ module CommonTypes
         /// File name without extension = sheet name
         Name: string
         /// When the component was last saved
-        TimeStamp: System.DateTime 
+        TimeStamp: System.DateTime
         /// Complete file path, including name and dgm extension
         FilePath : string
         /// Info on WaveSim settings
@@ -951,9 +978,9 @@ module CommonTypes
             | Some ldc, _ ->
                 let (comps, _) = ldc.CanvasState
                 List.exists (isClocked (ct.Name :: visitedSheets) ldcs) comps
-                        
 
-                            
+
+
         | DFF | DFFE | Register _ | RegisterE _ | RAM _ | ROM _
         | Counter _ |CounterNoEnable _ | CounterNoLoad _  |CounterNoEnableLoad _ ->
             true
@@ -974,20 +1001,20 @@ module CommonTypes
         LoadedComponents : LoadedComponent list
         }
 
-        
+
 
     let loadedComponents_ = Lens.create (fun a -> a.LoadedComponents) (fun s a -> {a with LoadedComponents = s})
 
-    let openLoadedComponent_ = 
-        Lens.create 
-            (fun a -> List.find (fun lc -> lc.Name = a.OpenFileName) a.LoadedComponents) 
+    let openLoadedComponent_ =
+        Lens.create
+            (fun a -> List.find (fun lc -> lc.Name = a.OpenFileName) a.LoadedComponents)
             (fun lc' a -> {a with LoadedComponents = List.map (fun lc -> if lc.Name = a.OpenFileName then lc' else lc) a.LoadedComponents})
 
     let openFileName_ = Lens.create (fun a -> a.OpenFileName) (fun s a -> {a with OpenFileName = s})
 
-    let loadedComponentOf_ (name:string) = 
-        Lens.create 
-            (fun a -> List.find (fun lc -> lc.Name = name) a.LoadedComponents) 
+    let loadedComponentOf_ (name:string) =
+        Lens.create
+            (fun a -> List.find (fun lc -> lc.Name = name) a.LoadedComponents)
             (fun lc' a -> {a with LoadedComponents = List.map (fun lc -> if lc.Name = name then lc' else lc) a.LoadedComponents})
 
 

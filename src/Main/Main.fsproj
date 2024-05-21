@@ -3,6 +3,7 @@
     <TargetFramework>net7.0</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="..\Renderer\Common\ElectronAPI.fs" Link="ElectronAPI.fs" />
     <Compile Include="..\Renderer\UI\ContextMenus.fs" Link="ContextMenus.fs" />
@@ -13,4 +14,14 @@
     <PackageReference Include="Fable.Import.Electron" Version="0.1.1" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
+  <PropertyGroup>
+    <RepositoryUrl>https://github.com/tomcl/issie</RepositoryUrl>
+    <FsDocsReleaseNotesLink>https://github.com/tomcl/issie/releases/</FsDocsReleaseNotesLink>
+    <FsDocsLicenseLink>https://github.com/tomcl/issie/blob/master/LICENSE.md</FsDocsLicenseLink>
+    <FsDocsLogoSource>/issieIcon.png</FsDocsLogoSource>
+  </PropertyGroup>
+    <PropertyGroup>
+      <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
 </Project>

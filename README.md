@@ -209,6 +209,37 @@ The compile process is controlled by the `.fsproj` files (defining the F# source
 which define how Webpack combines F# outputs for both electron main and electron app processes and where the executable code is put. 
 This is boilerplate which you do not need to change; normally the F# project files are all that needs to be modified.
 
+
+## Documentation and Generation
+There is a script in the root of the repository, `build_docs.sh`, which will build the documentation for the project using [fsdocs](https://fsprojects.github.io/FSharp.Formatting/). The project must be compile-ready before generating the documentation.
+
+Markdown files under `/docs` are turned into static pages on the documentation site. Any XML comments in the code are turned into documentation comments for every function in the codebase.
+
+To add an update, go to the `/docs/updates` folder and create a new markdown file with the following headers:
+
+```markdown
+---
+layout: post
+title:  [title here]
+date:   [ ISO 8601 UTC datetime, etc f2021-07-04 15:52:01 +0100]
+category: Updates
+index: [index that decides the order of the update. later updates have higher index]
+---
+# your markdown content below
+```
+
+See other docs in the `/docs/updates` folder for examples.
+
+All XML comments  (starting with `///`)  under any module and function declarations are turned into documentation under the API Reference section of the documentation website. 
+
+> **Please follow XML rules when creating documentation comments in the code, i.e. no usage of triangular brackets < and > other than for tags. Please do not use double quotes as well!**
+
+`build_docs.sh` also calls `dotnet fsdocs watch` to start a local server hosting the documentation at http://localhost:8901/. The generated documentation for the code is under the "API REFERENCE" section. 
+
+If you've built the docs and want to access the server again, you can run `dotnet fsdocs watch` in the terminal.
+
+> Side note: A script, rather than the usual `dotnet fsdocs build` is used due to an undocumented bug where the compiler creates invalid XML code for functions with anonymous records, assigning attributes with "<>" in their names. This causes the generation to fail. Using `<exclude/>` does not fix the issue, so a workaround is to call a script that uses regex to remove these invalid attributes from the XML documentation before building the documentation. <br> See a similar issue on GitHub that throws a similar error [here.](https://github.com/fsprojects/FSharp.Formatting/issues/707) 
+
 ## File Structure
 
 ### `src` folder

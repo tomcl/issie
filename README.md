@@ -223,7 +223,7 @@ To add an update, go to the `/docs/updates` folder and create a new markdown fil
 ---
 layout: post
 title:  [title here]
-date:   [ ISO 8601 UTC datetime, etc f2021-07-04 15:52:01 +0100]
+date:   [ ISO 8601 UTC datetime, etc 2021-07-04 15:52:01 +0100]
 category: Updates
 index: [index that decides the order of the update. later updates have greater indexes]
 ---

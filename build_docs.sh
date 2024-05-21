@@ -9,7 +9,14 @@ RENDERER_XML="src/Renderer/bin/Debug/net7.0/Renderer.xml"
 sed -i.bak 's/<>/\&lt;\&gt;/g' "$MAIN_XML"
 sed -i.bak 's/<>/\&lt;\&gt;/g' "$RENDERER_XML"
 
-# Run dotnet fsdocs build and watch
+# Run dotnet fsdocs build 
 dotnet fsdocs build
-dotnet fsdocs watch
 
+# Check if the script is being run by GitHub Actions. 
+# If it is, then the script will not run dotnet fsdocs watch
+if [ "$GITHUB_ACTIONS" == "true" ]
+then
+  echo "Running on GitHub Actions"
+else
+  dotnet fsdocs watch
+fi

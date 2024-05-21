@@ -1,9 +1,7 @@
 ---
 layout: page
-title: Contact
-category: Documentation
-categoryindex: 1
-
+title: "Contact"
+permalink: /contact/
 ---
 
 # General Issues

@@ -256,3 +256,8 @@ docsrc/tools/FSharp.Formatting.svclog
 # Fable temporary files
 
 **/*.fable-temp.csproj
+
+# FSharp.Formatting
+.fsdocs/
+output/
+tmp/

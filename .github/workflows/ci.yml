@@ -13,6 +13,10 @@ jobs:
       uses: actions/setup-dotnet@v3
     - name: Restore tools
       run: dotnet tool restore
+    - name: Paket install
+      run: dotnet paket install
+    - name: Build
+      run:  dotnet fsi build.fsx $@
     - name: Run build_docs.sh
       run: ./build_docs.sh
     - name: Deploy to GitHub Pages

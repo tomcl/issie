@@ -34,7 +34,7 @@ let contextMenus = [
 let menuMap = Map.ofList contextMenus
 
 
-/// function used to implement main process 
+/// function used to implement main process
 /// context menu items. It should not be changed.
 let makeClickableReturner
         (dispatchToRenderer: (string * string) -> unit)
@@ -82,5 +82,5 @@ let makeMenu
             menu.popup (unbox popupOptions)|> ignore
 
 
-    
+
 

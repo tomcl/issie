@@ -14,12 +14,24 @@ open Sheet.SheetInterface
 open DrawModelType
 open CommonTypes
 open PopupHelpers
-
+open JSHelpers
+open DrawModelType
+open Browser
 open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
 
+/// Used to filter out-of-sequence OnScroll messages.
+/// These could reset scroll to some previous value.
+/// Incremented by program UpdateScroll and OnScroll.
+let mutable scrollSequence: int = 0
+let mutable rightSelectionDiv:Types.Element option = None
 
+
+let writeRightSelectionScroll (scrollPos:XYPos) =
+    // printf "%s" $"***writing devmode scroll: {scrollPos.X},{scrollPos.Y}"
+    rightSelectionDiv
+    |> Option.iter (fun el -> el.scrollLeft <- scrollPos.X; el.scrollTop <- scrollPos.Y)
 
 
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
@@ -30,20 +42,20 @@ let viewOnDiagramButtons model dispatch =
     let dispatch = SheetT.KeyPress >> sheetDispatch
 
     div [ canvasSmallMenuStyle ] [
-        let canvasBut func label = 
-            Button.button [ 
-                Button.Props [ canvasSmallButtonStyle; OnClick func ] 
+        let canvasBut func label =
+            Button.button [
+                Button.Props [ canvasSmallButtonStyle; OnClick func ]
                 Button.Modifiers [
                     //Modifier.TextWeight TextWeight.Bold
                     Modifier.TextColor IsLight
                     Modifier.BackgroundColor IsSuccess
                     ]
-                ] 
+                ]
                 [ str label ]
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlZ ) "< undo" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlY ) "redo >" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlC ) "copy" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlV ) "paste" 
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlZ ) "< undo"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlY ) "redo >"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlC ) "copy"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlV ) "paste"
 
     ]
 
@@ -122,6 +134,23 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
+    RightSelectionScrollPos = {X = 0; Y = 0}
+    SettingsMenuExpanded = false
+    Tracking = false
+    HeldCounterValues = None
+    BeautifyMenuExpanded = false
+    SymbolInfoTableExpanded = false
+    SymbolPortMapsTableExpanded = false
+    WireTableExpanded = false
+    WireSegmentsTableExpanded = false
+    SymbolPortsTableExpanded = false
+    SheetStatsExpanded = false
+    GroupMenuExpanded = false
+    ContextualSidebarViewFunction = None
+    ContextualSidebarDialogData = {
+        Text = None
+        Int = None
+    }
 }
 
 
@@ -133,7 +162,7 @@ let makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
 
 let viewSimSubTab canvasState model dispatch =
     match model.SimSubTabVisible with
-    | StepSim -> 
+    | StepSim ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Step Simulation" ]
             SimulationView.viewSimulation canvasState model dispatch
@@ -143,91 +172,109 @@ let viewSimSubTab canvasState model dispatch =
             Heading.h4 [] [ str "Truth Tables" ]
             TruthTableView.viewTruthTable canvasState model dispatch
         ]
-    | WaveSim -> 
+    | WaveSim ->
         div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
             [ viewWaveSim canvasState model dispatch ]
 
 /// Display the content of the right tab.
-let private  viewRightTab canvasState model dispatch =
-    let pane = model.RightPaneTabVisible
-    match pane with
-    | Catalogue | Transition ->
-        
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
-            Heading.h4 [] [ str "Catalogue" ]
-            div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ] 
-                [ str "Click on a component to add it to the diagram. Hover on components for details." ]
-            CatalogueView.viewCatalogue model dispatch
-        ]
-    | Properties ->
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Component properties" ]
-            SelectedComponentView.viewSelectedComponent model dispatch
-        ]
+let private viewRightTab canvasState model dispatch =
 
-    | Simulation ->
-        let subtabs = 
-            Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs";
-                        Tabs.Props [Style [Margin 0] ] ]  
-                    [                 
-                    Tabs.tab // step simulation subtab
-                        [ Tabs.Tab.IsActive (model.SimSubTabVisible = StepSim) ]
-                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ]  
+    let normalSidebar =
+        let pane = model.RightPaneTabVisible
+        match pane with
+        | Catalogue | Transition ->
 
-                    (Tabs.tab // truth table tab to display truth table for combinational logic
-                    [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
-                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Tables"] ])
-
-                    (Tabs.tab // wavesim tab
-                    [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
-                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ])
-                    ]
-        div [ HTMLAttr.Id "RightSelection2"; Style [Height "100%"]] 
-            [
-                //br [] // Should there be a gap between tabs and subtabs for clarity?
-                subtabs
-                viewSimSubTab canvasState model dispatch
+            div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
+                Heading.h4 [] [ str "Catalogue" ]
+                div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ]
+                    [ str "Click on a component to add it to the diagram. Hover on components for details." ]
+                CatalogueView.viewCatalogue model dispatch
             ]
-    | Build ->
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Build" ]
-            div [ Style [ MarginBottom "15px" ] ] [ str "Compile your design and upload it to one of the supported devices" ]
-            BuildView.viewBuild model dispatch
-        ]
+        | Properties ->
+            div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+                Heading.h4 [] [ str "Properties" ]
+                SelectedComponentView.viewSelectedComponent model dispatch
+            ]
+        | DeveloperMode ->
+            if debugLevel > 0 then
+                div
+                    [ Style [ Width "90%"; MarginLeft "5%"; MarginTop "15px" ];]
+                    [ Heading.h4 [] [ str "Developer Mode" ];
+                    div [ Style [ MarginBottom "15px" ]] [];
+                    DeveloperModeView.developerModeView model dispatch ]
+            else
+                div [] []
+        | Simulation ->
+            let subtabs =
+                Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs";
+                            Tabs.Props [Style [Margin 0] ] ]
+                        [
+                        Tabs.tab // step simulation subtab
+                            [ Tabs.Tab.IsActive (model.SimSubTabVisible = StepSim) ]
+                            [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ]
+
+                        (Tabs.tab // truth table tab to display truth table for combinational logic
+                        [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
+                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Tables"] ])
+
+                        (Tabs.tab // wavesim tab
+                        [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
+                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ])
+
+
+                        ]
+            div [ HTMLAttr.Id "RightSelection2"; Style [Height "100%"]]
+                [
+                    //br [] // Should there be a gap between tabs and subtabs for clarity?
+                    subtabs
+                    viewSimSubTab canvasState model dispatch
+                ]
+        | Build ->
+            div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+                Heading.h4 [] [ str "Build" ]
+                div [ Style [ MarginBottom "15px" ] ] [ str "Compile your design and upload it to one of the supported devices" ]
+                BuildView.viewBuild model dispatch
+            ]
+
+    // match UIContextualSideBar.viewSidebar model dispatch with
+    // | Some sidebar ->
+    //     div [ Style [Width "100%"; Height "100%"] ] [ sidebar ]
+    // | None ->
+    //     normalSidebar
+    normalSidebar
 
 /// determine whether moving the mouse drags the bar or not
 let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
-    fun (ev: Browser.Types.MouseEvent) ->        
+    fun (ev: Browser.Types.MouseEvent) ->
         makeSelectionChangeMsg model dispatch ev
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match modeIsOn, model.DividerDragMode with
-        | true, DragModeOff ->  
+        | true, DragModeOff ->
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
-        | false, DragModeOn _ -> 
+        | false, DragModeOn _ ->
             dispatch <| SetDragMode DragModeOff
         | _ -> ()
 
 /// Draggable vertivcal bar used to divide Wavesim window from Diagram window
 let dividerbar (model:Model) dispatch =
-    let isDraggable = 
-        model.RightPaneTabVisible = Simulation 
-        && (model.SimSubTabVisible = WaveSim 
+    let isDraggable =
+        model.RightPaneTabVisible = Simulation
+        && (model.SimSubTabVisible = WaveSim
         || model.SimSubTabVisible = TruthTable)
-    let heightAttr = 
+    let heightAttr =
         let rightSection = document.getElementById "RightSection"
         if (isNull rightSection) then Height "100%"
         else Height "100%" //rightSection.scrollHeight
-    let variableStyle = 
+    let variableStyle =
         if isDraggable then [
             BackgroundColor "grey"
-            Cursor "ew-resize" 
+            Cursor "ew-resize"
             Width Constants.dividerBarWidth
 
         ] else [
             BackgroundColor "lightgray"
             Width "2px"
             Height "100%"
-
         ]
     let commonStyle = [
             heightAttr
@@ -235,61 +282,106 @@ let dividerbar (model:Model) dispatch =
         ]
     div [
             Style <| commonStyle @ variableStyle
-            OnMouseDown (setDragMode true model dispatch)       
+            OnMouseDown (setDragMode true model dispatch)
         ] []
 
 let viewRightTabs canvasState model dispatch =
     /// Hack to avoid scrollbar artifact changing from Simulation to Catalog
-    /// The problem is that the HTML is bistable - with Y scrollbar on the catalog <aside> 
-    /// moves below the tab body div due to reduced available width, keeping scrollbar on. 
+    /// The problem is that the HTML is bistable - with Y scrollbar on the catalog <aside>
+    /// moves below the tab body div due to reduced available width, keeping scrollbar on.
     /// Not fully understood.
     /// This code temporarily switches the scrollbar off during the transition.
-    let scrollType = 
-        if model.RightPaneTabVisible = Transition then 
+    let scrollType =
+        if model.RightPaneTabVisible = Transition then
             dispatch <| ChangeRightTab Catalogue // after one view in transition it is OK to go to Catalogue
             OverflowOptions.Clip // ensure no scrollbar temporarily after the transition
-        else 
+        else
             OverflowOptions.Auto
-    
+
     let buildTab =
         if model.BuildVisible then
             Tabs.tab
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Build)]
-                [ a [  OnClick (fun _ -> 
-                        if model.RightPaneTabVisible <> Simulation 
+                [ a [  OnClick (fun _ ->
+                        if model.RightPaneTabVisible <> Simulation
                         then
-                            dispatch <| ChangeRightTab Build ) 
+                            dispatch <| ChangeRightTab Build )
                     ] [str "Build"] ]
         else
             null
-    
-    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto]] [
-        Tabs.tabs [ 
-            Tabs.IsFullWidth; 
-            Tabs.IsBoxed; 
+
+    let developerModeTab =
+        if debugLevel > 0 then
+            Tabs.tab
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = DeveloperMode) ]
+                [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab DeveloperMode) ] [ str "Dev Mode" ] ]
+        else
+            null
+    match UIContextualSideBar.viewSidebar model dispatch with
+    | Some contextualSidebar ->
+        div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
+                                // Cache the scroll position of the right selection div to persist between updates
+                                // Similar to the canvas, see Sheet.fs
+                                OnScroll (fun _ ->
+                                // printf "Scrolling dev mode\n"
+                                match rightSelectionDiv with
+                                | None -> ()
+                                | Some el ->
+                                    dispatch <| UpdateScrollPosRightSelection( {X = el.scrollLeft; Y = el.scrollTop}, dispatch));
+                                Ref (fun el ->
+                                        rightSelectionDiv <- Some el
+                                        writeRightSelectionScroll model.RightSelectionScrollPos
+                                    )
+        ] [
+
+            div [HTMLAttr.Id "TabBody"; (*Style [OverflowY scrollType]*)] [contextualSidebar]
+
+        ]
+    | None ->
+    div [Style [Height "100vh"]] [
+        Tabs.tabs [
+            Tabs.IsFullWidth;
+            Tabs.IsBoxed;
             Tabs.CustomClass "rightSectionTabs"
-            Tabs.Props [Style [Margin 0]] ; 
-            
+            Tabs.Props [Style [Margin 0;CSSProp.Top "0"; ZIndex "10000"; BackgroundColor "white"]; ] ;
+
+
         ] [
             Tabs.tab // catalogue tab to add components
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
-                [ a [ OnClick (fun _ -> 
-                        let target = 
+                [ a [ OnClick (fun _ ->
+                        let target =
                             if model.RightPaneTabVisible = Simulation then
                                 Transition else
                                 Catalogue
                         dispatch <| ChangeRightTab target ) ] [str "Catalogue" ] ]
             Tabs.tab // Properties tab to view/change component properties
-                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
+                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]
                 [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
             Tabs.tab // simulation tab to view all simulators
                 [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
                 [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
+            developerModeTab
             buildTab
-        ]
-        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [viewRightTab canvasState model dispatch]
+        ];
+    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto];
+                            // Cache the scroll position of the right selection div to persist between updates
+                            // Similar to the canvas, see Sheet.fs
+                            OnScroll (fun _ ->
+                            // printf "Scrolling dev mode\n"
+                            match rightSelectionDiv with
+                            | None -> ()
+                            | Some el ->
+                                dispatch <| UpdateScrollPosRightSelection( {X = el.scrollLeft; Y = el.scrollTop}, dispatch));
+                              Ref (fun el ->
+                                    rightSelectionDiv <- Some el
+                                    writeRightSelectionScroll model.RightSelectionScrollPos
+                                )
+    ] [
 
-    ]
+        div [HTMLAttr.Id "TabBody";  (*Style [OverflowY scrollType]*)] [viewRightTab canvasState model dispatch]
+
+    ]]
 let mutable testState:CanvasState = [],[]
 let mutable lastDragModeOn = false
 
@@ -310,17 +402,17 @@ let displayView model dispatch =
     /// used only to make the divider bar draggable
     let inline processMouseMove (keyUp: bool) (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
-        if ev.buttons = 1. then 
+        if ev.buttons = 1. then
             dispatch SelectionHasChanged
         match model.DividerDragMode, ev.buttons, keyUp with
-        | DragModeOn pos , 1., false-> 
+        | DragModeOn pos , 1., false->
             let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
-            let w = 
+            let w =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth())
             dispatch <| SetDragMode (DragModeOn (int ev.clientX - w + newWidth))
-            dispatch <| SetViewerWidth w 
+            dispatch <| SetViewerWidth w
         | DragModeOn pos, _, true ->
             let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
             let w =
@@ -329,7 +421,7 @@ let displayView model dispatch =
                 |> min (windowX - minEditorWidth())
             setViewerWidthInWaveSim w model dispatch
             dispatch <| SetDragMode DragModeOff
-            dispatch <| SetViewerWidth w 
+            dispatch <| SetViewerWidth w
         | _ -> ()
 
     let headerHeight = getHeaderHeight
@@ -341,17 +433,26 @@ let displayView model dispatch =
 
     let conns = BusWire.extractConnections model.Sheet.Wire
     let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
-    let canvasState = comps,conns   
+    let canvasState = comps,conns
+
+
+
     match model.Spinner with
-    | Some fn -> 
+    | Some fn ->
         dispatch <| UpdateModel fn
     | None -> ()
+
+    let sidebar = viewRightTabs canvasState model dispatch
+
+    // // if a contextual sidebar is open in the model, display it after the dividerbar, and hide the viewRightTabs (normal sidebar) with Display = None
+    // // the normal sidebar aka viewRightTabs must still render, otherwise there will be errors
+
     div [ HTMLAttr.Id "WholeApp"
           Key cursorText
           OnMouseMove (processMouseMove false)
           OnClick (processAppClick model.TopMenuOpenState dispatch)
           OnMouseUp (processMouseMove true)
-          Style [ 
+          Style [
             //CSSProp.Cursor cursorText
             UserSelect UserSelectOptions.None
             BorderTop "2px solid lightgray"
@@ -360,18 +461,19 @@ let displayView model dispatch =
             Height "calc(100%-4px)"
             Cursor topCursorText ] ] [
         // transient
-        
+
         TopMenuView.viewNoProjectMenu model dispatch
-        
-        
-        UIPopups.viewPopup model dispatch 
+
+
+
+        UIPopups.viewPopup model dispatch
         // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
         // main top bar function is early in compile order
         TopMenuView.viewTopMenu model dispatch
 
         if model.PopupDialogData.Progress = None then
             SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
-        
+
         // transient pop-ups
         Notifications.viewNotifications model dispatch
         // editing buttons overlaid bottom-left on canvas
@@ -387,8 +489,10 @@ let displayView model dispatch =
             //--------------------------------------------------------------------------------------//
             //---------------------------------right section----------------------------------------//
             // right section has horizontal divider bar and tabs
-            div [ HTMLAttr.Id "RightSection"; rightSectionStyle model ]
+            div [ HTMLAttr.Id "RightSection"; rightSectionStyle model;  ]
                   // vertical and draggable divider bar
-                [ dividerbar model dispatch
+                [
                   // tabs for different functions
-                  viewRightTabs canvasState model dispatch ] ]
+                //   rightSection
+                dividerbar model dispatch; sidebar
+                ] ]

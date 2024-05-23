@@ -23,13 +23,13 @@ type PortLocation = {
     R: float
 }
 
-type MouseOp = 
+type MouseOp =
     /// button up
     | Up
     /// button down
     | Down
     /// Move with button up
-    | Move 
+    | Move
     /// Move with button Down
     | Drag
 
@@ -46,7 +46,7 @@ type MouseT = {
 /// Record to help draw SVG circles
 type Circle = {
     ///  Radius of the circle
-    R: float  
+    R: float
     /// color of outline: default => black color
     Stroke: string
     /// width of outline: default => thin
@@ -108,7 +108,7 @@ let getTextWidthInPixels (font:Text) (txt:string) =
    canvasWidthContext.font <- askedFont
    //printf "Measururing '%s' -> '%s' with txt '%s' - fontSize=%s, sizeInpx = %.2f" askedFont canvasWidthContext.font txt font.FontSize sizeInPx
    let textMetrics = canvasWidthContext.measureText(txt)
-   let ms = textMetrics.width 
+   let ms = textMetrics.width
    ms
 
 /// Default line, change this one to create new lines
@@ -180,7 +180,7 @@ let uuid():string = System.Guid.NewGuid.ToString()
 
 // ----------------------------- SVG Helpers ----------------------------- //
 
-/// Makes a line ReactElement, wildcard inputs as position can be a number or a string 
+/// Makes a line ReactElement, wildcard inputs as position can be a number or a string
 let makeLine (x1: 'a) (y1: 'b) (x2: 'c) (y2: 'd) (lineParameters: Line) =
     line [
             X1 x1
@@ -248,8 +248,8 @@ let makePath (startingPoint: XYPos) (startingControlPoint: XYPos) (endingControl
             SVGAttr.StrokeLinecap pathParameters.StrokeLinecap
             SVGAttr.Fill pathParameters.Fill
     ] []
-    
-/// Makes a polygon ReactElement, points are to be given as a correctly formatted SVGAttr.Points string 
+
+/// Makes a polygon ReactElement, points are to be given as a correctly formatted SVGAttr.Points string
 let makePolygon (points: string) (polygonParameters: Polygon) =
     polygon [
             SVGAttr.Points points
@@ -258,12 +258,12 @@ let makePolygon (points: string) (polygonParameters: Polygon) =
             SVGAttr.Fill polygonParameters.Fill
             SVGAttr.FillOpacity polygonParameters.FillOpacity
     ] []
-    
+
 
 /// Makes a circle ReactElement
 let makeCircle (centreX: float) (centreY: float) (circleParameters: Circle) =
     circle
-      [ 
+      [
         Cx centreX
         Cy centreY
         R circleParameters.R
@@ -272,12 +272,12 @@ let makeCircle (centreX: float) (centreY: float) (circleParameters: Circle) =
         SVGAttr.Stroke circleParameters.Stroke
         SVGAttr.StrokeWidth circleParameters.StrokeWidth
       ] []
-      
+
 /// Makes a text ReactElement
 let makeText (posX: float) (posY: float) (displayedText: string) (textParameters: Text) =
     text [
-            X posX; 
-            Y posY; 
+            X posX;
+            Y posY;
             Style [
                 TextAnchor textParameters.TextAnchor
                 DominantBaseline textParameters.DominantBaseline
@@ -285,7 +285,7 @@ let makeText (posX: float) (posY: float) (displayedText: string) (textParameters
                 FontSize textParameters.FontSize
                 FontFamily textParameters.FontFamily
                 Fill textParameters.Fill
-                UserSelect textParameters.UserSelect 
+                UserSelect textParameters.UserSelect
             ]
         ] [str <| sprintf "%s" (displayedText)]
 
@@ -293,15 +293,15 @@ let makeText (posX: float) (posY: float) (displayedText: string) (textParameters
 /// Dy parameter determines line spacing
 let makeTwoLinesOfText (posX: float) (posY: float) (line1: string) (line2: string) (textParameters: Text) =
     text [
-        X posX; 
-        Y posY; 
+        X posX;
+        Y posY;
         Style [
             TextAnchor textParameters.TextAnchor
             DominantBaseline textParameters.DominantBaseline
             FontWeight textParameters.FontWeight
             FontSize textParameters.FontSize
             Fill textParameters.Fill
-            UserSelect textParameters.UserSelect 
+            UserSelect textParameters.UserSelect
         ]
     ] [tspan [] [str line1]; tspan [Dy "1.2em"] [str line2] ]
 
@@ -317,7 +317,7 @@ let getColorString (col: CommonTypes.HighLightColor) =
 /// Calculates if two bounding boxes intersect by comparing corner coordinates of each box
 let boxesIntersect (box1: BoundingBox) (box2: BoundingBox) =
     // Requires min and max since H & W can be negative, i.e. we don't know which corner is which automatically
-    // Boxes intersect if there is overlap in both x and y coordinates 
+    // Boxes intersect if there is overlap in both x and y coordinates
     min box1.TopLeft.X (box1.TopLeft.X + box1.W) < max box2.TopLeft.X (box2.TopLeft.X + box2.W)
     && min box2.TopLeft.X (box2.TopLeft.X + box2.W) < max box1.TopLeft.X (box1.TopLeft.X + box1.W)
     && min box1.TopLeft.Y (box1.TopLeft.Y + box1.H) < max box2.TopLeft.Y (box2.TopLeft.Y + box2.H)
@@ -325,5 +325,5 @@ let boxesIntersect (box1: BoundingBox) (box2: BoundingBox) =
 
 
 
-    
+
 

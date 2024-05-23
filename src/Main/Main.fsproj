@@ -15,7 +15,7 @@
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
   <PropertyGroup>
-    <RepositoryUrl>https://github.com/tomcl/issie/tree/master</RepositoryUrl>
+    <RepositoryUrl>https://github.com/tomcl/issie</RepositoryUrl>
     <FsDocsReleaseNotesLink>https://github.com/tomcl/issie/releases/</FsDocsReleaseNotesLink>
     <FsDocsLicenseLink>https://github.com/tomcl/issie/blob/master/LICENSE.md</FsDocsLicenseLink>
     <FsDocsLogoSource>/issieIcon.png</FsDocsLogoSource>

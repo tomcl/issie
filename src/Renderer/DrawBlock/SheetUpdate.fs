@@ -33,7 +33,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than
     /// being derived fucntionally from the state it depends on, so it must be explicitly updated.
     /// TODO: add something to check whether wires need updating
-    let postUpdateChecks (model:Model, cmd:Cmd<ModelType.Msg> ) = 
+    let postUpdateChecks (model:Model, cmd:Cmd<ModelType.Msg> ) =
         // Executed every update so performance is important.
         // Since normally state will be correct it is only necessary to make the checking
         // fast.
@@ -43,10 +43,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             sModel.Symbols
             |> (fun sMap ->
                     (model,sMap)
-                    ||> Map.fold (fun model sId sym -> 
-                            if Map.containsKey sId model.BoundingBoxes 
+                    ||> Map.fold (fun model sId sym ->
+                            if Map.containsKey sId model.BoundingBoxes
                                 && sym.Pos = model.BoundingBoxes[sId].TopLeft then
-                                model 
+                                model
                             else
                                 Optic.set boundingBoxes_ (Symbol.getBoundingBoxes sModel) model))
             |> ensureCanvasExtendsBeyondScreen
@@ -55,11 +55,11 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         // |> (fun currentmodel -> {currentmodel with TmpModel = Some currentmodel})
 
     match msg with
-    | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) -> 
+    | Wire (BusWireT.Symbol SymbolT.Msg.UpdateBoundingBoxes) ->
         // Symbol cannot directly send a message to Sheet box Sheet message type is out of scape. This
         // is used so that a symbol message can be intercepted by sheet and used there.
         model, Cmd.batch [
-                sheetCmd UpdateBoundingBoxes; 
+                sheetCmd UpdateBoundingBoxes;
                 ]
     | Wire wMsg ->
         let wModel, (wCmd) = BusWireUpdate.update wMsg issieModel
@@ -131,7 +131,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 let rec removeLast inputLst =
                     inputLst
                     |> List.truncate (max 0 (inputLst.Length - 1))
-    
+
                 match List.length redoList with
                 |n when n < 500 -> model_in :: redoList
                 | _ -> model_in :: (removeLast redoList)
@@ -154,12 +154,12 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
     | KeyPress CtrlW ->
         fitCircuitToScreenUpdate model
-    
+
     | PortMovementStart ->
         match model.Action with
-        | Idle -> 
-            {model with CtrlKeyDown = true}, 
-            Cmd.batch 
+        | Idle ->
+            {model with CtrlKeyDown = true},
+            Cmd.batch
                 [
                     symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)
                     symbolCmd (SymbolT.ShowCustomCorners model.NearbyComponents)
@@ -168,9 +168,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
     | PortMovementEnd ->
         match model.Action with
-        | Idle -> 
-            {model with CtrlKeyDown = false}, 
-            Cmd.batch 
+        | Idle ->
+            {model with CtrlKeyDown = false},
+            Cmd.batch
                 [
                     symbolCmd (SymbolT.ShowPorts model.NearbyComponents)
                     symbolCmd (SymbolT.HideCustomCorners model.NearbyComponents)
@@ -182,7 +182,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         match mMsg.Op with
         | Down when mouseAlreadyDown = true -> model, Cmd.none
         | Down -> mDownUpdate model mMsg
-        | Drag -> 
+        | Drag ->
             //printfn "running sheet.update"
             mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
@@ -198,10 +198,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
     | UpdateSingleBoundingBox compId ->
         match Map.containsKey compId model.BoundingBoxes with
-        | true -> 
-            {model with 
+        | true ->
+            {model with
                 BoundingBoxes = model.BoundingBoxes.Add (compId, (Symbol.getBoundingBox model.Wire.Symbol compId))}
-            |> Optic.map symbols_ (Map.change compId (Option.map Symbol.calcLabelBoundingBox))               
+            |> Optic.map symbols_ (Map.change compId (Option.map Symbol.calcLabelBoundingBox))
                 , Cmd.none
         | false -> model, Cmd.none
 
@@ -209,7 +209,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         let model =
             match sequence - scrollSequence >= 0, canvasDiv with
             | _, None | false, _ -> model
-            | true, Some el -> 
+            | true, Some el ->
                 recentProgrammaticScrollPos
                 |> List.exists (fun recent -> euclideanDistance recent pos < 0.001 )
                 |> function | true -> model
@@ -218,7 +218,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                                 {model with ScreenScrollPos = pos}
         model, Cmd.none
 
- 
+
     | UpdateScrollPos scrollPos ->
         //printfn "%s" $"{scrollSequence}: Model -> canvas {scrollPos.X},{scrollPos.Y}"
         let scrollDif = scrollPos - model.ScreenScrollPos * (1. / model.Zoom)
@@ -237,9 +237,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         scrollSequence <- scrollSequence + 1 // increment sequence counter
         viewIsAfterUpdateScroll <- true
         writeCanvasScroll scrollPos
-        { model with 
+        { model with
             ScreenScrollPos = scrollPos
-            ScrollingLastMousePos = newLastScrollingPos }, 
+            ScrollingLastMousePos = newLastScrollingPos },
             cmd
 
     | AddNotConnected (ldcs, port, pos, rotation) ->
@@ -247,11 +247,11 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         let ncPortId = newSymModel.Symbols[ncID].Component.InputPorts[0].Id
         // add a newly created wire to the model
         // then send BusWidths message which will re-infer bus widths
-        // the new wires (extarcted as connections) are not added back into Issie model. 
+        // the new wires (extarcted as connections) are not added back into Issie model.
         // This happens on save or when starting a simulation (I think)
         let newWireModel, msgOpt = BusWireUpdate.newWire (InputPortId ncPortId) (OutputPortId port.Id) {model.Wire with Symbol = newSymModel}
         let wCmd = if msgOpt.IsSome then wireCmd (Option.get msgOpt) else Cmd.none
-            
+
         {model with Wire = newWireModel}, Cmd.batch [wCmd;
                                     symbolCmd (RotateAntiClockAng ([ncID], rotation));
                                     wireCmd (UpdateConnectedWires [ncID]);
@@ -260,7 +260,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     // Zooming in increases model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomIn ->
         let oldScreenCentre = getVisibleScreenCentre model
-        { model with Zoom = min Constants.maxMagnification (model.Zoom*Constants.zoomIncrement) }, 
+        { model with Zoom = min Constants.maxMagnification (model.Zoom*Constants.zoomIncrement) },
         sheetCmd (KeepZoomCentered oldScreenCentre)
 
     // Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
@@ -274,7 +274,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             List.max [model.Zoom / Constants.zoomIncrement; minXZoom; minYZoom]
         let oldScreenCentre = getVisibleScreenCentre model
 
-        { model with Zoom = newZoom }, 
+        { model with Zoom = newZoom },
         sheetCmd (KeepZoomCentered oldScreenCentre)
 
     | KeepZoomCentered oldScreenCentre ->
@@ -355,9 +355,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             let outputModel, outputCmd =
                 match model.Action with
                 | DragAndDrop ->
-                    mMoveUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Move}                             
+                    mMoveUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Move}
                 | MovingSymbols | ConnectingInput _ | ConnectingOutput _ | Selecting ->
-                    mDragUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Drag}                               
+                    mDragUpdate { model with AutomaticScrolling = true } {defaultMsg with Op = Drag}
                 | _ ->
                     { model with AutomaticScrolling = true }, Cmd.none
             let notAutomaticScrolling msg = match msg with | ModelType.Sheet CheckAutomaticScrolling -> false | _ -> true
@@ -376,26 +376,26 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
     | RotateLabels ->
         rotateSelectedLabelsClockwise model
-    
+
     | Rotate rotation ->
         //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov
         // printfn "Running Rotate %A" rotation
-        let rotmodel = 
+        let rotmodel =
             {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}
                         TmpModel = Some model
                         UndoList = appendUndoList model.UndoList model}
 
         let newModel = {rotmodel with BoundingBoxes = Symbol.getBoundingBoxes rotmodel.Wire.Symbol}
-         
+
         let errorComponents =
             newModel.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
 
         printfn $"ErrorComponents={errorComponents}"
-        
+
         match errorComponents with
-            | [] -> 
+            | [] ->
                 {newModel with ErrorComponents = errorComponents; Action = Idle},
                         Cmd.batch [
                             symbolCmd (SymbolT.ErrorSymbols (errorComponents,newModel.SelectedComponents,false))
@@ -408,11 +408,11 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                         wireCmd (BusWireT.UpdateConnectedWires newModel.SelectedComponents)
                         sheetCmd SheetT.UpdateBoundingBoxes]
 
-    
+
 
     //HLP23: Author Ismagilov
     | Flip orientation ->
-        let flipmodel = 
+        let flipmodel =
             {model with Wire = {model.Wire with Symbol = (RotateScale.flipBlock model.SelectedComponents model.Wire.Symbol orientation)}
                         TmpModel = Some model
                         UndoList = appendUndoList model.UndoList model}
@@ -425,9 +425,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
         printfn $"ErrorComponents={errorComponents}"
 
-        let nextAction = 
+        let nextAction =
             match errorComponents with
-                | [] -> 
+                | [] ->
                     newModel.Action
                 | _ ->
                     DragAndDrop
@@ -457,7 +457,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             wireCmd (BusWireT.UpdateWireDisplayType BusWireT.Radial)
             wireCmd (BusWireT.MakeJumps (false,wires))
         ]
-       
+
     | WireType Modern ->
         let wires = model.Wire.Wires |> Map.toList |> List.map fst
         model,
@@ -465,12 +465,12 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             wireCmd (BusWireT.UpdateWireDisplayType BusWireT.Modern)
             wireCmd (BusWireT.MakeJumps (false,wires))
         ]
-                
+
     // ---------------------------- Issie Messages ---------------------------- //
 
     | InitialiseCreateComponent (ldcs, compType, lbl) ->
         match compType with
-        | IsGate -> 
+        | IsGate ->
             { model with
                 Action = (InitialisedCreateComponent (ldcs, compType, lbl));
                 UndoList = appendUndoList model.UndoList model;
@@ -538,9 +538,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 List.filter (fun cId -> List.contains cId cIds |> not) model.PrevWireSelection
             else
                 List.append cIds model.PrevWireSelection
-        {model with SelectedWires = newWires}, 
+        {model with SelectedWires = newWires},
         Cmd.batch [
-            sheetCmd (ColourSelection([], newWires, HighLightColor.SkyBlue)); 
+            sheetCmd (ColourSelection([], newWires, HighLightColor.SkyBlue));
             wireCmd (BusWireT.SelectWires newWires)]
     | SetSpinner isOn ->
         if isOn then {model with CursorType = Spinner}, Cmd.none
@@ -564,38 +564,38 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         printfn "do we have process? %A" (model.CompilationProcess |> Option.map (fun c -> c.pid))
         if not model.Compiling then
             model, Cmd.none
-        else 
+        else
             let cwd = getCWD ()
-            let include_path = 
+            let include_path =
                 match JSHelpers.debugLevel <> 0 with
                 |true -> cwd+"/static/hdl"
-                |false -> cwd+"/resources/static/hdl" 
-            
+                |false -> cwd+"/resources/static/hdl"
+
             printfn "include_path: %s" include_path
 
             let pcf,deviceType,devicePackage,USBdevice =
                 match model.DebugDevice, profile with
-                |Some "IceStick",Verilog.Release -> 
+                |Some "IceStick",Verilog.Release ->
                     $"{include_path}/icestick.pcf", "--hx1k", "tq144", "i:0x0403:0x6010"
-                
-                |Some "IceStick",Verilog.Debug -> 
+
+                |Some "IceStick",Verilog.Debug ->
                     $"{include_path}/icestick_debug.pcf", "--hx1k", "tq144", "i:0x0403:0x6010"
-                
-                |Some "IssieStick-v0.1", Verilog.Release -> 
+
+                |Some "IssieStick-v0.1", Verilog.Release ->
                     $"{include_path}/issiestick-0.1.pcf", "--hx4k", "tq144", "i:0x0403:0xed1c"
-                
-                |Some "IssieStick-v0.1", Verilog.Debug -> 
+
+                |Some "IssieStick-v0.1", Verilog.Debug ->
                     $"{include_path}/issiestick-0.1_debug.pcf", "--hx4k", "tq144", "i:0x0403:0xed1c"
-                
-                |Some "IssieStick-v1.0", Verilog.Release -> 
+
+                |Some "IssieStick-v1.0", Verilog.Release ->
                     $"{include_path}/issiestick-1.0.pcf", "--hx8k", "bg121", "i:0x0403:0xed1c"
-                
-                |Some "IssieStick-v1.0", Verilog.Debug -> 
+
+                |Some "IssieStick-v1.0", Verilog.Debug ->
                     $"{include_path}/issiestick-1.0_debug.pcf", "--hx8k", "bg121", "i:0x0403:0xed1c"
-                
+
                 |_,_ -> failwithf "Undefined device used in compilation!"
-            
-            let (prog, args) = 
+
+            let (prog, args) =
                 // make build dir
                 match stage with
                 | Synthesis     -> "yosys", ["-p"; $"read_verilog -I{include_path} {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
@@ -667,7 +667,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         //printfn "ticking %A while process is %A" pid (model.CompilationProcess |> Option.map (fun c -> c.pid))
         let correctPid =
             model.CompilationProcess
-            |> Option.map (fun child -> child.pid = pid) 
+            |> Option.map (fun child -> child.pid = pid)
             |> Option.defaultValue false
 
         let tick stage =
@@ -716,69 +716,69 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | DebugSingleStep ->
         //printfn "mappings: %A" model.DebugMappings
         let remainder = (Array.length model.DebugMappings) % 8
-        let viewerNo = 
+        let viewerNo =
             match remainder with
-            |0 -> (Array.length model.DebugMappings) / 8 
+            |0 -> (Array.length model.DebugMappings) / 8
             |_ ->  (Array.length model.DebugMappings) / 8 + 1
-        
+
         model, sheetCmd (DebugStepAndRead viewerNo)
     | DebugStepAndRead n ->
         //printfn "reading"
-        
+
         let readSingleStep viewers dispatch =
-            
+
             Async.StartImmediate(async {
             let exit_code = ref 0
             try
                 let keepGoing = ref true
 
                 let r = stepAndReadAllViewers(viewers)
-                r.``then``(fun v -> 
+                r.``then``(fun v ->
                     v
-                    |> Array.iteri (fun i reading -> 
+                    |> Array.iteri (fun i reading ->
                         //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
                         dispatch <| ModelType.Sheet (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
-                    ) 
+                    )
                 ) |> ignore
-                    
+
                 keepGoing.Value <- false
             finally
                 ()
             })
-        
+
         model, Cmd.ofSub (readSingleStep n)
     | DebugRead n ->
         //printfn "reading"
-        
+
         let readSingleStep viewers dispatch =
-            
+
             Async.StartImmediate(async {
             let exit_code = ref 0
             try
                 let keepGoing = ref true
 
                 let r = readAllViewers(viewers)
-                r.``then``(fun v -> 
+                r.``then``(fun v ->
                     v
-                    |> Array.iteri (fun i reading -> 
+                    |> Array.iteri (fun i reading ->
                         //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
                         dispatch <| ModelType.Sheet (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
-                    ) 
+                    )
                 ) |> ignore
-                    
+
                 keepGoing.Value <- false
             finally
                 ()
             })
-        
+
         model, Cmd.ofSub (readSingleStep n)
-    | DebugConnect ->      
+    | DebugConnect ->
         let remainder = (Array.length model.DebugMappings) % 8
-        let viewerNo = 
+        let viewerNo =
             match remainder with
-            |0 -> (Array.length model.DebugMappings) / 8 
+            |0 -> (Array.length model.DebugMappings) / 8
             |_ ->  (Array.length model.DebugMappings) / 8 + 1
-        
+
         let connectAndRead viewers dispatch =
             Async.StartImmediate(async {
             let exit_code = ref 0
@@ -786,10 +786,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 let keepGoing = ref true
 
                 let c = simpleConnect()
-                c.``then``(fun v -> 
+                c.``then``(fun v ->
                     dispatch <| ModelType.Sheet (DebugRead viewers)
                 )|> ignore
-                    
+
                 keepGoing.Value <- false
             finally
                 ()
@@ -821,7 +821,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         //fs.writeFileSync ("/dev/ttyUSB1", "C")
         continuedOp ()
         printfn "Continued execution"
-        
+
 
         {model with DebugState = Running}, Cmd.none
     | DebugPause ->
@@ -829,16 +829,16 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         pause()
         printfn "Continued execution Stopped"
         let remainder = (Array.length model.DebugMappings) % 8
-        let viewerNo = 
+        let viewerNo =
             match remainder with
-            | 0 -> (Array.length model.DebugMappings) / 8 
+            | 0 -> (Array.length model.DebugMappings) / 8
             | _ ->  (Array.length model.DebugMappings) / 8 + 1
-        
-        
+
+
         {model with DebugState = Paused}, sheetCmd (DebugStepAndRead viewerNo)
     | SetDebugDevice device ->
         {model with DebugDevice = Some device}, Cmd.none
-    
+
     | ToggleSnapToNet ->
         model, (wireCmd BusWireT.ToggleSnapToNet)
 
@@ -847,7 +847,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
     | SetWireModel wModel ->
         {model with Wire = wModel}, Cmd.none
-       
+
     | ToggleNet _ | DoNothing | _ -> model, Cmd.none
     |> postUpdateChecks
     // |> Optic.map fst_ postUpdateChecks
@@ -907,6 +907,7 @@ let init () =
         DebugMappings = [||]
         DebugDevice = None
         ScalingBox = None
+        DeveloperModeTabActive = false
     }, (Cmd.none: Cmd<ModelType.Msg>)
 
 

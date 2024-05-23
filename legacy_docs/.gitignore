@@ -3,3 +3,8 @@ _site
 .jekyll-cache
 .jekyll-metadata
 vendor
+
+# FSharp.Formatting
+.fsdocs/
+output/
+tmp/

@@ -14,8 +14,7 @@ open DrawModelType.BusWireT
 
 open Symbol
 open Optics
-open BusWireRoutingHelpers
-open Sheet
+
 
 open DrawModelType.SheetT
 
@@ -45,6 +44,7 @@ module ColourGenerator =
 
 
     /// Convert RGB to HSL (helper function)
+    /// R,G,B are in 0-1 range
     let rgbToHSL (color: ColourRGB) : ColourHSL =
         let (r: float), (g: float), (b: float) = color.R, color.G, color.B
         let max = Math.Max(r, Math.Max(g, b))
@@ -68,7 +68,7 @@ module ColourGenerator =
 
 
     /// Convert HSL to RGB (helper function)
-    /// Note that sat and lum are in 0-100
+    /// Note that sat and lum are in range 0-100 while hue is in range 0-360
     let hslToRGB (color: ColourHSL) : ColourRGB =
         let (h: float), (s: float), (l: float) = color.H, color.S/100.0, color.L/100.0
         let c = (1.0 - Math.Abs(2.0 * l - 1.0)) * s
@@ -101,9 +101,8 @@ module ColourGenerator =
         { R = r; G = g; B = b }
 
 
-    /// Calculate perceived distance between two HSL colors.
-    /// Note that dh (difference in hue) is given more weight, so generated colours are less likely to clash with UI colours
-    let colourPerceivedDistance (c1: ColourHSL) (c2: ColourHSL) =
+    /// Calculate distance between two HSL colors.
+    let colourDistance (c1: ColourHSL) (c2: ColourHSL) =
         let dh: float = c1.H - c2.H
         let ds: float = c1.S - c2.S
         let dl: float = c1.L - c2.L
@@ -111,37 +110,41 @@ module ColourGenerator =
         ( (dh * dh) + (ds * ds) + (dl * dl) )**0.5
 
     /// List of blacklisted colors in RGB
+    /// These are colours already used by the UI. We want colours that are far away from the blacklisted colours so that
+    /// groups are easily distinguishable.
     let blacklistedColorsRGB = [
-        { R = 1.0; G = 1.0; B = 0.85 } // #FFFFD9
-        { R = 0.678; G = 0.847; B = 0.902 } // # CSS Light Blue or #ADD8E6
-        { R = 0.91; G = 0.816; B = 0.663 } // #E8D0A9
-        { R = 0.564; G = 0.933; B = 0.564 } // #90EE90 aka CSS Light Green
+        { R = 1.0; G = 1.0; B = 0.85 } // #FFFFD9 for non-clocked components
+        { R = 0.678; G = 0.847; B = 0.902 } // # CSS Light Blue or #ADD8E6 for clocked components
+        { R = 0.91; G = 0.816; B = 0.663 } // #E8D0A9 for inputs/outptus
+        { R = 0.564; G = 0.933; B = 0.564 } // #90EE90 aka CSS Light Green for selected components
     ]
 
     let blacklistedColoursHSL = blacklistedColorsRGB |> List.map rgbToHSL
 
-    /// Checks if a generated colour is valid
+    /// Checks if a generated colour is valid, i.e. not too close to other colours or blacklisted colours
     let isColourValid (newSample: ColourHSL) (existingColours : ColourHSL list) : bool =
         // for every existingColour, make sure it is not too close to the newSample
 
         let farAwayFromExistingColours = not (List.exists (fun existingColour ->
-            let distance = colourPerceivedDistance newSample existingColour
+            let distance = colourDistance newSample existingColour
             distance < minimumColourDistance
         ) existingColours)
 
         let farAwayFromBlacklistedColours = not (List.exists (fun blacklistedColour ->
-            let distance = colourPerceivedDistance newSample blacklistedColour
+            let distance = colourDistance newSample blacklistedColour
             distance < blackListedColourDistance
         ) blacklistedColoursHSL)
 
         farAwayFromExistingColours && farAwayFromBlacklistedColours
 
+    /// Generate a base HSL colour randomly
     let generateBaseHSLColour (random: Random) : ColourHSL =
         let h: float = random.NextDouble() * 360.0
         let s: float = float (random.NextDouble()*(snd satRange - fst satRange) + fst satRange)
         let l: float = float (random.NextDouble()*(snd lumRange - fst lumRange) + fst lumRange)
         { H = h; S = s; L = l }
 
+    /// Generate a new HSL colour by incrementing the existing colour
     let generateIncrementedHSLColour (sample:ColourHSL) =
         let newH: float = (sample.H + hIncrement) % 360.0
         let newS: float = ((sample.S - (fst satRange) + sIncrement) % (snd satRange - fst satRange)) + fst satRange
@@ -149,10 +152,12 @@ module ColourGenerator =
 
         { H = newH; S = newS; L = newL }
 
-    let getNewColour (existingColours : ColourHSL list) =
+    /// Generates a new colour given a list of existing colours and a list of blacklisted colours
+    let generateNewColour (existingColours : ColourHSL list) (blacklistedColoursHSL: ColourHSL list) =
         // generate a new colour using poisson-disk sampling.
-        // make this deterministic.
+        // make this deterministic based on seed and length of existingColours
         let random = Random(existingColours.Length * seed)
+
         // 1: generate initial sample
         let newSample =
             match existingColours.Length with
@@ -161,7 +166,7 @@ module ColourGenerator =
 
 
         // 2: repeat for number of trials
-        let rec generateNewColour (sample: ColourHSL) (existingColours : ColourHSL list) (trial : int) =
+        let rec generateNewColourRecursive (sample: ColourHSL) (existingColours : ColourHSL list) (trial : int) =
             match trial with
             | trial when trial > trialLimit + 5 ->
                 printf "Exceeded trial limits again. Generating random colour"
@@ -170,53 +175,48 @@ module ColourGenerator =
                 printf "Exceeded trial limits, trying with less constraints (avoid blacklisted colours only)"
                 let newSample = generateIncrementedHSLColour sample
                 if isColourValid newSample blacklistedColoursHSL then newSample
-                else generateNewColour newSample existingColours (trial + 1)
+                else generateNewColourRecursive newSample existingColours (trial + 1)
             | _ ->
                 let newSample = generateIncrementedHSLColour sample
                 // printf "Trial: %d with colour: %A\n" trial newSample
                 if isColourValid newSample existingColours then newSample
-                else generateNewColour newSample existingColours (trial + 1)
+                else generateNewColourRecursive newSample existingColours (trial + 1)
 
-
-        generateNewColour newSample existingColours 0
+        generateNewColourRecursive newSample existingColours 0
 
 
     /// Top level function that generates a new colour for a group
-    let generateColourFromModel (model: SheetT.Model) =
+    let generateColourFromModel (model: SymbolT.Model) =
+        // First, convert existing colours in the model (stored as rgb) to HSL.
         let existingModelColours =
-            model.Wire.Symbol.GroupInfoMap
+            model.GroupInfoMap
             |> Map.values
             |> Array.toList
             // convert from RGB hex (with # in front) to HSL
             |> List.map (fun (groupInfo: GroupInfo) -> groupInfo.Colour |> hexToRGB |> rgbToHSL)
 
+        // generate a new colour that is not too close to existing colours or blacklisted colours
+        let newHSLColour = generateNewColour existingModelColours blacklistedColoursHSL
 
-        // let sheetDispatch = (fun sMsg -> dispatch (Sheet sMsg))
-
-        let newHSLColour = getNewColour existingModelColours
-        let newGroupInfo = {
-            Id = GroupId (uuid());
-            CreationDate = DateTime.Now;
-            Colour = (newHSLColour |> hslToRGB |> rgbToHex) ;
-        }
-
+        // some stats for printing
         let closestDistanceToBlacklisted =
             blacklistedColoursHSL
-            |> List.map (fun blacklistedColour -> colourPerceivedDistance newHSLColour blacklistedColour)
+            |> List.map (fun blacklistedColour -> colourDistance newHSLColour blacklistedColour)
             |> List.min
 
         printf "Generated colour: %s Closest Distance To Blacklist: %A" (newHSLColour |> hslToRGB |> rgbToHex) (closestDistanceToBlacklisted.ToString("F2"))
         printf "Existing Colours: %A" (existingModelColours |> List.map (fun c -> c |> hslToRGB |> rgbToHex))
 
-        newGroupInfo.Colour
+        // convert back to RGB and then to hex
+        newHSLColour |> hslToRGB |> rgbToHex
 
 
 open ColourGenerator
 
 // --------------- Helper Functions --------------- //
 /// A helper that returns a list of componentIds that are part of any group
-let getGroupedComponentIds (model: SymbolT.Model)  =
-    model.GroupMap
+let getGroupedComponentIds (symModel: SymbolT.Model)  =
+    symModel.GroupMap
     |> Map.values
     |> Array.toList
     |> List.concat
@@ -224,10 +224,9 @@ let getGroupedComponentIds (model: SymbolT.Model)  =
 
 /// A helper that returns a list of symbols in the sheet model that are ungrouped, i.e. not in any group
 /// The symbols returned are sorted in alphabetical order of their labels.
-let getUngroupedSymbols (model: SheetT.Model) =
-    let groupedComponentIds = getGroupedComponentIds model.Wire.Symbol
-
-    model.Wire.Symbol.Symbols
+let getUngroupedSymbols (symModel: SymbolT.Model) =
+    let groupedComponentIds = getGroupedComponentIds symModel
+    symModel.Symbols
     |> Map.toList
     |> List.map snd
     // filter out annotations (symbols with no label)
@@ -242,46 +241,67 @@ let getUngroupedSymbols (model: SheetT.Model) =
     |> List.sortBy (fun symbol -> symbol.Component.Label.ToString())
 
 /// A helper that returns a list of symbols that are selected on sheet, and are ungrouped, i.e. not in any group.
-/// /// The symbols returned are sorted in alphabetical order of their labels.
+/// The symbols returned are sorted in alphabetical order of their labels.
 let getUngroupedSelectedSymbols (model: SheetT.Model) =
-    getUngroupedSymbols model
+    getUngroupedSymbols model.Wire.Symbol
         |> List.filter (fun symbol ->  (List.exists ((=) (ComponentId symbol.Component.Id)) model.SelectedComponents))
 
+/// A helper that returns alist of symbols that are in a group
+let getGroupedSymbols (model : SheetT.Model) =
+    let groupedComponentIds = getGroupedComponentIds model.Wire.Symbol
+    model.Wire.Symbol.Symbols
+    |> Map.toList
+    |> List.map snd
+    |> List.filter (fun symbol -> groupedComponentIds |> List.exists ((=) (ComponentId symbol.Component.Id)))
 
-
-
-
+/// A helper that returns alist of symbols that are in a group. Takes in a
+let getGroupedSymbolsFromSymModel (model : SymbolT.Model) =
+    let groupedComponentIds = getGroupedComponentIds model
+    model.Symbols
+    |> Map.toList
+    |> List.map snd
+    |> List.filter (fun symbol -> groupedComponentIds |> List.exists ((=) (ComponentId symbol.Component.Id)))
 
 
 
 // --------------- Core Functions --------------- //
+// READ: most core functions will return a new groupMap and groupInfoMap.
+// this is so they can be easily placed into DrawModelType.SymbolT.SetGroupMapAndInfo
+// some core functions only return a new groupMap, in which case they can be placed into DrawModelType.SymbolT.SetGroupMap
 
-/// Create a new group with an automatically generated colour. Returns the new groupMap and groupMapInfo.
+/// Optic to read and update groupMap in a SymbolT.Model
+let groupMap_ = Lens.create (fun (model: SymbolT.Model ) -> model.GroupMap) (fun groupMap model -> { model with GroupMap = groupMap } )
+/// Optic to read and update groupInfoMap in a SymbolT.Model
+let groupInfoMap_ = Lens.create (fun (model: SymbolT.Model ) -> model.GroupInfoMap) (fun groupInfo model -> { model with GroupInfoMap = groupInfo } )
+
+
+
+/// Create a new group with an automatically generated colour. Returns the new groupMap and groupInfoMap.
 /// Will not add duplicate componentIds if they are already part of a group.
 /// If the list of componentIds is empty, nothing is changed (cannot create a group with no components).
-let createNewGroup (sheetModel : SheetT.Model) (componentIds: ComponentId list) =
-    let allCompIdsInAGroup = getGroupedComponentIds sheetModel.Wire.Symbol
+let createNewGroup (symModel : SymbolT.Model) (componentIds: ComponentId list) =
+    let allCompIdsInAGroup = getGroupedComponentIds symModel
     // filter out componentIds that are already part of a group
     let componentIdsFiltered =
         componentIds
         |> List.filter (fun componentId -> not (List.exists ((=) componentId) allCompIdsInAGroup))
 
-    // if empty list, cannot create a new group, just return the existing groupMap and groupMapInfo.
+    // if empty list, cannot create a new group, just return the existing groupMap and groupInfoMap.
     match componentIdsFiltered with
-    | [] -> sheetModel.Wire.Symbol.GroupMap, sheetModel.Wire.Symbol.GroupInfoMap
+    | [] -> symModel.GroupMap, symModel.GroupInfoMap
     | _ ->
         let groupId = (GroupId(uuid()))
         let groupInfo = {
             Id = groupId;
             CreationDate = DateTime.Now;
-            Colour = (generateColourFromModel sheetModel)
+            Colour = (generateColourFromModel symModel)
             }
 
-        let newGroupMapInfo = Map.add groupId groupInfo sheetModel.Wire.Symbol.GroupInfoMap
+        let newGroupInfoMap = Map.add groupId groupInfo symModel.GroupInfoMap
 
-        let newGroupMap = Map.add groupId componentIdsFiltered sheetModel.Wire.Symbol.GroupMap
+        let newGroupMap = Map.add groupId componentIdsFiltered symModel.GroupMap
 
-        newGroupMap, newGroupMapInfo
+        newGroupMap, newGroupInfoMap
 
 /// Add a list of componentIds to an existing group. Returns the new groupMap. If groupId does not exist, nothing is changed.
 /// Will not add duplicate componentIds if they are already part of a group.
@@ -300,9 +320,9 @@ let addToGroup (sheetModel : SheetT.Model) (groupId: GroupId) (componentIds: Com
         Map.add groupId newComponentIds groupMap
     | None -> printf "no group exists for given groupId, returning unchanged groupMap"; groupMap
 
-/// Delete a component from a group. If the group has no components left, delete it. Returns the new groupMap and groupMapInfo. If groupId does not exist, nothing is changed.
-let deleteComponentFromGroup  (sheetModel : SheetT.Model) (groupId: GroupId) (componentId: ComponentId) =
-    let groupMap = sheetModel.Wire.Symbol.GroupMap
+/// Delete a component from a group. If the group has no components left, delete it. Returns the new groupMap and groupInfoMap. If groupId does not exist, nothing is changed.
+let deleteComponentFromGroup  (symModel : SymbolT.Model) (groupId: GroupId) (componentId: ComponentId) =
+    let groupMap = symModel.GroupMap
     let newGroupMap =
         match Map.tryFind groupId groupMap with
         | Some componentIds ->
@@ -311,27 +331,60 @@ let deleteComponentFromGroup  (sheetModel : SheetT.Model) (groupId: GroupId) (co
         | None -> printf "nothing found for given groupId"; groupMap
 
     // if the last component has been removed, delete the group from the groupMap and groupInfoMap
+    // else just leave unchanged
     match newGroupMap |> Map.tryFind groupId with
     | Some [] ->
+        printf "All components removed from group, deleting empty group..."
         let newGroupMap = Map.remove groupId newGroupMap
-        let newGroupInfoMap = Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
+        let newGroupInfoMap = Map.remove groupId symModel.GroupInfoMap
         (newGroupMap, newGroupInfoMap)
-    | _ -> printf "no group exists for groupId, returning unchanged groupMap and groupInfoMap ";(newGroupMap, sheetModel.Wire.Symbol.GroupInfoMap)
+    | _ -> (newGroupMap, symModel.GroupInfoMap)
 
 
-/// Delete a whole group. Returns the new groupMap and groupMapInfo
-let deleteWholeGroup  (sheetModel : SheetT.Model)  (groupId: GroupId) =
-    let newGroupMap =
-        match Map.tryFind groupId sheetModel.Wire.Symbol.GroupMap with
+
+
+/// Delete a component if it exists in any group. Returns the new groupMap and groupInfoMap.
+let deleteGroupedComponents (symModel : SymbolT.Model) (componentIds: ComponentId list) =
+    let groupedSymbols = getGroupedSymbolsFromSymModel symModel
+
+    // Helper function to delete a single component
+    let deleteGroupedComponent (symModel : SymbolT.Model) (componentId: ComponentId) =
+        match List.tryFind (fun symbol -> symbol.Component.Id = componentId.ToString()) groupedSymbols with
         | Some _ ->
-            Map.remove groupId sheetModel.Wire.Symbol.GroupMap
-        | None -> printf "No group exists for given groupId in GroupMap" ;sheetModel.Wire.Symbol.GroupMap
+            let groupId = symModel.GroupMap |> Map.findKey (fun _ componentIds -> List.exists ((=) componentId) componentIds)
+            deleteComponentFromGroup symModel groupId componentId
+        | None -> symModel.GroupMap, symModel.GroupInfoMap
+
+    // Fold over the list of component IDs to accumulate the changes
+    let initialGroupMap = symModel.GroupMap
+    let initialGroupInfoMap = symModel.GroupInfoMap
+
+    let finalGroupMap, finalGroupInfoMap =
+        List.fold (fun (currentGroupMap, currentGroupInfoMap) componentId ->
+            let sheetModelWithCurrentMaps =
+                symModel
+                |> Optic.set groupMap_ currentGroupMap
+                |> Optic.set groupInfoMap_ currentGroupInfoMap
+            let newGroupMap, newGroupInfoMap = deleteGroupedComponent sheetModelWithCurrentMaps componentId
+            newGroupMap, newGroupInfoMap
+        ) (initialGroupMap, initialGroupInfoMap) componentIds
+
+    finalGroupMap, finalGroupInfoMap
+
+
+/// Delete a whole group. Returns the new groupMap and groupInfoMap
+let deleteWholeGroup  (symModel : SymbolT.Model)  (groupId: GroupId) =
+    let newGroupMap =
+        match Map.tryFind groupId symModel.GroupMap with
+        | Some _ ->
+            Map.remove groupId symModel.GroupMap
+        | None -> printf "No group exists for given groupId in GroupMap" ;symModel.GroupMap
 
     let newGroupInfoMap =
-        match Map.tryFind groupId sheetModel.Wire.Symbol.GroupInfoMap with
+        match Map.tryFind groupId symModel.GroupInfoMap with
         | Some _ ->
-            Map.remove groupId sheetModel.Wire.Symbol.GroupInfoMap
-        | None -> printf "No group exists for given groupId in GroupInfoMap" ; sheetModel.Wire.Symbol.GroupInfoMap
+            Map.remove groupId symModel.GroupInfoMap
+        | None -> printf "No group exists for given groupId in GroupInfoMap" ; symModel.GroupInfoMap
 
     (newGroupMap, newGroupInfoMap)
 

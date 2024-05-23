@@ -71,6 +71,7 @@
 	<Compile Include="DrawBlock\SymbolPortHelpers.fs" />
     <Compile Include="DrawBlock\SymbolResizeHelpers.fs" />
 	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
+    <Compile Include="DrawBlock\Groups.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
 	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
@@ -84,7 +85,6 @@
     <Compile Include="DrawBlock\SheetDisplay.fs" />
 	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
-    <Compile Include="DrawBlock\Groups.fs" />
     <!-- UI -->
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI\Style.fs" />

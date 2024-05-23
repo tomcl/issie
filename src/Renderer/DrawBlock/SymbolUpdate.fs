@@ -16,6 +16,7 @@ open Optics
 open Optic
 open Operators
 open System
+open Groups
 
 //--------------------- GENERATING LABEL FUNCTIONS-------------------------------
 let rec extractIOPrefix (str : string) (charLst: char list) =
@@ -299,7 +300,11 @@ let inline deleteSymbols (model: Model) compIds =
     let newSymbols =
         (model.Symbols, compIds)
         ||> List.fold (fun prevModel sId -> Map.remove sId prevModel)
-    { model with Symbols = newSymbols }
+
+    let (newGroupMap: Map<GroupId,ComponentId list>), (newGroupInfoMap: Map<GroupId,GroupInfo>) = deleteGroupedComponents model compIds
+    { model with Symbols = newSymbols ; GroupMap = newGroupMap; GroupInfoMap = newGroupInfoMap}
+
+    // { model with Symbols = newSymbols }
 
 /// Given a model and a list of component ids copies the specified components and returns the updated model
 let copySymbols (model: Model) compIds =
@@ -441,7 +446,7 @@ let inline colorSymbols (model: Model) compList colour =
     { model with Symbols = newSymbols }
 
 /// Given a colour lookup table, modify all symbols in the model to have the colour specified.
-/// Revert any symbols not in the lookup table to their original colour (respecting selection,, so do not revert lightgreen)
+/// Revert any symbols not in the lookup table to their original colour (respecting selection, so do not revert any symbols coloured lightgreen, because they are selected)
 let inline colourGroups (model: Model) (colourLookup: Map<ComponentId,string>): Map<ComponentId, Symbol> =
     let revertedSymbols =
         model.Symbols
@@ -905,7 +910,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         {model with Theme=theme; Symbols = resetSymbols}, Cmd.none
 
 // --------------- Functions for modifying the model group map
-    // Set the model's group map to the provided group map. Assumes there are no added/removed groups, as the colours need to be looked up
+    // Set the model's group map to the provided group map. Assumes that there is no needed changes for the GroupInfoMap, so there are no new/deleted groups
     | SetGroupMap (groupMap: Map<GroupId,ComponentId list>) ->
         // create the new colourLookup Map
         let colourLookupMap =
@@ -921,7 +926,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         newModel, Cmd.none
 
-    // Set the model's group info map to the provided group info map. Assumes there are no added/removed groups, as the colours need to be looked up
+    // Set the model's group info map to the provided group info map. that there is no needed change in GroupMap, so there is no modification to the symbols inside the groups, only the groups' info  (GroupInfo type)
     | SetGroupInfoMap (groupInfoMap: Map<GroupId, GroupInfo>) ->
         // create the new colourLookup Map
         let colourLookupMap =
@@ -936,7 +941,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         newModel, Cmd.none
 
-    // Set the model's group map and group info map
+    // Set the model's group map and group info map.
     | SetGroupMapAndInfo (groupMap: Map<GroupId,ComponentId list>, groupInfoMap: Map<GroupId, GroupInfo>) ->
         // create the new colourLookup Map
         let colourLookupMap =

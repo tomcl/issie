@@ -61,8 +61,8 @@ let isCancellable (cancellable : ContextualSidebarCancellable) (model:ModelType.
 
 
 type SidebarOptions = {
-    ExtraStyle: CSSProp list;
-    TitleText: string;
+    ExtraStyles: (ModelType.Model -> CSSProp list); // dynamic styles can change based on the model. e.g. change the background colour if a model has a problem, etc
+    TitleText: (ModelType.Model -> string); // dynamic title text based on the model. E.g.
     SideBarButtons: SidebarButton list;
     Cancellable: ContextualSidebarCancellable;
 }
@@ -86,10 +86,14 @@ let sidebarDivCSS = [Position PositionOptions.Relative; ZIndex 100; Background "
 /// Creates the sidebar with a dynamic body
 let buildSidebar (sidebarOptions: SidebarOptions) (body: (ModelType.Msg -> Unit) -> ModelType.Model ->  ReactElement) =
     fun (dispatch: ModelType.Msg -> Unit) (model: ModelType.Model) ->
+        let cancellable = isCancellable sidebarOptions.Cancellable model
+        let extraStyles = sidebarOptions.ExtraStyles model
         let buttons = sidebarOptions.SideBarButtons |> List.map (fun buttonInfo -> createButton buttonInfo dispatch model )
+        let titleText = sidebarOptions.TitleText model
+
         // will be an empty div if the sidebar is not cancellable
         let cancelButton =
-            if (isCancellable sidebarOptions.Cancellable model) then
+            if (cancellable) then
 
                 (Delete.delete [
                     Delete.Option.Props[OnClick (fun _ -> dispatch (CloseContextualSidebar)) ]
@@ -97,11 +101,11 @@ let buildSidebar (sidebarOptions: SidebarOptions) (body: (ModelType.Msg -> Unit)
             else div [Style [Height "20px"; ]] []
 
 
-        div [  Style (sidebarOptions.ExtraStyle @ sidebarDivCSS);] [
+        div [  Style (extraStyles @ sidebarDivCSS);] [
         div [ Style [Margin "5px 20px"]] [
 
             div [ Style [ MarginBottom "10px"; Display DisplayOptions.Flex; FlexDirection "row-reverse"] ] [cancelButton]
-            Heading.h4 [] [ str sidebarOptions.TitleText ]
+            Heading.h4 [] [ str (sidebarOptions.TitleText model) ]
             div [ Style [ Margin "15px 0" ]] [ body dispatch model ]
             div [ Style [ Display DisplayOptions.Flex; JustifyContent "space-between"; FlexDirection FlexDirection.Row ] ] [
                 div [ Style [  ] ] buttons
@@ -278,15 +282,15 @@ let sidebarToCreateNewGroup : (ModelType.Msg -> Unit) -> ModelType.Model -> Reac
         ButtonText = (fun _ -> "Confirm Group");
         ButtonAction = (fun model dispatch _ ->
             let symbolDispatch symMsg =  symMsg |> Symbol |> Wire |> Sheet |> dispatch
-            symbolDispatch (DrawModelType.SymbolT.SetGroupMapAndInfo( createNewGroup model.Sheet  (getUngroupedSelectedSymbols model.Sheet |> List.map (fun s -> s.Id) )))
+            symbolDispatch (DrawModelType.SymbolT.SetGroupMapAndInfo( createNewGroup model.Sheet.Wire.Symbol  (getUngroupedSelectedSymbols model.Sheet |> List.map (fun s -> s.Id) )))
             dispatch CloseContextualSidebar
         )
     }
 
     let sidebarOptions : SidebarOptions = {
-        ExtraStyle = [];
-        TitleText = "Choose Components for Group";
-        Cancellable = (ContextualSidebarCancellable.Func (fun model -> (getUngroupedSymbols model.Sheet).Length <= 0));
+        ExtraStyles = fun _ -> [];
+        TitleText = fun _ -> "Choose Components for Group";
+        Cancellable = (ContextualSidebarCancellable.Func (fun model -> (getUngroupedSymbols model.Sheet.Wire.Symbol).Length <= 0));
         SideBarButtons =[confirmButton]; // we need a dynamic button whose colour/css depends on the model. so we will have to define the sidebar buttons in the sidebarBody
         }
     let sidebarBody =
@@ -356,9 +360,13 @@ let sidebarToAddToExistingGroup (groupId: GroupId) =
 
 
     let sidebarOptions : SidebarOptions = {
-        ExtraStyle = [];
-        TitleText = "Choose Components for Group";
-        Cancellable = (ContextualSidebarCancellable.Func (fun model -> (getUngroupedSymbols model.Sheet).Length <= 0));
+        ExtraStyles = fun _ -> [];
+        TitleText = fun model ->
+            let groupKeys = Map.toList model.Sheet.Wire.Symbol.GroupMap |> List.map fst
+            // get the index of groupId in groupKeys
+            let groupIndex = groupKeys |> List.findIndex (fun gId -> gId = groupId)
+            $"Add Components to Group {groupIndex + 1}";
+        Cancellable = (ContextualSidebarCancellable.Func (fun model -> (getUngroupedSymbols model.Sheet.Wire.Symbol).Length <= 0));
         SideBarButtons =[confirmButton];
         }
     let sidebarBody =

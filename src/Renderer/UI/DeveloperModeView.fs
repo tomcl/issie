@@ -68,8 +68,8 @@ let simpleSidebar =
     // ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
     // +-------- First, Define SidebarOptions. --------+
     let sidebarOptions: SidebarOptions =
-        { ExtraStyle = []
-          TitleText = "Test Sidebar" // this will be displayed on the sidebar
+        { ExtraStyles = fun _ -> []
+          TitleText = fun _ -> "Test Sidebar" // this will be displayed on the sidebar
           // +-------- If true, a cancel button will be displayed. Put false if you want a mandatory action
           Cancellable = ContextualSidebarCancellable.Bool true
           SideBarButtons =
@@ -180,8 +180,8 @@ type SidebarButton = {
 
 let sidebarWithDialog =
     let sidebarOptions: SidebarOptions =
-        { ExtraStyle = []
-          TitleText = "Test Sidebar with Dialog"
+        { ExtraStyles =  fun _ -> []
+          TitleText = fun _ ->  "Test Sidebar with Dialog"
           Cancellable = ContextualSidebarCancellable.Bool true
           SideBarButtons =
             [ { ButtonClassNames = fun _ -> "is-danger is-small"
@@ -285,8 +285,8 @@ let sidebarWithDialog =
 
 let sidebarWithBoundedIntDialog =
     let sidebarOptions: SidebarOptions =
-        { ExtraStyle = []
-          TitleText = "Test Sidebar with Dialog"
+        { ExtraStyles =fun _ ->  []
+          TitleText = fun _ -> "Test Sidebar with Bounded Int Dialog"
           SideBarButtons = []
           Cancellable = ContextualSidebarCancellable.Bool true }
 
@@ -381,7 +381,7 @@ let developerModeView (model: ModelType.Model) dispatch =
             |> Seq.toList
             |> List.take 2
 
-        let (colour) = generateColourFromModel model.Sheet
+        let (colour) = generateColourFromModel model.Sheet.Wire.Symbol
 
         let newSheetModel: SheetT.Model =
             model.Sheet
@@ -435,7 +435,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                 let groupId = model.Sheet.Wire.Symbol.GroupMap |> Map.keys |> Array.head
                                 dispatch (ShowContextualSidebar(Some (sidebarToAddToExistingGroup groupId))));
                                  Style [ Margin "5px 2.5px 0 2.5px " ]] ]
-                  [ str "Test Add to Existing Group Sidebar" ]
+                  [ str "Test Add to Existing Group Sidebar (To 1st Group)" ]
 
               Button.button
                   [ Button.Color IsInfo
@@ -781,7 +781,6 @@ let developerModeView (model: ModelType.Model) dispatch =
 
     // Unfortunately, due to symbol colouring only accessible in the group, we use symbolDispatch to set groups.
     // So any changes to the group require SymbolT.Msg that is wrapped up to become a BusWireT.Msg, SheetT.Msg, up to a ModelType.Msg, which goes into dispatch.
-
     let symbolDispatch symMsg =
         symMsg |> Symbol |> Wire |> Sheet |> dispatch
     let sheetDispatch sheetMsg = sheetMsg |> Sheet |> dispatch
@@ -811,6 +810,7 @@ let developerModeView (model: ModelType.Model) dispatch =
 
             /// Dropdown items to add a list of symbols to a group
             let dropdownItemsForGroupAddition (compIds: ComponentId list) =
+                /// dropdown options list to add to existing groups
                 let groupItems =
                     groupKeys
                     |> List.mapi (fun index groupId ->
@@ -823,14 +823,14 @@ let developerModeView (model: ModelType.Model) dispatch =
                                                                  )
                                                              ))] ]
                             [ p [] [ str ("Group " + (index + 1).ToString()) ] ])
-
+                /// the dropdown option to create a new group
                 let newGroupItem =
                     [ Dropdown.Item.a
                           [ Dropdown.Item.Option.Props[Style [ Width "inherit" ]
                                                        OnClick(fun _ ->
                                                            symbolDispatch (
                                                                DrawModelType.SymbolT.SetGroupMapAndInfo(
-                                                                   createNewGroup model.Sheet compIds
+                                                                   createNewGroup model.Sheet.Wire.Symbol compIds
                                                                )
                                                            ))] ]
 
@@ -991,7 +991,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                     OnClick(fun _ ->
                                         symbolDispatch (
                                             DrawModelType.SymbolT.SetGroupMapAndInfo(
-                                                deleteComponentFromGroup model.Sheet groupId componentId
+                                                deleteComponentFromGroup model.Sheet.Wire.Symbol groupId componentId
                                             )
                                         )) ]
                                   [ Delete.delete [ Delete.Size IsMedium ] [] ] ]
@@ -1024,7 +1024,7 @@ let developerModeView (model: ModelType.Model) dispatch =
                                   OnClick(fun _ ->
                                       symbolDispatch (
                                           DrawModelType.SymbolT.SetGroupMapAndInfo(
-                                              deleteWholeGroup model.Sheet groupId
+                                              deleteWholeGroup model.Sheet.Wire.Symbol groupId
                                           )
                                       )) ]
                                 [ str "Delete All" ] ]

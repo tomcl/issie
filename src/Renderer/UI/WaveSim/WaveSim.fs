@@ -21,7 +21,7 @@ module Constants =
     /// <summary>Config variable to choose whether to generate the full 1000 cycles of SVG.</summary>
     let generateVisibleOnly = true
     /// <summary>Config variable to choose whether to print performance analysis info to console.</summary>
-    let showPerfLogs = true
+    let showPerfLogs = false
 
 
 /// <summary>Generates SVG to display values on non-binary waveforms when there is enough space.</summary>

@@ -16,9 +16,18 @@ open DrawModelType
 open WaveSimSelect
 open DiagramStyle
 
-/// Generates SVG to display values on non-binary waveforms when there is enough space.
-/// TODO: Fix this so it does not generate all 500 cycles.
-let displayUInt32OnWave wsModel (width: int) (waveValues: uint32 array) (transitions: NonBinaryTransition array) : ReactElement list =
+
+module Constants =
+    /// <summary>Config variable to choose whether to generate the full 1000 cycles of SVG.</summary>
+    let generateVisibleOnly = true
+    /// <summary>Config variable to choose whether to print performance analysis info to console.</summary>
+    let showPerfLogs = true
+
+
+/// <summary>Generates SVG to display values on non-binary waveforms when there is enough space.</summary>
+let displayUInt32OnWave (wsModel: WaveSimModel) (width: int) 
+    (waveValues: array<uint32>) (transitions: array<NonBinaryTransition>)
+    : list<ReactElement> =
     /// Find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
@@ -27,16 +36,16 @@ let displayUInt32OnWave wsModel (width: int) (waveValues: uint32 array) (transit
         |> Array.map (fun (i, _) -> i)
 
     /// Find start and length of each gap between a Change transition
-    let gaps : Gap array =
-        // Append dummy transition to end to check final gap length
-        Array.append changeTransitions [|wsModel.StartCycle + transitions.Length - 1|]
+    let gaps: array<Gap> =
+        if Constants.generateVisibleOnly
+        then
+            Array.append changeTransitions [|wsModel.StartCycle+wsModel.ShownCycles|] // add dummy change at visible end
+            |> Array.map (fun loc -> loc+wsModel.StartCycle) // shift cycle to start cycle
+        else
+            Array.append changeTransitions [|wsModel.StartCycle+transitions.Length-1|] // add dummry change length end
         |> Array.pairwise
-        // Get start of gap and length of gap
-        |> Array.map (fun (i1, i2) -> {
-                Start = i1
-                Length = i2 - i1
-            }
-        )
+        |> Array.map (fun (i1, i2) -> {Start = i1; Length = i2-i1}) // get start and length of gap
+    
     gaps
     // Create text react elements for each gap
     |> Array.map (fun gap ->
@@ -72,7 +81,8 @@ let displayUInt32OnWave wsModel (width: int) (waveValues: uint32 array) (transit
     )
     |> List.concat
 
-let displayBigIntOnWave wsModel (width: int) (waveValues: bigint array) (transitions: NonBinaryTransition array) : ReactElement list =
+let displayBigIntOnWave wsModel (width: int) (waveValues: array<bigint>) (transitions: array<NonBinaryTransition>)
+    : ReactElement list =
     /// Find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
@@ -81,16 +91,16 @@ let displayBigIntOnWave wsModel (width: int) (waveValues: bigint array) (transit
         |> Array.map (fun (i, _) -> i)
 
     /// Find start and length of each gap between a Change transition
-    let gaps : Gap array =
-        // Append dummy transition to end to check final gap length
-        Array.append changeTransitions [|wsModel.StartCycle + transitions.Length - 1|]
+    let gaps: array<Gap> =
+        if Constants.generateVisibleOnly
+        then
+            Array.append changeTransitions [|wsModel.StartCycle+wsModel.ShownCycles|] // add dummy change at visible end
+            |> Array.map (fun loc -> loc+wsModel.StartCycle) // shift cycle to start cycle
+        else
+            Array.append changeTransitions [|wsModel.StartCycle+transitions.Length-1|] // add dummry change length end
         |> Array.pairwise
-        // Get start of gap and length of gap
-        |> Array.map (fun (i1, i2) -> {
-                Start = i1
-                Length = i2 - i1
-            }
-        )
+        |> Array.map (fun (i1, i2) -> {Start = i1; Length = i2-i1}) // get start and length of gap
+    
     gaps
     // Create text react elements for each gap
     |> Array.map (fun gap ->
@@ -126,117 +136,76 @@ let displayBigIntOnWave wsModel (width: int) (waveValues: bigint array) (transit
     )
     |> List.concat
 
-/// Detects if SVG is correct, based on zoom & position & existence
-/// The fast simulation data is assumed unchanged
-let waveformIsUptodate (ws: WaveSimModel) (wave:Wave) =
+/// <summary>Check if generated SVG is correct, based on existence, position, 
+/// and zoom. Fast simulation data is assumed unchanged. Used to determine if 
+/// <c>generateWaveform</c> is run.</summary>
+let waveformIsUptodate (ws: WaveSimModel) (wave: Wave): bool =
+    printfn "DEBUG: waveformIsUptodate"
     wave.SVG <> None &&
     wave.ShownCycles = ws.ShownCycles &&
     wave.StartCycle = ws.StartCycle &&
     wave.CycleWidth = singleWaveWidth ws &&
     wave.Radix = ws.Radix
 
-/// Called when InitiateWaveSimulation msg is dispatched
-/// and when wave simulator is refreshed.
-/// Generates or updates the SVG for a specific waveform whetehr needed or not.
-/// The SVG depends on cycle width as well as start/stop clocks and design.
-/// Assumes that the fast simulation data has not changed and has enough cycles
+/// <summary>Called when <c>InitiateWaveSimulation</c> message is dispatched and when wave
+/// simulator is refreshed. Generates or updates the SVG for a specific waveform
+/// whether needed or not. The SVG depends on cycle width as well as start/stop
+/// clocks and design. Assumes that the fast simulation data has not changed and
+/// has enough cycles.</summary>
 let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
+    let makePolyline points = 
+        let points = points |> Array.concat |> Array.distinct
+        polyline (wavePolylineStyle points) []
+    
     let waveform =
         match wave.Width with
-        | 0 -> failwithf "Cannot have wave of width 0"
-        // Binary waveform
-        | 1 ->
-            //printfn "starting binary"
-            let start = TimeHelpers.getTimeMs ()
-            let transitions = calculateBinaryTransitionsUInt32 wave.WaveValues.UInt32Step
-            /// TODO: Fix this so that it does not generate all 500 points.
-            /// Currently takes in 0, but this should ideally only generate the points that
-            /// are shown on screen, rather than all 500 cycles.
-            let t1 = TimeHelpers.getTimeMs()
-            /// PERFORMANCE: calculating wavepoints takes roughly 50% of total time
+        | 0 -> 
+            failwithf "Cannot have wave of width 0"
+
+        | 1 -> // binary waveform
+            let transitions =
+                if Constants.generateVisibleOnly
+                then calculateBinaryTransitionsUInt32 wave.WaveValues.UInt32Step ws.StartCycle ws.ShownCycles
+                else calculateBinaryTransitionsUInt32 wave.WaveValues.UInt32Step ws.StartCycle 0
+            
             let wavePoints =
                 let waveWidth = singleWaveWidth ws
-                Array.mapi (binaryWavePoints waveWidth 0) transitions 
+                let startCycle = if Constants.generateVisibleOnly then ws.StartCycle else 0
+                Array.mapi (binaryWavePoints waveWidth startCycle) transitions
                 |> Array.concat
                 |> Array.distinct
-            let t2 = TimeHelpers.getTimeMs()
-            // PERFORMANCE: polyline takes royghly 50% of total time
-            svg (waveRowProps ws)
-                [ polyline (wavePolylineStyle wavePoints) [] ]
-            (*|> (fun svg ->
-                printfn
-                            "-----1BitTrans %d %.2f %.2f %.3f------"
-                            wavePoints.Length
-                            (t1-start)
-                            (t2-t1)
-                            (TimeHelpers.getInterval start - t2 + start);
-                svg)*)
-        // Non-binary waveform
-        | w when w <= 32 ->
-            //printfn "starting non-binary"
-            let start = TimeHelpers.getTimeMs ()
 
-            let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step
-            //printfn "calculating trans..."
-            /// PERFORMANCE: Fix this so that it does not generate all 1000 points.
-            /// Currently takes in 0, but this should ideally only generate the points that
-            /// are shown on screen (typically < 20 cycles) , rather than all 1000 cycles.
-            /// T1 (see PERFORMANCE comments below) scales roughly linearly with number of points
-            /// T2 (see below) also scales roughly linearly.
-            /// Also - this codes generates waveforms lines as segments per cycle. When there is no
-            /// transition (transition value = Const) the number of points needed is much smaller
-            /// TODO: make sure T1 & T2 functions work only on the displayed segment (or a little bit more
-            /// to speed up single cycle shifts mots of the time)
-            /// TODO: generate points from transitions so that Const transitions do not generate points
+            svg (waveRowProps ws) [ polyline (wavePolylineStyle wavePoints) [] ]
+
+        | w when w <= 32 -> // non-binary waveform
+            let transitions =
+                if Constants.generateVisibleOnly
+                then calculateNonBinaryTransitions wave.WaveValues.UInt32Step ws.StartCycle ws.ShownCycles
+                else calculateNonBinaryTransitions wave.WaveValues.UInt32Step ws.StartCycle 0
+
             let fstPoints, sndPoints =
                 let waveWidth = singleWaveWidth ws
-                Array.mapi (nonBinaryWavePoints waveWidth 0) transitions 
-                |> Array.unzip
-            let t1 = TimeHelpers.getTimeMs()
+                let startCycle = if Constants.generateVisibleOnly then ws.StartCycle else 0
+                Array.mapi (nonBinaryWavePoints waveWidth startCycle) transitions |> Array.unzip
             
-            let makePolyline points = 
-                let points =
-                    points
-                    |> Array.concat
-                    |> Array.distinct
-                polyline (wavePolylineStyle points) []
-            /// PERFORMANCE T1: This function call takes 25% of total time
             let valuesSVG = displayUInt32OnWave ws wave.Width wave.WaveValues.UInt32Step transitions
-            let t2 = TimeHelpers.getTimeMs()
-            /// PERFORMANCE T2: This function call takes 75% of total time
             let polyLines = [makePolyline fstPoints; makePolyline sndPoints]
-            let t3 = TimeHelpers.getTimeMs()
-            svg (waveRowProps ws)
-                (List.append polyLines valuesSVG)
-            |> (fun svg -> printfn "**---NonBinaryTrans %d %.2f %.2f %.2f %.2f------" fstPoints.Length (t1-start) (t2-t1) (t3-t2) (TimeHelpers.getInterval start - t3 + start); svg)
-        // Non-binary waveform
-        | w ->
-            //
-            // ------------This case is not important for performance since we very rarely have busses > 32 bits-------------
-            //
-            let start = TimeHelpers.getTimeMs ()
 
-            let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step
-            /// TODO: Fix this so that it does not generate all 500 points.
-            /// Currently takes in 0, but this should ideally only generate the points that
-            /// are shown on screen, rather than all 500 cycles.
+            svg (waveRowProps ws) (List.append polyLines valuesSVG)
+
+        | _ -> // non-binary waveform with width greather than 32
+            let transitions =
+                if Constants.generateVisibleOnly
+                then calculateNonBinaryTransitions wave.WaveValues.UInt32Step ws.StartCycle ws.ShownCycles
+                else calculateNonBinaryTransitions wave.WaveValues.UInt32Step ws.StartCycle 0
+
             let fstPoints, sndPoints =
-                Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions 
-                |> Array.unzip
-            //printfn "points"
-            let makePolyline points = 
-                let points =
-                    points
-                    |> Array.concat
-                    |> Array.distinct
-                polyline (wavePolylineStyle points) []
+                Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions |> Array.unzip
 
             let valuesSVG = displayBigIntOnWave ws wave.Width wave.WaveValues.BigIntStep transitions
-            //printfn "values"
-            svg (waveRowProps ws)
-                (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
-            //|> (fun x -> printfn "makepolyline"; x)
-    //printfn "end generate"
+
+            svg (waveRowProps ws) (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
+
     {wave with 
         Radix = ws.Radix
         ShownCycles = ws.ShownCycles
@@ -807,17 +776,21 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
     else div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 
-/// This function regenerates all the waveforms listed on wavesToBeMade.
-/// Generation is subject to timeout, so may not complete.
-/// Returns tuple: 
-/// allWaves (with new waveforms); 
-/// numberDone (no of waveforms made);
-/// timeToDo; Some (time actually taken) (> timeout) or None if complete with no timeOut.
+/// <summary>This function regenerates all the waveforms listed on <c> wavesToBeMade </c>. 
+/// Generation is subject to timeout, so may not complete.</summary>
+/// <remarks>This function have been augmented with performance monitoring function, turn <c>Constants.showPerfLogs</c>
+/// to print performance information to console.</remarks>
+/// <returns>A tuple with the following information:<br/>
+/// a) <c>allWaves</c> (with new waveforms),<br/>
+/// b) <c>numberDone</c> (no of waveforms made), and<br/>
+/// c) <c>timeToDo</c> (<c>Some timeTaken</c> when greater than <c>timeOut</c> or <c>None</c>
+/// if completed with no time out).</returns>
 let makeWaveformsWithTimeOut
-        (timeOut: float option) 
-        (ws: WaveSimModel)
-        (allWaves: Map<WaveIndexT,Wave>) 
-        (wavesToBeMade: WaveIndexT list) =
+    (timeOut: option<float>)
+    (ws: WaveSimModel)
+    (allWaves: Map<WaveIndexT,Wave>)
+    (wavesToBeMade: list<WaveIndexT>)
+    : Map<WaveIndexT,Wave> * int * option<float> =
     let start = TimeHelpers.getTimeMs()
     let allWaves, numberDone, timeToDo =
         ((allWaves, 0, None), wavesToBeMade)
@@ -827,7 +800,21 @@ let makeWaveformsWithTimeOut
                     all, n, Some timeSoFar
                 | _ -> 
                     (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
-//    printfn $"Making {numberDone} waveforms from {wavesToBeMade.Length}."
+    let finish = TimeHelpers.getTimeMs()
+    
+    if Constants.showPerfLogs then
+        let countWavesWithWidthRange lowerLim upperLim =
+            wavesToBeMade
+            |> List.map (fun wi -> (Map.find wi allWaves).Width)
+            |> List.filter (fun width -> lowerLim <= width && width <= upperLim)
+            |> List.length
+        
+        printfn "PERF:makeWaveformsWithTimeOut: generating visible only: %b" Constants.generateVisibleOnly
+        printfn "PERF:makeWaveformsWithTimeOut: making %d/%d waveforms" (List.length wavesToBeMade) (Map.count allWaves)
+        printfn "PERF:makeWaveformsWithTimeOut: binary = %d" (countWavesWithWidthRange 1 1)
+        printfn "PERF:makeWaveformsWithTimeOut: int32 = %d" (countWavesWithWidthRange 2 32)
+        printfn "PERF:makeWaveformsWithTimeOut: process took %.2fms" (finish-start)
+
     allWaves, numberDone, timeToDo
 
 /// Start or update a spinner popup

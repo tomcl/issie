@@ -240,9 +240,20 @@ let calculateBinaryTransitions (waveValues: FData array) : BinaryTransition arra
             failwithf $"Unrecognised transition {getBit x}, {getBit y}"
     )
 
-let calculateBinaryTransitionsUInt32 (waveValues: uint32 array) : BinaryTransition array =
+/// <summary>Find transitions for each clock cycle of a binary waveform.</summary>
+let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int)
+    : array<BinaryTransition> =
     let getBit bit = int32 bit
-    Array.append [| waveValues[0] |] waveValues
+    match startCycle, startCycle+shownCycles with
+    | startCyc, endCyc when (startCyc = endCyc) -> // if shownCycles = 0, calc everythihg
+        waveValues
+    | startCyc, endCyc when (startCyc = 0 && startCyc < endCyc && endCyc < Array.length waveValues) ->
+        Array.sub waveValues startCyc (endCyc-startCyc+1)
+        |> Array.append [| waveValues[0] |]
+    | startCyc, endCyc when (0 < startCyc && startCyc < endCyc && endCyc < Array.length waveValues) ->
+        Array.sub waveValues (startCyc-1) (endCyc-startCyc+1)
+    | _ ->
+        failwithf "Shown cycles is beyond array bounds"
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
         match getBit x, getBit y with
@@ -264,20 +275,20 @@ let calculateBinaryTransitionsBigInt (waveValues: bigint array) : BinaryTransiti
         | 1, 1 -> OneToOne
         | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
 
-/// Determine transitions for each clock cycle of a non-binary waveform.
-/// Assumes that waveValues starts at clock cycle 0.
-let calculateNonBinaryTransitions (waveValues: 'a array) : NonBinaryTransition array =
-    // TODO: See if this will break if the clock cycle isn't 0.
-    let transitions =
+/// <summary>Find transitions for each clock cycle of a non-binary waveform.</summary>
+let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (shownCycles: int)
+    : array<NonBinaryTransition> =
+    match startCycle, startCycle+shownCycles with
+    | startCyc, endCyc when (startCyc = endCyc) -> // if shownCycles = 0, calc everythihg
         waveValues
-        |> Array.pairwise
-        |> Array.map (fun (x, y) ->
-            if x = y then
-                Const
-            else
-                Change)
-    // Concat [| Change |] so first clock cycle always starts with Change
-    Array.append [| Change |] transitions 
+    | startCyc, endCyc when (0 <= startCyc && startCyc < endCyc && endCyc < Array.length waveValues) ->
+        Array.sub waveValues (startCyc) (endCyc-startCyc+1)
+    | _ ->
+        failwithf "Shown cycles is beyond array bounds"
+    |> Array.pairwise
+    |> Array.map (fun (x, y) -> if x = y then Const else Change)
+    |> Array.append [| Change |] 
+
 
 let isWaveSelected (wsModel: WaveSimModel) (index: WaveIndexT) : bool = List.contains index wsModel.SelectedWaves
 let isRamSelected (ramId: FComponentId) (wsModel: WaveSimModel) : bool = Map.containsKey ramId wsModel.SelectedRams

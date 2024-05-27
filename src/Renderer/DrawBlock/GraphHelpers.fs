@@ -5,9 +5,6 @@ open EEExtensions
   Helper functions & Types used to work with Directed Graphs
 *)
 
-open System
-open System.Collections.Generic
-
 /// return list of map keys
 let keysL m = (Map.keys >> Seq.toList) m
 
@@ -49,26 +46,30 @@ let rec power (n:int) (f: 'a->'a) (x:'a) : 'a =
 /// graph:  a directed weighted graph represented as a Map of Nodes to Edges with non-negative costs.
 /// source: node from which to meaure path costs.
 /// Return a Map from nodes to the cost of the shortest path to reach the node from source.
-/// Nodes unreachable from source are not included in the result Map.
+/// Nodes of graph unreachable from source are not included in the result Map.
 /// 'NODE is the type of the graph nodes, which must support comparison.
 let dijkstra (graph: WeightedGraph<'NODE>) (source: 'NODE) : Map<'NODE,float> =
-    let rec dijkstra' (start: 'NODE) (distances: Map<'NODE, float>) =
-        match Map.tryFind start distances with
-        | Some distU ->
+    let rec dijkstra' (nodesToVisit: 'NODE Set) (distances: Map<'NODE, float>) =
+        if nodesToVisit.Count = 0 then
+            let nextNodeToVisit =
+                nodesToVisit
+                |> Set.toList
+                |> List.minBy (fun node -> distances[node])            
             let updatedDistances: Map<'NODE,float> =
-                (distances, graph.Edges[start])
+                (distances, graph.Edges[nextNodeToVisit])
                 ||> List.fold (fun dist endNode ->
-                    let alt = distU + graph.Weights[{Start=start; End=endNode}]
-                    if alt < dist[endNode] then
-                        Map.add endNode alt dist
-                    else dist) 
-            let nextNode =
-                graph.Edges[start]
-                |> List.minBy (fun endNode -> updatedDistances[endNode])
-            dijkstra' nextNode updatedDistances
-        | None -> distances
+                    let altDist = dist[nextNodeToVisit] + graph.Weights[{Start=nextNodeToVisit; End=endNode}]
+                    match  Map.tryFind endNode dist with
+                    | None ->
+                        Map.add endNode altDist dist
+                    | Some oldDist when altDist < oldDist ->
+                        Map.add endNode altDist dist
+                    | _ -> dist)
+            let nodesToVisit = nodesToVisit + Set.ofList graph.Edges[nextNodeToVisit] - Set.singleton nextNodeToVisit
+            dijkstra' nodesToVisit updatedDistances
+        else distances
     let initialDistances = Map.add source 0. Map.empty
-    dijkstra' source initialDistances
+    dijkstra' (Set.singleton source) initialDistances
 
 /// graph is an arbitrary directed weighted graph which can have negative weights and cycles.
 /// If graph has one or more cycles with negative path length reachable from source
@@ -124,7 +125,13 @@ let makeGraph (gt: Map<'NODE, 'NODE GraphTestData list>) : 'NODE WeightedGraph=
     let edges = Map.map (fun k vL -> List.map (fun v -> v.End) vL) gt
     { Edges = edges; Weights = costs}
 
-let exhaustiveMinPath (graph: 'NODE WeightedGraph) (source: 'NODE): Map<'NODE,float> =
+/// Work out the minimum length of all non-cyclic paths starting with source
+/// by constructing all possible such paths of up to N-1 edges in a an N node graph.
+/// Return a map of all nodes reachable from source and their distance from source.
+/// This function has time that is exponential in the number of graph nodes. For testing only!
+/// graph: the graph.
+/// source: the source node to calculate distance from.
+let exhaustiveSearchMinPath (graph: 'NODE WeightedGraph) (source: 'NODE): Map<'NODE,float> =
     let addPaths (pathL: 'NODE list list) =
         pathL
         |> List.collect (fun path ->
@@ -137,13 +144,26 @@ let exhaustiveMinPath (graph: 'NODE WeightedGraph) (source: 'NODE): Map<'NODE,fl
         |> List.sumBy (fun (startN,endN) -> Map.findWithDefault {Start=startN; End = endN} 0. graph.Weights )
 
     let zeroLengthPath = [[source]]
-    [1..7]
+    [0..graph.Edges.Count-1]
     |> List.collect (fun numEdgesInPath -> (power numEdgesInPath addPaths zeroLengthPath))
     |> List.groupBy List.head
     |> List.map (fun (dest, pathL) -> dest, List.min (List.map  lengthOf pathL))
     |> Map.ofList
 
-    
+let inline testAcyclicGraph (aGraph: 'a WeightedGraph)  =
+    let compareDistancesFromSource (source: 'a) =
+        let compareData = Map.toList >> List.sort
+        let dES = compareData <| exhaustiveSearchMinPath aGraph source
+        let dD = compareData <| dijkstra aGraph source
+        let dBF =
+            Result.map compareData (bellmanFord aGraph source)
+            |> Result.defaultValue []
+        if dES <> dD then
+            printfn $"\nComparison of Dijkstra and exahaustive search FAILED\n'%A{source}'\n%A{dES}\nwith\n%A{dD}\n\n"
+        if dES <> dBF then
+            printfn $"\nComparison of Bellman-Ford and exahaustive search FAILED\nsource='%A{source}' \n%A{dES}\nwith\n%A{dD}\n\n"
+    keysL aGraph.Edges
+    |> List.iter compareDistancesFromSource 
 
 // Example usage
 let graph =
@@ -160,3 +180,4 @@ let shortestDistances = dijkstra graph sourceNode
 let x = bellmanFord (makeGraph Map.empty) sourceNode
 let shortestDistancesOrCycle = bellmanFord graph
 printfn "Shortest distances from node %s:" sourceNode
+testAcyclicGraph graph

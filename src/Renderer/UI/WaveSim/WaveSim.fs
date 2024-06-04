@@ -24,115 +24,169 @@ module Constants =
     let showPerfLogs = false
 
 
-/// <summary>Generates SVG to display values on non-binary waveforms when there is enough space.</summary>
-let displayUInt32OnWave (wsModel: WaveSimModel) (width: int) 
-    (waveValues: array<uint32>) (transitions: array<NonBinaryTransition>)
+/// <summary>Generates SVG to display non-binary values on waveforms.</summary>
+/// <remarks>Should be refactored together with <c>displayBigIntOnWave</c>.</remarks>
+let displayUInt32OnWave 
+    (wsModel: WaveSimModel)
+    (width: int) 
+    (waveValues: array<uint32>)
+    (transitions: array<NonBinaryTransition>)
     : list<ReactElement> =
-    /// Find all clock cycles where there is a NonBinaryTransition.Change
+    // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
         |> Array.indexed
         |> Array.filter (fun (_, x) -> x = Change)
         |> Array.map (fun (i, _) -> i)
 
-    /// Find start and length of each gap between a Change transition
+    // find start and length of each gap between a Change transition
     let gaps: array<Gap> =
         if Constants.generateVisibleOnly
         then
-            Array.append changeTransitions [|wsModel.StartCycle+wsModel.ShownCycles|] // add dummy change at visible end
+            // add dummy change at visible end, but need account for difference in changes:
+            // e.g. if we are showing 3 cycles, a wave with a change in each would be 0, 1, 2, 3 and would be fine when
+            // 4 is added; however, a wave with no change at all would be 0, and would produce an errorneous gap length
+            // of 4 when 4 is added - we therefore add 3
+            if changeTransitions[Array.length changeTransitions-1] <> wsModel.ShownCycles
+            then Array.append changeTransitions [|wsModel.ShownCycles|]
+            else Array.append changeTransitions [|wsModel.ShownCycles+1|]
             |> Array.map (fun loc -> loc+wsModel.StartCycle) // shift cycle to start cycle
         else
             Array.append changeTransitions [|wsModel.StartCycle+transitions.Length-1|] // add dummry change length end
         |> Array.pairwise
         |> Array.map (fun (i1, i2) -> {Start = i1; Length = i2-i1}) // get start and length of gap
     
+    // utility functions for SVG generation
+    /// <summary>Function to make polygon fill for a gap.</summary>
+    /// <param name="points">Array of polyline points to fill.</param>
+    let makePolyfill (points: array<XYPos>) = 
+        let points = points |> Array.distinct
+        polyline (wavePolyfillStyle points) []
+
+    /// <summary>Function to make text element for a gap.</summary>
+    /// <param name="start">Starting X location of element.</param>
+    let makeTextElement (start: float) (waveValue: string) = 
+        text (singleValueOnWaveProps start) [ str waveValue ]
+    
+    // create text element for every gap
     gaps
-    // Create text react elements for each gap
     |> Array.map (fun gap ->
-        let waveValue = UInt32ToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
-
-        /// Amount of whitespace between two Change transitions minus the crosshatch
+        // generate string
+        let waveValue = UInt32ToPaddedString Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
+        
+        // calculate display widths
         let cycleWidth = singleWaveWidth wsModel
-        let availableWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
-        /// Required width to display one value
-        let requiredWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
-        /// Width of text plus whitespace between a repeat
-        let widthWithPadding = 2. * requiredWidth + Constants.valueOnWavePadding
-
-        // Display nothing if there is not enough space
-        if availableWidth < requiredWidth then
-            []
-        else
-
-            /// Calculate how many times the value can be shown in the space available
-            let repeats =
-                availableWidth / widthWithPadding
-                |> System.Math.Floor
-                |> int
-                |> max 1
-
-            let repeatSpace = (availableWidth - float repeats * requiredWidth) / ((float repeats + 1.) * cycleWidth)
-            let valueText i =
-                text (valueOnWaveProps wsModel i (float gap.Start + repeatSpace) widthWithPadding)
-                    [ str waveValue ]
-
-            [ 0 .. repeats - 1]
-            |> List.map valueText
+        let gapWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
+        let singleWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
+        let doubleWidth = 2. * singleWidth + Constants.valueOnWavePadding
+        
+        match gapWidth with
+        | w when (w < singleWidth) -> // display filled polygon
+            let fillPoints = nonBinaryFillPoints cycleWidth gap
+            let fill = makePolyfill fillPoints
+            [ fill ]
+        | w when (singleWidth <= w && w < doubleWidth) -> // diplay 1 copy at centre
+            let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
+            let singleText = makeTextElement (float gap.Start * cycleWidth + gapCenterPadWidth) waveValue
+            [ singleText ] 
+        | w when (doubleWidth <= w) -> // display 2 copies at end of gaps
+            let singleCycleCenterPadWidth = // if a single cycle gap can include 2 copies, set arbitrary padding
+                if cycleWidth < doubleWidth
+                then (cycleWidth - singleWidth) / 2.
+                else Constants.valueOnWaveEdgePadding
+            let startPadWidth = 
+                if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue 
+                    then 0.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue 
+                    else singleCycleCenterPadWidth
+            let endPadWidth = (float gap.Length * cycleWidth - startPadWidth - singleWidth)
+            let startText = makeTextElement (float gap.Start * cycleWidth + startPadWidth) waveValue
+            let endText = makeTextElement (float gap.Start * cycleWidth + endPadWidth) waveValue
+            [ startText; endText ] 
+        | _ -> // catch-all
+            failwithf "displayUInt32OnWave: impossible case"
     )
     |> List.concat
 
-let displayBigIntOnWave wsModel (width: int) (waveValues: array<bigint>) (transitions: array<NonBinaryTransition>)
-    : ReactElement list =
-    /// Find all clock cycles where there is a NonBinaryTransition.Change
+/// <summary>Generates SVG to display <c>bigint</c> values on waveforms.</summary>
+/// <remarks>Should be refactored together with <c>displayUInt32OnWave</c>.</remarks>
+let displayBigIntOnWave
+    (wsModel: WaveSimModel)
+    (width: int) 
+    (waveValues: array<bigint>)
+    (transitions: array<NonBinaryTransition>)
+    : list<ReactElement> =
+    // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
         |> Array.indexed
         |> Array.filter (fun (_, x) -> x = Change)
         |> Array.map (fun (i, _) -> i)
 
-    /// Find start and length of each gap between a Change transition
+    // find start and length of each gap between a Change transition
     let gaps: array<Gap> =
         if Constants.generateVisibleOnly
         then
-            Array.append changeTransitions [|wsModel.StartCycle+wsModel.ShownCycles|] // add dummy change at visible end
+            // add dummy change at visible end, but need account for difference in changes:
+            // e.g. if we are showing 3 cycles, a wave with a change in each would be 0, 1, 2, 3 and would be fine when
+            // 4 is added; however, a wave with no change at all would be 0, and would produce an errorneous gap length
+            // of 4 when 4 is added - we therefore add 3
+            if changeTransitions[Array.length changeTransitions-1] <> wsModel.ShownCycles
+            then Array.append changeTransitions [|wsModel.ShownCycles|]
+            else Array.append changeTransitions [|wsModel.ShownCycles+1|]
             |> Array.map (fun loc -> loc+wsModel.StartCycle) // shift cycle to start cycle
         else
             Array.append changeTransitions [|wsModel.StartCycle+transitions.Length-1|] // add dummry change length end
         |> Array.pairwise
         |> Array.map (fun (i1, i2) -> {Start = i1; Length = i2-i1}) // get start and length of gap
     
+    // utility functions for SVG generation
+    /// <summary>Function to make polygon fill for a gap.</summary>
+    /// <param name="points">Array of polyline points to fill.</param>
+    let makePolyfill (points: array<XYPos>) = 
+        let points = points |> Array.distinct
+        polyline (wavePolyfillStyle points) []
+
+    /// <summary>Function to make text element for a gap.</summary>
+    /// <param name="start">Starting X location of element.</param>
+    let makeTextElement (start: float) (waveValue: string) = 
+        text (singleValueOnWaveProps start) [ str waveValue ]
+    
+    // create text element for every gap
     gaps
-    // Create text react elements for each gap
     |> Array.map (fun gap ->
-        let waveValue = BigIntToPaddedString WaveSimHelpers.Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
-
-        /// Amount of whitespace between two Change transitions minus the crosshatch
+        // generate string
+        let waveValue = BigIntToPaddedString Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
+        
+        // calculate display widths
         let cycleWidth = singleWaveWidth wsModel
-        let availableWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
-        /// Required width to display one value
-        let requiredWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
-        /// Width of text plus whitespace between a repeat
-        let widthWithPadding = 2. * requiredWidth + Constants.valueOnWavePadding
-
-        // Display nothing if there is not enough space
-        if availableWidth < requiredWidth then
-            []
-        else
-
-            /// Calculate how many times the value can be shown in the space available
-            let repeats =
-                availableWidth / widthWithPadding
-                |> System.Math.Floor
-                |> int
-                |> max 1
-
-            let repeatSpace = (availableWidth - float repeats * requiredWidth) / ((float repeats + 1.) * cycleWidth)
-            let valueText i =
-                text (valueOnWaveProps wsModel i (float gap.Start + repeatSpace) widthWithPadding)
-                    [ str waveValue ]
-
-            [ 0 .. repeats - 1]
-            |> List.map valueText
+        let gapWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
+        let singleWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
+        let doubleWidth = 2. * singleWidth + Constants.valueOnWavePadding
+        
+        match gapWidth with
+        | w when (w < singleWidth) -> // display filled polygon
+            let fillPoints = nonBinaryFillPoints cycleWidth gap
+            let fill = makePolyfill fillPoints
+            [ fill ]
+        | w when (singleWidth <= w && w < doubleWidth) -> // diplay 1 copy at centre
+            let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
+            let singleText = makeTextElement (float gap.Start * cycleWidth + gapCenterPadWidth) waveValue
+            [ singleText ] 
+        | w when (doubleWidth <= w) -> // display 2 copies at end of gaps
+            let singleCycleCenterPadWidth = // if a single cycle gap can include 2 copies, set arbitrary padding
+                if cycleWidth < doubleWidth
+                then (cycleWidth - singleWidth) / 2.
+                else Constants.valueOnWaveEdgePadding
+            let startPadWidth = 
+                if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue 
+                    then 0.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue 
+                    else singleCycleCenterPadWidth
+            let endPadWidth = (float gap.Length * cycleWidth - startPadWidth - singleWidth)
+            let startText = makeTextElement (float gap.Start * cycleWidth + startPadWidth) waveValue
+            let endText = makeTextElement (float gap.Start * cycleWidth + endPadWidth) waveValue
+            [ startText; endText ] 
+        | _ -> // catch-all
+            failwithf "displayUInt32OnWave: impossible case"
     )
     |> List.concat
 
@@ -140,7 +194,6 @@ let displayBigIntOnWave wsModel (width: int) (waveValues: array<bigint>) (transi
 /// and zoom. Fast simulation data is assumed unchanged. Used to determine if 
 /// <c>generateWaveform</c> is run.</summary>
 let waveformIsUptodate (ws: WaveSimModel) (wave: Wave): bool =
-    printfn "DEBUG: waveformIsUptodate"
     wave.SVG <> None &&
     wave.ShownCycles = ws.ShownCycles &&
     wave.StartCycle = ws.StartCycle &&

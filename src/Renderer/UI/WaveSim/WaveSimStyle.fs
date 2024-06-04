@@ -46,6 +46,8 @@ module Constants =
     let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
     /// Whitespace padding between repeated values displayed on non-binary waves.
     let valueOnWavePadding = 75.0
+    /// Whitespace padding between non-binary wave values and the edge of transition.
+    let valueOnWaveEdgePadding = 8.0
 
     /// Border between columns and headers of waveform viewer.
     let borderProperties = "2px solid rgb(219,219,219)"
@@ -261,13 +263,24 @@ let zoomInSVG =
             ] []
         ]
 
-/// Props for displaying values on non-binary waves
-let valueOnWaveProps m i start width : IProp list = [
+/// <summary>Props for displaying repeating text elements on non-binary waves.</param>
+/// <remarks>Not used any more.</remarks>
+/// <param name="m"><c>WaveSim<c> model.</param>
+/// <param name="i">Index of text elements to be generated.</param>
+/// <param name="start">Starting position of repeating text elements.</param>
+/// <param name="width">Width of each text element.</param>
+let valueOnWaveProps m i start width : list<IProp> = [
     X (start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
     Y (0.6 * Constants.viewBoxHeight)
-    Style [
-        FontSize Constants.fontSizeValueOnWave
-    ]
+    Style [ FontSize Constants.fontSizeValueOnWave ]
+]
+
+/// <summary>Props for displaying values on non-binary waves by starting position.</summary>
+/// <param name="xpos">Starting X-direction position.</param>
+let singleValueOnWaveProps xpos: list<IProp> = [
+    X xpos
+    Y (0.6 * Constants.viewBoxHeight)
+    Style [ FontSize Constants.fontSizeValueOnWave ]
 ]
 
 /// Style for clock cycle buttons
@@ -637,6 +650,13 @@ let wavePolylineStyle points : IProp list = [
     SVGAttr.Stroke "blue"
     SVGAttr.Fill "none"
     SVGAttr.StrokeWidth Constants.lineThickness
+    Points (pointsToString points)
+]
+
+let wavePolyfillStyle points : IProp list = [
+    SVGAttr.Stroke "none"
+    SVGAttr.Fill "lightgrey"
+    SVGAttr.StrokeWidth (Constants.lineThickness+2.)
     Points (pointsToString points)
 ]
 

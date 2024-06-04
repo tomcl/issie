@@ -202,8 +202,9 @@ let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (tran
     | ZeroToOne | OneToOne ->
         [|topL; topR|]
 
-/// Generate points for a non-binary waveform.
-let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (transition: NonBinaryTransition) : (XYPos array * XYPos array) =
+/// <summary>Generate polyline points for a non-binary waveform via transition info.</summary>
+let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: NonBinaryTransition)
+    : array<XYPos>*array<XYPos> =
     let xLeft, _ = makeXCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
     let _, topR, _, botR = makeCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
 
@@ -220,6 +221,23 @@ let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int)  (
             [|crossHatchMid; crossHatchTop; topR|], [|crossHatchMid; crossHatchBot; botR|]
     | Const ->
         [|topR|], [|botR|]
+
+/// <summary>Generate polyfill points for a non-binary gap via gap info.</summary>
+let nonBinaryFillPoints (clkCycleWidth: float) (gap: Gap): array<XYPos> =
+    let xLeft, _ = makeXCoords clkCycleWidth (gap.Start) (NonBinaryTransition Change)
+    let _, xRight = makeXCoords clkCycleWidth (gap.Start+gap.Length-1) (NonBinaryTransition Change)
+
+    let crossHatchMidL, crossHatchTopL, crossHatchBotL =
+        {X = xLeft + xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
+        {X = xLeft + 2.0 * xShift clkCycleWidth; Y = Constants.yTop},
+        {X = xLeft + 2.0 * xShift clkCycleWidth; Y = Constants.yBot}
+    
+    let crossHatchMidR, crossHatchTopR, crossHatchBotR =
+        {X = xRight + xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
+        {X = xRight; Y = Constants.yTop},
+        {X = xRight; Y = Constants.yBot}
+
+    [| crossHatchMidL; crossHatchTopL; crossHatchTopR; crossHatchMidR; crossHatchBotR; crossHatchBotL; crossHatchMidL |]
 
 /// Determine transitions for each clock cycle of a binary waveform.
 /// Assumes that waveValues starts at clock cycle 0.

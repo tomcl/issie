@@ -250,6 +250,14 @@ type WaveSimModel = {
     /// The value of SelectedWaves when the user started dragging a label.
     /// Used to restore SelectedWaves if the user drops a label in an illegal location.
     PrevSelectedWaves: WaveIndexT list option
+
+    // Scrollbar properties:
+    /// <summary>Scrollbar SVG element to be rendered.</summary>
+    ScrollbarSvg: ReactElement option
+    /// <summary>Number of cycles scrollbar currently represents, defaults to 100.</summary>
+    ScrollbarRep: int
+    /// <summary>Width, in pixels, to render scrollbar at.</summary>
+    ScrollbarWidth: float
 }
 
 

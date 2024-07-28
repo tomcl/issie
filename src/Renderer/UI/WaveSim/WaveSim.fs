@@ -870,6 +870,72 @@ let makeWaveformsWithTimeOut
 
     allWaves, numberDone, timeToDo
 
+/// <summary>Make scrollbar SVG element below the waveform window. Called in <c>refreshWaveSim</c>.</summary>
+/// <param name="wsm"><c>WaveSimModel</c>.</param>
+/// <returns>A tuple containing the React svg element and an int indicating the number of cycles the bar currently represents.</returns>
+let makeScrollbarSvg (wsm: WaveSimModel): ReactElement*int =
+    // calculate width of SVG element
+    let bkgWidth = wsm.ScrollbarWidth - 60. // 60 = 2x width of buttons
+
+    /// <summary>Function to calculate length and position of scrollbar thumb.</summary>
+    let scrollbarDispFunc (currCyc: int) (startCyc: int) (shownCyc: int) (currBkgRep: int) =
+        let currShownMaxCyc = startCyc + shownCyc - 1
+        let newBkgRep = max (currBkgRep) (currShownMaxCyc)
+    
+        let tbMinWidth = WaveSimStyle.Constants.scrollbarThumbMinWidth
+        let tbCalcWidth = (float shownCyc) / (float newBkgRep) * bkgWidth
+        let tbWidth = max tbCalcWidth tbMinWidth
+        
+        let tbMoveWidth = bkgWidth - tbWidth + 1.
+        let tbPos = (float startCyc) / (float newBkgRep) * tbMoveWidth
+    
+        {| tbWidth = tbWidth; tbPos = tbPos; bkgRep = newBkgRep |}
+
+    let dispInfo = scrollbarDispFunc wsm.CurrClkCycle wsm.StartCycle wsm.ShownCycles wsm.ScrollbarRep
+    // printfn "DEBUG:makeScrollbarSvg: wsm.CurrClkCycle = %A cycles" wsm.CurrClkCycle
+    // printfn "DEBUG:makeScrollbarSvg: wsm.ShownCycles = %A cycles" wsm.ShownCycles
+    // printfn "DEBUG:makeScrollbarSvg: wsm.ScrollbarRep = %A cycles" wsm.ScrollbarRep
+    // printfn "DEBUG:makeScrollbarSvg: newBkgRep = %A cycles" dispInfo.bkgRep
+    // printfn "DEBUG:makeScrollbarSvg: tbPos = %A px" dispInfo.tbPos
+    // printfn "DEBUG:makeScrollbarSvg: tbWidth = %A px" dispInfo.tbWidth
+
+    let bkgPropList (width: float): List<IProp> =
+        [
+            HTMLAttr.Id "scrollbarBkg";
+            SVGAttr.X $"0px"; SVGAttr.Y "0.5px";
+            SVGAttr.Width $"{width}px"; SVGAttr.Height $"{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
+            SVGAttr.Fill "lightgray"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
+        ]
+
+    let tbPropList (pos: float) (width: float): List<IProp> =
+        [
+            HTMLAttr.Id "scrollbarThumb"
+            SVGAttr.X $"{pos}px"; SVGAttr.Y "0.5px";
+            SVGAttr.Width $"{width}px"; SVGAttr.Height $"{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
+            SVGAttr.Fill "white"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
+        ]
+
+    svg 
+        [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.scrollbarHeight}px"]]
+        [rect (bkgPropList bkgWidth) []; rect (tbPropList dispInfo.tbPos dispInfo.tbWidth) []]
+    , dispInfo.bkgRep
+
+/// <summary>Make complete scrollbar UI element. Called in <c>viewWaveSim</c>.</summary>
+/// <param name="wsm"><c>WaveSimModel</c>.</param>
+/// <returns>React element containing scrollbar UI.</returns>
+let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg -> unit): ReactElement =
+    let scrollWaveformsBy (numCycles: int) = setClkCycle wsm dispatch (wsm.CurrClkCycle + numCycles)
+
+    div [Style[ MarginTop "16px"; MarginBottom "16px"; Height "30px"]] [
+        button [ Button.Props [clkCycleLeftStyle] ]
+            (fun _ -> scrollWaveformsBy (-wsm.ShownCycles+1))
+            (str "◀")
+        Option.defaultValue (svg [] []) wsm.ScrollbarSvg
+        button [ Button.Props [scrollbarClkCycleRightStyle]]
+            (fun _ -> scrollWaveformsBy (wsm.ShownCycles-1))
+            (str "▶")
+    ]
+
 /// Start or update a spinner popup
 let updateSpinner (name:string) payload (numToDo:int) (model: Model) =
     match model.SpinnerPayload with
@@ -979,6 +1045,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                                 let payload = Some ("Making waves", refreshWaveSim false {wsModel with AllWaves = allWaves} >> fst)
                                 model,  allWaves, payload, numToDo)
 
+                let scrollbarSvg, scrollbarRep = makeScrollbarSvg wsModel
+
                 let ramComps =
                     let isRAMOrROM fcid (fc: FastComponent) =
                         match fc.FType with
@@ -1009,6 +1077,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                             RamComps = ramComps
                             SelectedRams = selectedRams
                             FastSim = fs
+                            ScrollbarSvg = Some scrollbarSvg
+                            ScrollbarRep = scrollbarRep
                     }
 
                 let model = 
@@ -1176,6 +1246,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
                         ]
                         div [showWaveformsAndRamStyle] [
                             showWaveforms model wsModel dispatch
+                            makeScrollbar wsModel dispatch
                             hr []
                             ramTables wsModel
                         ]

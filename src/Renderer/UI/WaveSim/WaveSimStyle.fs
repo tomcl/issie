@@ -57,6 +57,11 @@ module Constants =
     /// Color for cursor and values column
     let cursorColor = "Lavender"
 
+    /// <summary>Height of scrollbar, in pixels. Affects only the SVG and not the buttons.
+    /// Currently set to same height as buttons.</summary>
+    let scrollbarHeight: float = 30.0
+    /// <summary>Minimum width of the scrollbar thumb, in pixels.</summary>
+    let scrollbarThumbMinWidth: float = 10.0
 
 
 /// Style for top row in wave viewer.
@@ -354,6 +359,18 @@ let clkCycleRightStyle = Style (
         BorderLeftWidth "0.5"
     ])
 
+// FIX: Should be refactored. This is a hack to force button style to NOT float right.
+/// <summary>Button style for scrollbar's right button. Left button uses <c>clkCycleLeftStyle</c>.</summary>
+let scrollbarClkCycleRightStyle = Style (
+    clkCycleBut @ [
+        BorderTopLeftRadius 0
+        BorderBottomLeftRadius 0
+        BorderTopRightRadius "4px"
+        BorderBottomRightRadius "4px"
+        BorderLeftWidth "0.5"
+        Float FloatOptions.Unset
+    ])
+
 /// Style for Bulma level element in name row
 let nameRowLevelStyle isHovered = Style [
     Height Constants.rowHeight
@@ -428,7 +445,7 @@ let waveSimColumn = [
 /// Style properties for names column
 let namesColumnStyle (ws:WaveSimModel) = Style (
     (waveSimColumn) @ [
-        MinWidth (calcNamesColWidth ws)
+        Width (calcNamesColWidth ws)
         Float FloatOptions.Left
         BackgroundColor Constants.cursorColor
         BorderRight Constants.borderProperties
@@ -724,17 +741,25 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
 
     /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
     let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidth wsModel))
-
-
     let singleCycleWidth = float waveColWidth / float wholeCycles
+    let finalWavesColWidth = singleCycleWidth * float wholeCycles
 
-    let viewerWidth = namesColWidth + Constants.valuesColWidth + int (singleCycleWidth * float wholeCycles) + otherDivWidths
+    /// Estimated length of scrollbar, adding three components together: names col, waveform port, and values col.
+    let scrollbarWidth = (float namesColWidth) + finalWavesColWidth + (float valuesColumnWidth)
+
+    // printfn "DEBUG:updateViewerWidthInWaveSim: Names Column Width = %Apx" (float namesColWidth)
+    // printfn "DEBUG:updateViewerWidthInWaveSim: Waves Column Width = %Apx" finalWavesColWidth
+    // printfn "DEBUG:updateViewerWidthInWaveSim: Values Column Width = %Apx" (float valuesColumnWidth)
+    // printfn "DEBUG:updateViewerWidthInWaveSim: Calculated Scrollbar Width = %Apx" scrollbarWidth
+
     let updateFn wsModel = 
         {
         wsModel with
             ShownCycles = wholeCycles
-            WaveformColumnWidth = singleCycleWidth * float wholeCycles
+            WaveformColumnWidth = finalWavesColWidth
+            ScrollbarWidth = scrollbarWidth
         }
+
     {model with WaveSimViewerWidth = w}
     |> ModelHelpers.updateWSModel updateFn
 

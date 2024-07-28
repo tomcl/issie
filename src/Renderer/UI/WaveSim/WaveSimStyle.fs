@@ -61,7 +61,7 @@ module Constants =
     /// Currently set to same height as buttons.</summary>
     let scrollbarHeight: float = 30.0
     /// <summary>Minimum width of the scrollbar thumb, in pixels.</summary>
-    let scrollbarThumbMinWidth: float = 10.0
+    let scrollbarThumbMinWidth: float = 5.0
 
 
 /// Style for top row in wave viewer.

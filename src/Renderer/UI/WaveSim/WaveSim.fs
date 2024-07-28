@@ -879,39 +879,43 @@ let makeScrollbarSvg (wsm: WaveSimModel): ReactElement*int =
 
     /// <summary>Function to calculate length and position of scrollbar thumb.</summary>
     let scrollbarDispFunc (currCyc: int) (startCyc: int) (shownCyc: int) (currBkgRep: int) =
-        let currShownMaxCyc = startCyc + shownCyc - 1
+        let currShownMaxCyc = startCyc + shownCyc
         let newBkgRep = max (currBkgRep) (currShownMaxCyc)
     
         let tbMinWidth = WaveSimStyle.Constants.scrollbarThumbMinWidth
-        let tbCalcWidth = (float shownCyc) / (float newBkgRep) * bkgWidth
+        let tbCalcWidth = bkgWidth / (1. + (float newBkgRep / float shownCyc))
         let tbWidth = max tbCalcWidth tbMinWidth
         
-        let tbMoveWidth = bkgWidth - tbWidth + 1.
-        let tbPos = (float startCyc) / (float newBkgRep) * tbMoveWidth
+        let tbMoveWidth = bkgWidth - tbWidth
+        let tbPos =
+            if tbWidth > 5.0 
+            then (float startCyc) / (float newBkgRep - float shownCyc) * tbMoveWidth
+            else (float currCyc) / (float newBkgRep-1.) * tbMoveWidth
     
         {| tbWidth = tbWidth; tbPos = tbPos; bkgRep = newBkgRep |}
 
     let dispInfo = scrollbarDispFunc wsm.CurrClkCycle wsm.StartCycle wsm.ShownCycles wsm.ScrollbarRep
-    // printfn "DEBUG:makeScrollbarSvg: wsm.CurrClkCycle = %A cycles" wsm.CurrClkCycle
-    // printfn "DEBUG:makeScrollbarSvg: wsm.ShownCycles = %A cycles" wsm.ShownCycles
-    // printfn "DEBUG:makeScrollbarSvg: wsm.ScrollbarRep = %A cycles" wsm.ScrollbarRep
-    // printfn "DEBUG:makeScrollbarSvg: newBkgRep = %A cycles" dispInfo.bkgRep
-    // printfn "DEBUG:makeScrollbarSvg: tbPos = %A px" dispInfo.tbPos
-    // printfn "DEBUG:makeScrollbarSvg: tbWidth = %A px" dispInfo.tbWidth
+    // printfn "DEBUG:makeScrollbarSvg: wsm.CurrClkCycle = %d cycles" wsm.CurrClkCycle
+    // printfn "DEBUG:makeScrollbarSvg: wsm.StartCycle = %d cycles" wsm.StartCycle
+    // printfn "DEBUG:makeScrollbarSvg: wsm.ShownCycles = %d cycles" wsm.ShownCycles
+    // printfn "DEBUG:makeScrollbarSvg: wsm.ScrollbarRep = %d cycles" wsm.ScrollbarRep
+    // printfn "DEBUG:makeScrollbarSvg: newBkgRep = %d cycles" dispInfo.bkgRep
+    // printfn "DEBUG:makeScrollbarSvg: tbPos = %.1f px" dispInfo.tbPos
+    // printfn "DEBUG:makeScrollbarSvg: tbWidth = %.1f px" dispInfo.tbWidth
 
     let bkgPropList (width: float): List<IProp> =
         [
             HTMLAttr.Id "scrollbarBkg";
             SVGAttr.X $"0px"; SVGAttr.Y "0.5px";
-            SVGAttr.Width $"{width}px"; SVGAttr.Height $"{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
+            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
             SVGAttr.Fill "lightgray"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
         ]
 
     let tbPropList (pos: float) (width: float): List<IProp> =
         [
             HTMLAttr.Id "scrollbarThumb"
-            SVGAttr.X $"{pos}px"; SVGAttr.Y "0.5px";
-            SVGAttr.Width $"{width}px"; SVGAttr.Height $"{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
+            SVGAttr.X $"%.1f{pos}px"; SVGAttr.Y "0.5px";
+            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
             SVGAttr.Fill "white"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
         ]
 

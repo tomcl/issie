@@ -1009,7 +1009,7 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
 /// <param name="dispatch">Dispatch function to send messages with, not used directly.</param>
 /// <param name="dx">Number of pixels the cursor has moved by on the scrollbar thumb.</param>
 /// <param name="pos">Position of cursor when mouse event is fired.</param>
-let updateScrollBar (wsm: WaveSimModel) (dispatch: Msg->unit) (dx: float) (pos: ModelType.ScrollbarMousePos): unit =
+let updateScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit) (dx: float) (pos: ModelType.ScrollbarMousePos): unit =
     /// <summary>Translate mouse movements in pixels to number of cycles to move by.
     /// Linear translator aims to allow scrollbar thumb to follow cursor.</summary>
     /// <param name="dx">Number of pixels mouse has moved in X direction, obtained from MouseMove event.</param>

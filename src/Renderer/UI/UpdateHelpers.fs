@@ -117,6 +117,7 @@ let shortDisplayMsg (msg:Msg) =
         | SetPopupNewConstraint _ 
         | SetPopupAlgebraInputs _ 
         | SetPopupAlgebraError _ -> None
+    | ScrollbarMouseMsg _
 
     | ChangeRightTab _ -> None
     | ChangeSimSubTab _ -> None

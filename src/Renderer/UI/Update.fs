@@ -579,6 +579,15 @@ let update (msg : Msg) oldModel =
     | TruthTableMsg ttMsg ->
         TruthTableUpdate.truthTableUpdate model ttMsg
 
+    | ScrollbarMouseMsg (mov, pos, dispatch) ->
+        if (mov.X = 0) || (Option.isNone model.WaveSimSheet) // catch no-ops here to decrease load
+        then 
+            model, Cmd.none
+        else
+            let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
+            WaveSim.updateScrolBar wsm dispatch mov.X posl
+            model, Cmd.none
+
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out
     | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 

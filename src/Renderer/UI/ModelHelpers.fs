@@ -46,9 +46,12 @@ let initWSModel  : WaveSimModel = {
     HoveredLabel = None
     DraggedIndex = None
     PrevSelectedWaves = None
-    ScrollbarSvg = None
-    ScrollbarRep = 100 // default value
-    ScrollbarWidth = 0.0 // placeholder only
+    
+    ScrollbarTbWidth = 0.0 // overwritten when first rendered
+    ScrollbarTbPos = 0.0 // overwritten when first rendered
+    ScrollbarBkgWidth = 0.0 // overwritten when first rendered
+    ScrollbarBkgRepCycs = 100 // default value
+    ScrollbarCounter = 0.0 // default value
 }
 
 /// This is needed because DrawBlock cannot directly access Issie Model.

@@ -585,7 +585,7 @@ let update (msg : Msg) oldModel =
             model, Cmd.none
         else
             let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
-            WaveSim.updateScrolBar wsm dispatch mov.X posl
+            WaveSim.updateScrollbar wsm dispatch mov.X pos
             model, Cmd.none
 
     // Various messages here that are not implemented as yet, or are no longer used

@@ -296,6 +296,29 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
             }
     |> TimeHelpers.instrumentInterval "setClkCycle" start
 
+/// <summary>Move waveform view window by integer number of cycles and store the incomplete cycles
+/// within <c>WaveSimModel.ScrollbarCounter</c>. Current clock cycle (<c>WaveSimModel.CurrClkCycle</c>)
+/// is set to beginning or end depending on direction of movement. Update is achieved by dispatching a 
+/// <c>GenerateWaveforms</c> message.</summary>
+/// <param name="wsm">Target <c>WaveSimModel</c>.</param>
+/// <param name="dispatch">Dispatch function to send messages with.</param>
+/// <param name="moveByCycs">Number of non-integer cycles to move by.</param>
+let setClkCycleWithCounter (wsm: WaveSimModel) (dispatch: Msg->unit) (moveByCycs: float): unit =
+    let currCounter = wsm.ScrollbarCounter + moveByCycs
+    let moveWindowBy = int (System.Math.Round currCounter)
+    let newCounter = currCounter - float moveWindowBy
+
+    /// <summary>Return target value when within min and max value, otherwise min or max.</summary>
+    let bound (minV: int) (maxV: int) (tarV: int): int = tarV |> max minV |> min maxV
+    let minSimCyc = 0
+    let maxSimCyc = Constants.maxLastClk
+
+    let newStartCyc = (wsm.StartCycle+moveWindowBy) |> bound minSimCyc (maxSimCyc-wsm.ShownCycles+1)
+    let newCurrCyc = if moveWindowBy > 0 then (newStartCyc+wsm.ShownCycles-1) else (newStartCyc)
+
+    GenerateWaveforms {wsm with StartCycle = newStartCyc; CurrClkCycle = newCurrCyc; ScrollbarCounter = newCounter}
+    |> dispatch
+
 /// If zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles).
 /// otherwise reduce width. GenerateWaveforms message will reconstitute SVGs after the change.
 let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
@@ -870,38 +893,62 @@ let makeWaveformsWithTimeOut
 
     allWaves, numberDone, timeToDo
 
-/// <summary>Make scrollbar SVG element below the waveform window. Called in <c>refreshWaveSim</c>.</summary>
-/// <param name="wsm"><c>WaveSimModel</c>.</param>
-/// <returns>A tuple containing the React svg element and an int indicating the number of cycles the bar currently represents.</returns>
-let makeScrollbarSvg (wsm: WaveSimModel): ReactElement*int =
-    // calculate width of SVG element
-    let bkgWidth = wsm.ScrollbarWidth - 60. // 60 = 2x width of buttons
+/// <summary>Generate scrollbar SVG info based on current <c>WaveSimModel</c>.
+/// Called in <c>refreshWaveSim</c> after <c>WaveSimModel</c> has been changed.</summary>
+/// <param name="wsm">Target <c>WaveSimModel</c>.</param>
+/// <returns>Anonymous record contaning the information to be updated: thumb width,
+/// thumb position, and number of cycles the background represents.</returns>
+/// <remarks>Note: <c>bkg</c> = background; <c>tb</c> = thumb.</remarks>
+let generateScrollbarInfo (wsm: WaveSimModel): {| tbWidth: float; tbPos: float; bkgRep: int |} =
+    let bkgWidth = wsm.ScrollbarBkgWidth - 60. // 60 = 2x width of buttons
 
-    /// <summary>Function to calculate length and position of scrollbar thumb.</summary>
-    let scrollbarDispFunc (currCyc: int) (startCyc: int) (shownCyc: int) (currBkgRep: int) =
-        let currShownMaxCyc = startCyc + shownCyc
-        let newBkgRep = max (currBkgRep) (currShownMaxCyc)
-    
-        let tbMinWidth = WaveSimStyle.Constants.scrollbarThumbMinWidth
-        let tbCalcWidth = bkgWidth / (1. + (float newBkgRep / float shownCyc))
-        let tbWidth = max tbCalcWidth tbMinWidth
-        
-        let tbMoveWidth = bkgWidth - tbWidth
-        let tbPos =
-            if tbWidth > 5.0 
-            then (float startCyc) / (float newBkgRep - float shownCyc) * tbMoveWidth
-            else (float currCyc) / (float newBkgRep-1.) * tbMoveWidth
-    
-        {| tbWidth = tbWidth; tbPos = tbPos; bkgRep = newBkgRep |}
+    let currShownMaxCyc = wsm.StartCycle + wsm.ShownCycles
+    let newBkgRep = max (wsm.ScrollbarBkgRepCycs) (currShownMaxCyc)
 
-    let dispInfo = scrollbarDispFunc wsm.CurrClkCycle wsm.StartCycle wsm.ShownCycles wsm.ScrollbarRep
-    // printfn "DEBUG:makeScrollbarSvg: wsm.CurrClkCycle = %d cycles" wsm.CurrClkCycle
-    // printfn "DEBUG:makeScrollbarSvg: wsm.StartCycle = %d cycles" wsm.StartCycle
-    // printfn "DEBUG:makeScrollbarSvg: wsm.ShownCycles = %d cycles" wsm.ShownCycles
-    // printfn "DEBUG:makeScrollbarSvg: wsm.ScrollbarRep = %d cycles" wsm.ScrollbarRep
-    // printfn "DEBUG:makeScrollbarSvg: newBkgRep = %d cycles" dispInfo.bkgRep
-    // printfn "DEBUG:makeScrollbarSvg: tbPos = %.1f px" dispInfo.tbPos
-    // printfn "DEBUG:makeScrollbarSvg: tbWidth = %.1f px" dispInfo.tbWidth
+    let tbCalcWidth = bkgWidth / (1. + (float newBkgRep / float wsm.ShownCycles))
+    let tbWidth = max tbCalcWidth WaveSimStyle.Constants.scrollbarThumbMinWidth
+    
+    let tbMoveWidth = bkgWidth - tbWidth
+    let tbPos =
+        if tbWidth > WaveSimStyle.Constants.scrollbarThumbMinWidth
+        then (float wsm.StartCycle) / (float newBkgRep - float wsm.ShownCycles) * tbMoveWidth
+        else (float wsm.CurrClkCycle) / (float newBkgRep-1.) * tbMoveWidth
+
+    // debug statements:
+    // printfn "DEBUG:generateScrollbarInfo: Input -"
+    // printfn "DEBUG:generateScrollbarInfo: wsm.CurrClkCycle = %d cycles" wsm.CurrClkCycle
+    // printfn "DEBUG:generateScrollbarInfo: wsm.StartCycle = %d cycles" wsm.StartCycle
+    // printfn "DEBUG:generateScrollbarInfo: wsm.ShownCycles = %d cycles" wsm.ShownCycles
+    // printfn "DEBUG:generateScrollbarInfo: wsm.ScrollbarBkgRepCycs = %d cycles" wsm.ScrollbarBkgRepCycs
+    // printfn "DEBUG:generateScrollbarInfo: Output -"
+    // printfn "DEBUG:generateScrollbarInfo: tbWidth = %.1fpx" tbWidth
+    // printfn "DEBUG:generateScrollbarInfo: tbPos = %.1fpx" tbPos
+    // printfn "DEBUG:generateScrollbarInfo: newBkgRep = %d cycles" newBkgRep
+
+    {| tbWidth = tbWidth; tbPos = tbPos; bkgRep = newBkgRep |}
+
+/// <summary>Make scrollbar element based on information in <c>WaveSimModel</c>.
+/// Called in <c>viewWaveSim</c>, presumably after <c>refreshWaveSim</c> was called.</summary>
+/// <param name="wsm">Target <c>WaveSimModel</c>.</param>
+/// <param name="dispatch">Dispatch function to send messages with. Not used directly, but passed to <c>tbMouseMoveOp</c>.</param>
+/// <returns>React element to be placed in to DOM.</returns>
+let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
+    // button props
+    // FIX: duplicated code, not sure if should be refactored
+    let scrollWaveformsBy (numCycles: int) = setClkCycle wsm dispatch (wsm.CurrClkCycle + numCycles)
+
+    // svg props
+    let bkgWidth = wsm.ScrollbarBkgWidth - 60. // 60 = 2x width of buttons
+    let bufferWidth = WaveSimStyle.Constants.scrollbarThumbBufferWidth
+
+    /// <summary>Scrollbar mouse operation handler.
+    /// Dispatches <c>ScrollbarMouseMsg</c> if primary button is held down.</summary>
+    /// <param name="pos">Position the cursor is at, within left/right buffer or on the thumb.</param>
+    /// <param name="event">Mouse event information.</param>
+    let tbMouseMoveOp (pos: ModelType.ScrollbarMousePos) (event: Browser.Types.MouseEvent): unit =
+        if event.buttons = 1. // if primary button was clicked...
+        then ScrollbarMouseMsg ({ X = event.movementX; Y = event.movementY }, pos, dispatch) |> dispatch
+        else ()
 
     let bkgPropList (width: float): List<IProp> =
         [
@@ -913,32 +960,70 @@ let makeScrollbarSvg (wsm: WaveSimModel): ReactElement*int =
 
     let tbPropList (pos: float) (width: float): List<IProp> =
         [
-            HTMLAttr.Id "scrollbarThumb"
+            HTMLAttr.Id "scrollbarThumb";
+            Style [ Cursor "grab"];
             SVGAttr.X $"%.1f{pos}px"; SVGAttr.Y "0.5px";
             SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
             SVGAttr.Fill "white"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
+            OnMouseMove (tbMouseMoveOp Tb);
         ]
 
-    svg 
-        [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.scrollbarHeight}px"]]
-        [rect (bkgPropList bkgWidth) []; rect (tbPropList dispInfo.tbPos dispInfo.tbWidth) []]
-    , dispInfo.bkgRep
+    let tbBufferLeftPropList (tbPos: float) (tbWidth: float): List<IProp> =
+        [
+            HTMLAttr.Id "scrollbarThumbBufferLeft"
+            SVGAttr.X $"%.1f{tbPos-bufferWidth-1.}px"; SVGAttr.Y "1px";
+            SVGAttr.Width $"%.1f{bufferWidth}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-2.0}px";
+            SVGAttr.Fill "lightgray";
+            OnMouseMove (tbMouseMoveOp TbBufferLeft);
+        ]
 
-/// <summary>Make complete scrollbar UI element. Called in <c>viewWaveSim</c>.</summary>
-/// <param name="wsm"><c>WaveSimModel</c>.</param>
-/// <returns>React element containing scrollbar UI.</returns>
-let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg -> unit): ReactElement =
-    let scrollWaveformsBy (numCycles: int) = setClkCycle wsm dispatch (wsm.CurrClkCycle + numCycles)
+    let tbBufferRightPropList (tbPos: float) (tbWidth: float): List<IProp> =
+        [
+            HTMLAttr.Id "scrollbarThumbBufferRight"
+            SVGAttr.X $"%.1f{tbPos+tbWidth+1.}px"; SVGAttr.Y "1px";
+            SVGAttr.Width $"%.1f{bufferWidth}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-2.0}px";
+            SVGAttr.Fill "lightgray";
+            OnMouseMove (tbMouseMoveOp TbBufferRight);
+        ]
 
     div [Style[ MarginTop "16px"; MarginBottom "16px"; Height "30px"]] [
         button [ Button.Props [clkCycleLeftStyle] ]
             (fun _ -> scrollWaveformsBy (-wsm.ShownCycles+1))
             (str "◀")
-        Option.defaultValue (svg [] []) wsm.ScrollbarSvg
+        svg
+            [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.scrollbarHeight}px"];]
+            [
+                rect (bkgPropList bkgWidth) []; // background
+                rect (tbPropList wsm.ScrollbarTbPos wsm.ScrollbarTbWidth) []; // thumb
+                rect (tbBufferLeftPropList wsm.ScrollbarTbPos wsm.ScrollbarTbWidth) []; // left buffer
+                rect (tbBufferRightPropList wsm.ScrollbarTbPos wsm.ScrollbarTbWidth) []; // right buffer
+            ]
         button [ Button.Props [scrollbarClkCycleRightStyle]]
             (fun _ -> scrollWaveformsBy (wsm.ShownCycles-1))
             (str "▶")
     ]
+
+/// <summary>Update waveform view information based on mouse movement in the X direction.  
+/// Called in <c>update</c> when <c>ScrollbarMouseMsg</c> is dispatched.</summary>
+/// <param name="wsm">Target <c>WaveSimModel</c>.</param>
+/// <param name="dispatch">Dispatch function to send messages with, not used directly.</param>
+/// <param name="dx">Number of pixels the cursor has moved by on the scrollbar thumb.</param>
+/// <param name="pos">Position of cursor when mouse event is fired.</param>
+let updateScrollBar (wsm: WaveSimModel) (dispatch: Msg->unit) (dx: float) (pos: ModelType.ScrollbarMousePos): unit =
+    /// <summary>Translate mouse movements in pixels to number of cycles to move by.
+    /// Linear translator aims to allow scrollbar thumb to follow cursor.</summary>
+    /// <param name="dx">Number of pixels mouse has moved in X direction, obtained from MouseMove event.</param>
+    /// <returns>Number of cycles to move by.</returns>
+    /// <remarks>Swap this out with some other mouse-to-cycle translator for better user experience.</remarks>
+    let linearMouseToCycleTranslator (dx: float): float = 
+        let bufferCatchUpRatio = WaveSimStyle.Constants.scrollbarThumbBufferSpeedup
+        let cycleToPixelRatio = float wsm.ScrollbarBkgRepCycs / (wsm.ScrollbarBkgWidth - wsm.ScrollbarTbWidth)
+        match pos with
+        | Tb -> dx*cycleToPixelRatio
+        | TbBufferLeft -> if dx < 0 then dx*cycleToPixelRatio*bufferCatchUpRatio else 0.
+        | TbBufferRight -> if dx > 0 then dx*cycleToPixelRatio*bufferCatchUpRatio else 0.
+    
+    setClkCycleWithCounter wsm dispatch (linearMouseToCycleTranslator dx)
 
 /// Start or update a spinner popup
 let updateSpinner (name:string) payload (numToDo:int) (model: Model) =
@@ -1049,7 +1134,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                                 let payload = Some ("Making waves", refreshWaveSim false {wsModel with AllWaves = allWaves} >> fst)
                                 model,  allWaves, payload, numToDo)
 
-                let scrollbarSvg, scrollbarRep = makeScrollbarSvg wsModel
+                let scrollbarInfo = generateScrollbarInfo wsModel
 
                 let ramComps =
                     let isRAMOrROM fcid (fc: FastComponent) =
@@ -1081,8 +1166,9 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                             RamComps = ramComps
                             SelectedRams = selectedRams
                             FastSim = fs
-                            ScrollbarSvg = Some scrollbarSvg
-                            ScrollbarRep = scrollbarRep
+                            ScrollbarTbWidth = scrollbarInfo.tbWidth
+                            ScrollbarTbPos = scrollbarInfo.tbPos
+                            ScrollbarBkgRepCycs = scrollbarInfo.bkgRep
                     }
 
                 let model = 

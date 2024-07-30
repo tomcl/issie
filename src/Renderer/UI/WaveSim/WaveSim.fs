@@ -988,7 +988,7 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
 
     div [Style[ MarginTop "16px"; MarginBottom "16px"; Height "30px"]] [
         button [ Button.Props [clkCycleLeftStyle] ]
-            (fun _ -> scrollWaveformsBy (-wsm.ShownCycles+1))
+            (fun _ -> scrollWaveformsBy (-wsm.ShownCycles))
             (str "◀")
         svg
             [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.scrollbarHeight}px"];]
@@ -999,7 +999,7 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
                 rect (tbBufferRightPropList wsm.ScrollbarTbPos wsm.ScrollbarTbWidth) []; // right buffer
             ]
         button [ Button.Props [scrollbarClkCycleRightStyle]]
-            (fun _ -> scrollWaveformsBy (wsm.ShownCycles-1))
+            (fun _ -> scrollWaveformsBy (wsm.ShownCycles))
             (str "▶")
     ]
 

@@ -53,15 +53,26 @@ let mutable  viewIsAfterUpdateScroll = false
 //-------------------------------------------------------------------------------------------------//
 
 module Constants =
-    let symbolSnapLimit = 7. // how large is the snapping when moving symbols
-    let segmentSnapLimit = 7. // how large is the snapping when moving segments
-    let gridSize = 30.0 // Size of each grid square
-    let defaultCanvasSize = 3500. // total size of canvas (determines how far you can zoom out)
-    let wireBoundingBoxSize = 2. // increase to make it easier to select wire segments
-    let maxMagnification = 2. // max zoom beyond which it is not worth going
-    let minMagnification = 0.1 // how much is it possible to zoom out? this is related to the actual canvas size
-    let zoomIncrement = 1.2 // factor by which zoom is increased or decreased
-    let boxAspectRatio = 2. // aspect ratio required before align or distribute can be done
+    /// what is the max length of the UndoList
+    let maxUndoListSize = 50
+    /// how large is the snapping when moving symbols
+    let symbolSnapLimit = 7.
+    /// how large is the snapping when moving segments
+    let segmentSnapLimit = 7.
+    /// Size of each grid square
+    let gridSize = 30.0
+    /// total size of canvas (determines how far you can zoom out)
+    let defaultCanvasSize = 3500.
+    /// increase to make it easier to select wire segments
+    let wireBoundingBoxSize = 2.
+    /// max zoom beyond which it is not worth going
+    let maxMagnification = 2.
+    /// how much is it possible to zoom out? this is related to the actual canvas size
+    let minMagnification = 0.1
+    /// factor by which zoom is increased or decreased
+    let zoomIncrement = 1.2
+    /// aspect ratio required before align or distribute can be done
+    let boxAspectRatio = 2. 
     /// geometry parameters for sizing circuits
     let boxParameters = {|
             BoxOfEmptyCircuit = ({X=100.;Y=100.}:XYPos)

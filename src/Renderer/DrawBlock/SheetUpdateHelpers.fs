@@ -248,7 +248,7 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
         |> List.truncate (max 0 (inputLst.Length - 1))
 
     match List.length undoList with
-    | n when n < 500 -> 
+    | n when n < Constants.maxUndoListSize -> 
         model_in :: undoList
     | _ -> 
         model_in :: (removeLast undoList)

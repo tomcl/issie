@@ -77,7 +77,7 @@ let topRowStyle = Style [
 
 /// Empty row used in namesColumn and valuesColumn. Shifts these down by one
 /// to allow for the row of clk cycle numbers in waveformsColumn.
-let topRow = [ div [ topRowStyle ] [] ]
+let topRow topRowContent = [ div [ topRowStyle ] topRowContent ]
 
 /// Style for showing error messages in waveform simulator.
 let errorMessageStyle = Style [
@@ -550,12 +550,22 @@ let showWaveformsStyle = Style [
 
 
 /// Props for text in clock cycle row
-let clkCycleText m i : IProp list = [
-    SVGAttr.FontSize "12px"
-    SVGAttr.TextAnchor "middle"
-    X (singleWaveWidth m * (float i + 0.5))
-    Y (0.6 * Constants.viewBoxHeight)
-]
+let clkCycleText m i : IProp list =
+    let props : IProp list =
+        [
+            SVGAttr.FontSize "12px"
+            SVGAttr.TextAnchor "middle"
+            X (singleWaveWidth m * (float i + 0.5))
+            Y (0.6 * Constants.viewBoxHeight)
+        ]
+    let cursorExtraProps : IProp list =
+        [
+            SVGAttr.Custom("font-weight", "bold")
+        ]
+    if i = m.CurrClkCycle then
+        cursorExtraProps @ props
+    else
+        props
 
 /// Style for clock cycle number row
 let clkCycleSVGStyle = Style [

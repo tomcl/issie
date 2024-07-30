@@ -582,7 +582,7 @@ let namesColumn model wsModel dispatch : ReactElement =
     let rows = 
         nameRows model wsModel dispatch
     div (namesColumnProps wsModel)
-        (List.concat [ topRow; rows ])
+        (List.concat [ topRow []; rows ])
     |> TimeHelpers.instrumentInterval "namesColumn" start
 
 
@@ -605,26 +605,34 @@ let valueRows (wsModel: WaveSimModel) =
     |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
     |> (fun rows -> valueColWidth, rows)
 
-/// Create column of waveform values
-let private valuesColumn wsModel : ReactElement =
-    let start = TimeHelpers.getTimeMs ()
-    let width, rows = valueRows wsModel
-
-    div [ valuesColumnStyle width]
-        (List.concat [ topRow; rows ])
-    |> TimeHelpers.instrumentInterval "valuesColumn" start
 
 /// Generate a row of numbers in the waveforms column.
 /// Numbers correspond to clock cycles.
 let clkCycleNumberRow (wsModel: WaveSimModel) =
     let makeClkCycleLabel i =
-        match (singleWaveWidth wsModel) with
-        | width when width < Constants.clkCycleNarrowThreshold && i % 5 <> 0 -> []
-        | _ -> [ text (clkCycleText wsModel i) [str (string i)] ]
+        match singleWaveWidth wsModel with
+        | width when width < float Constants.clkCycleNarrowThreshold && i % 5 <> 0 ->
+            []
+        | width when i >= 1000 && width <  (float Constants.clkCycleNarrowThreshold * 4. / 3.) && i % 10 <> 0 ->
+            []
+        | _ ->
+            [ text (clkCycleText wsModel i) [str (string i)] ]
+            
 
     [ wsModel.StartCycle .. endCycle wsModel]
     |> List.collect makeClkCycleLabel
     |> svg (clkCycleNumberRowProps wsModel)
+
+/// Create column of waveform values
+let private valuesColumn wsModel : ReactElement =
+    let start = TimeHelpers.getTimeMs ()
+    let width, rows = valueRows wsModel
+    let cursorClkNum = wsModel.CurrClkCycle
+    let topRowNumber = [ text [Style [FontWeight "bold"; PaddingLeft "2pt"]] [str (string cursorClkNum)] ] 
+
+    div [ valuesColumnStyle width]
+        (List.concat [ topRow topRowNumber ; rows ])
+    |> TimeHelpers.instrumentInterval "valuesColumn" start
 
 /// Generate a column of waveforms corresponding to selected waves.
 let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =

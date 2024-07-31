@@ -839,7 +839,7 @@ let executePendingMessagesF n model =
         | None -> failwithf "shouldn't happen"
         | Some mMsg -> 
             match mMsg with
-            | Sheet sMsg -> sheetMsg sMsg model
+            | Sheet sMsg -> sheetMsg sMsg {model with Pending = []}
             | _ -> failwithf "shouldn't happen "
         
     //ignore the exectue message

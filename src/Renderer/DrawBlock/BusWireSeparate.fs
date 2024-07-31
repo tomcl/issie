@@ -933,8 +933,8 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
 
 /// Perform complete wire segment separation and ordering for all orientations.
 /// wiresToRoute: set of wires to have segments separated and ordered
-let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Model) : Model =
-        if wiresToRoute = [] then
+let separateAndOrderModelSegments (routeWhenDisabled: bool) (wiresToRoute: ConnectionId list) (model: Model) : Model =
+        if wiresToRoute = [] || (disableWireSeparation && not routeWhenDisabled) then
             model // do nothing
         else
             printfn "Separating all segments!"
@@ -974,7 +974,16 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
 /// e.g. at the end of symbol drags.
 let updateWireSegmentJumpsAndSeparations wires model  =
     model
-    |> separateAndOrderModelSegments wires
+    |> separateAndOrderModelSegments false wires
+    |> BusWireUpdateHelpers.updateWireSegmentJumps []
+
+/// Top-level function to replace updateWireSegmentJumps
+/// and call the Segment separate code as well. This should
+/// run when significant circuit wiring changes have been made
+/// e.g. at the end of symbol drags.
+let updateWireSegmentJumpsAndSeparationsFromMenu wires model  =
+    model
+    |> separateAndOrderModelSegments true wires
     |> BusWireUpdateHelpers.updateWireSegmentJumps []
 
 /// Top-level function does routing and then separation of set of wires.
@@ -1012,7 +1021,7 @@ let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
     wires'
     |> Map.toList
     |> List.map (fun (wId, wire) -> wId)
-    |> fun wires -> updateWireSegmentJumpsAndSeparations wires {model with Wires = wires'}
+    |> fun wires -> updateWireSegmentJumpsAndSeparationsFromMenu wires {model with Wires = wires'}
 
 /// all wires from comps are autorouted from scratch
 /// then the separation logic is rerun on these wires

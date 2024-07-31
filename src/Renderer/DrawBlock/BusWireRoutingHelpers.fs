@@ -106,6 +106,8 @@ let fixBoundingBox (box: BoundingBox): BoundingBox =
 //-------------------------------------------------------------------------------------------------//
 
 module Constants =
+    /// disable all the automatic wire separation logic!
+    let disableWireSeparation = true
     let wireSeparationFromSymbol = 7. // must be smaller than Buswire.nubLength
     let maxCallsToShiftHorizontalSeg = 5
     /// Must be smaller than Buswire.nubLength

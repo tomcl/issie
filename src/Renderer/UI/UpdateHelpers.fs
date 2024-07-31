@@ -495,7 +495,7 @@ let processContextMenuClick
             map BusWireT.mode_ (function | BusWireT.Manual -> BusWireT.Auto | m -> m)
         model
         |> map (sheet_ >-> SheetT.wireOf_ wire.WId >-> BusWireT.segments_)  (List.map changeManualSegToAuto)
-        |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
+        |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments false  [wire.WId])
         |> withNoCmd
     
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
@@ -554,7 +554,7 @@ let processContextMenuClick
         model
         |> Optics.Optic.map
                 (sheet_ >-> SheetT.wire_)
-                (model.Sheet.Wire.Wires.Keys |> Seq.toList |> BusWireSeparate.updateWireSegmentJumpsAndSeparations)
+                (model.Sheet.Wire.Wires.Keys |> Seq.toList |> BusWireSeparate.updateWireSegmentJumpsAndSeparationsFromMenu)
         |> withNoCmd
 
     | WaveSimHelp, feature ->

@@ -252,3 +252,9 @@ docsrc/tools/FSharp.Formatting.svclog
 *.fs.js.map
 
 /global.json
+
+
+# FSharp.Formatting
+.fsdocs/
+output/
+tmp/

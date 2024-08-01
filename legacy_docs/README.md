@@ -18,11 +18,11 @@
   - TOC
   {:toc}
   ```
-- If you don't want a header to be included in the TOC add `{:.no_toc}` below the header
+- If you don't want a header to be included in the TOC add `` below the header
   - Example
   ```
   ## My Header
-  {:.no_toc}
+  
   ``` 
 
 - The content of `Key Features` in the Home Page is built using the [carousel.html](_includes/carousel.html) in the `_includes` directory

@@ -247,7 +247,14 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
     // dummy arrays wil be replaced by real ones when components are linked after being created
     let ins =
         [| 0 .. inPortNum - 1 |]
-        |> Array.map (fun n -> makeIOArray maxArraySize)
+        |> Array.map (fun n ->
+            match sComp.Type with
+            | Input1 (width, defVal)->
+                // special case - add real input arrays now to avoid excption during initialse
+                makeIOArrayW width maxArraySize
+            | _ ->
+                makeIOArray maxArraySize)
+    
     //printfn "Type: %A; ins array: %A" sComp.Type ins
     let outs =
         match sComp.Type, sComp.OutputWidths.Length with

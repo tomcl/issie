@@ -436,4 +436,5 @@ Program.mkProgram init update view'
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
 |> Program.withSubscription keyPressListener
+|> Program.withConsoleTrace
 |> Program.run

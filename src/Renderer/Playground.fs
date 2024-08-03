@@ -279,3 +279,32 @@ module Misc =
     let highLightChangedConnections dispatch =
         dispatch (Sheet (SheetT.Msg.SelectWires Extractor.debugChangedConnections))
         Extractor.debugChangedConnections <- []
+
+module Memory =
+    open ElectronAPI
+    let webframe = renderer.webFrame
+
+    let printMemory() =
+        let toMB (f:float) = $"%10.1f{f / 1000000.}"
+        let printDetails (name: string, d: MemoryUsageDetails option) =
+            match d with
+            | None ->
+                $"""%20s{"object"} %10s{"count"} %10s{"livesize"} %10s{"size"}"""
+            | Some d ->
+                $"%20s{name} %10s{toMB d.count} %10s{toMB d.liveSize} %10s{toMB d.size}"
+            
+        let usage = webframe.getResourceUsage()
+        let details =
+            [
+                "images", usage.images
+                "other", usage.other
+                "cssStyleSheets", usage.cssStyleSheets
+                "xslstylesheets", usage.xslStyleSheets
+                "fonts", usage.fonts
+                "scripts", usage.scripts
+            ] |> List.map (fun (s, r) -> s, Some r)
+        printfn $"%200A{usage}"
+        String.concat "\n" (printDetails ("",None) :: List.map printDetails details)
+        |> printfn "%s"
+        webframe.clearCache()
+

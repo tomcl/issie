@@ -178,6 +178,8 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
             makeWinDebugItem  "Run performance check" None
                 (fun _ -> Playground.MiscTests.testMaps())
+            makeWinDebugItem  "Print Memory Usage" None
+                (fun _ -> Playground.Memory.printMemory())
             makeWinDebugItem  "Print names of static asset files" None 
                 (fun _ -> Playground.MiscTests.testAssets())
             makeWinDebugItem  "Test Breadcrumbs" None 

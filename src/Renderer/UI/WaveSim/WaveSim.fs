@@ -311,7 +311,15 @@ let setScrollbarTbByCycs (wsm: WaveSimModel) (dispatch: Msg->unit) (moveByCycs: 
     let maxSimCyc = Constants.maxLastClk
 
     let newStartCyc = (wsm.StartCycle+moveWindowBy) |> bound minSimCyc (maxSimCyc-wsm.ShownCycles+1)
-    let newCurrCyc = if moveWindowBy > 0 then (newStartCyc+wsm.ShownCycles-1) else (newStartCyc)
+    let newCurrCyc =
+        let newEndCyc = newStartCyc+wsm.ShownCycles-1
+        if newStartCyc <= wsm.CurrClkCycle && wsm.CurrClkCycle <= newEndCyc
+        then
+            wsm.CurrClkCycle
+        else
+            if abs (wsm.CurrClkCycle - newStartCyc) < abs (wsm.CurrClkCycle - newEndCyc)
+            then newStartCyc
+            else newEndCyc
 
     GenerateWaveforms {wsm with StartCycle = newStartCyc; CurrClkCycle = newCurrCyc} |> dispatch
 

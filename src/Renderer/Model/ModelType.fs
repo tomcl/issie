@@ -159,13 +159,11 @@ type WaveSimState =
     /// if waveSim has been explicitly ended
     | Ended
 
-/// <summary>Type used to describe the position of the mouse relative
-/// to the thumb on the scrollbar, which affect the modes of scrolling:
-/// normal or "catching up".</summary>
-type ScrollbarMousePos =
-    | Tb
-    | TbBufferLeft
-    | TbBufferRight
+/// <summary>Describe WaveSim's scrollbar's mouse actions' type of operation.</summary>
+type ScrollbarMouseAction =
+    | StartScrollbarDrag
+    | InScrollbarDrag
+    | ClearScrollbarDrag
 
 /// Identifies which Component and Port drives a waveform.
 /// Must be an Output port (Input ports cannot drive waveforms).
@@ -264,12 +262,13 @@ type WaveSimModel = {
     ScrollbarTbWidth: float
     /// <summary>Starting position of scrollbar's thumb, in pixels.</summary>
     ScrollbarTbPos: float
+    /// <summary>Offset between scrollbar's thumb's position and cursor's position.
+    /// If is Some float, scrollbar is in drag mode; otherwise scrollbar is NOT in drag.</summary>
+    ScrollbarTbOffset: float option
     /// <summary>Width of scrollbar's gray background, in pixels.</summary>
     ScrollbarBkgWidth: float
     /// <summary>Number of clock cycles scrollbar's background represents.</summary>
     ScrollbarBkgRepCycs: int
-    /// <summary>Remaining incomplete cycles for thumb to move in orderto keep up with cursor.</summary>
-    ScrollbarCounter: float
 }
 
 
@@ -450,7 +449,7 @@ type Msg =
     | SendSeqMsgAsynch of seq<Msg>
     | ContextMenuAction of e: Browser.Types.MouseEvent
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
-    | ScrollbarMouseMsg of mov:XYPos * area:ScrollbarMousePos * dispatch:(Msg->unit)
+    | ScrollbarMouseMsg of cursor:float * action:ScrollbarMouseAction * dispatch:(Msg->unit)
 
 
 //================================//

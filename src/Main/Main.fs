@@ -6,6 +6,7 @@ open ElectronAPI
 open Node
 open ContextMenus
 
+
 (*
 [<Emit("require('electron')")>]
 let (contextBridge,ipcRenderer): (ContextBridge*IpcRenderer) = jsNative
@@ -13,6 +14,8 @@ let (contextBridge,ipcRenderer): (ContextBridge*IpcRenderer) = jsNative
 
 mainProcess.systemPreferences.setUserDefault?("NSDisabledDictationMenuItem","boolean", "true")
 mainProcess.systemPreferences.setUserDefault?("NSDisabledCharacterPaletteMenu","boolean", "true")
+
+
 
 
 (*
@@ -67,6 +70,12 @@ mainProcess.app.name <- "Issie"
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mutable mainWindow: BrowserWindow option = Option.None
+
+
+let getMemory() =
+    let stats = ``process``?getHeapStatistics()
+    let check:float  list =  [stats?totalHeapSize;stats?usedHeapSize;stats?mallocedMemory; stats?total_available_size; stats?number_of_native_contexts; stats?number_of_detached_contexts];
+    printfn $"TestUsedHeap = %A{check}"
 
 [<Emit("__static")>]
 let staticDir() :string = jsNative

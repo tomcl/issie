@@ -154,6 +154,7 @@ open Fable.Core
 [<Emit("performance.now()")>]
 let performanceNow() : float = jsNative
 
+
 let timeNowInMicroS() = 
     performanceNow()
     |> (fun t -> t * 1000.)

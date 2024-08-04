@@ -280,9 +280,26 @@ module Misc =
         dispatch (Sheet (SheetT.Msg.SelectWires Extractor.debugChangedConnections))
         Extractor.debugChangedConnections <- []
 
+
+
 module Memory =
+    open Fable.Core
+    open Fable.Core.JsInterop
     open ElectronAPI
     let webframe = renderer.webFrame
+
+    let getProcessMemory() : unit =
+        let memInfo:JS.Promise<string>  = Node.Api.``process``?getProcessMemoryInfo()
+        promise {
+            return! memInfo
+            }
+        |> Promise.map (
+            fun info ->
+                printfn $"mem info: private= {info?``private``/1000}, resident={info?``resident``}")
+        |> ignore
+
+                
+
 
     let printMemory() =
         let toMB (f:float) = $"%10.1f{f / 1000000.}"
@@ -303,7 +320,6 @@ module Memory =
                 "fonts", usage.fonts
                 "scripts", usage.scripts
             ] |> List.map (fun (s, r) -> s, Some r)
-        printfn $"%200A{usage}"
         String.concat "\n" (printDetails ("",None) :: List.map printDetails details)
         |> printfn "%s"
         webframe.clearCache()

@@ -27,6 +27,10 @@ importSideEffects "./scss/main.css"
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
+let getMem() =
+    let memInfo: obj = Node.Api.``process``?getProcessMemoryInfo()
+    memInfo
+
 (****************************************************************************************************
 *
 *                                  MENU HELPER FUNCTIONS
@@ -178,8 +182,8 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
             makeWinDebugItem  "Run performance check" None
                 (fun _ -> Playground.MiscTests.testMaps())
-            makeWinDebugItem  "Print Memory Usage" None
-                (fun _ -> Playground.Memory.printMemory())
+            makeWinDebugItem  "Print Memory Usage" (Some "CmdOrCtrl+Alt+M")
+                (fun _ -> Playground.Memory.getProcessMemory())
             makeWinDebugItem  "Print names of static asset files" None 
                 (fun _ -> Playground.MiscTests.testAssets())
             makeWinDebugItem  "Test Breadcrumbs" None 
@@ -436,5 +440,4 @@ Program.mkProgram init update view'
 |> Program.withReactBatched "app"
 |> Program.withSubscription attachMenusAndKeyShortcuts
 |> Program.withSubscription keyPressListener
-|> Program.withConsoleTrace
 |> Program.run

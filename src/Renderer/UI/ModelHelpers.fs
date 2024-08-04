@@ -135,7 +135,6 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
         SelectedWaves = Some wsModel.SelectedWaves
         Radix = Some wsModel.Radix
         WaveformColumnWidth = Some wsModel.WaveformColumnWidth
-        ShownCycles = Some wsModel.ShownCycles
         SelectedFRams = Some wsModel.SelectedRams
         SelectedRams = None
 
@@ -156,7 +155,6 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
             SelectedWaves = Option.defaultValue initWSModel.SelectedWaves swInfo.SelectedWaves
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
-            ShownCycles = Option.defaultValue initWSModel.ShownCycles swInfo.ShownCycles
             SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedFRams
     }
 

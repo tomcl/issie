@@ -942,10 +942,7 @@ let generateScrollbarInfo (wsm: WaveSimModel): {| tbWidth: float; tbPos: float; 
     let tbWidth = max tbCalcWidth WaveSimStyle.Constants.scrollbarThumbMinWidth
     
     let tbMoveWidth = bkgWidth - tbWidth
-    let tbPos =
-        if tbWidth > WaveSimStyle.Constants.scrollbarThumbMinWidth
-        then (float wsm.StartCycle) / (float newBkgRep - float wsm.ShownCycles) * tbMoveWidth
-        else (float wsm.CurrClkCycle) / (float newBkgRep-1.) * tbMoveWidth
+    let tbPos = (float wsm.StartCycle) / (float newBkgRep - float wsm.ShownCycles) * tbMoveWidth
 
     // debug statements:
     // printfn "DEBUG:generateScrollbarInfo: Input -"
@@ -953,6 +950,7 @@ let generateScrollbarInfo (wsm: WaveSimModel): {| tbWidth: float; tbPos: float; 
     // printfn "DEBUG:generateScrollbarInfo: wsm.StartCycle = %d cycles" wsm.StartCycle
     // printfn "DEBUG:generateScrollbarInfo: wsm.ShownCycles = %d cycles" wsm.ShownCycles
     // printfn "DEBUG:generateScrollbarInfo: wsm.ScrollbarBkgRepCycs = %d cycles" wsm.ScrollbarBkgRepCycs
+    // printfn "DEBUG:generateScrollbarInfo: bkgWidth = %.1f cycles" bkgWidth
     // printfn "DEBUG:generateScrollbarInfo: Output -"
     // printfn "DEBUG:generateScrollbarInfo: tbWidth = %.1fpx" tbWidth
     // printfn "DEBUG:generateScrollbarInfo: tbPos = %.1fpx" tbPos

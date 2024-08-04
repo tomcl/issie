@@ -879,8 +879,6 @@ module CommonTypes
         Radix: NumberBase option
         /// Width of the waveform column
         WaveformColumnWidth: float option
-        /// Number of visible cycles in the waveform column
-        ShownCycles: int option
         /// RAMs which are selected to be shown in the RAM tables
         SelectedRams: Map<ComponentId, string> option
         SelectedFRams: Map<FComponentId, string> option

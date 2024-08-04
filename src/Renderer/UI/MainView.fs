@@ -342,6 +342,20 @@ let displayView model dispatch =
     let conns = BusWire.extractConnections model.Sheet.Wire
     let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
     let canvasState = comps,conns   
+
+    // mouse ops for wavesim scrollbar
+    let wavesimSbMouseMoveHandler (event: Browser.Types.MouseEvent): unit = // if in drag, update scrollbar; otherwise do nothing
+        let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
+        if Option.isSome wsm.ScrollbarTbOffset
+        then ScrollbarMouseMsg (event.screenX, InScrollbarDrag, dispatch) |> dispatch
+        else ()
+
+    let wavesimSbMouseUpHandler (event: Browser.Types.MouseEvent): unit = // if in drag clear drag; otherwise do nothing
+        let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
+        if Option.isSome wsm.ScrollbarTbOffset
+        then ScrollbarMouseMsg (event.screenX, ClearScrollbarDrag, dispatch) |> dispatch
+        else ()
+
     match model.Spinner with
     | Some fn -> 
         dispatch <| UpdateModel fn
@@ -387,7 +401,7 @@ let displayView model dispatch =
             //--------------------------------------------------------------------------------------//
             //---------------------------------right section----------------------------------------//
             // right section has horizontal divider bar and tabs
-            div [ HTMLAttr.Id "RightSection"; rightSectionStyle model ]
+            div [ HTMLAttr.Id "RightSection"; rightSectionStyle model; OnMouseMove wavesimSbMouseMoveHandler; OnMouseUp wavesimSbMouseUpHandler ]
                   // vertical and draggable divider bar
                 [ dividerbar model dispatch
                   // tabs for different functions

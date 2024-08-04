@@ -62,11 +62,6 @@ module Constants =
     let scrollbarHeight: float = 30.0
     /// <summary>Minimum width of the scrollbar thumb, in pixels.</summary>
     let scrollbarThumbMinWidth: float = 5.0
-    /// <summary>Width of buffer zone around scrollbar thumb, in pixels.
-    /// Scrollbar will run faster uni-directionally when mouse is in buffer zone.</summary>
-    let scrollbarThumbBufferWidth: float = 32.0
-    /// <summary>Speedup of scrolling if cursor hits buffer zone.</summary>
-    let scrollbarThumbBufferSpeedup: float = 4.0
 
 
 /// Style for top row in wave viewer.

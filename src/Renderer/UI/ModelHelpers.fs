@@ -9,7 +9,7 @@ open Optics.Operators
 
 module Constants =
     /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
-    let maxLastClk = 2000
+    let maxLastClk = 10000
     /// Needed to prevent possible overrun of simulation arrays
     let maxStepsOverflow = 3
 

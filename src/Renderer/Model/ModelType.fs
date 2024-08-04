@@ -164,6 +164,7 @@ type ScrollbarMouseAction =
     | StartScrollbarDrag
     | InScrollbarDrag
     | ClearScrollbarDrag
+    | ReleaseScrollQueue
 
 /// Identifies which Component and Port drives a waveform.
 /// Must be an Output port (Input ports cannot drive waveforms).
@@ -269,6 +270,10 @@ type WaveSimModel = {
     ScrollbarBkgWidth: float
     /// <summary>Number of clock cycles scrollbar's background represents.</summary>
     ScrollbarBkgRepCycs: int
+    /// <summary>Counter used to coalesce scrollbar mouse actions together.
+    /// If true, queue is clear and can dispatch scrollbar update.
+    /// Otherwise, an update is in progress and mouse event should not be pushed onto the queue.</summary>
+    ScrollbarQueueIsEmpty: bool
 }
 
 

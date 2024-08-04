@@ -923,8 +923,10 @@ let makeWaveformsWithTimeOut
 let generateScrollbarInfo (wsm: WaveSimModel): {| tbWidth: float; tbPos: float; bkgRep: int |} =
     let bkgWidth = wsm.ScrollbarBkgWidth - 60. // 60 = 2x width of buttons
 
+    /// <summary>Return target value when within min and max value, otherwise min or max.</summary>
+    let bound (minV: int) (maxV: int) (tarV: int): int = tarV |> max minV |> min maxV
     let currShownMaxCyc = wsm.StartCycle + wsm.ShownCycles
-    let newBkgRep = max (wsm.ScrollbarBkgRepCycs) (currShownMaxCyc)
+    let newBkgRep = [ wsm.ScrollbarBkgRepCycs; currShownMaxCyc; wsm.ShownCycles*2 ] |> List.max |> bound 0 Constants.maxLastClk
 
     let tbCalcWidth = bkgWidth / (1. + (float newBkgRep / float wsm.ShownCycles))
     let tbWidth = max tbCalcWidth WaveSimStyle.Constants.scrollbarThumbMinWidth

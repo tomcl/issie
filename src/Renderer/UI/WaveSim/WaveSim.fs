@@ -961,16 +961,16 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
     let bkgWidth = wsm.ScrollbarBkgWidth - 60. // 60 = 2x width of buttons
 
     let tbMouseDownHandler (event: Browser.Types.MouseEvent): unit = // start drag
-        ScrollbarMouseMsg (event.screenX, StartScrollbarDrag, dispatch) |> dispatch
+        ScrollbarMouseMsg (event.clientX, StartScrollbarDrag, dispatch) |> dispatch
 
     let tbMouseMoveHandler (event: Browser.Types.MouseEvent): unit = // if in drag, drag; otherwise do nothing
         if Option.isSome wsm.ScrollbarTbOffset
-        then ScrollbarMouseMsg (event.screenX, InScrollbarDrag, dispatch) |> dispatch
+        then ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
         else ()
 
     let tbMouseUpHandler (event: Browser.Types.MouseEvent): unit = // if in drag, clear drag; otherwise do nothing
         if Option.isSome wsm.ScrollbarTbOffset
-        then ScrollbarMouseMsg (event.screenX, ClearScrollbarDrag, dispatch) |> dispatch
+        then ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
         else ()
 
     let bkgPropList (width: float): List<IProp> =
@@ -1010,8 +1010,9 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
 /// Called in <c>update</c> when <c>ScrollbarMouseMsg</c> is dispatched.</summary>
 /// <param name="wsm">Target <c>WaveSimModel</c>.</param>
 /// <param name="dispatch">Dispatch function to send messages with, not used directly.</param>
-/// <param name="cursor">Cursor postion in relation to the screen, i.e. <c>event.screenX</c>.</param>
+/// <param name="cursor">Cursor postion in relation to the screen, i.e. <c>event.clientX</c>.</param>
 /// <param name="action">Scrollbar action to do, see choices for more info, in type of <c>ScrollbarMouseAction</c>.</param>
+/// <remarks>Note that <c>screenX</c> does NOT scale with web zoom and will cause weird results!</remarks>
 let updateScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit) (cursor: float) (action: ScrollbarMouseAction): unit =
     /// <summary>Translate mouse movements in pixels to number of cycles to move by.
     /// Linear translator aims to allow scrollbar thumb to follow cursor.</summary>

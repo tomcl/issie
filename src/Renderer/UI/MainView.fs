@@ -347,13 +347,13 @@ let displayView model dispatch =
     let wavesimSbMouseMoveHandler (event: Browser.Types.MouseEvent): unit = // if in drag, update scrollbar; otherwise do nothing
         let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
         if Option.isSome wsm.ScrollbarTbOffset
-        then ScrollbarMouseMsg (event.screenX, InScrollbarDrag, dispatch) |> dispatch
+        then ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
         else ()
 
     let wavesimSbMouseUpHandler (event: Browser.Types.MouseEvent): unit = // if in drag clear drag; otherwise do nothing
         let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
         if Option.isSome wsm.ScrollbarTbOffset
-        then ScrollbarMouseMsg (event.screenX, ClearScrollbarDrag, dispatch) |> dispatch
+        then ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
         else ()
 
     match model.Spinner with

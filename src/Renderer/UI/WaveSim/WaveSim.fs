@@ -298,7 +298,8 @@ let private setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newClkC
 
 /// <summary>Move waveform view window by closest integer number of cycles.
 /// Current clock cycle (<c>WaveSimModel.CurrClkCycle</c>) is set to beginning or end depending on direction of movement. 
-/// Update is achieved by dispatching a <c>GenerateWaveforms</c> message.</summary>
+/// Update is achieved by dispatching a <c>GenerateWaveforms</c> message.
+/// Note the side-effect of clearing the <c>ScrollbarQueueIsEmpty</c> counter.</summary>
 /// <param name="wsm">Target <c>WaveSimModel</c>.</param>
 /// <param name="dispatch">Dispatch function to send messages with.</param>
 /// <param name="moveByCycs">Number of non-integer cycles to move by.</param>
@@ -321,7 +322,7 @@ let setScrollbarTbByCycs (wsm: WaveSimModel) (dispatch: Msg->unit) (moveByCycs: 
             then newStartCyc
             else newEndCyc
 
-    GenerateWaveforms {wsm with StartCycle = newStartCyc; CurrClkCycle = newCurrCyc} |> dispatch
+    GenerateWaveforms {wsm with StartCycle = newStartCyc; CurrClkCycle = newCurrCyc; ScrollbarQueueIsEmpty = true } |> dispatch
 
 /// <summary>Update <c>WaveSimModel</c> with new <c>ScrollbarTbOffset</c>.
 /// Used when starting or clearing scrollbar drag mode.
@@ -330,7 +331,16 @@ let setScrollbarTbByCycs (wsm: WaveSimModel) (dispatch: Msg->unit) (moveByCycs: 
 /// <param name="dispatch">Dispatch function to send messages with.</param>
 /// <param name="offset">Offset option to be written to <c>WaveSimModel.ScrollbarTbOffset</c>.</param>
 let setScrollbarOffset (wsm: WaveSimModel) (dispatch: Msg->unit) (offset: float option): unit =
-    GenerateWaveforms { wsm with ScrollbarTbOffset = offset } |> dispatch
+    GenerateWaveforms { wsm with ScrollbarTbOffset = offset; ScrollbarQueueIsEmpty = true } |> dispatch
+
+/// <summary>Update <c>WaveSimModel</c> with new <c>ScrollbarQueueIsEmpty</c>.
+/// Used to update is-empty counter to coalesce scrollbar mouse events together.
+/// Update is achieved by dispatching a <c>UpdateWSModel</c> message, so as to not clog the queue with <c>GenerateWaveforms</c> messages.</summary>
+/// <param name="wsm">Target <c>WaveSimModel</c>.</param>
+/// <param name="dispatch">Dispatch function to send messages with.</param>
+/// <param name="isEmpty">Bool to be written to <c>WaveSimModel.ScrollbarQueueIsEmpty</c>.</param>
+let setScrollbarLastX (wsm: WaveSimModel) (dispatch: Msg->unit) (isEmpty: bool): unit =
+    UpdateWSModel (fun _ -> { wsm with ScrollbarQueueIsEmpty = isEmpty }) |> dispatch
 
 /// If zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles).
 /// otherwise reduce width. GenerateWaveforms message will reconstitute SVGs after the change.
@@ -1029,7 +1039,11 @@ let updateScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit) (cursor: float) (a
     | StartScrollbarDrag -> // record offset
         let offset = Some (wsm.ScrollbarTbPos-cursor)
         setScrollbarOffset wsm dispatch offset
-    | InScrollbarDrag ->
+    | InScrollbarDrag -> // in drag, unknown queue state: update counter, if queue is empty then dispatch ReleaseScrollQueue message
+        let canDispatch = wsm.ScrollbarQueueIsEmpty
+        setScrollbarLastX wsm dispatch false
+        if canDispatch then ScrollbarMouseMsg (cursor, ReleaseScrollQueue, dispatch) |> dispatch
+    | ReleaseScrollQueue -> // in drag, and queue is clear: update and set ScrollbarQueueIsEmpty to true
         let dx = (Option.get wsm.ScrollbarTbOffset) + cursor - wsm.ScrollbarTbPos // offset + new cursor = new thumb; dx = new thumb - old thumb
         setScrollbarTbByCycs wsm dispatch (linearMouseToCycleTranslator dx)
     | ClearScrollbarDrag -> // clear offset

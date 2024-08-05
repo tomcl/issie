@@ -356,58 +356,74 @@ let displayView model dispatch =
 
 
     let wavesimSbMouseUpHandler (event: Browser.Types.MouseEvent): unit = // if in drag clear drag; otherwise do nothing
-        let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
-        if Option.isSome wsm.ScrollbarTbOffset
-        then ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
-        else ()
+        let offsetOpt =
+            model.WaveSimSheet
+            |> Option.bind (fun wsSheet ->
+                Map.tryFind wsSheet model.WaveSim
+                |> Option.bind _.ScrollbarTbOffset)
+        if  Option.isSome offsetOpt
+        then
+            ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
+
 
     match model.Spinner with
     | Some fn -> 
         dispatch <| UpdateModel fn
     | None -> ()
-    div [ HTMLAttr.Id "WholeApp"
-          Key cursorText
-          OnMouseMove (processMouseMove false)
-          OnClick (processAppClick model.TopMenuOpenState dispatch)
-          OnMouseUp (processMouseMove true)
-          Style [ 
-            //CSSProp.Cursor cursorText
-            UserSelect UserSelectOptions.None
-            BorderTop "2px solid lightgray"
-            BorderBottom "2px solid lightgray"
-            OverflowX OverflowOptions.Auto
-            Height "calc(100%-4px)"
-            Cursor topCursorText ] ] [
-        // transient
+    if model.CurrentProj = None then
+        div [] [
+            TopMenuView.viewNoProjectMenu model dispatch
+            UIPopups.viewPopup model dispatch ]       
+    else   
+        div [ HTMLAttr.Id "WholeApp"
+              Key cursorText
+              OnMouseMove (processMouseMove false)
+              OnClick (processAppClick model.TopMenuOpenState dispatch)
+              OnMouseUp (processMouseMove true)
+              Style [ 
+                //CSSProp.Cursor cursorText
+                UserSelect UserSelectOptions.None
+                BorderTop "2px solid lightgray"
+                BorderBottom "2px solid lightgray"
+                OverflowX OverflowOptions.Auto
+                Height "calc(100%-4px)"
+                Cursor topCursorText ] ] [
+            // transient
         
-        TopMenuView.viewNoProjectMenu model dispatch
         
         
-        UIPopups.viewPopup model dispatch 
-        // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
-        // main top bar function is early in compile order
-        TopMenuView.viewTopMenu model dispatch
+            UIPopups.viewPopup model dispatch 
+ 
 
-        if model.PopupDialogData.Progress = None then
-            SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
+            if model.PopupDialogData.Progress = None then
+                SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
         
-        // transient pop-ups
-        Notifications.viewNotifications model dispatch
-        // editing buttons overlaid bottom-left on canvas
-        if model.PopupDialogData.Progress <> None  then
-            div [] []
-        else
-            viewOnDiagramButtons model dispatch
+            // transient pop-ups
+            Notifications.viewNotifications model dispatch
+            // editing buttons overlaid bottom-left on canvas
+            if model.PopupDialogData.Progress <> None  then
+                div [] []
+            else
+                // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
+                // main top bar function is early in compile order
+                TopMenuView.viewTopMenu model dispatch
+                viewOnDiagramButtons model dispatch
 
-            //--------------------------------------------------------------------------------------//
-            //------------------------ left section for Sheet (NOT USED) ---------------------------//
-            // div [ leftSectionStyle model ] [ div [ Style [ Height "100%" ] ] [ Sheet.view model.Sheet sheetDispatch ] ]
+                //--------------------------------------------------------------------------------------//
+                //------------------------ left section for Sheet (NOT USED) ---------------------------//
+                // div [ leftSectionStyle model ] [ div [ Style [ Height "100%" ] ] [ Sheet.view model.Sheet sheetDispatch ] ]
 
-            //--------------------------------------------------------------------------------------//
-            //---------------------------------right section----------------------------------------//
-            // right section has horizontal divider bar and tabs
-            div [ HTMLAttr.Id "RightSection"; rightSectionStyle model; OnMouseMove wavesimSbMouseMoveHandler; OnMouseUp wavesimSbMouseUpHandler ]
-                  // vertical and draggable divider bar
-                [ dividerbar model dispatch
-                  // tabs for different functions
-                  viewRightTabs canvasState model dispatch ] ]
+                //--------------------------------------------------------------------------------------//
+                //---------------------------------right section----------------------------------------//
+                // right section has horizontal divider bar and tabs
+                div [
+                    HTMLAttr.Id "RightSection";
+                    rightSectionStyle model;
+                    OnMouseMove wavesimSbMouseMoveHandler;
+                    OnMouseUp wavesimSbMouseUpHandler ]
+                      // vertical and draggable divider bar
+                    [
+                    dividerbar model dispatch
+                    // tabs for different functions
+                    viewRightTabs canvasState model dispatch ]
+            ]

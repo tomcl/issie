@@ -288,6 +288,12 @@ let forceCloseProject model dispatch =
     dispatch EndSimulation
     dispatch EndWaveSim
     model.Sheet.ClearCanvas sheetDispatch
+    dispatch <| UpdateModel (
+        fun model ->
+            { model with
+                RightPaneTabVisible = Properties
+                Pending = []}
+                )
     dispatch FinishUICmd
 
 /// force either save of current file before action, or abort (closeProject is special case of this)

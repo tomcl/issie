@@ -71,6 +71,7 @@
 	<Compile Include="DrawBlock\SymbolPortHelpers.fs" />
     <Compile Include="DrawBlock\SymbolResizeHelpers.fs" />
 	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
+    <Compile Include="DrawBlock\Groups.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
 	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
@@ -89,6 +90,7 @@
     <Compile Include="UI\Style.fs" />
     <Compile Include="UI\Notifications.fs" />
     <Compile Include="UI\UIPopups.fs" />
+    <Compile Include="UI\UIContextualSidebar.fs" />
     <Compile Include="UI\MemoryEditorView.fs" />
     <Compile Include="UI\MenuHelpers.fs" />
     <Compile Include="UI\MiscMenuView.fs" />
@@ -103,6 +105,8 @@
     <Compile Include="UI\BuildView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
+    <Compile Include="UI\DeveloperModeHelpers.fs" />
+    <Compile Include="UI\DeveloperModeView.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />

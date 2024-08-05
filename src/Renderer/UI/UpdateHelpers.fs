@@ -76,7 +76,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetWaveSheetSelectionOpen _
     | SetWaveComponentSelectionOpen _-> Some "SetWaveComponentSelectionOpen"
     | SetWaveGroupSelectionOpen _
-    | LockTabsToWaveSim 
+    | LockTabsToWaveSim
     | UnlockTabsFromWaveSim -> None
     | TryStartSimulationAfterErrorFix _ -> Some "TryStartSimulationAfterErrorFix"
     | SetSimulationGraph _ -> Some "SetSimulationGraph"
@@ -109,13 +109,13 @@ let shortDisplayMsg (msg:Msg) =
         | SetTTBase _ -> None
         | SetTTGridCache _ -> Some "SetTTGridCache"
         | TogglePopupAlgebraInput _ -> Some  "TogglePopupAlgebraInput"
-        | SetPopupInputConstraints _ 
-        | SetPopupOutputConstraints _ 
-        | SetPopupConstraintTypeSel _ 
-        | SetPopupConstraintIOSel _ 
-        | SetPopupConstraintErrorMsg _ 
-        | SetPopupNewConstraint _ 
-        | SetPopupAlgebraInputs _ 
+        | SetPopupInputConstraints _
+        | SetPopupOutputConstraints _
+        | SetPopupConstraintTypeSel _
+        | SetPopupConstraintIOSel _
+        | SetPopupConstraintErrorMsg _
+        | SetPopupNewConstraint _
+        | SetPopupAlgebraInputs _
         | SetPopupAlgebraError _ -> None
 
     | ChangeRightTab _ -> None
@@ -125,46 +125,46 @@ let shortDisplayMsg (msg:Msg) =
     | SetClipboard _ -> Some "SetClipboard"
     | SetCreateComponent _ -> Some "SetCreateComponent"
     | SetProject _ -> Some "SetProject"
-    | UpdateProject _ 
+    | UpdateProject _
     | UpdateModel _
     | UpdateImportDecisions _
-    | UpdateProjectWithoutSyncing _ 
-    | ShowPopup _ 
-    | ShowStaticInfoPopup _ 
-    | ClosePopup 
-    | SetPopupDialogBadLabel _ 
-    | SetPopupDialogText _ 
-    | SetPopupDialogCode _ 
-    | SetPopupDialogVerilogErrors _ 
-    | SetPopupDialogInt _ 
-    | SetPopupDialogInt2 _ 
-    | SetPopupDialogTwoInts _ 
+    | UpdateProjectWithoutSyncing _
+    | ShowPopup _
+    | ShowStaticInfoPopup _
+    | ClosePopup
+    | SetPopupDialogBadLabel _
+    | SetPopupDialogText _
+    | SetPopupDialogCode _
+    | SetPopupDialogVerilogErrors _
+    | SetPopupDialogInt _
+    | SetPopupDialogInt2 _
+    | SetPopupDialogTwoInts _
     | SetPopupDialogIntList _
     | SetPopupDialogIntList2 _
-    | SetPropertiesExtraDialogText _ 
-    | SetPopupDialogBadLabel _ 
-    | SetPopupDialogMemorySetup _  
-    | SetPopupMemoryEditorData _ 
-    | SetPopupProgress _ 
-    | UpdatePopupProgress _ 
+    | SetPropertiesExtraDialogText _
+    | SetPopupDialogBadLabel _
+    | SetPopupDialogMemorySetup _
+    | SetPopupMemoryEditorData _
+    | SetPopupProgress _
+    | UpdatePopupProgress _
     | SimulateWithProgressBar _ -> None
     | SetSelectedComponentMemoryLocation _ -> Some "SetSelectedComponentMemoryLocation"
     | CloseDiagramNotification
-    | SetSimulationNotification _ 
+    | SetSimulationNotification _
     | CloseSimulationNotification
     | CloseWaveSimNotification
-    | SetFilesNotification _ 
+    | SetFilesNotification _
     | CloseFilesNotification
-    | SetMemoryEditorNotification _ 
+    | SetMemoryEditorNotification _
     | CloseMemoryEditorNotification
-    | SetPropertiesNotification _ 
+    | SetPropertiesNotification _
     | ClosePropertiesNotification
-    | SetTopMenu _ 
-    | ReloadSelectedComponent _ 
-    | SetDragMode _ 
+    | SetTopMenu _
+    | ReloadSelectedComponent _
+    | SetDragMode _
     // Set width of right-hand pane when tab is WaveSimulator or TruthTable
-    | SetViewerWidth _ 
-    | MenuAction _ 
+    | SetViewerWidth _
+    | MenuAction _
     | DiagramMouseEvent
     | ContextMenuAction _ -> None
     | ContextMenuItemClick _
@@ -173,7 +173,7 @@ let shortDisplayMsg (msg:Msg) =
     | SetRouterInteractive _
     | CloseApp
     | SetExitDialog _
-    | ExecutePendingMessages _ 
+    | ExecutePendingMessages _
     | DoNothing
     | StartUICmd _
     | FinishUICmd
@@ -188,7 +188,23 @@ let shortDisplayMsg (msg:Msg) =
     | ExecFuncAsynch _ -> Some "ExecFuncAsync"
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
-
+    // for Dev Mode
+    | UpdateScrollPosRightSelection _ -> None
+    | ToggleSettingsMenu -> None
+    | SelectTracking _ -> None
+    | ToggleBeautifyMenu -> None
+    | ToggleSymbolInfoTable -> None
+    | ToggleSymbolPortsTable -> None
+    | ToggleSymbolPortMapsTable -> None
+    | ToggleWireTable -> None
+    | ToggleWireSegmentsTable -> None
+    | ToggleSheetStats -> None
+    | ToggleGroup -> None
+    // for contextual sidebar
+    | ShowContextualSidebar _ -> None
+    | CloseContextualSidebar -> None
+    | SetContextualSidebarDialogInt _ -> None
+    | SetContextualSidebarDialogText _ -> None
 
 
 
@@ -198,7 +214,7 @@ let shortDisplayMsg (msg:Msg) =
 /// optimise for very quick return in the case that debugLevel = 0 (production version)
 /// optimise for quick return if nothing is printed.
 let getMessageTraceString (msg: Msg) =
-    let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = 
+    let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) =
         mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
     let noDisplayMessage = function
         | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> true
@@ -209,7 +225,7 @@ let getMessageTraceString (msg: Msg) =
        matchMouseMsg noDisplayMouseOp msg ||
        noDisplayMessage msg then
         ""
-    else 
+    else
         match shortDisplayMsg msg with
         | Some shortName -> shortName
         | None ->
@@ -220,7 +236,7 @@ let mutable updateTimeTotal = 0.
 let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
     if JSHelpers.debugLevel > 0 then
         let str = getMessageTraceString msg
-        let rootOfMsg = 
+        let rootOfMsg =
             match str.Split [|' ';'('|] with
             | ss when ss.Length > 0 -> ss.[0]
             | _ -> ""
@@ -228,7 +244,7 @@ let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
         let updateTime = TimeHelpers.getTimeMs() - startOfUpdateTime
         updateTimeTotal <- match updateTimeTotal > 1000. with | true -> 0. | false -> updateTimeTotal + updateTime
         //if str <> "" then printfn "%s" $"**Upd:{str} %.1f{updateTime}ms ({int startOfUpdateTime % 10000}ms)"
-        if Set.contains "update" JSHelpers.debugTraceUI then           
+        if Set.contains "update" JSHelpers.debugTraceUI then
             let logMsg = sprintf ">>Cmd:%.0f %s" updateTimeTotal (getMessageTraceString msg)
             TimeHelpers.instrumentInterval logMsg (startOfUpdateTime)  msg|> ignore
 
@@ -273,7 +289,7 @@ type RightClickElement =
     | SheetMenuBreadcrumb of Sheet: SheetTree * IsSubSheet: bool
     | WaveSimHelp
     | NoMenu
-    
+
 
 let mutable rightClickElement: RightClickElement = NoMenu
 
@@ -290,7 +306,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     let htmlId = try element.id with | e -> "invalid"
     let elType = try element.nodeName with | e -> "invalid"
     let drawOn = Sheet.mouseOn model.Sheet sheetXYPos
-    let mouseInScalingBox = 
+    let mouseInScalingBox =
         let insideBox (pos: XYPos) boundingBox =
             let {BoundingBox.TopLeft={X = xBox; Y= yBox}; H=hBox; W=wBox} = boundingBox
             pos.X >= xBox - 50.0 && pos.X <= xBox + wBox + 50.0 && pos.Y >= yBox - 50.0 && pos.Y <= yBox + hBox + 50.0
@@ -311,7 +327,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             //printfn "NameParts: %A"nameParts
             model.CurrentProj
             |> Option.map (fun p ->
-                Map.tryFind nameParts[1] (getSheetTrees false p) 
+                Map.tryFind nameParts[1] (getSheetTrees false p)
                 |> Option.map ( fun sheet ->
                     SheetMenuBreadcrumb (sheet, nameParts.Length > 2)))
             |> Option.flatten
@@ -322,9 +338,9 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             WaveSimHelp
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
             printfn "Draw block sheet 'canvas'"
-            if mouseInScalingBox then  
+            if mouseInScalingBox then
                 DBScalingBox model.Sheet.SelectedComponents
-            else 
+            else
                 DBCanvas sheetXYPos
 
         | SheetT.MouseOn.Canvas, x, _ ->
@@ -332,9 +348,9 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             IssieElement (element.ToString())
 
         | SheetT.MouseOn.Component compId, _, _->
-            if mouseInScalingBox then  
+            if mouseInScalingBox then
                 DBScalingBox model.Sheet.SelectedComponents
-            else 
+            else
                 match Map.tryFind compId symbols with
                 | Some {Component = {Type = Custom ct}} ->
                     DBCustomComp (symbols[compId], ct)
@@ -359,14 +375,14 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | SheetT.MouseOn.OutputPort (OutputPortId s, _),_ , _ ->
             DBOutputPort s
         | _ -> NoMenu
-            
+
     // return the desired menu
     match rightClickElement with
     | SheetMenuBreadcrumb _ ->
         if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumbDev"
-    | DBScalingBox _ -> 
+    | DBScalingBox _ ->
         "ScalingBox"
-    | DBCustomComp _->        
+    | DBCustomComp _->
         "CustomComponent"
     | DBComp _ ->
         "Component"
@@ -379,7 +395,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     | _ ->
         printfn $"Clicked on '{drawOn.ToString()}'"
         "" // default is no menu
-            
+
 
 
 /// Function that implement action based on context menu item click.
@@ -426,14 +442,14 @@ let processContextMenuClick
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock Subtree" ->
         printfn "locking subtree %s" sheet.SheetName
         model
-        |> changeSubtreeLockState isSubSheet sheet (fun _ -> Locked) 
-        |> withNoCmd 
+        |> changeSubtreeLockState isSubSheet sheet (fun _ -> Locked)
+        |> withNoCmd
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock Subtree" ->
         printfn "Unlocking subtree %s" sheet.SheetName
         model
         |> changeSubtreeLockState isSubSheet sheet (fun _ -> Unlocked)
-        |> withNoCmd 
+        |> withNoCmd
 
     | DBCustomComp(_,ct), "Go to sheet" ->
         let p = Option.get model.CurrentProj
@@ -453,19 +469,19 @@ let processContextMenuClick
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
-    
+
     | DBComp sym, "Flip Vertical (Ctrl+Up)" ->
         flipDispatch SymbolT.FlipVertical
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
-    
+
      | DBComp sym, "Flip Horizontal (Ctrl+Down)" ->
         flipDispatch SymbolT.FlipHorizontal
         model
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> withNoCmd
-    
+
     | DBComp sym, "Properties" | DBCustomComp(sym, _), "Properties" ->
          model
         |> set selectedComponent_ (Some sym.Component)
@@ -473,12 +489,12 @@ let processContextMenuClick
         |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
         |> set rightPaneTabVisible_ Properties
         |> withWireMsg (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [sym.Id]))
-    
+
     | DBComp _, "Delete (DEL)" ->
         keyDispatch SheetT.KeyboardMsg.DEL
-        model  
+        model
         |> withNoCmd
-    
+
     | DBComp sym, "Copy (Ctrl+C)" ->
         let model =
             if model.Sheet.SelectedComponents = [] then // make sure at least one symbol is selected for copy
@@ -486,9 +502,9 @@ let processContextMenuClick
                 |> map (sheet_ >-> SheetT.wire_ >-> BusWireT.symbol_) (fun model -> SymbolUpdate.selectSymbols model [sym.Id])
                 |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
             else model
-        model  
+        model
         |> withMsg (Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlC))
-    
+
     | DBWire (wire, aSeg), "Unfix Wire" ->
         let changeManualSegToAuto : BusWireT.Segment -> BusWireT.Segment =
             map BusWireT.mode_ (function | BusWireT.Manual -> BusWireT.Auto | m -> m)
@@ -496,37 +512,37 @@ let processContextMenuClick
         |> map (sheet_ >-> SheetT.wireOf_ wire.WId >-> BusWireT.segments_)  (List.map changeManualSegToAuto)
         |> map (sheet_ >-> SheetT.wire_) (BusWireSeparate.separateAndOrderModelSegments [wire.WId])
         |> withNoCmd
-    
+
     | DBScalingBox selectedcomps, "Rotate Clockwise (Ctrl+Right)"->
         rotateDispatch Degree90
-        model 
+        model
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
 
     | DBScalingBox selectedcomps, "Rotate AntiClockwise (Ctrl+Left)"->
         rotateDispatch Degree270
-        model 
+        model
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
-    
+
     | DBScalingBox selectedcomps, "Flip Vertical (Ctrl+Up)"->
         flipDispatch SymbolT.FlipVertical
-        model 
+        model
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
-    
+
     | DBScalingBox selectedcomps, "Flip Horizontal (Ctrl+Down)" ->
         flipDispatch SymbolT.FlipHorizontal
-        model 
+        model
         |> withWireMsg (BusWireT.Msg.UpdateConnectedWires selectedcomps)
-    
+
     | DBScalingBox _, "Delete Box (DEL)" ->
         keyDispatch SheetT.KeyboardMsg.DEL
-        model  
+        model
         |> withNoCmd
-    
+
     | DBScalingBox _, "Copy Box (Ctrl+C)" ->
         keyDispatch SheetT.KeyboardMsg.CtrlC
-        model  
+        model
         |> withNoCmd
-    
+
     | DBCanvas pos, "Zoom-in (Alt+Up) and centre"  ->
         printf "Zoom-in!!"
         model
@@ -542,7 +558,7 @@ let processContextMenuClick
         keyDispatch SheetT.KeyboardMsg.CtrlW
         model
         |> withNoCmd
-    
+
     | DBCanvas pos, "Paste (Ctrl+V)" ->
         keyDispatch SheetT.KeyboardMsg.CtrlV
         model
@@ -577,7 +593,7 @@ let filterByOKSheets (model: Model) (sheet: string) =
     match model.CurrentProj with
     | Some p when p.OpenFileName = sheet -> false
     | Some p when p.LoadedComponents |> List.forall (fun ldc -> ldc.Name <> sheet) -> false
-    | _ -> true   
+    | _ -> true
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------UPDATE FUNCTIONS--------------------------------------------//
@@ -619,7 +635,7 @@ let processSheetBackAction (dispatch: Msg -> unit) (model: Model)  =
 /// Read persistent user data from file in userAppDir.
 /// Store in Model UserData.
 let readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
-    let addAppDirToUserData model = 
+    let addAppDirToUserData model =
         {model with UserData = {model.UserData with UserAppDir = Some userAppDir}}
 
     let modelOpt =
@@ -629,7 +645,7 @@ let readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
             |> Result.bind (fun json -> Json.tryParseAs<UserData> json)
             |> Result.bind (fun (data: UserData) -> Ok {model with UserData = data})
             |> (function | Ok model -> model | Error _ -> printfn "Error reading user data" ; model)
-            |> addAppDirToUserData 
+            |> addAppDirToUserData
             |> userDataToDrawBlockModel
             |> Some
         with
@@ -665,7 +681,7 @@ let getSimulationDataOrFail model msg =
 let verilogOutputPage sheet fPath  =
     div [] [
         str $"You can write sheet '{sheet}' (and its subsheets) in either simulation or synthesis format. The output will be written to:"
-        Text.div [ 
+        Text.div [
             Modifiers [ Modifier.TextWeight TextWeight.Bold]
             Props [Style [TextAlign TextAlignOptions.Center; CSSProp.Padding "10px"; FontFamily "monospace"; FontSize "15px"]]] [str $"%s{Helpers.cropToLength 55 false fPath}.v"]
         Columns.columns [ ]
@@ -673,10 +689,10 @@ let verilogOutputPage sheet fPath  =
                 [ Panel.panel [ Panel.Color IsInfo ]
                     [ Panel.heading [ ] [ str "Simulation output"]
                       Panel.Block.div [] [ str "Simulation output will run on an online synthesis tool such as Icarus v10 to check that Issie's Verilog output is working"]
-                      Panel.Block.div [] 
-                        [ Button.button 
+                      Panel.Block.div []
+                        [ Button.button
                             [   Button.Color IsSuccess
-                               
+
                                 Button.IsFullWidth
                                 Button.OnClick <| openInBrowser "https://www.tutorialspoint.com/compile_verilog_online.php"
                             ]
@@ -688,31 +704,31 @@ let verilogOutputPage sheet fPath  =
                 [ Panel.panel [ Panel.Color IsInfo ]
                     [ Panel.heading [ ] [ str "Synthesis output"]
                       Panel.Block.div [] [str "Synthesis output can be used as input to FPGA synthesis tools." ]
-                      Panel.Block.div [] 
-                        [ Button.button 
-                            [   Button.Color IsSuccess                          
+                      Panel.Block.div []
+                        [ Button.button
+                            [   Button.Color IsSuccess
                                 Button.IsFullWidth
                                 Button.OnClick <| openInBrowser "https://github.com/edstott/issie-synth"
                             ]
-                            [ str "Instructions for synthesis work-flow"] 
+                            [ str "Instructions for synthesis work-flow"]
                         ]
-                      
-                         ] ] ] ] 
+
+                         ] ] ] ]
 
 /// handle Menu actions that may need Model data
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     match act with
-    | MenuSaveFile -> 
+    | MenuSaveFile ->
         MenuHelpers.saveOpenFileActionWithModelUpdate model dispatch |> ignore
         SetHasUnsavedChanges false
         |> JSDiagramMsg |> dispatch
     | MenuSaveProjectInNewFormat ->
         MenuHelpers.saveOpenProjectInNewFormat model |> ignore
-    | MenuNewFile -> 
+    | MenuNewFile ->
         TopMenuView.addFileToProject model dispatch
     | MenuLostFocus ->
         printf "Lost focus!"
-        
+
     | MenuExit ->
         TopMenuView.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
     | MenuVerilogOutput ->
@@ -724,13 +740,13 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
                 (verilogOutputPage sheet fPath)
                 "Write Synthesis Verilog"
                 "Write Simulation Verilog"
-                (fun forSim _ -> 
+                (fun forSim _ ->
                     match forSim with
                     | true -> SimulationView.verilogOutput Verilog.ForSynthesis model dispatch
                     | false -> SimulationView.verilogOutput Verilog.ForSimulation model dispatch
                     dispatch ClosePopup)
                 dispatch)
-            
+
     | _ -> ()
     model
 
@@ -760,7 +776,7 @@ let updateTimeStamp model =
 //Finds if the current canvas is different from the saved canvas
 // waits 50ms from last check
 
-let findChange (model : Model) : bool = 
+let findChange (model : Model) : bool =
     let last = model.LastChangeCheckTime // NB no check to reduce total findChange time implemented yet - TODO if needed
     let start = TimeHelpers.getTimeMs()
 
@@ -768,7 +784,7 @@ let findChange (model : Model) : bool =
     | None -> false
     | Some prj ->
         //For better efficiency just check if the save button
-        let savedComponent = 
+        let savedComponent =
             prj.LoadedComponents
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
         let canv = savedComponent.CanvasState
@@ -794,7 +810,7 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
     | Some ({Type= (AsyncROM1 mem as ct)} as comp)
     | Some ({Type = (ROM1 mem as ct)} as comp)
     | Some ({Type= (AsyncRAM1 mem as ct)} as comp)
-    | Some ({Type= (RAM1 mem as ct)} as comp) -> 
+    | Some ({Type= (RAM1 mem as ct)} as comp) ->
         let update mem ct =
             match ct with
             | AsyncROM1 _ -> AsyncROM1 mem
@@ -805,7 +821,7 @@ let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) 
         let mem' = {mem with Data = mem.Data |> Map.add addr data}
         Some {comp with Type= update mem' ct}
     | _ -> compOpt
-   
+
 let exitApp (model:Model) =
     // send message to main process to initiate window close and app shutdown
     writeUserData model |> ignore
@@ -815,7 +831,7 @@ let exitApp (model:Model) =
 /// Used because Msg type does not support structural equality.
 /// **DANGER** will only work for messages which are physically the the same.
 /// In this use case that is fine.
-let isSameMsg = LanguagePrimitives.PhysicalEquality 
+let isSameMsg = LanguagePrimitives.PhysicalEquality
 
 
 
@@ -827,24 +843,24 @@ let getLastMouseMsg msgQueue =
     | [] -> None
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
 
-let sheetMsg sMsg model = 
+let sheetMsg sMsg model =
     let sModel, sCmd = SheetUpdate.update sMsg model
     {sModel with SavedSheetIsOutOfDate = findChange sModel}, sCmd
 
 let executePendingMessagesF n model =
     if n = (List.length model.Pending)
-    then 
+    then
         getLastMouseMsg model.Pending
         |> function
         | None -> failwithf "shouldn't happen"
-        | Some mMsg -> 
+        | Some mMsg ->
             match mMsg with
             | Sheet sMsg -> sheetMsg sMsg {model with Pending = []}
             | _ -> failwithf "shouldn't happen "
-        
+
     //ignore the exectue message
-    else 
+    else
         model, Cmd.none
 
 
-    
+

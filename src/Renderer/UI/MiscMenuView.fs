@@ -32,7 +32,7 @@ type BreadcrumbConfig = {
     ElementProps: IHTMLProp list
     ElementStyleProps: CSSProp list
     /// button options (other than OnClick and Color)
-    ButtonOptions: Button.Option list 
+    ButtonOptions: Button.Option list
     }
 
 module Constants =
@@ -50,8 +50,8 @@ module Constants =
         ColorFun = fun _ -> IColor.IsGreyDark
         ClickAction = fun _ _ -> ()
         ElementProps = [ ]
-        ElementStyleProps = [           
-            Border "2px"            
+        ElementStyleProps = [
+            Border "2px"
             BorderColor "LightGrey"
             BorderRightColor "DarkGrey"
             BorderStyle "Solid"
@@ -138,7 +138,7 @@ let positionRootAndFocusChildrenInGrid (root: string) (pathToFocus:string list) 
         |> List.sortBy (fun sheet -> sheet.BreadcrumbName)
     children
     |> List.mapi (fun i sheet -> PosAreaSpan(sheetsInPath.Length + 1, 1, 1, children.Length),sheet)
-      
+
 let makeGridFromSheetsWithPositions
         (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
@@ -158,10 +158,10 @@ let makeGridFromSheetsWithPositions
                     Button.Color (cfg.ColorFun sheet)
                     Button.Modifiers [Modifier.TextColor IColor.IsLight]
                     Button.OnClick(fun ev -> cfg.ClickAction sheet dispatch)
-                    ] [str $"{sheet.SheetName}" ]))             
+                    ] [str $"{sheet.SheetName}" ]))
 
-    |> gridBox Constants.gridBoxSeparation 
-    
+    |> gridBox Constants.gridBoxSeparation
+
 /// display as a ReactElement the breadcrumbs.
 /// clickAction - what happens when a given breadcrumb is clicked.
 /// project - the model project.
@@ -248,7 +248,7 @@ let smallSimulationBreadcrumbs
         (dispatch: Msg -> unit)
         (model: Model)
              : ReactElement =
-    mapOverProject (div [] []) model (fun p ->       
+    mapOverProject (div [] []) model (fun p ->
         makeBreadcrumbsFromPositions (getSheetTrees cfg.AllowDuplicateSheets p) cfg (positionRootAndFocusChildrenInGrid rootName pathToFocus) dispatch)
 
 //--------------------------------------------------------------------------------------------//
@@ -262,7 +262,7 @@ let smallSimulationBreadcrumbs
 let maybeWarning dialogText project =
     let redText txt = Some <| div [ Style [ Color "red" ] ] [ str txt ]
     if isFileInProject dialogText project then
-        redText "This sheet already exists." 
+        redText "This sheet already exists."
     elif dialogText.StartsWith " " || dialogText.EndsWith " " then
         redText "The sheet name cannot start or end with a space."
     elif String.exists ((=) '.') dialogText then
@@ -281,10 +281,10 @@ let getDependentsFromSheet (model:Model) (sheetName : string) =
          let instances =
              p.LoadedComponents
              |> List.filter (fun ldc -> ldc.Name <> sheetName)
-             |> List.collect (fun ldc -> 
+             |> List.collect (fun ldc ->
                  fst ldc.CanvasState
                  |> List.collect (
-                     function 
+                     function
                          | {Type = Custom { Name=name; InputLabels=ins; OutputLabels=outs}
                             Id = cid} when name = sheetName-> [ldc.Name, cid,  (ins,outs)]
                          | _ -> []))
@@ -296,9 +296,9 @@ let getDependentsFromSheet (model:Model) (sheetName : string) =
 let getDependents(model : Model) (oldSheetPath : string) (newSheetPath : string) =
 
     // get sheets in current project that would depend on an existent sheet, same as one that's being imported
-    
+
     if newSheetPath |> exists then
-        let sheetName = baseNameWithoutExtension oldSheetPath // could use newSheetPath as well here            
+        let sheetName = baseNameWithoutExtension oldSheetPath // could use newSheetPath as well here
 
         match getDependentsFromSheet model sheetName with
         | None -> Some ""
@@ -327,7 +327,7 @@ let Button sheetPath (buttonDecision : ImportDecision option) label isDisabled m
         dispatch <| UpdateImportDecisions updatedDecisions
 
     [ Button.button
-        [ 
+        [
             Button.Size IsSmall
             Button.IsOutlined
             Button.Color IsPrimary
@@ -335,7 +335,7 @@ let Button sheetPath (buttonDecision : ImportDecision option) label isDisabled m
             Button.IsFocused <| hasBeenPressed model
             Button.OnClick(fun _ ->
                 updateDecisions sheetPath buttonDecision model
-            )] [ str label ]             
+            )] [ str label ]
     ]
 
 /// return text that should display in 'Action' column of import sheets popup
@@ -357,21 +357,21 @@ let getDecisionText path model sheetIsDependency decisionNeeded =
 /// return react element for 2 buttons that are side by side
 let twoButtons leftButton rightButton =
     Level.level []
-            [        
+            [
                 Level.item []
                     leftButton
-                                  
+
                 Level.item []
                     rightButton
 
             ]
 
 /// prepare information that should display on a row for a dependency of a sheet
-let dependencyRow sheetPath model dispatch dependencyPath =                           
+let dependencyRow sheetPath model dispatch dependencyPath =
 
     match hasExtn ".dgm" dependencyPath with
     | true ->
-                            
+
         tr [] [
             td [Style [Constants.boldStyle]] [str <| baseNameWithoutExtension dependencyPath]
             td [] [ str "Dependency of "
@@ -380,7 +380,7 @@ let dependencyRow sheetPath model dispatch dependencyPath =
             ]
             td [] [
                     (Button dependencyPath None "Ignore" false model dispatch)
-                    |> twoButtons (Button dependencyPath (Some Overwrite) "Import" false model dispatch) 
+                    |> twoButtons (Button dependencyPath (Some Overwrite) "Import" false model dispatch)
             ]
             td [] [
                 getDecisionText dependencyPath model true false
@@ -422,7 +422,7 @@ let createSheetInfo model projectDir dispatch ((sheetPath, dependencies): string
             td [] [str "N/A"]
         ]
         |]
-            
+
     else
 
         match sheetExists with
@@ -451,7 +451,7 @@ let createSheetInfo model projectDir dispatch ((sheetPath, dependencies): string
 
                 let overwriteDisabled = (sourceSig <> destSig) && (depSheets <> "")
 
-                let sheetRow = 
+                let sheetRow =
                     [|
                     tr [] [
                         td [Style [Constants.boldStyle]] [str <| baseNameWithoutExtension sheetPath]
@@ -494,12 +494,12 @@ let createSheetInfo model projectDir dispatch ((sheetPath, dependencies): string
                     dependencies
                     |> Set.toArray
                     |> Array.map (fun dependency ->
-                        dependencyRow sheetPath model dispatch dependency 
+                        dependencyRow sheetPath model dispatch dependency
                     )
 
                 Array.append sheetRow dependencyRows
-                            
-               
+
+
         | false ->
             if fileNameIsBad ((pathWithoutExtension << baseName) sheetPath)
             then
@@ -520,11 +520,11 @@ let createSheetInfo model projectDir dispatch ((sheetPath, dependencies): string
                     tr [] [
                         td [Style [Constants.boldStyle]] [str <| baseNameWithoutExtension sheetPath]
                         td [] [
-                                
+
                             match hasDependencies with
                             | true ->
                                 str "Sheet will be imported, but has dependencies."
-      
+
                             | false ->
                                 str "Sheet will be imported without conflicts"
                         ]
@@ -532,7 +532,7 @@ let createSheetInfo model projectDir dispatch ((sheetPath, dependencies): string
                         td [] [
                             getDecisionText sheetPath model false false
                         ]
-                                
+
                     ]
                     |]
 
@@ -540,7 +540,7 @@ let createSheetInfo model projectDir dispatch ((sheetPath, dependencies): string
                     dependencies
                     |> Set.toArray
                     |> Array.map (fun dependency ->
-                        dependencyRow sheetPath model dispatch dependency 
+                        dependencyRow sheetPath model dispatch dependency
                     )
 
                 Array.append sheetRow dependencyRows
@@ -552,14 +552,14 @@ let pathsWithDependencies destProjectDir paths sourceProjectDir =
 
         /// for each path, search for its dependencies, as well as dependencies of dependencies.
         let rec search (path : string) (deps : string list) =
-                        
+
             match tryLoadComponentFromPath path with
             | Error err ->
                 match (exists <| pathJoin [|destProjectDir; baseName path|]) with
                 | true -> deps
                 | false ->
                     (baseNameWithoutExtension path :: deps)  // dependency doesn't exist in either directory
-  
+
             | Ok ldc ->
                 let comps, _ = ldc.CanvasState
 
@@ -581,7 +581,7 @@ let pathsWithDependencies destProjectDir paths sourceProjectDir =
                     )
                     |> List.distinct
                     |> List.filter (fun s -> s <> "")
-                                
+
                 match List.length customCompsPaths with
                 | 0 -> deps
                 | _ ->
@@ -602,7 +602,7 @@ let pathsWithDependencies destProjectDir paths sourceProjectDir =
     )
 
 /// When sheet selected for import is from current directory,
-/// show popup asking user to rename the file 
+/// show popup asking user to rename the file
 let renameSheetBeforeImportPopup oldPath model dispatch =
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: renameSheetBeforeImport called when no project is currently open"
@@ -616,7 +616,7 @@ let renameSheetBeforeImportPopup oldPath model dispatch =
                 let dialogText = getText dialogData
 
                 div []
-                    [ 
+                    [
                         str <| sprintf "Warning: Sheet %s is from current directory." sheetName
                         br []
                         br []
@@ -653,14 +653,14 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
     let filterSheets (existing : bool) =
         paths
         |> List.filter (fun sheetPath ->
-                   
+
             let newSheetPath = pathJoin [|destProjectDir; baseName sheetPath|]
 
             if not <| fileNameIsBad (baseNameWithoutExtension <| baseName sheetPath) then
                 if existing then exists <| newSheetPath else not (exists <| newSheetPath)
             else
                 false
-                   
+
         )
 
     /// Check if a decision has been made about all sheets on import popup that require decision to be made
@@ -685,15 +685,15 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
                 Table.table [] [
                         thead [] [ tr [] (List.map headCell ["Sheet" ;"Information"; "Decision"; "Action"]) ]
                         tbody [] ( Array.concat content )
-                       
+
                 ]
             ]
 
     /// look through decisions made about each sheet. Overwrite or Rename sheet based on decision made
     let buttonAction =
         fun (model' : Model) ->
-                   
-            let newSheetPaths = 
+
+            let newSheetPaths =
                 getImportDecisions model'.PopupDialogData
                 |> Map.toList
                 |> List.map (fun (sheetPath, decision) ->
@@ -713,7 +713,7 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
                 let newSheetPath = pathJoin [|destProjectDir; baseName oldSheetPath|]
 
                 copyFile oldSheetPath newSheetPath
-                       
+
             )
 
             newSheetPaths
@@ -730,6 +730,8 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
                 openProjectFromPath destProjectDir model' dispatch
 
             dispatch ClosePopup
+            // tdc21: close sidebar when sheet is successfully imported
+            dispatch CloseContextualSidebar
             dispatch FinishUICmd
 
     let isDisabled =
@@ -742,7 +744,7 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
 let importSheet model dispatch =
     match model.CurrentProj with
     | None -> JSHelpers.log "Current project must be open for sheet to be imported to it"
-    | Some project -> 
+    | Some project ->
         let projectDir = project.ProjectPath
 
         dispatch <| (Sheet (SheetT.SetSpinner false))
@@ -758,7 +760,7 @@ let importSheet model dispatch =
                 match projectDir = sourceProjectDir with
                 | true ->
                     renameSheetBeforeImportPopup path model dispatch
-                | false -> 
+                | false ->
                     match saveOpenFileToModel model with
                       | Some {CurrentProj = Some p} ->
                         dispatch <| SetProject p

@@ -16,12 +16,13 @@ open ElectronAPI
 open ModelType
 open Fable.SimpleJson
 open JSHelpers
-open Sheet.SheetInterface 
+open Sheet.SheetInterface
 open DrawModelType
 open Optics
 open Optics.Operators
 open TestParser
 open ContextMenus
+open DeveloperModeView
 
 importSideEffects "./scss/main.css"
 
@@ -99,7 +100,7 @@ let makeDebugItem label accelerator option =
 let makeWinDebugItem label accelerator option =
     makeCondItem (JSHelpers.debugLevel <> 0 && not isMac) label accelerator option
 
-/// Make 
+/// Make
 let makeElmItem (label:string) (accelerator : string) (action : unit -> unit) =
     jsOptions<MenuItemConstructorOptions> <| fun item ->
         item.label <- Some label
@@ -178,11 +179,11 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
             makeWinDebugItem  "Run performance check" None
                 (fun _ -> Playground.MiscTests.testMaps())
-            makeWinDebugItem  "Print names of static asset files" None 
+            makeWinDebugItem  "Print names of static asset files" None
                 (fun _ -> Playground.MiscTests.testAssets())
-            makeWinDebugItem  "Test Breadcrumbs" None 
+            makeWinDebugItem  "Test Breadcrumbs" None
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testBreadcrumbs,dispatch))
-            makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
+            makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
 
             makeDebugItem "Force Exception" None
@@ -190,6 +191,13 @@ let fileMenu (dispatch) =
 
             makeDebugItem "Web worker performance test" None
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
+
+            // testing to open test sidebar when wavesim tab is open, and ensure that the lengths are correctly set
+            makeDebugItem "Open test sidebar" None
+                (fun _ -> dispatch <| (ShowContextualSidebar(Some simpleSidebar)))
+            makeDebugItem "Force close any sidebar" None
+                (fun _ -> dispatch <| (ShowContextualSidebar(None)))
+
 
 
         ]
@@ -222,9 +230,9 @@ let viewMenu dispatch =
     let wireTypeDispatch = SheetT.WireType >> sheetDispatch
     let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
-    
-    
-    
+
+
+
     let symbolDispatch msg = busWireDispatch (BusWireT.Msg.Symbol msg)
 
     let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
@@ -241,15 +249,15 @@ let viewMenu dispatch =
         menuSeparator
         makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         makeMenu false "Theme" [
-            makeItem "Grayscale" None (fun ev -> 
+            makeItem "Grayscale" None (fun ev ->
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.White
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.White)
             )
-            makeItem "Light" None (fun ev -> 
+            makeItem "Light" None (fun ev ->
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.Light
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Light)
             )
-            makeItem "Colourful" None (fun ev -> 
+            makeItem "Colourful" None (fun ev ->
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
                 symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
             )
@@ -295,7 +303,7 @@ let editMenu dispatch' =
                makeElmItem "Rotate Clockwise" "CmdOrCtrl+Right" (fun () -> rotateDispatch CommonTypes.Degree90)
                makeElmItem "Flip Vertically" "CmdOrCtrl+Up" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
                makeElmItem "Flip Horizontally" "CmdOrCtrl+Down" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
-               makeItem "Move Component Ports" None (fun _ -> 
+               makeItem "Move Component Ports" None (fun _ ->
                     dispatch' <| ShowStaticInfoPopup("How to move component ports", SymbolPortHelpers.moveCustomPortsPopup(), dispatch'))
                menuSeparator
                makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
@@ -402,7 +410,7 @@ let keyPressListener initial =
             e.preventDefault()
             //printfn "Context Menu listener sending to main..."
             dispatch (ContextMenuAction e)))
-            
+
 
     let subContextMenuCommand dispatch =
         renderer.ipcRenderer.on("context-menu-command", fun ev args ->
@@ -424,11 +432,11 @@ let keyPressListener initial =
 
 
 
-    
 
 
 
-    
+
+
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"

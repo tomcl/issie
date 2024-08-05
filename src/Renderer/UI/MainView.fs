@@ -345,10 +345,15 @@ let displayView model dispatch =
 
     // mouse ops for wavesim scrollbar
     let wavesimSbMouseMoveHandler (event: Browser.Types.MouseEvent): unit = // if in drag, update scrollbar; otherwise do nothing
-        let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
-        if Option.isSome wsm.ScrollbarTbOffset
-        then ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
-        else ()
+        let offsetOpt =
+            model.WaveSimSheet
+            |> Option.bind (fun wsSheet ->
+                Map.tryFind wsSheet model.WaveSim
+                |> Option.bind _.ScrollbarTbOffset)
+        if  Option.isSome offsetOpt
+        then
+            ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
+
 
     let wavesimSbMouseUpHandler (event: Browser.Types.MouseEvent): unit = // if in drag clear drag; otherwise do nothing
         let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim

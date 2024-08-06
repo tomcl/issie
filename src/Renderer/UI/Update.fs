@@ -65,6 +65,8 @@ let update (msg : Msg) oldModel =
     //-------------------------------------------------------------------------------//
 
     match testMsg with
+    | FileCommand(fc,dispatch) ->
+        FileUpdate.fileCommand fc dispatch model 
     | StartUICmd uiCmd ->
         //printfn $"starting UI command '{uiCmd}"
         uiStartTime <- TimeHelpers.getTimeMs()

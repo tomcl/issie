@@ -135,6 +135,18 @@ type UICommandType =
     | StartWaveSim
     | ViewWaveSim
     | CloseWaveSim
+
+type FileCommandType =
+    | FileImportSheet
+    /// argument is true to save the current project
+    | FileNewProject of bool
+    /// argumnet is true to save the current project
+    | FileOpenProject of bool 
+    | FileCloseProject
+    | FileSaveOpenFile
+    | FileAddFile
+    | FileShowDemos of ((string * int * int) list)
+    
     
 //---------------------------------------------------------------
 //---------------------WaveSim types-----------------------------
@@ -444,6 +456,7 @@ type Msg =
     | DoNothing
     | StartUICmd of UICommandType
     | FinishUICmd
+    | FileCommand of FileCommandType * (Msg -> Unit)
     | ReadUserData of string
     | SetUserData of UserData
     | SetThemeUserData of DrawModelType.SymbolT.ThemeType

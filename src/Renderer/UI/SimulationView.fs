@@ -415,13 +415,18 @@ let private viewStatefulComponents step comps numBase model dispatch =
             [ splittedLine (str label) (staticNumberBox Constants.boxMaxChars numBase bits) ]
         | RamState mem ->
             let label = sprintf "RAM: %s" <| label
-            let initialMem compType = match compType with RAM1 m | AsyncRAM1 m -> m | _ -> failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType
+            let initialMem compType =
+                match compType with
+                | RAM1 m | AsyncRAM1 m ->
+                    m
+                | _ ->
+                    failwithf "what? viewStatefulComponents expected RAM component but got: %A" compType
             let viewDiffBtn =
                 Button.button [
                     Button.Props [ simulationBitStyle ]
                     Button.Color IsPrimary
-                    Button.OnClick (fun _ ->
-                        openMemoryDiffViewer (initialMem fc.FType) mem model dispatch
+                    Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
+                        (fun model _ -> openMemoryDiffViewer (initialMem fc.FType) mem model dispatch), dispatch)
                     )
                 ] [ str "View" ]
             [ splittedLine (str label) viewDiffBtn ]
@@ -515,10 +520,10 @@ let viewSimulationError
     let busWireDispatch bMsg = sheetDispatch <| SheetT.Msg.Wire bMsg
     let symbolDispatch symMsg = busWireDispatch <| BusWireT.Msg.Symbol symMsg
 
-    let changeAdderType (compId: ComponentId) (targetType: ComponentType) =
+    let changeAdderType (compId: ComponentId) (targetType: ComponentType) (model: Model) _ =
         model.Sheet.ChangeAdderComp sheetDispatch compId (targetType)
     
-    let changeCounterType (compId: ComponentId) (targetType: ComponentType) =
+    let changeCounterType (compId: ComponentId) (targetType: ComponentType) (model: Model) _ =
         model.Sheet.ChangeCounterComp sheetDispatch compId (targetType)
 
     // this does not use tryFind because the IDs given in the error component list
@@ -614,14 +619,14 @@ let viewSimulationError
         | [comp], InputConnError (0, port, rmInfo) ->
             let compAndPortAffectedMsg = comp.Label + "." + CanvasStateAnalyser.getPortName comp port
             let compId = ComponentId comp.Id
-            let removeInPorts() =
+            let removeInPorts (moel: Model) _ =
                 match rmInfo with
                 | Removable targetType ->
                     match targetType with
                     | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ ->
-                        changeAdderType compId targetType
+                        changeAdderType compId targetType model ()
                     | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _ ->
-                        changeCounterType compId targetType
+                        changeCounterType compId targetType model ()
                     | _ -> ()
                 | Unremovable -> failwithf "This function should never be called if not input ports can be removed"
                 simReset dispatch
@@ -641,7 +646,7 @@ let viewSimulationError
                 if showButton then
                     Button.button [
                         Button.Color IsSuccess
-                        Button.OnClick (fun _ -> removeInPorts())
+                        Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage((fun model _ -> removeInPorts model ()),dispatch))
                     ] [str "Fix by deleting input port"]
             ]
         | _, UnnecessaryNC ->
@@ -660,8 +665,8 @@ let viewSimulationError
                 |> List.collect getComponentByIdListOpt
                 |> List.iter (fun comp ->
                     match comp.Type with
-                    | NbitsAdder w -> changeAdderType (ComponentId comp.Id) (NbitsAdderNoCout w)
-                    | NbitsAdderNoCin w -> changeAdderType (ComponentId comp.Id) (NbitsAdderNoCinCout w)
+                    | NbitsAdder w -> dispatch <| ExecFuncInMessage ((changeAdderType (ComponentId comp.Id) (NbitsAdderNoCout w)),dispatch)
+                    | NbitsAdderNoCin w -> dispatch <| ExecFuncInMessage((changeAdderType (ComponentId comp.Id) (NbitsAdderNoCinCout w)),dispatch)
                     | _ -> failwithf "Unexpected adder type. Should only encounter these 2 types with this error message")
                 
                 simReset dispatch

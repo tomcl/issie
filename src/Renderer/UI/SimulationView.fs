@@ -582,7 +582,7 @@ let viewSimulationError
                 match rmInfo with
                 | Removable targetType ->
                     let deletePort() =
-                        changeAdderType (ComponentId comp.Id) targetType
+                        changeAdderType (ComponentId comp.Id) targetType model ()
                         cleanup()
                     Button.button [
                         Button.Color IsSuccess

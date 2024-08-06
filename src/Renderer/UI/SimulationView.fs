@@ -581,18 +581,18 @@ let viewSimulationError
             let buttonOrText =
                 match rmInfo with
                 | Removable targetType ->
-                    let deletePort() =
+                    let deletePort model _ =
                         changeAdderType (ComponentId comp.Id) targetType model ()
                         cleanup()
                     Button.button [
                         Button.Color IsSuccess
-                        Button.OnClick (fun _ -> deletePort())
+                        Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage((deletePort,dispatch)))
                     ] [ str "Fix by deleting the port on the component" ]
                 | Unremovable ->
                     getPosRotNextToPort port model.Sheet.Wire.Symbol Constants.ncPortDist
                     |> function
                         | Some (pos, rot) ->
-                            let addNCComp() =
+                            let addNCComp model _ =
                                 sheetDispatch <| SheetT.AddNotConnected
                                     ((ModelHelpers.tryGetLoadedComponents model),
                                     port,
@@ -602,7 +602,7 @@ let viewSimulationError
 
                             Button.button [
                                 Button.Color IsSuccess
-                                Button.OnClick (fun _ -> addNCComp())
+                                Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(addNCComp,dispatch))
                             ] [ str "Fix by adding 'Not Connected' component" ]
                         | None ->
                             str "Please insert a 'Not Connected' component manually"
@@ -646,7 +646,7 @@ let viewSimulationError
                 if showButton then
                     Button.button [
                         Button.Color IsSuccess
-                        Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage((fun model _ -> removeInPorts model ()),dispatch))
+                        Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(removeInPorts,dispatch))
                     ] [str "Fix by deleting input port"]
             ]
         | _, UnnecessaryNC ->
@@ -986,7 +986,7 @@ let tryGetSimData canvasState model =
             Error simError
 
 let viewSimulation canvasState model dispatch =
-    let startSimulation() =
+    let startSimulation model _ =
         tryGetSimData canvasState model
         |> function
             | Ok simData -> 
@@ -1033,7 +1033,7 @@ let viewSimulation canvasState model dispatch =
             Button.button
                 [ 
                     Button.Color buttonColor; 
-                    Button.OnClick (fun _ -> startSimulation()) ; 
+                    Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(startSimulation, dispatch)) ; 
                 ]
                 [ str buttonText ]
         ]
@@ -1044,7 +1044,7 @@ let viewSimulation canvasState model dispatch =
                     | Ok simData -> 
                         if simCache.RestartSim then
                             let clock = simData.ClockTickNumber
-                            startSimulation()
+                            startSimulation model ()
                             simCache <- {simCache with RestartSim = false}
                             simCache <- {simCache with ClockTickRefresh = clock}
                         if (simData.ClockTickNumber = 0 && not (simCache.ClockTickRefresh = 0)) then
@@ -1089,7 +1089,7 @@ let viewSimulation canvasState model dispatch =
                         Button.Color IsInfo
                         Button.OnClick (fun _ ->
                             let clock = simData.ClockTickNumber
-                            startSimulation()
+                            startSimulation model dispatch
                             simCache <- {simCache with ClockTickRefresh = clock}
                             ClosePopup |> dispatch
                         )
@@ -1110,7 +1110,7 @@ let viewSimulation canvasState model dispatch =
             ] [buttonIcon]
 
         let startSimulationUpdateCache clock =
-            startSimulation()
+            startSimulation model ()
             simCache <- { simCache with ClockTickRefresh = clock }
 
         let createRefreshButtonForSimData sim model dispatch =

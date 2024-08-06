@@ -497,8 +497,8 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
         Level.level [
             Level.Level.Option.Props [
                 nameRowLevelStyle (wsModel.HoveredLabel = Some wave.WaveId)
-
-                OnMouseOver (fun _ ->
+                let execWithModel (f: Model -> Unit) = ExecFuncInMessage((fun model _ -> f model), dispatch)
+                OnMouseOver (fun _ -> dispatch <| execWithModel (fun model ->
                     if wsModel.DraggedIndex = None then
                         dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
                         // Check if symbol exists on Canvas
@@ -514,7 +514,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                             highlightCircuit wsModel.FastSim labelComps wave dispatch                            
                         | Some sym ->
                             highlightCircuit wsModel.FastSim [fst wave.WaveId.Id] wave dispatch
-                        | None -> ()
+                        | None -> ())
                         
                 )
                 OnMouseOut (fun _ ->
@@ -1259,13 +1259,14 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                     (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]; Id "WaveSimHelp"] [str title])
                    
                 ]
-                let startOrRenew = refreshButtonAction canvasState model dispatch
-                let waveEnd = endButtonAction canvasState model dispatch
+                let startOrRenew model = refreshButtonAction canvasState model dispatch
+                let waveEnd model = endButtonAction canvasState model dispatch
                 let wbo = getWaveSimButtonOptions canvasState model wsModel
                 let startEndButton =
                     button 
                         (topHalfButtonProps wbo.StartEndColor "startEndButton") 
-                        (fun ev -> if wbo.IsRunning then waveEnd ev else startOrRenew ev)
+                        (fun ev -> dispatch <| ExecFuncInMessage(
+                            (fun model _ -> if wbo.IsRunning then waveEnd model ev  else startOrRenew model ev),dispatch))
                         (str wbo.StartEndMsg)
                 let needsRefresh = wbo.IsDirty && wbo.IsRunning
                 div 
@@ -1277,7 +1278,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
                         if needsRefresh then
                             button
                                 (topHalfButtonProps IsSuccess "RefreshButton")
-                                startOrRenew
+                                (fun ev -> dispatch <| ExecFuncInMessage((fun model _ -> startOrRenew model ev), dispatch))
                                 refreshButtonSvg
                         startEndButton
                     ])

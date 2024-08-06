@@ -48,7 +48,7 @@ let private makeRowForCompilationStage (name: string) (stage: SheetT.Compilation
                 th [ Style [ BackgroundColor "gray"] ] [str "--"]
     ]
 
-let verilogOutput (vType: Verilog.VMode) (model: Model) (profile: Verilog.CompilationProfile) (dispatch: Msg -> Unit) =
+let verilogOutput (vType: Verilog.VMode) (profile: Verilog.CompilationProfile) (model: Model) (dispatch: Msg -> Unit) =
     match MenuHelpers.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
         | Some proj, state ->
             match model.UIState with
@@ -129,7 +129,7 @@ let viewBuild model dispatch =
                             [ 
                                 Button.Color IsSuccess;
                                 Button.Disabled isDisabled
-                                Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model Verilog.Release dispatch);
+                                Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(verilogOutput Verilog.VMode.ForSynthesis Verilog.Release,dispatch));
                                 
                             ]
                             [ str "Build and upload" ]
@@ -137,7 +137,7 @@ let viewBuild model dispatch =
                             [ 
                                 Button.Color IsSuccess;
                                 Button.Disabled isDisabled
-                                Button.OnClick (fun _ -> verilogOutput Verilog.VMode.ForSynthesis model Verilog.Debug dispatch);
+                                Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(verilogOutput Verilog.VMode.ForSynthesis Verilog.Debug, dispatch));
                             ]
                             [ str "Build and Debug" ]
 

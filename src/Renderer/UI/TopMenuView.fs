@@ -278,81 +278,9 @@ let addFileToProject model dispatch =
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
-/// Close current project, if any.
-let forceCloseProject model dispatch =
-    dispatch (StartUICmd CloseProject)
-    let sheetDispatch sMsg = dispatch (Sheet sMsg) 
-    dispatch EndSimulation // End any running simulation.
-    dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
-    // End any running simulation.
-    dispatch EndSimulation
-    dispatch EndWaveSim
-    model.Sheet.ClearCanvas sheetDispatch
-    dispatch <| UpdateModel (
-        fun model ->
-            { model with
-                RightPaneTabVisible = Properties
-                Pending = []}
-                )
-    dispatch FinishUICmd
 
-/// force either save of current file before action, or abort (closeProject is special case of this)
-let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch _ =
-    let closeDialogButtons keepOpen _ =
-        if keepOpen then
-            dispatch ClosePopup
-        else
-            dispatch nextAction
 
-    if model.SavedSheetIsOutOfDate then 
-        choicePopup 
-                $"{name}?" 
-                (div [] [ str "The current sheet has unsaved changes."])
-                "Go back to sheet" 
-                $"{name} without saving changes"  
-                closeDialogButtons 
-                dispatch
-    else
-        dispatch nextAction
 
-/// Create a new project.
-let private newProject model dispatch  =
-    warnAppWidth dispatch (fun _ ->
-    match askForNewProjectPath model.UserData.LastUsedDirectory with
-    | None -> () // User gave no path.
-    | Some path ->
-        match tryCreateFolder path with
-        | Error err ->
-            log err
-            displayFileErrorNotification err dispatch
-        | Ok _ ->
-            dispatch EndSimulation // End any running simulation.
-            dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
-            dispatch EndWaveSim
-            // Create empty placeholder projectFile.
-            let projectFile = baseName path + ".dprj"
-            writeFile (pathJoin [| path; projectFile |]) ""
-            |> displayAlertOnError dispatch
-            // Create empty initial diagram file.
-            let initialComponent = createEmptyComponentAndFile path "main"
-            dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
-            setupProjectFromComponents false "main" [initialComponent] model dispatch)
-
-    
-
-/// open an existing project
-let private openProject model dispatch =
-    //trying to force the spinner to load earlier
-    //doesn't really work right now
-    warnAppWidth dispatch (fun _ -> 
-    dispatch (Sheet (SheetT.SetSpinner true))
-    let dirName =
-        match Option.map readFilesFromDirectory model.UserData.LastUsedDirectory with
-        | Some [] | None -> None
-        | _ -> model.UserData.LastUsedDirectory
-    match askForExistingProjectPath dirName with
-    | None -> () // User gave no path.
-    | Some path -> openProjectFromPath path model dispatch)
 
 /// load demo project into Issie executables
 let loadDemoProject model dispatch basename =
@@ -508,9 +436,9 @@ let viewNoProjectMenu model dispatch =
     let initialMenu =
         Menu.menu []
             [ Menu.list []
-                  ([ menuItem "New project" (fun _ -> newProject model dispatch)
-                     menuItem "Open project" (fun _ -> openProject model dispatch)
-                     menuItem "Open demo project" (fun _ -> showDemoProjects model dispatch demosInfo)]
+                  ([ menuItem "New project" (fun _ -> dispatch <| FileCommand(FileNewProject false, dispatch))
+                     menuItem "Open project" (fun _ -> dispatch <| FileCommand(FileOpenProject false, dispatch))
+                     menuItem "Open demo project" (fun _ -> dispatch <| FileCommand(FileShowDemos demosInfo, dispatch))]
                   @ (if recentsList <> [] then [hr []] else [])
                   @ recentsList)
             ]
@@ -698,13 +626,13 @@ let viewTopMenu model dispatch =
                           ([ Navbar.Item.a [ Navbar.Item.Props 
                                 [ OnClick(fun _ -> 
                                     dispatch (StartUICmd AddSheet)
-                                    addFileToProject model dispatch) ] ]
-                                     [ str "New Sheet" ]
+                                    dispatch <| FileCommand(FileAddFile,dispatch)) ]]
+                                    [ str "New Sheet" ]
                              Navbar.divider [] []
                              Navbar.Item.a [ Navbar.Item.Props 
                                 [ OnClick(fun _ -> 
                                     dispatch (StartUICmd ImportSheet)
-                                    importSheet model dispatch) ] ]
+                                    dispatch <| FileCommand(FileImportSheet,dispatch)) ] ]
                                      [ str "Import Sheet" ]
                              Navbar.divider [] []
                              ]
@@ -752,11 +680,11 @@ let viewTopMenu model dispatch =
                                                 DisplayOptions.Block
                                              else
                                                  DisplayOptions.None) ] ] ]
-                                [ Navbar.Item.a [ Navbar.Item.Props [ OnClick <| doActionWithSaveFileDialog "New project" (ExecFuncInMessage(newProject,dispatch)) model dispatch ] ]
+                                [ Navbar.Item.a [ Navbar.Item.Props [ OnClick <| fun _ -> dispatch <| FileCommand (FileNewProject true, dispatch)] ]
                                       [ str "New project" ]
-                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| doActionWithSaveFileDialog "Open project" (ExecFuncInMessage(openProject,dispatch)) model dispatch ] ]
+                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| fun _ -> dispatch <| FileCommand (FileOpenProject true, dispatch)] ]
                                       [ str "Open project" ]
-                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| doActionWithSaveFileDialog "Close project" (ExecFuncInMessage(forceCloseProject,dispatch)) model dispatch ] ]
+                                  Navbar.Item.a [ Navbar.Item.Props [ OnClick <| fun _ -> dispatch <| FileCommand (FileCloseProject, dispatch) ] ]
                                       [ str "Close project" ] ] ]
 
                       // make the path in the navbar responsive
@@ -786,7 +714,7 @@ let viewTopMenu model dispatch =
                                       
                                       Fulma.Button.OnClick(fun _ -> 
                                         dispatch (StartUICmd SaveSheet)
-                                        saveOpenFileActionWithModelUpdate model dispatch |> ignore
+                                        dispatch <| FileCommand(FileSaveOpenFile,dispatch)
                                         dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
                                         ) ]) [ str "Save" ] ] ]
                       Navbar.Item.div []

@@ -865,6 +865,10 @@ let compareModelsApprox (m1:Model) (m2:Model) =
 
 let viewCatalogue model dispatch =
 
+        let dispatchAsFunc (func: Model -> (Msg -> Unit) -> Unit) =
+            dispatch <| ExecFuncInMessage (func, dispatch)
+
+
         let muxTipMessage (numBusses:string) = $"Selects the one of its {numBusses} input busses numbered by the value of the select input 
                                 to be the output. Adjusts bus width to match"
 
@@ -888,90 +892,90 @@ let viewCatalogue model dispatch =
                 // TODO
                     makeMenuGroup
                         "Input / Output"
-                        [ catTip1 "Input"  (fun _ -> createInputPopup "input" Input1 model dispatch) "Input connection to current sheet: one or more bits"
-                          catTip1 "Output" (fun _ -> createIOPopup true "output" Output model dispatch) "Output connection from current sheet: one or more bits"
-                          catTip1 "Viewer" (fun _ -> createIOPopup true "viewer" Viewer model dispatch) "Viewer to expose value in step simulation: works in subsheets. \
+                        [ catTip1 "Input"  (fun _ -> dispatchAsFunc (createInputPopup "input" Input1)) "Input connection to current sheet: one or more bits"
+                          catTip1 "Output" (fun  _ -> dispatchAsFunc (createIOPopup true "output" Output)) "Output connection from current sheet: one or more bits"
+                          catTip1 "Viewer" (fun  _ -> dispatchAsFunc (createIOPopup true "viewer" Viewer)) "Viewer to expose value in step simulation: works in subsheets. \
                                                                                                          Can also be used to terminate an unused output."
-                          catTip1 "Constant" (fun _ -> createConstantPopup model dispatch) "Define a one or more bit constant value of specified width, \
+                          catTip1 "Constant" (fun  _ -> dispatchAsFunc (createConstantPopup)) "Define a one or more bit constant value of specified width, \
                                                                                             e.g. 0 or 1, to drive an input. Values can be written \
                                                                                             in hex, decimal, or binary."
-                          catTip1 "Wire Label" (fun _ -> createIOPopup false "label" (fun _ -> IOLabel) model dispatch) "Labels with the same name connect \
+                          catTip1 "Wire Label" (fun  _ -> dispatchAsFunc (createIOPopup false "label" (fun _ -> IOLabel))) "Labels with the same name connect \
                                                                                                                          together wires within a sheet. Each set of labels \
                                                                                                                          muts have exactly one driving input. \
                                                                                                                          A label can also be used to terminate an unused output"
-                          catTip1 "Not Connected" (fun _ -> createComponent (NotConnected) "" model dispatch) "Not connected component to terminate unused output."]                          
+                          catTip1 "Not Connected" (fun  _ -> dispatchAsFunc (createComponent (NotConnected) "")) "Not connected component to terminate unused output."]                          
                     makeMenuGroup
                         "Buses"
                         [ 
-                        catTip1 "MergeWires"  (fun _ -> createComponent MergeWires "" model dispatch) "Use Mergewires when you want to \
+                        catTip1 "MergeWires"  (fun  _ -> dispatchAsFunc (createComponent MergeWires "")) "Use Mergewires when you want to \
                                                                                        join the bits of a two busses to make a wider bus. \
                                                                                        Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                        after placing component to change this."
                             
-                        catTip1 "MergeN"  (fun _ -> createMergeNPopup model dispatch)
+                        catTip1 "MergeN"  (fun  _ -> dispatchAsFunc (createMergeNPopup))
                                 $"Use MergeN when you want to join the bits of between 2 \
                                  and {Constants.maxSplitMergeBranches} busses to make a wider bus."
-                        catTip1 "SplitWire" (fun _ -> createSplitWirePopup model dispatch) "Use Splitwire when you want to split the \
+                        catTip1 "SplitWire" (fun  _ -> dispatchAsFunc (createSplitWirePopup)) "Use Splitwire when you want to split the \
                                                                                              bits of a bus into two sets. \
                                                                                              Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                              after placing component to change this."
-                        catTip1 "SplitN" (fun _ -> createSplitNPopup model dispatch)
+                        catTip1 "SplitN" (fun  _ -> dispatchAsFunc (createSplitNPopup))
                             $"Use SplitN when you want to split \
                               between 2 and {Constants.maxSplitMergeBranches} separate fields from a bus."                                                                          
-                        catTip1 "Bus Select" (fun _ -> createBusSelectPopup model dispatch)
+                        catTip1 "Bus Select" (fun  _ -> dispatchAsFunc (createBusSelectPopup))
                             "Bus Select output connects to one or \
                              more selected bits of its input"
-                        catTip1 "Bus Compare" (fun _ -> createBusComparePopup model dispatch) "Bus compare outputs 1 if the input bus \
+                        catTip1 "Bus Compare" (fun  _ -> dispatchAsFunc (createBusComparePopup)) "Bus compare outputs 1 if the input bus \
                                                                                                  matches a constant value as written in decimal, hex, or binary." 
-                        catTip1 "N bits spreader" (fun _ -> createNbitSpreaderPopup model dispatch) "Replicates a 1 bit input onto all N bits of an output bus"]
+                        catTip1 "N bits spreader" (fun  _ -> dispatchAsFunc (createNbitSpreaderPopup)) "Replicates a 1 bit input onto all N bits of an output bus"]
                     makeMenuGroup
                         "Gates"
-                        [ catTip1 "Not"  (fun _ -> createCompStdLabel Not model dispatch) "Invertor: output is negation of input"
-                          catTip1 "And"  (fun _ -> createCompStdLabel (GateN (And, 2)) model dispatch)
+                        [ catTip1 "Not"  (fun  _ -> dispatchAsFunc (createCompStdLabel Not)) "Invertor: output is negation of input"
+                          catTip1 "And"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (And, 2))))
                                                 "Output is 1 if all the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Or"   (fun _ -> createCompStdLabel (GateN (Or, 2)) model dispatch)
+                          catTip1 "Or"   (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Or, 2))))
                                                 "Output is 1 if any of the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Xor"  (fun _ -> createCompStdLabel (GateN (Xor, 2)) model dispatch)
+                          catTip1 "Xor"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xor, 2))))
                                                 "Output is 1 if an odd number of inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Nand" (fun _ -> createCompStdLabel (GateN (Nand, 2)) model dispatch)
+                          catTip1 "Nand" (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nand, 2))))
                                                 "Output is 0 if all the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Nor"  (fun _ -> createCompStdLabel (GateN (Nor, 2)) model dispatch)
+                          catTip1 "Nor"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nor, 2))))
                                                 "Output is 0 if any of the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Xnor" (fun _ -> createCompStdLabel (GateN (Xnor, 2)) model dispatch)
+                          catTip1 "Xnor" (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xnor, 2))))
                                                 "Output is 1 if an even number of inputs are 1. Use Properties to add more inputs"]
                     makeMenuGroup
                         "Mux / Demux"
-                        [ catTip1 "2-Mux" (fun _ -> createCompStdLabel Mux2 model dispatch) <| muxTipMessage "two"
-                          catTip1 "4-Mux" (fun _ -> createCompStdLabel Mux4 model dispatch) <| muxTipMessage "four"
-                          catTip1 "8-Mux" (fun _ -> createCompStdLabel Mux8 model dispatch) <| muxTipMessage "eight"                                                             
-                          catTip1 "2-Demux" (fun _ -> createCompStdLabel Demux2 model dispatch)  <| deMuxTipMessage "two"  
-                          catTip1 "4-Demux" (fun _ -> createCompStdLabel Demux4 model dispatch)  <| deMuxTipMessage "four"
-                          catTip1 "8-Demux" (fun _ -> createCompStdLabel Demux8 model dispatch)  <| deMuxTipMessage "eight" ]
+                        [ catTip1 "2-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux2)) <| muxTipMessage "two"
+                          catTip1 "4-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux4)) <| muxTipMessage "four"
+                          catTip1 "8-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux8)) <| muxTipMessage "eight"                                                             
+                          catTip1 "2-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux2))  <| deMuxTipMessage "two"  
+                          catTip1 "4-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux4))  <| deMuxTipMessage "four"
+                          catTip1 "8-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux8))  <| deMuxTipMessage "eight" ]
                     makeMenuGroup
                         "Arithmetic"
-                        [ catTip1 "N bits adder" (fun _ -> createNbitsAdderPopup model dispatch) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
-                          catTip1 "N bits XOR" (fun _ -> createNbitsXorPopup model dispatch) "N bit XOR gates - use to make subtractor or comparator"
-                          catTip1 "N bits AND" (fun _ -> createNbitsAndPopup model dispatch) "N bit AND gates"
-                          catTip1 "N bits OR" (fun _ -> createNbitsOrPopup model dispatch) "N bit OR gates"
-                          catTip1 "N bits NOT" (fun _ -> createNbitsNotPopup model dispatch) "N bit NOT gates"]
+                        [ catTip1 "N bits adder" (fun  _ -> dispatchAsFunc (createNbitsAdderPopup)) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
+                          catTip1 "N bits XOR" (fun  _ -> dispatchAsFunc (createNbitsXorPopup)) "N bit XOR gates - use to make subtractor or comparator"
+                          catTip1 "N bits AND" (fun  _ -> dispatchAsFunc (createNbitsAndPopup)) "N bit AND gates"
+                          catTip1 "N bits OR" (fun  _ -> dispatchAsFunc (createNbitsOrPopup)) "N bit OR gates"
+                          catTip1 "N bits NOT" (fun  _ -> dispatchAsFunc (createNbitsNotPopup)) "N bit NOT gates"]
 
                     makeMenuGroup
                         "Flip Flops and Registers"
-                        [ catTip1 "D-flip-flop" (fun _ -> createCompStdLabel DFF model dispatch) "D flip-flop - note that clock is assumed always connected to a global clock, \
+                        [ catTip1 "D-flip-flop" (fun  _ -> dispatchAsFunc (createCompStdLabel DFF)) "D flip-flop - note that clock is assumed always connected to a global clock, \
                                                                                                    so ripple counters cannot be implemented in Issie"
-                          catTip1 "D-flip-flop with enable" (fun _ -> createCompStdLabel DFFE model dispatch) "D flip-flop: output will remain unchanged when En is 0"
-                          catTip1 "Register" (fun _ -> createRegisterPopup Register model dispatch) "N D flip-flops with inputs and outputs combined into single N bit busses"
-                          catTip1 "Register with enable" (fun _ -> createRegisterPopup RegisterE model dispatch) "As register but outputs stay the same if En is 0"
-                          catTip1 "Counter" (fun _ -> createRegisterPopup Counter model dispatch) "N-bits counter with customisable enable and load inputs"]
+                          catTip1 "D-flip-flop with enable" (fun  _ -> dispatchAsFunc (createCompStdLabel DFFE)) "D flip-flop: output will remain unchanged when En is 0"
+                          catTip1 "Register" (fun  _ -> dispatchAsFunc (createRegisterPopup Register)) "N D flip-flops with inputs and outputs combined into single N bit busses"
+                          catTip1 "Register with enable" (fun  _ -> dispatchAsFunc (createRegisterPopup RegisterE)) "As register but outputs stay the same if En is 0"
+                          catTip1 "Counter" (fun  _ -> dispatchAsFunc (createRegisterPopup Counter)) "N-bits counter with customisable enable and load inputs"]
                     makeMenuGroup
                         "Memories"
-                        [ catTip1 "ROM (asynchronous)" (fun _ -> createMemoryPopup AsyncROM1 model dispatch) "This is combinational: \
+                        [ catTip1 "ROM (asynchronous)" (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncROM1)) "This is combinational: \
                                                     the output is available in the same clock cycle that the address is presented"
-                          catTip1 "ROM (synchronous)" (fun _ -> createMemoryPopup ROM1 model dispatch) "A ROM whose output contains \
+                          catTip1 "ROM (synchronous)" (fun  _ -> dispatchAsFunc (createMemoryPopup ROM1)) "A ROM whose output contains \
                                                     the addressed data in the clock cycle after the address is presented"
-                          catTip1 "RAM (synchronous)" (fun _ -> createMemoryPopup RAM1 model dispatch)  "A RAM whose output contains the addressed \
+                          catTip1 "RAM (synchronous)" (fun  _ -> dispatchAsFunc (createMemoryPopup RAM1))  "A RAM whose output contains the addressed \
                                                    data in the clock cycle after the address is presented" 
-                          catTip1 "RAM (async read)" (fun _ -> createMemoryPopup AsyncRAM1 model dispatch)  "A RAM whose output contains the addressed \
+                          catTip1 "RAM (async read)" (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncRAM1))  "A RAM whose output contains the addressed \
                                                    data in the same clock cycle as address is presented" ]
 
                     makeMenuGroupWithTip styles
@@ -986,8 +990,9 @@ let viewCatalogue model dispatch =
                         "Write combinational logic in Verilog and use it as a Custom Component. 
                          To edit/delete a verilog component add it in a sheet and click on 'properties'"
                         (List.append 
-                            [menuItem styles "New Verilog Component" (fun _ -> createVerilogPopup model true None None NewVerilogFile dispatch) ]
+                            [menuItem styles "New Verilog Component" (
+                                fun _ -> dispatchAsFunc(fun model _ -> createVerilogPopup model true None None NewVerilogFile dispatch)) ]
                             (makeVerilogList styles model dispatch))
                           
-                ]
+                    ]
         (viewCatOfModel) model 

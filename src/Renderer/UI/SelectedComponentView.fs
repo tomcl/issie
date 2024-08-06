@@ -223,7 +223,8 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
             div [] [
                 Button.button [
                     Button.Color IsPrimary
-                    Button.OnClick (fun _ -> openMemoryEditor mem1 compId model dispatch)
+                    Button.OnClick (fun _ -> dispatch <| Msg.ExecFuncInMessage(
+                            (fun model _ -> openMemoryEditor mem1 compId model dispatch), dispatch))
                 ] [str "View/Edit memory content"]
                 (memPropsInfoButton dispatch)
                 br []
@@ -291,7 +292,7 @@ let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactEle
                         Button.Color IsPrimary
                         Button.OnClick (fun _ -> 
                             dispatch (StartUICmd SaveSheet)
-                            saveOpenFileActionWithModelUpdate model dispatch |> ignore
+                            dispatch (FileCommand (FileSaveOpenFile, dispatch))
                             dispatch <| Sheet(SheetT.DoNothing)
                             openCodeEditor code name dispatch)
                     ] [str "View/Edit Verilog code"]
@@ -880,7 +881,8 @@ let private makeDescription (comp:Component) model dispatch =
         br []
         Button.button [
             Button.Color IsPrimary
-            Button.OnClick (fun _ -> model.Sheet.ChangeReversedInputs (Sheet >> dispatch) (ComponentId comp.Id))
+            Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
+                (fun model _ -> model.Sheet.ChangeReversedInputs (Sheet >> dispatch) (ComponentId comp.Id)),dispatch))
             ] 
             [str "Reverse Inputs"]
         ]
@@ -1081,6 +1083,8 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
 
 
 let viewSelectedComponent (model: ModelType.Model) dispatch =
+    let dispatchWithModel (func: Model -> (Msg -> Unit) -> Unit) =
+        dispatch <|ExecFuncInMessage(func, dispatch)
 
     let checkIfLabelIsUnique chars (symbols: SymbolT.Symbol list)  =
         match List.exists (fun (s:SymbolT.Symbol) -> s.Component.Label = chars) symbols with
@@ -1197,8 +1201,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         [ 
                             Button.Color IsSuccess
                             Button.OnClick (fun _ ->
-                                createSheetDescriptionPopup model None sheetName dispatch
-                            )
+                                dispatchWithModel (fun model _ -> createSheetDescriptionPopup model None sheetName dispatch))
                         ]
                         [str "Add Description"]
                     ]
@@ -1213,7 +1216,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         [
                             Button.Color IsSuccess
                             Button.OnClick (fun _ ->
-                                createSheetDescriptionPopup model sheetDescription sheetName dispatch
+                                dispatchWithModel((fun model _ -> createSheetDescriptionPopup model sheetDescription sheetName dispatch))
                             )
                         ]
                         [str "Edit Description"]

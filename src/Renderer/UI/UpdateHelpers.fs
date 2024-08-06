@@ -58,6 +58,7 @@ let shortDWSM (ws: WaveSimModel) =
 let shortDisplayMsg (msg:Msg) =
     match msg with
     | SheetBackAction _ -> Some "SheetBackAction"
+    | FileCommand(fc,_) -> Some $"{FComponentId}"
     | UpdateUISheetTrail _
     | ShowExitDialog
     | SynchroniseCanvas -> None
@@ -715,7 +716,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         printf "Lost focus!"
         
     | MenuExit ->
-        TopMenuView.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
+        FileUpdate.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
     | MenuVerilogOutput ->
         mapOverProject () model (fun p ->
             let sheet = p.OpenFileName

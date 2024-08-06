@@ -321,7 +321,7 @@ let Button sheetPath (buttonDecision : ImportDecision option) label isDisabled m
             | Some decision' -> decision' = buttonDecision
             | None -> false
 
-    let updateDecisions (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model) =
+    let updateDecisions (sheetPath: string) (decisionOption: ImportDecision option) (model' : Model) _ =
         let updatedDecisions = Map.add sheetPath decisionOption (getImportDecisions model'.PopupDialogData)
 
         dispatch <| UpdateImportDecisions updatedDecisions
@@ -333,9 +333,8 @@ let Button sheetPath (buttonDecision : ImportDecision option) label isDisabled m
             Button.Color IsPrimary
             Button.Disabled isDisabled
             Button.IsFocused <| hasBeenPressed model
-            Button.OnClick(fun _ ->
-                updateDecisions sheetPath buttonDecision model
-            )] [ str label ]             
+            Button.OnClick(fun _ -> dispatch <| ExecFuncInMessage(updateDecisions sheetPath buttonDecision,dispatch))
+            ] [ str label ]             
     ]
 
 /// return text that should display in 'Action' column of import sheets popup

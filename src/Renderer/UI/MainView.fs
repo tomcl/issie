@@ -126,8 +126,6 @@ let init() = {
 
 
 
-let makeSelectionChangeMsg (model:Model) (dispatch: Msg -> Unit) (ev: 'a) =
-    dispatch SelectionHasChanged
 
 // -- Create View
 
@@ -196,11 +194,11 @@ let private  viewRightTab canvasState model dispatch =
         ]
 
 /// determine whether moving the mouse drags the bar or not
-let inline setDragMode (modeIsOn:bool) (model:Model) dispatch =
+let inline setDragMode (modeIsOn:bool) (dividerDragMode: DragMode) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->        
-        makeSelectionChangeMsg model dispatch ev
+        dispatch SelectionHasChanged
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
-        match modeIsOn, model.DividerDragMode with
+        match modeIsOn, dividerDragMode with
         | true, DragModeOff ->  
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
         | false, DragModeOn _ -> 
@@ -235,7 +233,7 @@ let dividerbar (model:Model) dispatch =
         ]
     div [
             Style <| commonStyle @ variableStyle
-            OnMouseDown (setDragMode true model dispatch)       
+            OnMouseDown (setDragMode true model.DividerDragMode dispatch)       
         ] []
 
 let viewRightTabs canvasState model dispatch =

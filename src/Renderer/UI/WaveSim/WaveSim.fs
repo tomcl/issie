@@ -1042,8 +1042,11 @@ let updateScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit) (cursor: float) (a
         setScrollbarLastX wsm dispatch false
         if canDispatch then ScrollbarMouseMsg (cursor, ReleaseScrollQueue, dispatch) |> dispatch
     | ReleaseScrollQueue -> // in drag, and queue is clear: update and set ScrollbarQueueIsEmpty to true
-        let dx = (Option.get wsm.ScrollbarTbOffset) + cursor - wsm.ScrollbarTbPos // offset + new cursor = new thumb; dx = new thumb - old thumb
-        setScrollbarTbByCycs wsm dispatch (linearMouseToCycleTranslator dx)
+        match wsm.ScrollbarTbOffset with
+        | Some puckOffset ->
+            let dx = puckOffset + cursor - wsm.ScrollbarTbPos // offset + new cursor = new thumb; dx = new thumb - old thumb
+            setScrollbarTbByCycs wsm dispatch (linearMouseToCycleTranslator dx)
+        | None -> ()
     | ClearScrollbarDrag -> // clear offset
         setScrollbarOffset wsm dispatch None
 

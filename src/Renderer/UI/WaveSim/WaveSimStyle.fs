@@ -766,6 +766,8 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
         {
         wsModel with
             ShownCycles = wholeCycles
+            StartCycle = min wsModel.StartCycle (Constants.maxLastClk - wholeCycles + 1)
+            CurrClkCycle = min wsModel.CurrClkCycle Constants.maxLastClk
             WaveformColumnWidth = finalWavesColWidth
             ScrollbarBkgWidth = scrollbarWidth
         }

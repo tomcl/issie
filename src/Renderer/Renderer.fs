@@ -172,8 +172,10 @@ let fileMenu (dispatch) =
             makeDebugItem "Trace long times" None
                 (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(20.,20.)
                           if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
-            makeDebugItem "Highlight debugChangedConnections" None
-                (fun _ -> Playground.Misc.highLightChangedConnections dispatch)
+            makeDebugItem "Print Misc Performance Info" None
+                (fun _ ->
+                    Playground.Memory.printListeners()
+                    Playground.Memory.printMemory())
             makeDebugItem "Test Fonts" None
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
             makeWinDebugItem  "Run performance check" None

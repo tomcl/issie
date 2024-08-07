@@ -34,7 +34,8 @@ type MouseOp =
     | Drag
 
 type MouseT = {
-    /// DrawBlock coords (scaled from screen pixels by 1/zoom)
+    /// DrawBlock coords (scaled from screen pixels by 1/zoom).
+    /// inserted only in update function becaiuse of model dependence
     Pos: XYPos
     /// movement in screen pixel coords
     ScreenMovement: XYPos

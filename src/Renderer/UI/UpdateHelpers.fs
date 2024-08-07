@@ -23,10 +23,13 @@ open Browser
 open PopupHelpers
 open Optics.Optic
 open Optics.Operators
+open Fable.Core
+open Fable.Core.JsInterop
+open ElectronAPI
 open EEExtensions
 
 module Constants =
-    let memoryUpdateCheckTime = 300.
+    let memoryUpdateCheckTime = 1000.
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------MESSAGE TRACING---------------------------------------------//
@@ -241,11 +244,13 @@ let mutable lastMemoryUpdateCheck = 0.
 let updateAllMemoryCompsIfNeeded (model:Model) =
     let time = TimeHelpers.getTimeMs()
     if time - lastMemoryUpdateCheck > Constants.memoryUpdateCheckTime && (getWSModel model).State = Success then
-        printfn "checking update of memories"
+        //printfn "checking update of memories"
         lastMemoryUpdateCheck <- time
-        MemoryEditorView.updateAllMemoryComps model
+        model
+        |> MemoryEditorView.updateAllMemoryComps
     else
         model
+
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------CONTEXT MENUS-----------------------------------------------//

@@ -177,7 +177,16 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 ]
         | _ -> {model with CtrlKeyDown = false}, Cmd.none
 
-    | MouseMsg mMsg -> // Mouse Update Functions can be found above, update function got very messy otherwise
+    | MouseMsgOrig(mEv, mouseOp, headerHeight) ->
+        
+        let mMsg:MouseT = {
+                Op = mouseOp ;
+                ShiftKeyDown = mEv.shiftKey
+                ScreenMovement = {X= mEv.movementX;Y=mEv.movementY}
+                ScreenPage = {X=mEv.pageX; Y=mEv.pageY}
+                Pos = getDrawBlockPos mEv headerHeight model
+                }
+        // Mouse Update Functions can be found above, update function got very messy otherwise
         let mouseAlreadyDown = match model.Action with | MovingPort _ | ConnectingInput _ | ConnectingOutput _ -> true |_ -> false
         match mMsg.Op with
         | Down when mouseAlreadyDown = true -> model, Cmd.none
@@ -351,7 +360,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             // Need to update mouse movement as well since the scrolling moves the mouse relative to the canvas, but no actual mouse movement will be detected.
             // E.g. a moving symbol should stick to the mouse as the automatic scrolling happens and not lag behind.
             let zero = {X=0.;Y=0.}
-            let defaultMsg = { Pos = newMPos; Op = Move;  ScreenMovement = zero; ScreenPage=zero; ShiftKeyDown=false}
+            let defaultMsg = {Pos = newMPos; Op = Move;  ScreenMovement = zero; ScreenPage=zero; ShiftKeyDown=false}
             let outputModel, outputCmd =
                 match model.Action with
                 | DragAndDrop ->

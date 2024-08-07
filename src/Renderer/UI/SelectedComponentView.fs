@@ -197,13 +197,8 @@ let private makeMemoryInfo descr mem compId cType model dispatch =
             Fulma.Label.label [Label.Size IsSmall; Label.Modifiers [Modifier.TextColor IsDanger]] [str msg]
         else
             Fulma.Label.label [] [str msg]
- 
-
-
-
-                
-
-    dispatch <| SetPopupDialogMemorySetup (Some setup)
+    if model.PopupDialogData.MemorySetup = None then
+        dispatch <| SetPopupDialogMemorySetup (Some setup)
     let projectPath = (Option.get model.CurrentProj).ProjectPath
     match setup with
     | (_,_,mem,_) ->

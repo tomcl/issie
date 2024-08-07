@@ -88,7 +88,7 @@ let inline deleteAllPorts (model: Model) =
         model.Symbols
         |> Map.map hideSymbolPorts
 
-    { model with Symbols = updatedSymbols; HintPane = None}
+    { model with Symbols = updatedSymbols;} // HintPane = None
 
 /// Given a model it shows all the specified components' ports and hides all the other ones
 let inline showPorts (model: Model) compList =

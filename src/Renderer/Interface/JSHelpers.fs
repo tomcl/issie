@@ -142,3 +142,18 @@ let setDebugLevel() =
 /// return a v4 (random) universally unique identifier (UUID)
 let uuid():string = import "v4" "uuid"
 
+let mutable lastPrivateMemorySize = 0
+
+module Memory =
+    open Fable.Core
+    open Fable.Core.JsInterop
+    open ElectronAPI
+    let webframe = renderer.webFrame
+
+    let getProcessMemory() : int =
+        let memInfo:JS.Promise<string>  = Node.Api.``process``?getProcessMemoryInfo()
+        promise {
+            return! memInfo
+            }
+        |> Promise.iter (fun info -> lastPrivateMemorySize <- info?``private``/1000)
+        lastPrivateMemorySize

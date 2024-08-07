@@ -1,4 +1,4 @@
-﻿module DrawModelType
+﻿module rec DrawModelType
 
 open Fable.Core
 open CommonTypes
@@ -6,6 +6,8 @@ open DrawHelpers
 open Fable.React
 open Optics
 open Node.ChildProcess
+open Operators
+
 
 //--------------------------COMMON TYPES------------------------------//
 
@@ -404,8 +406,6 @@ module BusWireT =
         | RerouteWire of string
         | ToggleSnapToNet
 
-    open Optics
-    open Operators
     let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
     let wires_ = Lens.create (fun m -> m.Wires) (fun w m -> {m with Wires = w})
     let wireOf_ k = wires_ >-> Map.valueForce_ "What? Symbol id lookup in model failed" k
@@ -541,6 +541,7 @@ module SheetT =
         | ToggleGrid
         | KeepZoomCentered of XYPos
         | MouseMsg of MouseT
+        | MouseMsgOrig of Browser.Types.MouseEvent * MouseOp * float
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
         | UpdateScrollPos of XYPos
@@ -597,6 +598,7 @@ module SheetT =
         | ToggleSnapToNet
         | BeautifySheet
         | SheetBatch of Msg list
+        | ExecFuncInSheetMessage of (SheetT.Model -> Unit)
 
     type ReadLog = | ReadLog of int
 
@@ -665,7 +667,6 @@ module SheetT =
         DebugDevice: string option
         }
     
-    open Operators
     let wire_ = Lens.create (fun m -> m.Wire) (fun w m -> {m with Wire = w})
     let selectedComponents_ = Lens.create (fun m -> m.SelectedComponents) (fun sc m -> {m with SelectedComponents = sc})
     let selectedWires_ = Lens.create (fun m -> m.SelectedWires) (fun sw m -> {m with SelectedWires = sw})

@@ -37,6 +37,29 @@ let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Mod
         Y = (ev.pageY - headerHeight + sheetModel.ScreenScrollPos.Y) / sheetModel.Zoom
     }
 
+let wheelUpdate (ev: Types.WheelEvent) model dispatch =
+    if List.exists (fun (k,_) -> k = "CONTROL") (getActivePressedKeys model) then
+        // ev.preventDefault()
+        if ev.deltaY > 0.0 then // Wheel Down
+            dispatch <| KeyPress ZoomOut
+        else
+            dispatch <| KeyPress ZoomIn
+    else () // Scroll normally if Ctrl is not held down
+
+let wheelUpdateMsg (ev: Types.WheelEvent) dispatch = Msg.ExecFuncInSheetMessage (fun model -> wheelUpdate ev model dispatch)
+
+/// Is the mouse button currently down?
+let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
+    
+
+/// Dispatch a MouseMsg (compensated for zoom)
+let mouseOp op (ev:Types.MouseEvent) dispatch headerHeight=
+    // right button oprations are only used for context menus
+    if int ev.button = 0 then // button = 0 => left, button = 2 => right
+        dispatch <| MouseMsgOrig (ev, op, headerHeight)
+ 
+
+
 /// This function zooms an SVG canvas by transforming its content and altering its size.
 /// Currently the zoom expands based on top left corner.
 let displaySvgWithZoom 
@@ -63,30 +86,8 @@ let displaySvgWithZoom
 
     let sizeInPixels = sprintf "%.2fpx" ((model.CanvasSize * model.Zoom))
 
-    /// Is the mouse button currently down?
-    let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
-    
 
-    /// Dispatch a MouseMsg (compensated for zoom)
-    let mouseOp op (ev:Types.MouseEvent) =
-        // right button oprations are only used for context menus
-        if int ev.button = 0 then // button = 0 => left, button = 2 => right
-            dispatch <| MouseMsg {
-                Op = op ;
-                ShiftKeyDown = ev.shiftKey
-                ScreenMovement = {X= ev.movementX;Y=ev.movementY}
-                ScreenPage = {X=ev.pageX; Y=ev.pageY}
-                Pos = getDrawBlockPos ev headerHeight model
-                }
 
-    let wheelUpdate (ev: Types.WheelEvent) =
-        if List.exists (fun (k,_) -> k = "CONTROL") (getActivePressedKeys model) then
-            // ev.preventDefault()
-            if ev.deltaY > 0.0 then // Wheel Down
-                dispatch <| KeyPress ZoomOut
-            else
-                dispatch <| KeyPress ZoomIn
-        else () // Scroll normally if Ctrl is not held down
     let cursorText = model.CursorType.Text()
     let firstView = viewIsAfterUpdateScroll
     viewIsAfterUpdateScroll <- false
@@ -94,20 +95,21 @@ let displaySvgWithZoom
           HTMLAttr.Id "Canvas"
           Key cursorText // force cursor change to be rendered
           Style (CSSProp.Cursor cursorText :: style)
-          OnMouseDown (fun ev -> (mouseOp Down ev))
-          OnMouseUp (fun ev -> (mouseOp Up ev))
-          OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
+          OnMouseDown (fun ev -> (mouseOp Down ev dispatch headerHeight))
+          OnMouseUp (fun ev -> (mouseOp Up ev dispatch headerHeight))
+          OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev dispatch headerHeight)
           OnScroll (fun _ ->
             match canvasDiv with
             | None -> ()
             |Some el ->
                 if not firstView then
                     dispatch <| UpdateScrollPosFromCanvas(scrollSequence,{X= el.scrollLeft; Y=el.scrollTop}, dispatch))
+          let sPos = model.ScreenScrollPos
           Ref (fun el ->
             canvasDiv <- Some el
             //printfn "%s" $"Writing from Ref {scrollSequence}: {model.ScreenScrollPos.X},{model.ScreenScrollPos.Y}"
-            writeCanvasScroll model.ScreenScrollPos)
-          OnWheel wheelUpdate
+            writeCanvasScroll sPos)
+          OnWheel (fun ev -> dispatch <| wheelUpdateMsg ev dispatch)
         ]
         [
           svg

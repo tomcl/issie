@@ -286,15 +286,15 @@ module Memory =
     open ElectronAPI
     let webframe = renderer.webFrame
 
-    let getProcessMemory() : unit =
+    let printProcessMemory() : unit =
         let memInfo:JS.Promise<string>  = Node.Api.``process``?getProcessMemoryInfo()
         promise {
             return! memInfo
             }
-        |> Promise.map (
+        |> Promise.iter (
             fun info ->
                 printfn $"mem info: private= {info?``private``/1000}, resident={info?``resident``}")
-        |> ignore
+        
 
                 
 
@@ -321,3 +321,11 @@ module Memory =
         String.concat "\n" (printDetails ("",None) :: List.map printDetails details)
         |> printfn "%s"
         webframe.clearCache()
+
+    let printListeners() =
+        let listeners = renderer.ipcRenderer.listeners
+        renderer.ipcRenderer.eventNames()
+        |> Array.iter (fun name ->
+            let ls = listeners name
+            printfn $"{name} -> {ls.Length}")
+

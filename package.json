@@ -86,7 +86,7 @@
     "usb": "^2.4.3"
   },
   "devDependencies": {
-    "@electron/remote": "^2",
+    "@electron/remote": "2.1.2",
     "babel-loader": "^8",
     "babel-preset-minify": "^0.5",
     "bufferutil": "^4",
@@ -95,8 +95,8 @@
     "css-loader": "^6",
     "del": "^5",
     "dotenv": "^16",
-    "electron": "^24",
-    "electron-builder": "^24",
+    "electron": "27.3.11",
+    "electron-builder": "25.0.3",
     "electron-builder-notarize": "^1",
     "electron-notarize": "^1",
     "enzyme": "^3",

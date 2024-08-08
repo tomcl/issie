@@ -1090,9 +1090,10 @@ let deleteFileConfirmationPopup (sheetName: string) (model: Model) (dispatch: Ms
 //--------------------------------------------------------------------------------------------//
 
 let getHintPaneElement (model:Model) =
-    match model.Sheet.Wire.Symbol.HintPane, model.TopMenuOpenState with
-    | _, Files -> div [Style [FontSize "90%"]] [str "Click -> Open Sheet"; br []; str "Left-click -> Rename or Delete"]
-    | Some hint, _ -> hint
+    match model.Sheet.Wire.Symbol.HintPane, model.TopMenuOpenState, JSHelpers.Memory.printMemoryStats with
+    | _, Files, _ -> div [Style [FontSize "90%"]] [str "Click -> Open Sheet"; br []; str "Left-click -> Rename or Delete"]
+    | Some hint, _ , _-> hint
+    | _, _, true -> str $"{JSHelpers.Memory.getProcessMemory()}"
     | _ -> str ""
 
 

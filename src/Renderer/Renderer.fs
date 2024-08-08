@@ -175,7 +175,8 @@ let fileMenu (dispatch) =
             makeDebugItem "Print Misc Performance Info" None
                 (fun _ ->
                     Playground.Memory.printListeners()
-                    Playground.Memory.printMemory())
+                    Playground.Memory.printMemory()
+                    dispatch SaveModel)
             makeDebugItem "Test Fonts" None
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
             makeWinDebugItem  "Run performance check" None

@@ -476,12 +476,15 @@ let wireIntersectsBoundingBox (wire : Wire) (box : BoundingBox) =
 
 /// Returns a list of wire IDs in the model that intersect the given selectBox
 /// the wires are sorted by closeness to the centre of the box.
+/// optimised for speed and low heap use
 let getIntersectingWires (wModel : Model) (selectBox : BoundingBox) : list<ConnectionId*float> =
+    let mutable wires : (ConnectionId * float) list= []
     wModel.Wires
-    |> Map.map (fun _id wire -> wireIntersectsBoundingBox wire selectBox)
-    |> Map.filter (fun _id optDist -> optDist <> None)
-    |> Map.toList
-    |> List.collect (function | (id, Some dist) -> [(id,dist)] | _,None -> [])
+    |> Map.iter (fun id wire  ->
+        match wireIntersectsBoundingBox wire selectBox with
+        | Some dist -> wires <- (id,dist) :: wires
+        | None -> ())
+    wires
     |> List.sortBy snd
 
 /// Searches if the position of the cursor is on a wire in a model,

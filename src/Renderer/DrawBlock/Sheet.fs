@@ -609,11 +609,26 @@ let posAdd (pos : XYPos) (a : float, b : float) : XYPos =
     {X = pos.X + a; Y = pos.Y + b}
 
 /// Finds all components (that are stored in the Sheet model) near pos
-let findNearbyComponents (model: Model) (pos: XYPos) (range: float)  =
+let findNearbyComponentsOld (model: Model) (pos: XYPos) (range: float)  =
     // Larger Increments -> More Efficient. But can miss small components then.
     List.allPairs [-range .. 10.0 .. range] [-range .. 10.0 .. range] 
     |> List.map ((fun x -> posAdd pos x) >> insideBoxMap model.BoundingBoxes)
     |> List.collect ((function | Some x -> [x] | _ -> []))
+
+/// Finds all components (that are stored in the Sheet model) near pos
+/// Optimised a little for space
+let findNearbyComponents (model: Model) (pos: XYPos) (range: float)  =
+    /// for space efficiency construct list mutably.
+    /// this happens every move
+    let mutable closeComps = []
+    for x in 10.0 - range .. 10.0 .. 10.0 + range do
+        for y in 10.0 - range .. 10.0 .. 10.0 + range do
+            {X=x + pos.X; Y=y + pos.Y}
+            |> insideBoxMap model.BoundingBoxes
+            |> (function | Some cId -> closeComps <- cId :: closeComps | None -> ())
+    closeComps
+            
+
 
 /// Checks if pos is inside any of the ports in portList
 let mouseOnPort portList (pos: XYPos) (margin: float) =

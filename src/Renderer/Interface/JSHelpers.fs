@@ -152,7 +152,7 @@ module Memory =
 
     let mutable lastPrivateMemorySize = None
 
-    let mutable printMemoryStats = debugLevel > 0
+    let mutable printMemoryStats = true
 
     let getProcessMemory() : int =
         let memInfo:JS.Promise<string>  = Node.Api.``process``?getProcessMemoryInfo()

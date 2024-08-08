@@ -175,7 +175,7 @@ let fileMenu (dispatch) =
             makeDebugItem "Print Misc Performance Info" None
                 (fun _ ->
                     Playground.Memory.printListeners()
-                    Playground.Memory.printMemory()
+                    Playground.Memory.printProcessMemory()
                     dispatch SaveModel)
             makeDebugItem "Test Fonts" None
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
@@ -368,7 +368,7 @@ let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
 
 let update msg model = Update.update msg model
 
-printfn "Starting renderer..."
+//printfn "Starting renderer..."
 
 let view' model dispatch =
     let start = TimeHelpers.getTimeMs()

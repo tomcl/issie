@@ -60,8 +60,9 @@ let shortDWSM (ws: WaveSimModel) =
 /// displayed using printf "%A".
 let shortDisplayMsg (msg:Msg) =
     match msg with
+    | SaveModel -> None
     | SheetBackAction _ -> Some "SheetBackAction"
-    | FileCommand(fc,_) -> Some $"{FComponentId}"
+    | FileCommand(fc,_) -> Some $"{fc}"
     | UpdateUISheetTrail _
     | ShowExitDialog
     | SynchroniseCanvas -> None

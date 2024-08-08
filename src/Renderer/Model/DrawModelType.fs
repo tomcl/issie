@@ -1,4 +1,5 @@
 ﻿module rec DrawModelType
+#nowarn "40"
 
 open Fable.Core
 open CommonTypes

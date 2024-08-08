@@ -839,7 +839,12 @@ let mMoveUpdate
                     | 0 -> ResizeNWSE
                     | _ -> ResizeNESW
                 | _ -> Default
-        let newModel = { model with NearbyComponents = nearbyComponents; CursorType = newCursor; LastMousePos = mMsg.Pos; ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement} } 
+        let newModel = {
+            model with
+                NearbyComponents = nearbyComponents;
+                CursorType = newCursor;
+                LastMousePos = mMsg.Pos;
+                ScrollingLastMousePos = {Pos=mMsg.Pos; Move=mMsg.ScreenMovement} } 
         
         if ctrlPressed then
             newModel , Cmd.batch [symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents); symbolCmd (SymbolT.ShowCustomCorners nearbyComponents)]

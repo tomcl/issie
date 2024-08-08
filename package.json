@@ -87,7 +87,7 @@
     "usb": "^2.4.3"
   },
   "devDependencies": {
-    "@electron/remote": "2.1.2",
+    "@electron/remote": "^2",
     "babel-loader": "^8",
     "babel-preset-minify": "^0.5",
     "bufferutil": "^4",
@@ -111,17 +111,17 @@
     "prettier": "^2",
     "prismjs": "^1.15",
     "react": "^17",
-    "react-dom": "^17",
+    "react-dom": "17",
     "react-router-dom": "^5",
     "react-simple-code-editor": "0.14.1",
     "source-map-loader": "^1",
-    "style-loader": "^3",
+    "style-loader": "^4",
     "terser-webpack-plugin": "^5",
     "url-loader": "^4",
     "utf-8-validate": "^5",
     "webpack": "^5",
-    "webpack-cli": "^4",
-    "webpack-dev-server": "^4"
+    "webpack-cli": "^5",
+    "webpack-dev-server": "^5"
   },
   "private": true
 }

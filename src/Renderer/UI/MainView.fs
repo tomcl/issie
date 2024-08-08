@@ -290,12 +290,14 @@ let viewRightTabs canvasState model dispatch =
     ]
 let mutable testState:CanvasState = [],[]
 let mutable lastDragModeOn = false
+let mutable lastPurgeTime = TimeHelpers.getTimeMs()
 
 //---------------------------------------------------------------------------------------------------------//
 //------------------------------------------VIEW FUNCTION--------------------------------------------------//
 //---------------------------------------------------------------------------------------------------------//
 /// Top-level application view: as react components that create a react virtual-DOM
 let displayView model dispatch =
+    let purgeTime = TimeHelpers.getTimeMs()
     let time = int(TimeHelpers.getTimeMs()) % 10000
     //JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
@@ -368,11 +370,12 @@ let displayView model dispatch =
     | Some fn -> 
         dispatch <| UpdateModel fn
     | None -> ()
-    if model.CurrentProj = None then
+    if model.CurrentProj = None  (* (((purgeTime - lastPurgeTime) > 10000.) && (JSHelpers.Memory.getProcessMemory() > 500))*) then
+        Sheet.canvasDiv <- None
         div [] [
             TopMenuView.viewNoProjectMenu model dispatch
             UIPopups.viewPopup model dispatch ]       
-    else   
+    else
         div [ HTMLAttr.Id "WholeApp"
               Key cursorText
               OnMouseMove (processMouseMove false)

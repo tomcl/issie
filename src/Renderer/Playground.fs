@@ -274,6 +274,7 @@ module WebWorker =
 module Misc =
     open ModelType
     open DrawModelType
+    open ModelType
 
 
     let highLightChangedConnections dispatch =
@@ -284,6 +285,8 @@ module Memory =
     open Fable.Core
     open Fable.Core.JsInterop
     open ElectronAPI
+    open ModelType
+
     let webframe = renderer.webFrame
 
     let printProcessMemory() : unit =
@@ -328,4 +331,8 @@ module Memory =
         |> Array.iter (fun name ->
             let ls = listeners name
             printfn $"{name} -> {ls.Length}")
+
+    let mutable modelCopy: Model option = None
+
+
 

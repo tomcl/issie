@@ -63,8 +63,12 @@ let update (msg : Msg) oldModel =
     //-------------------------------------------------------------------------------//
     //------------------------------MAIN MESSAGE DISPATCH----------------------------//
     //-------------------------------------------------------------------------------//
+    let mutable modelCopy: Model option = None
 
     match testMsg with
+    | SaveModel ->
+        modelCopy <- Some model;
+        model, Cmd.none
     | FileCommand(fc,dispatch) ->
         FileUpdate.fileCommand fc dispatch model 
     | StartUICmd uiCmd ->

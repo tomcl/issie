@@ -136,9 +136,9 @@ let startRenderer (doAfterReady: BrowserWindow -> Unit) =
 
 
 let loadAppIntoWidowWhenReady (window: BrowserWindow) =
-    printfn "setting up load when ready..."
+    //printfn "setting up load when ready..."
     let loadWindowContent (window: BrowserWindow) =
-        printfn "starting load..."
+        //printfn "starting load..."
         if window.isMinimized() then window.show()
 
         // Load the index.html of the app.    

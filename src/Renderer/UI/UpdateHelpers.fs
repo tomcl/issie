@@ -781,7 +781,7 @@ let findChange (model : Model) : bool =
         let canv = savedComponent.CanvasState
         let canv' = model.Sheet.GetCanvasState ()
         (canv <> canv') && not (compareCanvas 100. canv canv')
-        |> TimeHelpers.instrumentInterval "findChange" start
+        //|> TimeHelpers.instrumentInterval "findChange" start
 
 /// Needed so that constant properties selection will work
 /// Maybe good idea for other things too?

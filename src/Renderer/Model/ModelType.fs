@@ -112,7 +112,7 @@ let verilogErrors_ = Lens.create (fun a -> a.VerilogErrors) (fun s a -> {a with 
 let badLabel_ = Lens.create (fun a -> a.BadLabel) (fun s a -> {a with BadLabel = s})
 let intlist_ = Lens.create (fun a -> a.IntList) (fun s a -> {a with IntList = s})
 let intlist2_ = Lens.create (fun a -> a.IntList2) (fun s a -> {a with IntList2 = s})
-type TopMenu = | Closed | Project | Files
+type TopMenu = | Closed | Project | Files |TransientClosed
 
 //==========//
 // Messages //
@@ -469,6 +469,7 @@ type Msg =
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
     | ScrollbarMouseMsg of cursor:float * action:ScrollbarMouseAction * dispatch:(Msg->unit)
     | SaveModel
+    | ForceGC
 
 
 //================================//

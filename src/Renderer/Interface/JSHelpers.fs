@@ -10,6 +10,7 @@ open Fable.Core
 open Fable.Core.JsInterop
 open ElectronAPI
 open Fable.React
+open Elmish
 
 /// Fix to access the deprecated @electron.remote module.
 /// This must be enabled from main.fs
@@ -19,6 +20,18 @@ open Fable.React
 /// electronRemote replaces electron.remote and renderer.remote in old interface
 [<ImportAll("@electron/remote")>]
 let electronRemote : Electron.Remote = jsNative
+
+
+[<Emit("performance.memory.usedJSHeapSize")>]
+let usedHeap() : int = jsNative
+
+[<Emit("performance.memory.totalJSHeapSize")>]
+let maxHeap() : int = jsNative
+
+
+[<Emit("global.gc")>]
+let globalGC : unit->unit = jsNative
+
 
 
 [<Emit("typeof $0")>]
@@ -142,6 +155,26 @@ let setDebugLevel() =
 /// return a v4 (random) universally unique identifier (UUID)
 let uuid():string = import "v4" "uuid"
 
+
+(*
+let asyncUpper (txt : string) =
+            async {
+                do! Async.Sleep 1000
+
+                return txt.ToUpper()
+            }
+
+        model, Cmd.ofAsync asyncUpper txt OnUpperResult OnUpperError
+
+ = *)
+
+let delayedDispatch (dispatch: 'a -> unit)  (delayInMs: int) (msg: 'a) =
+    JS.setTimeout (fun _ -> dispatch msg) delayInMs
+ 
+    
+        
+ 
+            
 
 
 module Memory =

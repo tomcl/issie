@@ -66,6 +66,10 @@ let update (msg : Msg) oldModel =
     let mutable modelCopy: Model option = None
 
     match testMsg with
+    | ForceGC ->
+        printfn "Invoking global gc()"
+        JSHelpers.globalGC()
+        model, Cmd.none
     | SaveModel ->
         modelCopy <- Some model;
         model, Cmd.none
@@ -298,7 +302,6 @@ let update (msg : Msg) oldModel =
     | ChangeRightTab newTab -> 
         let inferMsg = JSDiagramMsg <| InferWidths()
         let editMsgs = [inferMsg; ClosePropertiesNotification]
-        firstTip <- true
 
         model
         |> set rightPaneTabVisible_ newTab

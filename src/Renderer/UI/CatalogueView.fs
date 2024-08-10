@@ -836,9 +836,6 @@ let private makeMenuGroup title menuList =
     ]
 
 
-let mutable firstTip = true
-
-let mutable tippyNodes: Browser.Types.Element list = []
 
 let private makeMenuGroupWithTip styles  title tip menuList =
     details [

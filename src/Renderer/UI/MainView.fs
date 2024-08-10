@@ -207,6 +207,7 @@ let inline setDragMode (modeIsOn:bool) (dividerDragMode: DragMode) dispatch =
 
 /// Draggable vertivcal bar used to divide Wavesim window from Diagram window
 let dividerbar (model:Model) dispatch =
+    let dragMode = model.DividerDragMode
     let isDraggable = 
         model.RightPaneTabVisible = Simulation 
         && (model.SimSubTabVisible = WaveSim 
@@ -233,10 +234,12 @@ let dividerbar (model:Model) dispatch =
         ]
     div [
             Style <| commonStyle @ variableStyle
-            OnMouseDown (setDragMode true model.DividerDragMode dispatch)       
+            OnMouseDown (setDragMode true dragMode dispatch)       
         ] []
 
 let viewRightTabs canvasState model dispatch =
+
+    let rightPanelVisible = model.RightPaneTabVisible
     /// Hack to avoid scrollbar artifact changing from Simulation to Catalog
     /// The problem is that the HTML is bistable - with Y scrollbar on the catalog <aside> 
     /// moves below the tab body div due to reduced available width, keeping scrollbar on. 
@@ -252,9 +255,9 @@ let viewRightTabs canvasState model dispatch =
     let buildTab =
         if model.BuildVisible then
             Tabs.tab
-                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Build)]
+                [ Tabs.Tab.IsActive (rightPanelVisible = Build)]
                 [ a [  OnClick (fun _ -> 
-                        if model.RightPaneTabVisible <> Simulation 
+                        if rightPanelVisible <> Simulation 
                         then
                             dispatch <| ChangeRightTab Build ) 
                     ] [str "Build"] ]
@@ -270,7 +273,7 @@ let viewRightTabs canvasState model dispatch =
             
         ] [
             Tabs.tab // catalogue tab to add components
-                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Catalogue) ]
+                [ Tabs.Tab.IsActive (rightPanelVisible = Catalogue) ]
                 [ a [ OnClick (fun _ -> 
                         let target = 
                             if model.RightPaneTabVisible = Simulation then
@@ -278,17 +281,17 @@ let viewRightTabs canvasState model dispatch =
                                 Catalogue
                         dispatch <| ChangeRightTab target ) ] [str "Catalogue" ] ]
             Tabs.tab // Properties tab to view/change component properties
-                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Properties) ]                                   
+                [ Tabs.Tab.IsActive (rightPanelVisible = Properties) ]                                   
                 [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
             Tabs.tab // simulation tab to view all simulators
-                [ Tabs.Tab.IsActive (model.RightPaneTabVisible = Simulation) ]
+                [ Tabs.Tab.IsActive (rightPanelVisible = Simulation) ]
                 [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
             buildTab
         ]
         div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [viewRightTab canvasState model dispatch]
 
     ]
-let mutable testState:CanvasState = [],[]
+
 let mutable lastDragModeOn = false
 let mutable lastPurgeTime = TimeHelpers.getTimeMs()
 
@@ -308,13 +311,15 @@ let displayView model dispatch =
             printf "Setting Top menu closed from processappclick"
             dispatch <| Msg.SetTopMenu Closed
     /// used only to make the divider bar draggable
+    let dividerDragMode = model.DividerDragMode
+    let wsViewerWidth = model.WaveSimViewerWidth
     let inline processMouseMove (keyUp: bool) (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then 
             dispatch SelectionHasChanged
-        match model.DividerDragMode, ev.buttons, keyUp with
+        match dividerDragMode, ev.buttons, keyUp with
         | DragModeOn pos , 1., false-> 
-            let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
+            let newWidth = wsViewerWidth - int ev.clientX + pos
             let w = 
                 newWidth
                 |> max minViewerWidth
@@ -322,12 +327,12 @@ let displayView model dispatch =
             dispatch <| SetDragMode (DragModeOn (int ev.clientX - w + newWidth))
             dispatch <| SetViewerWidth w 
         | DragModeOn pos, _, true ->
-            let newWidth = model.WaveSimViewerWidth - int ev.clientX + pos
+            let newWidth = wsViewerWidth - int ev.clientX + pos
             let w =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth())
-            setViewerWidthInWaveSim w model dispatch
+            setViewerWidthInWaveSim w dispatch
             dispatch <| SetDragMode DragModeOff
             dispatch <| SetViewerWidth w 
         | _ -> ()
@@ -341,26 +346,21 @@ let displayView model dispatch =
 
     let conns = BusWire.extractConnections model.Sheet.Wire
     let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
-    let canvasState = comps,conns   
+    let canvasState = comps,conns
+    let offsetOpt =
+        model.WaveSimSheet
+        |> Option.bind (fun wsSheet ->
+            Map.tryFind wsSheet model.WaveSim
+            |> Option.bind _.ScrollbarTbOffset)
 
     // mouse ops for wavesim scrollbar
     let wavesimSbMouseMoveHandler (event: Browser.Types.MouseEvent): unit = // if in drag, update scrollbar; otherwise do nothing
-        let offsetOpt =
-            model.WaveSimSheet
-            |> Option.bind (fun wsSheet ->
-                Map.tryFind wsSheet model.WaveSim
-                |> Option.bind _.ScrollbarTbOffset)
         if  Option.isSome offsetOpt
         then
             ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
 
 
     let wavesimSbMouseUpHandler (event: Browser.Types.MouseEvent): unit = // if in drag clear drag; otherwise do nothing
-        let offsetOpt =
-            model.WaveSimSheet
-            |> Option.bind (fun wsSheet ->
-                Map.tryFind wsSheet model.WaveSim
-                |> Option.bind _.ScrollbarTbOffset)
         if  Option.isSome offsetOpt
         then
             ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
@@ -374,7 +374,12 @@ let displayView model dispatch =
         Sheet.canvasDiv <- None
         div [HTMLAttr.Id "OpenProject"] [
                 TopMenuView.viewNoProjectMenu model dispatch
-                UIPopups.viewPopup model dispatch ]       
+                UIPopups.viewPopup model dispatch ]
+    elif model.TopMenuOpenState = TransientClosed then
+        printf "**********************TRANSIENT DOM REMOVAL***********************************"
+        dispatch ForceGC
+        JSHelpers.delayedDispatch dispatch 5000 (SetTopMenu  Closed) |> ignore
+        div [] []
     else
         div [
                 HTMLAttr.Id "WholeApp"
@@ -426,6 +431,7 @@ let displayView model dispatch =
                     [
                         dividerbar model dispatch
                         // tabs for different functions
-                        viewRightTabs canvasState model dispatch
+                        // viewRightTabs canvasState model dispatch
+                        div [Id "RightSelection"] [str "selection"]
                     ]
             ]

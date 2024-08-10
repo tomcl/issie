@@ -231,7 +231,7 @@ module SymbolT =
 
         Theme: ThemeType
 
-        HintPane: ReactElement option
+        HintPane: string list option
         }
 
     //----------------------------Message Type-----------------------------------//

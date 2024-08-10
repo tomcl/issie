@@ -319,6 +319,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
     ]
 
 let private makeFoot editMode dispatch (model: Model)=
+    let lastUsedDialogWidth = model.LastUsedDialogWidth
     let action =
         fun _ -> dispatch CloseMemoryEditorNotification
                  dispatch ClosePopup
@@ -326,7 +327,7 @@ let private makeFoot editMode dispatch (model: Model)=
                  // selected component.
                  match editMode with
                  | Some FromData ->
-                    dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
+                    dispatch (ReloadSelectedComponent lastUsedDialogWidth)
                  | _ -> ()
     Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
         Level.left [] []

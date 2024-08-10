@@ -27,6 +27,29 @@ importSideEffects "./scss/main.css"
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
+
+
+
+
+// -- Init Model
+
+let init() =
+    JSHelpers.setDebugLevel()
+    DiagramMainView.init(), Cmd.none
+
+let getUserAppDir () : string =
+    unbox <| renderer.ipcRenderer.sendSync("get-user-data",None)
+
+let softInitialise model dispatch =
+    Playground.Memory.modelCopy <- Some model
+    dispatch (UpdateModel(fun _ -> fst (init())))
+    let userAppDir = getUserAppDir()
+    dispatch <| ReadUserData userAppDir
+    Sheet.canvasDiv <- None
+    Sheet.recentProgrammaticScrollPos <- []
+    MemoryEditorView.dynamicMem <- {MemoryEditorView.dynamicMem with Data = Map.empty}
+
+
 (****************************************************************************************************
 *
 *                                  MENU HELPER FUNCTIONS
@@ -58,8 +81,7 @@ let attachGetAppHandler dispatch =
         dispatch <| SetUserAppDir (unbox event. : string)
         )) |> ignore*)
 
-let getUserAppDir () : string =
-    unbox <| renderer.ipcRenderer.sendSync("get-user-data",None)
+
 
 /// Make action menu item from name, opt key to trigger, and action.
 let makeItem (label : string) (accelerator : string option) (iAction : KeyboardEvent -> unit) =
@@ -158,6 +180,16 @@ let fileMenu (dispatch) =
         makeWinDebugItem "Trace off" None (fun _ ->
             debugTraceUI <- Set.ofList [])
         makeMenuGen (debugLevel > 0) false "Play" [
+            makeDebugItem "HEAP" None
+                (fun _ ->
+                    printfn $"\n******* USED heap size:{float(usedHeap()) / 1000000.} MB MAX: {float(maxHeap()) / 1000000.} MB********\n")
+            makeDebugItem "INIT" None
+                (fun _ ->
+                    dispatch <| ExecFuncInMessage(softInitialise, dispatch))
+            makeDebugItem "SCREEN RESET" None
+                (fun _ ->
+                    printfn $"USED heap\n size before screen reset:{float(usedHeap()) / 1000000.} MB\n"
+                    dispatch (SetTopMenu TransientClosed))
             makeDebugItem "Set Scroll" None
                 (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.;Y=1000.})
             makeDebugItem "Trace all times" None
@@ -349,11 +381,7 @@ type Model = ModelType.Model
 
 type Messages = ModelType.Msg
 
-// -- Init Model
 
-let init() =
-    JSHelpers.setDebugLevel()
-    DiagramMainView.init(), Cmd.none
 
 
 // -- Create View

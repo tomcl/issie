@@ -919,7 +919,7 @@ let checkModuleInstantiations
 // check if wire is assigned to twice - done
 // check if rhs has been assigned to? probs done
 // in always comb we always require rhs to be assigned to before 
-    // a=b; b=1; not allowed, b=1; a=b; allowed
+    // a=b; b=1; not allowed, b=1; a=b; HintPane
 
 // continue unit testing
 // improve syntax errors

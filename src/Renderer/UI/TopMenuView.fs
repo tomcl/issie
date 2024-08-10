@@ -601,14 +601,14 @@ let viewTopMenu model dispatch =
                     div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"]] [str "Sheets with Design Hierarchy"]
                     MiscMenuView.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch updatedModel
                     ]
-
+            let topMenuOpenState = model.TopMenuOpenState
             Navbar.Item.div
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props
                       [ OnClick(fun _ ->
                           //printSheetNames model
                           //printfn "OnClick - inverting TopMenuOpenState when current state is: %A" model.TopMenuOpenState
-                          if model.TopMenuOpenState = Files then Closed else Files
+                          if topMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch) ] ]
                 [ Navbar.Link.a [] [ str "Sheets" ]
@@ -616,7 +616,7 @@ let viewTopMenu model dispatch =
                       [ Navbar.Dropdown.Props
                           [ Style
                               [ Display
-                                  (if (let b = model.TopMenuOpenState = Files
+                                  (if (let b = topMenuOpenState = Files
                                        b) then
                                       DisplayOptions.Block
                                    else
@@ -662,13 +662,13 @@ let viewTopMenu model dispatch =
                     [
                       // Sheets menu
                       fileTab model
-
+                      let topMenuOpenState = model.TopMenuOpenState
                       // Projects menu
                       Navbar.Item.div
                         [ Navbar.Item.HasDropdown
                           Navbar.Item.Props
                               [ OnClick(fun _ ->
-                                  if model.TopMenuOpenState = Project then Closed else Project
+                                  if topMenuOpenState = Project then Closed else Project
                                   |> SetTopMenu
                                   |> dispatch) ] ]
                           [ Navbar.Link.a [] [ str "Project" ]
@@ -676,7 +676,7 @@ let viewTopMenu model dispatch =
                                 [ Navbar.Dropdown.Props
                                     [ Style
                                         [ Display
-                                            (if model.TopMenuOpenState = Project then
+                                            (if topMenuOpenState = Project then
                                                 DisplayOptions.Block
                                              else
                                                  DisplayOptions.None) ] ] ]
@@ -748,7 +748,7 @@ let viewTopMenu model dispatch =
                                         Width "200px";                                    
                                         AlignItems AlignItemsOptions.Center;
                                         TextAlign TextAlignOptions.Center]]
-                                [getHintPaneElement model]
+                                [div [Style [FontSize "90%"]] (getHintPaneElement model)]
                                         
                             // add space padding on RH of navbar to improve top bar formatting
                             // this is a bit of a hack - but much easier than matching styles                                 

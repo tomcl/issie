@@ -60,6 +60,7 @@ let shortDWSM (ws: WaveSimModel) =
 /// displayed using printf "%A".
 let shortDisplayMsg (msg:Msg) =
     match msg with
+    | ForceGC
     | SaveModel -> None
     | SheetBackAction _ -> Some "SheetBackAction"
     | FileCommand(fc,_) -> Some $"{fc}"

@@ -57,7 +57,7 @@ let isMacos = Api.``process``.platform = Base.Darwin
 let isWin = Api.``process``.platform = Base.Win32
 
         
-
+mainProcess.app.commandLine.appendSwitch("js-flags", "--expose-gc --gc-global --trace-gc  --trace-gc-ignore-scavenger --max-semi-space-size=16 --min-semi-space-size=16 --max-old-space-size=100")
 
 
 mainProcess.app.name <- "Issie"
@@ -67,6 +67,15 @@ mainProcess.app.name <- "Issie"
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mutable mainWindow: BrowserWindow option = Option.None
+
+
+
+let printListeners() =
+    let listeners = mainProcess.ipcMain.listenerCount
+    mainProcess.ipcMain.eventNames()
+    |> Array.iter (fun name ->
+        let lsNum = listeners name
+        printfn $"{name} -> {lsNum}")
 
 [<Emit("__static")>]
 let staticDir() :string = jsNative
@@ -223,6 +232,7 @@ let rec addListeners (window: BrowserWindow) =
         |> ignore
 
     mainProcess.ipcMain.on("show-context-menu", fun (event:IpcMainEvent) args ->
+        printListeners()
         makeMenu window dispatchToRenderer args event
         )|> ignore
        

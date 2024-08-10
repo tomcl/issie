@@ -777,6 +777,6 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
 
 
 
-let inline setViewerWidthInWaveSim w (model:Model) dispatch =
+let inline setViewerWidthInWaveSim w dispatch =
     dispatch <| UpdateModel (updateViewerWidthInWaveSim w)
     dispatch <| GenerateCurrentWaveforms

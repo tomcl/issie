@@ -555,7 +555,7 @@ let clkCycleText m i : IProp list =
         ]
     let cursorExtraProps : IProp list =
         [
-            SVGAttr.Custom("font-weight", "bold")
+            SVGAttr.Custom("fontWeight", "bold")
         ]
     if i = m.CurrClkCycle then
         cursorExtraProps @ props

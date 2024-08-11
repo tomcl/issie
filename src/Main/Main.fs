@@ -57,7 +57,7 @@ let isMacos = Api.``process``.platform = Base.Darwin
 let isWin = Api.``process``.platform = Base.Win32
 
         
-mainProcess.app.commandLine.appendSwitch("js-flags", "--expose-gc --gc-global --trace-gc  --trace-gc-ignore-scavenger --max-semi-space-size=16 --min-semi-space-size=16 --max-old-space-size=100")
+mainProcess.app.commandLine.appendSwitch("js-flags", "--trace-gc")
 
 
 mainProcess.app.name <- "Issie"
@@ -232,7 +232,6 @@ let rec addListeners (window: BrowserWindow) =
         |> ignore
 
     mainProcess.ipcMain.on("show-context-menu", fun (event:IpcMainEvent) args ->
-        printListeners()
         makeMenu window dispatchToRenderer args event
         )|> ignore
        

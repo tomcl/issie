@@ -28,6 +28,10 @@ importReadUart
 let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<ModelType.Msg> =
     /// In this module model = Sheet model
     let model = issieModel.Sheet
+    let model =
+        match model.LastCursorType <> model.CursorType with
+        | false -> {model with LastCursorType = model.CursorType} // always update this
+        | true -> model 
 
     /// check things that might not have been correctly completed in the last update and if so do them
     /// Mostly this is a hack to deal with the fact that dependent state is held separately rather than
@@ -192,7 +196,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | Down when mouseAlreadyDown = true -> model, Cmd.none
         | Down -> mDownUpdate model mMsg
         | Drag -> 
-            //printfn "running sheet.update"
             mDragUpdate model mMsg
         | Up -> mUpUpdate model mMsg
         | Move -> mMoveUpdate model mMsg
@@ -214,22 +217,11 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 , Cmd.none
         | false -> model, Cmd.none
 
-    | UpdateScrollPosFromCanvas(sequence, pos, dispatch) ->
-        let model =
-            match sequence - scrollSequence >= 0, canvasDiv with
-            | _, None | false, _ -> model
-            | true, Some el -> 
-                recentProgrammaticScrollPos
-                |> List.exists (fun recent -> euclideanDistance recent pos < 0.001 )
-                |> function | true -> model
-                            | false ->
-                                //printfn "%s" $"{scrollSequence}: Canvas -> model {pos.X},{pos.Y}"
-                                {model with ScreenScrollPos = pos}
-        model, Cmd.none
+    | UpdateScrollPosFromCanvas(pos) ->
+        {model with ScreenScrollPos = pos}, Cmd.none
 
  
     | UpdateScrollPos scrollPos ->
-        //printfn "%s" $"{scrollSequence}: Model -> canvas {scrollPos.X},{scrollPos.Y}"
         let scrollDif = scrollPos - model.ScreenScrollPos * (1. / model.Zoom)
         let newLastScrollingPos =
             {
@@ -245,7 +237,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         recentProgrammaticScrollPos <- scrollPos :: List.truncate 4 recentProgrammaticScrollPos
         scrollSequence <- scrollSequence + 1 // increment sequence counter
         viewIsAfterUpdateScroll <- true
-        writeCanvasScroll scrollPos
+        writeCanvasScroll scrollPos |> ignore
         { model with 
             ScreenScrollPos = scrollPos
             ScrollingLastMousePos = newLastScrollingPos }, 
@@ -275,16 +267,18 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     // Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomOut ->
         // get current screen edge coords
-        let edge = getScreenEdgeCoords model
-        //Check if the new zoom will exceed the canvas width or height
-        let newZoom =
-            let minXZoom = (edge.Right - edge.Left) / model.CanvasSize
-            let minYZoom = (edge.Top - edge.Bottom) / model.CanvasSize
-            List.max [model.Zoom / Constants.zoomIncrement; minXZoom; minYZoom]
-        let oldScreenCentre = getVisibleScreenCentre model
+        match getScreenEdgeCoords model with
+        | Some edge ->
+            //Check if the new zoom will exceed the canvas width or height
+            let newZoom =
+                let minXZoom = (edge.Right - edge.Left) / model.CanvasSize
+                let minYZoom = (edge.Top - edge.Bottom) / model.CanvasSize
+                List.max [model.Zoom / Constants.zoomIncrement; minXZoom; minYZoom]
+            let oldScreenCentre = getVisibleScreenCentre model
 
-        { model with Zoom = newZoom }, 
-        sheetCmd (KeepZoomCentered oldScreenCentre)
+            { model with Zoom = newZoom }, 
+            sheetCmd (KeepZoomCentered oldScreenCentre)
+        | None-> model, Cmd.none
 
     | KeepZoomCentered oldScreenCentre ->
         let canvas = document.getElementById "Canvas"
@@ -300,7 +294,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | ManualKeyDown key -> // Needed for e.g. Ctrl + C and Ctrl + V as they are not picked up by Electron
         let containsKey key  = List.exists (fun (key',time) -> key'=key)
         let newPressedKeys = (key.ToUpper(), TimeHelpers.getTimeMs()) :: getActivePressedKeys model  // Make it fully upper case to remove CAPS dependency
-        //printfn $"Keys={newPressedKeys}, Key={key}"
         let newCmd =
             match containsKey "CONTROL" newPressedKeys || containsKey "META" newPressedKeys with
             | true ->
@@ -400,9 +393,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         let errorComponents =
             newModel.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
-
-        printfn $"ErrorComponents={errorComponents}"
-        
+       
         match errorComponents with
             | [] -> 
                 {newModel with ErrorComponents = errorComponents; Action = Idle},
@@ -431,8 +422,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         let errorComponents =
             newModel.SelectedComponents
             |> List.filter (fun sId -> not (notIntersectingComponents newModel newModel.BoundingBoxes[sId] sId))
-
-        printfn $"ErrorComponents={errorComponents}"
 
         let nextAction = 
             match errorComponents with
@@ -892,6 +881,7 @@ let init () =
         SnapSymbols=emptySnap
         SnapSegments = emptySnap
         CursorType = Default
+        LastCursorType = Default
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }
         LastValidSymbol = None

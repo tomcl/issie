@@ -37,17 +37,20 @@ module Constants =
 
 
 ///Used to filter specific mouse messages based on mouse data.
-let matchMouseMsg (msgSelect: DrawHelpers.MouseT -> bool) (msg : Msg) : bool =
+let matchMouseMsg (msgSelect: DrawHelpers.MouseOp -> bool) (msg : Msg) : bool =
     match msg with
     | Sheet sMsg ->
         match sMsg with
-        | SheetT.MouseMsg mMsg ->
-            msgSelect mMsg
+        | SheetT.MouseMsgOrig (_,op,_) ->
+            msgSelect op
         | _ -> false
     | _ -> false
 
 /// short summary used where Sheet messages are too complex to print
-let shortDSheetMsg msg = Some "Sheet message"
+let shortDSheetMsg (sMsg: SheetT.Msg) =
+    match sMsg with
+    | SheetT.Msg.MouseMsgOrig(ev,op,_) -> Some $"Mouse {op}"
+    | _ -> Some $"Sheet %10A{sMsg}"
 
 /// short summary of wavesim message which has a lot of data
 let shortDWSM (ws: WaveSimModel) =
@@ -205,8 +208,8 @@ let shortDisplayMsg (msg:Msg) =
 /// optimise for very quick return in the case that debugLevel = 0 (production version)
 /// optimise for quick return if nothing is printed.
 let getMessageTraceString (msg: Msg) =
-    let noDisplayMouseOp (mMsg:DrawHelpers.MouseT) = 
-        mMsg.Op = DrawHelpers.Drag || mMsg.Op = DrawHelpers.Move
+    let noDisplayMouseOp (op:DrawHelpers.MouseOp) = 
+        (op = DrawHelpers.Drag || op = DrawHelpers.Move) && not (Set.contains "mouse" JSHelpers.debugTraceUI)
     let noDisplayMessage = function
         | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> true
         | _ -> false
@@ -831,7 +834,7 @@ let isSameMsg = LanguagePrimitives.PhysicalEquality
 ///Returns None if no mouse drag message found, returns Some (lastMouseMsg, msgQueueWithoutMouseMsgs) if a drag message was found
 let getLastMouseMsg msgQueue =
     msgQueue
-    |> List.filter (matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag))
+    |> List.filter (matchMouseMsg (fun op -> op = DrawHelpers.Drag))
     |> function
     | [] -> None
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)

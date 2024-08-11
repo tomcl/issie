@@ -27,9 +27,7 @@ let getActivePressedKeys model =
 /// This actually writes to the DOM a new scroll position.
 /// In the special case that DOM has not yet been created it does nothing.
 let writeCanvasScroll (scrollPos:XYPos) =
-    //printf "%s" $"***writing canvas scroll: {scrollPos.X},{scrollPos.Y}"
-    canvasDiv
-    |> Option.iter (fun el -> el.scrollLeft <- scrollPos.X; el.scrollTop <- scrollPos.Y)
+    putScrollProps scrollPos
 
 let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Model) =
     {
@@ -86,31 +84,40 @@ let displaySvgWithZoom
 
     let sizeInPixels = sprintf "%.2fpx" ((model.CanvasSize * model.Zoom))
 
-
-
+    let currentCanvas = document.getElementById("Canvas")
     let cursorText = model.CursorType.Text()
     let firstView = viewIsAfterUpdateScroll
     viewIsAfterUpdateScroll <- false
-    div [ 
-          HTMLAttr.Id "Canvas"
-          Key cursorText // force cursor change to be rendered
-          Style (CSSProp.Cursor cursorText :: style)
-          OnMouseDown (fun ev -> (mouseOp Down ev dispatch headerHeight))
-          OnMouseUp (fun ev -> (mouseOp Up ev dispatch headerHeight))
-          OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev dispatch headerHeight)
-          OnScroll (fun _ ->
-            match canvasDiv with
-            | None -> ()
-            |Some el ->
-                if not firstView then
-                    dispatch <| UpdateScrollPosFromCanvas(scrollSequence,{X= el.scrollLeft; Y=el.scrollTop}, dispatch))
-          let sPos = model.ScreenScrollPos
-          Ref (fun el ->
-            canvasDiv <- Some el
-            //printfn "%s" $"Writing from Ref {scrollSequence}: {model.ScreenScrollPos.X},{model.ScreenScrollPos.Y}"
-            writeCanvasScroll sPos)
-          OnWheel (fun ev -> dispatch <| wheelUpdateMsg ev dispatch)
+    let scrollOpt = getScrollProps()
+    let scrollAttrL: IHTMLProp list =
+        match scrollOpt, firstView with
+        | Some scroll, false ->
+            [
+                HTMLAttr.Custom("scrollleft", scroll.X); HTMLAttr.Custom("scrolltop", scroll.Y)
+            ]
+            
+        | _ -> []
+    let attrs : IHTMLProp list = 
+        [ 
+              HTMLAttr.Id "Canvas"
+              //Key cursorText // force cursor change to be rendered
+              Style ( CSSProp.Cursor cursorText :: style)
+              OnMouseDown (fun ev -> (mouseOp Down ev dispatch headerHeight))
+              OnMouseUp (fun ev -> (mouseOp Up ev dispatch headerHeight))
+              OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev dispatch headerHeight)
+              OnScroll (fun _ ->
+                match scrollOpt with
+                | None -> ()
+                | Some scrollPos ->
+                    if not firstView then
+                        dispatch <| UpdateScrollPosFromCanvas scrollPos)
+              let sPos = model.ScreenScrollPos
+              match not firstView, scrollOpt with
+                | true, Some scroll ->putScrollProps scroll |> ignore
+                | _ -> ()
+              OnWheel (fun ev -> dispatch <| wheelUpdateMsg ev dispatch)
         ]
+    div (scrollAttrL @  attrs)
         [
           svg
             [ Style

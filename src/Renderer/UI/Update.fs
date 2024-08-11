@@ -45,7 +45,7 @@ let update (msg : Msg) oldModel =
 
     //Add the message to the pending queue if it is a mouse drag message
     let model =
-        if matchMouseMsg (fun mMsg -> mMsg.Op = DrawHelpers.Drag) msg then
+        if matchMouseMsg (fun op -> op = DrawHelpers.Drag) msg then
             {oldModel with Pending = msg :: oldModel.Pending}
         else
             oldModel

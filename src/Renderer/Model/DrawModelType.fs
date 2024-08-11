@@ -546,7 +546,7 @@ module SheetT =
         | UpdateBoundingBoxes
         | UpdateSingleBoundingBox of ComponentId
         | UpdateScrollPos of XYPos
-        | UpdateScrollPosFromCanvas of sequence: int * pos: XYPos * dispatch: ( Msg -> Unit)
+        | UpdateScrollPosFromCanvas of XYPos
         | AddNotConnected of (LoadedComponent list) * port:Port * pos:XYPos * rotation:Rotation
         | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
         | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
@@ -630,6 +630,7 @@ module SheetT =
         ShowGrid: bool // Always true at the moment, kept in-case we want an optional grid
         //Theme: ThemeType
         CursorType: CursorType
+        LastCursorType: CursorType
         LastValidPos: XYPos
         // HLP23 AUTHOR: BRYAN TAN
         LastValidSymbol: SymbolT.Symbol option

@@ -17,16 +17,19 @@ open Optics
 open Operators
 
 let fitCircuitToScreenUpdate (model: Model) =
-    let model', paras = fitCircuitToWindowParas model
-    printf "CtrlW Calculated Scroll = %A" paras.Scroll
-    model', 
-    Cmd.batch 
-        [
-            sheetCmd (SheetT.Msg.UpdateScrollPos paras.Scroll)
-            sheetCmd SheetT.Msg.UpdateBoundingBoxes
-            if abs (model.Zoom - model'.Zoom) > 0.001 then
-                sheetCmd (SheetT.Msg.KeyPress CtrlW)
-        ]
+    let model', parasOpt = fitCircuitToWindowParas model
+    match parasOpt with
+    | Some paras ->
+        printf "CtrlW Calculated Scroll = %A" paras.Scroll
+        model', 
+        Cmd.batch 
+            [
+                sheetCmd (SheetT.Msg.UpdateScrollPos paras.Scroll)
+                sheetCmd SheetT.Msg.UpdateBoundingBoxes
+                if abs (model.Zoom - model'.Zoom) > 0.001 then
+                    sheetCmd (SheetT.Msg.KeyPress CtrlW)
+            ]
+    | None -> model, Cmd.none
 
 let rotateLabel (sym:Symbol) =
     let newRot =
@@ -403,7 +406,7 @@ let mDownUpdate
                         PrevWireSelection = model.SelectedWires},
                     Cmd.batch [wireCmd (BusWireT.SelectWires newWires); sheetCmd msg]
                 | _ -> 
-                        printfn "Error components (Right)"
+                        //printfn "Error components (Right)"
                         {model with Action = DragAndDrop}, 
                         Cmd.batch [sheetCmd DoNothing]
             else
@@ -435,7 +438,7 @@ let mDownUpdate
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                 wireCmd (BusWireT.SelectWires newWires) ]
                 | _ -> 
-                        printfn "Error components (Right)"
+                        //printfn "Error components (Right)"
                         {model with Action = DragAndDrop}, 
                         Cmd.none
 
@@ -845,7 +848,6 @@ let mMoveUpdate
                 CursorType = newCursor;
                 LastMousePos = mMsg.Pos;
                 ScrollingLastMousePos = {Pos=mMsg.Pos; Move=mMsg.ScreenMovement} } 
-        
         if ctrlPressed then
             newModel , Cmd.batch [symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents); symbolCmd (SymbolT.ShowCustomCorners nearbyComponents)]
         else 

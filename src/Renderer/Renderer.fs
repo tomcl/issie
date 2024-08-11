@@ -45,7 +45,6 @@ let softInitialise model dispatch =
     dispatch (UpdateModel(fun _ -> fst (init())))
     let userAppDir = getUserAppDir()
     dispatch <| ReadUserData userAppDir
-    Sheet.canvasDiv <- None
     Sheet.recentProgrammaticScrollPos <- []
     MemoryEditorView.dynamicMem <- {MemoryEditorView.dynamicMem with Data = Map.empty}
 
@@ -177,6 +176,8 @@ let fileMenu (dispatch) =
             debugTraceUI <- Set.ofList ["view"])
         makeWinDebugItem "Trace Update function" None (fun _ ->
             debugTraceUI <- Set.ofList ["update"])
+        makeWinDebugItem "Trace Mouse Messages" None (fun _ ->
+            debugTraceUI <- debugTraceUI + Set.ofList ["mouse"])
         makeWinDebugItem "Trace off" None (fun _ ->
             debugTraceUI <- Set.ofList [])
         makeMenuGen (debugLevel > 0) false "Play" [
@@ -191,7 +192,7 @@ let fileMenu (dispatch) =
                     printfn $"USED heap\n size before screen reset:{float(usedHeap()) / 1000000.} MB\n"
                     dispatch (SetTopMenu TransientClosed))
             makeDebugItem "Set Scroll" None
-                (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.;Y=1000.})
+                (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.;Y=1000.} |> ignore)
             makeDebugItem "Trace all times" None
                 (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint( 0.1, 0.1)
                           if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])

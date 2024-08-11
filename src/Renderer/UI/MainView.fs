@@ -371,7 +371,6 @@ let displayView model dispatch =
         dispatch <| UpdateModel fn
     | None -> ()
     if model.CurrentProj = None  (* (((purgeTime - lastPurgeTime) > 10000.) && (JSHelpers.Memory.getProcessMemory() > 500))*) then
-        Sheet.canvasDiv <- None
         div [HTMLAttr.Id "OpenProject"] [
                 TopMenuView.viewNoProjectMenu model dispatch
                 UIPopups.viewPopup model dispatch ]
@@ -383,18 +382,17 @@ let displayView model dispatch =
     else
         div [
                 HTMLAttr.Id "WholeApp"
-                Key cursorText
                 OnMouseMove (processMouseMove false)
                 OnClick (processAppClick model.TopMenuOpenState dispatch)
                 OnMouseUp (processMouseMove true)
                 Style [ 
-                    //CSSProp.Cursor cursorText
+                    Cursor cursorText
                     UserSelect UserSelectOptions.None
                     BorderTop "2px solid lightgray"
                     BorderBottom "2px solid lightgray"
                     OverflowX OverflowOptions.Auto
                     Height "calc(100%-4px)"
-                    Cursor topCursorText ]
+                    ]
                 ] [
             // transient popups
             UIPopups.viewPopup model dispatch  
@@ -431,7 +429,7 @@ let displayView model dispatch =
                     [
                         dividerbar model dispatch
                         // tabs for different functions
-                        // viewRightTabs canvasState model dispatch
-                        div [Id "RightSelection"] [str "selection"]
+                        viewRightTabs canvasState model dispatch
+                        //div [Id "RightSelection"] [str "selection"]
                     ]
             ]

@@ -18,9 +18,23 @@ open Operators
 open SymbolHelpers
 open BusWireRoutingHelpers
 
-/// Keep track of HTML "Canvas" element used by Draw Blcok to read and write HTML scroll info.
-/// Set in view function from react hook.
-let mutable canvasDiv:Types.Element option = None
+
+
+
+/// return X=CanvasDiv.scrollLeft, Y= canvasDiv.scrollTop
+let getScrollProps() =
+    document.getElementById "Canvas"
+    |> (fun el -> if el = null then None else Some {X=el.scrollLeft; Y=el.scrollTop})
+
+let putScrollProps (props: XYPos) =
+    document.getElementById "Canvas"
+    |> (fun el ->
+        if el <> null then
+            el.scrollTop <- props.Y;
+            el.scrollLeft <- props.X
+            Some el
+        else
+            None)
 
 (*
 
@@ -268,25 +282,28 @@ let symDiff lst1 lst2 =
     (a - b) + (b - a)
     |> Set.toList
 
-/// return screen edge coords
+/// return screen edge coords if possible
 let getScreenEdgeCoords (model:Model) =
     let canvas = document.getElementById "Canvas"
-    let wholeApp = document.getElementById "WholeApp"
-    let rightSelection = document.getElementById "RightSelection"
-    let topMenu = document.getElementById "TopMenu"
-    let scrollDeviation = model.ScreenScrollPos - {X=canvas.scrollLeft;Y=canvas.scrollTop}
-    let leftScreenEdge = canvas.scrollLeft
-    let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.offsetWidth
-    let topScreenEdge = canvas.scrollTop
-    let bottomScreenEdge = topScreenEdge + rightSelection.offsetHeight - topMenu.clientHeight
-    {|Left=leftScreenEdge;Right=rightScreenEdge;Top=topScreenEdge;Bottom=bottomScreenEdge|}
+    if canvas = null then None
+    else
+        let wholeApp = document.getElementById "WholeApp"
+        let rightSelection = document.getElementById "RightSelection"
+        let topMenu = document.getElementById "TopMenu"
+        let scrollDeviation = model.ScreenScrollPos - {X=canvas.scrollLeft;Y=canvas.scrollTop}
+        let leftScreenEdge = canvas.scrollLeft
+        let rightScreenEdge = leftScreenEdge + wholeApp.clientWidth - rightSelection.offsetWidth
+        let topScreenEdge = canvas.scrollTop
+        let bottomScreenEdge = topScreenEdge + rightSelection.offsetHeight - topMenu.clientHeight
+        Some {|Left=leftScreenEdge;Right=rightScreenEdge;Top=topScreenEdge;Bottom=bottomScreenEdge|}
 
-let centreOfScreen model : XYPos =
-    let edge = getScreenEdgeCoords model
-    {
-        X = (edge.Left + edge.Right)/(2. * model.Zoom)
-        Y = (edge.Top + edge.Bottom)/(2. * model.Zoom)
-    }
+let centreOfScreen model : XYPos option =
+    getScreenEdgeCoords model
+    |> Option.map ( fun edge -> 
+        {
+            X = (edge.Left + edge.Right)/(2. * model.Zoom)
+            Y = (edge.Top + edge.Bottom)/(2. * model.Zoom)
+        })
 
 
 /// helper used inside Map.tryFind hence the unused parameter
@@ -439,7 +456,7 @@ let symbolWireBBUnion (model:Model) =
             |> Some
     [symbolBB;labelBB;wireBB]
     |> List.collect (function | Some bb -> [bb] | _ -> [])
-    |> function | [] -> {TopLeft=centreOfScreen model; W=0.;H=0.}
+    |> function | [] -> {TopLeft=Option.defaultValue XYPos.zero (centreOfScreen model); W=0.;H=0.}
                 | [bb] -> bb
                 | bbL -> List.reduce boxUnion bbL
 
@@ -451,15 +468,16 @@ let moveCircuit moveDelta (model: Model) =
 
 /// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
 let getWindowParasToFitBox model (box: BoundingBox)  =
-    let edge = getScreenEdgeCoords model
-    let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
-    let wantedMag = min ((rh - lh)/box.W) ((bottom-top)/box.H)
-    let magToUse = min wantedMag Constants.maxMagnification
-    let xMiddle = (box.TopLeft.X + box.W/2.)*magToUse
-    let xScroll = xMiddle - (rh-lh)/2.
-    let yMiddle = (box.TopLeft.Y + (box.H)/2.)*magToUse
-    let yScroll = yMiddle - (bottom-top)/2.
-    {|Scroll={X=xScroll; Y=yScroll}; MagToUse=magToUse|}
+    getScreenEdgeCoords model
+    |> Option.map (fun edge -> 
+        let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
+        let wantedMag = min ((rh - lh)/box.W) ((bottom-top)/box.H)
+        let magToUse = min wantedMag Constants.maxMagnification
+        let xMiddle = (box.TopLeft.X + box.W/2.)*magToUse
+        let xScroll = xMiddle - (rh-lh)/2.
+        let yMiddle = (box.TopLeft.Y + (box.H)/2.)*magToUse
+        let yScroll = yMiddle - (bottom-top)/2.
+        {|Scroll={X=xScroll; Y=yScroll}; MagToUse=magToUse|})
 
 let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingBox) =
     let boxMargin = 
@@ -503,12 +521,8 @@ let ensureCanvasExtendsBeyondScreen model : Model =
                     Y = if yIsOk then 0. else newSize/2. - centre.Y
                 })
         scrollSequence <- scrollSequence + 1
-        match canvasDiv, model.ScreenScrollPos + circuitMove*model.Zoom with
-        | Some el, pos ->
-            el.scrollLeft <- pos.X
-            el.scrollTop <- pos.Y
-
-        | None,_-> ()
+        let newScrollPos = model.ScreenScrollPos + circuitMove*model.Zoom 
+        putScrollProps newScrollPos |> ignore
         let posDelta :(XYPos -> XYPos) = ((+) circuitMove)
         let posScreenDelta :(XYPos -> XYPos) = ((+) (circuitMove*model.Zoom))
         model 
@@ -549,22 +563,25 @@ let fitCircuitToWindowParas (model:Model) =
         |> moveCircuit offsetToCentreCircuit
 
     let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} 
-    let paras = getWindowParasToFitBox model sBox
-    {modelWithMovedCircuit with
-        Zoom = paras.MagToUse
-        ScreenScrollPos = paras.Scroll}, paras
+    match getWindowParasToFitBox model sBox with
+    | Some paras ->
+        {modelWithMovedCircuit with
+            Zoom = paras.MagToUse
+            ScreenScrollPos = paras.Scroll}, Some paras
+    | None -> model, None
 
 
 
 let isBBoxAllVisible model (bb: BoundingBox) =
-    let edge = getScreenEdgeCoords model
-    let z = model.Zoom
-    let lh,rh,top,bottom = edge.Left/z,edge.Right/z,edge.Top/z,edge.Bottom/z
-    let bbs = standardiseBox bb
-    lh < bb.TopLeft.Y && 
-    top < bb.TopLeft.X && 
-    bb.TopLeft.Y+bb.H < bottom && 
-    bb.TopLeft.X+bb.W < rh
+    getScreenEdgeCoords model
+    |> Option.map (fun edge ->
+        let z = model.Zoom
+        let lh,rh,top,bottom = edge.Left/z,edge.Right/z,edge.Top/z,edge.Bottom/z
+        let bbs = standardiseBox bb
+        lh < bb.TopLeft.Y && 
+        top < bb.TopLeft.X && 
+        bb.TopLeft.Y+bb.H < bottom && 
+        bb.TopLeft.X+bb.W < rh)
 
 /// could be made more efficient, since segments contain redundant info
 let getWireBBox (wire: BusWireT.Wire) =
@@ -580,10 +597,10 @@ let getWireBBox (wire: BusWireT.Wire) =
 let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId list) =
     let wVisible =
         conns
-        |> List.map (fun cid -> Map.tryFind cid model.Wire.Wires)
-        |> List.map (Option.map (fun wire -> getWireBBox wire))
-        |> List.map (Option.map (isBBoxAllVisible model))
-        |> List.map (Option.defaultValue true)
+        |> List.map (fun cid -> Map.tryFind cid model.Wire.Wires |> Option.toList)
+        |> List.concat
+        |> List.map (fun wire -> getWireBBox wire)
+        |> List.map (isBBoxAllVisible model >> Option.defaultValue true)
         |> List.fold (&&) true
     let cVisible =
         comps
@@ -592,7 +609,7 @@ let isAllVisible (model: Model)(conns: ConnectionId list) (comps: ComponentId li
                 [Symbol.getBoundingBox model.Wire.Symbol comp]
             else
                 [])
-        |> List.map (isBBoxAllVisible model)
+        |> List.map (fun bBox -> Option.defaultValue false (isBBoxAllVisible model bBox))
         |> List.fold (&&) true
     wVisible && cVisible
 

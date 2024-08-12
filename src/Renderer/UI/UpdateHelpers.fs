@@ -29,7 +29,8 @@ open ElectronAPI
 open EEExtensions
 
 module Constants =
-    let memoryUpdateCheckTime = 1000.
+    /// time between checks in ms
+    let memoryUpdateCheckTime = 500
 
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------MESSAGE TRACING---------------------------------------------//
@@ -63,7 +64,7 @@ let shortDWSM (ws: WaveSimModel) =
 /// displayed using printf "%A".
 let shortDisplayMsg (msg:Msg) =
     match msg with
-    | ForceGC
+    | CheckMemory
     | SaveModel -> None
     | SheetBackAction _ -> Some "SheetBackAction"
     | FileCommand(fc,_) -> Some $"{fc}"

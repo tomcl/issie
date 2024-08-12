@@ -107,6 +107,9 @@ let inline showPorts (model: Model) compList =
         match List.exists (fun cId -> Map.containsKey cId model.Symbols && Helpers.isCustom model.Symbols[cId].Component.Type) compList with
         | true -> Some Constants.customComponentHint
         | false -> None
+        |> function | Some hint -> Some hint
+                    | None when JSHelpers.loggingMemory -> model.HintPane
+                    | _ -> None
 
     let newSymbols =
         (resetSymbols, compList)

@@ -65,22 +65,22 @@ If you want to get started as a developer, follow these steps.
 Download and install (if you already have these tools installed just check the version constraints).
 
 
-* [.Net 7 SDK](https://dotnet.microsoft.com/download/dotnet/7.0).  
-* [Node.js v18](https://nodejs.org/download/release/latest-v18.x/).
+* [.Net 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).  
+* [Node.js v20](https://nodejs.org/download/release/latest-v20.x/).
     * You do not need to install chocolatey (at the prompt for this) however you can if you want
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
     * If you are using a different version of Node for developmnet on other projects, global install 
     (the default) may interfere with this. You will need to do a more complex local node install.
-* (recommended) Visual Studio 2022 which includes F# 7.0, Install with:
+* (recommended) Visual Studio 2022 which includes F# 8.0, Install with:
   * Workload: .Net Desktop development
   * Ticked: F# language support
-* (recommended) install [hyper.js](https://hyper.is/) (ideal) or [Windows Terminal](https://github.com/microsoft/terminal) for Windows.
+* (recommended) install [hyper.js](https://hyper.is/) or [Windows Terminal](https://github.com/microsoft/terminal) for Windows.
 
 ### Issie Development
 
 1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or clone it locally, or fork it on github and then clone it locally.
 
-2. Check you have , .Net 7 (2024: .Net 8 will be OK too, I think), Node v18, VS 2022 (or latest VS Code + ionide or Rider) installed.
+2. Check you have , .Net 8 SDK, Node v20: if you want to do more than make binaries, also: VS 2022 (or latest VS Code + ionide or Rider) installed.
    * In a terminal window: `node -v` shows Node version. `dotnet --version` shows Dotnet version.
 
 4. Navigate to the project root directory from the master branch (which contains this README) in a command-line interpreter, or start one from directory context menu.
@@ -95,7 +95,9 @@ Download and install (if you already have these tools installed just check the v
   * If you have changed `packet.json` and therefore need to remake the lock file `paket-lock.json` use `npm install`.
   * On windows `build killzombies` will terminate orphan node and dotnet processes which occasionally happen using this build chain after unusual terminations (maybe no longer needed?)
 
-NB - in parallel with the above compilation, Issie code will always compile without errors (but not run) under dotnet, for example by building it from Visuak Studio. Compilation should be identical but when unsure why there is an error it is **very helpful** to build the current code under VS or VSC and get easier to find error messages. Similarly, VS or VSC can be used with confidence to refactor code, testing with compilation. Building under VS or VSC cannot work because the code depends on electron and Node APIs to work.
+6. **To make binaries only**. Cancel dev mode (two ctrl-C in command window) if it is running. Run `npm run dist` in command window to generate binaries under `.\dist` directory.
+
+NB - in parallel with the above compilation, Issie code will always compile without errors (but not run) under dotnet, for example by building it from Visual Studio. Compilation should be identical but when unsure why there is an error it is **very helpful** to build the current code under VS or VSC and get easier to find error messages. Similarly, VS or VSC can be used with confidence to refactor code, testing with compilation. Building under VS or VSC cannot work because the code depends on electron and Node APIs to work.
 
 #### Node management details
 

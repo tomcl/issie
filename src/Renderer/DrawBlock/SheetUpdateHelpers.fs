@@ -20,7 +20,7 @@ let fitCircuitToScreenUpdate (model: Model) =
     let model', parasOpt = fitCircuitToWindowParas model
     match parasOpt with
     | Some paras ->
-        printf "CtrlW Calculated Scroll = %A" paras.Scroll
+        //printf "CtrlW Calculated Scroll = %A" paras.Scroll
         model', 
         Cmd.batch 
             [

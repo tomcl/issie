@@ -205,10 +205,14 @@ let compareIOs (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
 
 /// Is circuit (not geometry) the same for two LoadedComponents? They must also have the same name
 let loadedComponentIsEqual (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
-    ldc1.InputLabels = ldc2.InputLabels
-    && ldc1.OutputLabels = ldc2.OutputLabels
-    && stateIsEqual ldc1.CanvasState ldc2.CanvasState
-    && ldc1.Name = ldc2.Name
+    let pp (name:string) (b:bool) = //++debug
+        if not b then
+            printfn $"Cache change: {name} {ldc1.Name}, {ldc2.Name}"
+        b
+    ldc1.InputLabels = ldc2.InputLabels //|> pp "Inputs"
+    && ldc1.OutputLabels = ldc2.OutputLabels //|> pp "Outputs"
+    && stateIsEqual ldc1.CanvasState ldc2.CanvasState //|> pp "State"
+    && ldc1.Name = ldc2.Name // |> pp "Names"
 
 /// Is circuit (not geometry) the same for two LoadedComponents? They must also have the same name
 let loadedComponentIsEqualExInputDefault (ldc1: LoadedComponent) (ldc2: LoadedComponent) =

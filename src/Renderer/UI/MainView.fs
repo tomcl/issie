@@ -19,7 +19,8 @@ open Fable.Core
 open Fable.Core.JsInterop
 open Browser.Dom
 
-
+module Constants =
+    let memoryCheckMinTime = 500.
 
 
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
@@ -293,15 +294,17 @@ let viewRightTabs canvasState model dispatch =
     ]
 
 let mutable lastDragModeOn = false
-let mutable lastPurgeTime = TimeHelpers.getTimeMs()
+let mutable lastMemoryCheckTime: float option = None
 
 //---------------------------------------------------------------------------------------------------------//
 //------------------------------------------VIEW FUNCTION--------------------------------------------------//
 //---------------------------------------------------------------------------------------------------------//
 /// Top-level application view: as react components that create a react virtual-DOM
 let displayView model dispatch =
-    let purgeTime = TimeHelpers.getTimeMs()
-    let time = int(TimeHelpers.getTimeMs()) % 10000
+    let time = TimeHelpers.getTimeMs()
+    if time - Option.defaultValue 0. lastMemoryCheckTime > float Constants.memoryCheckMinTime then
+        lastMemoryCheckTime <- Some time
+        dispatch CheckMemory
     //JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
@@ -375,9 +378,7 @@ let displayView model dispatch =
                 TopMenuView.viewNoProjectMenu model dispatch
                 UIPopups.viewPopup model dispatch ]
     elif model.TopMenuOpenState = TransientClosed then
-        printf "**********************TRANSIENT DOM REMOVAL***********************************"
-        dispatch ForceGC
-        JSHelpers.delayedDispatch dispatch 5000 (SetTopMenu  Closed) |> ignore
+        JSHelpers.delayedDispatch dispatch 1000 (SetTopMenu Closed) |> ignore
         div [] []
     else
         div [

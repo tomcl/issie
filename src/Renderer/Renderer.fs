@@ -23,6 +23,9 @@ open Optics.Operators
 open TestParser
 open ContextMenus
 
+
+
+
 importSideEffects "./scss/main.css"
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
@@ -297,6 +300,10 @@ let viewMenu dispatch =
             makeItem "Modern wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
         ]
         menuSeparator
+        makeItem "Toggle app memory display" None (fun ev ->
+                    JSHelpers.loggingMemory <- not JSHelpers.loggingMemory
+                    let state = if loggingMemory then "on" else "off"
+                    printfn $"Memory display is now {state}.")
         makeItem "Benchmark" (Some "Ctrl+Shift+B") (fun ev -> maindispatch Benchmark)
         makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
         menuSeparator
@@ -446,11 +453,17 @@ let keyPressListener initial =
                 dispatch <| ContextMenuItemClick(menuType,item,dispatch)
             | _ -> printfn "Unexpected callback argument sent from main.") |> ignore
 
+    /// Why does this not work in production?
+    let periodicMemoryCheckCommand dispatch =
+        JSHelpers.periodicDispatch dispatch UpdateHelpers.Constants.memoryUpdateCheckTime CheckMemory |> ignore
+
+
     Cmd.batch [
         Cmd.ofSub subDown
         Cmd.ofSub subUp
         Cmd.ofSub subRightClick
         Cmd.ofSub subContextMenuCommand
+        //Cmd.ofSub periodicMemoryCheckCommand 
         ]
 
 

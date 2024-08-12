@@ -26,6 +26,7 @@ open Optics.Operators
 let mutable uiStartTime: float = 0.
 
 
+    
 
 
 //----------------------------------------------------------------------------------------------------------------//
@@ -63,15 +64,17 @@ let update (msg : Msg) oldModel =
     //-------------------------------------------------------------------------------//
     //------------------------------MAIN MESSAGE DISPATCH----------------------------//
     //-------------------------------------------------------------------------------//
-    let mutable modelCopy: Model option = None
 
     match testMsg with
-    | ForceGC ->
-        printfn "Invoking global gc()"
-        JSHelpers.globalGC()
-        model, Cmd.none
+    | CheckMemory ->
+        if JSHelpers.loggingMemory then
+            let heapInBytes = JSHelpers.usedHeap()
+            let hint = [$"{heapInBytes / 1000000} MB"]
+            printfn $"Heap size {hint}"
+            {model with Sheet.Wire.Symbol.HintPane = Some hint}, Cmd.none
+        else
+            model, Cmd.none
     | SaveModel ->
-        modelCopy <- Some model;
         model, Cmd.none
     | FileCommand(fc,dispatch) ->
         FileUpdate.fileCommand fc dispatch model 

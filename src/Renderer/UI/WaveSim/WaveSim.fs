@@ -1001,7 +1001,7 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
             OnMouseDown tbMouseDownHandler; OnMouseUp tbMouseUpHandler; OnMouseMove tbMouseMoveHandler;
         ]
 
-    div [Style[ MarginTop "16px"; MarginBottom "16px"; Height "30px"]] [
+    div [ Style [ MarginTop "16px"; MarginBottom "16px"; Height "30px"]] [
         button [ Button.Props [clkCycleLeftStyle] ]
             (fun _ -> scrollWaveformViewBy -1.0)
             (str "◀")

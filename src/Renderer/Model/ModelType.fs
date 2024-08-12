@@ -469,7 +469,7 @@ type Msg =
     | ContextMenuItemClick of menuType:string * item:string * dispatch: (Msg -> unit)
     | ScrollbarMouseMsg of cursor:float * action:ScrollbarMouseAction * dispatch:(Msg->unit)
     | SaveModel
-    | ForceGC
+    | CheckMemory
 
 
 //================================//

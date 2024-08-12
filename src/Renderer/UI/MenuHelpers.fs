@@ -1089,23 +1089,19 @@ let deleteFileConfirmationPopup (sheetName: string) (model: Model) (dispatch: Ms
 //---------------------Code for CanvasState comparison and FILE BACKUP------------------------//
 //--------------------------------------------------------------------------------------------//
 
-let mutable lastHeapSizeTime = TimeHelpers.getTimeMs()
-let getFormattedHeapSize() = [str $"{(JSHelpers.usedHeap()) / 1000000} MB"]
-let mutable lastHeapSize = getFormattedHeapSize()
+
+
+
+
 
 let getHintPaneElement (model:Model) =
-    match model.Sheet.Wire.Symbol.HintPane, model.TopMenuOpenState, JSHelpers.Memory.printMemoryStats with
-    | _, Files, _ -> [str "Click -> Open Sheet"; br []; str "Left-click -> Rename or Delete"]
-    | Some hintStrL, _ , _->
+    match model.Sheet.Wire.Symbol.HintPane, model.TopMenuOpenState with
+    | _, Files-> [str "Click -> Open Sheet"; br []; str "Left-click -> Rename or Delete"]
+    | Some hintStrL, _ ->
         hintStrL
         |> List.map (fun x -> [str x; br []])
         |> List.concat
         |> fun lst -> if lst.Length = 0 then [] else lst[0..lst.Length-2]
-    | _, _, true when TimeHelpers.getTimeMs() - lastHeapSizeTime < 1000 ->
-        lastHeapSize
-    | _, _, true ->
-        let newSize = getFormattedHeapSize()
-        if newSize = lastHeapSize then lastHeapSize else newSize
     | _ -> [str ""]
 
 

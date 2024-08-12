@@ -129,6 +129,9 @@ let mutable debugLevel = 1
 let mutable debugLevel = 0
 #endif
 
+
+let mutable loggingMemory = false
+
 #if PRODUCTION
 let productionBuild = true
 #else
@@ -170,6 +173,9 @@ let asyncUpper (txt : string) =
 
 let delayedDispatch (dispatch: 'a -> unit)  (delayInMs: int) (msg: 'a) =
     JS.setTimeout (fun _ -> dispatch msg) delayInMs
+
+let periodicDispatch (dispatch: 'a -> unit)  (delayInMs: int) (msg: 'a) =
+    JS.setInterval (fun _ -> dispatch msg) delayInMs
  
     
         
@@ -177,20 +183,6 @@ let delayedDispatch (dispatch: 'a -> unit)  (delayInMs: int) (msg: 'a) =
             
 
 
-module Memory =
-    open Fable.Core
-    open Fable.Core.JsInterop
-    open ElectronAPI
-    let webframe = renderer.webFrame
 
-    let mutable lastPrivateMemorySize = None
 
-    let mutable printMemoryStats = true
 
-    let getProcessMemory() : int =
-        let memInfo:JS.Promise<string>  = Node.Api.``process``?getProcessMemoryInfo()
-        promise {
-            return! memInfo
-            }
-        |> Promise.iter (fun info -> lastPrivateMemorySize <- Some <| info?``private``/1000)
-        Option.defaultValue 0 lastPrivateMemorySize

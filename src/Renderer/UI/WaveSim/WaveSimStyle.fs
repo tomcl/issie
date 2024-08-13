@@ -65,7 +65,7 @@ module Constants =
     let scrollbarThumbMinWidth: float = 5.0
 
     /// height of the top half of the wave sim window (including tabs) when waveforms are displayed
-    let topHalfHeight = 270.
+    let topHalfHeight = 260.
 
 let screenHeight() = Browser.Dom.document.defaultView.innerHeight
 
@@ -300,20 +300,22 @@ let clkCycleButtonStyle = Style [
     TextAlign TextAlignOptions.Center
     Display DisplayOptions.Inline
     FontSize "13px"
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 /// Style for clock cycle text Input field
 let clkCycleInputStyle = Style [
     Margin "0 0 0 0"
-    Float FloatOptions.Left
     TextAlign TextAlignOptions.Center
     Width "60px"
     Height Constants.rowHeight
     Display DisplayOptions.Inline
     FontSize "13px"
+    FontWeight 600
     BorderColor "gray"
     BorderWidth "1px 0.5px 1px 0.5px"
     BorderRadius 0
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 /// Props for clock cycle text Input field
@@ -330,16 +332,16 @@ let clkCycleBut height = [
     Height height
     Padding 0
     Width "30px"
-    Position PositionOptions.Relative
-    Float FloatOptions.Left
     BorderColor "gray"
     BorderWidth "1px 0.5px 1px 0.5px"
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 /// Style for inner clock cycle buttons (buttons to move by one clock cycle)
 let clkCycleInnerStyle = Style (
     clkCycleBut Constants.rowHeight @ [
         BorderRadius 0
+        WhiteSpace WhiteSpaceOptions.Nowrap
     ]
 )
 
@@ -351,6 +353,7 @@ let clkCycleLeftStyle = Style (
         BorderTopRightRadius 0
         BorderBottomRightRadius 0
         BorderRightWidth "0.5"
+        WhiteSpace WhiteSpaceOptions.Nowrap
     ])
 
 /// Style for left-most clock cycle button
@@ -371,6 +374,7 @@ let clkCycleRightStyle = Style (
         BorderTopRightRadius "4px"
         BorderBottomRightRadius "4px"
         BorderLeftWidth "0.5"
+        WhiteSpace WhiteSpaceOptions.Nowrap
     ])
 
 // FIX: Should be refactored. This is a hack to force button style to NOT float right.
@@ -382,7 +386,6 @@ let scrollbarClkCycleRightStyle = Style (
         BorderTopRightRadius "4px"
         BorderBottomRightRadius "4px"
         BorderLeftWidth "0.5"
-        Float FloatOptions.Unset
     ])
 
 /// Style for Bulma level element in name row
@@ -691,6 +694,7 @@ let radixTabAStyle = Style [
 let radixTabsStyle = Style [
     Height Constants.rowHeight
     FontSize "80%"
+    Display DisplayOptions.Inline
 ]
 
 /// Style of polyline used to draw waveforms

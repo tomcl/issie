@@ -621,7 +621,7 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
     let waveCount = Map.count wsModel.AllWaves
     let props, buttonFunc =
         if waveCount > 0 && wsModel.State=Success then
-            selectWavesButtonProps "selectButton", (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = true}))
+            selectWavesButtonProps "selectButton" true, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = true}))
         else selectWavesButtonPropsLight "selectButton", (fun _ -> ())
     button 
         props

@@ -653,7 +653,7 @@ let private valuesColumn wsModel : ReactElement =
     let cursorClkNum = wsModel.CurrClkCycle
     let topRowNumber = [ text [Style [FontWeight "bold"; PaddingLeft "2pt"]] [str (string cursorClkNum)] ] 
 
-    div [ valuesColumnStyle width]
+    div [ HTMLAttr.Id "ValuesCol" ; valuesColumnStyle width]
         (List.concat [ topRow topRowNumber ; rows ])
     |> TimeHelpers.instrumentInterval "valuesColumn" start
 
@@ -681,7 +681,7 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
     div [ waveformColumnStyle ]
         [
             clkCycleHighlightSVG wsModel dispatch
-            div [ waveRowsStyle wsModel.WaveformColumnWidth]
+            div [ waveRowsStyle <| wsModel.WaveformColumnWidth]
                 ([ clkCycleNumberRow wsModel ] @
                     waveRows
                 )
@@ -690,11 +690,16 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
 
 /// Display the names, waveforms, and values of selected waveforms
 let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    div [ showWaveformsStyle ]
-        [
-            namesColumn model wsModel dispatch
-            waveformColumn wsModel dispatch
-            valuesColumn wsModel
+    let height = calcWaveformHeight wsModel
+    let fixedHeight = Constants.softScrollBarWidth + Constants.topHalfHeight
+    printfn $"waveforms height is {height}"
+    div [ HTMLAttr.Id "Scroller";  Style [ Height $"min( calc(100vh - {fixedHeight}px) ,  {height}px)"; Width "100%"; CSSProp.Custom("overflow", "auto")]] [
+        div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
+            [
+                namesColumn model wsModel dispatch
+                waveformColumn wsModel dispatch
+                valuesColumn wsModel
+            ]
         ]
 
 /// Table row that shows the address and data of a RAM component.
@@ -985,28 +990,28 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
 
     let bkgPropList (width: float): List<IProp> =
         [
-            HTMLAttr.Id "scrollbarBkg";
+            HTMLAttr.Id "scrollbarThumb";
             SVGAttr.X $"0px"; SVGAttr.Y "0.5px";
-            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
-            SVGAttr.Fill "lightgray"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
+            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.softScrollBarWidth-1.0}px";
+            SVGAttr.Fill "white"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
         ]
 
     let tbPropList (pos: float) (width: float): List<IProp> =
         [
-            HTMLAttr.Id "scrollbarThumb";
+            HTMLAttr.Id "scrollbarBkg";
             Style [ Cursor "grab"];
             SVGAttr.X $"%.1f{pos}px"; SVGAttr.Y "0.5px";
-            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
-            SVGAttr.Fill "white"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
+            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.softScrollBarWidth-1.0}px";
+            SVGAttr.Fill "lightgrey"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
             OnMouseDown tbMouseDownHandler; OnMouseUp tbMouseUpHandler; OnMouseMove tbMouseMoveHandler;
         ]
 
     div [ Style [ MarginTop "16px"; MarginBottom "16px"; Height "30px"]] [
-        button [ Button.Props [clkCycleLeftStyle] ]
+        button [ Button.Props [scrollbarClkCycleLeftStyle] ]
             (fun _ -> scrollWaveformViewBy -1.0)
             (str "◀")
         svg
-            [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.scrollbarHeight}px"];]
+            [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.softScrollBarWidth}px"];]
             [
                 rect (bkgPropList bkgWidth) []; // background
                 rect (tbPropList wsm.ScrollbarTbPos wsm.ScrollbarTbWidth) []; // thumb
@@ -1241,11 +1246,11 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
             dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
            
 /// ReactElement showing instructions and wave sim buttons
-let topHalf canvasState (model: Model) dispatch : ReactElement =
+let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
     let title =
         match model.WaveSimSheet with
-        | None -> "Waveform Viewer"
-        | Some sheet -> $"Simulating '{sheet}'"
+        | None -> str "Waveform Viewer"
+        | Some sheet -> div [Style [WhiteSpace WhiteSpaceOptions.Nowrap]] [str "Simulating:"  ; span [Style [Color "#3e8ed0"; MarginLeft "5px"]] [str $"{sheet}"]]
     let wsModel = getWSModel model
     //printfn $"Active wsModel sheet={model.WaveSimSheet}, state = {wsModel.State}"
     //printfn $"""Wavesim states: {model.WaveSim |> Map.toList |> List.map (fun (sh, ws) -> sh, ws.State.ToString(),ws.Sheets)}"""
@@ -1253,121 +1258,122 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
         match wsModel.State with
         | Loading -> true
         | _ -> false
-    let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg "white" "20px"
+
+    let titleLine() =
+        Heading.h4 [] [ 
+            (div [Style [ WhiteSpace WhiteSpaceOptions.Nowrap;
+                          OverflowX OverflowOptions.Hidden ;
+                          Display DisplayOptions.Inline;
+                          MarginRight "10px"]; Id "WaveSimHelp"
+                 ] [title])]
+
+    let refreshStartEndButton() =
+        let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg "white" "20px"
+        let startOrRenew model = refreshButtonAction canvasState model dispatch
+        let waveEnd model = endButtonAction canvasState model dispatch
+        let wbo = getWaveSimButtonOptions canvasState model wsModel
+        let startEndButton =
+            button 
+                (topHalfButtonProps wbo.StartEndColor "startEndButton" false) 
+                (fun ev -> dispatch <| ExecFuncInMessage(
+                    (fun model _ -> if wbo.IsRunning then waveEnd model ev  else startOrRenew model ev),dispatch))
+                (str wbo.StartEndMsg)
+        let needsRefresh = wbo.IsDirty && wbo.IsRunning
+        div 
+            [Style [WhiteSpace WhiteSpaceOptions.Nowrap]]                     
+            (if not wbo.IsRunning then [
+                startEndButton
+            ] 
+            else [
+                if needsRefresh then
+                    button
+                        (topHalfButtonProps IsSuccess "RefreshButton" false)
+                        (fun ev -> dispatch <| ExecFuncInMessage((fun model _ -> startOrRenew model ev), dispatch))
+                        refreshButtonSvg
+                startEndButton
+            ])
+
+    let messageOrControlButtons =
+        let simError e =
+            SimulationView.setSimErrorFeedback e model dispatch
+            div [ errorMessageStyle ]
+                [ SimulationView.viewSimulationError canvasState e model WaveSim dispatch ]
+
+        let notRunning = 
+            false, div [ errorMessageStyle ] [ str "Start the waveform viewer by pressing the Start button." ]
+
+        match model.WaveSimSheet, wsModel.State with
+        | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->
+            dispatch <| UpdateModel( fun model -> {model with WaveSimSheet = None})
+            dispatch <| UpdateModel( updateWSModelOfSheet sheet (fun ws -> {ws with State = Ended}))
+            notRunning
+
+        | None, SimError e  ->
+            notRunning
+
+        | _,SimError e ->
+            false, simError e
+            
+        | _,NonSequential ->
+            false, div [ errorMessageStyle ] [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms." ]
+
+        | _,Empty | _,Ended | None,_ | Some "", _->
+            notRunning
+
+        | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" ->
+            notRunning
+        
+        | _,NoProject ->
+            false, div [ errorMessageStyle ] [ str "Please open a project to use the waveform viewer." ]
+
+        | _, (Loading | Success) when List.isEmpty wsModel.SelectedWaves ->
+            false, div [Id "WaveSimHelp"] [str "Use 'Select Waves' to add waves for simulation. Right-click for help."]
+
+        | _ ->
+            true, div [Style [Height Constants.rowHeight; Display DisplayOptions.Flex; JustifyContent "space-between"]]  [
+                        zoomButtons wsModel dispatch
+                        div [Style [WhiteSpace WhiteSpaceOptions.Nowrap; Flex "0 1"]] [radixButtons wsModel dispatch; clkCycleButtons wsModel dispatch]
+                    ]
+
+    let needsBottomHalf, messageOrControlLine = messageOrControlButtons
 
     div [ topHalfStyle ] [
-        Columns.columns [] [
-            Column.column [Column.Props [Style [Height "100px"; OverflowY OverflowOptions.Clip]]] [
-                Heading.h4 [] [ 
-                    (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]; Id "WaveSimHelp"] [str title])
-                   
-                ]
-                let startOrRenew model = refreshButtonAction canvasState model dispatch
-                let waveEnd model = endButtonAction canvasState model dispatch
-                let wbo = getWaveSimButtonOptions canvasState model wsModel
-                let startEndButton =
-                    button 
-                        (topHalfButtonProps wbo.StartEndColor "startEndButton") 
-                        (fun ev -> dispatch <| ExecFuncInMessage(
-                            (fun model _ -> if wbo.IsRunning then waveEnd model ev  else startOrRenew model ev),dispatch))
-                        (str wbo.StartEndMsg)
-                let needsRefresh = wbo.IsDirty && wbo.IsRunning
-                div 
-                    [Style [MarginBottom "20px" ]]                      
-                    (if not wbo.IsRunning then [
-                        startEndButton
-                    ] 
-                    else [
-                        if needsRefresh then
-                            button
-                                (topHalfButtonProps IsSuccess "RefreshButton")
-                                (fun ev -> dispatch <| ExecFuncInMessage((fun model _ -> startOrRenew model ev), dispatch))
-                                refreshButtonSvg
-                        startEndButton
-                    ])
-                ]
-
-            Column.column 
-                [
-                    Column.Option.Width (Screen.All, Column.IsNarrow)
-                ] 
-                [ 
-                    div [Style [MarginBottom "50px"]] []
-
-                    Level.level [] [
-                        Level.item [ ] [
-                            Button.list [] [
-                                selectWavesButton wsModel dispatch
-                                selectWavesModal wsModel dispatch
-
-                                selectRamButton wsModel dispatch
-                                selectRamModal wsModel dispatch
-                            ]
-                        ]
-                    ]
-                ]
+        titleLine()
+ 
+        div [Style [Display DisplayOptions.Flex; JustifyContent "space-between"]] [
+            refreshStartEndButton()
+            div [Style [WhiteSpace WhiteSpaceOptions.Nowrap; Flex "0 1"]] [selectWavesButton wsModel dispatch; selectRamButton wsModel dispatch]
             ]
-        hr [ Style [ MarginBottom "0px" ] ]
-        br []
-        ]
+        div [Style [MarginBottom "0px"]] [
+            messageOrControlLine
+        ]], needsBottomHalf         
+        
 
 /// Entry point to the waveform simulator.
 let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
-    let notRunning = 
-        div [ errorMessageStyle ] [ str "Start the waveform viewer by pressing the Start button." ]
 
-    let simError e =
-        SimulationView.setSimErrorFeedback e model dispatch
-        div [ errorMessageStyle ]
-            [ SimulationView.viewSimulationError canvasState e model WaveSim dispatch ]
+    let top, needsBottomHalf = topHalf canvasState model dispatch
+    let height = calcWaveformAndScrollBarHeight wsModel
+    let bottomHalf = // this has fixed height
+        div [HTMLAttr.Id "BottomHalf" ; showWaveformsAndRamStyle height] [
+            showWaveforms model wsModel dispatch
+            makeScrollbar wsModel dispatch
+            hr []
+            ramTables wsModel
+        ]
+
     div [] [
+        selectRamModal wsModel dispatch
+        selectWavesModal wsModel dispatch
         div [ viewWaveSimStyle ]
             [
                 //printfn $"WSmodel state: {wsModel.State}"
-                topHalf canvasState model dispatch
-                match model.WaveSimSheet, wsModel.State with
-                | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->
-                    dispatch <| UpdateModel( fun model -> {model with WaveSimSheet = None})
-                    dispatch <| UpdateModel( updateWSModelOfSheet sheet (fun ws -> {ws with State = Ended}))
-                    notRunning
-                | None, SimError e  ->
-                    notRunning
-                | _,SimError e ->
-                    simError e               
-                | _,NonSequential ->
-                    div [ errorMessageStyle ]
-                        [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms." ]
-                | _,Empty | _,Ended | None,_ | Some "", _-> notRunning
-                | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning              
-                | _,NoProject ->
-                    div [ errorMessageStyle ]
-                        [ str "Please open a project to use the waveform viewer." ]
-                | _,Loading | _,Success ->
-                    //printfn $"Showing waveforms: fs= {wsModel.FastSim}"]
-
-                    if List.isEmpty wsModel.SelectedWaves then
-                        div [Id "WaveSimHelp"] [str "Use 'Select Waves' to add waves for simulation. Right-click for help."]
-                    else
-                        Level.level [] [
-                            Level.left [GenericOption.Props [Style [MarginLeft "5px"]]] [
-                                zoomButtons wsModel dispatch
-                            ]
-                            Level.right [] [
-                                Level.left [GenericOption.Props [Style [MarginRight "75px"]]] [
-                                    radixButtons wsModel dispatch
-                                ]
-                                clkCycleButtons wsModel dispatch
-                            ]
-                        ]
-                        div [showWaveformsAndRamStyle] [
-                            showWaveforms model wsModel dispatch
-                            makeScrollbar wsModel dispatch
-                            hr []
-                            ramTables wsModel
-                        ]
-
-                hr []
+                top
+                hr [ Style [ MarginBottom "0px"  ]]
+                br []
+                if needsBottomHalf then bottomHalf else div [] []
+                hr [ Style [ MarginBottom "0px" ]]
             ]
         
     ]

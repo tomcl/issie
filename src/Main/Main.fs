@@ -57,7 +57,7 @@ let isMacos = Api.``process``.platform = Base.Darwin
 let isWin = Api.``process``.platform = Base.Win32
 
         
-mainProcess.app.commandLine.appendSwitch("js-flags", "--expose-gc --trace-gc --trace-gc-nvp --trace-gc-ignore-scavenger --max-old-space-size=3600 --enable-logging --min-semi-space-size=64")
+mainProcess.app.commandLine.appendSwitch("js-flags", "--expose-gc --trace-gc --trace-gc-ignore-scavenger --max-old-space-size=3600 --enable-logging --min-semi-space-size=64")
 
 
 mainProcess.app.name <- "Issie"

@@ -22,6 +22,9 @@ module Constants =
     let generateVisibleOnly = true
     /// <summary>Config variable to choose whether to print performance analysis info to console.</summary>
     let showPerfLogs = false
+    let inlineNoWrap = WhiteSpace WhiteSpaceOptions.Nowrap
+
+open Constants
 
 
 /// <summary>Generates SVG to display non-binary values on waveforms.</summary>
@@ -653,7 +656,7 @@ let private valuesColumn wsModel : ReactElement =
     let cursorClkNum = wsModel.CurrClkCycle
     let topRowNumber = [ text [Style [FontWeight "bold"; PaddingLeft "2pt"]] [str (string cursorClkNum)] ] 
 
-    div [ valuesColumnStyle width]
+    div [ HTMLAttr.Id "ValuesCol" ; valuesColumnStyle width]
         (List.concat [ topRow topRowNumber ; rows ])
     |> TimeHelpers.instrumentInterval "valuesColumn" start
 
@@ -681,7 +684,7 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
     div [ waveformColumnStyle ]
         [
             clkCycleHighlightSVG wsModel dispatch
-            div [ waveRowsStyle wsModel.WaveformColumnWidth]
+            div [ waveRowsStyle <| wsModel.WaveformColumnWidth]
                 ([ clkCycleNumberRow wsModel ] @
                     waveRows
                 )
@@ -690,12 +693,25 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
 
 /// Display the names, waveforms, and values of selected waveforms
 let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    div [ showWaveformsStyle ]
-        [
-            namesColumn model wsModel dispatch
-            waveformColumn wsModel dispatch
-            valuesColumn wsModel
-        ]
+    if List.isEmpty wsModel.SelectedWaves then
+        div [] [] // no waveforms
+    else
+        let wHeight = calcWaveformHeight wsModel
+        let fixedHeight = Constants.softScrollBarWidth + Constants.topHalfHeight
+        let cssHeight =
+            if wsModel.SelectedRams.Count > 0 then
+                $"min( calc(50vh - (0.5 * {fixedHeight}px)) ,  {wHeight}px)"
+            else
+                $"min( calc(100vh - {fixedHeight}px) ,  {wHeight}px)"
+
+        div [ HTMLAttr.Id "Scroller";  Style [ Height cssHeight; Width "100%"; CSSProp.Custom("overflow", "auto")]] [
+            div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
+                [
+                    namesColumn model wsModel dispatch
+                    waveformColumn wsModel dispatch
+                    valuesColumn wsModel
+                ]
+            ]
 
 /// Table row that shows the address and data of a RAM component.
 let ramTableRow ((addr, data,rowType): string * string * RamRowType): ReactElement =
@@ -707,163 +723,166 @@ let ramTableRow ((addr, data,rowType): string * string * RamRowType): ReactEleme
 
 /// Table showing contents of a RAM component.
 let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) : ReactElement =
-
+    let wanted = calcWaveformAndScrollBarHeight wsModel
+    let maxHeight = max (screenHeight() - (min wanted (screenHeight()/2.)) - 300.) 30.
     let fs = wsModel.FastSim
-    let fc = wsModel.FastSim.FComps[ramId]
-    let step = wsModel.CurrClkCycle
-    FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
+    match Map.tryFind ramId wsModel.FastSim.FComps with
+    | None -> div [] []
+    | Some fc -> 
+        let step = wsModel.CurrClkCycle
+        FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
 
-    // in some cases fast sim is run for one cycle less than currClockCycle
-    let memData =
-        match fc.FType with
-        | ROM1 mem
-        | AsyncROM1 mem -> mem
-        | RAM1 mem
-        | AsyncRAM1 mem -> 
-            match FastRun.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
-            |RamState mem -> mem
-            | x -> failwithf $"What? Unexpected state {x} from cycle {wsModel.CurrClkCycle} \
-                    in RAM component '{ramLabel}'. FastSim step = {fs.ClockTick}"
-        | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
-    let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
-
-    let print w (a:int64) = NumberHelpers.valToPaddedString w wsModel.Radix (((1L <<< w) - 1L) &&& a)
-
-    let lastLocation = int64 ((2 <<< memData.AddressWidth - 1) - 1)
-
-    /// print a single 0 location as one table row
-    let print1 (a:int64,b:int64,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
-    /// print a range of zero locations as one table row
-
-    let print2 (a1:int64) (a2:int64) (d:int64) = $"{print aWidth (a1+1L)}..{print aWidth (a2-1L)}", $"{print dWidth d}",RAMNormal
-
-    /// output info for one table row filling the given zero memory gap or arbitrary size, or no line if there is no gap.
-    let printGap (gStart:int64) (gEnd:int64) =
-        match gEnd - gStart with
-        | 1L -> []
-        | 2L -> [print1 ((gEnd + gStart) / 2L, 0L,RAMNormal)]
-        | n when n > 2L ->
-            [print2 gStart gEnd 0L]
-        | _ ->
-            failwithf $"What? gEnd={gEnd},gStart={gStart}: negative or zero gaps are impossible..."
-
-    /// transform Sparse RAM info into strings to print in a table, adding extra lines for zero gaps
-    /// line styling is controlled by a RamRowtype value and added later when the table row react is generated
-    let addGapLines (items: (int64*int64*RamRowType) list) = 
-        let startItem =
-            match items[0] with
-            | -1L,_,_ -> []
-            | gStart,dStart,rw-> [print1 (gStart,dStart,rw)]
-        List.pairwise items
-        |> List.collect (fun ((gStart,_,_),(gEnd,dEnd,rwe)) -> 
-            let thisItem = if gEnd = lastLocation + 1L then [] else [print1 (gEnd,dEnd,rwe)]
-            [printGap gStart gEnd; thisItem])
-        |> List.concat
-
-    /// Add a RAMNormal RamRowType value to every location in mem.
-    /// Add in additional locations for read and/or write if needed.
-    /// Set RamRowValue type to RAMWritten or RAMRead for thse locations.
-    /// Write is always 1 cycle after WEN=1 and address.
-    /// Read is 1 (0) cycles after address for sync (asynch) memories.
-    let addReadWrite (fc:FastComponent) (step:int) (mem: Map<int64,int64>) =
-        let getInt64 (a: IOArray) step =
-            let w = a.Width
-            match w with
-            | w when w > 32 -> int64 <| convertBigIntToUInt64 w a.BigIntStep[step]
-            | _ -> int64 <| a.UInt32Step[step]
-
-        let readStep =
+        // in some cases fast sim is run for one cycle less than currClockCycle
+        let memData =
             match fc.FType with
-            | AsyncROM1 _ | AsyncRAM1 _ -> step
-            | ROM1 _ | RAM1 _ -> step - 1
-            | _ -> failwithf $"What? {fc.FullName} should be a memory component"
+            | ROM1 mem
+            | AsyncROM1 mem -> mem
+            | RAM1 mem
+            | AsyncRAM1 mem -> 
+                match FastRun.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
+                |RamState mem -> mem
+                | x -> failwithf $"What? Unexpected state {x} from cycle {wsModel.CurrClkCycle} \
+                        in RAM component '{ramLabel}'. FastSim step = {fs.ClockTick}"
+            | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
+        let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
 
-        let addrSteps step = getInt64 fc.InputLinks[0] step
+        let print w (a:int64) = NumberHelpers.valToPaddedString w wsModel.Radix (((1L <<< w) - 1L) &&& a)
 
-        let readOpt =
-            match step, fc.FType with
-            | 0,ROM1 _ | 0, RAM1 _ -> None
-            | _ -> 
-                addrSteps readStep
-                |> Some
-        let writeOpt =
-            match step, fc.FType with
-            | _, ROM1 _ 
-            | _, AsyncROM1 _
-            | 0, _ -> None
-            | _, RAM1 _ | _, AsyncRAM1 _ when getInt64 fc.InputLinks[2] (step-1) = 1L -> 
-                addrSteps (step-1)
-                |> Some
-            | _ ->  
-                None
+        let lastLocation = int64 ((2 <<< memData.AddressWidth - 1) - 1)
 
-        /// Mark addr in memory map as being rType
-        /// if addr does not exist - create it
-        let addToMap rType addr mem:Map<int64,int64*RamRowType> =
-            match Map.tryFind addr mem with
-            | Some (d,_) -> Map.add addr (d,rType) mem
-            | None  ->  Map.add addr (0L,rType) mem
+        /// print a single 0 location as one table row
+        let print1 (a:int64,b:int64,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
+        /// print a range of zero locations as one table row
+
+        let print2 (a1:int64) (a2:int64) (d:int64) = $"{print aWidth (a1+1L)}..{print aWidth (a2-1L)}", $"{print dWidth d}",RAMNormal
+
+        /// output info for one table row filling the given zero memory gap or arbitrary size, or no line if there is no gap.
+        let printGap (gStart:int64) (gEnd:int64) =
+            match gEnd - gStart with
+            | 1L -> []
+            | 2L -> [print1 ((gEnd + gStart) / 2L, 0L,RAMNormal)]
+            | n when n > 2L ->
+                [print2 gStart gEnd 0L]
+            | _ ->
+                failwithf $"What? gEnd={gEnd},gStart={gStart}: negative or zero gaps are impossible..."
+
+        /// transform Sparse RAM info into strings to print in a table, adding extra lines for zero gaps
+        /// line styling is controlled by a RamRowtype value and added later when the table row react is generated
+        let addGapLines (items: (int64*int64*RamRowType) list) = 
+            let startItem =
+                match items[0] with
+                | -1L,_,_ -> []
+                | gStart,dStart,rw-> [print1 (gStart,dStart,rw)]
+            List.pairwise items
+            |> List.collect (fun ((gStart,_,_),(gEnd,dEnd,rwe)) -> 
+                let thisItem = if gEnd = lastLocation + 1L then [] else [print1 (gEnd,dEnd,rwe)]
+                [printGap gStart gEnd; thisItem])
+            |> List.concat
+
+        /// Add a RAMNormal RamRowType value to every location in mem.
+        /// Add in additional locations for read and/or write if needed.
+        /// Set RamRowValue type to RAMWritten or RAMRead for thse locations.
+        /// Write is always 1 cycle after WEN=1 and address.
+        /// Read is 1 (0) cycles after address for sync (asynch) memories.
+        let addReadWrite (fc:FastComponent) (step:int) (mem: Map<int64,int64>) =
+            let getInt64 (a: IOArray) step =
+                let w = a.Width
+                match w with
+                | w when w > 32 -> int64 <| convertBigIntToUInt64 w a.BigIntStep[step]
+                | _ -> int64 <| a.UInt32Step[step]
+
+            let readStep =
+                match fc.FType with
+                | AsyncROM1 _ | AsyncRAM1 _ -> step
+                | ROM1 _ | RAM1 _ -> step - 1
+                | _ -> failwithf $"What? {fc.FullName} should be a memory component"
+
+            let addrSteps step = getInt64 fc.InputLinks[0] step
+
+            let readOpt =
+                match step, fc.FType with
+                | 0,ROM1 _ | 0, RAM1 _ -> None
+                | _ -> 
+                    addrSteps readStep
+                    |> Some
+            let writeOpt =
+                match step, fc.FType with
+                | _, ROM1 _ 
+                | _, AsyncROM1 _
+                | 0, _ -> None
+                | _, RAM1 _ | _, AsyncRAM1 _ when getInt64 fc.InputLinks[2] (step-1) = 1L -> 
+                    addrSteps (step-1)
+                    |> Some
+                | _ ->  
+                    None
+
+            /// Mark addr in memory map as being rType
+            /// if addr does not exist - create it
+            let addToMap rType addr mem:Map<int64,int64*RamRowType> =
+                match Map.tryFind addr mem with
+                | Some (d,_) -> Map.add addr (d,rType) mem
+                | None  ->  Map.add addr (0L,rType) mem
     
 
-        Map.map (fun k v -> v,RAMNormal) mem
-        |> (fun mem ->
-            match readOpt with
-            | Some addr -> addToMap RAMRead addr mem
-            | None -> mem
+            Map.map (fun k v -> v,RAMNormal) mem
             |> (fun mem ->
-                match writeOpt with // overwrite RAMRead here is need be
-                | Some addr -> addToMap RAMWritten addr mem
-                | None -> mem))
+                match readOpt with
+                | Some addr -> addToMap RAMRead addr mem
+                | None -> mem
+                |> (fun mem ->
+                    match writeOpt with // overwrite RAMRead here is need be
+                    | Some addr -> addToMap RAMWritten addr mem
+                    | None -> mem))
  
 
-    /// add fake locations beyong normal address range so that
-    /// addGapLines fills these (if need be). These locations are then removed
-    let addEndPoints (items:(int64*int64*RamRowType) list)  =
-        let ad (a,d,rw) = a
-        match items.Length with
-        | 0 -> [-1L,0L,RAMNormal;  lastLocation,0L,RAMNormal]
-        | _ ->
-            if ad items[0] < 0L then items else List.insertAt 0 (-1L,-1L,RAMNormal) items
-            |> (fun items ->
-                if ad items[items.Length-1] = lastLocation then 
-                    items else 
-                List.insertAt items.Length (lastLocation+1L,0L,RAMNormal) items)
+        /// add fake locations beyong normal address range so that
+        /// addGapLines fills these (if need be). These locations are then removed
+        let addEndPoints (items:(int64*int64*RamRowType) list)  =
+            let ad (a,d,rw) = a
+            match items.Length with
+            | 0 -> [-1L,0L,RAMNormal;  lastLocation,0L,RAMNormal]
+            | _ ->
+                if ad items[0] < 0L then items else List.insertAt 0 (-1L,-1L,RAMNormal) items
+                |> (fun items ->
+                    if ad items[items.Length-1] = lastLocation then 
+                        items else 
+                    List.insertAt items.Length (lastLocation+1L,0L,RAMNormal) items)
     
 
-    let lineItems =
-        memData.Data
-        |> addReadWrite fc step
-        |> Map.toList
-        |> List.map (fun (a,(d,rw)) -> a,d,rw)
-        |> List.filter (fun (a,d,rw) -> d<>0L || rw <> RAMNormal)
-        |> List.sort
-        |> addEndPoints 
-        |> addGapLines
+        let lineItems =
+            memData.Data
+            |> addReadWrite fc step
+            |> Map.toList
+            |> List.map (fun (a,(d,rw)) -> a,d,rw)
+            |> List.filter (fun (a,d,rw) -> d<>0L || rw <> RAMNormal)
+            |> List.sort
+            |> addEndPoints 
+            |> addGapLines
         
 
 
-    Level.item [
-        Level.Item.Option.Props ramTableLevelProps
-        Level.Item.Option.HasTextCentered
-    ] [
-        Heading.h6 [
-            Heading.Option.Props [ centerAlignStyle ]
-        ] [ str ramLabel ]
-        div [Style [MaxHeight "600px";OverflowY OverflowOptions.Auto]] [
-        Table.table [
-            Table.IsFullWidth
-            Table.IsBordered
-        ] [ thead [] [
-                tr [] [
-                    th [ centerAlignStyle ] [ str "Address"]
-                    th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string wsModel.CurrClkCycle)]]
+        Level.item [
+            Level.Item.Option.Props ramTableLevelProps
+            Level.Item.Option.HasTextCentered
+        ] [
+            Heading.h6 [
+                Heading.Option.Props [ centerAlignStyle ]
+            ] [ str ramLabel ]
+            div [Style [MaxHeight maxHeight;OverflowY OverflowOptions.Auto]] [
+            Table.table [
+                Table.IsFullWidth
+                Table.IsBordered
+            ] [ thead [] [
+                    tr [] [
+                        th [ centerAlignStyle ] [ str "Address"]
+                        th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string wsModel.CurrClkCycle)]]
+                    ]
                 ]
-            ]
-            tbody []
-                (List.map ramTableRow lineItems) 
-        ] ]
-        br []
-    ]
+                tbody []
+                    (List.map ramTableRow lineItems) 
+            ] ]
+            br []
+        ]
 
 /// Bulma Level component of tables showing RAM contents.
 let ramTables (wsModel: WaveSimModel) : ReactElement =
@@ -871,15 +890,21 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
     let start = TimeHelpers.getTimeMs ()
     let selectedRams = Map.toList wsModel.SelectedRams
     if List.length selectedRams > 0 then
-        let headerRow =
-            ["read", RAMRead; "overwritten",RAMWritten]
-            |> List.map (fun (op, opStyle) -> inlineStyle [] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
-            |> function 
-                | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
-                | _ -> failwithf "What? Can't happen!"
-        List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
-        |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
-        |> Fulma.Table.table [Table.TableOption.Props ramTablesLevelProps; Table.IsFullWidth; Table.IsBordered; Table.Props [Style [Height "100%"]]]
+        let tables = 
+            let headerRow =
+                ["read", RAMRead; "overwritten",RAMWritten]
+                |> List.map (fun (op, opStyle) -> inlineStyle [Margin "0px"] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
+                |> function 
+                    | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
+                    | _ -> failwithf "What? Can't happen!"
+            List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
+            |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
+            |> Fulma.Table.table [
+                Table.TableOption.Props ramTablesLevelProps;
+                Table.IsFullWidth;
+                Table.IsBordered;
+                ]
+        div [HTMLAttr.Id "TablesDiv"] [ hr [ Style [ Margin "5px"]]; br [ Style [ Margin "0px"]]; tables]
     else div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 
@@ -985,28 +1010,28 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
 
     let bkgPropList (width: float): List<IProp> =
         [
-            HTMLAttr.Id "scrollbarBkg";
+            HTMLAttr.Id "scrollbarThumb";
             SVGAttr.X $"0px"; SVGAttr.Y "0.5px";
-            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
-            SVGAttr.Fill "lightgray"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
+            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.softScrollBarWidth-1.0}px";
+            SVGAttr.Fill "white"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
         ]
 
     let tbPropList (pos: float) (width: float): List<IProp> =
         [
-            HTMLAttr.Id "scrollbarThumb";
+            HTMLAttr.Id "scrollbarBkg";
             Style [ Cursor "grab"];
             SVGAttr.X $"%.1f{pos}px"; SVGAttr.Y "0.5px";
-            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.scrollbarHeight-1.0}px";
-            SVGAttr.Fill "white"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
+            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.softScrollBarWidth-1.0}px";
+            SVGAttr.Fill "lightgrey"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
             OnMouseDown tbMouseDownHandler; OnMouseUp tbMouseUpHandler; OnMouseMove tbMouseMoveHandler;
         ]
 
-    div [ Style [ MarginTop "16px"; MarginBottom "16px"; Height "30px"]] [
-        button [ Button.Props [clkCycleLeftStyle] ]
+    div [ Style [ MarginTop "5px"; MarginBottom "5px"; Height "25px"]] [
+        button [ Button.Props [scrollbarClkCycleLeftStyle] ]
             (fun _ -> scrollWaveformViewBy -1.0)
             (str "◀")
         svg
-            [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.scrollbarHeight}px"];]
+            [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.softScrollBarWidth}px"];]
             [
                 rect (bkgPropList bkgWidth) []; // background
                 rect (tbPropList wsm.ScrollbarTbPos wsm.ScrollbarTbWidth) []; // thumb
@@ -1241,11 +1266,11 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
             dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
            
 /// ReactElement showing instructions and wave sim buttons
-let topHalf canvasState (model: Model) dispatch : ReactElement =
+let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
     let title =
         match model.WaveSimSheet with
-        | None -> "Waveform Viewer"
-        | Some sheet -> $"Simulating '{sheet}'"
+        | None -> str "Waveform Viewer"
+        | Some sheet -> div [Style [WhiteSpace WhiteSpaceOptions.Nowrap]] [str "Simulating:"  ; span [Style [Color "#3e8ed0"; MarginLeft "5px"]] [str $"{sheet}"]]
     let wsModel = getWSModel model
     //printfn $"Active wsModel sheet={model.WaveSimSheet}, state = {wsModel.State}"
     //printfn $"""Wavesim states: {model.WaveSim |> Map.toList |> List.map (fun (sh, ws) -> sh, ws.State.ToString(),ws.Sheets)}"""
@@ -1253,121 +1278,137 @@ let topHalf canvasState (model: Model) dispatch : ReactElement =
         match wsModel.State with
         | Loading -> true
         | _ -> false
-    let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg "white" "20px"
+
+    let titleLine() =       
+        div [ Style [
+                inlineNoWrap;
+                MarginBottom "0px"
+                FontSize "24px"
+                MarginBottom "0px"
+                LineHeight "24px"
+                FontWeight 600
+                OverflowX OverflowOptions.Hidden ;
+                Display DisplayOptions.Inline;
+                MarginRight "10px"];
+
+              Id "WaveSimHelp"] [title]
+
+    let refreshStartEndButton() =
+        let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg "white" "20px"
+        let startOrRenew model = refreshButtonAction canvasState model dispatch
+        let waveEnd model = endButtonAction canvasState model dispatch
+        let wbo = getWaveSimButtonOptions canvasState model wsModel
+        let startEndButton =
+            button 
+                (topHalfButtonProps wbo.StartEndColor "startEndButton" false) 
+                (fun ev -> dispatch <| ExecFuncInMessage(
+                    (fun model _ -> if wbo.IsRunning then waveEnd model ev  else startOrRenew model ev),dispatch))
+                (str wbo.StartEndMsg)
+        let needsRefresh = wbo.IsDirty && wbo.IsRunning
+        div 
+            [Style [inlineNoWrap]]                     
+            (if not wbo.IsRunning then [
+                startEndButton
+            ] 
+            else [
+                if needsRefresh then
+                    button
+                        (topHalfButtonProps IsSuccess "RefreshButton" false)
+                        (fun ev -> dispatch <| ExecFuncInMessage((fun model _ -> startOrRenew model ev), dispatch))
+                        refreshButtonSvg
+                startEndButton
+            ])
+
+    let messageOrControlButtons =
+        let simError e =
+            SimulationView.setSimErrorFeedback e model dispatch
+            div [ errorMessageStyle ]
+                [ SimulationView.viewSimulationError canvasState e model WaveSim dispatch ]
+
+        let notRunning = 
+            false, div [ errorMessageStyle ] [ str "Start the waveform viewer by pressing the Start button." ]
+
+        match model.WaveSimSheet, wsModel.State with
+        | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->
+            dispatch <| UpdateModel( fun model -> {model with WaveSimSheet = None})
+            dispatch <| UpdateModel( updateWSModelOfSheet sheet (fun ws -> {ws with State = Ended}))
+            notRunning
+
+        | None, SimError e  ->
+            notRunning
+
+        | _,SimError e ->
+            false, simError e
+            
+        | _,NonSequential ->
+            false, div [ errorMessageStyle ] [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms." ]
+
+        | _,Empty | _,Ended | None,_ | Some "", _->
+            notRunning
+
+        | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" ->
+            notRunning
+        
+        | _,NoProject ->
+            false, div [ errorMessageStyle ] [ str "Please open a project to use the waveform viewer." ]
+
+        | _, (Loading | Success) when List.isEmpty wsModel.SelectedWaves && Map.isEmpty wsModel.SelectedRams->
+            false, div [Id "WaveSimHelp"] [str "Use 'Select Waves' to add waves for simulation. Right-click for help."]
+
+        | _, Success ->
+            true, div [Style [Height Constants.rowHeight; Display DisplayOptions.Flex; JustifyContent "space-between"; Margin "5px"; MarginTop "30px" ; MarginBottom "15px"]]  [
+
+                        zoomButtons wsModel dispatch
+                        
+                        radixButtons wsModel dispatch
+  
+                        clkCycleButtons wsModel dispatch
+                    ]
+        | _ -> notRunning
+
+    let needsBottomHalf, messageOrControlLine = messageOrControlButtons
 
     div [ topHalfStyle ] [
-        Columns.columns [] [
-            Column.column [Column.Props [Style [Height "100px"; OverflowY OverflowOptions.Clip]]] [
-                Heading.h4 [] [ 
-                    (div [Style [Display DisplayOptions.Inline; MarginRight "10px"]; Id "WaveSimHelp"] [str title])
-                   
-                ]
-                let startOrRenew model = refreshButtonAction canvasState model dispatch
-                let waveEnd model = endButtonAction canvasState model dispatch
-                let wbo = getWaveSimButtonOptions canvasState model wsModel
-                let startEndButton =
-                    button 
-                        (topHalfButtonProps wbo.StartEndColor "startEndButton") 
-                        (fun ev -> dispatch <| ExecFuncInMessage(
-                            (fun model _ -> if wbo.IsRunning then waveEnd model ev  else startOrRenew model ev),dispatch))
-                        (str wbo.StartEndMsg)
-                let needsRefresh = wbo.IsDirty && wbo.IsRunning
-                div 
-                    [Style [MarginBottom "20px" ]]                      
-                    (if not wbo.IsRunning then [
-                        startEndButton
-                    ] 
-                    else [
-                        if needsRefresh then
-                            button
-                                (topHalfButtonProps IsSuccess "RefreshButton")
-                                (fun ev -> dispatch <| ExecFuncInMessage((fun model _ -> startOrRenew model ev), dispatch))
-                                refreshButtonSvg
-                        startEndButton
-                    ])
-                ]
-
-            Column.column 
-                [
-                    Column.Option.Width (Screen.All, Column.IsNarrow)
-                ] 
-                [ 
-                    div [Style [MarginBottom "50px"]] []
-
-                    Level.level [] [
-                        Level.item [ ] [
-                            Button.list [] [
-                                selectWavesButton wsModel dispatch
-                                selectWavesModal wsModel dispatch
-
-                                selectRamButton wsModel dispatch
-                                selectRamModal wsModel dispatch
-                            ]
-                        ]
-                    ]
-                ]
+        titleLine()
+ 
+        div [Style [Display DisplayOptions.Flex; JustifyContent "space-between"]] [
+            refreshStartEndButton()
+            div [Style [inlineNoWrap; Flex "0 1"]] [selectWavesButton wsModel dispatch; selectRamButton wsModel dispatch]
             ]
-        hr [ Style [ MarginBottom "0px" ] ]
-        br []
-        ]
+        
+        messageOrControlLine], needsBottomHalf
+        
+        
 
 /// Entry point to the waveform simulator.
 let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let wsModel = getWSModel model
-    let notRunning = 
-        div [ errorMessageStyle ] [ str "Start the waveform viewer by pressing the Start button." ]
 
-    let simError e =
-        SimulationView.setSimErrorFeedback e model dispatch
-        div [ errorMessageStyle ]
-            [ SimulationView.viewSimulationError canvasState e model WaveSim dispatch ]
+    let top, needsBottomHalf = topHalf canvasState model dispatch
+    let needsRAMs = not <| Map.isEmpty wsModel.SelectedRams
+    let height = calcWaveformAndScrollBarHeight wsModel
+    let bottomHalf = // this has fixed height
+        div [HTMLAttr.Id "BottomHalf" ; showWaveformsAndRamStyle (if needsRAMs then screenHeight() else height)] (
+            if wsModel.SelectedWaves.Length > 0 then [
+                showWaveforms model wsModel dispatch
+                makeScrollbar wsModel dispatch ]
+            else []
+            @
+            [ramTables wsModel]
+        )
+    printfn "got bottomhalf"   
+
     div [] [
+        selectRamModal wsModel dispatch
+        selectWavesModal wsModel dispatch
         div [ viewWaveSimStyle ]
             [
                 //printfn $"WSmodel state: {wsModel.State}"
-                topHalf canvasState model dispatch
-                match model.WaveSimSheet, wsModel.State with
-                | Some sheet as sheetOpt, SimError e when sheetOpt <> getCurrFile model ->
-                    dispatch <| UpdateModel( fun model -> {model with WaveSimSheet = None})
-                    dispatch <| UpdateModel( updateWSModelOfSheet sheet (fun ws -> {ws with State = Ended}))
-                    notRunning
-                | None, SimError e  ->
-                    notRunning
-                | _,SimError e ->
-                    simError e               
-                | _,NonSequential ->
-                    div [ errorMessageStyle ]
-                        [ str "There is no clocked logic in this circuit. Add clocked logic to simulate waveforms." ]
-                | _,Empty | _,Ended | None,_ | Some "", _-> notRunning
-                | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" -> notRunning              
-                | _,NoProject ->
-                    div [ errorMessageStyle ]
-                        [ str "Please open a project to use the waveform viewer." ]
-                | _,Loading | _,Success ->
-                    //printfn $"Showing waveforms: fs= {wsModel.FastSim}"]
-
-                    if List.isEmpty wsModel.SelectedWaves then
-                        div [Id "WaveSimHelp"] [str "Use 'Select Waves' to add waves for simulation. Right-click for help."]
-                    else
-                        Level.level [] [
-                            Level.left [GenericOption.Props [Style [MarginLeft "5px"]]] [
-                                zoomButtons wsModel dispatch
-                            ]
-                            Level.right [] [
-                                Level.left [GenericOption.Props [Style [MarginRight "75px"]]] [
-                                    radixButtons wsModel dispatch
-                                ]
-                                clkCycleButtons wsModel dispatch
-                            ]
-                        ]
-                        div [showWaveformsAndRamStyle] [
-                            showWaveforms model wsModel dispatch
-                            makeScrollbar wsModel dispatch
-                            hr []
-                            ramTables wsModel
-                        ]
-
-                hr []
+                top
+                //hr [ Style [ MarginBottom "0px";  MarginTop "0px"]]
+                
+                if needsBottomHalf then bottomHalf else div [] []
+                //hr [ Style [ MarginBottom "0px"; MarginTop "0px" ]]
             ]
         
     ]

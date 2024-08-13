@@ -143,7 +143,7 @@ let viewSimSubTab canvasState model dispatch =
             TruthTableView.viewTruthTable canvasState model dispatch
         ]
     | WaveSim -> 
-        div [ Style [Width "100%"; Height "calc(100% - 72px)"; MarginTop "15px" ] ]
+        div [ Style [Width "100%"; MarginTop "15px" ;Height "calc(100% - 72px)"; ] ]
             [ viewWaveSim canvasState model dispatch ]
 
 /// Display the content of the right tab.
@@ -265,7 +265,7 @@ let viewRightTabs canvasState model dispatch =
         else
             null
     
-    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Auto]] [
+    div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Visible]] [
         Tabs.tabs [ 
             Tabs.IsFullWidth; 
             Tabs.IsBoxed; 

@@ -304,7 +304,7 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
 /// selected. Init value of these from this function is None.
 let getWaves (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
     let start = TimeHelpers.getTimeMs ()
-    printfn $"{fs.WaveIndex.Length} possible waves"
+    //printfn $"{fs.WaveIndex.Length} possible waves"
     fs.WaveIndex
     |> TimeHelpers.instrumentInterval "getAllPorts" start
     |> Array.map (fun wi -> wi, makeWave ws fs wi)
@@ -343,7 +343,7 @@ let selectAll (wsModel: WaveSimModel) dispatch =
 
 /// Toggle selection for a single wave.
 let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
-    printfn $"toggling {index}"
+    //printfn $"toggling {index}"
     let selectedWaves =
         if List.contains index wsModel.SelectedWaves then
             List.except [index] wsModel.SelectedWaves
@@ -621,7 +621,7 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
     let waveCount = Map.count wsModel.AllWaves
     let props, buttonFunc =
         if waveCount > 0 && wsModel.State=Success then
-            selectWavesButtonProps "selectButton", (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = true}))
+            selectWavesButtonProps "selectButton" true, (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with WaveModalActive = true}))
         else selectWavesButtonPropsLight "selectButton", (fun _ -> ())
     button 
         props
@@ -716,59 +716,59 @@ let toggleRamSelection (ramId: FComponentId) (ramLabel: string) (wsModel: WaveSi
 
 /// Modal that, when active, allows users to select RAMs to view their contents.
 let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    let ramRows (ram: FastComponent) : ReactElement =
-        tr [] [
-            td []
-                [ Checkbox.checkbox []
-                    [ Checkbox.input [
-                        Props (checkboxInputProps @ [
-                            Checked <| isRamSelected ram.fId wsModel
-                            OnChange (fun _ -> toggleRamSelection ram.fId ram.FullName wsModel dispatch)
-                        ])
-                    ] ]
-                ]
-            td [] [ label [ ramRowStyle ] [ str ram.FullName ] ]
-        ]
-
-    Modal.modal [
-        Modal.IsActive wsModel.RamModalActive
-    ] [
-        Modal.background [
-            Props [
-                OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = false}))
+        let ramRows (ram: FastComponent) : ReactElement =
+            tr [] [
+                td []
+                    [ Checkbox.checkbox []
+                        [ Checkbox.input [
+                            Props (checkboxInputProps @ [
+                                Checked <| isRamSelected ram.fId wsModel
+                                OnChange (fun _ -> toggleRamSelection ram.fId ram.FullName wsModel dispatch)
+                            ])
+                        ] ]
+                    ]
+                td [] [ label [ ramRowStyle ] [ str ram.FullName ] ]
             ]
-        ] []
-        Modal.Card.card [] [
-            Modal.Card.head [] [
-                Modal.Card.title [] [
-                    Level.level [] [
-                        Level.left [] [ str "Select RAM" ]
-                        Level.right [] [
-                            Delete.delete [
-                                Delete.Option.Size IsMedium
-                                Delete.Option.OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = false}))
-                            ] []
+
+        Modal.modal [
+            Modal.IsActive wsModel.RamModalActive
+        ] [
+            Modal.background [
+                Props [
+                    OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = false}))
+                ]
+            ] []
+            Modal.Card.card [] [
+                Modal.Card.head [] [
+                    Modal.Card.title [] [
+                        Level.level [] [
+                            Level.left [] [ str "Select RAM" ]
+                            Level.right [] [
+                                Delete.delete [
+                                    Delete.Option.Size IsMedium
+                                    Delete.Option.OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = false}))
+                                ] []
+                            ]
                         ]
                     ]
                 ]
-            ]
-            Modal.Card.body [] [
-                str "Select synchronous RAM components to view their contents. "
-                str "Note that asynchronous RAM components cannot be viewed in the waveform simulator. "
-                br []
-                br []
-                str "On a write, the corresponding row will be highlighted in red. "
-                str "On a read, the corresponding row will be highlighted in blue. "
-                str "Any memory address which has not been initialised with a value will not be shown in the table. "
-                hr []
-                Table.table [] [
-                    tbody []
-                        (List.map (ramRows) wsModel.RamComps)
+                Modal.Card.body [] [
+                    str "Select synchronous RAM components to view their contents. "
+                    str "Note that asynchronous RAM components cannot be viewed in the waveform simulator. "
+                    br []
+                    br []
+                    str "On a write, the corresponding row will be highlighted in red. "
+                    str "On a read, the corresponding row will be highlighted in blue. "
+                    str "Any memory address which has not been initialised with a value will not be shown in the table. "
+                    hr []
+                    Table.table [] [
+                        tbody []
+                            (List.map (ramRows) wsModel.RamComps)
+                    ]
                 ]
-            ]
 
-            Modal.Card.foot [] []
+                Modal.Card.foot [] []
+            ]
         ]
-    ]
 
 

@@ -69,6 +69,7 @@ let rightSectionStyle model =
         Height  "100%" //(sprintf "calc(100%s - %s)" "%" headerHeight) // WindowSize - headerHeight
         Width widthRightSec
         OverflowX OverflowOptions.Visible
+        OverflowY OverflowOptions.Visible
         //OverflowY OverflowOptions.Auto
         BorderTop "2px solid lightgray"
         UserSelect UserSelectOptions.None

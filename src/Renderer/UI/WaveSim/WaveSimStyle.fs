@@ -19,7 +19,7 @@ module Constants =
     /// Width of left margin of waveform simulator
     let leftMargin = 30
     /// Width of right margin of waveform simulator
-    let rightMargin = 30
+    let rightMargin = 0
 
     /// Height of each row in name and value columns.
     /// Same as SVG ViewBox Height.
@@ -59,10 +59,15 @@ module Constants =
 
     /// <summary>Height of scrollbar, in pixels. Affects only the SVG and not the buttons.
     /// Currently set to same height as buttons.</summary>
-    let scrollbarHeight: float = 30.0
+    let softScrollBarWidth: float = 25.0
+
     /// <summary>Minimum width of the scrollbar thumb, in pixels.</summary>
     let scrollbarThumbMinWidth: float = 5.0
 
+    /// height of the top half of the wave sim window (including tabs) when waveforms are displayed
+    let topHalfHeight = 260.
+
+let screenHeight() = Browser.Dom.document.defaultView.innerHeight
 
 /// Style for top row in wave viewer.
 let topRowStyle = Style [
@@ -127,11 +132,12 @@ let selectWavesButtonStyle = Style [
 ]
 
 /// Style for top row of buttons
-let topRowButtonStyle = Style [
+let topRowButtonStyle isRightSide= Style [
     Height Constants.rowHeight
     Width Constants.colWidth
     FontSize "16px"
-    Position PositionOptions.Relative
+    Flex "0 0.5"
+    if isRightSide then MarginLeft "auto" else AlignSelf AlignSelfOptions.FlexStart
     MarginRight 5
     MarginLeft 5
 ]
@@ -152,22 +158,22 @@ let infoButtonProps color = [
         ]
     ]
 
-let topHalfButtonProps color buttonId = [
+let topHalfButtonProps color buttonId isRightSide = [
     Button.Color color
-    Button.Props [HTMLAttr.Id buttonId ; topRowButtonStyle]
+    Button.Props [HTMLAttr.Id buttonId ; topRowButtonStyle isRightSide]
 ]
 
-let selectRamButtonProps buttonId = topHalfButtonProps IsInfo buttonId
+let selectRamButtonProps buttonId = topHalfButtonProps IsInfo buttonId true
 
 /// Props for selectRamButton when no RAMs are selectable
 let selectRamButtonPropsLight buttonId =
     selectRamButtonProps buttonId  @ [Button.IsLight]
 
 
-let topHalfButtonPropsWithWidth buttonId color = [
+(*let topHalfButtonPropsWithWidth buttonId color = [
     Button.Color color
     Button.Props [HTMLAttr.Id buttonId ; topRowButtonStyle]
-]
+]*)
 
 /// Props for selectWavesButton
 let selectWavesButtonProps = topHalfButtonProps IsInfo
@@ -175,7 +181,7 @@ let selectWavesButtonProps = topHalfButtonProps IsInfo
 
 /// Props for selectWavesButton when no waves are selectable
 let selectWavesButtonPropsLight buttonId =
-    selectWavesButtonProps buttonId @ [Button.IsLight]
+    selectWavesButtonProps buttonId true @ [Button.IsLight]
 
 let centerAlignStyle = Style [
     TextAlign TextAlignOptions.Center
@@ -290,26 +296,26 @@ let singleValueOnWaveProps xpos: list<IProp> = [
 
 /// Style for clock cycle buttons
 let clkCycleButtonStyle = Style [
-    Float FloatOptions.Right
-    Position PositionOptions.Relative
     Height Constants.rowHeight
     TextAlign TextAlignOptions.Center
-    Display DisplayOptions.InlineBlock
+    Display DisplayOptions.Inline
     FontSize "13px"
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 /// Style for clock cycle text Input field
 let clkCycleInputStyle = Style [
     Margin "0 0 0 0"
-    Float FloatOptions.Left
     TextAlign TextAlignOptions.Center
     Width "60px"
     Height Constants.rowHeight
-    Display DisplayOptions.InlineBlock
+    Display DisplayOptions.Inline
     FontSize "13px"
+    FontWeight 600
     BorderColor "gray"
     BorderWidth "1px 0.5px 1px 0.5px"
     BorderRadius 0
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 /// Props for clock cycle text Input field
@@ -321,27 +327,38 @@ let clkCycleInputProps : IHTMLProp list = [
 ]
 
 /// List of Style properties for clock cycle button
-let clkCycleBut = [
+let clkCycleBut height = [
     Margin 0
-    Height Constants.rowHeight
+    Height height
     Padding 0
     Width "30px"
-    Position PositionOptions.Relative
-    Float FloatOptions.Left
     BorderColor "gray"
     BorderWidth "1px 0.5px 1px 0.5px"
+    WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 
 /// Style for inner clock cycle buttons (buttons to move by one clock cycle)
 let clkCycleInnerStyle = Style (
-    clkCycleBut @ [
+    clkCycleBut Constants.rowHeight @ [
         BorderRadius 0
+        WhiteSpace WhiteSpaceOptions.Nowrap
     ]
 )
 
 /// Style for left-most clock cycle button
 let clkCycleLeftStyle = Style (
-    clkCycleBut @ [
+    clkCycleBut Constants.rowHeight @ [
+        BorderTopLeftRadius "4px"
+        BorderBottomLeftRadius "4px"
+        BorderTopRightRadius 0
+        BorderBottomRightRadius 0
+        BorderRightWidth "0.5"
+        WhiteSpace WhiteSpaceOptions.Nowrap
+    ])
+
+/// Style for left-most clock cycle button
+let scrollbarClkCycleLeftStyle = Style (
+    clkCycleBut Constants.softScrollBarWidth @ [
         BorderTopLeftRadius "4px"
         BorderBottomLeftRadius "4px"
         BorderTopRightRadius 0
@@ -351,24 +368,24 @@ let clkCycleLeftStyle = Style (
 
 /// Style for right-most clock cycle button
 let clkCycleRightStyle = Style (
-    clkCycleBut @ [
+    clkCycleBut Constants.rowHeight @ [
         BorderTopLeftRadius 0
         BorderBottomLeftRadius 0
         BorderTopRightRadius "4px"
         BorderBottomRightRadius "4px"
         BorderLeftWidth "0.5"
+        WhiteSpace WhiteSpaceOptions.Nowrap
     ])
 
 // FIX: Should be refactored. This is a hack to force button style to NOT float right.
 /// <summary>Button style for scrollbar's right button. Left button uses <c>clkCycleLeftStyle</c>.</summary>
 let scrollbarClkCycleRightStyle = Style (
-    clkCycleBut @ [
+    clkCycleBut Constants.softScrollBarWidth @ [
         BorderTopLeftRadius 0
         BorderBottomLeftRadius 0
         BorderTopRightRadius "4px"
         BorderBottomRightRadius "4px"
         BorderLeftWidth "0.5"
-        Float FloatOptions.Unset
     ])
 
 /// Style for Bulma level element in name row
@@ -522,28 +539,36 @@ let waveRowsStyle width = Style [
 let viewWaveSimStyle = Style [
     MarginLeft Constants.leftMargin
     MarginRight Constants.rightMargin
-    MarginTop "15px"
-    Height "calc(100% - 72px)"
+    MarginTop "5px"
 ]
 
 // style for waveforms and RAM viewer
-let showWaveformsAndRamStyle = Style [
-    OverflowY OverflowOptions.Auto; Height "calc(100% - 250px)"
+let showWaveformsAndRamStyle (height:float) = Style [
+    Width "100%"
+    CSSProp.Custom("overflow", "hidden hidden")
+    Height $"{height}px"
     ]
 
 /// Style for waveforms only path of viewer
 let showWaveformsStyle = Style [
-    //Height "calc(100% - 50px)"
+    //
     Width "100%"
     //OverflowY OverflowOptions.Auto
     Display DisplayOptions.Grid
     ColumnCount 3
     GridAutoFlow "column"
     GridAutoColumns "min-content"
+    OverflowX OverflowOptions.Visible
 ]
 
+let calcWaveformHeight wsModel =
+    let rowPixels = Constants.rowHeight * wsModel.SelectedWaves.Length
+    let wantedHeight = float rowPixels + 0.6 * Constants.viewBoxHeight + 20.0
+    wantedHeight
 
 
+let calcWaveformAndScrollBarHeight wsModel =
+    calcWaveformHeight wsModel + 100. + float Constants.scrollBarWidth
 /// Props for text in clock cycle row
 let clkCycleText m i : IProp list =
     let props : IProp list =
@@ -669,7 +694,7 @@ let radixTabAStyle = Style [
 let radixTabsStyle = Style [
     Height Constants.rowHeight
     FontSize "80%"
-    Float FloatOptions.Right
+    Display DisplayOptions.Inline
 ]
 
 /// Style of polyline used to draw waveforms
@@ -742,8 +767,9 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     //dispatch <| SetViewerWidth w
     let namesColWidth = calcNamesColWidth wsModel
 
-    /// The +4 is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
-    let otherDivWidths = Constants.leftMargin + Constants.rightMargin + DiagramStyle.Constants.dividerBarWidth + Constants.scrollBarWidth + 2
+    /// The extra is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
+    /// It also allows space for a scroll bar (about 6 px)
+    let otherDivWidths = Constants.leftMargin + Constants.rightMargin + DiagramStyle.Constants.dividerBarWidth + Constants.scrollBarWidth + 8
 
     /// This is what the overall waveform width must be
     let valuesColumnWidth,_ = valuesColumnSize wsModel

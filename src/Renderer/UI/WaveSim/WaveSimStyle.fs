@@ -582,7 +582,7 @@ let clkCycleText m i : IProp list =
         [
             SVGAttr.Custom("fontWeight", "bold")
         ]
-    if i = m.CurrClkCycle then
+    if i* m.CycleMultiplier = m.CurrClkCycle then
         cursorExtraProps @ props
     else
         props
@@ -662,7 +662,7 @@ let clkCycleHighlightSVG m dispatch =
             /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
             /// add m.StartCycle to account for when viewBoxMinX is not 0
             let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
-            dispatch <| UpdateWSModel (fun m -> {m with CurrClkCycle = cycle})
+            dispatch <| UpdateWSModel (fun m -> {m with CurrClkCycle = cycle; CurrClkCycleDetail = cycle * m.CycleMultiplier})
         )
         ]
         (List.append 
@@ -763,6 +763,7 @@ let topHalfStyle = Style [
 
 
 let inline updateViewerWidthInWaveSim w (model:Model) =
+    printfn "updateviewerWidthInWaveSim" // ***>
     let wsModel = getWSModel model
     //dispatch <| SetViewerWidth w
     let namesColWidth = calcNamesColWidth wsModel

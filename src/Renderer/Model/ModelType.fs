@@ -193,6 +193,8 @@ type Wave = {
     StartCycle: int
     /// Number of cycles displayed
     ShownCycles: int
+    /// rate at which the simulated waveforms are sampled to achive very high zooms
+    Multiplier: int
     /// width of one cycle: TODO - remove this and stretch SVGs to fit
     CycleWidth: float
     /// radix of waveform numbers
@@ -236,9 +238,15 @@ type WaveSimModel = {
     StartCycle: int
     /// Total number of visible clock cycles.
     ShownCycles: int
+    /// Used for extreme zoom out. Sample waveforms every this number of cycles. Display sampled data.
+    CycleMultiplier: int
     /// Current highlighted clock cycle.
     CurrClkCycle: int
     /// If the user is typing a clock cycle in but erases the contents of the box.
+    /// used when editing input box to allow integral clock cycles to be entered even when using extra zoom.
+    /// this field rounded down to nearest ClockCycleMultiplier multiple = CurrClockCycle
+    CurrClkCycleDetail: int
+    /// True if no number in clcock cycle box (special case).
     ClkCycleBoxIsEmpty: bool
     /// Radix in which values are being displayed in the wave simulator.
     Radix: NumberBase
@@ -470,6 +478,7 @@ type Msg =
     | ScrollbarMouseMsg of cursor:float * action:ScrollbarMouseAction * dispatch:(Msg->unit)
     | SaveModel
     | CheckMemory
+    | ChangeWaveSimMultiplier of int
 
 
 //================================//
@@ -617,6 +626,7 @@ type Model = {
     ConnsOfSelectedWavesAreHighlighted: bool
     /// Contains a list of pending messages
     Pending: Msg list
+    /// Bad way to tidy up the messy UI commands - better - do them all in just one message!
     UIState: UICommandType Option
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool

@@ -78,6 +78,7 @@ let private makeCustomList styles model dispatch =
             |true -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel || comp.Form = Some ProtectedSubSheet)
             |false -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel)
         )
+        |> List.sortBy (fun x -> x.Name)
         |> List.map (makeCustom styles model dispatch)
 
 let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)  =
@@ -885,7 +886,7 @@ let viewCatalogue model dispatch =
                       Style styles
                     ]
                     [ react ]
-            Menu.menu [Props [Class "py-1"; Style styles]]  [
+            Menu.menu [Props [Class "py-1"; Style ([Height "calc(100vh - 200px)"; OverflowY OverflowOptions.Auto] @ styles)]]  [
                 // TODO
                     makeMenuGroup
                         "Input / Output"

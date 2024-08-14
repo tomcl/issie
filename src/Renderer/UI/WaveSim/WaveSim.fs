@@ -754,7 +754,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         let print1 (a:int64,b:int64,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
         /// print a range of zero locations as one table row
 
-        let print2 (a1:int64) (a2:int64) (d:int64) = $"{print aWidth (a1+1L)}..{print aWidth (a2-1L)}", $"{print dWidth d}",RAMNormal
+        let print2 (a1:int64) (a2:int64) (d:int64) = $"{print aWidth (a1+1L)} ... {print aWidth (a2-1L)}", $"{print dWidth d}",RAMNormal
 
         /// output info for one table row filling the given zero memory gap or arbitrary size, or no line if there is no gap.
         let printGap (gStart:int64) (gEnd:int64) =
@@ -1269,8 +1269,11 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
 let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
     let title =
         match model.WaveSimSheet with
-        | None -> str "Waveform Viewer"
-        | Some sheet -> div [Style [WhiteSpace WhiteSpaceOptions.Nowrap]] [str "Simulating:"  ; span [Style [Color "#3e8ed0"; MarginLeft "5px"]] [str $"{sheet}"]]
+        | None -> "Waveform Viewer for:", model.WaveSimOrCurrentSheet
+        | Some sheet -> "Simulating:", sheet
+        |> fun (text,sheet) ->
+            div [Style [WhiteSpace WhiteSpaceOptions.Nowrap]]
+                [str text  ; span [Style [Color "#3e8ed0"; MarginLeft "5px"]] [str $"{sheet}"]]
     let wsModel = getWSModel model
     //printfn $"Active wsModel sheet={model.WaveSimSheet}, state = {wsModel.State}"
     //printfn $"""Wavesim states: {model.WaveSim |> Map.toList |> List.map (fun (sh, ws) -> sh, ws.State.ToString(),ws.Sheets)}"""
@@ -1282,14 +1285,13 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
     let titleLine() =       
         div [ Style [
                 inlineNoWrap;
-                MarginBottom "0px"
+                MarginBottom (if model.WaveSimSheet = None then "50px" else "20px")
                 FontSize "24px"
-                MarginBottom "0px"
                 LineHeight "24px"
                 FontWeight 600
                 OverflowX OverflowOptions.Hidden ;
                 Display DisplayOptions.Inline;
-                MarginRight "10px"];
+                ];
 
               Id "WaveSimHelp"] [title]
 
@@ -1371,7 +1373,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
     div [ topHalfStyle ] [
         titleLine()
  
-        div [Style [Display DisplayOptions.Flex; JustifyContent "space-between"]] [
+        div [Style [MarginTop 20.; Display DisplayOptions.Flex; JustifyContent "space-between"]] [
             refreshStartEndButton()
             div [Style [inlineNoWrap; Flex "0 1"]] [selectWavesButton wsModel dispatch; selectRamButton wsModel dispatch]
             ]
@@ -1396,7 +1398,6 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
             @
             [ramTables wsModel]
         )
-    printfn "got bottomhalf"   
 
     div [] [
         selectRamModal wsModel dispatch

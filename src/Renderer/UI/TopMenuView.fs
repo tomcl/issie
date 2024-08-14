@@ -586,7 +586,7 @@ let viewTopMenu model dispatch =
             let sheetColor (sheet:SheetTree) =
                 match sheet.SheetName = project.OpenFileName, sheetIsLocked sheet.SheetName updatedModel with
                 | true, true -> IColor.IsCustomColor "pink"
-                | true, false -> IColor.IsCustomColor "lightslategrey"
+                | true, false -> IColor.IsInfo
                 | false, true -> IColor.IsDanger
                 | false, false -> IColor.IsCustomColor "darkslategrey"
 

@@ -638,6 +638,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
             })
     Modal.modal [
         Modal.IsActive wsModel.WaveModalActive
+        Modal.Props [Style [ZIndex 20000]]
     ] [
         Modal.background [
             Props [
@@ -732,6 +733,7 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
 
         Modal.modal [
             Modal.IsActive wsModel.RamModalActive
+            Modal.Props [Style [ZIndex 20000]]
         ] [
             Modal.background [
                 Props [

@@ -222,7 +222,8 @@ let makeSourceMenu
             let react = printSource true key
             Menu.Item.li
                 [ Menu.Item.IsActive (key = popupKey dialog.MemorySetup)
-                  Menu.Item.OnClick (fun _ -> onSelect key) ] react 
+                  Menu.Item.OnClick (fun _ -> onSelect key) ]
+                react 
 
         let noFileItem =
             Menu.Item.li

@@ -66,6 +66,22 @@ let update (msg : Msg) oldModel =
     //-------------------------------------------------------------------------------//
 
     match testMsg with
+    | ChangeWaveSimMultiplier key ->
+        let table = WaveSimHelpers.Constants.multipliers
+        if key < 0 || key >= table.Length then
+            printf $"Warning: Can't chnage multiplier to key = {key}"
+            model, Cmd.none   
+        else
+           match model.WaveSimSheet with
+           | None ->
+                printfn "Warning: can't chnage multiplier when there is no wavesim sheet!"
+                model, Cmd.none
+           | Some sheet ->
+                model
+                |> Optic.map waveSim_ (fun ws ->
+                    let wsModel = ws[sheet]
+                    Map.add sheet (WaveSimHelpers.changeMultiplier (table[key]) wsModel) ws)
+                |> (fun m -> m, Cmd.none)
     | CheckMemory ->
         if JSHelpers.loggingMemory then
             let heapInBytes = JSHelpers.usedHeap()

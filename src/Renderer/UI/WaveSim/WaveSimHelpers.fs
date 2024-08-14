@@ -64,10 +64,17 @@ module Constants =
 
     let waveLegendMaxChars = 35
     let valueColumnMaxChars = 35
+    let multipliers = [1;2;5;10;20;50]
 
 
 
 //-----------------------------List & Map utilities to deal with exceptions------------------------------------------//
+
+/// create a new array which samples the old one every mult cycles.
+/// start: index of first cycle.
+/// count: number of samples.
+let subSamp (arr: 'T array) (start:int) (count: int) (mult:int)  =
+    Array.init count (fun n -> arr[start + n*mult])
 
 // maybe these should be defined earlier in compile order? Or added as list functions?
 
@@ -107,6 +114,30 @@ type Gap = {
     // How many Const cycles there are immediately after this Change transition
     Length: int
 }
+
+let rec validateSimParas (ws: WaveSimModel) =
+    if ws.StartCycle < 0 then
+        printfn $"ERROR in Sim parameters: StartCycle {ws.StartCycle} < 0"
+        validateSimParas {ws with StartCycle = 0}
+    elif (ws.StartCycle +  ws.ShownCycles-1)*ws.CycleMultiplier > Constants.maxLastClk then
+        printfn $"Correcting sim paras by reducing StartCycle"
+        {ws with StartCycle = Constants.maxLastClk / ws.CycleMultiplier - ws.ShownCycles}
+    elif ws.CurrClkCycle < ws.StartCycle || ws.CurrClkCycle >= ws.StartCycle + ws.ShownCycles then
+        printfn $"Resetting CurClkCycle which {ws.CurrClkCycle} was too large with multiplier = {ws.CycleMultiplier}"
+        {ws with CurrClkCycle = ws.StartCycle; CurrClkCycleDetail = ws.StartCycle*ws.CycleMultiplier}
+    else ws
+
+let changeMultiplier newMultiplier (ws: WaveSimModel) =
+    let oldM = ws.CycleMultiplier
+    printfn $"Old: {oldM} shown {ws.ShownCycles} start={ws.StartCycle} NewM={newMultiplier}"
+    let sampsHalf = (float ws.ShownCycles - 1.) / 2.
+    let newShown = min ws.ShownCycles (Constants.maxLastClk / newMultiplier)
+    let newStart = int ((float ws.StartCycle + sampsHalf) * float oldM / float newMultiplier - (float newShown - 1.) / 2.)
+    printfn $"New: shown={newShown} start = {newStart}"
+    {ws with ShownCycles = newShown; StartCycle = newStart; CycleMultiplier = newMultiplier}
+    |> validateSimParas
+
+
 
 
 
@@ -148,25 +179,28 @@ let pointsToString (points: XYPos array) : string =
     ) "" points
 
 /// Retrieve value of wave at given clock cycle as an int.
-let getWaveValue (currClkCycle: int) (wave: Wave) (width: int) : FastData =
+/// At extra (sampling) zoom this allows detail clock cycles within one sample
+/// therefore clkCycleDetail IS NOT scaled the same as the sample numbers used
+/// everywhere else.
+let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
     match width with
     | w when w > 32 ->
-        Array.tryItem currClkCycle wave.WaveValues.BigIntStep
+        Array.tryItem clkCycleDetail wave.WaveValues.BigIntStep
         |> function
             | Some (fData) -> 
                 { Dat = BigWord fData; Width = width}            
             | _ ->
                 // TODO: Find better default value here
                 // TODO: Should probably make it so that you can't call this function in the first place.
-                printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
+                printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
                 {Dat = Word 0u; Width = width}
     | _ ->      
-        Array.tryItem currClkCycle wave.WaveValues.UInt32Step
+        Array.tryItem clkCycleDetail wave.WaveValues.UInt32Step
         |> function
             | Some (fData) -> 
                 { Dat = Word fData; Width = width}
             | _ ->
-                printf "Trying to access index %A in wave %A. Default to 0." currClkCycle wave.DisplayName
+                printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
                 {Dat = Word 0u; Width = width}
 
 /// Make left and right x-coordinates for a clock cycle.
@@ -239,37 +273,17 @@ let nonBinaryFillPoints (clkCycleWidth: float) (gap: Gap): array<XYPos> =
 
     [| crossHatchMidL; crossHatchTopL; crossHatchTopR; crossHatchMidR; crossHatchBotR; crossHatchBotL; crossHatchMidL |]
 
-/// Determine transitions for each clock cycle of a binary waveform.
-/// Assumes that waveValues starts at clock cycle 0.
-let calculateBinaryTransitions (waveValues: FData array) : BinaryTransition array =
-    let getBit = function 
-        | Data {Dat = Word bit} -> int32 bit 
-        | Data {Dat = BigWord bit} -> int32 bit
-        | x -> failwithf $"Malformed data: expecting single bit, not {x}"
-    Array.append [|waveValues[0]|] waveValues
-    |> Array.pairwise
-    |> Array.map (fun (x,y) ->       
-        match getBit x, getBit y with
-        | 0,0 -> ZeroToZero
-        | 0,1 -> ZeroToOne
-        | 1,0 -> OneToZero
-        | 1,1 -> OneToOne
-        | _ ->
-            failwithf $"Unrecognised transition {getBit x}, {getBit y}"
-    )
 
 /// <summary>Find transitions for each clock cycle of a binary waveform.</summary>
-let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int)
+let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int) (multiplier: int)
     : array<BinaryTransition> =
     let getBit bit = int32 bit
     match startCycle, startCycle+shownCycles with
-    | startCyc, endCyc when (startCyc = endCyc) -> // if shownCycles = 0, calc everythihg
-        waveValues
-    | startCyc, endCyc when (startCyc = 0 && startCyc < endCyc && endCyc < Array.length waveValues) ->
-        Array.sub waveValues startCyc (endCyc-startCyc+1)
+    | startCyc, endCyc when startCyc = 0 && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
+        subSamp waveValues startCyc (endCyc-startCyc+1) multiplier
         |> Array.append [| waveValues[0] |]
-    | startCyc, endCyc when (0 < startCyc && startCyc < endCyc && endCyc < Array.length waveValues) ->
-        Array.sub waveValues (startCyc-1) (endCyc-startCyc+1)
+    | startCyc, endCyc when 0 < startCyc && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
+        subSamp waveValues (startCyc-1) (endCyc-startCyc+1) multiplier
     | _ ->
         failwithf "Shown cycles is beyond array bounds"
     |> Array.pairwise
@@ -294,14 +308,13 @@ let calculateBinaryTransitionsBigInt (waveValues: bigint array) : BinaryTransiti
         | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
 
 /// <summary>Find transitions for each clock cycle of a non-binary waveform.</summary>
-let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (shownCycles: int)
+let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (shownCycles: int) (multiplier: int)
     : array<NonBinaryTransition> =
-    match startCycle, startCycle+shownCycles with
-    | startCyc, endCyc when (startCyc = endCyc) -> // if shownCycles = 0, calc everythihg
-        waveValues
-    | startCyc, endCyc when (0 <= startCyc && startCyc < endCyc && endCyc < Array.length waveValues) ->
-        Array.sub waveValues (startCyc) (endCyc-startCyc+1)
+    match startCycle, startCycle + shownCycles - 1 with
+    | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues) ->
+        subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
     | _ ->
+        printfn $"Before failure: waveValues.Length {waveValues.Length} e*m: {(startCycle+shownCycles-1)*multiplier} "
         failwithf "Shown cycles is beyond array bounds"
     |> Array.pairwise
     |> Array.map (fun (x, y) -> if x = y then Const else Change)
@@ -764,8 +777,10 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
 /// display all cycles on screen. TimeOut is an optional time out used to implement
 /// a progress bar.
 let extendSimulation timeOut (ws:WaveSimModel) =
-    let stepsNeeded = ws.ShownCycles + ws.StartCycle
+    let stepsNeeded = (ws.ShownCycles + ws.StartCycle) * ws.CycleMultiplier
     printfn $"Extending simulation to {stepsNeeded} cycles"
+    if stepsNeeded > Constants.maxLastClk then
+        failwithf $"Trying to extend simulation to {stepsNeeded} which is beyond available clocks (Constants.maxLastClk)"
     FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
 /// returns true if any memory component in fs linked to a .ram file is outofdate because of the .ram file changing
@@ -782,5 +797,8 @@ let checkIfMemoryCompsOutOfDate (p: Project) (fs:FastSimulation) =
             | _ -> true))
 
 
-        
+
+
+
+
     

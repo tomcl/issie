@@ -281,6 +281,7 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
         WaveId = wi
         StartCycle = ws.StartCycle
         ShownCycles = ws.ShownCycles
+        Multiplier = ws.CycleMultiplier
         CycleWidth = singleWaveWidth ws
         Radix = ws.Radix
         SubSheet = fc.SubSheet
@@ -773,4 +774,25 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
             ]
         ]
 
+
+//-------------------------------------Popup menu for multiplier---------------------------------------------//
+
+let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
+    /// key = 0 .. n-1 where there are n possible multipliers
+        let mulTable = Constants.multipliers
+        let menuItem (key) =
+            let itemLegend = str (match key with | 0 -> "Every Cycle" | _ -> $"Every {mulTable[key]} cycles")
+            Menu.Item.li
+                [ Menu.Item.IsActive (Constants.multipliers[key] = wsModel.CycleMultiplier)
+                  Menu.Item.OnClick (fun _ ->
+                    dispatch <| ChangeWaveSimMultiplier (key);
+                    dispatch ClosePopup)
+                ]
+                [ itemLegend ]
+        let menu = Menu.menu [] [ Menu.list [] (List.map menuItem [0 .. mulTable.Length - 1 ]) ]
+
+        let buttonClick = Button.OnClick (fun _ ->
+            printfn $"Mul={wsModel.CycleMultiplier}"
+            dispatch <| ShowStaticInfoPopup("Multiplier",menu,dispatch ))  
+        Button.button ( buttonClick :: topHalfButtonProps IColor.IsDanger "ZoomButton" false) [str $"zoom X{wsModel.CycleMultiplier}"]
 

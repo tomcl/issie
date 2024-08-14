@@ -1217,4 +1217,5 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         [str "Edit Description"]
                     ]
         |None -> null
+    |> (fun react -> div [Style [Height "calc(100vh - 150px)"; OverflowY OverflowOptions.Auto]] [react])
 

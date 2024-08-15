@@ -106,7 +106,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         // Only generate waveforms for selected waves.
                         // Regenerate waveforms whenever they have changed
                         let hasChanged = not <| WaveSimWaves.waveformIsUptodate wsModel wave
-                        //if List.contains index ws.SelectedWaves then 
+                        //if List.contains index ws.SelectedWaves then
+                        printfn $"Checking redraw: {wave.CompLabel} hasChanged={hasChanged} uptodate={simulationIsUptodate}"
                         List.exists (fun wi' -> isSameWave wi wi') wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
                     |> Map.toList                   
                     |> List.map fst

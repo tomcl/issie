@@ -300,20 +300,6 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
 
 
 
-/// Get all simulatable waves from CanvasState. Includes top-level Input and Output ports.
-/// Waves contain info which will be used later to create the SVGs for those waves actually
-/// selected. Init value of these from this function is None.
-let getWaves (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
-    let start = TimeHelpers.getTimeMs ()
-    //printfn $"{fs.WaveIndex.Length} possible waves"
-    fs.WaveIndex
-    |> TimeHelpers.instrumentInterval "getAllPorts" start
-    |> Array.map (fun wi -> wi, makeWave ws fs wi)
-    //|> fun x -> printfn $"Made waves!";x
-    |> Map.ofArray
-    |> TimeHelpers.instrumentInterval "makeWavePipeline" start
-
-
 
 
 /// Sets all waves as selected or not selected depending on value of selected
@@ -775,24 +761,4 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
         ]
 
 
-//-------------------------------------Popup menu for multiplier---------------------------------------------//
-
-let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
-    /// key = 0 .. n-1 where there are n possible multipliers
-        let mulTable = Constants.multipliers
-        let menuItem (key) =
-            let itemLegend = str (match key with | 0 -> "Every Cycle" | _ -> $"Every {mulTable[key]} cycles")
-            Menu.Item.li
-                [ Menu.Item.IsActive (Constants.multipliers[key] = wsModel.CycleMultiplier)
-                  Menu.Item.OnClick (fun _ ->
-                    dispatch <| ChangeWaveSimMultiplier (key);
-                    dispatch ClosePopup)
-                ]
-                [ itemLegend ]
-        let menu = Menu.menu [] [ Menu.list [] (List.map menuItem [0 .. mulTable.Length - 1 ]) ]
-
-        let buttonClick = Button.OnClick (fun _ ->
-            printfn $"Mul={wsModel.CycleMultiplier}"
-            dispatch <| ShowStaticInfoPopup("Multiplier",menu,dispatch ))  
-        Button.button ( buttonClick :: topHalfButtonProps IColor.IsDanger "ZoomButton" false) [str $"zoom X{wsModel.CycleMultiplier}"]
 

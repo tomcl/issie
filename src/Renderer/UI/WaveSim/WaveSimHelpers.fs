@@ -14,57 +14,9 @@ open FastRun
 open NumberHelpers
 
 
+open WaveSimStyle
 
 
-module Constants =
-
-    /// initial time running simulation without spinner to check speed (in ms)
-    let initSimulationTime = 100.
-    /// max estimated time to run simulation and not need a spinner (in ms)
-    let maxSimulationTimeWithoutSpinner = 200.
-    /// The horizontal length of a transition cross-hatch for non-binary waveforms
-    let nonBinaryTransLen : float = 2.
-
-    /// The height of the viewbox used for a wave's SVG. This is the same as the height
-    /// of a label in the name and value columns.
-    /// TODO: Combine this with WaveSimStyle.Constants.rowHeight?
-    let viewBoxHeight : float = 30.0
-
-    /// Height of a waveform
-    let waveHeight : float = 0.8 * viewBoxHeight
-    /// Vertical padding between top and bottom of each wave and the row it is in.
-    let spacing : float = (viewBoxHeight - waveHeight) / 2.
-
-    /// y-coordinate of the top of a waveform
-    let yTop = spacing
-    /// y-coordiante of the bottom of a waveform
-    let yBot = waveHeight + spacing
-
-    /// minium number of cycles on screen when zooming in
-    let minVisibleCycles = 3
-
-    /// Minimum number of visible clock cycles.
-    let minCycleWidth = 5
-
-    let zoomChangeFactor = 1.5
-
-    /// If the width of a non-binary waveform is less than this value, display a cross-hatch
-    /// to indicate a non-binary wave is rapidly changing value.
-    let clkCycleNarrowThreshold = 20
-
-    /// number of extra steps simulated beyond that used in simulation. Is this needed?
-    let extraSimulatedSteps = 5 
-
-    let infoMessage = 
-        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
-
-    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
-
-    let infoSignUnicode = "\U0001F6C8"
-
-    let waveLegendMaxChars = 35
-    let valueColumnMaxChars = 35
-    let multipliers = [1;2;5;10;20;50]
 
 
 
@@ -76,15 +28,6 @@ module Constants =
 let subSamp (arr: 'T array) (start:int) (count: int) (mult:int)  =
     Array.init count (fun n -> arr[start + n*mult])
 
-// maybe these should be defined earlier in compile order? Or added as list functions?
-
-let listMaxWithDef defaultValue lst =
-    defaultValue :: lst
-    |> List.max
-
-let listCollectSomes mapFn lst =
-    lst
-    |> List.collect (fun x -> match mapFn x with | Some r -> [r] | None -> [])
 
 /// Determines whether a clock cycle is generated with a vertical bar at the beginning,
 /// denoting that a waveform changes value at the start of that clock cycle. NB this
@@ -115,29 +58,6 @@ type Gap = {
     Length: int
 }
 
-let rec validateSimParas (ws: WaveSimModel) =
-    if ws.StartCycle < 0 then
-        printfn $"ERROR in Sim parameters: StartCycle {ws.StartCycle} < 0"
-        validateSimParas {ws with StartCycle = 0}
-    elif (ws.StartCycle +  ws.ShownCycles-1)*ws.CycleMultiplier > Constants.maxLastClk then
-        printfn $"Correcting sim paras by reducing StartCycle"
-        {ws with StartCycle = Constants.maxLastClk / ws.CycleMultiplier - ws.ShownCycles}
-    elif ws.CurrClkCycle < ws.StartCycle || ws.CurrClkCycle >= ws.StartCycle + ws.ShownCycles then
-        printfn $"Resetting CurClkCycle which {ws.CurrClkCycle} was too large with multiplier = {ws.CycleMultiplier}"
-        {ws with CurrClkCycle = ws.StartCycle; CurrClkCycleDetail = ws.StartCycle*ws.CycleMultiplier}
-    else ws
-
-let changeMultiplier newMultiplier (ws: WaveSimModel) =
-    let oldM = ws.CycleMultiplier
-    printfn $"Old: {oldM} shown {ws.ShownCycles} start={ws.StartCycle} NewM={newMultiplier}"
-    let sampsHalf = (float ws.ShownCycles - 1.) / 2.
-    let newShown = min ws.ShownCycles (Constants.maxLastClk / newMultiplier)
-    let newStart = int ((float ws.StartCycle + sampsHalf) * float oldM / float newMultiplier - (float newShown - 1.) / 2.)
-    printfn $"New: shown={newShown} start = {newStart}"
-    {ws with ShownCycles = newShown; StartCycle = newStart; CycleMultiplier = newMultiplier}
-    |> validateSimParas
-
-
 
 
 
@@ -151,32 +71,12 @@ let xShift clkCycleWidth =
     else Constants.nonBinaryTransLen
         
 
-/// Width of one clock cycle.
-let singleWaveWidth m = max 5.0 (float m.WaveformColumnWidth / float m.ShownCycles)
 
-/// Left-most coordinate of the SVG viewbox.
-let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
-
-/// Total width of the SVG viewbox.
-let viewBoxWidth m = string (max 5.0 (m.WaveformColumnWidth))
-
-/// Right-most visible clock cycle.
-let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
 
 /// Helper function to create Bulma buttons
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
-/// List of selected waves (of type Wave)
-let selectedWaves (wsModel: WaveSimModel) : Wave list = 
-    wsModel.SelectedWaves
-    |> List.map (fun wi -> Map.tryFind wi wsModel.AllWaves |> Option.toList)
-    |> List.concat
 
-/// Convert XYPos list to string
-let pointsToString (points: XYPos array) : string =
-    Array.fold (fun str (point: XYPos) ->
-        $"{str} %.1f{point.X},%.1f{point.Y} "
-    ) "" points
 
 /// Retrieve value of wave at given clock cycle as an int.
 /// At extra (sampling) zoom this allows detail clock cycles within one sample
@@ -512,44 +412,7 @@ let wavesToIds (waves: Wave list) =
 let tr1 react = tr [] [ react ]
 let td1 react = td [] [ react ]
 
-//---------------------------Code for selector details state----------------------------------//
 
-// It would be better to do this with one subfunction and Optics!
-
-/// Sets or clears a subset of ShowSheetDetail
-let setWaveSheetSelectionOpen (wsModel: WaveSimModel) (subSheets: string list list) (show: bool) =
-    let setChange = Set.ofList subSheets
-    let newSelect =
-        match show with
-        | false -> Set.difference wsModel.ShowSheetDetail setChange
-        | true -> Set.union setChange wsModel.ShowSheetDetail
-    {wsModel with ShowSheetDetail = newSelect}   
-
-/// Sets or clears a subset of ShowComponentDetail
-let setWaveComponentSelectionOpen (wsModel: WaveSimModel) (fIds: FComponentId list)  (show: bool) =
-    let fIdSet = Set.ofList fIds
-    let newSelect =
-        match show with
-        | true -> Set.union fIdSet  wsModel.ShowComponentDetail
-        | false -> Set.difference wsModel.ShowComponentDetail fIdSet
-    {wsModel with ShowComponentDetail = newSelect}
-
-
-/// Sets or clears a subset of ShowGroupDetail
-let setWaveGroupSelectionOpen (wsModel: WaveSimModel) (grps :(ComponentGroup*string list) list)  (show: bool) =
-    let grpSet = Set.ofList grps
-    let newSelect =
-        match show with
-        | true -> Set.union grpSet  wsModel.ShowGroupDetail
-        | false -> Set.difference wsModel.ShowGroupDetail grpSet
-    {wsModel with ShowGroupDetail = newSelect}
-
-let setSelectionOpen (wsModel: WaveSimModel) (cBox: CheckBoxStyle) (show:bool) =
-    match cBox with
-    | PortItem _ -> failwithf "What? setselectionopen cannot be called from a Port"
-    | ComponentItem fc -> setWaveComponentSelectionOpen wsModel [fc.fId] show
-    | GroupItem (grp,subSheet) -> setWaveGroupSelectionOpen wsModel [grp,subSheet] show
-    | SheetItem subSheet -> setWaveSheetSelectionOpen wsModel [subSheet] show
 
 
 /// get all waves electrically connected to a given wave

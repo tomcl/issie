@@ -17,6 +17,7 @@ open Optics
 open Optics.Optic
 open Optics.Operators
 
+
 //---------------------------------------------------------------------------------------------//
 //---------------------------------------------------------------------------------------------//
 //---------------------------------- Update Model ---------------------------------------------//
@@ -67,7 +68,7 @@ let update (msg : Msg) oldModel =
 
     match testMsg with
     | ChangeWaveSimMultiplier key ->
-        let table = WaveSimHelpers.Constants.multipliers
+        let table = WaveSimStyle.Constants.multipliers
         if key < 0 || key >= table.Length then
             printf $"Warning: Can't chnage multiplier to key = {key}"
             model, Cmd.none   
@@ -80,7 +81,7 @@ let update (msg : Msg) oldModel =
                 model
                 |> Optic.map waveSim_ (fun ws ->
                     let wsModel = ws[sheet]
-                    Map.add sheet (WaveSimHelpers.changeMultiplier (table[key]) wsModel) ws)
+                    Map.add sheet (WaveSimNavigation.changeMultiplier (table[key]) wsModel) ws)
                 |> (fun m -> m, Cmd.none)
     | CheckMemory ->
         if JSHelpers.loggingMemory then
@@ -256,18 +257,18 @@ let update (msg : Msg) oldModel =
 
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
         model
-        |> updateWSModel (fun ws -> WaveSimHelpers.setWaveComponentSelectionOpen ws fIdL show)
+        |> updateWSModel (fun ws -> WaveSimStyle.setWaveComponentSelectionOpen ws fIdL show)
         |> withNoMsg
 
     | SetWaveGroupSelectionOpen (fIdL, show) -> 
         model
-        |> updateWSModel (fun ws -> WaveSimHelpers.setWaveGroupSelectionOpen ws fIdL show)
+        |> updateWSModel (fun ws -> WaveSimStyle.setWaveGroupSelectionOpen ws fIdL show)
         |> withNoMsg
 
         
     | SetWaveSheetSelectionOpen (fIdL, show) ->       
         model
-        |> updateWSModel (fun ws -> WaveSimHelpers.setWaveSheetSelectionOpen ws fIdL show)
+        |> updateWSModel (fun ws -> WaveSimStyle.setWaveSheetSelectionOpen ws fIdL show)
         |> withNoMsg    
 
     | TryStartSimulationAfterErrorFix simType ->
@@ -609,7 +610,7 @@ let update (msg : Msg) oldModel =
 
     | ScrollbarMouseMsg (cursor: float, action: ScrollbarMouseAction, dispatch: Msg->unit) ->
         let wsm = Map.find (Option.get model.WaveSimSheet) model.WaveSim
-        WaveSim.updateScrollbar wsm dispatch cursor action
+        WaveSimNavigation.updateScrollbar wsm dispatch cursor action
         model, Cmd.none
 
     // Various messages here that are not implemented as yet, or are no longer used

@@ -1,12 +1,14 @@
 module WaveSimStyle
 
-open ModelType
-open ModelHelpers
-open WaveSimHelpers
+
+
 
 open Fulma
 open Fable.React
 open Fable.React.Props
+open CommonTypes
+open ModelType
+open ModelHelpers
 
 module Constants =
     // Width of names column - replaced by calcNamesColWidth function
@@ -67,7 +69,91 @@ module Constants =
     /// height of the top half of the wave sim window (including tabs) when waveforms are displayed
     let topHalfHeight = 260.
 
+    // helpers constants
+    /// initial time running simulation without spinner to check speed (in ms)
+    let initSimulationTime = 100.
+    /// max estimated time to run simulation and not need a spinner (in ms)
+    let maxSimulationTimeWithoutSpinner = 200.
+    /// The horizontal length of a transition cross-hatch for non-binary waveforms
+    let nonBinaryTransLen : float = 2.
+
+    /// The height of the viewbox used for a wave's SVG. This is the same as the height
+    /// of a label in the name and value columns.
+    /// TODO: Combine this with WaveSimStyle.Constants.rowHeight?
+    let viewBoxHeight : float = 30.0
+
+    /// Height of a waveform
+    let waveHeight : float = 0.8 * viewBoxHeight
+    /// Vertical padding between top and bottom of each wave and the row it is in.
+    let spacing : float = (viewBoxHeight - waveHeight) / 2.
+
+    /// y-coordinate of the top of a waveform
+    let yTop = spacing
+    /// y-coordiante of the bottom of a waveform
+    let yBot = waveHeight + spacing
+
+    /// minium number of cycles on screen when zooming in
+    let minVisibleCycles = 3
+
+    /// Minimum number of visible clock cycles.
+    let minCycleWidth = 5
+
+    let zoomChangeFactor = 1.5
+
+    /// If the width of a non-binary waveform is less than this value, display a cross-hatch
+    /// to indicate a non-binary wave is rapidly changing value.
+    let clkCycleNarrowThreshold = 20
+
+    /// number of extra steps simulated beyond that used in simulation. Is this needed?
+    let extraSimulatedSteps = 5 
+
+    let infoMessage = 
+        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
+
+    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
+
+    let infoSignUnicode = "\U0001F6C8"
+
+    let waveLegendMaxChars = 35
+    let valueColumnMaxChars = 35
+    let multipliers = [1;2;5;10;20;50]
+
+// maybe these should be defined earlier in compile order? Or added as list functions?
+
+let listMaxWithDef defaultValue lst =
+    defaultValue :: lst
+    |> List.max
+
+let listCollectSomes mapFn lst =
+    lst
+    |> List.collect (fun x -> match mapFn x with | Some r -> [r] | None -> [])
+
+/// List of selected waves (of type Wave)
+let selectedWaves (wsModel: WaveSimModel) : Wave list = 
+    wsModel.SelectedWaves
+    |> List.map (fun wi -> Map.tryFind wi wsModel.AllWaves |> Option.toList)
+    |> List.concat
+
+/// Convert XYPos list to string
+let pointsToString (points: XYPos array) : string =
+    Array.fold (fun str (point: XYPos) ->
+        $"{str} %.1f{point.X},%.1f{point.Y} "
+    ) "" points
+
 let screenHeight() = Browser.Dom.document.defaultView.innerHeight
+
+
+/// Width of one clock cycle.
+let singleWaveWidth m = max 5.0 (float m.WaveformColumnWidth / float m.ShownCycles)
+
+/// Left-most coordinate of the SVG viewbox.
+let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
+
+/// Total width of the SVG viewbox.
+let viewBoxWidth m = string (max 5.0 (m.WaveformColumnWidth))
+
+/// Right-most visible clock cycle.
+let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
 
 /// Style for top row in wave viewer.
 let topRowStyle = Style [
@@ -417,7 +503,7 @@ let valueLabelStyle =
 let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
     Style [
         Position PositionOptions.Sticky
-        Left 0
+        CSSProp.Left 0
         Visibility visibility
     ]
 ]
@@ -712,6 +798,54 @@ let wavePolyfillStyle points : IProp list = [
     Points (pointsToString points)
 ]
 
+/// Style for top half of waveform simulator (instructions and buttons)
+let topHalfStyle = Style [
+    Position PositionOptions.Sticky
+    CSSProp.Top 0
+    BackgroundColor "white"
+    ZIndex 10000
+]
+
+//---------------------------Code for selector details state----------------------------------//
+
+// It would be better to do this with one subfunction and Optics!
+
+/// Sets or clears a subset of ShowSheetDetail
+let setWaveSheetSelectionOpen (wsModel: WaveSimModel) (subSheets: string list list) (show: bool) =
+    let setChange = Set.ofList subSheets
+    let newSelect =
+        match show with
+        | false -> Set.difference wsModel.ShowSheetDetail setChange
+        | true -> Set.union setChange wsModel.ShowSheetDetail
+    {wsModel with ShowSheetDetail = newSelect}   
+
+/// Sets or clears a subset of ShowComponentDetail
+let setWaveComponentSelectionOpen (wsModel: WaveSimModel) (fIds: FComponentId list)  (show: bool) =
+    let fIdSet = Set.ofList fIds
+    let newSelect =
+        match show with
+        | true -> Set.union fIdSet  wsModel.ShowComponentDetail
+        | false -> Set.difference wsModel.ShowComponentDetail fIdSet
+    {wsModel with ShowComponentDetail = newSelect}
+
+
+/// Sets or clears a subset of ShowGroupDetail
+let setWaveGroupSelectionOpen (wsModel: WaveSimModel) (grps :(ComponentGroup*string list) list)  (show: bool) =
+    let grpSet = Set.ofList grps
+    let newSelect =
+        match show with
+        | true -> Set.union grpSet  wsModel.ShowGroupDetail
+        | false -> Set.difference wsModel.ShowGroupDetail grpSet
+    {wsModel with ShowGroupDetail = newSelect}
+
+let setSelectionOpen (wsModel: WaveSimModel) (cBox: CheckBoxStyle) (show:bool) =
+    match cBox with
+    | PortItem _ -> failwithf "What? setselectionopen cannot be called from a Port"
+    | ComponentItem fc -> setWaveComponentSelectionOpen wsModel [fc.fId] show
+    | GroupItem (grp,subSheet) -> setWaveGroupSelectionOpen wsModel [grp,subSheet] show
+    | SheetItem subSheet -> setWaveSheetSelectionOpen wsModel [subSheet] show
+
+
 /// Props for HTML Summary element
 let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = [
 
@@ -749,61 +883,6 @@ let detailsProps showDetails cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IH
         Open (show || showDetails)
     ]
 
-/// Style for top half of waveform simulator (instructions and buttons)
-let topHalfStyle = Style [
-    Position PositionOptions.Sticky
-    Top 0
-    BackgroundColor "white"
-    ZIndex 10000
-]
 
 
 
-
-
-
-let inline updateViewerWidthInWaveSim w (model:Model) =
-    printfn "updateviewerWidthInWaveSim" // ***>
-    let wsModel = getWSModel model
-    //dispatch <| SetViewerWidth w
-    let namesColWidth = calcNamesColWidth wsModel
-
-    /// The extra is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
-    /// It also allows space for a scroll bar (about 6 px)
-    let otherDivWidths = Constants.leftMargin + Constants.rightMargin + DiagramStyle.Constants.dividerBarWidth + Constants.scrollBarWidth + 8
-
-    /// This is what the overall waveform width must be
-    let valuesColumnWidth,_ = valuesColumnSize wsModel
-    let waveColWidth = w - otherDivWidths - namesColWidth - valuesColumnWidth
-
-    /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
-    let wholeCycles = max 1 (int (float waveColWidth / singleWaveWidth wsModel))
-    let singleCycleWidth = float waveColWidth / float wholeCycles
-    let finalWavesColWidth = singleCycleWidth * float wholeCycles
-
-    /// Estimated length of scrollbar, adding three components together: names col, waveform port, and values col.
-    let scrollbarWidth = (float namesColWidth) + finalWavesColWidth + (float valuesColumnWidth)
-
-    // printfn "DEBUG:updateViewerWidthInWaveSim: Names Column Width = %Apx" (float namesColWidth)
-    // printfn "DEBUG:updateViewerWidthInWaveSim: Waves Column Width = %Apx" finalWavesColWidth
-    // printfn "DEBUG:updateViewerWidthInWaveSim: Values Column Width = %Apx" (float valuesColumnWidth)
-    // printfn "DEBUG:updateViewerWidthInWaveSim: Calculated Scrollbar Width = %Apx" scrollbarWidth
-
-    let updateFn wsModel = 
-        {
-        wsModel with
-            ShownCycles = wholeCycles
-            StartCycle = min wsModel.StartCycle (Constants.maxLastClk - wholeCycles + 1)
-            CurrClkCycle = min wsModel.CurrClkCycle Constants.maxLastClk
-            WaveformColumnWidth = finalWavesColWidth
-            ScrollbarBkgWidth = scrollbarWidth
-        }
-
-    {model with WaveSimViewerWidth = w}
-    |> ModelHelpers.updateWSModel updateFn
-
-
-
-let inline setViewerWidthInWaveSim w dispatch =
-    dispatch <| UpdateModel (updateViewerWidthInWaveSim w)
-    dispatch <| GenerateCurrentWaveforms

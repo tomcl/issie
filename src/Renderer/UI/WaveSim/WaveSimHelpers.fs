@@ -215,7 +215,7 @@ let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (sho
         subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
     | _ ->
         printfn $"Before failure: waveValues.Length {waveValues.Length} e*m: {(startCycle+shownCycles-1)*multiplier} "
-        failwithf "Shown cycles is beyond array bounds"
+        failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {waveValues.Length}"
     |> Array.pairwise
     |> Array.map (fun (x, y) -> if x = y then Const else Change)
     |> Array.append [| Change |] 

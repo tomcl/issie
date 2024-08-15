@@ -55,7 +55,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     else
     // starting runSimulation
         //printfn "Starting refresh"
-        let lastCycleNeeded = (wsModel.StartCycle + wsModel.ShownCycles)*wsModel.CycleMultiplier + 1
+        let lastCycleNeeded = (wsModel.StartCycle + wsModel.ShownCycles - 1)*wsModel.CycleMultiplier + 1
 
         FastRun.runFastSimulation (Some Constants.initSimulationTime) lastCycleNeeded fs
         |> (fun speedOpt ->
@@ -77,7 +77,6 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     FastRun.runFastSimulation None lastCycleNeeded fs |> ignore                
                 // simulation has finished so can generate waves
 
-                printfn $"Ending refresh now at Tick {fs.ClockTick}..."
                 let allWavesStart = TimeHelpers.getTimeMs ()    
                     //printfn "starting getwaves"
                 // redo waves based on new simulation
@@ -97,9 +96,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 
                 match simulationIsUptodate with
                 | falae ->
-                    
-                printfn $"Simulationuptodate: {simulationIsUptodate}"
-                // need to use isSameWave here becasue sarray index may have changed
+                // need to use isSameWave here because array index may have changed
                 let wavesToBeMade =
                     allWaves
                     |> Map.filter (fun wi wave ->
@@ -107,7 +104,6 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         // Regenerate waveforms whenever they have changed
                         let hasChanged = not <| WaveSimWaves.waveformIsUptodate wsModel wave
                         //if List.contains index ws.SelectedWaves then
-                        printfn $"Checking redraw: {wave.CompLabel} hasChanged={hasChanged} uptodate={simulationIsUptodate}"
                         List.exists (fun wi' -> isSameWave wi wi') wsModel.SelectedWaves && hasChanged && simulationIsUptodate)
                     |> Map.toList                   
                     |> List.map fst
@@ -182,10 +178,8 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
     let wsSheet = 
         match model.WaveSimSheet with
         | None ->
-            printfn "Sheet was none"
             Option.get (getCurrFile model)
         | Some sheet ->
-            printfn "sheet already existing"
             sheet
     printfn $"Refresh Button with width = {model.WaveSimViewerWidth}"
     let model = 

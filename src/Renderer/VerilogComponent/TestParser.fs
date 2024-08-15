@@ -80,7 +80,7 @@ let errorInfoToJson (errorInfo: ErrorInfo) =
 open FilesIO
 open Fable.SimpleJson
 
-printfn "[TEST] Starting Verilog parser tests"
+//printfn "[TEST] Starting Verilog parser tests"
 
 
 let parseFile src dst =

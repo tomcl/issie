@@ -219,7 +219,8 @@ let private valuesColumn wsModel : ReactElement =
     let start = TimeHelpers.getTimeMs ()
     let width, rows = valueRows wsModel
     let cursorClkNum = wsModel.CurrClkCycleDetail
-    let topRowNumber = [ text [Style [FontWeight "bold"; PaddingLeft "2pt"]] [str (string <| cursorClkNum)] ] 
+    let topRowNumber = [ div [Style [FontSize "10pt" ; VerticalAlign "bottom"; FontWeight "bold"; PaddingLeft "4pt"]] [str (string <| cursorClkNum)] ]
+    printfn "%A" topRowNumber
 
     div [ HTMLAttr.Id "ValuesCol" ; valuesColumnStyle width]
         (List.concat [ topRow topRowNumber ; rows ])
@@ -272,7 +273,7 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
         div [ HTMLAttr.Id "Scroller";  Style [ Height cssHeight; Width "100%"; CSSProp.Custom("overflow", "auto")]] [
             div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
                 [
-                    namesColumn model wsModel dispatch
+                    namesColumn model wsModel dispatch 
                     waveformColumn wsModel dispatch
                     valuesColumn wsModel
                 ]

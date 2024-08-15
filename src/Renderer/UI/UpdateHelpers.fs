@@ -729,7 +729,7 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     | MenuNewFile -> 
         TopMenuView.addFileToProject model dispatch
     | MenuLostFocus ->
-        printf "Lost focus!"
+        ()
         
     | MenuExit ->
         FileUpdate.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()

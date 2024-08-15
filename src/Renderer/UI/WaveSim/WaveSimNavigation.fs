@@ -60,7 +60,6 @@ let validateScrollBarInfo (wsm: WaveSimModel) =
      
 
 let inline updateViewerWidthInWaveSim w (model:Model) =
-    printfn "updateviewerWidthInWaveSim" // ***>
     let wsModel = getWSModel model
     //dispatch <| SetViewerWidth w
     let namesColWidth = calcNamesColWidth wsModel
@@ -128,7 +127,7 @@ let changeMultiplier newMultiplier (ws: WaveSimModel) =
     let oldM = ws.CycleMultiplier
     printfn $"Old: {oldM} shown {ws.ShownCycles} start={ws.StartCycle} NewM={newMultiplier}"
     let sampsHalf = (float ws.ShownCycles - 1.) / 2.
-    let newShown = min ws.ShownCycles (Constants.maxLastClk / newMultiplier)
+    let newShown = 1 + min ws.ShownCycles (Constants.maxLastClk / newMultiplier)
     let newStart = int ((float ws.StartCycle + sampsHalf) * float oldM / float newMultiplier - (float newShown - 1.) / 2.)
     printfn $"New: shown={newShown} start = {newStart}"
     {ws with ShownCycles = newShown; StartCycle = newStart; CycleMultiplier = newMultiplier}
@@ -266,7 +265,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
             else
                 sc)
         // final limits check so no cycle is outside allowed range
-        |> min (Constants.maxLastClk / wsModel.CycleMultiplier - shownCycles)
+        |> min (Constants.maxLastClk / wsModel.CycleMultiplier - shownCycles + 1)
         |> max 0
 
         
@@ -439,7 +438,7 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
     /// key = 0 .. n-1 where there are n possible multipliers
         let mulTable = Constants.multipliers
         let menuItem (key) =
-            let itemLegend = str (match key with | 0 -> "Every Cycle" | _ -> $"Every {mulTable[key]} cycles")
+            let itemLegend = str (match key with | 0 -> "Every Cycle (normal)" | _ -> $"Every {mulTable[key]} cycles")
             Menu.Item.li
                 [ Menu.Item.IsActive (Constants.multipliers[key] = wsModel.CycleMultiplier)
                   Menu.Item.OnClick (fun _ ->
@@ -450,15 +449,14 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
         let menu =
             div []
                 [
-                    h5 [Style[Color IColor.IsDanger]] [str "Warning: extra zoom view greater than X1 will sample the waveform and so lose information about fast-changing outputs"]
+                    p [Style[ Color IColor.IsDanger; FontWeight 600; FontSize "18px"]] [str "Warning: zoom greater than X1 will sample the waveform and lose information about fast-changing outputs"]
                     br []
-                    h5 [] [str "It should only be used to observe slow-chnaging signals, when it is necessary to see large clock cycle range, \
-                               and the normal - zoom function is not enough."]
+                    p [] [str "Use it to observe slow-changing signals when the normal zoom range is not enough."]
                     br []
                     Menu.menu [] [ Menu.list [] (List.map menuItem [0 .. mulTable.Length - 1 ])]
                 ]
 
         let buttonClick = Button.OnClick (fun _ ->
             printfn $"Mul={wsModel.CycleMultiplier}"
-            dispatch <| ShowStaticInfoPopup("Multiplier",menu,dispatch ))  
+            dispatch <| ShowStaticInfoPopup("Extra Zoom Sampling Rate",menu,dispatch ))  
         Button.button ( buttonClick :: topHalfButtonProps IColor.IsDanger "ZoomButton" false) [str $"Extra zoom X{wsModel.CycleMultiplier}"]

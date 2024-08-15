@@ -103,9 +103,13 @@
     <Compile Include="UI\BuildView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
-    <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
+    <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
+    <Compile Include="UI\WaveSim\WaveSimNavigation.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />
+    <Compile Include="UI\WaveSim\WaveSimWaves.fs" />
+    <Compile Include="UI\WaveSim\WaveSimWaveforms.fs" />
+    <Compile Include="UI\WaveSim\WaveSimRams.fs" />
     <Compile Include="UI\WaveSim/WaveSim.fs" />
     <Compile Include="UI\MainView.fs" />
     <Compile Include="UI\ContextMenus.fs" />

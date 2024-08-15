@@ -82,7 +82,9 @@ let update (msg : Msg) oldModel =
                 |> Optic.map waveSim_ (fun ws ->
                     let wsModel = ws[sheet]
                     Map.add sheet (WaveSimNavigation.changeMultiplier (table[key]) wsModel) ws)
-                |> (fun m -> m, Cmd.none)
+                |> (fun model -> WaveSim.refreshWaveSim true (getWSModel model) model)
+                
+
     | CheckMemory ->
         if JSHelpers.loggingMemory then
             let heapInBytes = JSHelpers.usedHeap()

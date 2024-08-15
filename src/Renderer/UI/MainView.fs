@@ -391,7 +391,7 @@ let displayView model dispatch =
                     UserSelect UserSelectOptions.None
                     BorderTop "2px solid lightgray"
                     BorderBottom "2px solid lightgray"
-                    OverflowX OverflowOptions.Auto
+                    CSSProp.Custom("Overflow", "clip clip")
                     Height "calc(100%-4px)"
                     ]
                 ] [

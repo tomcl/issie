@@ -76,6 +76,10 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     let wholeCycles =
         max 1 (int (float waveColWidth / singleWaveWidth wsModel))
         |> min (Constants.maxLastClk / wsModel.CycleMultiplier) // make sure there can be no over-run when making viewer larger
+        // prevent oscilaltion when number of cycles changes continuously due to width changes in values (rare corner case)
+        |> (function | whole when abs (float (whole - wsModel.ShownCycles) / float wsModel.ShownCycles) < 0.1 -> wsModel.ShownCycles
+                     | whole -> whole)
+
     let singleCycleWidth = float waveColWidth / float wholeCycles
     let finalWavesColWidth = singleCycleWidth * float wholeCycles
 
@@ -110,26 +114,21 @@ let inline setViewerWidthInWaveSim w dispatch =
 
 let rec validateSimParas (ws: WaveSimModel) =
     if ws.StartCycle < 0 then
-        printfn $"ERROR in Sim parameters: StartCycle {ws.StartCycle} < 0"
         validateSimParas {ws with StartCycle = 0}
     elif ws.CurrClkCycleDetail > Constants.maxLastClk then
         validateSimParas {ws with CurrClkCycleDetail = Constants.maxLastClk}
     elif (ws.StartCycle +  ws.ShownCycles-1)*ws.CycleMultiplier > Constants.maxLastClk then
-        printfn $"Correcting sim paras by reducing StartCycle"
         {ws with StartCycle = Constants.maxLastClk / ws.CycleMultiplier - ws.ShownCycles}
     elif ws.CurrClkCycle < ws.StartCycle || ws.CurrClkCycle >= ws.StartCycle + ws.ShownCycles then
-        printfn $"Resetting CurClkCycle which {ws.CurrClkCycle} was too large with multiplier = {ws.CycleMultiplier}"
         {ws with CurrClkCycle = ws.StartCycle; CurrClkCycleDetail = ws.StartCycle*ws.CycleMultiplier}
     else ws
     |> validateScrollBarInfo
 
 let changeMultiplier newMultiplier (ws: WaveSimModel) =
     let oldM = ws.CycleMultiplier
-    printfn $"Old: {oldM} shown {ws.ShownCycles} start={ws.StartCycle} NewM={newMultiplier}"
     let sampsHalf = (float ws.ShownCycles - 1.) / 2.
     let newShown = 1 + min ws.ShownCycles (Constants.maxLastClk / newMultiplier)
     let newStart = int ((float ws.StartCycle + sampsHalf) * float oldM / float newMultiplier - (float newShown - 1.) / 2.)
-    printfn $"New: shown={newShown} start = {newStart}"
     {ws with ShownCycles = newShown; StartCycle = newStart; CycleMultiplier = newMultiplier}
     |> validateSimParas
 
@@ -319,7 +318,7 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
             OnMouseDown tbMouseDownHandler; OnMouseUp tbMouseUpHandler; OnMouseMove tbMouseMoveHandler;
         ]
 
-    div [ Style [ MarginTop "5px"; MarginBottom "5px"; Height "25px"]] [
+    div [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap; MarginTop "5px"; MarginBottom "5px"; Height "25px"; CSSProp.Custom("Overflow", "visible visible")]] [
         button [ Button.Props [scrollbarClkCycleLeftStyle] ]
             (fun _ -> scrollWaveformViewBy -1.0)
             (str "◀")
@@ -438,7 +437,7 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
     /// key = 0 .. n-1 where there are n possible multipliers
         let mulTable = Constants.multipliers
         let menuItem (key) =
-            let itemLegend = str (match key with | 0 -> "Every Cycle (normal)" | _ -> $"Every {mulTable[key]} cycles")
+            let itemLegend = str (match key with | 0 -> "Every Cycle (normal X1)" | _ -> $"Every {mulTable[key]} cycles")
             Menu.Item.li
                 [ Menu.Item.IsActive (Constants.multipliers[key] = wsModel.CycleMultiplier)
                   Menu.Item.OnClick (fun _ ->
@@ -446,17 +445,20 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
                     dispatch ClosePopup)
                 ]
                 [ itemLegend ]
+        let addSpaces n r = span [Style[PaddingLeft n; PaddingRight n]] [r]
         let menu =
             div []
                 [
-                    p [Style[ Color IColor.IsDanger; FontWeight 600; FontSize "18px"]] [str "Warning: zoom greater than X1 will sample the waveform and lose information about fast-changing outputs"]
+                    p [Style[ Color "darkred"; FontWeight 600; FontSize "18px"]] [str "Warning: zoom greater than X1 will sample the waveform and lose information about fast-changing outputs"]
                     br []
-                    p [] [str "Use it to observe slow-changing signals when the normal zoom range is not enough."]
+                    p [] [str "Use it this menu to zoom out slow-changing signals when the range of"; addSpaces 5 zoomOutSVG; str "is not enough."]
                     br []
                     Menu.menu [] [ Menu.list [] (List.map menuItem [0 .. mulTable.Length - 1 ])]
                 ]
 
         let buttonClick = Button.OnClick (fun _ ->
-            printfn $"Mul={wsModel.CycleMultiplier}"
-            dispatch <| ShowStaticInfoPopup("Extra Zoom Sampling Rate",menu,dispatch ))  
-        Button.button ( buttonClick :: topHalfButtonProps IColor.IsDanger "ZoomButton" false) [str $"Extra zoom X{wsModel.CycleMultiplier}"]
+            dispatch <| ShowStaticInfoPopup("Zoom Sampling Rate",menu,dispatch ))
+        let expectedMaxShown = int (wsModel.WaveformColumnWidth / float Constants.minCycleWidth)
+        if wsModel.ShownCycles = expectedMaxShown || wsModel.CycleMultiplier > 1 then
+            Button.button ( buttonClick :: topHalfButtonProps IColor.IsDanger "ZoomButton" false) [str $"X{wsModel.CycleMultiplier}"]
+        else str ""

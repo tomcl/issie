@@ -173,7 +173,7 @@ let namesColumn model wsModel dispatch : ReactElement =
         nameRows model wsModel dispatch
     div (namesColumnProps wsModel)
         (List.concat [ topRow []; rows ])
-    |> TimeHelpers.instrumentInterval "namesColumn" start
+    //|> TimeHelpers.instrumentInterval "namesColumn" start
 
 
 /// Create label of waveform value for each selected wave at a given clk cycle.
@@ -220,11 +220,9 @@ let private valuesColumn wsModel : ReactElement =
     let width, rows = valueRows wsModel
     let cursorClkNum = wsModel.CurrClkCycleDetail
     let topRowNumber = [ div [Style [FontSize "10pt" ; VerticalAlign "bottom"; FontWeight "bold"; PaddingLeft "4pt"]] [str (string <| cursorClkNum)] ]
-    printfn "%A" topRowNumber
-
     div [ HTMLAttr.Id "ValuesCol" ; valuesColumnStyle width]
         (List.concat [ topRow topRowNumber ; rows ])
-    |> TimeHelpers.instrumentInterval "valuesColumn" start
+    //|> TimeHelpers.instrumentInterval "valuesColumn" start
 
 /// Generate a column of waveforms corresponding to selected waves.
 let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
@@ -270,7 +268,7 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
             else
                 $"min( calc(100vh - {fixedHeight}px) ,  {wHeight}px)"
 
-        div [ HTMLAttr.Id "Scroller";  Style [ Height cssHeight; Width "100%"; CSSProp.Custom("overflow", "auto")]] [
+        div [ HTMLAttr.Id "Scroller";  Style [ Height cssHeight; Width "100%"; CSSProp.Custom("overflow", "hidden auto")]] [
             div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
                 [
                     namesColumn model wsModel dispatch 

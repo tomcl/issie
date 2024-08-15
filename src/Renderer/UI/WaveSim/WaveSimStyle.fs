@@ -573,7 +573,8 @@ let valuesColumnSize wsModel =
         |> List.max
     let sampleVals = 
         [maxValueBusWidth; min maxValueBusWidth NumberHelpers.Constants.maxBinaryDisplayWidth]
-        |> List.map (fun num -> 
+        |> List.map (fun num ->
+                        let num = min (max num 1) (SimulatorTypes.bigIntMaskA.Length - 2)
                         let worstCaseVal, extra =
                             match wsModel.Radix with
                             | CommonTypes.Hex | CommonTypes.Bin -> 0I, 2.
@@ -780,6 +781,7 @@ let radixTabAStyle = Style [
 let radixTabsStyle = Style [
     Height Constants.rowHeight
     FontSize "80%"
+    OverflowX OverflowOptions.Clip
     Display DisplayOptions.Inline
 ]
 

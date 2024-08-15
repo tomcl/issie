@@ -166,8 +166,8 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     | Some sp -> 
                         updateSpinner (fst sp) (snd sp) numToDo model
                     |> updateWSModel (fun _ -> ws)
-                model, Elmish.Cmd.none
-                |> TimeHelpers.instrumentInterval "refreshWaveSim" start)
+                model, Elmish.Cmd.none)
+                //|> TimeHelpers.instrumentInterval "refreshWaveSim" start)
 //}
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
@@ -340,7 +340,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
             [WaveSimRams.ramTables wsModel] 
         )
 
-    div [] [
+    div [Style [OverflowX OverflowOptions.Clip]] [
         WaveSimSelect.selectRamModal wsModel dispatch
         WaveSimSelect.selectWavesModal wsModel dispatch
         div [ viewWaveSimStyle ]

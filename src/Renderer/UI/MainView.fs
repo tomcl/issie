@@ -335,7 +335,7 @@ let displayView model dispatch =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth())
-            setViewerWidthInWaveSim w dispatch
+            WaveSimNavigation.setViewerWidthInWaveSim w dispatch
             dispatch <| SetDragMode DragModeOff
             dispatch <| SetViewerWidth w 
         | _ -> ()

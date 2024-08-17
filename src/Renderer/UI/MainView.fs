@@ -358,8 +358,12 @@ let displayView model dispatch =
 
     // mouse ops for wavesim scrollbar
     let wavesimSbMouseMoveHandler (event: Browser.Types.MouseEvent): unit = // if in drag, update scrollbar; otherwise do nothing
-        if  Option.isSome offsetOpt
-        then
+        let leftButtonIsdown = (int event.buttons &&& 0x1) <> 0
+        let inDrag = Option.isSome offsetOpt
+        if inDrag && not leftButtonIsdown then
+            // cancel the scroll operation
+            ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
+        elif inDrag then 
             ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
 
 

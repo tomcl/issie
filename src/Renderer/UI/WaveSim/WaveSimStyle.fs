@@ -76,8 +76,12 @@ module Constants =
     // helpers constants
     /// initial time running simulation without spinner to check speed (in ms)
     let initSimulationTime = 100.
+
+    /// initial time making waveforms without spinner to check speed (in ms)
+    let initWaveformTime = 100.
+
     /// max estimated time to run simulation and not need a spinner (in ms)
-    let maxSimulationTimeWithoutSpinner = 200.
+    let maxSimulationTimeWithoutSpinner = 300.
     /// The horizontal length of a transition cross-hatch for non-binary waveforms
     let nonBinaryTransLen : float = 2.
 

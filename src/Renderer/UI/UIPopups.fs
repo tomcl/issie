@@ -324,6 +324,29 @@ let viewWaveInfoPopup dispatch feature =
     let waveInfo =
         div [] [
         match feature with
+
+        | "Getting Started" ->
+
+            ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
+                li [] [str "The waveform viewer can show waveforms selected from "; bSpan  " any sheet"; str " in the design being simulated."]         
+                li [] [str "Press"; bSpan " Start"; str " to view waveforms from the current design. Then press the";
+                       bSpan " Select Waves "; str " button to select or change which waveforms are viewed. See the selection popup info button for more info"]                    
+                li [] [str "Use Ctrl/Shift/- and Ctrl/Shift/+ buttons to resize the viewer so you can comfortably see the correct number of \
+                            waveforms." ; str "Use Alt/UpArrow and Alt/DownArrow to zoom the Schematic Editor canvas."]      
+                li [] [str "Drag the"; bSpan " grey horizontal divider bar "; str " to make the waveform viewer wider."] 
+            ]
+
+        | "Viewing Waveforms" ->
+
+            ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
+                li [] [str "Hover on a waveform name to see component and connections highlighted in editor."]      
+                li [] [str "Drag waveform names to reorder waveforms; Click the x button to delete a waveform."]                    
+                li [] [str "Click on waveforms to change the highlighted clock cycle: see values of signals for this cycle on the righthand side."]      
+                li [] [str "Use the right-hand input box to move to a new highlighted cycle number, or the arrows to change current cycle."]
+                li [] [str "Drag the scrollbar to scroll. When the thumb is at the righthand side drag it more to extend the simulated cycles."]
+                li [] [str "Use the lefthand zoom buttons to zoom out or in. Use the radix buttons to change display radix."]
+            ]
+
         | "Waveform and RAM selection" ->
 
             ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
@@ -337,17 +360,17 @@ let viewWaveInfoPopup dispatch feature =
                 li [] [str "Use 'select RAM' to view RAMs showing contents, read and write location, in the current (cursor) cycle."]
                 li [] [str "Selected waveforms are preserved from one simulation to the next."]
             ]
-        | "Waveform Operations" ->
+        | "Instructions" ->
         
             ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
                 li [] [ str "Hover mouse over a waveform name in the viewer to see it highlighted if it is on the current sheet."]
                 li [] [ str "Change sheet to view or alter components on subsheets."]
-                li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use 'select waves' to add."]
+                li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use 'select waves' to add or delete."]
      
                 li [] [ str "Use cursor and zoom controls at any time to show which cycles to display."]
                 li [] [ str "The cursor current cycle is greyed and can be moved by clicking the the waveforms, \
                             altering the number in the cursor box, or clicking arrows."]
-                li [] [ str "Drag the grey divider to alter space used by waveforms"]
+                li [] [ str "Drag the"; bSpan " grey vertical divider "; str "to alter space used by waveforms"]
             ]
         | "Miscellaneous" ->
         
@@ -371,7 +394,7 @@ let viewWaveInfoPopup dispatch feature =
     dynamicClosablePopup title body foot [Width 1000] dispatch
 
 /// Waveform Selection confirmation popup
-let viewWaveSelectConfirmationPopup numWaves action dispatch =
+let viewWaveSelectConfirmationPopup numRequired numWaves action dispatch =
     let makeH h =
         Text.span [ Modifiers [
             Modifier.TextSize (Screen.Desktop, TextSize.Is6)
@@ -387,7 +410,7 @@ let viewWaveSelectConfirmationPopup numWaves action dispatch =
     let warning = 
         div [] [
             str $"You have selected {numWaves} waveforms. "
-            str "Consider reducing this number to less than 20. Too many waveforms selected in the viewer may impact viewer reponsiveness. \
+            str $"Consider reducing this number to less than {numRequired}. Too many waveforms selected in the viewer may impact viewer reponsiveness. \
                  Best practice is to select only the waveforms you need to view."
         ]  
        

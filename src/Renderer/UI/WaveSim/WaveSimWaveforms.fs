@@ -1,4 +1,10 @@
-﻿module WaveSimWaveforms
+﻿/// showWaveforms and subfunctions to display in DOM the waveforms
+/// Waveform SVGs themselves are generated from simulation in WaveSimWaves module
+module WaveSimWaveforms
+
+//---------------------------------------------------------------------------------------//
+//-----------------------Waveform display DOM Generation---------------------------------//
+//---------------------------------------------------------------------------------------//
 
 open Fulma
 open Fable.React

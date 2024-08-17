@@ -9,7 +9,7 @@ open ModelType
 open TopMenuView
 open WaveSimHelpers
 open WaveSimStyle
-open WaveSim
+open WaveSimTop
 open Sheet.SheetInterface
 open DrawModelType
 open CommonTypes

@@ -1,4 +1,9 @@
-﻿module WaveSimRams
+﻿/// RAM display in waveform simulator
+module WaveSimRams
+
+//---------------------------------------------------------------------------------------//
+//-------Functions to implement the RAM display in the waveform simulator----------------//
+//---------------------------------------------------------------------------------------//
 
 open Fulma
 open Fable.React

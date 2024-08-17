@@ -363,18 +363,19 @@ let viewWaveInfoPopup dispatch feature =
         | "Instructions" ->
         
             ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
-                li [] [ str "Hover mouse over a waveform name in the viewer to see it highlighted if it is on the current sheet."]
-                li [] [ str "Change sheet to view or alter components on subsheets."]
-                li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use "; bSpan "Select Waves"; str  " to add or delete."]
-     
-                li [] [ str "Use cursor and zoom controls to show which cycles to display."]
-                li [] [ str "The current cursor cycle is greyed and can be moved by clicking on the waveforms, \
-                            altering the number in the cursor box, or clicking arrows by the box."]
+                li [] [ str "Hover mouse over a waveform name in the viewer to see it highlighted on the current schematic sheet."]
+                li [] [ str "Change schematic sheet to view or alter components on subsheets."]
+                li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use "; bSpan "Select Waves"; str " to add or delete."]     
+                li [] [ str "Scroll or use " ; bSpan "arrows" ; str " and "; DiagramStyle.zoomOutSVG; DiagramStyle.zoomInSVG;
+                        str " controls to show which cycles to display."]
+                li [] [ str "The "; bSpan "cursor cycle"; str " is colored and can be moved by "; bSpan "clicking on the waveforms";
+                        str " altering the number in the "; bSpan "cursor box"; str " or "; bSpan "clicking box arrows";
+                        str ". The RH column shows signal values in the cursor cycle"]
                 li [] [ str "Drag the"; bSpan " grey vertical divider "; str "to alter the screen space used by waveforms"]
-                li [] [ str "waveforms will scroll if you select more than will fit on the screen. If scrolling \
-                            is not responsive you can reduce the number of selected waveforms."]
-                li [] [ str "Use select RAM to view RAM contents for the current cycle and see RAM chnages highlighted."]
-                li [] [ str "Don't forget Ctrl/Shift/+ and Ctrl/Shift/- and the divider bar to resize and zoom the viewer."]
+                li [] [ str "Waveforms will scroll if you select more than will fit on the screen."]
+                li [] [ str "Use "; bSpan "Select RAM"; str " to view RAM contents for the current cycle."]
+                li [] [ str "Use "; bSpan "Bin Hex uDec sDec"; str " buttons to change the display radix."]
+                li [] [ bSpan "Ctrl/Shift/+"; str " and "; bSpan "Ctrl/Shift/-"; str " will "; bSpan " zoom "; str "the viewer."]
             ]
         | "Miscellaneous" ->
         

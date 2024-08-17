@@ -138,6 +138,12 @@ module Refresh =
                                 isSelected && hasChanged && simulationIsUptodate)
                             |> Map.toList                   
                             |> List.map fst
+                        if wsModel.StartCycle < 0 then
+                            failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
+                        let endCycle = (wsModel.StartCycle + wsModel.ShownCycles - 1) * wsModel.CycleMultiplier
+                        if endCycle > Constants.maxLastClk then
+                            failwithf $"Sanity check failed: EndCycle ({endCycle}) > maxLastClk ({Constants.maxLastClk})"
+                        //printfn $"Waves to be made:{wavesToBeMade.Length}, sim uptodate = {simulationIsUptodate}"
                         //printfn $"Waves to be made:{wavesToBeMade.Length}, sim uptodate = {simulationIsUptodate}"
                         let spinnerInfo =  
                             //printfn $"{wavesToBeMade.Length} waves to make."

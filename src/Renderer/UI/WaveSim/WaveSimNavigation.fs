@@ -132,8 +132,11 @@ let rec validateSimParas (ws: WaveSimModel) =
     elif ws.CurrClkCycleDetail > Constants.maxLastClk then
         validateSimParas {ws with CurrClkCycleDetail = Constants.maxLastClk}
     elif (ws.StartCycle +  ws.ShownCycles-1)*ws.CycleMultiplier > Constants.maxLastClk then
-        {ws with StartCycle = Constants.maxLastClk / ws.CycleMultiplier - ws.ShownCycles}
-    elif ws.CurrClkCycle < ws.StartCycle || ws.CurrClkCycle >= ws.StartCycle + ws.ShownCycles then
+        if ws.StartCycle = 0 then
+            {ws with ShownCycles = Constants.maxLastClk / ws.CycleMultiplier - 1}
+        else
+            validateSimParas {ws with StartCycle = max 0 (Constants.maxLastClk / ws.CycleMultiplier - ws.ShownCycles)}
+    elif ws.CurrClkCycle < ws.StartCycle || ws.CurrClkCycle >= ws.StartCycle + ws.ShownCycles - 1 then
         {ws with CurrClkCycle = ws.StartCycle; CurrClkCycleDetail = ws.StartCycle*ws.CycleMultiplier}
     else ws
     |> validateScrollBarInfo

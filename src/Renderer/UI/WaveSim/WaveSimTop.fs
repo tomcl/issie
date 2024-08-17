@@ -71,9 +71,6 @@ module Refresh =
         // Use the given (more uptodate) wsModel. This will also be updated in model when it is returned from this function
         let model = updateWSModel (fun _ -> wsModel) model
 
-        printfn $"Refresh with w={wsModel.WaveformColumnWidth}"//>
-
-
         // start timing - used to decide whether all can be done in one go.
         let start = TimeHelpers.getTimeMs ()
         // special case if simulation is empty there is nothing to do. Not sure why this is needed.
@@ -100,10 +97,7 @@ module Refresh =
                         | Some speed, false ->
                             FinishSimNow
                         | Some speed, true ->
-                            ContinueSimWithSpinner
-
-                    printfn $"Refreshing: cycles to simulate ={cyclesToDo}" //>
-          
+                            ContinueSimWithSpinner          
             
                     match action with
                     | ContinueSimAfterStartingSpinner ->

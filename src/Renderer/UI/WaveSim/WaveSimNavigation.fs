@@ -305,8 +305,13 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
         ScrollbarMouseMsg (event.clientX, StartScrollbarDrag, dispatch) |> dispatch
 
     let tbMouseMoveHandler (event: Browser.Types.MouseEvent): unit = // if in drag, drag; otherwise do nothing
-        if Option.isSome wsm.ScrollbarTbOffset
-        then ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
+        let leftButtonIsdown = (int event.buttons &&& 0x1) <> 0
+        let inDrag = Option.isSome wsm.ScrollbarTbOffset
+        if inDrag && not leftButtonIsdown then
+            // cancel the scroll operation
+            ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
+        elif inDrag then
+            ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
         else ()
 
     let tbMouseUpHandler (event: Browser.Types.MouseEvent): unit = // if in drag, clear drag; otherwise do nothing

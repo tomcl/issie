@@ -288,28 +288,29 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
 
 /// <summary>This function regenerates all the waveforms listed on <c> wavesToBeMade </c>. 
 /// Generation is subject to timeout, so may not complete.</summary>
-/// <remarks>This function have been augmented with performance monitoring function, turn <c>Constants.showPerfLogs</c>
+/// <remarks>This function has been augmented with performance monitoring function, turn <c>Constants.showPerfLogs</c>
 /// to print performance information to console.</remarks>
-/// <returns>A tuple with the following information:<br/>
-/// a) <c>allWaves</c> (with new waveforms),<br/>
-/// b) <c>numberDone</c> (no of waveforms made), and<br/>
-/// c) <c>timeToDo</c> (<c>Some timeTaken</c> when greater than <c>timeOut</c> or <c>None</c>
+/// <returns>An anonymous record with the following information:<br/>
+/// a) <c>WSM</c> (WaveSimModel with updated waveforms),<br/>
+/// b) <c>NumberDone</c> (no of waveforms made), and <br/>
+/// c) <c>TimeTaken</c> (<c>Some timeTaken</c> when greater than <c>timeOut</c> or <c>None</c>
 /// if completed with no time out).</returns>
 let makeWaveformsWithTimeOut
     (timeOut: option<float>)
     (ws: WaveSimModel)
-    (allWaves: Map<WaveIndexT,Wave>)
     (wavesToBeMade: list<WaveIndexT>)
-    : Map<WaveIndexT,Wave> * int * option<float> =
+        : {| WSM: WaveSimModel ; NumberDone: int ; TimeTaken: option<float> |}=
+
     let start = TimeHelpers.getTimeMs()
-    let allWaves, numberDone, timeToDo =
-        ((allWaves, 0, None), wavesToBeMade)
+    let allWaves, numberDone, timeTaken =
+        ((ws.AllWaves, 0, None), wavesToBeMade)
         ||> List.fold (fun (all,n, _) wi ->
                 match timeOut, TimeHelpers.getTimeMs() - start with
                 | Some timeOut, timeSoFar when timeOut < timeSoFar ->
                     all, n, Some timeSoFar
                 | _ ->
                     (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
+    printfn $"Making {numberDone} waves."
     let finish = TimeHelpers.getTimeMs()
     if Constants.showPerfLogs then
         let countWavesWithWidthRange lowerLim upperLim =
@@ -324,7 +325,7 @@ let makeWaveformsWithTimeOut
         printfn "PERF:makeWaveformsWithTimeOut: int32 = %d" (countWavesWithWidthRange 2 32)
         printfn "PERF:makeWaveformsWithTimeOut: process took %.2fms" (finish-start)
 
-    allWaves, numberDone, timeToDo
+    {| WSM={ws with AllWaves = allWaves}; NumberDone=numberDone; TimeTaken = timeTaken|}
 
 
 

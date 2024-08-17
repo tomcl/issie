@@ -111,7 +111,9 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
             WaveformColumnWidth = finalWavesColWidth
             ScrollbarBkgWidth = scrollbarWidth
         }
-        |> validateScrollBarInfo
+        // if width has not chnaged don't recalculate scrollbar info since that results in circular loops with
+        // scrollbar -> StartCycle -> scrollbar
+        |> if w <> model.WaveSimViewerWidth then validateScrollBarInfo else id
 
     {model with WaveSimViewerWidth = w}
     |> ModelHelpers.updateWSModel updateFn

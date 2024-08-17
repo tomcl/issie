@@ -640,6 +640,7 @@ type Model = {
 
 let waveSimSheet_ = Lens.create (fun a -> a.WaveSimSheet) (fun s a -> {a with WaveSimSheet = s})
 let waveSim_ = Lens.create (fun a -> a.WaveSim) (fun s a -> {a with WaveSim = s})
+
 let rightPaneTabVisible_ = Lens.create (fun a -> a.RightPaneTabVisible) (fun s a -> {a with RightPaneTabVisible = s})
 let simSubTabVisible_ = Lens.create (fun a -> a.SimSubTabVisible) (fun s a -> {a with SimSubTabVisible = s})
 let buildVisible_ = Lens.create (fun a -> a.BuildVisible) (fun s a -> {a with BuildVisible = s})
@@ -664,6 +665,14 @@ let ldcM = project_ >-> loadedComponents_
 let ldcOptM = projectOpt_ >?> loadedComponents_
 let nameM = project_ >-> openFileName_
 let nameOptM = projectOpt_ >?> openFileName_
+
+let putWaveSim (wsm: WaveSimModel) (model: Model) =
+    match model.WaveSimSheet with
+    | None -> model
+    | Some sheet -> 
+        model
+        |> Optic.map waveSim_ (Map.add sheet wsm)
+
 
 
 

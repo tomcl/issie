@@ -310,7 +310,6 @@ let makeWaveformsWithTimeOut
                     all, n, Some timeSoFar
                 | _ ->
                     (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
-    printfn $"Making {numberDone} waves."
     let finish = TimeHelpers.getTimeMs()
     if Constants.showPerfLogs then
         let countWavesWithWidthRange lowerLim upperLim =

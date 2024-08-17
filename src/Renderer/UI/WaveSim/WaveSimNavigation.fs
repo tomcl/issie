@@ -130,15 +130,19 @@ let rec validateSimParas (ws: WaveSimModel) =
     if ws.StartCycle < 0 then
         validateSimParas {ws with StartCycle = 0}
     elif ws.CurrClkCycleDetail > Constants.maxLastClk then
-        validateSimParas {ws with CurrClkCycleDetail = Constants.maxLastClk}
+        validateSimParas {ws with CurrClkCycleDetail = Constants.maxLastClk; CurrClkCycle = Constants.maxLastClk/ws.CycleMultiplier}
     elif (ws.StartCycle +  ws.ShownCycles-1)*ws.CycleMultiplier > Constants.maxLastClk then
         if ws.StartCycle = 0 then
-            {ws with ShownCycles = Constants.maxLastClk / ws.CycleMultiplier - 1}
+            {ws with ShownCycles = Constants.maxLastClk / ws.CycleMultiplier + 1}
         else
-            validateSimParas {ws with StartCycle = max 0 (Constants.maxLastClk / ws.CycleMultiplier - ws.ShownCycles)}
-    elif ws.CurrClkCycle < ws.StartCycle || ws.CurrClkCycle >= ws.StartCycle + ws.ShownCycles - 1 then
+            validateSimParas {ws with StartCycle = max 0 (Constants.maxLastClk / ws.CycleMultiplier - ws.ShownCycles + 1)}
+    elif ws.CurrClkCycle < ws.StartCycle  then
         {ws with CurrClkCycle = ws.StartCycle; CurrClkCycleDetail = ws.StartCycle*ws.CycleMultiplier}
+    elif  ws.CurrClkCycle > ws.StartCycle + ws.ShownCycles - 1  then
+        let newCurrCycle =  ws.StartCycle + ws.ShownCycles - 1
+        {ws with CurrClkCycle = newCurrCycle; CurrClkCycleDetail = newCurrCycle * ws.CycleMultiplier}
     else ws
+    //|> (fun ws -> printfn $"currClk={ws.CurrClkCycle} detail = {ws.CurrClkCycleDetail}"; ws)
     |> validateScrollBarInfo
 
 let changeMultiplier newMultiplier (ws: WaveSimModel) =
@@ -158,34 +162,27 @@ let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle
     let newDetail  = min (max newRealClkCycle 0) Constants.maxLastClk
     let mult = wsModel.CycleMultiplier
     let newClkCycle = newRealClkCycle / mult
-    let newClkCycle = min Constants.maxLastClk newClkCycle |> max 0
- 
-    if newClkCycle <= endCycle wsModel then
-        if newClkCycle < wsModel.StartCycle then
-            dispatch <| GenerateWaveforms
-                {wsModel with 
-                    StartCycle = newClkCycle
-                    CurrClkCycle = newClkCycle
-                    ClkCycleBoxIsEmpty = false
-                    CurrClkCycleDetail = newDetail
-                }
-        else
-            dispatch <| SetWSModel
-                {wsModel with
-                    CurrClkCycle = newClkCycle
-                    ClkCycleBoxIsEmpty = false
-                    CurrClkCycleDetail = newDetail
-                }
-    else
-        let newDetail = min newDetail Constants.maxLastClk
-        let newClkCycle = newDetail / mult
+    let newClkCycle = max 0 newClkCycle
+    let startCycle =
+        min newClkCycle wsModel.StartCycle
+        |> (fun sc -> max sc (newClkCycle - wsModel.ShownCycles + 1))
+
+    if startCycle <> wsModel.StartCycle then
         dispatch <| GenerateWaveforms
-            {wsModel with
-                StartCycle = newClkCycle - (wsModel.ShownCycles - 1)
+            {wsModel with 
+                StartCycle = startCycle
                 CurrClkCycle = newClkCycle
                 ClkCycleBoxIsEmpty = false
                 CurrClkCycleDetail = newDetail
             }
+    else
+        dispatch <| SetWSModel
+            {wsModel with
+                CurrClkCycle = newClkCycle
+                ClkCycleBoxIsEmpty = false
+                CurrClkCycleDetail = newDetail
+            }
+ 
     |> TimeHelpers.instrumentInterval "setClkCycle" start
 
 /// <summary>Move waveform view window by closest integer number of cycles.

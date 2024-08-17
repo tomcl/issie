@@ -316,6 +316,8 @@ let displayView model dispatch =
     /// used only to make the divider bar draggable
     let dividerDragMode = model.DividerDragMode
     let wsViewerWidth = model.WaveSimViewerWidth
+    if float wsViewerWidth > screenWidth() - 10. then
+        dispatch <| SetViewerWidth (int (screenWidth()) - 10)
     let inline processMouseMove (keyUp: bool) (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then 

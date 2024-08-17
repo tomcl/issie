@@ -329,10 +329,10 @@ let viewWaveInfoPopup dispatch feature =
 
             ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
                 li [] [str "The waveform viewer can show waveforms selected from "; bSpan  " any sheet"; str " in the design being simulated."]         
-                li [] [str "Press"; bSpan " Start"; str " to view waveforms from the current design. Then press the";
-                       bSpan " Select Waves "; str " button to select or change which waveforms are viewed. See the selection popup info button for more info"]                    
+                li [] [str "Choose the top sheet you want to simulate. Press"; bSpan " Start"; str " to start the viewer. Then press the";
+                       bSpan " Select Waves "; str " button to select or change which waveforms are viewed. See the selection popup info button for more info."]                    
                 li [] [str "Use Ctrl/Shift/- and Ctrl/Shift/+ buttons to resize the viewer so you can comfortably see the correct number of \
-                            waveforms." ; str "Use Alt/UpArrow and Alt/DownArrow to zoom the Schematic Editor canvas."]      
+                            waveforms." ; str " Use Alt/UpArrow and Alt/DownArrow to zoom the Schematic Editor canvas."]      
                 li [] [str "Drag the"; bSpan " grey horizontal divider bar "; str " to make the waveform viewer wider."] 
             ]
 
@@ -365,12 +365,16 @@ let viewWaveInfoPopup dispatch feature =
             ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
                 li [] [ str "Hover mouse over a waveform name in the viewer to see it highlighted if it is on the current sheet."]
                 li [] [ str "Change sheet to view or alter components on subsheets."]
-                li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use 'select waves' to add or delete."]
+                li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use "; bSpan "Select Waves"; str  " to add or delete."]
      
-                li [] [ str "Use cursor and zoom controls at any time to show which cycles to display."]
-                li [] [ str "The cursor current cycle is greyed and can be moved by clicking the the waveforms, \
-                            altering the number in the cursor box, or clicking arrows."]
-                li [] [ str "Drag the"; bSpan " grey vertical divider "; str "to alter space used by waveforms"]
+                li [] [ str "Use cursor and zoom controls to show which cycles to display."]
+                li [] [ str "The current cursor cycle is greyed and can be moved by clicking on the waveforms, \
+                            altering the number in the cursor box, or clicking arrows by the box."]
+                li [] [ str "Drag the"; bSpan " grey vertical divider "; str "to alter the screen space used by waveforms"]
+                li [] [ str "waveforms will scroll if you select more than will fit on the screen. If scrolling \
+                            is not responsive you can reduce the number of selected waveforms."]
+                li [] [ str "Use select RAM to view RAM contents for the current cycle and see RAM chnages highlighted."]
+                li [] [ str "Don't forget Ctrl/Shift/+ and Ctrl/Shift/- and the divider bar to resize and zoom the viewer."]
             ]
         | "Miscellaneous" ->
         

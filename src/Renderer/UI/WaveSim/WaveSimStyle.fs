@@ -61,7 +61,9 @@ module Constants =
     /// Padding between name label/value label and waveform column.
     let labelPadding = 3
     /// Color for cursor and values column
-    let cursorColor = "Lavender"
+    let namesValuesColumnColor = "Lavender"
+    let cursorColumnColor = "purple"
+    let cursorColumnOpacity = 0.15
 
     /// <summary>Height of scrollbar, in pixels. Affects only the SVG and not the buttons.
     /// Currently set to same height as buttons.</summary>
@@ -149,6 +151,7 @@ let pointsToString (points: XYPos array) : string =
     ) "" points
 
 let screenHeight() = Browser.Dom.document.defaultView.innerHeight
+let screenWidth() = Browser.Dom.document.defaultView.innerWidth
 
 
 /// Width of one clock cycle.
@@ -560,7 +563,7 @@ let namesColumnStyle (ws:WaveSimModel) = Style (
     (waveSimColumn) @ [
         Width (calcNamesColWidth ws)
         Float FloatOptions.Left
-        BackgroundColor Constants.cursorColor
+        BackgroundColor Constants.namesValuesColumnColor
         BorderRight Constants.borderProperties
         GridColumnStart 1
         OverflowX OverflowOptions.Clip
@@ -606,7 +609,7 @@ let valuesColumnStyle (colWidth:int) = Style (
         Float FloatOptions.Left
         BorderLeft Constants.borderProperties
         OverflowX OverflowOptions.Auto
-        BackgroundColor Constants.cursorColor
+        BackgroundColor Constants.namesValuesColumnColor
         Opacity 1.0
         GridColumnStart 3
     ])
@@ -737,7 +740,7 @@ let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
     |> List.map (fun x -> clkLine (float x * singleWaveWidth wsModel))
 
 /// Controls the background highlighting of which clock cycle is selected
-let clkCycleHighlightSVG m dispatch =
+let cursorCycleHighlightSVG m dispatch =
     let count = List.length m.SelectedWaves
     svg [
         Style [
@@ -746,8 +749,8 @@ let clkCycleHighlightSVG m dispatch =
         ]
         SVGAttr.Height (string ((count + 1) * Constants.rowHeight) + "px")
         SVGAttr.Width (viewBoxWidth m)
-        SVGAttr.Fill Constants.cursorColor
-        SVGAttr.Opacity 0.4
+        SVGAttr.Fill Constants.cursorColumnColor
+        SVGAttr.Opacity Constants.cursorColumnOpacity
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
         Id "ClkCycleHighlight"
         OnClick (fun ev ->

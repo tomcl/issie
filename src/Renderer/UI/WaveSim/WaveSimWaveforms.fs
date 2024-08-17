@@ -253,7 +253,7 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
 
     div [ waveformColumnStyle ]
         [
-            clkCycleHighlightSVG wsModel dispatch
+            cursorCycleHighlightSVG wsModel dispatch
             div [ waveRowsStyle <| wsModel.WaveformColumnWidth]
                 ([ clkCycleNumberRow wsModel ] @
                     waveRows

@@ -464,11 +464,11 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
                     dispatch ClosePopup)
                 ]
                 [ itemLegend ]
-        let addSpaces n r = span [Style[PaddingLeft n; PaddingRight n]] [r]
+        let addSpaces n r = span [ Style[ PaddingLeft n; PaddingRight n]] [r]
         let menu =
             div []
                 [
-                    p [Style[ Color "darkred"; FontWeight 600; FontSize "18px"]] [str "Warning: zoom greater than X1 will sample the waveform and lose information about fast-changing outputs"]
+                    p [ Style [ Color "darkred"; FontWeight 600; FontSize "18px"]] [str "Warning: zoom greater than X1 will sample the waveform and lose information about fast-changing outputs"]
                     br []
                     p [] [str "Use it this menu to zoom out slow-changing signals when the range of"; addSpaces 5 zoomOutSVG; str "is not enough."]
                     br []

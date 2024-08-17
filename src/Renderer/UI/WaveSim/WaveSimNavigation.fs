@@ -1,4 +1,14 @@
-﻿module WaveSimNavigation
+﻿/// All the code that determines which clock cycles are viewed in the simulator.
+/// basic functions are zooming and panning (moving + or - in time). Additional function
+/// is a sample-based zoom for viewing very long waveforms..
+/// Also implement cursor control.
+module WaveSimNavigation
+
+//---------------------------------------------------------------------------------------//
+//-----------------------Waveform Simulator Navigation-----------------------------------//
+//------Scrollbar, zoom buttons, cursor control button, Sampling zoom button-------------//
+//---------------------------------------------------------------------------------------//
+
 
 open Fulma
 open Fulma.Extensions.Wikiki
@@ -49,8 +59,8 @@ let generateScrollbarInfo (wsm: WaveSimModel): {| tbWidth: float; tbPos: float; 
 
     {| tbWidth = tbWidth; tbPos = tbPos; bkgRep = newBkgRep |}
 
-/// Make scrollbar parameters consistent with changed zoom. This asumes the scrollbar
-/// width has not changed, because that can only be calculated from viewer width in model.
+/// Make scrollbar parameters consistent with changed zoom. This assumes the scrollbar
+/// width has not changed, because that can only be calculated from the viewer width in model.
 let validateScrollBarInfo (wsm: WaveSimModel) =
     let scrollInfo = generateScrollbarInfo wsm
     {wsm with ScrollbarTbPos = scrollInfo.tbPos
@@ -112,6 +122,8 @@ let inline setViewerWidthInWaveSim w dispatch =
     dispatch <| UpdateModel (updateViewerWidthInWaveSim w)
     dispatch <| GenerateCurrentWaveforms
 
+/// Must be called after any of the wavesim parameters are changed and before
+/// they are used to generate waveforms.
 let rec validateSimParas (ws: WaveSimModel) =
     if ws.StartCycle < 0 then
         validateSimParas {ws with StartCycle = 0}

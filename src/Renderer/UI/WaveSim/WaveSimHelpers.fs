@@ -1,4 +1,9 @@
+///Miscellaneous helpers used tby waveform simulator
 module WaveSimHelpers
+//---------------------------------------------------------------------------------------//
+//-----------------------Miscellaneous low=level helper functions------------------------//
+//---------------------------------------------------------------------------------------//
+
 
 open Fulma
 open Fulma.Extensions.Wikiki
@@ -20,7 +25,7 @@ open WaveSimStyle
 
 
 
-//-----------------------------List & Map utilities to deal with exceptions------------------------------------------//
+//-----------------------------List & Map utilities to deal with exceptions---------------//
 
 /// create a new array which samples the old one every mult cycles.
 /// start: index of first cycle.
@@ -185,7 +190,7 @@ let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: in
     | startCyc, endCyc when 0 < startCyc && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
         subSamp waveValues (startCyc-1) (endCyc-startCyc+1) multiplier
     | _ ->
-        failwithf "Shown cycles is beyond array bounds"
+        failwithf $"Shown cycles is beyond array bounds: startCyc={startCycle}, shown={shownCycles}, mult={multiplier}"
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
         match getBit x, getBit y with
@@ -559,14 +564,19 @@ let infoButton  (tooltipMessage:string) (style: CSSProp list) (tooltipPosition:s
         [str Constants.infoSignUnicode]
 
 /// button driving a popup with a page of info about waveform simulator
-let waveInfoButton (dispatch: Msg -> Unit) : ReactElement =
+let waveInfoButton (name:string) (dispatch: Msg -> Unit) : ReactElement =
     button 
-        [Button.Props [Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]]]
-        (fun _ -> ())
-        (str Constants.infoSignUnicode)
+        (topHalfButtonProps IsInfo "RefreshButton" false)
+        (fun _ -> (UIPopups.viewWaveInfoPopup dispatch name))
+        (str name)
 
 /// button used to give hover message  about selection filter box.
-let selectionInfoButton = infoButton Constants.infoMessage [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left] Tooltip.IsTooltipRight
+let selectionInfoButton =
+    infoButton Constants.infoMessage [
+        FontSize "25px";
+        MarginTop "0px";
+        MarginLeft "10px";
+        Float FloatOptions.Left] Tooltip.IsTooltipRight
 
 
 

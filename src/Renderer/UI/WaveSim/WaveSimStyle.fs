@@ -1,7 +1,9 @@
+/// Functions to style the DOM elements used in waveform simulator
 module WaveSimStyle
 
-
-
+//---------------------------------------------------------------------------------------//
+//-----------------------CSS DOM Styling for Waveform Simulator--------------------------//
+//---------------------------------------------------------------------------------------//
 
 open Fulma
 open Fable.React
@@ -34,7 +36,9 @@ module Constants =
     /// Width of each waveform line.
     let lineThickness : float = 0.8
     let columnFontSize = "12px"
+ 
     let columnFontFamily = "Helvetica"
+ 
     let valueColumnFontSize = "12px"
     let valueColumnFontFamily = "Helvetica"
 
@@ -235,11 +239,13 @@ let infoButtonProps color = [
         Button.Props [
             Style [
                 Height (float Constants.rowHeight)
-                FontSize "15px"
-                Width "20px"
+                Height Constants.rowHeight
+                Width Constants.colWidth
+                FontSize "16px"
                 Position PositionOptions.Relative
                 MarginRight 0
                 MarginLeft 0
+                MarginBottom "5px"
             ]
         ]
     ]

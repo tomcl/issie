@@ -240,7 +240,6 @@ let update (msg : Msg) oldModel =
 
     | RefreshWaveSim ws ->
         // restart the wave simulator after design change etc that invalidates all waves
-        printfn "RefreshWavesim msg" //>
         WaveSimTop.Refresh.refreshWaveSim true ws model
 
     | AddWSModel (sheet, wsModel) ->
@@ -251,7 +250,6 @@ let update (msg : Msg) oldModel =
     | GenerateWaveforms ws ->
         // Update the wave simulator with new waveforms
         // Is called whenever any waveform might need to be changed
-        printfn "GenerateWaveforms Msg" //>
         WaveSimTop.Refresh.refreshWaveSim false ws model
 
     | GenerateCurrentWaveforms ->

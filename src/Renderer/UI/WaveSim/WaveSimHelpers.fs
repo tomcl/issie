@@ -183,13 +183,15 @@ let nonBinaryFillPoints (clkCycleWidth: float) (gap: Gap): array<XYPos> =
 let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int) (multiplier: int)
     : array<BinaryTransition> =
     let getBit bit = int32 bit
-    match startCycle, startCycle+shownCycles with
+    match startCycle, startCycle + shownCycles - 1 with
     | startCyc, endCyc when startCyc = 0 && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
         subSamp waveValues startCyc (endCyc-startCyc+1) multiplier
         |> Array.append [| waveValues[0] |]
     | startCyc, endCyc when 0 < startCyc && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
         subSamp waveValues (startCyc-1) (endCyc-startCyc+1) multiplier
     | _ ->
+        printfn $"Before Bin failure: waveValues.Length {waveValues.Length} \
+                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
         failwithf $"Shown cycles is beyond array bounds: startCyc={startCycle}, shown={shownCycles}, mult={multiplier}"
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
@@ -199,10 +201,17 @@ let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: in
         | 1, 0 -> OneToZero
         | 1, 1 -> OneToOne
         | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
-
-let calculateBinaryTransitionsBigInt (waveValues: bigint array) : BinaryTransition array =
+/// UNTESTED - WaveSim does not yet implement bigints
+let calculateBinaryTransitionsBigInt (waveValues: bigint array) (startCycle: int) (shownCycles: int) (multiplier: int): BinaryTransition array =
     let getBit bit = int32 bit
-    Array.append [| waveValues[0] |] waveValues
+    match startCycle, startCycle + shownCycles - 1 with
+    | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues) ->
+        subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
+    | _ ->
+        printfn $"Before NonBin failure: waveValues.Length {waveValues.Length} \
+                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
+        failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {waveValues.Length}"
+    |> Array.append [| waveValues[0] |]
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
         match getBit x, getBit y with
@@ -219,7 +228,8 @@ let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (sho
     | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues) ->
         subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
     | _ ->
-        printfn $"Before failure: waveValues.Length {waveValues.Length} e*m: {(startCycle+shownCycles-1)*multiplier} "
+        printfn $"Before NonBin failure: waveValues.Length {waveValues.Length} \
+                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
         failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {waveValues.Length}"
     |> Array.pairwise
     |> Array.map (fun (x, y) -> if x = y then Const else Change)

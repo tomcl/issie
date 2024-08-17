@@ -198,7 +198,7 @@ let compareCanvas (tolerance: float) ((comps1, conns1): CanvasState) ((comps2, c
     
 
 /// Compare the name and IOs of two sheets as loadedcomponents
-/// For backups, if these chnage something major has happened
+/// For backups, if these change something major has happened
 let compareIOs (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
     Set(ldc1.InputLabels) = Set(ldc2.InputLabels)
     && ldc1.Name = ldc2.Name

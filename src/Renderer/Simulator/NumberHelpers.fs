@@ -476,7 +476,7 @@ let convertFastDataToInt (d: FastData) =
     | BigWord _ -> failwithf $"Can't convert {d.Dat} to integer"
 
 /// Lossy conversion of bigint to int32 without exceptions
-/// TODO: chnage this - and all dependencies with 32 bit int - to int64
+/// TODO: change this - and all dependencies with 32 bit int - to int64
 let convertFastDataToInt32 (d: FastData) =
     match d.Dat with
     | Word n -> int32 n

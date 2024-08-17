@@ -70,19 +70,19 @@ let update (msg : Msg) oldModel =
     | ChangeWaveSimMultiplier key ->
         let table = WaveSimStyle.Constants.multipliers
         if key < 0 || key >= table.Length then
-            printf $"Warning: Can't chnage multiplier to key = {key}"
+            printf $"Warning: Can't change multiplier to key = {key}"
             model, Cmd.none   
         else
            match model.WaveSimSheet with
            | None ->
-                printfn "Warning: can't chnage multiplier when there is no wavesim sheet!"
+                printfn "Warning: can't change multiplier when there is no WaveSim sheet!"
                 model, Cmd.none
            | Some sheet ->
                 model
                 |> Optic.map waveSim_ (fun ws ->
                     let wsModel = ws[sheet]
                     Map.add sheet (WaveSimNavigation.changeMultiplier (table[key]) wsModel) ws)
-                |> (fun model -> WaveSimTop.refreshWaveSim true (getWSModel model) model)
+                |> (fun model -> WaveSimTop.Refresh.refreshWaveSim false (getWSModel model) model)
                 
 
     | CheckMemory ->
@@ -241,7 +241,7 @@ let update (msg : Msg) oldModel =
     | RefreshWaveSim ws ->
         // restart the wave simulator after design change etc that invalidates all waves
         printfn "RefreshWavesim msg" //>
-        WaveSimTop.refreshWaveSim true ws model
+        WaveSimTop.Refresh.refreshWaveSim true ws model
 
     | AddWSModel (sheet, wsModel) ->
         model
@@ -252,12 +252,12 @@ let update (msg : Msg) oldModel =
         // Update the wave simulator with new waveforms
         // Is called whenever any waveform might need to be changed
         printfn "GenerateWaveforms Msg" //>
-        WaveSimTop.refreshWaveSim false ws model
+        WaveSimTop.Refresh.refreshWaveSim false ws model
 
     | GenerateCurrentWaveforms ->
         // Update the wave simulator with new waveforms based on current WsModel
         let ws = getWSModel model
-        WaveSimTop.refreshWaveSim false ws model
+        WaveSimTop.Refresh.refreshWaveSim false ws model
 
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
         model

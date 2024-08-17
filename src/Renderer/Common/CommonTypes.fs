@@ -513,7 +513,7 @@ module CommonTypes
     /// Transforms JSON components (parsed from JSON)  to current components
     /// Normally this means converting legacy JSON component types into new ones.
     /// However it could in principle be more radical.
-    /// The default transform unboxes the value which works when there is no chnage in the JS value
+    /// The default transform unboxes the value which works when there is no change in the JS value
     /// representation
     let convertFromJSONComponent (comp: JSONComponent.Component) : Component =
         let newType (ct: JSONComponent.ComponentType) : ComponentType = 

@@ -287,7 +287,7 @@ let coalesceInWire (wId: ConnectionId) (model:Model) =
 
 /// If wire contains one or more manally routed segments return Some wire'
 /// where wire' has all manual segments chnaged to auto.
-/// Return None if no chnage is required (the normal case).
+/// Return None if no change is required (the normal case).
 let resetWireToAutoKeepingPositionOpt (wire: Wire) : Wire option=
     let hasManualSegs =
         wire.Segments

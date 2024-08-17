@@ -1,4 +1,10 @@
-﻿module WaveSimWaves
+﻿/// Functions to make SVGs of waveforms from FastSimulation data
+module WaveSimSVGs
+
+//---------------------------------------------------------------------------------------//
+//-------------------------------Waveform SVG Generation---------------------------------//
+//---------------------------------------------------------------------------------------//
+
 
 open Fulma
 open Fable.React

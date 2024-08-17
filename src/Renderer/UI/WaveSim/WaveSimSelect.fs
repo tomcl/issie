@@ -1,4 +1,10 @@
-﻿module WaveSimSelect
+﻿/// Functions to make modal popup that allows waveforms to be selected or deselected for display
+module WaveSimSelect
+
+//---------------------------------------------------------------------------------------//
+//---------------------------Waveform Selection Popup------------------------------------//
+//---------------------------------------------------------------------------------------//
+
 
 open Fulma
 open Fulma.Extensions.Wikiki
@@ -643,8 +649,9 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
                                 Delete.Option.OnClick (
                                     fun _ ->
                                         let numWaves = wsModel.SelectedWaves.Length
-                                        if numWaves > 20 then
-                                            UIPopups.viewWaveSelectConfirmationPopup 
+                                        if numWaves > 50 then
+                                            UIPopups.viewWaveSelectConfirmationPopup
+                                                50
                                                 numWaves
                                                 (fun finish _ -> 
                                                         dispatch ClosePopup

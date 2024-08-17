@@ -761,7 +761,7 @@ let isSegmentExtensionOk
     let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min startC startC+newLength; MaxB = max startC startC+newLength}}
     // printf $"P=%.0f{extension.ExtP}, ori={extension.ExtOri}, B=%A{extension.ExtB}"
     // a zero-length segment means the two segments on either side of it are parallel and may overlap.
-    // if we chnage teh length of a segment next to a zero-length segment we must ensure that it does not double back on itself.
+    // if we change the length of a segment next to a zero-length segment we must ensure that it does not double back on itself.
     // usually that will mean coming thr wrong wau out of a component edge (inside the component)!
     if segNum = 2 && segs[1].IsZero && sign segs[0].Length <> sign newLength ||
        segNum = segs.Length - 3 && segs[segs.Length-2].IsZero && sign segs[segs.Length-1].Length <> sign newLength

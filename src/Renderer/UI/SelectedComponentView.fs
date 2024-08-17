@@ -724,7 +724,7 @@ let constantDialogWithDefault (w,cText) dialog =
     let cText = Option.defaultValue cText dialog.Text
     w, cText
 
-/// Create react to chnage constant properties
+/// Create react to change constant properties
 let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: Msg -> Unit): ReactElement =
         let symbolDispatch msg = dispatch <| msgToS msg
         let wComp, txtComp =
@@ -756,7 +756,7 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
                 
             ]              
 
-/// Create react to chnage constant properties
+/// Create react to change constant properties
 let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch: Msg -> Unit): ReactElement =
         let symbolDispatch msg = dispatch <| msgToS msg
         let wComp, txtComp =

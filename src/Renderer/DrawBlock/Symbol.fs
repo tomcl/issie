@@ -93,7 +93,7 @@ module Constants =
 
 /// Returns the correct height and width of a transformed symbol
 /// as the tuple (real H, real W).
-/// Needed because H & W in Component do not chnage with rotation.
+/// Needed because H & W in Component do not change with rotation.
 /// NB Pos in component = Pos in Symbol and DOES change with rotation!
 let inline getCompRotatedHAndW (comp: Component) (transform: STransform) hScale vScale  =
     let hS,vS = (Option.defaultValue 1.0 hScale),(Option.defaultValue 1.0 vScale)
@@ -103,7 +103,7 @@ let inline getCompRotatedHAndW (comp: Component) (transform: STransform) hScale 
 
 /// Returns the correct height and width of a transformed symbol
 /// as the tuple (real H, real W).
-/// Needed because H & W in Component do not chnage with rotation.
+/// Needed because H & W in Component do not change with rotation.
 /// NB Pos in component = Pos in Symbol and DOES change with rotation!
 let inline getRotatedHAndW sym  = getCompRotatedHAndW sym.Component sym.STransform sym.HScale sym.VScale
 

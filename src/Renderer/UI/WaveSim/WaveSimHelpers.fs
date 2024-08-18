@@ -13,230 +13,17 @@ open Fable.React.Props
 open CommonTypes
 open ModelType
 open ModelHelpers
-open TopMenuView
 open SimulatorTypes
-open FastRun
-open NumberHelpers
-
-
 open WaveSimStyle
-
-
-
 
 
 //-----------------------------List & Map utilities to deal with exceptions---------------//
 
-/// create a new array which samples the old one every mult cycles.
-/// start: index of first cycle.
-/// count: number of samples.
-let subSamp (arr: 'T array) (start:int) (count: int) (mult:int)  =
-    Array.init count (fun n -> arr[start + n*mult])
-
-
-/// Determines whether a clock cycle is generated with a vertical bar at the beginning,
-/// denoting that a waveform changes value at the start of that clock cycle. NB this
-/// does not determine whether a waveform changes value at the end of that clock cycle.
-/// TODO: Remove this since it is unnecessary. Can use WaveValues instead.
-type BinaryTransition =
-    | ZeroToZero
-    | ZeroToOne
-    | OneToZero
-    | OneToOne
-
-/// Determines whether a non-binary waveform changes value at the beginning of that clock cycle.
-type NonBinaryTransition =
-    | Change
-    | Const
-
-/// Waveforms can be either binary or non-binary; these have different properties.
-type Transition =
-    | BinaryTransition of BinaryTransition
-    | NonBinaryTransition of NonBinaryTransition
-
-/// Stores information about gaps between NonBinaryTransitions.
-/// Used in displayValuesOnWave
-type Gap = {
-    // First cycle which is Change after a Const cycle
-    Start: int
-    // How many Const cycles there are immediately after this Change transition
-    Length: int
-}
-
-
-
-
-/// If true, then show cross-hatch only for non-binary waves when wave is changing value very fast.
-let highZoom clkCycleWidth = clkCycleWidth < 2. * Constants.nonBinaryTransLen
-
-/// Left-shift non-binary waveforms by this much.
-let xShift clkCycleWidth =
-    if highZoom clkCycleWidth then
-        clkCycleWidth / 2.
-    else Constants.nonBinaryTransLen
-        
-
-
-
 /// Helper function to create Bulma buttons
 let button options func label = Button.button (List.append options [ Button.OnClick func ]) [ label ]
 
-
-
-/// Retrieve value of wave at given clock cycle as an int.
-/// At extra (sampling) zoom this allows detail clock cycles within one sample
-/// therefore clkCycleDetail IS NOT scaled the same as the sample numbers used
-/// everywhere else.
-let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
-    match width with
-    | w when w > 32 ->
-        Array.tryItem clkCycleDetail wave.WaveValues.BigIntStep
-        |> function
-            | Some (fData) -> 
-                { Dat = BigWord fData; Width = width}            
-            | _ ->
-                // TODO: Find better default value here
-                // TODO: Should probably make it so that you can't call this function in the first place.
-                printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
-                {Dat = Word 0u; Width = width}
-    | _ ->      
-        Array.tryItem clkCycleDetail wave.WaveValues.UInt32Step
-        |> function
-            | Some (fData) -> 
-                { Dat = Word fData; Width = width}
-            | _ ->
-                printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
-                {Dat = Word 0u; Width = width}
-
-/// Make left and right x-coordinates for a clock cycle.
-let makeXCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) =
-    match transition with
-    | BinaryTransition _ ->
-        float clkCycle * clkCycleWidth, float (clkCycle + 1) * clkCycleWidth
-    | NonBinaryTransition _ ->
-        // These are left-shifted by xShift: doing this means that for non-binary
-        // waveforms, only the transition at the start of each cycle needs to be considered,
-        // rather than the transition at both the start and end of each cycle.
-        float clkCycle * clkCycleWidth - xShift clkCycleWidth,
-        float (clkCycle + 1) * clkCycleWidth - xShift clkCycleWidth
-
-/// Make top-left, top-right, bottom-left, bottom-right coordinates for a clock cycle.
-let makeCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) : XYPos * XYPos * XYPos * XYPos =
-    let xLeft, xRight = makeXCoords clkCycleWidth clkCycle transition
-
-    let topL = {X = xLeft; Y = Constants.yTop}
-    let topR = {X = xRight; Y = Constants.yTop}
-    let botL = {X = xLeft; Y = Constants.yBot}
-    let botR = {X = xRight; Y = Constants.yBot}
-
-    topL, topR, botL, botR
-
-/// Generate points for a binary waveform
-let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: BinaryTransition)  : XYPos array =
-    let topL, topR, botL, botR = makeCoords clkCycleWidth (startCycle + index) (BinaryTransition transition)
-    // Each match condition generates a specific transition type
-    match transition with
-    | ZeroToZero | OneToZero ->
-        [|botL; botR|]
-    | ZeroToOne | OneToOne ->
-        [|topL; topR|]
-
-/// <summary>Generate polyline points for a non-binary waveform via transition info.</summary>
-let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: NonBinaryTransition)
-    : array<XYPos>*array<XYPos> =
-    let xLeft, _ = makeXCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
-    let _, topR, _, botR = makeCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
-
-    let crossHatchMid, crossHatchTop, crossHatchBot =
-        {X = xLeft +      xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
-        {X = xLeft + 2. * xShift clkCycleWidth; Y = Constants.yTop},
-        {X = xLeft + 2. * xShift clkCycleWidth; Y = Constants.yBot}
-
-    match transition with
-    | Change ->
-        if highZoom clkCycleWidth then
-            [|crossHatchMid; crossHatchTop|], [|crossHatchMid; crossHatchBot|]
-        else
-            [|crossHatchMid; crossHatchTop; topR|], [|crossHatchMid; crossHatchBot; botR|]
-    | Const ->
-        [|topR|], [|botR|]
-
-/// <summary>Generate polyfill points for a non-binary gap via gap info.</summary>
-let nonBinaryFillPoints (clkCycleWidth: float) (gap: Gap): array<XYPos> =
-    let xLeft, _ = makeXCoords clkCycleWidth (gap.Start) (NonBinaryTransition Change)
-    let _, xRight = makeXCoords clkCycleWidth (gap.Start+gap.Length-1) (NonBinaryTransition Change)
-
-    let crossHatchMidL, crossHatchTopL, crossHatchBotL =
-        {X = xLeft + xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
-        {X = xLeft + 2.0 * xShift clkCycleWidth; Y = Constants.yTop},
-        {X = xLeft + 2.0 * xShift clkCycleWidth; Y = Constants.yBot}
-    
-    let crossHatchMidR, crossHatchTopR, crossHatchBotR =
-        {X = xRight + xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
-        {X = xRight; Y = Constants.yTop},
-        {X = xRight; Y = Constants.yBot}
-
-    [| crossHatchMidL; crossHatchTopL; crossHatchTopR; crossHatchMidR; crossHatchBotR; crossHatchBotL; crossHatchMidL |]
-
-
-/// <summary>Find transitions for each clock cycle of a binary waveform.</summary>
-let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int) (multiplier: int)
-    : array<BinaryTransition> =
-    let getBit bit = int32 bit
-    match startCycle, startCycle + shownCycles - 1 with
-    | startCyc, endCyc when startCyc = 0 && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
-        subSamp waveValues startCyc (endCyc-startCyc+1) multiplier
-        |> Array.append [| waveValues[0] |]
-    | startCyc, endCyc when 0 < startCyc && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
-        subSamp waveValues (startCyc-1) (endCyc-startCyc+1) multiplier
-    | _ ->
-        printfn $"Before Bin failure: waveValues.Length {waveValues.Length} \
-                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
-        failwithf $"Shown cycles is beyond array bounds: startCyc={startCycle}, shown={shownCycles}, mult={multiplier}"
-    |> Array.pairwise
-    |> Array.map (fun (x, y) ->
-        match getBit x, getBit y with
-        | 0, 0 -> ZeroToZero
-        | 0, 1 -> ZeroToOne
-        | 1, 0 -> OneToZero
-        | 1, 1 -> OneToOne
-        | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
-/// UNTESTED - WaveSim does not yet implement bigints
-let calculateBinaryTransitionsBigInt (waveValues: bigint array) (startCycle: int) (shownCycles: int) (multiplier: int): BinaryTransition array =
-    let getBit bit = int32 bit
-    match startCycle, startCycle + shownCycles - 1 with
-    | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues) ->
-        subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
-    | _ ->
-        printfn $"Before NonBin failure: waveValues.Length {waveValues.Length} \
-                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
-        failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {waveValues.Length}"
-    |> Array.append [| waveValues[0] |]
-    |> Array.pairwise
-    |> Array.map (fun (x, y) ->
-        match getBit x, getBit y with
-        | 0, 0 -> ZeroToZero
-        | 0, 1 -> ZeroToOne
-        | 1, 0 -> OneToZero
-        | 1, 1 -> OneToOne
-        | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
-
-/// <summary>Find transitions for each clock cycle of a non-binary waveform.</summary>
-let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (shownCycles: int) (multiplier: int)
-    : array<NonBinaryTransition> =
-    match startCycle, startCycle + shownCycles - 1 with
-    | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues) ->
-        subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
-    | _ ->
-        printfn $"Before NonBin failure: waveValues.Length {waveValues.Length} \
-                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
-        failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {waveValues.Length}"
-    |> Array.pairwise
-    |> Array.map (fun (x, y) -> if x = y then Const else Change)
-    |> Array.append [| Change |] 
-
-
-let isWaveSelected (wsModel: WaveSimModel) (index: WaveIndexT) : bool = List.contains index wsModel.SelectedWaves
+/// convenience functions
+let isWaveSelected (index: WaveIndexT) (wsModel: WaveSimModel) : bool = List.contains index wsModel.SelectedWaves
 let isRamSelected (ramId: FComponentId) (wsModel: WaveSimModel) : bool = Map.containsKey ramId wsModel.SelectedRams
 
 /// get integer from OutputPortNumber
@@ -386,8 +173,6 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
     | SheetItem subSheet ->
         str <| $"Subsheet {camelCaseDottedWords subSheet[subSheet.Length-1]}"
 
-
-
 let path2fId (fastSim: FastSimulation) (path:ComponentId list) : FComponentId option=
     match path with
     | [] -> 
@@ -421,14 +206,8 @@ let prefixOf (pre:'a list) (whole:'a list) =
 let wavesToIds (waves: Wave list) = 
     waves |> List.map (fun wave -> wave.WaveId)
 
-
-
-
 let tr1 react = tr [] [ react ]
 let td1 react = td [] [ react ]
-
-
-
 
 /// get all waves electrically connected to a given wave
 let getConnectedWaves (ws:WaveSimModel) (wave:Wave) : Wave list =
@@ -436,9 +215,6 @@ let getConnectedWaves (ws:WaveSimModel) (wave:Wave) : Wave list =
     |> Map.filter (fun wi _ -> wi.SimArrayIndex = wave.WaveId.SimArrayIndex)
     |> Map.values
     |> Seq.toList
-
-
-
 
 /// convenience type for use when checking which drivers are connected
 type PortIndex = FastComponent * int * PortType
@@ -588,14 +364,10 @@ let selectionInfoButton =
         MarginLeft "10px";
         Float FloatOptions.Left] Tooltip.IsTooltipRight
 
-
-
-
 /// remove highlights on components generated by hovering on waveform labels
 let removeHighlights (model:Model) dispatch =
     if model.Sheet.SelectedWires.Length > 0 || model.Sheet.SelectedComponents.Length > 0 then
         dispatch <| Sheet (DrawModelType.SheetT.ResetSelection) // Remove highlights.
-
 
 type WaveSimButtonOptions = {
     IsDirty: bool

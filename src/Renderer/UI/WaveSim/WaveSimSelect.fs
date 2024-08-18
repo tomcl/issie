@@ -15,10 +15,9 @@ open CommonTypes
 open ModelType
 open WaveSimStyle
 open WaveSimHelpers
-open TopMenuView
 open SimulatorTypes
 
-
+/// return sheet with all latters capitalised
 let cap (sheet:string) = sheet.ToUpper()
 
 
@@ -318,7 +317,7 @@ let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) dispatch : unit =
 
 /// Row in wave selection table that selects all values in wsModel.AllWaves
 let selectAll (wsModel: WaveSimModel) dispatch =
-    let allWavesSelected = Map.forall (fun index _ -> isWaveSelected wsModel index) wsModel.AllWaves
+    let allWavesSelected = Map.forall (fun index _ -> isWaveSelected index wsModel) wsModel.AllWaves
 
     tr (summaryProps false (SheetItem []) wsModel dispatch) [
         th [] [
@@ -371,7 +370,7 @@ let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (wave
 
 /// Table row of a checkbox and name of a wave.
 let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
-    let fontStyle = if isWaveSelected wsModel index then boldFontStyle else normalFontStyle
+    let fontStyle = if isWaveSelected index wsModel then boldFontStyle else normalFontStyle
     let wave = wsModel.AllWaves[index]
     tr  [ fontStyle ]
         [
@@ -380,7 +379,7 @@ let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
                     [ Checkbox.input [
                         Props (checkboxInputProps @ [
                             OnChange(fun _ -> toggleWaveSelection index wsModel dispatch )
-                            Checked <| isWaveSelected wsModel index
+                            Checked <| isWaveSelected index wsModel 
                         ])
                     ] ]
                 ]

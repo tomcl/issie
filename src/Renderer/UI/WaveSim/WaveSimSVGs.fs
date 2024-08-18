@@ -15,11 +15,8 @@ open ModelType
 open ModelHelpers
 open WaveSimStyle
 open WaveSimHelpers
-open TopMenuView
 open SimulatorTypes
 open NumberHelpers
-open DrawModelType
-open WaveSimNavigation
 open WaveSimSelect
 open DiagramStyle
 
@@ -31,7 +28,200 @@ module Constants =
     let showPerfLogs = false
     let inlineNoWrap = WhiteSpace WhiteSpaceOptions.Nowrap
 
-open Constants
+
+
+//------------------------------------------------------------------------------------------------------//
+//---------------------------Calculate Waveform Transitions from data arrays----------------------------//
+//------------------------------------------------------------------------------------------------------//
+
+/// create a new array which samples the old one every mult cycles.
+/// start: index of first cycle.
+/// count: number of samples.
+let subSamp (arr: 'T array) (start:int) (count: int) (mult:int)  =
+    Array.init count (fun n -> arr[start + n*mult])
+
+/// Determines whether a clock cycle is generated with a vertical bar at the beginning,
+/// denoting that a waveform changes value at the start of that clock cycle. NB this
+/// does not determine whether a waveform changes value at the end of that clock cycle.
+/// TODO: Remove this since it is unnecessary. Can use WaveValues instead.
+type BinaryTransition =
+    | ZeroToZero
+    | ZeroToOne
+    | OneToZero
+    | OneToOne
+
+/// Determines whether a non-binary waveform changes value at the beginning of that clock cycle.
+type NonBinaryTransition =
+    | Change
+    | Const
+
+/// Waveforms can be either binary or non-binary; these have different properties.
+type Transition =
+    | BinaryTransition of BinaryTransition
+    | NonBinaryTransition of NonBinaryTransition
+
+/// Stores information about gaps between NonBinaryTransitions.
+/// Used in displayValuesOnWave
+type Gap = {
+    // First cycle which is Change after a Const cycle
+    Start: int
+    // How many Const cycles there are immediately after this Change transition
+    Length: int
+}
+
+
+
+
+/// If true, then show cross-hatch only for non-binary waves when wave is changing value very fast.
+let highZoom clkCycleWidth = clkCycleWidth < 2. * Constants.nonBinaryTransLen
+
+/// Left-shift non-binary waveforms by this much.
+let xShift clkCycleWidth =
+    if highZoom clkCycleWidth then
+        clkCycleWidth / 2.
+    else Constants.nonBinaryTransLen
+        
+
+
+/// Retrieve value of wave at given clock cycle as an int.
+/// At extra (sampling) zoom this allows detail clock cycles within one sample
+/// therefore clkCycleDetail IS NOT scaled the same as the sample numbers used
+/// everywhere else.
+let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
+    match width with
+    | w when w > 32 ->
+        Array.tryItem clkCycleDetail wave.WaveValues.BigIntStep
+        |> function
+            | Some (fData) -> 
+                { Dat = BigWord fData; Width = width}            
+            | _ ->
+                // TODO: Find better default value here
+                // TODO: Should probably make it so that you can't call this function in the first place.
+                printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
+                {Dat = Word 0u; Width = width}
+    | _ ->      
+        Array.tryItem clkCycleDetail wave.WaveValues.UInt32Step
+        |> function
+            | Some (fData) -> 
+                { Dat = Word fData; Width = width}
+            | _ ->
+                printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
+                {Dat = Word 0u; Width = width}
+
+/// Make left and right x-coordinates for a clock cycle.
+let makeXCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) =
+    match transition with
+    | BinaryTransition _ ->
+        float clkCycle * clkCycleWidth, float (clkCycle + 1) * clkCycleWidth
+    | NonBinaryTransition _ ->
+        // These are left-shifted by xShift: doing this means that for non-binary
+        // waveforms, only the transition at the start of each cycle needs to be considered,
+        // rather than the transition at both the start and end of each cycle.
+        float clkCycle * clkCycleWidth - xShift clkCycleWidth,
+        float (clkCycle + 1) * clkCycleWidth - xShift clkCycleWidth
+
+/// Make top-left, top-right, bottom-left, bottom-right coordinates for a clock cycle.
+let makeCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) : XYPos * XYPos * XYPos * XYPos =
+    let xLeft, xRight = makeXCoords clkCycleWidth clkCycle transition
+
+    let topL = {X = xLeft; Y = Constants.yTop}
+    let topR = {X = xRight; Y = Constants.yTop}
+    let botL = {X = xLeft; Y = Constants.yBot}
+    let botR = {X = xRight; Y = Constants.yBot}
+
+    topL, topR, botL, botR
+
+/// Generate points for a binary waveform
+let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: BinaryTransition)  : XYPos array =
+    let topL, topR, botL, botR = makeCoords clkCycleWidth (startCycle + index) (BinaryTransition transition)
+    // Each match condition generates a specific transition type
+    match transition with
+    | ZeroToZero | OneToZero ->
+        [|botL; botR|]
+    | ZeroToOne | OneToOne ->
+        [|topL; topR|]
+
+/// <summary>Generate polyline points for a non-binary waveform via transition info.</summary>
+let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: NonBinaryTransition)
+    : array<XYPos>*array<XYPos> =
+    let xLeft, _ = makeXCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
+    let _, topR, _, botR = makeCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
+
+    let crossHatchMid, crossHatchTop, crossHatchBot =
+        {X = xLeft +      xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
+        {X = xLeft + 2. * xShift clkCycleWidth; Y = Constants.yTop},
+        {X = xLeft + 2. * xShift clkCycleWidth; Y = Constants.yBot}
+
+    match transition with
+    | Change ->
+        if highZoom clkCycleWidth then
+            [|crossHatchMid; crossHatchTop|], [|crossHatchMid; crossHatchBot|]
+        else
+            [|crossHatchMid; crossHatchTop; topR|], [|crossHatchMid; crossHatchBot; botR|]
+    | Const ->
+        [|topR|], [|botR|]
+
+/// <summary>Generate polyfill points for a non-binary gap via gap info.</summary>
+let nonBinaryFillPoints (clkCycleWidth: float) (gap: Gap): array<XYPos> =
+    let xLeft, _ = makeXCoords clkCycleWidth (gap.Start) (NonBinaryTransition Change)
+    let _, xRight = makeXCoords clkCycleWidth (gap.Start+gap.Length-1) (NonBinaryTransition Change)
+
+    let crossHatchMidL, crossHatchTopL, crossHatchBotL =
+        {X = xLeft + xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
+        {X = xLeft + 2.0 * xShift clkCycleWidth; Y = Constants.yTop},
+        {X = xLeft + 2.0 * xShift clkCycleWidth; Y = Constants.yBot}
+    
+    let crossHatchMidR, crossHatchTopR, crossHatchBotR =
+        {X = xRight + xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
+        {X = xRight; Y = Constants.yTop},
+        {X = xRight; Y = Constants.yBot}
+
+    [| crossHatchMidL; crossHatchTopL; crossHatchTopR; crossHatchMidR; crossHatchBotR; crossHatchBotL; crossHatchMidL |]
+
+
+/// <summary>Find transitions for each clock cycle of a binary waveform.</summary>
+let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int) (multiplier: int)
+    : array<BinaryTransition> =
+    let getBit bit = int32 bit
+    match startCycle, startCycle + shownCycles - 1 with
+    | startCyc, endCyc when startCyc = 0 && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
+        subSamp waveValues startCyc (endCyc-startCyc+1) multiplier
+        |> Array.append [| waveValues[0] |]
+    | startCyc, endCyc when 0 < startCyc && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
+        subSamp waveValues (startCyc-1) (endCyc-startCyc+1) multiplier
+    | _ ->
+        printfn $"Before Bin failure: waveValues.Length {waveValues.Length} \
+                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
+        failwithf $"Shown cycles is beyond array bounds: startCyc={startCycle}, shown={shownCycles}, mult={multiplier}"
+    |> Array.pairwise
+    |> Array.map (fun (x, y) ->
+        match getBit x, getBit y with
+        | 0, 0 -> ZeroToZero
+        | 0, 1 -> ZeroToOne
+        | 1, 0 -> OneToZero
+        | 1, 1 -> OneToOne
+        | _ -> failwithf $"Unrecognised transition {getBit x}, {getBit y}")
+
+
+/// <summary>Find transitions for each clock cycle of a non-binary waveform.</summary>
+let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (shownCycles: int) (multiplier: int)
+    : array<NonBinaryTransition> =
+    match startCycle, startCycle + shownCycles - 1 with
+    | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues) ->
+        subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
+    | _ ->
+        printfn $"Before NonBinaryTransitions failure: waveValues.Length {waveValues.Length} \
+                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
+        failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {waveValues.Length}"
+    |> Array.pairwise
+    |> Array.map (fun (x, y) -> if x = y then Const else Change)
+    |> Array.append [| Change |]
+
+
+//------------------------------------------------------------------------------------------------------//
+//-----------------------------Generate SVGs for Waveform Display---------------------------------------//
+//------------------------------------------------------------------------------------------------------//
+
 
 /// Get all simulatable waves from CanvasState. Includes top-level Input and Output ports.
 /// Waves contain info which will be used later to create the SVGs for those waves actually
@@ -45,9 +235,6 @@ let getWaves (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
     //|> fun x -> printfn $"Made waves!";x
     |> Map.ofArray
     |> TimeHelpers.instrumentInterval "makeWavePipeline" start
-
-
-
 
 
 /// <summary>Generates SVG to display non-binary values on waveforms.</summary>
@@ -269,7 +456,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             svg (waveRowProps ws) (List.append polyLines valuesSVG)
 
         | _ -> // non-binary waveform with width greather than 32
-            let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step ws.StartCycle ws.ShownCycles ws.CycleMultiplier
+            let transitions = calculateNonBinaryTransitions wave.WaveValues.BigIntStep ws.StartCycle ws.ShownCycles ws.CycleMultiplier
 
             let fstPoints, sndPoints =
                 Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions |> Array.unzip

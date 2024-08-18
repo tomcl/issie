@@ -252,3 +252,7 @@ docsrc/tools/FSharp.Formatting.svclog
 *.fs.js.map
 
 /global.json
+
+# Fable temporary files
+
+**/*.fable-temp.csproj

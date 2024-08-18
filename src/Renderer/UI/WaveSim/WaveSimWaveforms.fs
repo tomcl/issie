@@ -20,6 +20,7 @@ open SimulatorTypes
 open NumberHelpers
 open DrawModelType
 open WaveSimNavigation
+open WaveSimSVGs
 open WaveSimSelect
 open DiagramStyle
 

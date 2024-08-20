@@ -247,6 +247,7 @@ let displayUInt32OnWave
     : list<ReactElement> =
     let textFont = wsModel.WSConfig.FontSize
     let textWeight = wsModel.WSConfig.FontWeight
+    let textSpec = {DrawHelpers.defaultText with FontSize = $"{textFont}"; FontWeight = $"{textWeight}"}
 
     // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
@@ -293,7 +294,7 @@ let displayUInt32OnWave
         // calculate display widths
         let cycleWidth = singleWaveWidth wsModel
         let gapWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
-        let singleWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
+        let singleWidth = 1.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue
         let doubleWidth = 2. * singleWidth + Constants.valueOnWavePadding
         
         match gapWidth with
@@ -311,8 +312,8 @@ let displayUInt32OnWave
                 then (cycleWidth - singleWidth) / 2.
                 else Constants.valueOnWaveEdgePadding
             let startPadWidth = 
-                if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue 
-                    then 0.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue 
+                if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
+                    then 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
                     else singleCycleCenterPadWidth
             let endPadWidth = (float gap.Length * cycleWidth - startPadWidth - singleWidth)
             let startText = makeTextElement (float gap.Start * cycleWidth + startPadWidth) waveValue
@@ -333,6 +334,8 @@ let displayBigIntOnWave
     : list<ReactElement> =
     let textFont = wsModel.WSConfig.FontSize
     let textWeight = wsModel.WSConfig.FontWeight
+    let textSpec = {Constants.valueOnWaveText with FontSize = $"{textFont}"; FontWeight = $"{textWeight}"}
+
     // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
@@ -378,7 +381,7 @@ let displayBigIntOnWave
         // calculate display widths
         let cycleWidth = singleWaveWidth wsModel
         let gapWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
-        let singleWidth = 1.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue
+        let singleWidth = 1.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue
         let doubleWidth = 2. * singleWidth + Constants.valueOnWavePadding
         
         match gapWidth with
@@ -396,8 +399,8 @@ let displayBigIntOnWave
                 then (cycleWidth - singleWidth) / 2.
                 else Constants.valueOnWaveEdgePadding
             let startPadWidth = 
-                if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue 
-                    then 0.1 * DrawHelpers.getTextWidthInPixels Constants.valueOnWaveText waveValue 
+                if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
+                    then 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
                     else singleCycleCenterPadWidth
             let endPadWidth = (float gap.Length * cycleWidth - startPadWidth - singleWidth)
             let startText = makeTextElement (float gap.Start * cycleWidth + startPadWidth) waveValue

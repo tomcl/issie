@@ -74,11 +74,11 @@ let private hexToBin (hStr: string) : string =
 /// if width = 0 work ok with no padding
 let addCommasAndZeros (width: int) (printedChars: string) =
     let divCeiling n divisor = (n - 1 + divisor) / divisor
-    let nonZeroDigits = printedChars[2 .. printedChars.Length - 1]
+    let nonZeroDigits = printedChars[1 .. printedChars.Length - 1]
     let numDigits = nonZeroDigits.Length
 
     let bitsPerDigit =
-        match printedChars[1] with
+        match printedChars[0] with
         | 'x' -> 4
         | 'b' -> 1
         | r -> failwithf "Wrong use of addZeros: radix Char = %c" r
@@ -109,11 +109,11 @@ let addZeros64 (width: int) (pFun: int64 -> string) (n: int64) = pFun n |> addCo
 
 let addZeros (width: int) (pFun: int -> string) (n: int) = pFun n |> addCommasAndZeros width
 
-let hex64 (num: int64) = "0x" + num.ToString("X")
+let hex64 (num: int64) = "x" + num.ToString("X")
 
 let fillHex64 width = addZeros64 width hex64
 
-let bin64 (num: int64) = "0b" + (hexToBin <| num.ToString("X"))
+let bin64 (num: int64) = "b" + (hexToBin <| num.ToString("X"))
 let sDec64 (num: int64) = num.ToString()
 let dec64 (num: int64) = (uint64 num).ToString()
 
@@ -211,6 +211,10 @@ let valToPaddedString (width: int) (radix: NumberBase) (value: int64) : string =
     match radix with
     | Dec -> dec64 value
     | Bin -> fillBin64 width value
+    | Hex when width <= 4 ->
+            match value with
+            | x when x < 10 -> string (char (int '0' + int x))
+            | x -> string (char (int 'A' + int x - 10))
     | Hex
     | Bin -> fillHex64 width value
     | SDec -> sDec64 value
@@ -224,10 +228,10 @@ let private padToWidth width (bits: WireData) : WireData =
 
 let fastDataToPaddedString maxChars radix (fd: FastData) =
     let getPrefixAndDigits (s: string) =
-        match s.Length, s.[0], s.[1] with
-        | n, '-', _ -> "-", s[1 .. n - 1]
-        | n, '0', 'b'
-        | n, '0', 'x' -> s.[1..1], s[2 .. n - 1]
+        match s.Length, s.[0] with
+        | n, '-' -> "-", s[1 .. n - 1]
+        | n, 'b'
+        | n, 'x' -> s.[0..0], s[1 .. n - 1]
         | _ -> "", s
 
     let stripLeadingZeros s =

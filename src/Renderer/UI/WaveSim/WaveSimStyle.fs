@@ -515,9 +515,9 @@ let calcNamesColWidth (ws:WaveSimModel) : int =
 
 /// List of Style properties for columns in wave viewer.
 let waveSimColumn = [
+    BorderTop Constants.borderProperties
     Height "100%"
     Width "100%"
-    BorderTop Constants.borderProperties
     Display DisplayOptions.Grid
     GridAutoRows Constants.rowHeight
     FontSize Constants.valueColumnFontSize

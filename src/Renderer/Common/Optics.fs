@@ -314,6 +314,7 @@ module Optics =
                         | None -> failwithf "%s" getFailErrorMessage),
             (fun v x -> Map.add k v x)
 
+
         /// Weak Isomorphism to an array of key-value pairs.
         let array_ : Isomorphism<Map<'k,'v>, ('k * 'v)[]> =
             Map.toArray,
@@ -325,13 +326,17 @@ module Optics =
             Map.ofList
 
     module Option =
-
-        /// Prism to the value in an Option.
+            /// Prism to the value in an Option.
         let value_ : Prism<'v option, 'v> =
             id,
             (fun v ->
                 function | Some _ -> Some v
                          | None -> None)
+
+        /// Lens to the value in an Option. using a default value if the option is None.
+        let withDefault_ (d: 'v) : Lens<'v option, 'v> =
+            Option.defaultValue d,
+            (fun v' v -> Some v')
 
 
 

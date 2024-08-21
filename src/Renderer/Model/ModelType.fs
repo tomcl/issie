@@ -76,6 +76,7 @@ type PopupDialogData = {
     Int : int option;
     ImportDecisions : Map<string, ImportDecision option>
     Int2: int64 option
+    Int3: int64 option
     ProjectPath: string
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
@@ -94,9 +95,10 @@ type PopupDialogData = {
 }
 
 let text_ = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
-let int_ = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
 let importDecisions_ = Lens.create (fun a -> a.ImportDecisions) (fun s a -> {a with ImportDecisions = s})
+let int_ = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
 let int2_ = Lens.create (fun a -> a.Int2) (fun s a -> {a with Int2 = s})
+let int3_ = Lens.create (fun a -> a.Int3) (fun s a -> {a with Int3 = s})
 let projectPath_ = Lens.create (fun a -> a.ProjectPath) (fun s a -> {a with ProjectPath = s})
 let memorySetup_ = Lens.create (fun a -> a.MemorySetup) (fun s a -> {a with MemorySetup = s})
 let memoryEditorData_ = Lens.create (fun a -> a.MemoryEditorData) (fun s a -> {a with MemoryEditorData = s})
@@ -221,9 +223,25 @@ type Wave = {
     SVG: ReactElement option
 }
 
+type WSConfig = {
+    LastClock: int
+    FirstClock: int
+    FontSize: int
+    FontWeight: int
+}
+
+let lastClock_ = Lens.create (fun a -> a.LastClock) (fun s a -> {a with LastClock = s})
+let firstClock_ = Lens.create (fun a -> a.FirstClock) (fun s a -> {a with FirstClock = s})
+let fontSize_ = Lens.create (fun a -> a.FontSize) (fun s a -> {a with FontSize = s})
+let fontWeight_ = Lens.create (fun a -> a.FontWeight) (fun s a -> {a with FontWeight = s})
+
 /// Contains all information required by waveform simulator.
 /// One WaveSimModel per sheet.
 type WaveSimModel = {
+    /// Configuration for the waveform simulator.//
+    WSConfig: WSConfig
+    /// temp copy of configuration used by dialog
+    WSConfigDialog: WSConfig option
     /// Current state of WaveSimModel.
     State: WaveSimState
     /// Top-level sheet for current waveform simulation: copy of model.WaveSimSheet when simulation is running
@@ -296,13 +314,14 @@ type WaveSimModel = {
     ScrollbarQueueIsEmpty: bool
 }
 
-
+let wSConfig_ = Lens.create (fun a -> a.WSConfig) (fun s a -> {a with WSConfig = s})
+let wSConfigDialog_ = Lens.create (fun a -> a.WSConfigDialog) (fun s a -> {a with WSConfigDialog = s})
 
 type DiagEl = | Comp of Component | Conn of Connection
 
 type DragMode = DragModeOn of int | DragModeOff
 
-type IntMode = FirstInt | SecondInt
+type IntMode = FirstInt | SecondInt | ThirdInt
 
 type MenuCommand =
     | MenuPrint
@@ -427,6 +446,7 @@ type Msg =
     | SetPopupDialogVerilogErrors of ErrorInfo list
     | SetPopupDialogInt of int option
     | SetPopupDialogInt2 of int64 option
+    | SetPopupDialogInt3 of int64 option
     | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
     | SetPopupDialogIntList of int list option
     | SetPopupDialogIntList2 of int list option

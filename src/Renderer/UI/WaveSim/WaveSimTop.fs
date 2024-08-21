@@ -141,8 +141,8 @@ module Refresh =
                         if wsModel.StartCycle < 0 then
                             failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
                         let endCycle = (wsModel.StartCycle + wsModel.ShownCycles - 1) * wsModel.CycleMultiplier
-                        if endCycle > Constants.maxLastClk then
-                            failwithf $"Sanity check failed: EndCycle ({endCycle}) > maxLastClk ({Constants.maxLastClk})"
+                        if endCycle > wsModel.WSConfig.LastClock then
+                            failwithf $"Sanity check failed: EndCycle ({endCycle}) > maxLastClk ({wsModel.WSConfig.LastClock})"
                         //printfn $"Waves to be made:{wavesToBeMade.Length}, sim uptodate = {simulationIsUptodate}"
                         //printfn $"Waves to be made:{wavesToBeMade.Length}, sim uptodate = {simulationIsUptodate}"
                         let spinnerInfo =  
@@ -225,7 +225,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-    match SimulationView.simulateModel model.WaveSimSheet (ModelHelpers.Constants.maxLastClk + ModelHelpers.Constants.maxStepsOverflow)  canvasState model with
+    match SimulationView.simulateModel model.WaveSimSheet (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)  canvasState model with
     //| None ->
     //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
     | (Error e, _) ->
@@ -357,6 +357,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
     div [ topHalfStyle ] [
         div [Style [MarginTop 20.; Display DisplayOptions.Flex; JustifyContent "space-between"]] [
             titleLine()
+            UIPopups.makeWSConfigButton dispatch model
             waveInfoButton (match wsModel.State with | Success -> "Instructions" | _ ->"Getting Started") dispatch
         ]
  

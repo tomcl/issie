@@ -6,7 +6,10 @@ open Fable.React
 open Fable.React.Props
 open PopupHelpers
 open ModelType
+open ModelHelpers
 open System
+open Optics
+open Optics.Operators
 
 //-------------------------------------------------------------------------------------------------------------------//
 //----------------------------------------------UI Popup Implementations---------------------------------------------//
@@ -446,6 +449,9 @@ let memPropsInfoButton dispatch =
     makeInfoPopupButton title info dispatch
 
 
+
+
+
 //-------------------------------------------------------------------------------------------------------------------//
 //-----------------------------------------Top-level Popup functions-------------------------------------------------//
 //-------------------------------------------------------------------------------------------------------------------//
@@ -478,5 +484,148 @@ let viewPopup model dispatch =
     | Some amount, _, _ ->
         progressPopup simulationLegend model dispatch
     | None, Some popup, _ -> popup dispatch model 
+
+
+
+//-------------------------------------------------------------------------------------------------------------------//
+//-----------------------------------------New-style Waveform Simulator Popups---------------------------------------//
+//-------------------------------------------------------------------------------------------------------------------//
+
+/// Create the body of a popup to configure Waveform Simulator.
+/// This must include the OK button since enable for this comes from the error checkaing here.
+let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
+    let inBounds bMin bMax n = n <= bMax && n >= bMin
+    let config_ = waveSimModel_ >-> wSConfig_
+    let configDialog_ = waveSimModel_ >->  wSConfigDialog_  >-> Option.withDefault_ (getWSModel model).WSConfig
+    let initConfig = Optic.get configDialog_ model
+
+    
+
+    let errorKeys, messages  =
+        let c = model |> Optic.get configDialog_
+        [
+            ["first"], c.FirstClock < 0, "The first clock cycle cannot be negative"
+            ["last"], c.LastClock > Constants.maxSimulationSize, $"The last clock cannot be larger than {Constants.maxSimulationSize}"
+            ["first";"last"], c.FirstClock > c.LastClock - Constants.minScrollingWindow, $"The difference between first and last clock cycles must \
+                                                                                             be at least {Constants.minScrollingWindow} cycles."
+            ["fontsize"], not <| inBounds 12 24 c.FontSize, $"Font size must be between 12 and 24"
+            ["fontweight"], not <| inBounds 100 900 c.FontWeight, $"Font weight must be between 100 and 900"
+        ]  
+        |> List.filter (fun (_, isError, _) -> isError)
+        |> List.map (fun (key, _, message) -> key, message)
+        |> List.unzip
+
+    let hasError key = List.contains key (errorKeys |> List.concat)
+
+    let setConfigInt (optic_: Lens<WSConfig,int>) (value:int) =
+        dispatch <| UpdateModel (Optic.map (configDialog_ >-> optic_) (fun _ -> value))
+
+    let isValid = List.isEmpty errorKeys
+
+    let closeAction changeConfig dispatch model =
+        if changeConfig then
+            dispatch <| UpdateModel (Optic.set (waveSimModel_ >-> wSConfig_) (Option.defaultValue initWSModel.WSConfig (getWSModel model).WSConfigDialog))
+        dispatch <| ClosePopup
+        dispatch <| UpdateModel (Optic.map (waveSimModel_ >-> wSConfigDialog_) (fun _ -> None))
+
+
+
+   
+    let boxStyle = Style [Width Constants.wsButtonWidth; Font Constants.wsButtonFontSize; Height 24; Margin 10]
+    let colStyles = [   [Width 200; Margin "50px"; FontWeight 600];
+                        [Width 70; PaddingRight "50px"];
+                        [Width 800; LineHeight "24px"; Margin "40px"]]
+    let itemStyle = [Border "none"]
+    let row items = tr [Style [BorderCollapse "collapse"; Height "60px"; TextAlign TextAlignOptions.Justify]]
+                        (List.mapi (fun i item ->
+                            td [ Style (itemStyle @ colStyles[i]) ] [item]) items)
+
+    div [Style []] [
+        table [Style [LineHeight "40px"; BorderStyle "none"; BorderColor "white"; TextAlign TextAlignOptions.Left]] [
+            row [
+                    span [boxStyle] [str "First clock cycle:"]
+                    Input.number [
+                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                        Input.DefaultValue <| string initConfig.FirstClock
+                        Input.Color (if hasError "first" then IColor.IsDanger else IColor.IsBlack)
+                        Input.OnChange (JSHelpers.getIntEventValue >> (setConfigInt firstClock_))
+                    ]
+                    str "This value should be kept zero unless you know which part of a very long simulation you want to view. \
+                          It can then be used to reduce the window over which scroll works and therefore make scroll easier to use."
+ 
+                ]
+            row [
+                    span [boxStyle] [str "Last clock cycle:"]           
+                    Input.number [
+                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                        Input.DefaultValue <| string initConfig.LastClock
+                        Input.Color (if hasError "last" then IColor.IsDanger else IColor.IsBlack)
+                        Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt lastClock_)
+                    ]
+                    str "Very large values (> 100,000) may impact performance simulating large designs. The default is usually sufficient."
+                ]
+            row [
+                    span [boxStyle] [str "Waveform font size:"]           
+                    Input.number [
+                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                        Input.DefaultValue <| string initConfig.FontSize
+                        Input.Color (if hasError "fontsize" then IColor.IsDanger else IColor.IsBlack)
+                        Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt fontSize_)
+                    ]
+                    str "A larger size will be easier to read but will make numeric values overflow (and be greyed out) out more easily."
+                ]
+            row [
+                    span [boxStyle] [str "Waveform font weight:"]           
+                    Input.number [
+                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                        Input.DefaultValue <| string initConfig.FontWeight
+                        Input.Color (if hasError "fontweight" then IColor.IsDanger else IColor.IsBlack)
+                        Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt fontWeight_)
+                    ]
+                    str "Font weight of 300 = normal, 600 = bold, etc"
+                ]
+        ]
+
+        div [Style [Color "red"; Height 100]] (messages
+                                                |> List.map (fun (mess:string) -> [str mess; br []])
+                                                |> List.concat)
+
+        newButtonFoot (closeAction true) "Ok" (closeAction false) (fun _ -> not isValid) dispatch model
+    ]
+
+
+    
+let makeWSPopupButton (body: DynamicElement) (iColor: IColor) (cssProps: CSSProp list) dispatch model=
+    Button.button
+        [
+            Button.OnClick (fun _ -> dispatch <| ShowPopup body)
+            Button.Color IsPrimary
+            Button.Disabled ((getWSModel model).State = Success)
+            Button.Props [Style cssProps]
+        ]
+        [str "Configure"]   
+
+
+let makeWSConfigButton dispatch model =
+    let buttonProps =  [Height Constants.wsButtonHeight; Width Constants.wsButtonWidth]
+    let props = [Height 600; Width 1200]
+    let closeConfigDialog = UpdateModel <| Optic.set (waveSimModel_ >-> wSConfigDialog_) None
+    let popup = newBuildPopup
+                    "Advanced Configuration"
+                    dialogWaveSimConfigPopup
+                    (fun _ _ -> div [] [])
+                    (fun dispatch _ -> dispatch <| closeConfigDialog)
+                    props
+    makeWSPopupButton
+        popup
+        IColor.IsSuccess
+        buttonProps
+        dispatch
+        model
+       
+       
+        
+
+
 
 

@@ -8,10 +8,19 @@ open Optics.Operators
 
 
 module Constants =
-    /// TODO: Remove this limit, after making simulation interruptable This stops the waveform simulator moving past 1000 clock cycles.
-    let maxLastClk = 10000
     /// Needed to prevent possible overrun of simulation arrays
     let maxStepsOverflow = 3
+    let defaultWSConfig = {
+            LastClock = 2000; // Simulation array limit during wave simulation
+            FirstClock = 0; // first clock accessible - limits scroll range. NOT IMPLEMENTED
+            FontSize = 14; // size of text on waveforms
+            FontWeight = 500 // weight of text on waveforms
+            } 
+    let maxSimulationSize = 1000000
+    let minScrollingWindow = 200
+    let wsButtonHeight = 30
+    let wsButtonWidth = 120
+    let wsButtonFontSize = 16
 
 /// type used for CSS grids in the UI to position an item on a grid
 type CSSGridPos =
@@ -22,6 +31,8 @@ type CSSGridPos =
 
 let initWSModel  : WaveSimModel = {
     TopSheet = ""
+    WSConfig = Constants.defaultWSConfig
+    WSConfigDialog = None
     Sheets = Map.empty
     State = Empty
     AllWaves = Map.empty
@@ -166,7 +177,7 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
 
 let spComp (comp:Component) =
     match comp.Type with
-    | Custom {Name=name; InputLabels=il; OutputLabels=ol} -> sprintf "Custom:%s(ins=%A:outs=%A)" name il il
+    | Custom {Name=name; InputLabels=il; OutputLabels=ol} -> sprintf "Custom:%s(ins=%A:outs=%A)" name il ol
     | x -> sprintf "%A" x
 
 let spConn (conn:Connection) = 
@@ -274,7 +285,16 @@ let setWSModel (wsModel: WaveSimModel) (model: Model) =
         printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
         model
 
-
+/// This will - given a project is open - never fail. The getter returns the default WaveSimModel record if none
+/// exists. The setter will add the WaveSimModel to the WaveSim map in the model.
+let waveSimModel_ =
+    let setter (wsr: WaveSimModel) (m: Model) =
+        {m with WaveSim = Map.add m.WaveSimOrCurrentSheet wsr m.WaveSim}
+    let getter (m: Model) =
+        match Map.tryFind m.WaveSimOrCurrentSheet m.WaveSim with
+        | Some wsm-> wsm
+        | None -> initWSModel
+    Lens.create getter setter
 
 /// Update WaveSimModel of current sheet.
 let updateWSModel (updateFn: WaveSimModel -> WaveSimModel) (model: Model) =
@@ -344,3 +364,9 @@ let getUpdatedLoadedComponents (project: Project) (model: Model) : Project =
     mapOverProject project model ( fun p ->
         p
         |> Optic.set (loadedComponentOf_ p.OpenFileName >-> canvasState_) (model.Sheet.GetCanvasState()))
+
+/// Set the part of model specified by optic_ to initToSet: bounded by maxVal, minVal.
+/// dispatch: the Elmihs dispatch function.
+let setModelInt (optic_: Lens<Model,int>) (dispatch: Msg -> unit) maxVal minVal intToSet : unit =
+    let intToSet = if intToSet > maxVal then maxVal else if intToSet < minVal then minVal else intToSet
+    dispatch <| UpdateModel (Optics.Optic.set optic_ intToSet)

@@ -114,6 +114,9 @@ let openInBrowser url =
 
 //------------------------------Popup-specific helper functions--------------------------------//
 
+type DynamicElement = (Msg -> unit) -> Model -> ReactElement
+type DynamicAction = (Msg -> unit) -> Model -> unit
+
 let preventDefault (e: Browser.Types.ClipboardEvent) = e.preventDefault()
 
 let getText (dialogData : PopupDialogData) =
@@ -201,6 +204,8 @@ let buildPopup title body foot close extraStyle =
                 Modal.Card.foot [] [ foot dispatch model ]
             ]
         ]
+
+
 
 /// Body and foot are functions that take a string of text and produce a
 /// reactElement. The meaning of the input string to those functions is the
@@ -804,6 +809,8 @@ let staticButtonFoot buttonAction buttonText dispatch =
                 ]
             ]
         ]
+
+
     
 
 /// A static confirmation popup.
@@ -849,4 +856,69 @@ let choicePopupFunc
 let choicePopup title (body:ReactElement) buttonTrueText buttonFalseText (buttonAction: bool -> Browser.Types.MouseEvent -> Unit) dispatch =
     let popup = choicePopupFunc title (fun _ -> body) buttonTrueText buttonFalseText (fun bool dispatch-> buttonAction bool)
     dispatch <| ShowPopup popup
+
+
+/// Base popup builder function, used by other popup generators: close function depends on (dynamic) model.
+/// OK button is enabled based on return from body function
+let newBuildPopup
+    title
+    (body: (Msg -> unit) -> Model -> ReactElement)
+    (foot: DynamicElement)
+    (close: DynamicAction)
+    (extraStyle : CSSProp list) =
+    fun (dispatch: Msg->Unit) (model : Model) ->
+        Modal.modal [ Modal.IsActive true; Modal.CustomClass "modal1"; Modal.Props [Style [ZIndex 20000]]] [
+            Modal.background [ Props [ OnClick (fun _ -> close dispatch model)]] []
+            Modal.Card.card [ Props [
+                Style ([
+                    OverflowY OverflowOptions.Auto
+                    OverflowX OverflowOptions.Visible
+                    UserSelect UserSelectOptions.None
+                    ] @ extraStyle)
+                ] ] [
+                Modal.Card.head [] [
+                    Modal.Card.title [] [ str title ]
+                    Delete.delete [ Delete.OnClick (fun _ -> close dispatch model) ] []
+                ]
+                Modal.Card.body [Props [Style [ OverflowY OverflowOptions.Visible ; OverflowX OverflowOptions.Visible]]] [ body dispatch model]
+                Modal.Card.foot [] [ foot dispatch model ]
+            ]
+        ]
+
+
+let newButtonFoot buttonAction buttonText closeAction enable: DynamicElement =
+    fun dispatch model ->
+        Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+            Level.left [] []
+            Level.right [] [
+                Level.item [] [
+                    Button.button [
+                        Button.Color IsLight
+                        Button.OnClick (fun _ -> closeAction dispatch model)
+                    ] [ str "Cancel" ]
+                ]
+                Level.item [] [
+                    Button.button [
+                        Button.Color IsPrimary
+                        Button.Disabled (enable model)
+                        Button.OnClick (fun _ -> buttonAction dispatch model)
+                    ] [ str buttonText ]
+                ]
+            ]
+        ]
+
+let newConfirmationPopup
+        title
+        (body : (Msg -> unit) -> Model -> ReactElement)
+        (buttonActionOpt: DynamicAction option)
+        (buttonEnable: Model -> bool)
+        (close: DynamicAction)
+            : DynamicElement =
+    fun dispatch model ->
+        let buttonAction: DynamicAction =
+            buttonActionOpt
+            |> Option.defaultValue (fun _ _  -> dispatch Msg.ClosePopup)
+        let foot = newButtonFoot buttonAction "Ok" close buttonEnable
+        newBuildPopup title body foot close [] dispatch model
+
 

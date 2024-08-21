@@ -37,7 +37,7 @@ let generateScrollbarInfo (wsm: WaveSimModel): {| tbWidth: float; tbPos: float; 
     /// <summary>Return target value when within min and max value, otherwise min or max.</summary>
     let bound (minV: int) (maxV: int) (tarV: int): int = tarV |> max minV |> min maxV
     let currShownMaxCyc = wsm.StartCycle + wsm.ShownCycles
-    let newBkgRep = [ wsm.ScrollbarBkgRepCycs; currShownMaxCyc; wsm.ShownCycles*2 ] |> List.max |> bound 0 (Constants.maxLastClk / mult)
+    let newBkgRep = [ wsm.ScrollbarBkgRepCycs; currShownMaxCyc; wsm.ShownCycles*2 ] |> List.max |> bound 0 (wsm.WSConfig.LastClock / mult)
 
     let tbCalcWidth = bkgWidth / (max 1. (float newBkgRep / float wsm.ShownCycles))
     let tbWidth = max tbCalcWidth Constants.scrollbarThumbMinWidth
@@ -85,7 +85,7 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
     let wholeCycles =
         max 1 (int (float waveColWidth / singleWaveWidth wsModel))
-        |> min (Constants.maxLastClk / wsModel.CycleMultiplier) // make sure there can be no over-run when making viewer larger
+        |> min (wsModel.WSConfig.LastClock / wsModel.CycleMultiplier) // make sure there can be no over-run when making viewer larger
         // prevent oscilaltion when number of cycles changes continuously due to width changes in values (rare corner case)
         |> (function | whole when abs (float (whole - wsModel.ShownCycles) / float wsModel.ShownCycles) < 0.1 -> wsModel.ShownCycles
                      | whole -> whole)
@@ -106,8 +106,8 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
         {
         wsModel with
             ShownCycles = wholeCycles
-            StartCycle = min wsModel.StartCycle (Constants.maxLastClk - (wholeCycles - 1)*wsModel.CycleMultiplier)
-            CurrClkCycle = min wsModel.CurrClkCycle Constants.maxLastClk
+            StartCycle = min wsModel.StartCycle (wsModel.WSConfig.LastClock - (wholeCycles - 1)*wsModel.CycleMultiplier)
+            CurrClkCycle = min wsModel.CurrClkCycle wsModel.WSConfig.LastClock
             WaveformColumnWidth = finalWavesColWidth
             ScrollbarBkgWidth = scrollbarWidth
         }
@@ -129,13 +129,13 @@ let inline setViewerWidthInWaveSim w dispatch =
 let rec validateSimParas (ws: WaveSimModel) =
     if ws.StartCycle < 0 then
         validateSimParas {ws with StartCycle = 0}
-    elif ws.CurrClkCycleDetail > Constants.maxLastClk then
-        validateSimParas {ws with CurrClkCycleDetail = Constants.maxLastClk; CurrClkCycle = Constants.maxLastClk/ws.CycleMultiplier}
-    elif (ws.StartCycle +  ws.ShownCycles-1)*ws.CycleMultiplier > Constants.maxLastClk then
+    elif ws.CurrClkCycleDetail > ws.WSConfig.LastClock then
+        validateSimParas {ws with CurrClkCycleDetail = ws.WSConfig.LastClock; CurrClkCycle = ws.WSConfig.LastClock/ws.CycleMultiplier}
+    elif (ws.StartCycle +  ws.ShownCycles-1)*ws.CycleMultiplier > ws.WSConfig.LastClock then
         if ws.StartCycle = 0 then
-            {ws with ShownCycles = Constants.maxLastClk / ws.CycleMultiplier + 1}
+            {ws with ShownCycles = ws.WSConfig.LastClock / ws.CycleMultiplier + 1}
         else
-            validateSimParas {ws with StartCycle = max 0 (Constants.maxLastClk / ws.CycleMultiplier - ws.ShownCycles + 1)}
+            validateSimParas {ws with StartCycle = max 0 (ws.WSConfig.LastClock / ws.CycleMultiplier - ws.ShownCycles + 1)}
     elif ws.CurrClkCycle < ws.StartCycle  then
         {ws with CurrClkCycle = ws.StartCycle; CurrClkCycleDetail = ws.StartCycle*ws.CycleMultiplier}
     elif  ws.CurrClkCycle > ws.StartCycle + ws.ShownCycles - 1  then
@@ -148,7 +148,7 @@ let rec validateSimParas (ws: WaveSimModel) =
 let changeMultiplier newMultiplier (ws: WaveSimModel) =
     let oldM = ws.CycleMultiplier
     let sampsHalf = (float ws.ShownCycles - 1.) / 2.
-    let newShown = 1 + min ws.ShownCycles (Constants.maxLastClk / newMultiplier)
+    let newShown = 1 + min ws.ShownCycles (ws.WSConfig.LastClock / newMultiplier)
     let newStart = int ((float ws.StartCycle + sampsHalf) * float oldM / float newMultiplier - (float newShown - 1.) / 2.)
     {ws with ShownCycles = newShown; StartCycle = newStart; CycleMultiplier = newMultiplier}
     |> validateSimParas
@@ -159,7 +159,7 @@ let changeMultiplier newMultiplier (ws: WaveSimModel) =
 /// Set highlighted clock cycle number
 let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle: int) : unit =
     let start = TimeHelpers.getTimeMs ()
-    let newDetail  = min (max newRealClkCycle 0) Constants.maxLastClk
+    let newDetail  = min (max newRealClkCycle 0) wsModel.WSConfig.LastClock
     let mult = wsModel.CycleMultiplier
     let newClkCycle = newRealClkCycle / mult
     let newClkCycle = max 0 newClkCycle
@@ -199,7 +199,7 @@ let setScrollbarTbByCycs (wsm: WaveSimModel) (dispatch: Msg->unit) (moveByCycs: 
     /// <summary>Return target value when within min and max value, otherwise min or max.</summary>
     let bound (minV: int) (maxV: int) (tarV: int): int = tarV |> max minV |> min maxV
     let minSimCyc = 0
-    let maxSimCyc = Constants.maxLastClk / mult
+    let maxSimCyc = wsm.WSConfig.LastClock / mult
 
     let newStartCyc = (wsm.StartCycle+moveWindowBy) |> bound minSimCyc (maxSimCyc-wsm.ShownCycles+1)
     let newCurrCyc =
@@ -278,7 +278,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
             else
                 sc)
         // final limits check so no cycle is outside allowed range
-        |> min (Constants.maxLastClk / wsModel.CycleMultiplier - shownCycles + 1)
+        |> min (wsModel.WSConfig.LastClock / wsModel.CycleMultiplier - shownCycles + 1)
         |> max 0
 
         

@@ -328,21 +328,14 @@ let UInt32ToPaddedString maxChars radix (width: int) (fd: uint32) =
         let pre, digits = stripLeadingZeros s
         let n = digits.Length
 
-        let pre' =
-            (match displayRadix with
-             | Dec
-             | SDec -> ""
-             | _ -> $"{width}'")
-            + pre
-
-        if pre'.Length + digits.Length <= maxChars then
+        if pre.Length + digits.Length <= maxChars then
             // stripping leading zeros makes length ok
-            pre' + digits
+            pre + digits
         else
             // truncate MS digits replacing by '..'
-            pre'
+            pre
             + ".."
-            + digits[n + 2 + pre'.Length - maxChars .. n - 1]
+            + digits[n + 2 + pre.Length - maxChars .. n - 1]
 let BigIntToPaddedString maxChars radix (width: int) (fd: bigint) =
     let getPrefixAndDigits (s: string) =
         match s.Length, s.[0], s.[1] with
@@ -376,21 +369,16 @@ let BigIntToPaddedString maxChars radix (width: int) (fd: bigint) =
         let pre, digits = stripLeadingZeros s
         let n = digits.Length
 
-        let pre' =
-            (match displayRadix with
-             | Dec
-             | SDec -> ""
-             | _ -> $"{width}'")
-            + pre
+    
 
-        if pre'.Length + digits.Length <= maxChars then
+        if pre.Length + digits.Length <= maxChars then
             // stripping leading zeros makes length ok
-            pre' + digits
+            pre + digits
         else
             // truncate MS digits replacing by '..'
-            pre'
+            pre
             + ".."
-            + digits[n + 2 + pre'.Length - maxChars .. n - 1]
+            + digits[n + 2 + pre.Length - maxChars .. n - 1]
 
 /// Convert an int into a Bit list with the provided width. The Least
 /// Significant Bits are the one with low index (e.g. LSB is at position 0, MSB

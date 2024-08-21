@@ -510,6 +510,9 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
                                                                                              be at least {Constants.minScrollingWindow} cycles."
             ["fontsize"], not <| inBounds 12 24 c.FontSize, $"Font size must be between 12 and 24"
             ["fontweight"], not <| inBounds 100 900 c.FontWeight, $"Font weight must be between 100 and 900"
+            [], c.LastClock > Constants.maxWarnSimulationSize, $"Warning: very large simulation lengths and big designs result in high memory use, \
+                                                                 and possible crashes."
+                                                                
         ]  
         |> List.filter (fun (_, isError, _) -> isError)
         |> List.map (fun (key, _, message) -> key, message)
@@ -523,8 +526,11 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
     let isValid = List.isEmpty errorKeys
 
     let closeAction changeConfig dispatch model =
+        let wsm = getWSModel model
         if changeConfig then
-            dispatch <| UpdateModel (Optic.set (waveSimModel_ >-> wSConfig_) (Option.defaultValue initWSModel.WSConfig (getWSModel model).WSConfigDialog))
+            let dialog = wsm.WSConfigDialog
+            if dialog = None then printf $"Unexpected WSConfigDialog = None when closing configuration popup. changeConfig = {changeConfig}"
+            dispatch <| UpdateModel (Optic.set (waveSimModel_ >-> wSConfig_) (Option.defaultValue wsm.WSConfig dialog))
         dispatch <| ClosePopup
         dispatch <| UpdateModel (Optic.map (waveSimModel_ >-> wSConfigDialog_) (fun _ -> None))
 

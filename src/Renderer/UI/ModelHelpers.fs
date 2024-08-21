@@ -15,8 +15,9 @@ module Constants =
             FirstClock = 0; // first clock accessible - limits scroll range. NOT IMPLEMENTED
             FontSize = 14; // size of text on waveforms
             FontWeight = 500 // weight of text on waveforms
-            } 
-    let maxSimulationSize = 1000000
+            }
+    let maxWarnSimulationSize = 100000
+    let maxSimulationSize = 10000000
     let minScrollingWindow = 200
     let wsButtonHeight = 30
     let wsButtonWidth = 120

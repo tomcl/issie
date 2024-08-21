@@ -93,6 +93,7 @@ let init() = {
         ImportDecisions = Map.empty
         Int = None
         Int2 = None
+        Int3 = None
         MemorySetup = None
         MemoryEditorData = None
         Progress = None

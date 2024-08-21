@@ -391,7 +391,7 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
     let success = (ws.State = Success || ws.State=Loading)
 
     let hasSimErr =
-        match SimulationView.simulateModel model.WaveSimSheet (ModelHelpers.Constants.maxLastClk + ModelHelpers.Constants.maxStepsOverflow) canv model with
+        match SimulationView.simulateModel model.WaveSimSheet (ws.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow) canv model with
         | (Error e, _) -> true
         | (Ok simData, canvState) -> false
     let errored =
@@ -434,8 +434,8 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
 let extendSimulation timeOut (ws:WaveSimModel) =
     let stepsNeeded = (ws.ShownCycles + ws.StartCycle) * ws.CycleMultiplier
     printfn $"Extending simulation to {stepsNeeded} cycles"
-    if stepsNeeded > Constants.maxLastClk then
-        failwithf $"Trying to extend simulation to {stepsNeeded} which is beyond available clocks (Constants.maxLastClk)"
+    if stepsNeeded > ws.WSConfig.LastClock then
+        failwithf $"Trying to extend simulation to {stepsNeeded} which is beyond available clocks (ws.WSConfig.LastClock)"
     FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
 
 /// returns true if any memory component in fs linked to a .ram file is outofdate because of the .ram file changing

@@ -7,6 +7,7 @@ open SynchronousUtils
 open NumberHelpers
 open FastCreate
 open FastReduce
+open FastReduceTT
 open Helpers
 open System.Numerics
 

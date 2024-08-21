@@ -1218,7 +1218,7 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
             //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
             match simulateModel
                     model.WaveSimSheet
-                    (Constants.maxLastClk + Constants.maxStepsOverflow)
+                    (wsModel.WSConfig.LastClock + Constants.maxStepsOverflow)
                     canvasState
                     model with
             //| None ->

@@ -49,11 +49,11 @@ module Constants =
 
     let fontSizeValueOnWave = "10px"
     /// Text used to display vlaues on non-binary waves
-    let valueOnWaveText = { DrawHelpers.defaultText with FontSize = fontSizeValueOnWave }
+    let valueOnWaveText = { DrawHelpers.defaultText with FontSize = "5px" } // dummy size
     /// Whitespace padding between repeated values displayed on non-binary waves.
     let valueOnWavePadding = 75.0
     /// Whitespace padding between non-binary wave values and the edge of transition.
-    let valueOnWaveEdgePadding = 8.0
+    let valueOnWaveEdgePadding = 4.0
 
     /// Border between columns and headers of waveform viewer.
     let borderProperties = "2px solid rgb(219,219,219)"
@@ -360,10 +360,10 @@ let valueOnWaveProps textFont textWeight m i start width : list<IProp> = [
 
 /// <summary>Props for displaying values on non-binary waves by starting position.</summary>
 /// <param name="xpos">Starting X-direction position.</param>
-let singleValueOnWaveProps textFont textWeight xpos: list<IProp> = [
+let singleValueOnWaveProps isStart textFont textWeight xpos: list<IProp> = [
     X xpos
     Y (0.5 * Constants.viewBoxHeight + textFont / 2.)
-    Style [ FontSize textFont; FontWeight textWeight ]
+    Style [ TextAnchor (if isStart then "start" else "end"); FontFamily "Helvetica"; FontSize textFont; FontWeight textWeight ]
 ]
 
 /// Style for clock cycle buttons
@@ -501,12 +501,13 @@ let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
        
        
 
-
+/// Calculate the necessary with of the naes column based on the longest name.
 let calcNamesColWidth (ws:WaveSimModel) : int =
     let cWidth =
+        // technical debt - could be replaced by proper call now?
         DrawHelpers.canvasWidthContext.font <- String.concat " " ["10px"; Constants.columnFontFamily]; // e.g. "16px bold sans-serif";
         let getWidth (txt:string) =
-            let sizeInPx = float ((Constants.columnFontSize.ToLower()).Replace("px",""))   
+            let sizeInPx = float (ws.WSConfig.FontSize)   
             sizeInPx * DrawHelpers.canvasWidthContext.measureText(txt).width / 10.0
         ws.SelectedWaves
         |> listCollectSomes (

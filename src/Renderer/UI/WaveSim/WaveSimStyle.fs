@@ -233,8 +233,8 @@ let selectWavesButtonStyle = Style [
 
 /// Style for top row of buttons
 let topRowButtonStyle isRightSide= Style [
-    Height Constants.rowHeight
-    Width Constants.colWidth
+    Height ModelHelpers.Constants.wsButtonHeight
+    Width ModelHelpers.Constants.wsButtonWidth
     FontSize "16px"
     Flex "0 0.5"
     if isRightSide then MarginLeft "auto" else AlignSelf AlignSelfOptions.FlexStart
@@ -348,18 +348,18 @@ let ramTablesLevelProps : IHTMLProp list = [
 /// <param name="i">Index of text elements to be generated.</param>
 /// <param name="start">Starting position of repeating text elements.</param>
 /// <param name="width">Width of each text element.</param>
-let valueOnWaveProps m i start width : list<IProp> = [
+let valueOnWaveProps textFont textWeight m i start width : list<IProp> = [
     X (start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
-    Y (0.6 * Constants.viewBoxHeight)
-    Style [ FontSize Constants.fontSizeValueOnWave ]
+    Y (0.5 * Constants.viewBoxHeight + textFont / 2.)
+    Style [ FontSize textFont; FontWeight textWeight ]
 ]
 
 /// <summary>Props for displaying values on non-binary waves by starting position.</summary>
 /// <param name="xpos">Starting X-direction position.</param>
-let singleValueOnWaveProps xpos: list<IProp> = [
+let singleValueOnWaveProps textFont textWeight xpos: list<IProp> = [
     X xpos
-    Y (0.6 * Constants.viewBoxHeight)
-    Style [ FontSize Constants.fontSizeValueOnWave ]
+    Y (0.5 * Constants.viewBoxHeight + textFont / 2.)
+    Style [ FontSize textFont; FontWeight textWeight ]
 ]
 
 /// Style for clock cycle buttons
@@ -596,7 +596,7 @@ let waveRowsStyle width = Style [
     Height "100%" 
     OverflowX OverflowOptions.Hidden
     Display DisplayOptions.Grid
-    FontSize "12px"
+    FontSize "13px"
     GridAutoRows Constants.rowHeight
     BorderTop Constants.borderProperties
     Width width

@@ -153,7 +153,8 @@ let shortDisplayMsg (msg:Msg) =
     | SetPopupDialogCode _ 
     | SetPopupDialogVerilogErrors _ 
     | SetPopupDialogInt _ 
-    | SetPopupDialogInt2 _ 
+    | SetPopupDialogInt2 _
+    | SetPopupDialogInt3 _
     | SetPopupDialogTwoInts _ 
     | SetPopupDialogIntList _
     | SetPopupDialogIntList2 _

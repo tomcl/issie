@@ -256,9 +256,8 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
         [
             cursorCycleHighlightSVG wsModel dispatch
             div [ waveRowsStyle <| wsModel.WaveformColumnWidth]
-                ([ clkCycleNumberRow wsModel ] @
-                    waveRows
-                )
+                (  [ clkCycleNumberRow wsModel ] @
+                   waveRows)
         ]
     |> TimeHelpers.instrumentInterval "waveformColumn" start
 

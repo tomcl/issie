@@ -432,12 +432,16 @@ let update (msg : Msg) oldModel =
     | SetPopupDialogInt2 int ->
         set (popupDialogData_ >-> int2_) int model, Cmd.none
 
+    | SetPopupDialogInt3 i -> set (popupDialogData_ >-> int3_) i model, Cmd.none
+   
+
     | SetPopupDialogTwoInts (n, select, optText)->
         model
         |> map popupDialogData_
                     (match select with
                      | FirstInt -> set int_ (Option.map int32 n)
-                     | SecondInt -> set int2_ n)
+                     | SecondInt -> set int2_ n
+                     | ThirdInt -> set int3_ n)
         |> withNoMsg
     
     | SetPopupDialogIntList intlist->

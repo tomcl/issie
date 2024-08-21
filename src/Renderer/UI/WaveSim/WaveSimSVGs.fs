@@ -245,6 +245,9 @@ let displayUInt32OnWave
     (waveValues: array<uint32>)
     (transitions: array<NonBinaryTransition>)
     : list<ReactElement> =
+    let textFont = wsModel.WSConfig.FontSize
+    let textWeight = wsModel.WSConfig.FontWeight
+
     // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
@@ -279,7 +282,7 @@ let displayUInt32OnWave
     /// <summary>Function to make text element for a gap.</summary>
     /// <param name="start">Starting X location of element.</param>
     let makeTextElement (start: float) (waveValue: string) = 
-        text (singleValueOnWaveProps start) [ str waveValue ]
+        text (singleValueOnWaveProps textFont textWeight start) [ str waveValue ]
     
     // create text element for every gap
     gaps
@@ -328,6 +331,8 @@ let displayBigIntOnWave
     (waveValues: array<bigint>)
     (transitions: array<NonBinaryTransition>)
     : list<ReactElement> =
+    let textFont = wsModel.WSConfig.FontSize
+    let textWeight = wsModel.WSConfig.FontWeight
     // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions
@@ -362,7 +367,7 @@ let displayBigIntOnWave
     /// <summary>Function to make text element for a gap.</summary>
     /// <param name="start">Starting X location of element.</param>
     let makeTextElement (start: float) (waveValue: string) = 
-        text (singleValueOnWaveProps start) [ str waveValue ]
+        text (singleValueOnWaveProps textFont textWeight start) [ str waveValue ]
     
     // create text element for every gap
     gaps

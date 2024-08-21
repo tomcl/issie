@@ -179,7 +179,7 @@ let namesColumn model wsModel dispatch : ReactElement =
     let rows = 
         nameRows model wsModel dispatch
     div (namesColumnProps wsModel)
-        (List.concat [ topRow []; rows ])
+        (List.concat [ topRow wsModel []; rows ])
     //|> TimeHelpers.instrumentInterval "namesColumn" start
 
 
@@ -199,7 +199,7 @@ let valueRows (wsModel: WaveSimModel) =
         match fd.Width, fd.Dat with
         | 1, Word b -> $" {b}" 
         | _ -> fastDataToPaddedString valueColNumChars wsModel.Radix fd)
-    |> List.map (fun value -> label [ valueLabelStyle ] [ str value ])
+    |> List.map (fun value -> label [ valueLabelStyle wsModel] [ str value ])
     |> (fun rows -> valueColWidth, rows)
 
 
@@ -226,9 +226,13 @@ let private valuesColumn wsModel : ReactElement =
     let start = TimeHelpers.getTimeMs ()
     let width, rows = valueRows wsModel
     let cursorClkNum = wsModel.CurrClkCycleDetail
-    let topRowNumber = [ div [Style [FontSize "10pt" ; VerticalAlign "bottom"; FontWeight "bold"; PaddingLeft "4pt"]] [str (string <| cursorClkNum)] ]
-    div [ HTMLAttr.Id "ValuesCol" ; valuesColumnStyle width]
-        (List.concat [ topRow topRowNumber ; rows ])
+    let topRowNumber = [ div [Style [
+            FontSize wsModel.WSConfig.FontSize ;
+            VerticalAlign "bottom";
+            FontWeight wsModel.WSConfig.FontWeight;
+            PaddingLeft "4pt"]] [str (string <| cursorClkNum)] ]
+    div [ HTMLAttr.Id "ValuesCol" ; valuesColumnStyle wsModel width]
+        (List.concat [ topRow wsModel topRowNumber ; rows ])
     //|> TimeHelpers.instrumentInterval "valuesColumn" start
 
 /// Generate a column of waveforms corresponding to selected waves.

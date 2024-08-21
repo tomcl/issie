@@ -169,15 +169,19 @@ let endCycle wsModel = wsModel.StartCycle + (wsModel.ShownCycles) - 1
 let zoomOutSVG = DiagramStyle.zoomOutSVG
 let zoomInSVG = DiagramStyle.zoomInSVG
 
-/// Style for top row in wave viewer.
-let topRowStyle = Style [
-    Height Constants.rowHeight
-    BorderBottom "2px solid rgb(219,219,219)"
-]
+let valueTopPadding (ws:WaveSimModel) =
+    (float Constants.rowHeight - float ws.WSConfig.FontSize - 8.) / 2.
+
 
 /// Empty row used in namesColumn and valuesColumn. Shifts these down by one
 /// to allow for the row of clk cycle numbers in waveformsColumn.
-let topRow topRowContent = [ div [ topRowStyle ] topRowContent ]
+let topRow (ws:WaveSimModel) topRowContent =
+    [ div [ Style [
+                Height Constants.rowHeight
+                BorderBottom "2px solid rgb(219,219,219)"
+                PaddingTop (valueTopPadding ws)
+            ]]
+          topRowContent ]
 
 /// Style for showing error messages in waveform simulator.
 let errorMessageStyle = Style [
@@ -471,14 +475,18 @@ let nameLabelStyle isHovered = Style [
         Cursor "grab"
 ]
 
+
+
 /// Style for value label
-let valueLabelStyle = 
+let valueLabelStyle (ws: WaveSimModel)= 
     Style [
         Height Constants.rowHeight
         BorderBottom "1px solid rgb(219,219,219)"
         PaddingLeft Constants.labelPadding
+        PaddingTop (valueTopPadding ws)
         FontFamily Constants.valueColumnFontFamily
-        FontSize Constants.valueColumnFontSize
+        FontSize ws.WSConfig.FontSize
+        FontWeight ws.WSConfig.FontWeight
     ]
 
 /// Prop for Level.left in name row.
@@ -520,7 +528,7 @@ let waveSimColumn = [
     Width "100%"
     Display DisplayOptions.Grid
     GridAutoRows Constants.rowHeight
-    FontSize Constants.valueColumnFontSize
+    //FontSize Constants.valueColumnFontSize
     FontFamily Constants.valueColumnFontFamily
     OverflowX OverflowOptions.Auto
     WhiteSpace WhiteSpaceOptions.Nowrap
@@ -533,6 +541,8 @@ let namesColumnStyle (ws:WaveSimModel) = Style (
         Width (calcNamesColWidth ws)
         Float FloatOptions.Left
         BackgroundColor Constants.namesValuesColumnColor
+        FontSize ws.WSConfig.FontSize
+        FontWeight ws.WSConfig.FontWeight
         BorderRight Constants.borderProperties
         GridColumnStart 1
         OverflowX OverflowOptions.Clip
@@ -572,16 +582,21 @@ let valuesColumnSize wsModel =
     |> (fun (w,num) -> int w + 20, num)
 
 /// Style properties for values column
-let valuesColumnStyle (colWidth:int) = Style (
-    (waveSimColumn) @ [
-        MinWidth colWidth
-        Float FloatOptions.Left
-        BorderLeft Constants.borderProperties
-        OverflowX OverflowOptions.Auto
-        BackgroundColor Constants.namesValuesColumnColor
-        Opacity 1.0
-        GridColumnStart 3
-    ])
+let valuesColumnStyle (ws: WaveSimModel) (colWidth:int) =
+    let size = ws.WSConfig.FontSize
+    let weight = ws.WSConfig.FontWeight
+    Style (
+        (waveSimColumn) @ [
+            FontSize size
+            FontWeight weight
+            MinWidth colWidth
+            Float FloatOptions.Left
+            BorderLeft Constants.borderProperties
+            OverflowX OverflowOptions.Auto
+            BackgroundColor Constants.namesValuesColumnColor
+            Opacity 1.0
+            GridColumnStart 3
+        ])
 
 
 
@@ -596,7 +611,7 @@ let waveRowsStyle width = Style [
     Height "100%" 
     OverflowX OverflowOptions.Hidden
     Display DisplayOptions.Grid
-    FontSize "13px"
+    //FontSize "13px"
     GridAutoRows Constants.rowHeight
     BorderTop Constants.borderProperties
     Width width

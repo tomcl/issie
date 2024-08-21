@@ -247,7 +247,7 @@ let displayUInt32OnWave
     : list<ReactElement> =
     let textFont = wsModel.WSConfig.FontSize
     let textWeight = wsModel.WSConfig.FontWeight
-    let textSpec = {DrawHelpers.defaultText with FontSize = $"{textFont}"; FontWeight = $"{textWeight}"}
+    let textSpec = {DrawHelpers.defaultText with FontSize = $"{textFont}px"; FontWeight = $"{textWeight}"; FontFamily = "Helvetica"}
 
     // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
@@ -282,8 +282,8 @@ let displayUInt32OnWave
 
     /// <summary>Function to make text element for a gap.</summary>
     /// <param name="start">Starting X location of element.</param>
-    let makeTextElement (start: float) (waveValue: string) = 
-        text (singleValueOnWaveProps textFont textWeight start) [ str waveValue ]
+    let makeTextElement (isStart) (start: float) (waveValue: string) = 
+        text (singleValueOnWaveProps isStart textFont textWeight start) [ str waveValue ]
     
     // create text element for every gap
     gaps
@@ -292,35 +292,34 @@ let displayUInt32OnWave
         let waveValue = UInt32ToPaddedString Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
         
         // calculate display widths
-        let cycleWidth = singleWaveWidth wsModel
+        let cycleWidth = 1.0 * singleWaveWidth wsModel
         let gapWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
-        let singleWidth = 1.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue
+        let singleWidth = 1. * DrawHelpers.getTextWidthInPixels textSpec waveValue
         let doubleWidth = 2. * singleWidth + Constants.valueOnWavePadding
         
         match gapWidth with
-        | w when (w < singleWidth) -> // display filled polygon
+        | w when (w < singleWidth * 1.05) -> // display filled polygon
             let fillPoints = nonBinaryFillPoints cycleWidth gap
             let fill = makePolyfill fillPoints
             [ fill ]
-        | w when (singleWidth <= w && w < doubleWidth) -> // diplay 1 copy at centre
+        | w when (w < doubleWidth * 1.1) -> // diplay 1 copy at centre
             let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
-            let singleText = makeTextElement (float gap.Start * cycleWidth + gapCenterPadWidth) waveValue
+            let singleText = makeTextElement true (float gap.Start * cycleWidth + gapCenterPadWidth) waveValue
             [ singleText ] 
-        | w when (doubleWidth <= w) -> // display 2 copies at end of gaps
+        | w  -> // display 2 copies at end of gaps
             let singleCycleCenterPadWidth = // if a single cycle gap can include 2 copies, set arbitrary padding
-                if cycleWidth < doubleWidth
+                (*if cycleWidth < doubleWidth
                 then (cycleWidth - singleWidth) / 2.
-                else Constants.valueOnWaveEdgePadding
+                else*) Constants.valueOnWaveEdgePadding
             let startPadWidth = 
-                if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
+                (*if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
                     then 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
-                    else singleCycleCenterPadWidth
+                    else*) singleCycleCenterPadWidth
             let endPadWidth = (float gap.Length * cycleWidth - startPadWidth - singleWidth)
-            let startText = makeTextElement (float gap.Start * cycleWidth + startPadWidth) waveValue
-            let endText = makeTextElement (float gap.Start * cycleWidth + endPadWidth) waveValue
+            let startText = makeTextElement true (float gap.Start * cycleWidth + startPadWidth) waveValue
+            let endText = makeTextElement false (float (gap.Start + gap.Length) * cycleWidth - startPadWidth) waveValue
             [ startText; endText ] 
-        | _ -> // catch-all
-            failwithf "displayUInt32OnWave: impossible case"
+
     )
     |> List.concat
 
@@ -334,7 +333,7 @@ let displayBigIntOnWave
     : list<ReactElement> =
     let textFont = wsModel.WSConfig.FontSize
     let textWeight = wsModel.WSConfig.FontWeight
-    let textSpec = {Constants.valueOnWaveText with FontSize = $"{textFont}"; FontWeight = $"{textWeight}"}
+    let textSpec = {Constants.valueOnWaveText with FontSize = $"{textFont}px"; FontWeight = $"{textWeight}; FontFamily = Helvetica"}
 
     // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
@@ -369,8 +368,8 @@ let displayBigIntOnWave
 
     /// <summary>Function to make text element for a gap.</summary>
     /// <param name="start">Starting X location of element.</param>
-    let makeTextElement (start: float) (waveValue: string) = 
-        text (singleValueOnWaveProps textFont textWeight start) [ str waveValue ]
+    let makeTextElement (isStart: bool) (start: float) (waveValue: string) = 
+        text (singleValueOnWaveProps isStart textFont textWeight start) [ str waveValue ]
     
     // create text element for every gap
     gaps
@@ -381,33 +380,27 @@ let displayBigIntOnWave
         // calculate display widths
         let cycleWidth = singleWaveWidth wsModel
         let gapWidth = (float gap.Length * cycleWidth) - 2. * Constants.nonBinaryTransLen
-        let singleWidth = 1.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue
+        let singleWidth = 1. * DrawHelpers.getTextWidthInPixels textSpec waveValue
         let doubleWidth = 2. * singleWidth + Constants.valueOnWavePadding
         
         match gapWidth with
-        | w when (w < singleWidth) -> // display filled polygon
+        | w when (w < singleWidth * 1.05) -> // display filled polygon
             let fillPoints = nonBinaryFillPoints cycleWidth gap
             let fill = makePolyfill fillPoints
             [ fill ]
-        | w when (singleWidth <= w && w < doubleWidth) -> // diplay 1 copy at centre
+        | w when (w < doubleWidth*3.) -> // diplay 1 copy at centre
             let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
-            let singleText = makeTextElement (float gap.Start * cycleWidth + gapCenterPadWidth) waveValue
+            let singleText = makeTextElement true (float gap.Start * cycleWidth + gapCenterPadWidth) waveValue
             [ singleText ] 
-        | w when (doubleWidth <= w) -> // display 2 copies at end of gaps
+        | w -> // display 2 copies at end of gaps
             let singleCycleCenterPadWidth = // if a single cycle gap can include 2 copies, set arbitrary padding
-                if cycleWidth < doubleWidth
-                then (cycleWidth - singleWidth) / 2.
-                else Constants.valueOnWaveEdgePadding
+                Constants.valueOnWaveEdgePadding
             let startPadWidth = 
-                if singleCycleCenterPadWidth < 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
-                    then 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
-                    else singleCycleCenterPadWidth
-            let endPadWidth = (float gap.Length * cycleWidth - startPadWidth - singleWidth)
-            let startText = makeTextElement (float gap.Start * cycleWidth + startPadWidth) waveValue
-            let endText = makeTextElement (float gap.Start * cycleWidth + endPadWidth) waveValue
+                    singleCycleCenterPadWidth
+            let startText = makeTextElement true (float gap.Start * cycleWidth + startPadWidth) waveValue
+            let endText = makeTextElement false (float (gap.Start + gap.Length) * cycleWidth - startPadWidth) waveValue
             [ startText; endText ] 
-        | _ -> // catch-all
-            failwithf "displayUInt32OnWave: impossible case"
+
     )
     |> List.concat
 

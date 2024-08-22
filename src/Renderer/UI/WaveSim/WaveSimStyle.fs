@@ -158,7 +158,7 @@ let screenWidth() = Browser.Dom.document.defaultView.innerWidth
 let singleWaveWidth m = max 5.0 (float m.WaveformColumnWidth / float m.ShownCycles)
 
 /// Left-most coordinate of the SVG viewbox.
-let viewBoxMinX m = string (float m.StartCycle * singleWaveWidth m)
+let viewBoxMinX m = string 0
 
 /// Total width of the SVG viewbox.
 let viewBoxWidth m = string (max 5.0 (m.WaveformColumnWidth))
@@ -345,19 +345,6 @@ let ramTablesLevelProps : IHTMLProp list = [
     ]
 ]
 
-
-/// <summary>Props for displaying repeating text elements on non-binary waves.</param>
-/// <remarks>Not used any more.</remarks>
-/// <param name="m"><c>WaveSim<c> model.</param>
-/// <param name="i">Index of text elements to be generated.</param>
-/// <param name="start">Starting position of repeating text elements.</param>
-/// <param name="width">Width of each text element.</param>
-let valueOnWaveProps textFont textWeight m i start width : list<IProp> = [
-    X (start * (singleWaveWidth m) + Constants.nonBinaryTransLen + float i * width)
-    Y (0.5 * Constants.viewBoxHeight + textFont / 2.)
-    Style [ FontSize textFont; FontWeight textWeight ]
-]
-
 /// <summary>Props for displaying values on non-binary waves by starting position.</summary>
 /// <param name="xpos">Starting X-direction position.</param>
 let singleValueOnWaveProps isStart textFont textWeight xpos: list<IProp> = [
@@ -379,7 +366,7 @@ let clkCycleButtonStyle = Style [
 let clkCycleInputStyle = Style [
     Margin "0 0 0 0"
     TextAlign TextAlignOptions.Center
-    Width "60px"
+    Width "80px"
     Height Constants.rowHeight
     Display DisplayOptions.Inline
     FontSize "13px"
@@ -654,20 +641,21 @@ let calcWaveformHeight wsModel =
 
 let calcWaveformAndScrollBarHeight wsModel =
     calcWaveformHeight wsModel + 100. + float Constants.scrollBarWidth
+
 /// Props for text in clock cycle row
 let clkCycleText m i : IProp list =
     let props : IProp list =
         [
             SVGAttr.FontSize "12px"
             SVGAttr.TextAnchor "middle"
-            X (singleWaveWidth m * (float i + 0.5))
+            X (singleWaveWidth m * (float (i - m.StartCycle) + 0.5))
             Y (0.6 * Constants.viewBoxHeight)
         ]
     let cursorExtraProps : IProp list =
         [
             SVGAttr.Custom("fontWeight", "bold")
         ]
-    if i* m.CycleMultiplier = m.CurrClkCycle then
+    if i * m.CycleMultiplier = m.CurrClkCycle then
         cursorExtraProps @ props
     else
         props

@@ -211,7 +211,11 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
         match singleWaveWidth wsModel with
         | width when width < float Constants.clkCycleNarrowThreshold && i % 5 <> 0 ->
             []
-        | width when n >= 1000 && width <  (float Constants.clkCycleNarrowThreshold * 4. / 3.) && i % 10 <> 0 ->
+        | width when n >= 1000 && width <  (float Constants.clkCycleNarrowThreshold * 5. / 3.) && i % 10 <> 0 ->
+            []
+        | width when n >= 10000 && width <  (float Constants.clkCycleNarrowThreshold * 6. / 3.) && i % 10 <> 0 ->
+            []
+        | width when n >= 100000 && width <  (float Constants.clkCycleNarrowThreshold * 7. / 3.) && i % 10 <> 0 ->
             []
         | _ ->
             [ text (clkCycleText wsModel i) [str (string n)] ]

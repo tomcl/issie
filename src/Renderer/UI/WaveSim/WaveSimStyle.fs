@@ -379,7 +379,7 @@ let clkCycleButtonStyle = Style [
 let clkCycleInputStyle = Style [
     Margin "0 0 0 0"
     TextAlign TextAlignOptions.Center
-    Width "60px"
+    Width "80px"
     Height Constants.rowHeight
     Display DisplayOptions.Inline
     FontSize "13px"

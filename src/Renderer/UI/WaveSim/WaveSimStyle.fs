@@ -743,7 +743,7 @@ let cursorCycleHighlightSVG m dispatch =
                 rect [
                     SVGAttr.Width (singleWaveWidth m)
                     SVGAttr.Height "100%"
-                    X (float m.CurrClkCycle * (singleWaveWidth m))
+                    X (float (m.CurrClkCycle - m.StartCycle) * (singleWaveWidth m))
                 ] []
             ]
             (backgroundSVG m count)

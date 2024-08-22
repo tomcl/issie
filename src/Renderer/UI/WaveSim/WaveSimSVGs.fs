@@ -133,7 +133,7 @@ let makeCoords (clkCycleWidth: float) (clkCycle: int) (transition: Transition) :
 
 /// Generate points for a binary waveform
 let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: BinaryTransition)  : XYPos array =
-    let topL, topR, botL, botR = makeCoords clkCycleWidth (startCycle + index) (BinaryTransition transition)
+    let topL, topR, botL, botR = makeCoords clkCycleWidth index (BinaryTransition transition)
     // Each match condition generates a specific transition type
     match transition with
     | ZeroToZero | OneToZero ->
@@ -144,8 +144,8 @@ let binaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (tran
 /// <summary>Generate polyline points for a non-binary waveform via transition info.</summary>
 let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (transition: NonBinaryTransition)
     : array<XYPos>*array<XYPos> =
-    let xLeft, _ = makeXCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
-    let _, topR, _, botR = makeCoords clkCycleWidth (startCycle + index) (NonBinaryTransition transition)
+    let xLeft, _ = makeXCoords clkCycleWidth index (NonBinaryTransition transition)
+    let _, topR, _, botR = makeCoords clkCycleWidth index (NonBinaryTransition transition)
 
     let crossHatchMid, crossHatchTop, crossHatchBot =
         {X = xLeft +      xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
@@ -162,9 +162,10 @@ let nonBinaryWavePoints (clkCycleWidth: float) (startCycle: int) (index: int) (t
         [|topR|], [|botR|]
 
 /// <summary>Generate polyfill points for a non-binary gap via gap info.</summary>
-let nonBinaryFillPoints (clkCycleWidth: float) (gap: Gap): array<XYPos> =
-    let xLeft, _ = makeXCoords clkCycleWidth (gap.Start) (NonBinaryTransition Change)
-    let _, xRight = makeXCoords clkCycleWidth (gap.Start+gap.Length-1) (NonBinaryTransition Change)
+let nonBinaryFillPoints (startCycle: int) (clkCycleWidth: float) (gap: Gap): array<XYPos> =
+    let start = gap.Start - startCycle
+    let xLeft, _ = makeXCoords clkCycleWidth start (NonBinaryTransition Change)
+    let _, xRight = makeXCoords clkCycleWidth (start + gap.Length-1) (NonBinaryTransition Change)
 
     let crossHatchMidL, crossHatchTopL, crossHatchBotL =
         {X = xLeft + xShift clkCycleWidth; Y = 0.5 * Constants.viewBoxHeight},
@@ -183,7 +184,7 @@ let nonBinaryFillPoints (clkCycleWidth: float) (gap: Gap): array<XYPos> =
 let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int) (multiplier: int)
     : array<BinaryTransition> =
     let getBit bit = int32 bit
-    match startCycle, startCycle + shownCycles - 1 with
+    match startCycle, startCycle + shownCycles + 1 with
     | startCyc, endCyc when startCyc = 0 && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
         subSamp waveValues startCyc (endCyc-startCyc+1) multiplier
         |> Array.append [| waveValues[0] |]
@@ -289,6 +290,7 @@ let displayUInt32OnWave
     // create text element for every gap
     gaps
     |> Array.map (fun gap ->
+        let gapCycle = gap.Start - wsModel.StartCycle
         // generate string
         let waveValue = UInt32ToPaddedString Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
         
@@ -300,12 +302,12 @@ let displayUInt32OnWave
         
         match gapWidth with
         | w when (w < singleWidth * 1.05) -> // display filled polygon
-            let fillPoints = nonBinaryFillPoints cycleWidth gap
+            let fillPoints = nonBinaryFillPoints wsModel.StartCycle cycleWidth gap 
             let fill = makePolyfill fillPoints
             [ fill ]
         | w when (w < doubleWidth * 1.1) -> // diplay 1 copy at centre
             let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
-            let singleText = makeTextElement true (float gap.Start * cycleWidth + gapCenterPadWidth) waveValue
+            let singleText = makeTextElement true (float gapCycle * cycleWidth + gapCenterPadWidth) waveValue
             [ singleText ] 
         | w  -> // display 2 copies at end of gaps
             let singleCycleCenterPadWidth = // if a single cycle gap can include 2 copies, set arbitrary padding
@@ -317,8 +319,8 @@ let displayUInt32OnWave
                     then 0.1 * DrawHelpers.getTextWidthInPixels textSpec waveValue 
                     else*) singleCycleCenterPadWidth
             let endPadWidth = (float gap.Length * cycleWidth - startPadWidth - singleWidth)
-            let startText = makeTextElement true (float gap.Start * cycleWidth + startPadWidth) waveValue
-            let endText = makeTextElement false (float (gap.Start + gap.Length) * cycleWidth - startPadWidth) waveValue
+            let startText = makeTextElement true (float gapCycle * cycleWidth + startPadWidth) waveValue
+            let endText = makeTextElement false (float (gapCycle + gap.Length) * cycleWidth - startPadWidth) waveValue
             [ startText; endText ] 
 
     )
@@ -334,7 +336,7 @@ let displayBigIntOnWave
     : list<ReactElement> =
     let textFont = wsModel.WSConfig.FontSize
     let textWeight = wsModel.WSConfig.FontWeight
-    let textSpec = {Constants.valueOnWaveText with FontSize = $"{textFont}px"; FontWeight = $"{textWeight}; FontFamily = Helvetica"}
+    let textSpec = {DrawHelpers.defaultText with FontSize = $"{textFont}px"; FontWeight = $"{textWeight}"; FontFamily = "Helvetica"}
 
     // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
@@ -375,6 +377,7 @@ let displayBigIntOnWave
     // create text element for every gap
     gaps
     |> Array.map (fun gap ->
+        let gapCycle = gap.Start - wsModel.StartCycle
         // generate string
         let waveValue = BigIntToPaddedString Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
         
@@ -386,20 +389,20 @@ let displayBigIntOnWave
         
         match gapWidth with
         | w when (w < singleWidth * 1.05) -> // display filled polygon
-            let fillPoints = nonBinaryFillPoints cycleWidth gap
+            let fillPoints = nonBinaryFillPoints wsModel.StartCycle cycleWidth gap
             let fill = makePolyfill fillPoints
             [ fill ]
         | w when (w < doubleWidth*3.) -> // diplay 1 copy at centre
             let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
-            let singleText = makeTextElement true (float gap.Start * cycleWidth + gapCenterPadWidth) waveValue
+            let singleText = makeTextElement true (float gapCycle * cycleWidth + gapCenterPadWidth) waveValue
             [ singleText ] 
         | w -> // display 2 copies at end of gaps
             let singleCycleCenterPadWidth = // if a single cycle gap can include 2 copies, set arbitrary padding
                 Constants.valueOnWaveEdgePadding
             let startPadWidth = 
                     singleCycleCenterPadWidth
-            let startText = makeTextElement true (float gap.Start * cycleWidth + startPadWidth) waveValue
-            let endText = makeTextElement false (float (gap.Start + gap.Length) * cycleWidth - startPadWidth) waveValue
+            let startText = makeTextElement true (float gapCycle * cycleWidth + startPadWidth) waveValue
+            let endText = makeTextElement false (float (gapCycle + 1) * cycleWidth - startPadWidth) waveValue
             [ startText; endText ] 
 
     )
@@ -435,11 +438,9 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
 
         | 1 -> // binary waveform
             let transitions = calculateBinaryTransitionsUInt32 wave.WaveValues.UInt32Step ws.StartCycle ws.ShownCycles ws.CycleMultiplier
-            
             let wavePoints =
                 let waveWidth = singleWaveWidth ws
-                let startCycle = if Constants.generateVisibleOnly then ws.StartCycle else 0
-                Array.mapi (binaryWavePoints waveWidth startCycle) transitions
+                Array.mapi (binaryWavePoints waveWidth ws.StartCycle) transitions
                 |> Array.concat
                 |> Array.distinct
 
@@ -450,7 +451,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             let fstPoints, sndPoints =
                 let waveWidth = singleWaveWidth ws
                 let startCycle = if Constants.generateVisibleOnly then ws.StartCycle else 0
-                Array.mapi (nonBinaryWavePoints waveWidth startCycle) transitions |> Array.unzip
+                Array.mapi (nonBinaryWavePoints waveWidth 0) transitions |> Array.unzip
             
             let valuesSVG = displayUInt32OnWave ws wave.Width wave.WaveValues.UInt32Step transitions
             let polyLines = [makePolyline fstPoints; makePolyline sndPoints]

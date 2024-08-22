@@ -523,7 +523,7 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
     let setConfigInt (optic_: Lens<WSConfig,int>) (value:int) =
         dispatch <| UpdateModel (Optic.map (configDialog_ >-> optic_) (fun _ -> value))
 
-    let isValid = List.isEmpty errorKeys
+    let isValid = List.isEmpty (errorKeys |> List.concat)
 
     let closeAction changeConfig dispatch model =
         let wsm = getWSModel model

@@ -13,7 +13,7 @@ module Constants =
     let defaultWSConfig = {
             LastClock = 2000; // Simulation array limit during wave simulation
             FirstClock = 0; // first clock accessible - limits scroll range. NOT IMPLEMENTED
-            FontSize = 14; // size of text on waveforms
+            FontSize = 15; // size of text on waveforms
             FontWeight = 500 // weight of text on waveforms
             }
     let maxWarnSimulationSize = 100000

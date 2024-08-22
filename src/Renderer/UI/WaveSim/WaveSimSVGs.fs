@@ -282,7 +282,8 @@ let displayUInt32OnWave
 
     /// <summary>Function to make text element for a gap.</summary>
     /// <param name="start">Starting X location of element.</param>
-    let makeTextElement (isStart) (start: float) (waveValue: string) = 
+    let makeTextElement (isStart) (start: float) (waveValue: string) =
+        //printf $"start={start} : {waveValue}" //>
         text (singleValueOnWaveProps isStart textFont textWeight start) [ str waveValue ]
     
     // create text element for every gap

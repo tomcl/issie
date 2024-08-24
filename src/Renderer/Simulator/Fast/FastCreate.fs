@@ -28,6 +28,7 @@ let emptyGather =
 let emptyFastSimulation diagramName =
 
     { ClockTick = 0
+      TotalArraySizePerStep = 0
       MaxArraySize = 0 // must be larger than max number of wavesim clocks
       FGlobalInputComps = Array.empty
       FConstantComps = Array.empty
@@ -554,7 +555,8 @@ let addWavesToFastSimulation (fs: FastSimulation) : FastSimulation =
     |> (fun x ->
         x)
     |> (fun fs -> { fs with WaveIndex = addWaveIndexAndDrivers waveComps fs })
-
+/// This function will create the initial FastSimulation data structure.
+/// It may not complete this. In which case fields NumCreateSteps and NumCreateStepsDone will not be equal.
 let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: FastSimulation) =
     let numSteps = simulationArraySize
     stepArrayIndex <- -1

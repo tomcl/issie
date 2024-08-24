@@ -390,10 +390,8 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
     let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
     let success = (ws.State = Success || ws.State=Loading)
 
-    let hasSimErr =
-        match SimulationView.simulateModel model.WaveSimSheet (ws.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow) canv model with
-        | (Error e, _) -> true
-        | (Ok simData, canvState) -> false
+    let hasSimErr = Result.isError (ModelHelpers.resimulateWaveSim model)
+
     let errored =
         match hasSimErr, ws.State with
         | true, _ -> true

@@ -13,6 +13,7 @@ open SimulationBuilder
 open SimulationRunner
 open DependencyMerger
 open SimulationGraphAnalyser
+open Extractor
 
 // Simulating a circuit has four phases (not precisely in order of execution):
 // 1. Building a simulation graph made of SimulationComponents.
@@ -291,3 +292,87 @@ let extractStatefulComponents (graph: SimulationGraph) : SimulationComponent lis
     |> List.map snd
     |> List.filter (fun comp -> comp.State <> NoState)
 // TODO: recursively search custom components?
+
+type SimCache = {
+    Name: string
+    ClockTickRefresh: int
+    RestartSim: bool
+    StoredState: LoadedComponent list
+    StoredResult: Result<SimulationData, SimulationError>
+    }
+
+
+
+let simCacheInit () = {
+    Name = ""; 
+    ClockTickRefresh = 0
+    RestartSim = false
+    StoredState = []
+    StoredResult = Ok {
+        FastSim = 
+            printfn "Creating cache"
+            FastCreate.simulationPlaceholder
+        Graph = Map.empty 
+        Inputs = []
+        Outputs = []
+        IsSynchronous=false
+        NumberBase = NumberBase.Hex
+        ClockTickNumber = 0
+        }
+    }
+        
+/// Used to store last canvas state and its simulation
+let mutable simCache: SimCache = simCacheInit ()
+
+let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=
+    match cache.StoredResult with
+    | Error _ -> false
+    | Ok {FastSim =fs} -> 
+        fs.SimulatedCanvasState
+        |> List.forall (fun ldc' ->
+            ldcs
+            |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
+            |> Option.map (loadedComponentIsEqual ldc')
+            |> (=) (Some true))
+
+let storedstateisEqual (cache: SimCache) (ldcs: LoadedComponent list) : bool =
+    match cache.StoredState with
+    | [] -> false
+    | ldcsstate -> 
+        ldcsstate
+        |> List.forall (fun ldc' ->
+            ldcs
+            |> List.tryFind (fun ldc'' -> ldc''.Name = ldc'.Name)
+            |> Option.map (loadedComponentIsEqualExInputDefault ldc')
+            |> (=) (Some true))
+            
+
+
+/// Start up a simulation, doing all necessary checks and generating simulation errors
+/// if necesary. The code to do this is quite long so results are memoized. 
+let prepareSimulationMemoized
+        (simulationArraySize: int)
+        (openFileName: string)
+        (diagramName : string)
+        (canvasState : CanvasState)
+        (loadedDependencies : LoadedComponent list)
+        : Result<SimulationData, SimulationError> * CanvasState =
+    //printfn $"Diagram{diagramName}, open={openFileName}, deps = {loadedDependencies |> List.map (fun dp -> dp.Name)}"
+    let storedArraySize =
+        match simCache.StoredResult with
+        | Ok sd -> sd.FastSim.MaxArraySize
+        | _ -> 0
+    let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
+    let isSame = 
+            storedArraySize = simulationArraySize &&
+            diagramName = simCache.Name &&
+            cacheIsEqual simCache ldcs
+    if  isSame then
+        simCache.StoredResult, canvasState
+    else
+        printfn "New simulation"
+        let name, state, ldcs = getStateAndDependencies diagramName ldcs
+        let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs 
+        simCache <- {simCache with Name = diagramName}
+        simCache <- {simCache with StoredResult = simResult}
+        simResult, canvasState

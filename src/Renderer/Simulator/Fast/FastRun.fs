@@ -295,6 +295,23 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
 
     { fs with FOrderedComps = orderedComps |> Array.ofList |> Array.rev }
 
+/// Calculates the size in bytes / clock step of the simulation arrays
+/// bigint arrayshave very uncertain size, so an estimate of 16 bytes is assumed.
+/// this should be revisited for more accuracy
+let calculateTotalSimArraySizePerStep (actveComps: FastComponent array) (fs: FastSimulation) =
+    let arraySumBy f a = if Array.length a = 0 then 0 else Array.sumBy f a
+    actveComps
+    |> arraySumBy (fun fc ->
+        fc.Outputs
+        |> arraySumBy (fun output ->
+            let width = output.Width
+            if width > 32 then
+                16
+            else
+                4))
+    |> (fun size -> {fs with TotalArraySizePerStep = size})
+    
+
 /// Check all the active FastComponents to ensure everything is valid
 /// Use data from initialisation to write any not-yet-written component output widths
 let checkAndValidate (fs: FastSimulation) =
@@ -365,9 +382,10 @@ let checkAndValidate (fs: FastSimulation) =
                         i
                 | _ -> () // Ok in this case
             ))
-
         instrumentTime "checkAndValidate" start
-        Ok fs
+        fs
+        |> calculateTotalSimArraySizePerStep activeComps
+        |> Ok
 
 let checkAndValidateFData (fs: FastSimulation) =
     let start = getTimeMs ()
@@ -471,6 +489,7 @@ let buildFastSimulation
     (graph: SimulationGraph)
     : Result<FastSimulation, SimulationError>
     =
+    
     let gather = gatherSimulation graph
 
     let fs =
@@ -690,7 +709,7 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
                     if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
                         time <- getTimeMs ()
 
-            float lastStepNeeded / (getTimeMs () - simStartTime)
+            float (fs.ClockTick - startTick) / (getTimeMs () - simStartTime)
             |> Some
     else
         let startTick = fs.ClockTick
@@ -710,7 +729,7 @@ let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSim
                 if (fs.ClockTick - startTick) % stepsBeforeCheck = 0 then
                     time <- getTimeMs ()
 
-        float stepsToDo / (getTimeMs () - simStartTime)
+        float (fs.ClockTick - startTick) / (getTimeMs () - simStartTime)
         |> Some
 
 /// Look up a simulation (not a FastSimulation) component or return None.

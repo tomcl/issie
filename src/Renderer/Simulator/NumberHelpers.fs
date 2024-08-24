@@ -70,7 +70,7 @@ let private hexToBin (hStr: string) : string =
         firstDigit + (convert chars')
 
 /// Format a hex or bin printed string adding commas every 4 digits.
-/// If pad with 0s up to width bits.
+/// If width > 0 pad with 0s up to width bits.
 /// if width = 0 work ok with no padding
 let addCommasAndZeros (width: int) (printedChars: string) =
     let divCeiling n divisor = (n - 1 + divisor) / divisor
@@ -103,7 +103,8 @@ let addCommasAndZeros (width: int) (printedChars: string) =
             |> Seq.map (Seq.rev >> System.String.Concat)
             |> String.concat ","
 
-    printedChars[0..1] + commaSeparatedDigits
+    printedChars[0..0] + commaSeparatedDigits
+//    |> (fun s -> printfn $"addcommasandzeros w={width}, p={printedChars}, output='{s}'"; s) //>
 
 let addZeros64 (width: int) (pFun: int64 -> string) (n: int64) = pFun n |> addCommasAndZeros width
 
@@ -111,7 +112,8 @@ let addZeros (width: int) (pFun: int -> string) (n: int) = pFun n |> addCommasAn
 
 let hex64 (num: int64) = "x" + num.ToString("X")
 
-let fillHex64 width = addZeros64 width hex64
+let fillHex64 width n =
+    addZeros64 width hex64 n
 
 let bin64 (num: int64) = "b" + (hexToBin <| num.ToString("X"))
 let sDec64 (num: int64) = num.ToString()
@@ -143,7 +145,7 @@ let rec bigValToPaddedString (width: int) (radix: NumberBase) (x: System.Numeric
     if width = 0 then
         "0" // width = 0 is possible, and must not break this
     elif x < 0I then
-        $"Bignm {x} is negative"
+        $"Bignum {x} is negative"
     elif width < 1 then
         $"Error: {width} is not a valid bignum width"
     elif x >= (1I <<< width) then
@@ -215,9 +217,9 @@ let valToPaddedString (width: int) (radix: NumberBase) (value: int64) : string =
             match value with
             | x when x < 10 -> string (char (int '0' + int x))
             | x -> string (char (int 'A' + int x - 10))
-    | Hex
-    | Bin -> fillHex64 width value
+    | Hex -> fillHex64 width value
     | SDec -> sDec64 value
+    //|> (fun s -> printfn $"w={width}, r={radix}, v={value}, output='{s}'"; s) //>
 
 /// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
 let private padToWidth width (bits: WireData) : WireData =
@@ -287,7 +289,7 @@ let fastDataToPaddedString maxChars radix (fd: FastData) =
                 + ".."
                 + digits[n + 2 + pre'.Length - maxChars .. n - 1])
 
-let UInt32ToPaddedString maxChars radix (width: int) (fd: uint32) =
+let UInt32ToPaddedString maxChars radix (width: int) (n: uint32) =
     let getPrefixAndDigits (s: string) =
         match s.Length, s.[0], s.[1] with
         | n, '-', _ -> "-", s[1 .. n - 1]
@@ -313,12 +315,12 @@ let UInt32ToPaddedString maxChars radix (width: int) (fd: uint32) =
         | Bin when width > Constants.maxBinaryDisplayWidth -> Hex
         | r -> r
 
-    let signBit = fd &&& (1u <<< (width - 1))
+    let signBit = n &&& (1u <<< (width - 1))
 
     let signExtendedW =
         match displayRadix, signBit <> 0u with
-        | SDec, true -> int64 (int32 fd) - (1L <<< width)
-        | _ -> int64 (uint64 fd)
+        | SDec, true -> int64 (int32 n) - (1L <<< width)
+        | _ -> int64 (uint64 n)
 
     let s = valToPaddedString width displayRadix signExtendedW
 
@@ -336,6 +338,7 @@ let UInt32ToPaddedString maxChars radix (width: int) (fd: uint32) =
             pre
             + ".."
             + digits[n + 2 + pre.Length - maxChars .. n - 1]
+
 let BigIntToPaddedString maxChars radix (width: int) (fd: bigint) =
     let getPrefixAndDigits (s: string) =
         match s.Length, s.[0], s.[1] with

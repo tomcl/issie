@@ -55,7 +55,8 @@ let shortDSheetMsg (sMsg: SheetT.Msg) =
 
 /// short summary of wavesim message which has a lot of data
 let shortDWSM (ws: WaveSimModel) =
-    Some <| sprintf $"WS<{ws.FastSim.SimulatedTopSheet}->{ws.StartCycle}-{ws.CurrClkCycle}-\
+    let fs = Simulator.getFastSim()
+    Some <| sprintf $"WS<{fs.SimulatedTopSheet}->{ws.StartCycle}-{ws.CurrClkCycle}-\
             {ws.ShownCycles} Waves:{ws.AllWaves.Count} ({ws.SelectedWaves.Length})>"
 
 /// Function returning a short but usually informative display of message
@@ -82,7 +83,7 @@ let shortDisplayMsg (msg:Msg) =
     | KeyboardShortcutMsg _ -> None
     | StartSimulation x -> Some $"""StartSimulation({match x with | Ok _ -> "OK" | Error x -> "Error"})"""
     | AddWSModel (s,ws) -> Some $"AddWSModel:{s}->{shortDWSM ws}"
-    | SetWSModel ws -> Some $"SetWSModel:{ws.FastSim.SimulatedTopSheet}->{shortDWSM ws}"
+    | SetWSModel ws -> Some $"SetWSModel:{Simulator.getFastSim().SimulatedTopSheet}->{shortDWSM ws}"
     | UpdateWSModel _ -> Some "Updating WS model"
     | SetWSModelAndSheet (ws,s)-> Some $"SetWSModelAndSheet:{s}->{shortDWSM ws}"
     | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"

@@ -151,7 +151,7 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
     | PortItem (_,name) ->
         str <| camelCaseDottedWords name
     | ComponentItem fc->
-        let descr = getCompDetails ws.FastSim (waves[0])
+        let descr = getCompDetails (Simulator.getFastSim()) (waves[0])
         str <| descr
         
     | GroupItem (compGroup,_) ->
@@ -225,7 +225,7 @@ let getFastSimualationLinkedPorts (fs:FastSimulation) ((fc,pNum, pType)) =
 
  /// Some components have input and output connected - return both ports in that case
 let getConnectedComponentPorts (ws:WaveSimModel) ((fc, portNum, portType) as port: PortIndex) : PortIndex list =
-    let fs = ws.FastSim
+    let fs = Simulator.getFastSim()
     let portIO = [fc,portNum,PortType.Input; fc,portNum,PortType.Output]
     
     match fc.FType with
@@ -386,7 +386,7 @@ let endButtonAction canvasState model dispatch ev =
 /// Return info about current state of waveform simulator
 /// which is used to switch buttons on/off etc.
 let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel)  : WaveSimButtonOptions =
-    let fs = ws.FastSim
+    let fs = Simulator.getFastSim()
     let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
     let success = (ws.State = Success || ws.State=Loading)
 
@@ -434,7 +434,7 @@ let extendSimulation timeOut (ws:WaveSimModel) =
     printfn $"Extending simulation to {stepsNeeded} cycles"
     if stepsNeeded > ws.WSConfig.LastClock then
         failwithf $"Trying to extend simulation to {stepsNeeded} which is beyond available clocks (ws.WSConfig.LastClock)"
-    FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) ws.FastSim
+    FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) (Simulator.getFastSim())
 
 /// returns true if any memory component in fs linked to a .ram file is outofdate because of the .ram file changing
 let checkIfMemoryCompsOutOfDate (p: Project) (fs:FastSimulation) = 

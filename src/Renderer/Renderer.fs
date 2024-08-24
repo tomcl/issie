@@ -44,12 +44,14 @@ let getUserAppDir () : string =
     unbox <| renderer.ipcRenderer.sendSync("get-user-data",None)
 
 let softInitialise model dispatch =
-    Playground.Memory.modelCopy <- Some model
-    dispatch (UpdateModel(fun _ -> fst (init())))
-    let userAppDir = getUserAppDir()
-    dispatch <| ReadUserData userAppDir
-    Sheet.recentProgrammaticScrollPos <- []
-    MemoryEditorView.dynamicMem <- {MemoryEditorView.dynamicMem with Data = Map.empty}
+    //Playground.Memory.modelCopy <- None
+    //dispatch (UpdateModel(fun _ -> fst (init())))
+    //let userAppDir = getUserAppDir()
+    //dispatch <| ReadUserData userAppDir
+    //printfn $"INIT: rpsc={Sheet.recentProgrammaticScrollPos.Length}, dm= {MemoryEditorView.dynamicMem.Data.Count}"
+    //Sheet.recentProgrammaticScrollPos <- []
+    //MemoryEditorView.dynamicMem <- {MemoryEditorView.dynamicMem with Data = Map.empty}
+    ()
 
 
 (****************************************************************************************************

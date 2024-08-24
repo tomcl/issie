@@ -77,6 +77,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                         dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
                         // Check if symbol exists on Canvas
                         let symbols = model.Sheet.Wire.Symbol.Symbols
+                        let fs = Simulator.getFastSim()
                         match Map.tryFind (fst wave.WaveId.Id) symbols with
                         | Some {Component={Type=IOLabel;Label=lab}} ->
                             let labelComps =
@@ -85,16 +86,16 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                                 |> List.map (fun (_,sym) -> sym.Component)
                                 |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
                                 |> List.map (fun comp -> ComponentId comp.Id)
-                            highlightCircuit wsModel.FastSim labelComps wave dispatch                            
+                            highlightCircuit fs labelComps wave dispatch                            
                         | Some sym ->
-                            highlightCircuit wsModel.FastSim [fst wave.WaveId.Id] wave dispatch
+                            highlightCircuit fs [fst wave.WaveId.Id] wave dispatch
                         | None -> ())
                         
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None}
                     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
-                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (connsOfWave wsModel.FastSim wave, false))
+                    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (connsOfWave (Simulator.getFastSim()) wave, false))
                 )
 
                 Draggable true

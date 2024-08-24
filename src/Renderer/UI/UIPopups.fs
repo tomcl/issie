@@ -498,8 +498,26 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
     let config_ = waveSimModel_ >-> wSConfig_
     let configDialog_ = waveSimModel_ >->  wSConfigDialog_  >-> Option.withDefault_ (getWSModel model).WSConfig
     let initConfig = Optic.get configDialog_ model
+    let wsModel = getWSModel model
+    let fs = resimulateWaveSim model
 
-    
+    let arraySize (c:WSConfig) =
+        match fs with
+        | Error _ -> Error "Unknown: correct schematic error to get size information"
+        | Ok sd ->
+            let stepCost = sd.FastSim.TotalArraySizePerStep
+            Ok <| float stepCost * float c.LastClock / (System.Math.Pow(1024.0, 3.0))
+
+
+    let warnSizeLarge c =    
+        match arraySize c with
+        | Error e -> c.LastClock > Constants.maxWarnSimulationSize
+        | Ok size -> size > 1.0
+
+    let arraySizeMessage c = 
+        match arraySize c  with
+        | Error e -> e
+        | Ok size -> $"Array memory use for the current design is estimated as %.1f{size} GB"    
 
     let errorKeys, messages  =
         let c = model |> Optic.get configDialog_
@@ -510,9 +528,9 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
                                                                                              be at least {Constants.minScrollingWindow} cycles."
             ["fontsize"], not <| inBounds 12 24 c.FontSize, $"Font size must be between 12 and 24"
             ["fontweight"], not <| inBounds 100 900 c.FontWeight, $"Font weight must be between 100 and 900"
-            [], c.LastClock > Constants.maxWarnSimulationSize, $"Warning: very large simulation lengths and big designs result in high memory use, \
-                                                                 and possible crashes."
-                                                                
+            [], warnSizeLarge c, $"Warning: very large simulation lengths and big designs result in high memory use and low performance. \
+                                   Simulation data memory use for the current design is estimated as\n: \
+                                   {arraySizeMessage c}, in addition up to 5GB will be required for heap and code."                                                                
         ]  
         |> List.filter (fun (_, isError, _) -> isError)
         |> List.map (fun (key, _, message) -> key, message)
@@ -548,48 +566,50 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
 
     div [Style []] [
         table [Style [LineHeight "40px"; BorderStyle "none"; BorderColor "white"; TextAlign TextAlignOptions.Left]] [
-            row [
-                    span [boxStyle] [str "First clock cycle:"]
-                    Input.number [
-                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
-                        Input.DefaultValue <| string initConfig.FirstClock
-                        Input.Color (if hasError "first" then IColor.IsDanger else IColor.IsBlack)
-                        Input.OnChange (JSHelpers.getIntEventValue >> (setConfigInt firstClock_))
-                    ]
-                    str "This value should be kept zero unless you know which part of a very long simulation you want to view. \
-                          It can then be used to reduce the window over which scroll works and therefore make scroll easier to use."
+            body [] [
+                row [
+                        span [boxStyle] [str "First clock cycle:"]
+                        Input.number [
+                            Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                            Input.DefaultValue <| string initConfig.FirstClock
+                            Input.Color (if hasError "first" then IColor.IsDanger else IColor.IsBlack)
+                            Input.OnChange (JSHelpers.getIntEventValue >> (setConfigInt firstClock_))
+                        ]
+                        str "This value should be kept zero unless you know which part of a very long simulation you want to view. \
+                              It can then be used to reduce the window over which scroll works and therefore make scroll easier to use."
  
-                ]
-            row [
-                    span [boxStyle] [str "Last clock cycle:"]           
-                    Input.number [
-                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
-                        Input.DefaultValue <| string initConfig.LastClock
-                        Input.Color (if hasError "last" then IColor.IsDanger else IColor.IsBlack)
-                        Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt lastClock_)
                     ]
-                    str "Very large values (> 100,000) may impact performance simulating large designs. The default is usually sufficient."
-                ]
-            row [
-                    span [boxStyle] [str "Waveform font size:"]           
-                    Input.number [
-                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
-                        Input.DefaultValue <| string initConfig.FontSize
-                        Input.Color (if hasError "fontsize" then IColor.IsDanger else IColor.IsBlack)
-                        Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt fontSize_)
+                row [
+                        span [boxStyle] [str "Last clock cycle:"]           
+                        Input.number [
+                            Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                            Input.DefaultValue <| string initConfig.LastClock
+                            Input.Color (if hasError "last" then IColor.IsDanger else IColor.IsBlack)
+                            Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt lastClock_)
+                        ]
+                        str "Very large values (> 100,000) may impact performance simulating large designs. The default is usually sufficient."
                     ]
-                    str "A larger size will be easier to read but will make numeric values overflow (and be greyed out) out more easily."
-                ]
-            row [
-                    span [boxStyle] [str "Waveform font weight:"]           
-                    Input.number [
-                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
-                        Input.DefaultValue <| string initConfig.FontWeight
-                        Input.Color (if hasError "fontweight" then IColor.IsDanger else IColor.IsBlack)
-                        Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt fontWeight_)
+                row [
+                        span [boxStyle] [str "Waveform font size:"]           
+                        Input.number [
+                            Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                            Input.DefaultValue <| string initConfig.FontSize
+                            Input.Color (if hasError "fontsize" then IColor.IsDanger else IColor.IsBlack)
+                            Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt fontSize_)
+                        ]
+                        str "A larger size will be easier to read but will make numeric values overflow (and be greyed out) out more easily."
                     ]
-                    str "Font weight of 300 = normal, 600 = bold, etc"
-                ]
+                row [
+                        span [boxStyle] [str "Waveform font weight:"]           
+                        Input.number [
+                            Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                            Input.DefaultValue <| string initConfig.FontWeight
+                            Input.Color (if hasError "fontweight" then IColor.IsDanger else IColor.IsBlack)
+                            Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt fontWeight_)
+                        ]
+                        str "Font weight of 300 = normal, 600 = bold, etc"
+                    ]
+            ]
         ]
 
         div [Style [Color "red"; Height 100]] (messages

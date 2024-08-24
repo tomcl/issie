@@ -49,9 +49,9 @@ module Refresh =
     /// Note that after design change simulation must be recreated externally, and the function called with
     /// newSimulation = true. That is because this function has no way to know that the simulation has changed
     /// This function performs (as required) three actions.
-    /// 1. Extend the simulation to the current cycle (if not already done)
+    /// 1. Extend the simulation to the current cycle (if not already done).
     /// 2. Remake the Wave headers, one for each selected waveform.
-    /// 3. Remake (or make for first time) the saved waveform SVGs for all selected waveforms
+    /// 3. Remake (or make for first time) the saved waveform SVGs for all selected waveforms.
     let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> =
         // The function performs the first part of the main long functions to determine their time and as needed splits
         // the rest of the work into multiple function calls using a spinner to alert the user to the delay.
@@ -98,7 +98,6 @@ module Refresh =
                             FinishSimNow
                         | Some speed, true ->
                             ContinueSimWithSpinner          
-            
                     match action with
                     | ContinueSimAfterStartingSpinner ->
                         // long simulation, set spinner on and dispatch another refresh 
@@ -225,7 +224,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-    match SimulationView.simulateModel model.WaveSimSheet (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)  canvasState model with
+    match ModelHelpers.simulateModel model.WaveSimSheet (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)  canvasState model with
     //| None ->
     //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
     | (Error e, _) ->

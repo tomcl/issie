@@ -371,3 +371,56 @@ let getUpdatedLoadedComponents (project: Project) (model: Model) : Project =
 let setModelInt (optic_: Lens<Model,int>) (dispatch: Msg -> unit) maxVal minVal intToSet : unit =
     let intToSet = if intToSet > maxVal then maxVal else if intToSet < minVal then minVal else intToSet
     dispatch <| UpdateModel (Optics.Optic.set optic_ intToSet)
+
+
+//---------------------------------------------------------------------------------------------//
+//----------------------------View level simulation interface-----------------------------------//
+//---------------------------------------------------------------------------------------------//
+//
+// Add-on to simulator.fs code. This is the interface to the simulator from the view level.
+// it must be here because it references Model types.
+//
+open SimulatorTypes
+
+   
+let makeDummySimulationError msg = {
+        ErrType = GenericSimError msg
+        InDependency = None
+        ConnectionsAffected = []
+        ComponentsAffected = []
+    }
+
+let simReset dispatch =
+    dispatch CloseSimulationNotification // Close error notifications.
+    dispatch ClosePropertiesNotification
+    dispatch <| Sheet (DrawModelType.SheetT.ResetSelection) // Remove highlights.
+    dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
+
+/// Start simulating the current Diagram.
+/// Return SimulationData that can be used to extend the simulation
+/// as needed, or error if simulation fails.
+/// Note that simulation is only redone if current canvas changes.
+let simulateModel (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
+    let start = TimeHelpers.getTimeMs()
+    match openSheetCanvasState, model.CurrentProj with
+    | _, None -> 
+        Error (makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!"), openSheetCanvasState
+    | canvasState, Some project ->
+        let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
+        let otherComponents = 
+            project.LoadedComponents 
+            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        (canvasState, otherComponents)
+        ||> Simulator.prepareSimulationMemoized simulationArraySize project.OpenFileName simSheet 
+        |> TimeHelpers.instrumentInterval "MakeSimData" start
+
+let resimulateWaveSim (model: Model) : Result<SimulationData, SimulationError>  =
+    let canv = model.Sheet.GetCanvasState()
+    let ws = getWSModel model
+    let simSize =
+        match ws.State with
+        | Success -> ws.WSConfig.LastClock + Constants.maxStepsOverflow
+        | _ -> 10 // small value does not matter whta it is.
+    simulateModel model.WaveSimSheet simSize canv model
+    |> fst
+    

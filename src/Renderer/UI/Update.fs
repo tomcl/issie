@@ -308,6 +308,7 @@ let update (msg : Msg) oldModel =
 
     | EndWaveSim -> 
         let model =
+            Simulator.simCache <- Simulator.simCacheInit()
             let model = removeAllSimulationsFromModel model
             match model.WaveSimSheet with
             | None | Some "" -> 
@@ -316,8 +317,8 @@ let update (msg : Msg) oldModel =
             | Some sheet -> 
                 { model with 
                     WaveSimSheet = None; 
-                    WaveSim = Map.change sheet (Option.map (fun ws -> 
-                        {ws with State = Ended ; WaveModalActive = false})) model.WaveSim
+                    WaveSim = Map.change sheet (Option.map (fun ws ->
+                        {initWSModel with  State = Ended ; WaveModalActive = false; WSConfig = ws.WSConfig})) model.WaveSim
                 }
         model, Cmd.none
 

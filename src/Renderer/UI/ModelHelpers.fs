@@ -7,6 +7,7 @@ open Optics
 open Optics.Operators
 
 
+
 module Constants =
     /// Needed to prevent possible overrun of simulation arrays
     let maxStepsOverflow = 3
@@ -50,9 +51,6 @@ let initWSModel  : WaveSimModel = {
     RamModalActive = false
     RamComps = []
     SelectedRams = Map.empty
-    FastSim = 
-        printfn "Creating initWSModel"
-        FastCreate.simulationPlaceholder // placeholder
     SearchString = ""
     ShowComponentDetail = Set.empty
     ShowSheetDetail = Set.empty
@@ -245,15 +243,8 @@ let getCurrSheets (model: Model) =
 /// For reasons of space efficiency, ensure that no non-empty unused FastSimulation records are kept
 /// FastSimulation records can be very large and at most one should exist, it must be for the sheet referenced by
 /// model.WaveSimSheet
-let removeAllSimulationsFromModel (model:Model) =
-    let removeFastSimFromWaveSimMap (sheet:string) (wsM:Map<string,WaveSimModel>) =
-        let ws = wsM[sheet]
-        if ws.FastSim.SimulatedTopSheet = "" then wsM 
-        else 
-            Map.add sheet {ws with FastSim = FastCreate.emptyFastSimulation ""} wsM       
-    (model.WaveSim, model.WaveSim)
-    ||> Map.fold (fun wsM sheet ws -> removeFastSimFromWaveSimMap sheet wsM)
-    |> (fun wsM -> {model with WaveSim = wsM})
+let removeAllSimulationsFromModel (model:Model) = model
+
 
 /// Get the current WaveSimModel used by the Model (index the map using the current wavesim sheet).
 /// If no WaveSimModel for that sheet, return an empty wave sim model.
@@ -382,14 +373,6 @@ let setModelInt (optic_: Lens<Model,int>) (dispatch: Msg -> unit) maxVal minVal 
 //
 open SimulatorTypes
 
-   
-let makeDummySimulationError msg = {
-        ErrType = GenericSimError msg
-        InDependency = None
-        ConnectionsAffected = []
-        ComponentsAffected = []
-    }
-
 let simReset dispatch =
     dispatch CloseSimulationNotification // Close error notifications.
     dispatch ClosePropertiesNotification
@@ -404,7 +387,7 @@ let simulateModel (simulatedSheet: string option) (simulationArraySize: int) ope
     let start = TimeHelpers.getTimeMs()
     match openSheetCanvasState, model.CurrentProj with
     | _, None -> 
-        Error (makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!"), openSheetCanvasState
+        Error (Simulator.makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!"), openSheetCanvasState
     | canvasState, Some project ->
         let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
         let otherComponents = 

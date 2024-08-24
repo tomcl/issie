@@ -88,9 +88,14 @@ let xShift clkCycleWidth =
 /// therefore clkCycleDetail IS NOT scaled the same as the sample numbers used
 /// everywhere else.
 let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
+    let waveData =
+        match Simulator.simCache.FastSim.Drivers[wave.DriverIndex] with
+        | Some d -> d
+        | None -> failwithf $"No driver found for wave {wave.DisplayName}"
+
     match width with
     | w when w > 32 ->
-        Array.tryItem clkCycleDetail wave.WaveValues.BigIntStep
+        Array.tryItem clkCycleDetail waveData.DriverData.BigIntStep
         |> function
             | Some (fData) -> 
                 { Dat = BigWord fData; Width = width}            
@@ -100,7 +105,7 @@ let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
                 printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
                 {Dat = Word 0u; Width = width}
     | _ ->      
-        Array.tryItem clkCycleDetail wave.WaveValues.UInt32Step
+        Array.tryItem clkCycleDetail waveData.DriverData.UInt32Step
         |> function
             | Some (fData) -> 
                 { Dat = Word fData; Width = width}
@@ -284,7 +289,6 @@ let displayUInt32OnWave
     /// <summary>Function to make text element for a gap.</summary>
     /// <param name="start">Starting X location of element.</param>
     let makeTextElement (isStart) (start: float) (waveValue: string) =
-        //printf $"start={start} : {waveValue}" //>
         text (singleValueOnWaveProps isStart textFont textWeight start) [ str waveValue ]
     
     // create text element for every gap
@@ -430,14 +434,18 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
     let makePolyline points = 
         let points = points |> Array.concat |> Array.distinct
         polyline (wavePolylineStyle points) []
-    
+    let waveData =
+        match Simulator.simCache.FastSim.Drivers[wave.DriverIndex] with
+        | Some d  -> d
+        | None -> failwith $"No driver fround for {wave.DisplayName}"
     let waveform =
         match wave.Width with
         | 0 -> 
             failwithf "Cannot have wave of width 0"
 
         | 1 -> // binary waveform
-            let transitions = calculateBinaryTransitionsUInt32 wave.WaveValues.UInt32Step ws.StartCycle ws.ShownCycles ws.CycleMultiplier
+            
+            let transitions = calculateBinaryTransitionsUInt32 waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.CycleMultiplier
             let wavePoints =
                 let waveWidth = singleWaveWidth ws
                 Array.mapi (binaryWavePoints waveWidth ws.StartCycle) transitions
@@ -447,24 +455,24 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             svg (waveRowProps ws) [ polyline (wavePolylineStyle wavePoints) [] ]
 
         | w when w <= 32 -> // non-binary waveform
-            let transitions = calculateNonBinaryTransitions wave.WaveValues.UInt32Step ws.StartCycle ws.ShownCycles ws.CycleMultiplier
+            let transitions = calculateNonBinaryTransitions waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.CycleMultiplier
             let fstPoints, sndPoints =
                 let waveWidth = singleWaveWidth ws
                 let startCycle = if Constants.generateVisibleOnly then ws.StartCycle else 0
                 Array.mapi (nonBinaryWavePoints waveWidth 0) transitions |> Array.unzip
             
-            let valuesSVG = displayUInt32OnWave ws wave.Width wave.WaveValues.UInt32Step transitions
+            let valuesSVG = displayUInt32OnWave ws wave.Width waveData.DriverData.UInt32Step transitions
             let polyLines = [makePolyline fstPoints; makePolyline sndPoints]
 
             svg (waveRowProps ws) (List.append polyLines valuesSVG)
 
         | _ -> // non-binary waveform with width greather than 32
-            let transitions = calculateNonBinaryTransitions wave.WaveValues.BigIntStep ws.StartCycle ws.ShownCycles ws.CycleMultiplier
+            let transitions = calculateNonBinaryTransitions waveData.DriverData.BigIntStep ws.StartCycle ws.ShownCycles ws.CycleMultiplier
 
             let fstPoints, sndPoints =
                 Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions |> Array.unzip
 
-            let valuesSVG = displayBigIntOnWave ws wave.Width wave.WaveValues.BigIntStep transitions
+            let valuesSVG = displayBigIntOnWave ws wave.Width waveData.DriverData.BigIntStep transitions
 
             svg (waveRowProps ws) (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
     {wave with 

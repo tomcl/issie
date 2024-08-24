@@ -35,8 +35,8 @@ let ramTableRow ((addr, data,rowType): string * string * RamRowType): ReactEleme
 let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) : ReactElement =
     let wanted = calcWaveformAndScrollBarHeight wsModel
     let maxHeight = max (screenHeight() - (min wanted (screenHeight()/2.)) - 300.) 30.
-    let fs = wsModel.FastSim
-    match Map.tryFind ramId wsModel.FastSim.FComps with
+    let fs = Simulator.getFastSim()
+    match Map.tryFind ramId fs.FComps with
     | None -> div [] []
     | Some fc -> 
         let step = wsModel.CurrClkCycle

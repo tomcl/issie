@@ -299,13 +299,19 @@ type SimCache = {
     RestartSim: bool
     StoredState: LoadedComponent list
     StoredResult: Result<SimulationData, SimulationError>
+    /// quick access link to Fast Simulation, or placeholder if one does not exist
+    FastSim: FastSimulation
     }
+
+
+        
 
 
 
 let simCacheInit () = {
     Name = ""; 
     ClockTickRefresh = 0
+    FastSim = FastCreate.simulationPlaceholder
     RestartSim = false
     StoredState = []
     StoredResult = Ok {
@@ -323,6 +329,8 @@ let simCacheInit () = {
         
 /// Used to store last canvas state and its simulation
 let mutable simCache: SimCache = simCacheInit ()
+
+let getFastSim() = simCache.FastSim
 
 let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=
     match cache.StoredResult with
@@ -346,7 +354,12 @@ let storedstateisEqual (cache: SimCache) (ldcs: LoadedComponent list) : bool =
             |> Option.map (loadedComponentIsEqualExInputDefault ldc')
             |> (=) (Some true))
             
-
+let makeDummySimulationError msg = {
+        ErrType = GenericSimError msg
+        InDependency = None
+        ConnectionsAffected = []
+        ComponentsAffected = []
+    }
 
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. 
@@ -358,10 +371,8 @@ let prepareSimulationMemoized
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> * CanvasState =
     //printfn $"Diagram{diagramName}, open={openFileName}, deps = {loadedDependencies |> List.map (fun dp -> dp.Name)}"
-    let storedArraySize =
-        match simCache.StoredResult with
-        | Ok sd -> sd.FastSim.MaxArraySize
-        | _ -> 0
+    let storedArraySize = simCache.FastSim.MaxArraySize
+        
     let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
     let isSame = 
             storedArraySize = simulationArraySize &&
@@ -371,8 +382,12 @@ let prepareSimulationMemoized
         simCache.StoredResult, canvasState
     else
         printfn "New simulation"
+        simCache <- {simCache with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
         let name, state, ldcs = getStateAndDependencies diagramName ldcs
-        let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs 
-        simCache <- {simCache with Name = diagramName}
-        simCache <- {simCache with StoredResult = simResult}
+        let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs
+        let fastSim =
+            simResult
+            |> Result.map (fun sd -> sd.FastSim)
+            |> Result.defaultValue FastCreate.simulationPlaceholder
+        simCache <- {simCache with Name = diagramName; StoredResult = simResult; FastSim = fastSim}
         simResult, canvasState

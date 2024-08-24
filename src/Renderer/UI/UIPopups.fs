@@ -508,11 +508,10 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
             let stepCost = sd.FastSim.TotalArraySizePerStep
             Ok <| float stepCost * float c.LastClock / (System.Math.Pow(1024.0, 3.0))
 
-
     let warnSizeLarge c =    
         match arraySize c with
         | Error e -> c.LastClock > Constants.maxWarnSimulationSize
-        | Ok size -> size > 1.0
+        | Ok size -> size > 2.5
 
     let arraySizeMessage c = 
         match arraySize c  with

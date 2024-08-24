@@ -218,7 +218,7 @@ type Wave = {
     /// width of the waveform's bus
     Width: int
     /// Array indexed by clock cycle to show value of wave.
-    WaveValues: IOArray
+    DriverIndex: int
     /// SVG of waveform
     SVG: ReactElement option
 }
@@ -279,8 +279,6 @@ type WaveSimModel = {
     RamComps: FastComponent list
     /// Map of which RAM components have been selected.
     SelectedRams: Map<FComponentId, string>
-    /// FastSimulation used in the wave simulator.
-    FastSim: FastSimulation
     /// String which the user is searching the list of waves by.
     SearchString: string
     /// What is shown in wave sim sheet detail elements

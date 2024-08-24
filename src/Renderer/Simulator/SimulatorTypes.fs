@@ -1188,7 +1188,7 @@ type FastComponent =
 /// component outputs (drivers) without a Map lookup
 type Driver =
     {
-      /// Index of this driver in the array or drivers
+      /// Index of this driver in the array of drivers
       Index: int
       /// Bus width of the driven bus
       DriverWidth: int

@@ -295,7 +295,7 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
         CompLabel = fc.FLabel
         PortLabel = portLabel
         Width = driver.DriverWidth
-        WaveValues = driver.DriverData
+        DriverIndex = driver.Index
         SheetId = []
         Conns = []
         SVG = None
@@ -350,7 +350,7 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
 
 /// Toggle selection of a list of waves.
 let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: WaveIndexT list) =
-    let comps = wsModel.FastSim.WaveComps
+    let comps = (Simulator.getFastSim()).WaveComps
     let selectedWaves =
         if selected then
             let wavesWithMinDepth =
@@ -435,7 +435,7 @@ let checkBoxItem  wsModel isChecked waveIds  dispatch =
 
 /// Implemements a checkbox, with toggle state determined by SelectedWaves.
 let waveCheckBoxItem  (wsModel:WaveSimModel) (waveIds:WaveIndexT list)  dispatch =
-    let comps = wsModel.FastSim.WaveComps
+    let comps = Simulator.getFastSim().WaveComps
     let minDepthSelectedWaves =
         if waveIds = [] then [] else
             waveIds
@@ -466,7 +466,7 @@ let makePortRow (ws: WaveSimModel) (dispatch: Msg -> Unit) (waves: Wave list)  =
         | _ -> failwithf "What? {waves.Length} waves passed to portRow"
     let subSheet =
         match wave.SubSheet with
-        | [] -> str ws.FastSim.SimulatedTopSheet
+        | [] -> str (Simulator.getFastSim().SimulatedTopSheet)
         | _  -> subSheetsToNameReact wave.SubSheet
 
     tr [] [
@@ -522,20 +522,20 @@ let rec makeComponentGroup showDetails (ws: WaveSimModel) (dispatch: Msg->Unit) 
         waves
         |> List.groupBy (fun wave -> wave.WaveId.Id)
     if compWaves.Length = 1 then
-        let fc = ws.FastSim.WaveComps[(List.head waves).WaveId.Id]
+        let fc = Simulator.getFastSim().WaveComps[(List.head waves).WaveId.Id]
         makeComponentRow showDetails ws dispatch fc waves
     else
         let cBox = GroupItem (cGroup,subSheet)
         let summaryReact = summaryName ws cBox subSheet waves
         let compRows =
             compWaves
-            |> List.map (fun (fId,compWaves) -> makeComponentRow showDetails ws dispatch ws.FastSim.WaveComps[fId] compWaves)
+            |> List.map (fun (fId,compWaves) -> makeComponentRow showDetails ws dispatch Simulator.getFastSim().WaveComps[fId] compWaves)
 
         makeSelectionGroup showDetails ws dispatch summaryReact compRows cBox waves  
 
 let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: string list) (waves: Wave list) =  
     let cBox = SheetItem subSheet
-    let fs = ws.FastSim
+    let fs = Simulator.getFastSim()
     let wavesBySheet = 
         waves
         |> List.groupBy (fun w -> List.truncate (subSheet.Length + 1) w.SubSheet)
@@ -564,10 +564,10 @@ let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> U
         makeSelectionGroup showDetails ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
 
 /// This is a workaropund for a potential data inconsistency in the waves and selected waves of a FastSimulation
-/// it ensure that the selector only lists valid waves by filyering all waves against valid components
-/// It would be better to understand the (occasional) bug taht leads to this inconsistency.
+/// it ensure that the selector only lists valid waves by filtering all waves against valid components
+/// It would be better to understand the (occasional) bug that leads to this inconsistency.
 let ensureWaveConsistency (ws:WaveSimModel) =
-        let fs = ws.FastSim
+        let fs = Simulator.getFastSim()
         let okWaves =
             Map.values ws.AllWaves
             |> Seq.toList

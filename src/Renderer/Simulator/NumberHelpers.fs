@@ -104,7 +104,6 @@ let addCommasAndZeros (width: int) (printedChars: string) =
             |> String.concat ","
 
     printedChars[0..0] + commaSeparatedDigits
-//    |> (fun s -> printfn $"addcommasandzeros w={width}, p={printedChars}, output='{s}'"; s) //>
 
 let addZeros64 (width: int) (pFun: int64 -> string) (n: int64) = pFun n |> addCommasAndZeros width
 
@@ -219,7 +218,6 @@ let valToPaddedString (width: int) (radix: NumberBase) (value: int64) : string =
             | x -> string (char (int 'A' + int x - 10))
     | Hex -> fillHex64 width value
     | SDec -> sDec64 value
-    //|> (fun s -> printfn $"w={width}, r={radix}, v={value}, output='{s}'"; s) //>
 
 /// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
 let private padToWidth width (bits: WireData) : WireData =

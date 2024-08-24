@@ -65,7 +65,7 @@ module Refresh =
         /// validateSimparas is idempotent unless model changes.
         let wsModel =
             let createWaves (wsModel: WaveSimModel) =
-                {wsModel with AllWaves = WaveSimSVGs.getWaves wsModel wsModel.FastSim}
+                {wsModel with AllWaves = WaveSimSVGs.getWaves wsModel (Simulator.getFastSim())}
             validateSimParas wsModel
             |> if newSimulation then createWaves else id
         // Use the given (more uptodate) wsModel. This will also be updated in model when it is returned from this function
@@ -74,7 +74,7 @@ module Refresh =
         // start timing - used to decide whether all can be done in one go.
         let start = TimeHelpers.getTimeMs ()
         // special case if simulation is empty there is nothing to do. Not sure why this is needed.
-        let fs = wsModel.FastSim
+        let fs = Simulator.getFastSim()
         if fs.NumStepArrays = 0 then
             model, Elmish.Cmd.none
         else
@@ -122,7 +122,7 @@ module Refresh =
                         // redo waves based on simulation data which is now correct
                         let allWaves = wsModel.AllWaves
 
-                        let simulationIsUptodate = wsModel.FastSim.ClockTick > (wsModel.ShownCycles + wsModel.StartCycle-1)*wsModel.CycleMultiplier
+                        let simulationIsUptodate = Simulator.getFastSim().ClockTick > (wsModel.ShownCycles + wsModel.StartCycle-1)*wsModel.CycleMultiplier
 
                         // need to use isSameWave here because array index may have changed
                         let wavesToBeMade =
@@ -191,7 +191,6 @@ module Refresh =
                                     SelectedWaves = selectedWaves
                                     RamComps = ramComps
                                     SelectedRams = selectedRams
-                                    FastSim = fs
                             } //|> validateScrollBarInfo
 
                         let model = putWaveSim ws model
@@ -210,6 +209,16 @@ module Refresh =
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
 /// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
 let refreshButtonAction canvasState model dispatch = fun _ ->
+    let waveSimArraySteps =
+        ( 0, model.WaveSim)
+        ||> Map.fold (fun sum sheet ws  ->
+                Simulator.getFastSim().MaxArraySize + sum)
+    let waves =
+        ( 0, model.WaveSim)
+        ||> Map.fold (fun sum sheet ws  ->
+                ws.AllWaves.Count + sum)
+    printf $"Starting wavesim with {waveSimArraySteps} steps and {waves} waves."
+
     let model = MemoryEditorView.updateAllMemoryComps model
     let wsSheet = 
         match model.WaveSimSheet with
@@ -232,7 +241,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
     | (Ok simData, canvState) ->
         if simData.IsSynchronous then
             SimulationView.setFastSimInputsToDefault simData.FastSim
-            let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }
+            let wsModel = { wsModel with State = Loading}
             dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
             dispatch <| RefreshWaveSim wsModel 
         else
@@ -284,8 +293,9 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
         let startEndButton =
             button 
                 (topHalfButtonProps wbo.StartEndColor "startEndButton" false) 
-                (fun ev -> dispatch <| ExecFuncInMessage(
-                    (fun model _ -> if wbo.IsRunning then waveEnd model ev  else startOrRenew model ev),dispatch))
+                (fun ev -> dispatch <| ExecFuncInMessage((fun model _ ->
+                                if wbo.IsRunning then waveEnd model ev  else startOrRenew model ev),dispatch)
+                           dispatch <| ExecFuncInMessage ((fun model _ -> ()), dispatch))
                 (str wbo.StartEndMsg)
         let needsRefresh = wbo.IsDirty && wbo.IsRunning
         div 
@@ -329,7 +339,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
         | _,Empty | _,Ended | None,_ | Some "", _->
             notRunning
 
-        | Some sheet, _ when wsModel.FastSim.SimulatedTopSheet = "" ->
+        | Some sheet, _ when Simulator.getFastSim().SimulatedTopSheet = "" ->
             notRunning
         
         | _,NoProject ->

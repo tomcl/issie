@@ -619,7 +619,7 @@ let private simulationClockChangePopup (simData: SimulationData) (dispatch: Msg 
 
         ]
 
-let simulateWithTime timeOut steps simData =
+let simulateWithTime timeOut steps (simData: SimulationData) =
     let startTime = getTimeMs()
     FastRun.runFastSimulation None steps simData.FastSim |> ignore
     getTimeMs() - startTime
@@ -950,7 +950,7 @@ let viewSimulation canvasState model dispatch =
                     ]
                     [ str "Save current input values as default" ]
 
-        let confirmRefreshPopup (model:Model) dispatch simData =
+        let confirmRefreshPopup (model:Model) dispatch (simData: SimulationData) =
             fun (model:Model) ->
                 div [] 
                     [
@@ -1000,7 +1000,7 @@ let viewSimulation canvasState model dispatch =
 
         let createRefreshButtonForSimData sim model dispatch =
             match sim with
-            | Ok simData ->
+            | Ok (simData: SimulationData) ->
                 if InputDefaultsEqualInputsRefresh simData.FastSim model then
                     createRefreshButton buttonColor buttonIcon (fun _ ->
                         let clock = simData.ClockTickNumber
@@ -1115,7 +1115,7 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
             | (Ok simData, canvState) ->
                 if simData.IsSynchronous then
                     setFastSimInputsToDefault simData.FastSim
-                    let wsModel = { wsModel with State = Loading ; FastSim = simData.FastSim }
+                    let wsModel = { wsModel with State = Loading}
                     model
                     |> set currentStepSimulationStep_ (simData |> Ok |> Some)
                     |> withMsgs [SetWSModelAndSheet (wsModel, wsSheet) ; RefreshWaveSim wsModel]

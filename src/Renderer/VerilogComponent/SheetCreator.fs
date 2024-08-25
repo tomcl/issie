@@ -435,7 +435,7 @@ let createNumberCircuit (number:NumberT) =
         |Ok n -> n
         |Error _ -> failwithf "Shouldn't happen!"
     
-    let constComp = createComponent (Constant1 (width,int64 constValue,text)) "C"
+    let constComp = createComponent (Constant1 (width, constValue,text)) "C"
     {Comps=[constComp];Conns=[];Out=constComp.OutputPorts[0];OutWidth=width}
 
 // handling size extension / 0 padding
@@ -521,7 +521,7 @@ let extendCircuit (target:int) (circuit: Circuit)  =
     if widthDiff<0 then failwithf "Target width is smaller than circuit width!"
     elif widthDiff=0 then circuit
     else 
-        let zero = createComponent (Constant1 (widthDiff,0,"")) "const0"
+        let zero = createComponent (Constant1 (widthDiff,0I,"")) "const0"
         let zeroCircuit = {Comps=[zero]; Conns=[]; Out=zero.OutputPorts[0]; OutWidth=widthDiff}
         let c = joinWithMerge' [circuit; zeroCircuit] // check if the order is correct
         c
@@ -617,7 +617,7 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
                 let primaryWidth = Map.find (Option.get unary.Primary).Primary.Name varSizeMap
                 let shiftLeft = createComponent (Shift (primaryWidth, expr.Width, LSL)) "sll" 
                 let topCircuit = {Comps=[shiftLeft]; Conns=[]; Out=shiftLeft.OutputPorts[0]; OutWidth=primaryWidth}
-                let const1 = createComponent (Constant1 (primaryWidth, pow2int64 w - int64 1, "")) "const1"
+                let const1 = createComponent (Constant1 (primaryWidth, (1I <<< w) - 1I, "")) "const1"
                 let const1Circuit = {Comps=[const1]; Conns=[]; Out=const1.OutputPorts[0]; OutWidth=primaryWidth}  
                 let shiftLeftIthCircuit = joinCircuits [const1Circuit; index] [shiftLeft.InputPorts[0]; shiftLeft.InputPorts[1]] topCircuit
                 let primaryCircuit = {Comps=[];Conns=[];Out=primaryComp.OutputPorts[0];OutWidth=primaryWidth}
@@ -1192,7 +1192,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                     | Some c -> c
                     | _ -> failwithf "This should not happen, variable doesn't have a circuit"
                 let indexCircuit = mainExpressionCircuitBuilder expr varToCompMap varSizeMap 0
-                let const1 = createComponent (Constant1 (outWidth,  pow2int64 w - int64(1), "0b1")) "const"
+                let const1 = createComponent (Constant1 (outWidth,  (1I <<< w) - 1I, "0b1")) "const"
                 let const1Circuit = {Comps=[const1]; Conns=[]; Out=const1.OutputPorts[0]; OutWidth=outWidth}
                 let shiftLeft = createComponent (Shift (outWidth, indexCircuit.OutWidth, LSL)) "shift"
                 let shiftLeftCircuit = {Comps=[shiftLeft]; Conns=[]; Out=shiftLeft.OutputPorts[0]; OutWidth=outWidth}

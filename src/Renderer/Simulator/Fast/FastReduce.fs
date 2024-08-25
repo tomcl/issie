@@ -331,9 +331,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             checkWidth width (comp.OutputWidth 0)
             putBigInt 0 bits
     | Constant1(width, cVal, _), false
-    | Constant(width, cVal), false -> putUInt32 0 <| (convertInt64ToUInt32 width cVal)
+    | Constant(width, cVal), false -> putUInt32 0 <| uint32 (convertBigIntToInt32 cVal)
     | Constant1(width, cVal, _), true
-    | Constant(width, cVal), true -> putBigInt 0 <| (convertInt64ToBigInt width cVal)
+    | Constant(width, cVal), true -> putBigInt 0 <| cVal
     | Output width, false ->
         let bits = insUInt32 0
         // printfn "In output bits=%A, ins = %A" bits comp.InputLinks

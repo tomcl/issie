@@ -87,8 +87,8 @@ let update (msg : Msg) oldModel =
 
     | CheckMemory ->
         if JSHelpers.loggingMemory then
-            let heapInBytes = JSHelpers.usedHeap()
-            let hint = [$"{heapInBytes / 1000000} MB"]
+            let heapInBytes = JSHelpers.getProcessPrivateMemory()
+            let hint = [$"{heapInBytes} MB"]
             printfn $"Heap size {hint}"
             {model with Sheet.Wire.Symbol.HintPane = Some hint}, Cmd.none
         else

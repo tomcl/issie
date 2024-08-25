@@ -28,6 +28,21 @@ let usedHeap() : int = jsNative
 [<Emit("performance.memory.totalJSHeapSize")>]
 let maxHeap() : int = jsNative
 
+let mutable memSize = 0
+
+let getProcessPrivateMemory() : int =
+    
+    let memInfo:JS.Promise<string>  = Node.Api.``process``?getProcessMemoryInfo()
+    promise {
+        return! memInfo
+        }
+    |> Promise.iter (
+        fun info ->
+            memSize <- info?``private``/1024
+            printfn $"mem info: private= {memSize}, resident={info?``resident``}"
+            )
+    memSize
+
 
 [<Emit("global.gc")>]
 let globalGC : unit->unit = jsNative

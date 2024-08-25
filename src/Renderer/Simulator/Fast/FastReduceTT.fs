@@ -218,7 +218,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     //printfn "Finished!"
 
     | Constant1(width, cVal, _)
-    | Constant(width, cVal) -> put 0 <| Data(convertInt64ToFastData width cVal)
+    | Constant(width, cVal) -> put 0 <| Data(convertBigintToFastData width cVal)
     | Output width ->
         let bits = ins 0
         //printfn "In output bits=%A, ins = %A" bits comp.InputLinks

@@ -577,7 +577,7 @@ let getLatestComp (comp: Component) =
     | RAM mem -> {comp with Type = RAM1 (updateMem mem)}
     | ROM mem -> {comp with Type = ROM1 (updateMem mem)}
     | AsyncROM mem -> { comp with Type = AsyncROM1 (updateMem mem)}
-    | Constant(width,cVal) -> {comp with Type = Constant1(width, cVal, $"%d{cVal}")}
+    | Constant(width,cVal) -> {comp with Type = Constant1(width, cVal, $"%A{cVal}")}
     | Input width -> { comp with Type = Input1 (width, None)}
     | _ -> comp
 

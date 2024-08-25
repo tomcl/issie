@@ -447,7 +447,7 @@ let parseConstant wMax w cText =
     else
         match NumberHelpers.strToIntCheckWidth wMax cText with
         | Ok n ->
-            constantValueMessage w n, Some (Constant1 (w,int64 n,cText))
+            constantValueMessage w n, Some (Constant1 (w,n,cText))
         | Error msg ->
             twoErrorLines msg "", None
 
@@ -496,7 +496,7 @@ let private createConstantPopup model dispatch =
                 | Ok n -> n
                 | Error _ -> 0I // should never happen?
             let text' = if text = "" then "0" else text
-            createCompStdLabel (Constant1(width, int64 constant,text')) model dispatch
+            createCompStdLabel (Constant1(width, constant, text')) model dispatch
             dispatch ClosePopup
     let isDisabled = parseConstantDialog >> snd >> Option.isNone
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch

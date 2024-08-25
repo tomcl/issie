@@ -236,7 +236,7 @@ module CommonTypes
         | NotConnected
         | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
         | BusSelection of OutputWidth: int * OutputLSBit: int
-        | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
+        | Constant1 of Width: int * ConstValue: bigint * DialogTextValue: string
         | Not | Decode4
         | GateN of GateType: GateComponentType * NumInputs: int
         | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
@@ -262,7 +262,7 @@ module CommonTypes
         // legacy cases to be deleted?
         | BusCompare of BusWidth: int * CompareValue: uint32
         | Input of BusWidth: int
-        | Constant of Width: int * ConstValue: int64 
+        | Constant of Width: int * ConstValue: bigint 
 
 
 
@@ -465,7 +465,7 @@ module CommonTypes
             | NotConnected
             | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
             | BusSelection of OutputWidth: int * OutputLSBit: int
-            | Constant1 of Width: int * ConstValue: int64 * DialogTextValue: string
+            | Constant1 of Width: int * ConstValue: bigint * DialogTextValue: string
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
             | GateN of GateType: GateComponentType * NumInputs: int
             | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
@@ -491,7 +491,7 @@ module CommonTypes
             //---------------Legacy cases not in the Issie ComponentType here-------------------//
             | BusCompare of BusWidth: int * CompareValue: uint32
             | Input of BusWidth: int
-            | Constant of Width: int * ConstValue: int64 
+            | Constant of Width: int * ConstValue: bigint 
 
 
 
@@ -573,7 +573,7 @@ module CommonTypes
             | JSONComponent.ComponentType.RAM x -> RAM x
             | JSONComponent.ComponentType.Shift (a,b,c) -> Shift (a,b,c)
             //-----------------------Changes are made in these conversions---------------------------//
-            | JSONComponent.Constant(w,v) -> Constant1(w,v,sprintf "%d" v)
+            | JSONComponent.Constant(w,v) -> Constant1(w,v,sprintf "%A" v)
             | JSONComponent.Input n -> Input1(n, None)
             | JSONComponent.BusCompare(w,v) -> BusCompare1(w,v, sprintf "%x" v)
         {unbox comp with Type = newType comp.Type}

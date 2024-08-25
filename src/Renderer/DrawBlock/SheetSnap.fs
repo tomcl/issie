@@ -101,7 +101,7 @@ let symbolMatch (symbol: SymbolT.Symbol) =
 
     | Constant _
     | Constant1 _ -> 
-        Constant (0, 0L)
+        Constant (0, 0I)
 
     | NbitsAdder _ | NbitsXor _ -> 
         NbitsAdder 0

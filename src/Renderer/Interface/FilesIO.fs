@@ -447,7 +447,7 @@ let readMemDefnLine (addressWidth:int) (wordWidth: int) (lineNo: int) (s:string)
         let addrNum = NumberHelpers.strToIntCheckWidth addressWidth addr
         let dataNum = NumberHelpers.strToIntCheckWidth wordWidth data
         match addrNum,dataNum with
-        | Ok a, Ok d -> Ok (a,d)
+        | Ok a, Ok d -> Ok (int64 a, int64 d)
         | Error aErr,_ -> Error $"Line {lineNo}:'%s{s}' has invalid address ({addr}). {aErr}"
         | _, Error dErr -> Error $"Line '%s{s}' has invalid data item ({data}). {dErr}"
     | x -> Error $"Line {lineNo}:'%s{s}' has {x.Length} items: valid lines consist of two numbers"

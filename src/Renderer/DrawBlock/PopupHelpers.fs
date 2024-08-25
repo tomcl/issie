@@ -135,8 +135,8 @@ let getErrorList (dialogData : PopupDialogData) =
 let getInt (dialogData : PopupDialogData) =
     Option.defaultValue 1 dialogData.Int
 
-let getInt2 (dialogData : PopupDialogData) : int64 =
-    Option.defaultValue 0L dialogData.Int2
+let getInt2 (dialogData : PopupDialogData) : bigint =
+    Option.defaultValue 0I dialogData.Int2
 
 let getIntList (dialogData : PopupDialogData) (numInputsDefault : int ) (widthDefault)=
     Option.defaultValue [for _ in 1..numInputsDefault -> widthDefault] dialogData.IntList
@@ -229,7 +229,7 @@ let dynamicProgressPopupFunc title (cancel: (Msg -> Unit) -> Unit) =
         Progress.progress
             [   Progress.Color IsSuccess
                 Progress.Value n
-                Progress.Max (int (Option.defaultValue 100L (dialog.Int2))) ]
+                Progress.Max (int (Option.defaultValue 100I (dialog.Int2))) ]
             [ str $"{n}"]
 
     let foot (dispatch:Msg->Unit) (model:Model) =
@@ -518,10 +518,10 @@ let dialogPopupBodyNInts beforeInt numOutputsDefault intDefault maxNumOutputs di
 let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (width2:string) dispatch =
 
     let setPopupTwoInts (whichInt:IntMode, optText) =
-        fun (n:int64) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
+        fun (n:bigint) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
 
-    setPopupTwoInts (FirstInt,None) (int64 intDefault1)
-    setPopupTwoInts (SecondInt, None) intDefault2 
+    setPopupTwoInts (FirstInt,None) (intDefault1)
+    setPopupTwoInts (SecondInt, None) (intDefault2)
 
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
@@ -530,18 +530,18 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
             br []
             Input.number [
                 Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus true]
-                Input.DefaultValue <| sprintf "%d" intDefault1
-                Input.OnChange (getIntEventValue >> int64 >> setPopupTwoInts (FirstInt,None))
+                Input.DefaultValue <| sprintf "%A" intDefault1
+                Input.OnChange (getIntEventValue >> bigint >> setPopupTwoInts (FirstInt,None))
             ]
             br []
             beforeInt2 dialogData
             br []
             Input.text [
                 Input.Props [OnPaste preventDefault; Style [Width width2]; AutoFocus true]
-                Input.DefaultValue <| sprintf "%d" intDefault2
+                Input.DefaultValue <| sprintf "%A" intDefault2
                 Input.OnChange (fun ev ->
                     let text = getTextEventValue ev
-                    let n = getInt64EventValue ev
+                    let n = getBigintEventValue ev
                     setPopupTwoInts(SecondInt, Some text) n)
             ]
         ]
@@ -551,9 +551,9 @@ let dialogPopupBodyTwoInts (beforeInt1,beforeInt2) (intDefault1,intDefault2) (wi
 let dialogPopupBodyTextAndTwoInts (focus: int) (beforeText, textPlaceholder) (beforeInt1,beforeInt2) (intDefault1,intDefault2) dispatch =
 
     let setPopupTwoInts (whichInt:IntMode, optText) =
-        fun (n:int64) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
+        fun (n:bigint) -> (Some n, whichInt, optText) |> SetPopupDialogTwoInts |> dispatch
 
-    setPopupTwoInts (FirstInt,None) (int64 intDefault1)
+    setPopupTwoInts (FirstInt,None) intDefault1
     setPopupTwoInts (SecondInt, None) intDefault2 
 
     fun (model: Model) ->
@@ -571,18 +571,18 @@ let dialogPopupBodyTextAndTwoInts (focus: int) (beforeText, textPlaceholder) (be
             br []
             Input.number [
                 Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus (focus = 2)]
-                Input.DefaultValue <| sprintf "%d" intDefault1
-                Input.OnChange (getIntEventValue >> int64 >> setPopupTwoInts (FirstInt,None))
+                Input.DefaultValue <| sprintf "%A" intDefault1
+                Input.OnChange (getIntEventValue >> bigint >> setPopupTwoInts (FirstInt,None))
             ]
             br []
             beforeInt2 dialogData
             br []
             Input.text [
                 Input.Props [OnPaste preventDefault; Style [Width "60px"]; AutoFocus (focus = 3)]
-                Input.DefaultValue <| sprintf "%d" intDefault2
+                Input.DefaultValue <| sprintf "%A" intDefault2
                 Input.OnChange (fun ev ->
                     let text = getTextEventValue ev
-                    let n = getInt64EventValue ev
+                    let n = getBigintEventValue ev
                     setPopupTwoInts(SecondInt, Some text) n)
             ]
         ]

@@ -12,6 +12,7 @@ open Fable.React
 open Fable.React.Props
 
 open JSHelpers
+open NumberHelpers
 open ModelType
 open CommonTypes
 open MemoryEditorView
@@ -30,6 +31,7 @@ open CatalogueView.Constants
 module Constants =
     let labelUniqueMess = "Components must have a unique label within one sheet"
     let dropDownHeightFraction = 2.5
+
     
 
 
@@ -695,7 +697,7 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
     intFormField title "60px" defValue 0 (
         fun newValue ->
             // Check if value is within bit range
-            match NumberHelpers.checkWidth width (int64 newValue) with
+            match NumberHelpers.checkWidth width (bigint newValue) with
             | Some msg ->
                 let props = errorPropsNotification msg
                 dispatch <| SetPropertiesNotification props
@@ -731,7 +733,7 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
             match comp.Type with | Constant1( w,_,txt) -> w,txt | _ -> failwithf "What? impossible" 
         let w = Option.defaultValue wComp model.PopupDialogData.Int
         let cText = Option.defaultValue txtComp model.PopupDialogData.Text
-        let reactMsg, compTOpt = CatalogueView.parseConstant 64 w cText
+        let reactMsg, compTOpt = CatalogueView.parseConstant Constants.maxConstantWidth w cText
         match compTOpt with
         | None -> ()
         | Some (Constant1(w,cVal,cText) as compT) ->

@@ -130,9 +130,27 @@ let getFloatEventValue (event: Browser.Types.Event) =
 
 let getInt64EventValue( event: Browser.Types.Event) =
     let boxText = getFailIfNull event ["target";"value"] |> unbox<string>
+    let boxText =
+        let boxT1 = boxText.ToLower()
+        if boxText.Length > 1 && boxT1[0] = 'x' || boxT1[0] = 'b'
+        then
+            "0" + boxText
+        else
+            boxText
     let (ok,n) = System.Int64.TryParse boxText
     if not ok then 0L else n
 
+let getBigintEventValue( event: Browser.Types.Event) =
+    let boxText = getFailIfNull event ["target";"value"] |> unbox<string>
+    let boxText =
+        let boxT1 = boxText.ToLower()
+        if boxText.Length > 1 && boxT1[0] = 'x' || boxT1[0] = 'b'
+        then
+            "0" + boxText
+        else
+            boxText
+    let (ok,n) = System.Numerics.BigInteger.TryParse boxText
+    if not ok then 0I else n
 
 /// Get the value for a blur event in an input textbox.
 let getTextFocusEventValue (event: FocusEvent) =

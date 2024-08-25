@@ -227,7 +227,7 @@ let private viewSimulationInputs
                                 let note = errorPropsNotification err
                                 dispatch  <| SetSimulationNotification note
                             | Ok num ->
-                                let bits = convertInt64ToFastData width num
+                                let bits = convertBigintToFastData width num
                                 // Close simulation notifications.
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.

@@ -71,6 +71,9 @@ module TestFonts =
                     FontWeight = fontWeight // "bold", ""
                 }
             let text = (Option.defaultValue textToTestDefault dialogData.Text)
+            let success, num = System.Numerics.BigInteger.TryParse(text)
+            let w = int (System.Numerics.BigInteger.Log2 num)
+            printfn $"BigInteger Parse: num={num}, width={w}"
             let width =  textMeasureWidth font text
             let height = float fontSize
             let textEl = DrawHelpers.makeText 50. 100.  text font
@@ -275,6 +278,7 @@ module Misc =
     open ModelType
     open DrawModelType
     open ModelType
+
 
 
     let highLightChangedConnections dispatch =

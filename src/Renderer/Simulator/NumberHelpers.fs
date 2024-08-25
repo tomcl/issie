@@ -13,6 +13,11 @@ open SimulatorTypes
 
 module Constants =
     let maxBinaryDisplayWidth = 32
+    /// max width of an Issie Constant components
+    let maxConstantWidth = 256
+    /// max no of chars displayed before display functions truncate result
+    let maxNumericCharsBeforeTruncation = 80
+
 
 /// Convert an hex string into a binary string.
 let private hexToBin (hStr: string) : string =
@@ -439,7 +444,13 @@ let convertIntToFastData (width: int) (n: uint32) =
     else
         { Dat = BigWord(bigint n); Width = width }
 
-let convertBigintToFastData (width: int) (b: bigint) = { Dat = BigWord b; Width = width }
+let convertBigintToFastData (width: int) (b: bigint) =
+    if width > 32 then
+        { Dat = BigWord b; Width = width }
+    elif b >= 0I then
+        { Dat = Word(uint32 (b &&& bigint 0xffffffff)); Width = width }
+    else
+        { Dat = Word (uint32 ((1I <<< width) - b)); Width = width }
 
 /// convert to 64 bits - if too large take LS 64 bits
 let convertFastDataToInt64 (d: FastData) =
@@ -529,11 +540,22 @@ let emptyFastData = { Width = 0; Dat = Word 0u }
 /// Try to convert a string to an int, or return an error message if that was
 /// not possible.
 let strToInt (str: string) : Result<int64, string> =
+    let str = str.ToLower()
+    let str = if str.Length > 1 && str[0] = 'x' || str[0]='b' then "0" + str else str
     try
         Ok <| int64 str
     with _ ->
         Error <| "Invalid number."
 
+/// Try to convert a string to a bigint, or return an error message if that was
+/// not possible.
+let strToBigint (str: string) : Result<bigint, string> =
+    let str = str.ToLower()
+    let str = if str.Length > 1 && str[0] = 'x' || str[0]='b' then "0" + str else str
+    try
+        Ok <| bigint.Parse str
+    with _ ->
+        Error <| "Invalid number."
 (*
 
 let toInt = EEExtensions.Char.toInt
@@ -560,26 +582,33 @@ let convertUInt64 (stringToConvert: string) =
 
 *)
 
-let private countBits (num: int64) : int = (String.length <| bin64 num) - 2
+let private countBits (num: bigint) : int =
+
+    let rec log2Int (n:bigint) =
+        if n = 0I then 0
+        elif n < 0I then log2Int ( -n - 1I)
+        else log2Int (n >>> 1) + 1
+    let n = log2Int num        
+    if n = 0 then 1 else n
+        
 
 /// Check a number is formed by at most <width> bits.
-let rec checkWidth (width: int) (num: int64) : string option =
-    if num < 0L then
-        checkWidth width <| (-num) - 1L
+let rec checkWidth (width: int) (num: bigint) : string option =
+    if num < 0I then
+        checkWidth width <| (-num) - 1I
     else
         let bitsCount = countBits num
-
         match bitsCount <= width with
         | true -> None
         | false -> Some <| sprintf "Expected %d or less bits." width
 
 /// Convert a string to a number making sure that it has no more bits than
 /// specified in width.
-let strToIntCheckWidth (width: int) (str: string) : Result<int64, string> =
+let strToIntCheckWidth (width: int) (str: string) : Result<bigint, string> =
     match str.Trim() with
-    | "" -> Ok 0L // special case
+    | "" -> Ok 0I // special case
     | str ->
-        strToInt str
+        strToBigint str
         |> Result.bind (fun num ->
             match checkWidth width num with
             | None -> Ok num

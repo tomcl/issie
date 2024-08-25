@@ -75,8 +75,8 @@ type PopupDialogData = {
     Text : string option;
     Int : int option;
     ImportDecisions : Map<string, ImportDecision option>
-    Int2: int64 option
-    Int3: int64 option
+    Int2: bigint option
+    Int3: bigint option
     ProjectPath: string
     MemorySetup : (int * int * InitMemData * string option) option // AddressWidth, WordWidth. 
     MemoryEditorData : MemoryEditorData option // For memory editor and viewer.
@@ -443,9 +443,9 @@ type Msg =
     | SetPopupDialogCode of string option
     | SetPopupDialogVerilogErrors of ErrorInfo list
     | SetPopupDialogInt of int option
-    | SetPopupDialogInt2 of int64 option
-    | SetPopupDialogInt3 of int64 option
-    | SetPopupDialogTwoInts of (int64 option * IntMode * string option)
+    | SetPopupDialogInt2 of bigint option
+    | SetPopupDialogInt3 of bigint option
+    | SetPopupDialogTwoInts of (bigint option * IntMode * string option)
     | SetPopupDialogIntList of int list option
     | SetPopupDialogIntList2 of int list option
     | SetPropertiesExtraDialogText of string option

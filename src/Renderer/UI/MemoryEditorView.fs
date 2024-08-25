@@ -283,8 +283,8 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                                                        printfn "Should not be here"
                                                        memory)
 
-                        dynamicMem <- { dynamicMem with Data = Map.add addr value dynamicMem.Data }
-                        model.Sheet.WriteMemoryLine sheetDispatch compId addr value // Only update one row
+                        dynamicMem <- { dynamicMem with Data = Map.add addr (int64 value) dynamicMem.Data }
+                        model.Sheet.WriteMemoryLine sheetDispatch compId addr (int64 value) // Only update one row
                         
                         dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
                         //printfn "setting value=%d, addr=%d" value addr                       

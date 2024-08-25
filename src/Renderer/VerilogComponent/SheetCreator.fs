@@ -435,7 +435,7 @@ let createNumberCircuit (number:NumberT) =
         |Ok n -> n
         |Error _ -> failwithf "Shouldn't happen!"
     
-    let constComp = createComponent (Constant1 (width,constValue,text)) "C"
+    let constComp = createComponent (Constant1 (width,int64 constValue,text)) "C"
     {Comps=[constComp];Conns=[];Out=constComp.OutputPorts[0];OutWidth=width}
 
 // handling size extension / 0 padding

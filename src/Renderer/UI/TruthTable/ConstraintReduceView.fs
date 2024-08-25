@@ -386,7 +386,7 @@ let createInputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
     let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
     // Set Defaults
     0 |> Some |> SetPopupDialogInt |> dispatch
-    (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
+    0I |> Some |> SetPopupDialogInt2 |> dispatch
     Equ |> Some |> SetPopupConstraintTypeSel |> ttDispatch
     ttDispatch <| SetPopupConstraintIOSel None
     ttDispatch <| SetPopupNewConstraint None
@@ -428,7 +428,7 @@ let createOutputConstraintPopup (model: Model) (dispatch: Msg -> Unit) =
 
     // Set Defaults
     0 |> Some |> SetPopupDialogInt |> dispatch
-    (int64 0) |> Some |> SetPopupDialogInt2 |> dispatch
+    0I |> Some |> SetPopupDialogInt2 |> dispatch
     Equ |> Some |> SetPopupConstraintTypeSel |> ttDispatch
     ttDispatch <| SetPopupConstraintIOSel None
     ttDispatch <| SetPopupNewConstraint None

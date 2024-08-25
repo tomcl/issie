@@ -306,7 +306,7 @@ let viewMenu dispatch =
                     JSHelpers.loggingMemory <- not JSHelpers.loggingMemory
                     let state = if loggingMemory then "on" else "off"
                     printfn $"Memory display is now {state}.")
-        makeItem "Benchmark" (Some "Ctrl+Shift+B") (fun ev -> maindispatch Benchmark)
+        //makeItem "Benchmark" (Some "Ctrl+Shift+B") (fun ev -> maindispatch Benchmark) // does this work?
         makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
         menuSeparator
         makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ ->

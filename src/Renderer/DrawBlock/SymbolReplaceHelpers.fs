@@ -54,7 +54,7 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
         match symbol.Component.Type with
         | BusSelection (w, _) -> BusSelection (w, int32(newLsb))
         | BusCompare (w, _) -> BusCompare (w, uint32(newLsb))
-        | Constant1(w, _,txt) -> Constant1 (w, newLsb,txt)
+        | Constant1(w, _,txt) -> Constant1 (w, bigint newLsb,txt)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
 
     set (component_ >-> type_) newcompotype symbol
@@ -71,7 +71,7 @@ let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: int) =
     set (component_ >-> type_) (Input1 (width, Some newVal)) symbol
 
 /// Updates the value of a constant1 component and returns the updated symbol
-let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:int64) (constantText: string) =
+let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:bigint) (constantText: string) =
     let symbol = Map.find compId symModel.Symbols
     let newcompotype = 
         match symbol.Component.Type with

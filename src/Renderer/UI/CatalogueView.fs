@@ -431,7 +431,7 @@ let private busCompareValueMessage w (cVal:bigint) =
             (1I <<< w) - 1I
     let uVal = cVal &&& mask
     let sVal = if uVal &&& (1I <<< (w - 1)) = 0I then uVal else (1I <<< w) - uVal
-    let hVal = NumberHelpers.hex(int uVal)
+    let hVal = NumberHelpers.BigIntToPaddedString Constants.maxNumericCharsBeforeTruncation Hex w uVal
     let line1 = $"Decimal value: {uVal} ({sVal} signed)"
     let line2 = $"Hex value: %s{hVal}"
     span [] [str line1; br [] ; str line2; br [] ]
@@ -516,7 +516,7 @@ let private createBusComparePopup (model:Model) dispatch =
     let intDefault = 1
     let parseBusCompDialog model' =
         let dialog = model'.PopupDialogData
-        parseBusCompareValue 32 (Option.defaultValue intDefault dialog.Int) (Option.defaultValue "" dialog.Text)
+        parseBusCompareValue Constants.maxConstantWidth (Option.defaultValue intDefault dialog.Int) (Option.defaultValue "" dialog.Text)
     let beforeText = (fun d -> div [] [d |> parseBusCompDialog |> fst; br [] ])
     let placeholder = "Value: decimal, 0x... hex, 0b... binary"   
     let body = dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch

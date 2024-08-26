@@ -317,9 +317,9 @@ let getVerilogNInputBinaryOp cType portConversionFn =
     | _ -> failwithf "operator %A not defined" cType
 
 /// get valid Verilog constant for bus of given width (may be 1)
-let makeBits w (c: uint64) = 
-    let c = c &&& ((1UL <<< w) - 1UL)
-    sprintf $"%d{w}'h%x{c}"
+let makeBits w (c: bigint) = 
+    let c = c &&& ((1I <<< w) - 1I)
+    sprintf $"%d{w}'h%A{c}"
 
 /// get output port name
 let getVPortOut (fc: FastComponent) (OutputPortNumber opn) = fc.VerilogOutputName[opn]
@@ -404,7 +404,7 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     let demuxOutput (outputPort: string) (selectPort: string) (w:int) = 
         if outputPort = selectPort
         then ins 0
-        else makeBits w (uint64 0)
+        else makeBits w 0I
 
     match fc.FType with
     | Input1 _ when fc.AccessPath = [] 
@@ -429,37 +429,37 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | Register _ -> $"always @(posedge clk) %s{outs 0} <= %s{ins 0};\n"
     | Constant1 (w, c,_) 
     | Constant (w, c)
-        -> $"assign %s{outs 0} = %s{makeBits w (uint64 c)};\n"
+        -> $"assign %s{outs 0} = %s{makeBits w c};\n"
     | Decode4 ->
         let w = outW 1
 
-        $"assign %s{outs 0} = (%s{ins 0} == 2'b00) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 1} = (%s{ins 0} == 2'b01) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 2} = (%s{ins 0} == 2'b10) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 3} = (%s{ins 0} == 2'b11) ? %s{ins 1} : {makeBits w (uint64 0)};\n"
+        $"assign %s{outs 0} = (%s{ins 0} == 2'b00) ? %s{ins 1} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 1} = (%s{ins 0} == 2'b01) ? %s{ins 1} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 2} = (%s{ins 0} == 2'b10) ? %s{ins 1} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 3} = (%s{ins 0} == 2'b11) ? %s{ins 1} : {makeBits w (bigint 0)};\n"
     | Demux2 ->
         let w = outW 0
 
-        $"assign %s{outs 0} = %s{ins 1} ? {makeBits w (uint64 0)} : %s{ins 0};\n"
-        + $"assign %s{outs 1} = %s{ins 1} ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        $"assign %s{outs 0} = %s{ins 1} ? {makeBits w (bigint 0)} : %s{ins 0};\n"
+        + $"assign %s{outs 1} = %s{ins 1} ? %s{ins 0} : {makeBits w (bigint 0)};\n"
     | Demux4 ->
         let w = outW 0
 
-        $"assign %s{outs 0} = (%s{ins 1} == 2'b00) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 1} = (%s{ins 1} == 2'b01) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 2} = (%s{ins 1} == 2'b10) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 3} = (%s{ins 1} == 2'b11) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        $"assign %s{outs 0} = (%s{ins 1} == 2'b00) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 1} = (%s{ins 1} == 2'b01) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 2} = (%s{ins 1} == 2'b10) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 3} = (%s{ins 1} == 2'b11) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
     | Demux8 ->
         let w = outW 0
         
-        $"assign %s{outs 0} = (%s{ins 1} == 3'b000) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 1} = (%s{ins 1} == 3'b001) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 2} = (%s{ins 1} == 3'b010) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 3} = (%s{ins 1} == 3'b011) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 4} = (%s{ins 1} == 3'b100) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 5} = (%s{ins 1} == 3'b101) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 6} = (%s{ins 1} == 3'b110) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
-        + $"assign %s{outs 7} = (%s{ins 1} == 3'b111) ? %s{ins 0} : {makeBits w (uint64 0)};\n"
+        $"assign %s{outs 0} = (%s{ins 1} == 3'b000) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 1} = (%s{ins 1} == 3'b001) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 2} = (%s{ins 1} == 3'b010) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 3} = (%s{ins 1} == 3'b011) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 4} = (%s{ins 1} == 3'b100) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 5} = (%s{ins 1} == 3'b101) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 6} = (%s{ins 1} == 3'b110) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
+        + $"assign %s{outs 7} = (%s{ins 1} == 3'b111) ? %s{ins 0} : {makeBits w (bigint 0)};\n"
     | NbitsAdder n ->
         let cin = ins 0
         let a = ins 1
@@ -521,8 +521,8 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     | BusSelection (outW, lsb) ->
         let sel = sprintf "[%d:%d]" (outW + lsb - 1) lsb
         $"assign {outs 0} = {ins 0}{sel};\n"
-    | BusCompare (w, c) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
-    | BusCompare1 (w, c, _) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w (uint64 (uint32 c))};\n"
+    | BusCompare (w, c) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w c};\n"
+    | BusCompare1 (w, c, _) -> $"assign %s{outs 0} = %s{ins 0} == %s{makeBits w c};\n"
     | MergeWires -> $"assign {outs 0} = {{ {ins 1},{ins 0} }};\n" 
     | MergeN n ->  
         let mergedInputs = 
@@ -638,7 +638,7 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
             (fun fc ->
                 let width = fc.OutputWidth 0
                 let sigName = fc.VerilogOutputName[0]
-                $"assign {sigName} = {makeBits width 0uL};")
+                $"assign {sigName} = {makeBits width 0I};")
         |> String.concat "\n"
 
     let outNames, (outFormat, outVars) =

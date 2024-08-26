@@ -108,10 +108,10 @@ let private showRowWithAdrr memoryEditorData addr =
     | _ -> false
 
 let viewNum numBase =
-    match numBase with | Hex -> hex64 | Dec -> dec64 | Bin -> bin64 | SDec -> sDec64
+    match numBase with | Hex -> hexBignum | Dec -> decBignum | Bin -> binBignum | SDec -> sDecBignum
 
 let viewFilledNum width numBase =
-    match numBase with | Hex -> fillHex64 width | Dec -> dec64 | Bin -> fillBin64 width | SDec -> sDec64
+    match numBase with | Hex -> fillHexBignum width | Dec -> decBignum | Bin -> fillBinBignum width | SDec -> sDecBignum
 
 // let private baseToStr b = match b with | Hex -> "hex" | Dec -> "dec" | Bin -> "bin"
 
@@ -156,7 +156,7 @@ let reactMemoryAddressInputBox numberBase addressWidth setMemoryAddress dispatch
     Input.text [
         Input.Props [ Style [ MarginLeft "10px"; Width "80px" ] ]
         Input.DefaultValue ""
-        Input.Placeholder <| viewNum numberBase (int64 0)
+        Input.Placeholder <| viewNum numberBase 0I
         Input.OnChange (getTextEventValue >> fun text ->
             match text with
             | "" -> closeError dispatch
@@ -179,7 +179,7 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
     div [headerStyle; SpellCheck false] [
         Level.level [] ([
             Level.item [ Level.Item.HasTextCentered ] [
-                str <| sprintf "Number of elements: %d" (pow2int64 memory.AddressWidth)
+                str <| sprintf $"Number of elements: {decBignum (1I <<< memory.AddressWidth)}"
                 br []
                 str <| sprintf "Word width: %d bit(s)" memory.WordWidth
             ]
@@ -188,22 +188,21 @@ let private makeEditorHeader memory isDiff memoryEditorData dispatch =
                 Input.text [
                     Input.Props [ Style [ MarginLeft "10px"; Width "80px" ] ]
                     Input.DefaultValue ""
-                    Input.Placeholder <| viewNum memoryEditorData.NumberBase (int64 0)
+                    Input.Placeholder <| viewNum memoryEditorData.NumberBase 0I
                     Input.OnChange (getTextEventValue >> fun text ->
                         match text with
                         | "" -> closeError dispatch
                                 { memoryEditorData with Address = None }
                                 |> Some |> SetPopupMemoryEditorData |> dispatch
                         | t ->
-                            match strToInt t with
+                            match strToBigint t with
                             | Error err -> showError err dispatch
                             | Ok addr ->
-                                let addr = uint64 addr
                                 let w = memory.AddressWidth
-                                if w < 64 && addr >= (1UL <<< w)
+                                if w < 64 && addr >= (1I <<< w)
                                 then showError "Address out of bounds." dispatch
                                 else closeError dispatch
-                                     { memoryEditorData with Address = Some (int64 addr) }
+                                     { memoryEditorData with Address = Some addr }
                                      |> Some |> SetPopupMemoryEditorData |> dispatch
                     )
                 ]
@@ -259,14 +258,13 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
 
     //printfn "Making body with data=%A, dynamic %A" memory.Data dynamicMem
     // let memory = dynamicMem
-    let makeRow isReadOnly (memData: Map<int64,int64>) (addr: uint64) =
-        let addr = int64 addr
+    let makeRow isReadOnly (memData: Map<bigint,bigint>) (addr: bigint) =
         let content =  // Need to keep the changes locally as well, since the model does not immediately get updated
-            Map.tryFind (int64 addr) memData
-            |> Option.defaultValue 0L
+            Map.tryFind (addr) memData
+            |> Option.defaultValue 0I
         //printfn "load"
         tr [ SpellCheck false; Style [  Display (if true then DisplayOptions.TableRow else DisplayOptions.None)] ] [
-            td [] [ str <| viewNumA (int64 addr) ]
+            td [] [ str <| viewNumA (addr) ]
             td [] [
                 let handleInput  (ev: Browser.Types.FocusEvent) =
                     let text = getTextEventValue ev
@@ -283,8 +281,8 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                                                        printfn "Should not be here"
                                                        memory)
 
-                        dynamicMem <- { dynamicMem with Data = Map.add addr (int64 value) dynamicMem.Data }
-                        model.Sheet.WriteMemoryLine sheetDispatch compId addr (int64 value) // Only update one row
+                        dynamicMem <- { dynamicMem with Data = Map.add addr value dynamicMem.Data }
+                        model.Sheet.WriteMemoryLine sheetDispatch compId addr value // Only update one row
                         
                         dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
                         //printfn "setting value=%d, addr=%d" value addr                       
@@ -314,7 +312,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                 th [] [str "Address"]
                 th [] [str "Content"]
             ] ]
-            tbody [] ( [startLoc..endLoc] |> List.map (makeRow (isReadOnly <> "") memory.Data))
+            tbody [] ( [bigint startLoc..bigint endLoc] |> List.map (makeRow (isReadOnly <> "") memory.Data))
         ]
     ]
 
@@ -365,7 +363,7 @@ let openMemoryEditor memory compId model dispatch : unit =
 let private makeDiffViewerBody memory1 memory2 memoryEditorData =
     let getData addr memData =
         Map.tryFind addr memData
-        |> Option.defaultValue 0L
+        |> Option.defaultValue 0I
     let viewNum = viewNum memoryEditorData.NumberBase
     let makeRow content1 content2 addr =
         let hasChanged = content1 <> content2
@@ -374,7 +372,7 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
                 not memoryEditorData.OnlyDiff ||
                 memoryEditorData.OnlyDiff && hasChanged)
         tr [ Style [ Display (if showRow addr then DisplayOptions.TableRow else DisplayOptions.None)] ] [
-            td [] [ str <| viewNum (int64 addr) ]
+            td [] [ str <| viewNum addr ]
             td [
                 Style [BackgroundColor (if hasChanged then "#ffc6d3" else "auto") ]
             ] [ str <| viewNum content1 ]
@@ -382,8 +380,8 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
                 Style [BackgroundColor (if hasChanged then "#baffd3" else "auto") ]
             ] [ str <| viewNum content2 ]
         ]
-    let addr = Option.defaultValue 0L memoryEditorData.Address
-    let addr2 = addr + 15L
+    let addr = Option.defaultValue 0I memoryEditorData.Address
+    let addr2 = addr + 15I
 
     div [bodyStyle] [
         Table.table [ Table.IsFullWidth ] [

@@ -140,8 +140,8 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
                 let initD =
-                    match Map.tryFind 0L mem.Data with
-                    | Some n -> convertInt64ToFastData w n
+                    match Map.tryFind 0I mem.Data with
+                    | Some n -> convertBigintToFastData w n
                     | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
                 match vec.Width with
@@ -246,8 +246,8 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
                 let initD =
-                    match Map.tryFind 0L mem.Data with
-                    | Some n -> convertInt64ToFastData w n
+                    match Map.tryFind 0I mem.Data with
+                    | Some n -> convertBigintToFastData w n
                     | _ -> convertIntToFastData w 0u
                 // change simulation semantics to output 0 in cycle 0
                 vec.FDataStep[0] <- Data(convertIntToFastData w 0u)

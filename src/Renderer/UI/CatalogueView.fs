@@ -426,26 +426,23 @@ let private constantValueMessage w (cVal:bigint) =
     span [] [str line1; br [] ; str line2; br [] ]
 
 /// two line message giving constant value
-let private busCompareValueMessage w (cVal:uint32) =
+let private busCompareValueMessage w (cVal:bigint) =
     let mask = 
-        if w = 32 then 
-            0xffffffffu
-        else 
-            (1u <<< w) - 1u
+            (1I <<< w) - 1I
     let uVal = cVal &&& mask
-    let sVal = ((int32 uVal) <<< 32 - w) >>> 32 - w
+    let sVal = if uVal &&& (1I <<< (w - 1)) = 0I then uVal else (1I <<< w) - uVal
     let hVal = NumberHelpers.hex(int uVal)
-    let line1 = $"Decimal value: %d{uVal} (%d{sVal} signed)"
+    let line1 = $"Decimal value: {uVal} ({sVal} signed)"
     let line2 = $"Hex value: %s{hVal}"
     span [] [str line1; br [] ; str line2; br [] ]
 
 /// check constant parameters and return two react lines with
-/// error message or value details
+/// error message or value details.
 let parseConstant wMax w cText =
     if w < 1 || w > wMax then
             twoErrorLines $"Constant width must be in the range 1..{wMax}" "", None
     else
-        match NumberHelpers.strToIntCheckWidth wMax cText with
+        match NumberHelpers.strToIntCheckWidth w cText with
         | Ok n ->
             constantValueMessage w n, Some (Constant1 (w,n,cText))
         | Error msg ->
@@ -457,17 +454,7 @@ let parseBusCompareValue wMax w cText =
     else
         match NumberHelpers.strToIntCheckWidth w cText with
         | Ok n ->
-            let n' =
-                if n >= 0I then n |> uint32
-                else
-                    let mask = 
-                        if w = 32 then 
-                            0xffffffffu
-                        else 
-                            (1u <<< w) - 1u
-                    let uVal = (uint32 n) &&& mask
-                    uVal
-            busCompareValueMessage w (uint32 n), Some (BusCompare1 (w,(n'),cText))
+            busCompareValueMessage w n, Some (BusCompare1 (w,n,cText))
         | Error msg ->
             twoErrorLines msg "", None
 
@@ -541,17 +528,8 @@ let private createBusComparePopup (model:Model) dispatch =
             let text = Option.defaultValue "" dialogData.Text
             let constant = 
                 match NumberHelpers.strToIntCheckWidth width text with
-                | Ok n -> 
-                    if n >= 0I then n |> uint32
-                    else
-                        let mask = 
-                            if width = 32 then 
-                                0xffffffffu
-                            else 
-                                (1u <<< width) - 1u
-                        let uVal = (uint32 n) &&& mask
-                        uVal
-                | Error _ -> 0u // should never happen?
+                | Ok n -> n
+                | Error _ -> 0I // should never happen?
             let text' = if text = "" then "0" else text
             createCompStdLabel (BusCompare1(width,constant,text')) model dispatch
             dispatch ClosePopup

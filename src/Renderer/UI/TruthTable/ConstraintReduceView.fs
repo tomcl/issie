@@ -141,11 +141,11 @@ let validateNumericalConstraint (con: Constraint) (allConstraints: ConstraintSet
         let width = ineq.IO.getWidth
         // Convert any negative numbers in the bounds to their unsigned equivalents
         let unsignedLower =
-            (width,int64 ineq.LowerBound)
+            (width,bigint ineq.LowerBound)
             ||> convertIntToWireData
             |> convertWireDataToInt
         let unsignedUpper =
-            (width,int64 ineq.UpperBound)
+            (width, bigint ineq.UpperBound)
             ||> convertIntToWireData
             |> convertWireDataToInt
         // Check that bounds are distinct and the right way round
@@ -283,7 +283,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
         let numField1 width =
             Input.text [
                 Input.Key ("Hex")
-                Input.DefaultValue (viewNum Hex 0)
+                Input.DefaultValue (viewNum Hex 0I)
                 Input.Props [
                     constraintNumberStyle
                     OnChange (getTextEventValue >> (fun text ->
@@ -301,7 +301,7 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
         let numField2 width =
             Input.text [
                 Input.Key ("Hex")
-                Input.DefaultValue (viewNum Hex 0)
+                Input.DefaultValue (viewNum Hex 0I)
                 Input.Props [
                     constraintNumberStyle
                     OnChange (getTextEventValue >> (fun text ->

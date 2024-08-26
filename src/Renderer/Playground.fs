@@ -20,7 +20,7 @@ module TestFonts =
     let textMeasureWidth (font:DrawHelpers.Text) (txt:string) =
         let fontStr = fontString font
         canvasWidthContext.font <- fontStr
-        printf $"font = {font}\n\n '{fontStr}' -> {canvasWidthContext.font}\n\n"
+        //printf $"font = {font}\n\n '{fontStr}' -> {canvasWidthContext.font}\n\n"
         //canvasWidthContext.textAlign <- font.TextAnchor
         canvasWidthContext.measureText(txt).width
 
@@ -71,9 +71,10 @@ module TestFonts =
                     FontWeight = fontWeight // "bold", ""
                 }
             let text = (Option.defaultValue textToTestDefault dialogData.Text)
-            let success, num = System.Numerics.BigInteger.TryParse(text)
-            let w = int (System.Numerics.BigInteger.Log2 num)
-            printfn $"BigInteger Parse: num={num}, width={w}"
+            let success, (num:bigint) = System.Numerics.BigInteger.TryParse(text)
+            let numi = uint32 num
+            // uncomment to see the parsed number
+            printfn $"BigInteger Parse: num={num}, success={success} hex= {NumberHelpers.hexDigitsBignum num}"
             let width =  textMeasureWidth font text
             let height = float fontSize
             let textEl = DrawHelpers.makeText 50. 100.  text font

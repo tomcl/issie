@@ -99,7 +99,7 @@ let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
         if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
             let newDefault =
                 if fc.OutputWidth 0 > 32 then
-                    convertBigIntToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+                    convertBigintToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
                 else
                     int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
             let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
@@ -124,7 +124,7 @@ let InputDefaultsEqualInputsRefresh fs (model:Model) =
                                     | _ -> 0
             let outputarray =
                 if fc.OutputWidth 0 > 32 then
-                    Array.map (fun x -> convertBigIntToInt32 x) fc.Outputs[0].BigIntStep
+                    Array.map (fun x -> convertBigintToInt32 x) fc.Outputs[0].BigIntStep
                 else
                     Array.map (fun x -> int x) fc.Outputs[0].UInt32Step
             let slicedArray = Array.sub outputarray 0 ((tick+1) % fs.MaxArraySize)
@@ -158,7 +158,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
         let cid = fst fid
         let newDefault =
             if fc.OutputWidth 0 > 32 then
-                convertBigIntToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+                convertBigintToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
             else
                 int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
         SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid

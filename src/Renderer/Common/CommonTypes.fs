@@ -169,7 +169,7 @@ module CommonTypes
         // 64 bit integer. This makes words longer than 64 bits not supported.
         // This can be changed by using strings instead of int64, but that is way
         // less memory efficient.
-        Data : Map<int64,int64>
+        Data : Map<bigint,bigint>
     }
 
    
@@ -194,7 +194,7 @@ module CommonTypes
     // 64 bit integer. This makes words longer than 64 bits not supported.
     // This can be changed by using strings instead of int64, but that is way
     // less memory efficient.
-    Data : Map<int64,int64>  
+    Data : Map<bigint,bigint>  
     } 
 
     
@@ -234,7 +234,7 @@ module CommonTypes
         | Viewer of BusWidth: int
         | IOLabel
         | NotConnected
-        | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
+        | BusCompare1 of BusWidth: int * CompareValue: bigint * DialogTextValue: string
         | BusSelection of OutputWidth: int * OutputLSBit: int
         | Constant1 of Width: int * ConstValue: bigint * DialogTextValue: string
         | Not | Decode4
@@ -260,7 +260,7 @@ module CommonTypes
         | AsyncROM of Memory | ROM of Memory | RAM of Memory
         | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
         // legacy cases to be deleted?
-        | BusCompare of BusWidth: int * CompareValue: uint32
+        | BusCompare of BusWidth: int * CompareValue: bigint
         | Input of BusWidth: int
         | Constant of Width: int * ConstValue: bigint 
 
@@ -463,7 +463,7 @@ module CommonTypes
             | Viewer of BusWidth: int
             | IOLabel
             | NotConnected
-            | BusCompare1 of BusWidth: int * CompareValue: uint32 * DialogTextValue: string
+            | BusCompare1 of BusWidth: int * CompareValue: bigint * DialogTextValue: string
             | BusSelection of OutputWidth: int * OutputLSBit: int
             | Constant1 of Width: int * ConstValue: bigint * DialogTextValue: string
             | Not | And | Or | Xor | Nand | Nor | Xnor | Decode4
@@ -489,7 +489,7 @@ module CommonTypes
             | AsyncROM of Memory | ROM of Memory | RAM of Memory
             | Shift of BusWidth: int * ShifterWidth: int * ShiftType: ShiftComponentType
             //---------------Legacy cases not in the Issie ComponentType here-------------------//
-            | BusCompare of BusWidth: int * CompareValue: uint32
+            | BusCompare of BusWidth: int * CompareValue: bigint
             | Input of BusWidth: int
             | Constant of Width: int * ConstValue: bigint 
 
@@ -575,7 +575,7 @@ module CommonTypes
             //-----------------------Changes are made in these conversions---------------------------//
             | JSONComponent.Constant(w,v) -> Constant1(w,v,sprintf "%A" v)
             | JSONComponent.Input n -> Input1(n, None)
-            | JSONComponent.BusCompare(w,v) -> BusCompare1(w,v, sprintf "%x" v)
+            | JSONComponent.BusCompare(w,v) -> BusCompare1(w,v, sprintf "%A" v)
         {unbox comp with Type = newType comp.Type}
 
     /// Transforms normal Components into JSON Components which can be saved.

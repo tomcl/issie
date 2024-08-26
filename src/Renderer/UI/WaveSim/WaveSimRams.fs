@@ -56,36 +56,36 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
         let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
 
-        let print w (a:int64) = NumberHelpers.valToPaddedString w wsModel.Radix (((1L <<< w) - 1L) &&& a)
+        let print w (a:bigint) = NumberHelpers.valToPaddedString w wsModel.Radix (((1I <<< w) - 1I) &&& a)
 
-        let lastLocation = int64 ((2 <<< memData.AddressWidth - 1) - 1)
+        let lastLocation = (1I <<< memData.AddressWidth - 1) - 1I
 
         /// print a single 0 location as one table row
-        let print1 (a:int64,b:int64,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
+        let print1 (a:bigint,b:bigint,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
         /// print a range of zero locations as one table row
 
-        let print2 (a1:int64) (a2:int64) (d:int64) = $"{print aWidth (a1+1L)} ... {print aWidth (a2-1L)}", $"{print dWidth d}",RAMNormal
+        let print2 (a1:bigint) (a2:bigint) (d:bigint) = $"{print aWidth (a1+1I)} ... {print aWidth (a2-1I)}", $"{print dWidth d}",RAMNormal
 
         /// output info for one table row filling the given zero memory gap or arbitrary size, or no line if there is no gap.
-        let printGap (gStart:int64) (gEnd:int64) =
-            match gEnd - gStart with
+        let printGap (gStart:bigint) (gEnd:bigint) =
+            match int64 (gEnd - gStart) with
             | 1L -> []
-            | 2L -> [print1 ((gEnd + gStart) / 2L, 0L,RAMNormal)]
+            | 2L -> [print1 ((gEnd + gStart) / 2I, 0I, RAMNormal)]
             | n when n > 2L ->
-                [print2 gStart gEnd 0L]
+                [print2 gStart gEnd 0I]
             | _ ->
                 failwithf $"What? gEnd={gEnd},gStart={gStart}: negative or zero gaps are impossible..."
 
         /// transform Sparse RAM info into strings to print in a table, adding extra lines for zero gaps
         /// line styling is controlled by a RamRowtype value and added later when the table row react is generated
-        let addGapLines (items: (int64*int64*RamRowType) list) = 
+        let addGapLines (items: (bigint*bigint*RamRowType) list) = 
             let startItem =
-                match items[0] with
-                | -1L,_,_ -> []
+                match (items[0]) with
+                | gapStart,_,_ when gapStart = -1I -> []
                 | gStart,dStart,rw-> [print1 (gStart,dStart,rw)]
             List.pairwise items
             |> List.collect (fun ((gStart,_,_),(gEnd,dEnd,rwe)) -> 
-                let thisItem = if gEnd = lastLocation + 1L then [] else [print1 (gEnd,dEnd,rwe)]
+                let thisItem = if gEnd = lastLocation + 1I then [] else [print1 (gEnd,dEnd,rwe)]
                 [printGap gStart gEnd; thisItem])
             |> List.concat
 
@@ -94,12 +94,12 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         /// Set RamRowValue type to RAMWritten or RAMRead for thse locations.
         /// Write is always 1 cycle after WEN=1 and address.
         /// Read is 1 (0) cycles after address for sync (asynch) memories.
-        let addReadWrite (fc:FastComponent) (step:int) (mem: Map<int64,int64>) =
-            let getInt64 (a: IOArray) step =
+        let addReadWrite (fc:FastComponent) (step:int) (mem: Map<bigint,bigint>) =
+            let getBigint (a: IOArray) step : bigint =
                 let w = a.Width
                 match w with
-                | w when w > 32 -> int64 <| convertBigIntToUInt64 w a.BigIntStep[step]
-                | _ -> int64 <| a.UInt32Step[step]
+                | w when w > 32 -> a.BigIntStep[step]
+                | _ -> a.UInt32Step[step] |> bigint
 
             let readStep =
                 match fc.FType with
@@ -107,7 +107,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
                 | ROM1 _ | RAM1 _ -> step - 1
                 | _ -> failwithf $"What? {fc.FullName} should be a memory component"
 
-            let addrSteps step = getInt64 fc.InputLinks[0] step
+            let addrSteps step = getBigint fc.InputLinks[0] step
 
             let readOpt =
                 match step, fc.FType with
@@ -120,7 +120,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
                 | _, ROM1 _ 
                 | _, AsyncROM1 _
                 | 0, _ -> None
-                | _, RAM1 _ | _, AsyncRAM1 _ when getInt64 fc.InputLinks[2] (step-1) = 1L -> 
+                | _, RAM1 _ | _, AsyncRAM1 _ when getBigint fc.InputLinks[2] (step-1) = 1I -> 
                     addrSteps (step-1)
                     |> Some
                 | _ ->  
@@ -128,10 +128,10 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
 
             /// Mark addr in memory map as being rType
             /// if addr does not exist - create it
-            let addToMap rType addr mem:Map<int64,int64*RamRowType> =
+            let addToMap rType addr mem:Map<bigint,bigint*RamRowType> =
                 match Map.tryFind addr mem with
                 | Some (d,_) -> Map.add addr (d,rType) mem
-                | None  ->  Map.add addr (0L,rType) mem
+                | None  ->  Map.add addr (0I,rType) mem
     
 
             Map.map (fun k v -> v,RAMNormal) mem
@@ -147,16 +147,16 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
 
         /// add fake locations beyong normal address range so that
         /// addGapLines fills these (if need be). These locations are then removed
-        let addEndPoints (items:(int64*int64*RamRowType) list)  =
+        let addEndPoints (items:(bigint*bigint*RamRowType) list)  =
             let ad (a,d,rw) = a
             match items.Length with
-            | 0 -> [-1L,0L,RAMNormal;  lastLocation,0L,RAMNormal]
+            | 0 -> [-1I,0I,RAMNormal;  lastLocation, 0I, RAMNormal]
             | _ ->
-                if ad items[0] < 0L then items else List.insertAt 0 (-1L,-1L,RAMNormal) items
+                if ad items[0] < 0I then items else List.insertAt 0 (-1I,-1I,RAMNormal) items
                 |> (fun items ->
                     if ad items[items.Length-1] = lastLocation then 
                         items else 
-                    List.insertAt items.Length (lastLocation+1L,0L,RAMNormal) items)
+                    List.insertAt items.Length (lastLocation+1I,0I,RAMNormal) items)
     
 
         let lineItems =
@@ -164,7 +164,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             |> addReadWrite fc step
             |> Map.toList
             |> List.map (fun (a,(d,rw)) -> a,d,rw)
-            |> List.filter (fun (a,d,rw) -> d<>0L || rw <> RAMNormal)
+            |> List.filter (fun (a,d,rw) -> d<>0I || rw <> RAMNormal)
             |> List.sort
             |> addEndPoints 
             |> addGapLines

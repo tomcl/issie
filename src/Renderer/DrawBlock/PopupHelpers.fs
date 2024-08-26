@@ -148,7 +148,7 @@ let getMemorySetup (dialogData : PopupDialogData) wordWidthDefault =
 
 let getMemoryEditor (model: Model) =
     Option.defaultValue
-        { Address = None; OnlyDiff = false; NumberBase = Hex ; Start = 0L}
+        { Address = None; OnlyDiff = false; NumberBase = Hex ; Start = 0I}
         model.PopupDialogData.MemoryEditorData
 
 /// Unclosable popup.

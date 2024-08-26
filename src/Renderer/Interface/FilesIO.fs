@@ -264,16 +264,16 @@ let private tryLoadStateFromPath (filePath: string) =
             | Error msg  -> Result.Error <| sprintf "could not convert file '%s' to a valid issie design sheet. Details: %s" filePath msg
             | Ok res -> Ok res)
 
-let makeData aWidth dWidth makeFun =
+let makeData aWidth dWidth (makeFun: int -> int -> bigint) : Map<bigint,bigint>=
     let truncate n =
         match dWidth with
         | 64 -> n
-        | w -> ((1UL <<< w) - 1UL) &&& n
-        |> int64
+        | w -> ((1I <<< w) - 1I) &&& n
+       
     let a = aWidth / 2
     let inp = [|0..(1 <<< a) - 1|]
     Array.allPairs inp inp
-    |> Array.map (fun (x,y) -> int64 ((int64 x <<< a) + int64 y), truncate (uint64 (makeFun x y)))
+    |> Array.map (fun (x,y) -> bigint((x <<< a) + y), truncate (makeFun x y))
     |> Map.ofArray
 
 
@@ -287,15 +287,15 @@ let makeFixedROM addr data mem =
             
     match mem.Init, addr, data with
     | UnsignedMultiplier, a, d when a % 2 = 0 && a <= 16 ->
-        Ok <| makeData a d (fun (x:int) (y:int) -> (x * y) % (1 <<< d))
+        Ok <| makeData a d (fun (x:int) (y:int) -> bigint((x * y) % (1 <<< d)))
     | SignedMultiplier, a, d when a % 2 = 0 && a <= 16 ->
         let w = a / 2
-        Ok <| makeData a d (fun (x:int) (y:int) -> (signExtend w x * signExtend w y) &&& ((1 <<< d) - 1))
+        Ok <| makeData a d (fun (x:int) (y:int) -> bigint((signExtend w x * signExtend w y) &&& ((1 <<< d) - 1)))
     | FromData,_, _ -> Ok mem.Data
     | _ -> failwithf $"addr={addr}, data={data}, int={mem.Init} not allowed in makeFixedROM"
 
 let jsonStringToMem (jsonString : string) =
-     Json.tryParseAs<Map<int64,int64>> jsonString
+     Json.tryParseAs<Map<bigint,bigint>> jsonString
 
 
 
@@ -447,7 +447,7 @@ let readMemDefnLine (addressWidth:int) (wordWidth: int) (lineNo: int) (s:string)
         let addrNum = NumberHelpers.strToIntCheckWidth addressWidth addr
         let dataNum = NumberHelpers.strToIntCheckWidth wordWidth data
         match addrNum,dataNum with
-        | Ok a, Ok d -> Ok (int64 a, int64 d)
+        | Ok a, Ok d -> Ok (a, d)
         | Error aErr,_ -> Error $"Line {lineNo}:'%s{s}' has invalid address ({addr}). {aErr}"
         | _, Error dErr -> Error $"Line '%s{s}' has invalid data item ({data}). {dErr}"
     | x -> Error $"Line {lineNo}:'%s{s}' has {x.Length} items: valid lines consist of two numbers"
@@ -489,7 +489,7 @@ let writeMemDefns (fPath: string) (mem: Memory1) =
     try
         Map.toArray mem.Data
         |> Array.sortBy fst
-        |> Array.map (fun (a,b) -> $"{NumberHelpers.hex64 a}\t{NumberHelpers.hex64 b}")
+        |> Array.map (fun (a,b) -> $"{NumberHelpers.hexBignum a}\t{NumberHelpers.hexBignum b}")
         |> String.concat "\n"
         |> writeFile fPath
         |> Ok

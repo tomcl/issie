@@ -109,7 +109,7 @@ let makeAsyncRomModule (moduleName: string) (mem: Memory1) =
     let romInits =
         mem.Data
         |> Map.toArray
-        |> Array.map (fun (a, d) -> sprintf $"rom[%d{a}] = %d{d};")
+        |> Array.map (fun (a, d) -> sprintf $"rom[%A{a}] = %A{d};")
         |> String.concat "\n"
 
     sprintf
@@ -142,7 +142,7 @@ let makeRomModule (moduleName: string) (mem: Memory1) =
     let romInits =
         mem.Data
         |> Map.toArray
-        |> Array.map (fun (a, d) -> sprintf $"rom[%d{a}] = %d{d};")
+        |> Array.map (fun (a, d) -> sprintf $"rom[%A{a}] = %A{d};")
         |> String.concat "\n"
 
     sprintf
@@ -175,7 +175,7 @@ let makeRamModule (moduleName: string) (mem: Memory1) =
     let ramInits =
         mem.Data
         |> Map.toArray
-        |> (Array.map (fun (a, d) -> sprintf $"ram[%d{a}] = %d{d};"))
+        |> (Array.map (fun (a, d) -> sprintf $"ram[%A{a}] = %A{d};"))
         |> String.concat "\n"
 
     sprintf
@@ -215,7 +215,7 @@ let makeAsyncRamModule (moduleName: string) (mem: Memory1) =
     let ramInits =
         mem.Data
         |> Map.toArray
-        |> (Array.map (fun (a, d) -> sprintf $"ram[%d{a}] = %d{d};"))
+        |> (Array.map (fun (a, d) -> sprintf $"ram[%A{a}] = %A{d};"))
         |> String.concat "\n"
 
     sprintf

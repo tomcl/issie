@@ -254,17 +254,17 @@ module SymbolT =
         | ColorSymbols of compList : ComponentId list * colour : HighLightColor
         | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
         | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
-        | ChangeLsb of compId: ComponentId * NewBits:int64 
+        | ChangeLsb of compId: ComponentId * NewBits:bigint 
         | ChangeInputValue of compId: ComponentId * newVal: int
         | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
         | ChangeConstant of compId: ComponentId * NewBits:bigint * NewText:string
-        | ChangeBusCompare of compId: ComponentId * NewBits:uint32 * NewText:string
+        | ChangeBusCompare of compId: ComponentId * NewBits:bigint * NewText:string
         | ChangeReversedInputs of compId: ComponentId
         | ChangeAdderComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
-        | WriteMemoryLine of ComponentId * int64 * int64 // For Issie Integration 
+        | WriteMemoryLine of ComponentId * bigint * bigint // For Issie Integration 
         | WriteMemoryType of ComponentId * ComponentType
         | UpdateMemory of ComponentId * (Memory1 -> Memory1)
         | RotateLeft of compList : ComponentId list * Rotation

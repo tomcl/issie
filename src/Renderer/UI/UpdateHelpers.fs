@@ -808,7 +808,7 @@ let resetDialogIfSelectionHasChanged newModel oldModel : Model =
         )
     else newModel
 
-let updateComponentMemory (addr:int64) (data:int64) (compOpt: Component option) =
+let updateComponentMemory (addr:bigint) (data:bigint) (compOpt: Component option) =
     match compOpt with
     | None -> None
     | Some ({Type= (AsyncROM1 mem as ct)} as comp)

@@ -317,7 +317,7 @@ type FastAlgExp =
     | DataLiteral of FastData
     | UnaryExp of Op: UnaryOp * Exp: FastAlgExp
     | BinaryExp of Exp1: FastAlgExp * Op: BinaryOp * Exp2: FastAlgExp
-    | ComparisonExp of Exp: FastAlgExp * Op: ComparisonOp * uint32
+    | ComparisonExp of Exp: FastAlgExp * Op: ComparisonOp * bigint
     | AppendExp of FastAlgExp list
 
 /// Calculates and returns the expected width of an Algebraic Expression

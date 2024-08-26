@@ -87,13 +87,13 @@ let private textFormFieldSimple name defaultValue onChange =
     ]
 
 
-let private intFormField name (width:string) defaultValue minValue onChange =
+let private intFormField name (width:string) (defaultValue: int) (minValue: int)  onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.number [
             Input.Props [Style [Width width]; Min minValue]
-            Input.DefaultValue <| sprintf "%d" defaultValue
-            Input.OnChange (getIntEventValue >> onChange)
+            Input.DefaultValue <| sprintf "%A" defaultValue
+            Input.OnChange (getBigintEventValue >> onChange)
         ]
     ]
 
@@ -514,6 +514,7 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
     intFormField title "60px" width 1 (
         fun newWidth ->
+            let newWidth = int newWidth
             if newWidth < 1
             then
                 let props = errorPropsNotification "Invalid number of bits."
@@ -557,6 +558,7 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
 
         intFormField title "60px" nInp 2 (
             fun newInpNum ->
+                let newInpNum = int newInpNum
                 if newInpNum >= 2 && newInpNum <= Constants.maxGateInputs then
                     model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) oldType newInpNum
                     dispatch <| SetPopupDialogInt (Some newInpNum)
@@ -589,6 +591,7 @@ let private changeMergeN model (comp:Component) dispatch =
 
         intFormField title "60px" nInp 2 (
             fun newInpNum ->
+                let newInpNum = int newInpNum
                 if newInpNum >= 2 && newInpNum <= Constants.maxSplitMergeBranches then
                     model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newInpNum
                     dispatch <| SetPopupDialogInt (Some newInpNum)
@@ -639,6 +642,7 @@ let private changeSplitN model (comp:Component) dispatch =
 
         intFormField title "60px" nInp 2 (
             fun newInpNum ->
+                let newInpNum = int newInpNum
                 if newInpNum >= 2 && newInpNum <= Constants.maxSplitMergeBranches then
                     let newWidths = changeWidths widths newInpNum 1
                     let newLsbs = changeLsbs lsbs widths newInpNum
@@ -696,6 +700,7 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
     
     intFormField title "60px" defValue 0 (
         fun newValue ->
+            let newValue = int newValue
             // Check if value is within bit range
             match NumberHelpers.checkWidth width (bigint newValue) with
             | Some msg ->
@@ -794,7 +799,7 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let lsbPos, infoText =
         match comp.Type with 
-        | BusSelection(width,lsb) -> uint32 lsb, "Least Significant Bit number selected: lsb"
+        | BusSelection(width,lsb) -> bigint lsb, "Least Significant Bit number selected: lsb"
         | BusCompare(width,cVal) -> cVal, "Compare with"
         | BusCompare1(width,cVal,text) -> cVal, "Compare with"
         | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
@@ -802,25 +807,25 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
     match comp.Type with
     | BusCompare(width, _) -> 
         intFormField infoText "120px"  (int lsbPos) 1  (
-            fun cVal ->
-                if cVal < 0 || uint32 cVal > uint32 ((1 <<< width) - 1)
+            fun (cVal: bigint)->
+                if cVal < 0I || cVal > (1I <<< width) - 1I
                 then
                     let note = errorPropsNotification <| sprintf "Invalid Comparison Value for bus of width %d" width
                     dispatch <| SetPropertiesNotification note
                 else
-                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) (int64 cVal)
+                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) cVal
                     dispatch (ReloadSelectedComponent (width)) // reload the new component
                     dispatch ClosePropertiesNotification
         )
     | BusSelection(width, _) -> 
         intFormField infoText "60px" (int lsbPos) 1 (
             fun newLsb ->
-                if newLsb < 0
+                if newLsb < 0I
                 then
                     let note = errorPropsNotification "Invalid LSB bit position"
                     dispatch <| SetPropertiesNotification note
                 else
-                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) (int64 newLsb)
+                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) (newLsb)
                     dispatch (ReloadSelectedComponent (width)) // reload the new component
                     dispatch ClosePropertiesNotification
         )

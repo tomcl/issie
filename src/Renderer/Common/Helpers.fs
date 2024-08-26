@@ -245,13 +245,13 @@ let cropToLength (len : int) (fromStart : bool) (str : string) =
     | false -> "..." + str[str.Length - len..]     // From end.
 
 
-let getMemData (address: int64) (memData: Memory1) =
+let getMemData (address: bigint) (memData: Memory1) =
 #if ASSERTS
     assertThat (memData.AddressWidth > 63 || (1UL <<< memData.AddressWidth) > (uint64 address)) (
         sprintf "Inconsistent memory access: address %A, memData %A" address memData)
 #endif
     Map.tryFind address memData.Data
-    |> Option.defaultValue 0L
+    |> Option.defaultValue 0I
 
 /// Returns a new array with the elements at index i1 and index i2 swapped
 let swapArrayEls i1 i2 (arr: 'a[]) =

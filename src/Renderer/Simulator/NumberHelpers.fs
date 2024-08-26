@@ -16,8 +16,10 @@ module Constants =
     let maxHexOnlyDisplayWidth = 16
     /// width at which binary numbers are displayed as (more compact) hex numbers.
     let maxBinaryDisplayWidth = 32
-    /// max width of an Issie Constant component
-    let maxConstantWidth = 2048
+    /// Max width of an Issie bus. There is no real need for any restriction.
+    /// since all code is bigint based, but this is a reasonable limit.
+    /// There are performance & UI issues for very large busses.
+    let maxIssieBusWidth = 16384
     /// max no of chars displayed before display functions truncate result
     let maxNumericCharsBeforeTruncation = 80
 

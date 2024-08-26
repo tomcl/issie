@@ -165,10 +165,7 @@ module CommonTypes
         AddressWidth : int 
         // How wide each memory word should be, in bits.
         WordWidth : int
-        // Data is a list of <2^AddressWidth> elements, where each element is a
-        // 64 bit integer. This makes words longer than 64 bits not supported.
-        // This can be changed by using strings instead of int64, but that is way
-        // less memory efficient.
+        /// Sparse representation: elements not in Map are assumed zero
         Data : Map<bigint,bigint>
     }
 
@@ -183,17 +180,14 @@ module CommonTypes
 
 
     type Memory1 = {
-    // is the data initialised from a file name.ram in the project directory, or some other way?
+    /// Is the data initialised from a file name.ram in the project directory, or some other way?
     Init: InitMemData
-    // How many bits the address should have.
-    // The memory will have 2^AddressWidth memory locations.
+    /// How many bits the address should have.
+    /// The memory will have 2^AddressWidth memory locations.
     AddressWidth : int 
-    // How wide each memory word should be, in bits.
+    /// How wide each memory word should be, in bits.
     WordWidth : int
-    // Data is a list of <2^AddressWidth> elements, where each element is a
-    // 64 bit integer. This makes words longer than 64 bits not supported.
-    // This can be changed by using strings instead of int64, but that is way
-    // less memory efficient.
+    /// Sparse represnetation: addresses not in map contain zero
     Data : Map<bigint,bigint>  
     } 
 
@@ -229,7 +223,7 @@ module CommonTypes
     // deleted case into a case here which still exists.
     type ComponentType =
         // Legacy component: to be deleted
-        | Input1 of BusWidth: int * DefaultValue: int option
+        | Input1 of BusWidth: int * DefaultValue: bigint option
         | Output of BusWidth: int
         | Viewer of BusWidth: int
         | IOLabel
@@ -458,7 +452,7 @@ module CommonTypes
             // Legacy component: to be deleted
             //-----The cases here must be identical, and same order, as the main ComponentType (just copy the code!)----//
             // This allows unboxing to implement JSONComponent.Component <--> Component type conversion
-            | Input1 of BusWidth: int * DefaultValue: int option
+            | Input1 of BusWidth: int * DefaultValue: bigint option
             | Output of BusWidth: int
             | Viewer of BusWidth: int
             | IOLabel

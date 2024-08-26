@@ -111,10 +111,10 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
             | Input1(w, defaultVal) ->
                 match defaultVal with
                 | Some defaultVal -> defaultVal
-                | None -> 0
+                | None -> 0I
             | _ ->
                 printf "non-input type component in initInput"
-                0
+                0I
             |> uint32
         //printfn "Init input..."
         // REVIEW - Input initialisation is no longer required
@@ -218,10 +218,10 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
             | Input1(w, defaultVal) ->
                 match defaultVal with
                 | Some defaultVal -> defaultVal
-                | None -> 0
+                | None -> 0I
             | _ ->
                 printf "non-input type component in initInput"
-                0
+                0I
             |> uint32
         //printfn "Init input..."
         fc.InputLinks[0].FDataStep
@@ -552,7 +552,7 @@ let private setInputstoDefault (fastSim: FastSimulation) =
             | Some defaultVal -> 
                 let vec = fc.Outputs[0]
                 if vec.Width > 32 then
-                    vec.BigIntStep[0] <- bigint defaultVal
+                    vec.BigIntStep[0] <- defaultVal
                 else
                     vec.UInt32Step[0] <- uint32 defaultVal
             | None -> ()

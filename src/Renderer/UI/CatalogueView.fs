@@ -109,7 +109,7 @@ let private makeVerilogList styles model dispatch =
 
 
 
-let private createInputPopup typeStr (compType: int * int option -> ComponentType) (model:Model) (dispatch: Msg -> unit) =
+let private createInputPopup typeStr (compType: int * bigint option -> ComponentType) (model:Model) (dispatch: Msg -> unit) =
     let title = sprintf "Add %s node" typeStr
     let beforeText =
         fun _ -> str <| sprintf "How do you want to name your %s?" typeStr
@@ -128,7 +128,7 @@ let private createInputPopup typeStr (compType: int * int option -> ComponentTyp
             // TODO: repeat this throughout this file and selectedcomponentview (use functions)
             let inputText = getText dialogData
             let widthInt = getInt dialogData
-            let defaultValueInt = int (getInt2 dialogData)
+            let defaultValueInt = getInt2 dialogData
             createComponent (compType (widthInt, Some defaultValueInt)) (MenuHelpers.formatLabelFromType (compType (widthInt, Some defaultValueInt)) inputText) model dispatch
             dispatch ClosePopup
     let isDisabled =

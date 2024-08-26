@@ -86,8 +86,8 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
     |> Map.toList
     |> List.map (fun ( _, (cid, (w,defaultVal ))) -> 
         match w,defaultVal with
-        | _, Some defaultVal -> cid, convertInt64ToFastData w (int64 defaultVal)
-        | _, None -> cid, convertIntToFastData w 0u)
+        | _, Some defaultVal -> cid, convertBigintToFastData w defaultVal
+        | _, None -> cid, convertBigintToFastData w 0I)
     |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
 
 let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
@@ -99,13 +99,13 @@ let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
         if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
             let newDefault =
                 if fc.OutputWidth 0 > 32 then
-                    convertBigintToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+                    fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
                 else
-                    int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+                    bigint fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
             let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
             match typ with
             | Input1(_, Some d) -> d = newDefault
-            | _ -> newDefault = 0
+            | _ -> newDefault = 0I
         else
             true)
     |> Map.values
@@ -121,14 +121,14 @@ let InputDefaultsEqualInputsRefresh fs (model:Model) =
             let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
             let currdefault = match typ with
                                     | Input1(_, Some d) -> d
-                                    | _ -> 0
+                                    | _ -> 0I
             let outputarray =
                 if fc.OutputWidth 0 > 32 then
-                    Array.map (fun x -> convertBigintToInt32 x) fc.Outputs[0].BigIntStep
+                    fc.Outputs[0].BigIntStep
                 else
-                    Array.map (fun x -> int x) fc.Outputs[0].UInt32Step
+                    Array.map (fun (x: uint32) -> twosComp (fc.OutputWidth 0) (bigint x)) fc.Outputs[0].UInt32Step
             let slicedArray = Array.sub outputarray 0 ((tick+1) % fs.MaxArraySize)
-            let areAllElementsSame (arr: int32 array) =
+            let areAllElementsSame (arr: bigint array) =
                 match tick with
                 | n when n < 2 ->
                     true
@@ -142,7 +142,7 @@ let InputDefaultsEqualInputsRefresh fs (model:Model) =
 
 
 let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
-    let setInputDefault (newDefault: int) (sym: SymbolT.Symbol) =
+    let setInputDefault (newDefault: bigint) (sym: SymbolT.Symbol) =
         let comp = sym.Component
         let comp' = 
             let ct =
@@ -158,10 +158,10 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
         let cid = fst fid
         let newDefault =
             if fc.OutputWidth 0 > 32 then
-                convertBigintToInt32 fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
+                fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
             else
-                int fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
-        SymbolUpdate.updateSymbol (setInputDefault (int newDefault)) cid
+                bigint fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+        SymbolUpdate.updateSymbol (setInputDefault newDefault) cid
         |> Optic.map DrawModelType.SheetT.symbol_
         |> Optic.map ModelType.sheet_
         |> UpdateModel

@@ -12,9 +12,12 @@ open Helpers
 open SimulatorTypes
 
 module Constants =
+    /// width at which numbers that display as very small signe ddecimal numbers are so displayed
+    let maxHexOnlyDisplayWidth = 16
+    /// width at which binary numbers are displayed as (more compact) hex numbers.
     let maxBinaryDisplayWidth = 32
-    /// max width of an Issie Constant components
-    let maxConstantWidth = 256
+    /// max width of an Issie Constant component
+    let maxConstantWidth = 2048
     /// max no of chars displayed before display functions truncate result
     let maxNumericCharsBeforeTruncation = 80
 
@@ -222,7 +225,7 @@ let rec bigValToString (radix: NumberBase) (x: System.Numerics.BigInteger) =
 
 
 
-/// Convert int64 to string according to radix.
+/// Convert bigint to string according to radix.
 /// binary and hex numbers are zero padded to width
 /// binary is displayed as hex if width > 8
 let valToPaddedString (width: int) (radix: NumberBase) (value: bigint) : string =
@@ -280,7 +283,12 @@ let fastDataToPaddedString maxChars radix (fd: FastData) =
 
         valToPaddedString fd.Width displayRadix (bigint signExtendedW)
 
-    | BigWord big -> bigValToPaddedString fd.Width displayRadix big
+    | BigWord big ->
+        let displayRadix =
+            match displayRadix with
+            | Hex when fd.Width > Constants.maxHexOnlyDisplayWidth && (decBignum big).Length < 3 -> Hex
+            | r -> r
+        bigValToPaddedString fd.Width displayRadix big
     |> (fun s ->
         match s.Length < maxChars with
         | true -> s // no change needed
@@ -442,22 +450,6 @@ let convertWireDataToInt (bits: WireData) : bigint =
 
     convert bits 0
 
-let convertInt64ToFastData (width: int) (n: int64) =
-    let n' = uint64 n
-
-    let dat =
-        if width > 32 then
-            BigWord(bigint n' % (1I <<< width))
-        else
-            let mask =
-                if width = 32 then
-                    0xFFFFFFFFu
-                else
-                    (1u <<< width) - 1u
-            Word(uint32 n' &&& mask)
-
-    { Dat = dat; Width = width }
-
 let convertIntToFastData (width: int) (n: uint32) =
     if width <= 32 then
         { Dat = Word n; Width = width }
@@ -505,7 +497,7 @@ let convertFastDataToInt (d: FastData) =
     | BigWord _ -> failwithf $"Can't convert {d.Dat} to integer"
 
 /// Lossy conversion of bigint to int32 without exceptions
-/// TODO: change this - and all dependencies with 32 bit int - to int64
+/// TODO: change this - and all dependencies with 32 bit int - to bigint?
 let convertFastDataToInt32 (d: FastData) =
     match d.Dat with
     | Word n -> int32 n
@@ -513,18 +505,6 @@ let convertFastDataToInt32 (d: FastData) =
 
 let convertBigintToInt32 (b: bigint) = int32 (b &&& bigint 0xffffffff)
 
-let convertInt64ToUInt32 (width: int) (n: int64) =
-    let n' = uint64 n
-    let mask =
-        if width = 32 then
-            0xFFFFFFFFu
-        else
-            (1u <<< width) - 1u
-    uint32 n' &&& mask
-
-let convertInt64ToBigInt (width: int) (n: int64) =
-    let n' = uint64 n
-    bigint n' % (1I <<< width)
 
 let rec convertFastDataToWireData (fastDat: FastData) =
     let bigToWire width big =
@@ -556,17 +536,7 @@ let convertWireDataToFastData (wd: WireData) =
 
 let emptyFastData = { Width = 0; Dat = Word 0u }
 
-/// Try to convert a string to an int, or return an error message if that was
-/// not possible.
-let strToInt (str: string) : Result<int64, string> =
-    let removeCommas (str: string) =
-        str.Replace(",", "")
-    let str = str.ToLower()
-    let str = if str.Length > 1 && str[0] = 'x' || str[0]='b' then "0" + str else str
-    try
-        str |> removeCommas |> int64 |> Ok
-    with _ ->
-        Error <| "Invalid number."
+
 
 /// Try to convert a string to a bigint, or return an error message if that was
 /// not possible.
@@ -640,12 +610,12 @@ let strToIntCheckWidth (width: int) (str: string) : Result<bigint, string> =
             | None -> Ok num
             | Some err -> Error err)
 
-let convertBinToDec (bits: string) : int64 =
+let convertBinToDec (bits: string) : bigint =
     let rec convert bits idx =
         match bits with
-        | [] -> int64 0
+        | [] -> 0I
         | '0' :: bits' -> convert bits' (idx - 1)
-        | '1' :: bits' -> pow2int64(idx) + convert bits' (idx - 1)
+        | '1' :: bits' -> (1I <<< idx) + convert bits' (idx - 1)
         | _ -> failwithf "Not binary input, should not happen!"
     convert ((bits.ToCharArray()) |> Array.toList) (bits.Length-1)
     
@@ -654,7 +624,7 @@ let convertBinToDec (bits: string) : int64 =
 let toDecimal (num: string) numBase (width:string) =
     let width = width |> int
     match numBase with
-    | "'d" -> num |> int64
+    | "'d" -> num |> bigint.Parse
     | "'b" -> num |> convertBinToDec
     | "'h" -> 
         num.ToLower()  |> hexToBin |> convertBinToDec

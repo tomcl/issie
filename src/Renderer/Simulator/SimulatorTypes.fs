@@ -24,7 +24,7 @@ type Bit =
     | One
 
 /// Fixed width bus data used in simulation
-/// TODO: refactor as int64 or bigint for efficiency
+/// TODO: refactor as bigint for efficiency
 /// The list is little-endian: the LSB is at index 0, and the MSB is at index N-1,
 /// where N is the length of the list.
 type WireData = Bit list
@@ -1077,14 +1077,6 @@ type FData =
         match this with
         | Data fd -> fd
         | _ -> failwithf "Expected data, found Alg FData"
-
-    member this.toInt64 =
-        match this with
-        | Data { Width = w } when w > 64 -> failwithf "Help! Can't convert numbers wider than 64 bits to int64."
-        | Data { Dat = Word w } -> int64 (uint64 w)
-        | Data { Dat = BigWord w } -> int64 (uint64 w)
-
-        | _ -> failwithf "Can't convert Alg style FData to int64"
 
 /// Wrapper to allow arrays to be resized for longer simulations while keeping the links between inputs
 /// and outputs

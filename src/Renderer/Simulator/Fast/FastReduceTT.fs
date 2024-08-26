@@ -276,7 +276,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             let inputNum = convertFastDataToBigint bits
 
             let outNum: FData =
-                if inputNum = (bigint compareVal) then
+                if inputNum = compareVal then
                     1u
                 else
                     0u
@@ -302,7 +302,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             let inputNum = convertFastDataToBigint bits
 
             let outNum: FData =
-                if inputNum = (bigint compareVal) then
+                if inputNum = compareVal then
                     1u
                 else
                     0u

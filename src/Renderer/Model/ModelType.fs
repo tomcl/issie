@@ -61,8 +61,8 @@ type SimSubTab =
 
 type MemoryEditorData = {
     OnlyDiff : bool // Only show diffs in Memory Diff Viewer.
-    Address : int64 option // Only show the specified memory address.
-    Start: int64
+    Address : bigint option // Only show the specified memory address.
+    Start: bigint
     NumberBase : NumberBase
 }
 
@@ -454,7 +454,7 @@ type Msg =
     | SetPopupProgress of PopupProgress option
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
     | SimulateWithProgressBar of SimulationProgress
-    | SetSelectedComponentMemoryLocation of int64 * int64
+    | SetSelectedComponentMemoryLocation of bigint * bigint
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
     | CloseSimulationNotification

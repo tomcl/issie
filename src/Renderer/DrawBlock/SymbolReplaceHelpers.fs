@@ -47,14 +47,14 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
 
 
 /// Helper function to change the number of bits expected in the LSB port of BusSelection and BusCompare
-let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:int64) =
+let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:bigint) =
     let symbol = Map.find compId symModel.Symbols
 
     let newcompotype = 
         match symbol.Component.Type with
         | BusSelection (w, _) -> BusSelection (w, int32(newLsb))
-        | BusCompare (w, _) -> BusCompare (w, uint32(newLsb))
-        | Constant1(w, _,txt) -> Constant1 (w, bigint newLsb,txt)
+        | BusCompare (w, _) -> BusCompare (w, newLsb)
+        | Constant1(w, _,txt) -> Constant1 (w, newLsb,txt)
         | _ -> failwithf "this shouldnt happen, incorrect call of message changeLsb"
 
     set (component_ >-> type_) newcompotype symbol
@@ -81,7 +81,7 @@ let changeConstantf (symModel:Model) (compId:ComponentId) (constantVal:bigint) (
     set (component_ >-> type_) newcompotype symbol
 
 /// Updates the value of a busCompare1 component and returns the updated symbol
-let changeBusComparef (symModel:Model) (compId:ComponentId) (constantVal:uint32) (constantText: string) =
+let changeBusComparef (symModel:Model) (compId:ComponentId) (constantVal:bigint) (constantText: string) =
     let symbol = Map.find compId symModel.Symbols
     let newcompotype = 
         match symbol.Component.Type with

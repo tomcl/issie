@@ -54,60 +54,57 @@ let inline packBitFData (bit: uint32) : FData =
 
 /// Read the content of the memory at the specified address.
 let private readMemoryAddrUInt32DataUInt32 (mem: Memory1) (address: uint32) : uint32 =
-    let outDataInt = Helpers.getMemData (int64 address) mem
-    convertInt64ToUInt32 mem.WordWidth outDataInt
+    let outDataInt = Helpers.getMemData (bigint address) mem
+    convertBigintToUInt32 mem.WordWidth outDataInt
 
 let readMemoryAddrUInt32DataBigInt (mem: Memory1) (address: uint32) : bigint =
-    let outDataInt = Helpers.getMemData (int64 address) mem
-    convertInt64ToBigInt mem.WordWidth outDataInt
+    Helpers.getMemData (bigint address) mem
 
 let readMemoryAddrBigIntDataUInt32 (mem: Memory1) (address: bigint) : uint32 =
-    let intAddr = convertBigIntToUInt64 mem.AddressWidth address
-    let outDataInt = Helpers.getMemData (int64 intAddr) mem
-    convertInt64ToUInt32 mem.WordWidth outDataInt
+    let intAddr = convertBigintToUInt64 mem.AddressWidth address
+    let outDataInt = Helpers.getMemData (bigint intAddr) mem
+    convertBigintToUInt32 mem.WordWidth outDataInt
 
 let readMemoryAddrBigIntDataBigInt (mem: Memory1) (address: bigint) : bigint =
-    let intAddr = convertBigIntToUInt64 mem.AddressWidth address
-    let outDataInt = Helpers.getMemData (int64 intAddr) mem
-    convertInt64ToBigInt mem.WordWidth outDataInt
+    Helpers.getMemData address mem
 
 let readMemoryFData (mem: Memory1) (address: FData) : FData =
     match address with
     | Alg _ -> failwithf "Can't read memory from Algebra"
     | Data addr ->
-        let intAddr = convertFastDataToInt64 addr
-        let outDataInt = Helpers.getMemData (int64 intAddr) mem
-        convertInt64ToFastData mem.WordWidth outDataInt
+        let addr = convertFastDataToBigint addr
+        Helpers.getMemData addr mem
+        |> convertBigintToFastData mem.AddressWidth
         |> Data
 
 /// Write the content of the memory at the specified address.
 let writeMemory (mem: Memory1) (address: FastData) (data: FastData) : Memory1 =
-    let intAddr = int64 <| convertFastDataToInt64 address
-    let intData = int64 <| convertFastDataToInt64 data
+    let intAddr = convertFastDataToBigint address
+    let intData = convertFastDataToBigint data
 
     { mem with Data = Map.add intAddr intData mem.Data }
 
 let writeMemoryAddrUInt32DataUInt32 (mem: Memory1) (address: uint32) (data: uint32) : Memory1 =
-    let intAddr = int64 <| uint64 address
-    let intData = int64 <| uint64 data
+    let intAddr = twosComp mem.AddressWidth (bigint address)
+    let intData = twosComp mem.WordWidth (bigint data)
 
     { mem with Data = Map.add intAddr intData mem.Data }
 
 let writeMemoryAddrUInt32DataBigInt (mem: Memory1) (address: uint32) (data: bigint) : Memory1 =
-    let intAddr = int64 <| uint64 address
-    let intData = int64 <| convertBigIntToUInt64 mem.WordWidth data
+    let intAddr = twosComp mem.AddressWidth  (bigint address)
+    let intData = twosComp mem.WordWidth data
 
     { mem with Data = Map.add intAddr intData mem.Data }
 
 let writeMemoryAddrBigIntDataUInt32 (mem: Memory1) (address: bigint) (data: uint32) : Memory1 =
-    let intAddr = int64 <| convertBigIntToUInt64 mem.AddressWidth address
-    let intData = int64 <| uint32 data
+    let intAddr = twosComp mem.AddressWidth address
+    let intData = twosComp mem.WordWidth (bigint data)
 
     { mem with Data = Map.add intAddr intData mem.Data }
 
 let writeMemoryAddrBigIntDataBigInt (mem: Memory1) (address: bigint) (data: bigint) : Memory1 =
-    let intAddr = int64 <| convertBigIntToUInt64 mem.AddressWidth address
-    let intData = int64 <| convertBigIntToUInt64 mem.WordWidth data
+    let intAddr = twosComp mem.AddressWidth address
+    let intData = twosComp mem.WordWidth data
 
     { mem with Data = Map.add intAddr intData mem.Data }
 
@@ -331,7 +328,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             checkWidth width (comp.OutputWidth 0)
             putBigInt 0 bits
     | Constant1(width, cVal, _), false
-    | Constant(width, cVal), false -> putUInt32 0 <| uint32 (convertBigIntToInt32 cVal)
+    | Constant(width, cVal), false -> putUInt32 0 <| uint32 (convertBigintToInt32 cVal)
     | Constant1(width, cVal, _), true
     | Constant(width, cVal), true -> putBigInt 0 <| cVal
     | Output width, false ->
@@ -404,7 +401,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let bits = insUInt32 0
         let inputNum = bigint bits
         let outNum =
-            if inputNum = (bigint compareVal) then
+            if inputNum = compareVal then
                 1u
             else
                 0u
@@ -421,7 +418,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let bits = insBigInt 0
         let inputNum = bits
         let outNum =
-            if inputNum = (bigint compareVal) then
+            if inputNum = compareVal then
                 1u
             else
                 0u

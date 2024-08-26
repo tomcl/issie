@@ -737,9 +737,9 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
             match circType,expr.Operator with
                 |"reduction",Some "&" 
                 |"reduction",Some "~&" 
-                    -> createComponent (BusCompare (c1.OutWidth, (((2. ** c1.OutWidth)-1.) |> uint32))) "COMP"      
+                    -> createComponent (BusCompare (c1.OutWidth, (((1I <<< c1.OutWidth) - 1I)))) "COMP"      
                 |_,_ -> //Some "|" or Some "!" or Some "~|"
-                    createComponent (BusCompare (c1.OutWidth,0u)) "COMP"
+                    createComponent (BusCompare (c1.OutWidth,0I)) "COMP"
 
         let busCompareCircuit = {Comps=[busCompareComp];Conns=[];Out=busCompareComp.OutputPorts[0];OutWidth=1}
 
@@ -762,7 +762,7 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         let xorComp = createComponent (NbitsXor (c1.OutWidth, None)) "xor" 
         let xorCircuit ={Comps=[xorComp]; Conns=[]; Out=xorComp.OutputPorts[0]; OutWidth=c1.OutWidth}
         let xorCircuit' = joinCircuits [c1;c2] [xorComp.InputPorts[0]; xorComp.InputPorts[1]] xorCircuit 
-        let busCompare = createComponent (BusCompare (c1.OutWidth,uint32 0)) "COMP"
+        let busCompare = createComponent (BusCompare (c1.OutWidth,0I)) "COMP"
         let compCircuit = {Comps=[busCompare]; Conns=[]; Out=busCompare.OutputPorts[0]; OutWidth=1}
         let comparedCircuit = joinCircuits [xorCircuit'] [busCompare.InputPorts[0]] compCircuit
         match expr.Operator with
@@ -797,9 +797,9 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         let busCompare =
             match expr.Operator with 
             | Some "<=" | Some ">" -> // compare msb to 1
-                createComponent (BusCompare (1, uint32 0)) "COMP"
+                createComponent (BusCompare (1, 0I)) "COMP"
             | Some ">=" | Some "<" -> // compare msb to 0
-                createComponent (BusCompare (1, uint32 1)) "COMP"
+                createComponent (BusCompare (1, 1I)) "COMP"
             | _ -> failwithf "Invalid comparison operator!"
         let busCompareCircuit = {Comps=[busCompare]; Conns=[]; Out=busCompare.OutputPorts[0]; OutWidth=1}
         let compareCircuit = joinCircuits [MSB] [busCompare.InputPorts[0]] busCompareCircuit
@@ -1140,7 +1140,7 @@ let rec multiplexerNto1Circuit (inputs: List<Circuit>) (sel: Circuit) : Circuit 
 let multiplexerCircuit (inputs: List<int64*Circuit>) (condition: Circuit) (defaultInput: Circuit): Circuit =
     (defaultInput, inputs)
     ||> List.fold (fun prevCircuit (caseItem, inputCircuit) ->
-        let busComparator = createComponent (BusCompare (condition.OutWidth,uint32 caseItem)) "CMP"
+        let busComparator = createComponent (BusCompare (condition.OutWidth, bigint caseItem)) "CMP"
         let topCircuit = {Comps=[busComparator];Conns=[];Out=busComparator.OutputPorts[0];OutWidth=1}
         let condCircuit = joinCircuits [condition] [busComparator.InputPorts[0]] topCircuit
         let mux2 = createComponent Mux2 "mux2"
@@ -1230,7 +1230,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                 | Some stmt -> compileModule (Statement stmt) varToCompMap currCircuits
                 | _ -> currCircuits
             let condCircuit = mainExpressionCircuitBuilder cond.IfStatement.Condition varToCompMap varSizeMap 0// need to reduce it to 1 bit
-            let comp = createComponent (BusCompare (condCircuit.OutWidth,uint32 0)) "CMP"
+            let comp = createComponent (BusCompare (condCircuit.OutWidth, 0I)) "CMP"
             let topCircuit = {Comps=[comp];Conns=[];Out=comp.OutputPorts[0];OutWidth=1}
             let condCircuitN = joinCircuits [condCircuit] [comp.InputPorts[0]] topCircuit
             (currCircuits, ifCircuits)

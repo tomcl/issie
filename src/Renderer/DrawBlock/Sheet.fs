@@ -204,7 +204,7 @@ module SheetInterface =
 
 
         /// Given a compId and a LSB, update the LSB of the Component specified by compId
-        member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: int64) =
+        member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: bigint) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeLsb (compId, lsb) ) ) )
 
         member this.ChangeInputValue (dispatch: Dispatch<Msg>) (compId: ComponentId) (newVal: int) =

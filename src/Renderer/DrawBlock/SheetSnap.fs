@@ -97,7 +97,7 @@ let symbolMatch (symbol: SymbolT.Symbol) =
 
     | BusCompare _
     | BusSelection _ -> 
-        BusCompare (0,0u)
+        BusCompare (0,0I)
 
     | Constant _
     | Constant1 _ -> 

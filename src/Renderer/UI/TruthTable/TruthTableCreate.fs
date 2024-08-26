@@ -86,7 +86,7 @@ let tableLHS (inputs: SimulationIO list) (ttt: ModelType.TTType) :
             l 
             |> Seq.mapi (fun i n ->
                 let (_,_,w) = numericInputs[i]
-                {IO = SimIO (numericInputs[i]); Data = Bits (convertIntToWireData w n)})
+                {IO = SimIO (numericInputs[i]); Data = Bits (convertIntToWireData w (bigint n))})
             |> Seq.toList)
         |> Seq.toList
     

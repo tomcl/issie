@@ -61,7 +61,7 @@ let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (co
                     | DC -> true
                     | Bits wd ->
                         let cellVal = convertWireDataToInt wd
-                        cellVal = e.Value
+                        cellVal = bigint e.Value
             | Inequality i ->
                 if i.IO <> cell.IO then
                     false
@@ -71,7 +71,7 @@ let applyNumericalOutputConstraint (table: Map<TruthTableRow,TruthTableRow>) (co
                     | DC -> true
                     | Bits wd ->
                         let cellVal = convertWireDataToInt wd
-                        i.LowerBound <= int cellVal && cellVal <= i.UpperBound
+                        i.LowerBound <= int cellVal && cellVal <= bigint i.UpperBound
                         ))
 
 /// Comparison function for CellData values

@@ -770,7 +770,7 @@ let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch
             match comp.Type with | BusCompare1( w,_,txt) -> w,txt | _ -> failwithf "What? impossible1" 
         let w = Option.defaultValue wComp model.PopupDialogData.Int
         let cText = Option.defaultValue txtComp model.PopupDialogData.Text
-        let reactMsg, compTOpt = CatalogueView.parseBusCompareValue 32 w cText
+        let reactMsg, compTOpt = CatalogueView.parseBusCompareValue Constants.maxConstantWidth w cText
         match compTOpt with
         | None -> ()
         | Some (BusCompare1(w,cVal,cText) as compT) ->

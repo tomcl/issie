@@ -162,15 +162,14 @@ let reactMemoryAddressInputBox numberBase addressWidth setMemoryAddress dispatch
             | "" -> closeError dispatch
                     dispatch <| setMemoryAddress None
             | t ->
-                match strToInt t with
+                match strToBigint t with
                 | Error err -> showError err dispatch
                 | Ok addr ->
-                    let addr = uint64 addr
                     let w = addressWidth
-                    if w < 64 && addr >= (1UL <<< w)
+                    if addr >= (1I <<< w)
                     then showError "Address out of bounds." dispatch
                     else closeError dispatch
-                         dispatch <| setMemoryAddress (Some (int64 addr))
+                         dispatch <| setMemoryAddress (Some addr)
                          
         )
     ]

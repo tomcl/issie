@@ -218,10 +218,6 @@ let tryFindError (lst : Result<'a,'b> list) : Result<'a list, 'b> =
 let pow2 (exponent : int) : int =
     1 <<< exponent // TODO use bit-shift.
 
-/// Return 2^exponent, packed into an int64.
-let pow2int64 (exponent : int) : int64 =
-    1L <<< exponent
-
 /// Set an element of the list at the specified position.
 /// This function is slow: O(n). Do not use unless necessary.
 let listSet (lst : 'a list) (item : 'a) (idx : int) : 'a list =

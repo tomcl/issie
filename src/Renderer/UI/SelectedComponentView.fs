@@ -87,7 +87,7 @@ let private textFormFieldSimple name defaultValue onChange =
     ]
 
 
-let private intFormField name (width:string) (defaultValue: int) (minValue: int)  onChange =
+let private intFormField name (width:string) (defaultValue: bigint) (minValue: int)  onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.number [
@@ -131,26 +131,6 @@ let private int64FormField name (width:string) defaultValue minValue onChange =
             Input.Props [Style [Width width]; Min minValue]
             Input.DefaultValue <| sprintf "%d" defaultValue
             Input.OnChange (getInt64EventValue >> onChange)
-        ]
-    ]
-
-let private intFormFieldNoMin name defaultValue onChange =
-    Field.div [] [
-        Label.label [] [ str name ]
-        Input.number [
-            Input.Props [Style [Width "60px"]]
-            Input.DefaultValue <| sprintf "%d" defaultValue
-            Input.OnChange (getIntEventValue >> onChange)
-        ]
-    ]
-
-let private int64FormFieldNoMin name (defaultValue:int64) (currentText:string option) onChange =
-    Field.div [] [
-        Label.label [] [ str name ]
-        Input.text [
-            Input.Props [Style [Width "180px"]]
-            Input.DefaultValue <| Option.defaultValue $"{defaultValue}" currentText
-            Input.OnChange (getTextEventValue >> onChange)
         ]
     ]
 
@@ -512,7 +492,8 @@ let private makeNumberOfBitsField model (comp:Component) text dispatch =
         | BusCompare1( w,_, _) -> "Bus width", w
         | Constant1(w, _,_) -> "Number of bits in the wire", w
         | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
-    intFormField title "60px" width 1 (
+
+    intFormField title "60px" (bigint width) 1 (
         fun newWidth ->
             let newWidth = int newWidth
             if newWidth < 1
@@ -556,7 +537,7 @@ let private makeNumberOfInputsField model (comp:Component) dispatch =
             [Style [Color Red]]
             [str errText]
 
-        intFormField title "60px" nInp 2 (
+        intFormField title "60px" (bigint nInp) 2 (
             fun newInpNum ->
                 let newInpNum = int newInpNum
                 if newInpNum >= 2 && newInpNum <= Constants.maxGateInputs then
@@ -589,7 +570,7 @@ let private changeMergeN model (comp:Component) dispatch =
             [Style [Color Red]]
             [str errText]
 
-        intFormField title "60px" nInp 2 (
+        intFormField title "60px" (bigint nInp) 2 (
             fun newInpNum ->
                 let newInpNum = int newInpNum
                 if newInpNum >= 2 && newInpNum <= Constants.maxSplitMergeBranches then
@@ -640,7 +621,7 @@ let private changeSplitN model (comp:Component) dispatch =
             [Style [Color Red]]
             [str errText]
 
-        intFormField title "60px" nInp 2 (
+        intFormField title "60px" (bigint nInp) 2 (
             fun newInpNum ->
                 let newInpNum = int newInpNum
                 if newInpNum >= 2 && newInpNum <= Constants.maxSplitMergeBranches then
@@ -695,14 +676,13 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
         | Input1 (w, defValue) ->
             match defValue with
             | Some defValue -> w, defValue
-            | None -> w, 0
+            | None -> w, 0I
         | _ -> failwithf "Other component types should not call this function."
     
     intFormField title "60px" defValue 0 (
         fun newValue ->
-            let newValue = int newValue
             // Check if value is within bit range
-            match NumberHelpers.checkWidth width (bigint newValue) with
+            match NumberHelpers.checkWidth width newValue with
             | Some msg ->
                 let props = errorPropsNotification msg
                 dispatch <| SetPropertiesNotification props
@@ -710,7 +690,7 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
                 model.Sheet.ChangeInputValue sheetDispatch (ComponentId comp.Id) newValue
                 // reload the new component
                 dispatch (ReloadSelectedComponent (model.LastUsedDialogWidth))
-                dispatch <| SetPopupDialogInt (Some newValue)
+                dispatch <| SetPopupDialogInt (Some (int newValue))
                 dispatch ClosePropertiesNotification
     )
 
@@ -806,7 +786,7 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
 
     match comp.Type with
     | BusCompare(width, _) -> 
-        intFormField infoText "120px"  (int lsbPos) 1  (
+        intFormField infoText "120px"  lsbPos 1  (
             fun (cVal: bigint)->
                 if cVal < 0I || cVal > (1I <<< width) - 1I
                 then
@@ -818,7 +798,7 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
                     dispatch ClosePropertiesNotification
         )
     | BusSelection(width, _) -> 
-        intFormField infoText "60px" (int lsbPos) 1 (
+        intFormField infoText "60px" lsbPos 1 (
             fun newLsb ->
                 if newLsb < 0I
                 then

@@ -207,7 +207,7 @@ module SheetInterface =
         member this.ChangeLSB (dispatch: Dispatch<Msg>) (compId: ComponentId) (lsb: bigint) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeLsb (compId, lsb) ) ) )
 
-        member this.ChangeInputValue (dispatch: Dispatch<Msg>) (compId: ComponentId) (newVal: int) =
+        member this.ChangeInputValue (dispatch: Dispatch<Msg>) (compId: ComponentId) (newVal: bigint) =
             dispatch <| (Wire (BusWireT.Symbol (SymbolT.ChangeInputValue (compId, newVal))))
 
         /// Return Some string if Sheet / BusWire / Symbol has a notification, if there is none then return None

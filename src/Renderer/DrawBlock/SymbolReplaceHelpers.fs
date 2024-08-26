@@ -61,7 +61,7 @@ let changeLsbf (symModel:Model) (compId:ComponentId) (newLsb:bigint) =
 
 /// This function should be called for Input1 components only. Sets the default
 /// value to be used in simulations for an Input1 component if it is not driven.
-let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: int) =
+let changeInputValue (symModel: Model) (compId: ComponentId) (newVal: bigint) =
     let symbol = Map.find compId symModel.Symbols
     let width =
         match symbol.Component.Type with

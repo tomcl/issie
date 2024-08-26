@@ -474,8 +474,8 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 | _ -> "start",0.,-5.
             let fontSize = if dialogVal.Length < 2 then "14px" else "12px"
             addText {X = w/2. + xOffset; Y = h/1.5 + yOffset}  dialogVal align "normal" fontSize
-        | BusCompare (_,y) ->
-            (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.hex(int y)) "middle" "bold" "10px")
+        | BusCompare (width,y) ->
+            (addText {X = w/2.-2.; Y = h/2.7-1.} ("=" + NumberHelpers.fillHexBignum width y) "middle" "bold" "10px")
         | BusCompare1 (_,_,t) -> 
             (addText {X = w/2.-2.; Y = h/2.7-1.} ("= " + t) "middle" "bold" "10px")
         // legacy component type: to be deleted

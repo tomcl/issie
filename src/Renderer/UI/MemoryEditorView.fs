@@ -243,15 +243,14 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
     let showRow = showRowWithAdrr memoryEditorData
     let viewNumD = viewFilledNum memory.WordWidth memoryEditorData.NumberBase
     let viewNumA = viewFilledNum memory.AddressWidth memoryEditorData.NumberBase
-    let numLocsToDisplay = 16UL
-    let maxLocAddr = ((1UL <<< memory.AddressWidth) - 1UL)
+    let numLocsToDisplay = 16I
+    let maxLocAddr = ((1I <<< memory.AddressWidth) - 1I)
     let startLoc, endLoc =
         match memoryEditorData.Address with
-        | None -> 0UL, min maxLocAddr numLocsToDisplay
+        | None -> 0I, min maxLocAddr numLocsToDisplay
         | Some a -> 
-            let a = uint64 a
-            let maxDispLocWrapped = a + numLocsToDisplay - 1UL
-            let maxDispLoc = if maxDispLocWrapped > a then maxDispLocWrapped else uint64 (-1L)
+            let maxDispLocWrapped = a + numLocsToDisplay - 1I
+            let maxDispLoc = if maxDispLocWrapped > a then maxDispLocWrapped else twosComp memory.AddressWidth -1I
             a, min  maxDispLoc maxLocAddr
     //printfn "makeEditorBody called"
 
@@ -311,7 +310,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                 th [] [str "Address"]
                 th [] [str "Content"]
             ] ]
-            tbody [] ( [bigint startLoc..bigint endLoc] |> List.map (makeRow (isReadOnly <> "") memory.Data))
+            tbody [] ( [startLoc..endLoc] |> List.map (makeRow (isReadOnly <> "") memory.Data))
         ]
     ]
 

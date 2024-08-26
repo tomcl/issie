@@ -279,9 +279,9 @@ type FastData =
     /// if given width <= 32 it will generate Word form FastData, otherwise BigWord.
     static member inline MakeFastData (width: int) (data: bigint) =
         match width with
-        | w when w <= 32 && data >= bigint 0 -> { Dat = Word(uint32 data); Width = w }
-        | w when w <= 32 && data < bigint 0 ->
-            let data = data % (bigint 2 ** w)
+        | w when w <= 32 && data >= 0I -> { Dat = Word(uint32 data); Width = w }
+        | w when w <= 32 && data < 0I ->
+            let data = data % (1I <<< w)
             { Dat = Word(uint32 data); Width = w }
         | w -> { Dat = BigWord data; Width = w }
 
@@ -723,7 +723,7 @@ and reduceArithmetic expression =
                 numTrack, newExpTrack)
 
     let numDataExp =
-        numVal % (int (2. ** width))
+        int (bigint numVal % (1I <<< width))
         |> fun n ->
             if n > 0 then
                 DataLiteral { Dat = Word(uint32 n); Width = width }
@@ -888,7 +888,7 @@ let bigIntMaskA =
 
 let bigIntBitMaskA =
     [| 0..128 |]
-    |> Array.map (fun width -> (bigint 1 <<< width))
+    |> Array.map (fun width -> (1I <<< width))
 
 /// all bits with numbers < width = 1
 let bigIntMask width =
@@ -919,9 +919,9 @@ let rec bitsToInt (lst: Bit list) =
 
 let rec bitsToBig (lst: Bit list) =
     match lst with
-    | [] -> bigint 0
+    | [] -> 0I
     | x :: rest ->
-        (if x = Zero then bigint 0 else bigint 1)
+        (if x = Zero then 0I else 1I)
         + ((bitsToBig rest) <<< 1)
 
 /// convert Wiredata to FastData equivalent
@@ -949,7 +949,7 @@ let rec fastToWire (f: FastData) =
     | BigWord x ->
         [ 0 .. f.Width - 1 ]
         |> List.map (fun n ->
-            if (x &&& bigIntBitMask n) = bigint 0 then
+            if (x &&& bigIntBitMask n) = 0I then
                 Zero
             else
                 One)
@@ -958,10 +958,10 @@ let fastDataZero = { Dat = Word 0u; Width = 1 }
 let fastDataOne = { Dat = Word 1u; Width = 1 }
 
 let rec b2s (b: bigint) =
-    let lsw = b &&& ((bigint 1 <<< 32) - bigint 1)
+    let lsw = b &&& ((1I <<< 32) - 1I)
     let hex = $"%08x{uint32 lsw}"
     let msws = b >>> 32
-    if msws <> bigint 0 then
+    if msws <> 0I then
         b2s msws + hex
     else
         hex

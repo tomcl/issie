@@ -63,7 +63,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 if w < 33 then
                     Data { Dat = Word 0u; Width = w }
                 else
-                    Data { Dat = BigWord(bigint 0); Width = w }
+                    Data { Dat = BigWord(0I); Width = w }
             | w, _ -> comp.Outputs[n].FDataStep[simStepOld]
 
         fd
@@ -587,12 +587,12 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                         if cin = 0u then
                             a + b
                         else
-                            a + b + bigint 1
+                            a + b + 1I
 
                     let sum = { Dat = BigWord(sumInt &&& bigIntMask w); Width = w }
 
                     let cout =
-                        if (sumInt >>> w) = bigint 0 then
+                        if (sumInt >>> w) = 0I then
                             0u
                         else
                             1u
@@ -647,12 +647,12 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                         if cin = 0u then
                             a + b
                         else
-                            a + b + bigint 1
+                            a + b + 1I
 
                     let sum = { Dat = BigWord(sumInt &&& bigIntMask w); Width = w }
 
                     let cout =
-                        if (sumInt >>> w) = bigint 0 then
+                        if (sumInt >>> w) = 0I then
                             0u
                         else
                             1u
@@ -699,7 +699,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                     BigWord(
                         match op with
                         | None -> a ^^^ b
-                        | Some Multiply -> (a * b) &&& ((bigint 1 <<< A.Width) - bigint 1)
+                        | Some Multiply -> (a * b) &&& ((1I <<< A.Width) - 1I)
                     )
                 | Word a, Word b ->
                     Word(
@@ -780,7 +780,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                     // BigWord (System.Numerics.BigInteger.op_OnesComplement a)  FIX: 2^n-1-a
                     let w = A.Width
                     // (bigint^w)
-                    let (minusOne: bigint) = ((bigint 2) <<< w) - (bigint 1)
+                    let (minusOne: bigint) = (1I <<< w) - (1I)
                     BigWord(minusOne - a)
                 | Word a -> Word(~~~a)
 
@@ -796,7 +796,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | 1u ->
                     match numberOfBits with
                     | n when n <= 32 -> convertIntToFastData numberOfBits ((1u <<< numberOfBits) - 1u)
-                    | _ -> convertBigintToFastData numberOfBits ((bigint 1 <<< numberOfBits) - bigint 1)
+                    | _ -> convertBigintToFastData numberOfBits ((1I <<< numberOfBits) - 1I)
                 | _ -> failwithf $"Can't happen"
 
             put 0 <| Data outDat
@@ -1067,13 +1067,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 && (extractBitFData (Data load) 1 = 0u)
             then
                 let lastOut = (getLastCycleOut 0)
-                let n = lastOut.toFastData.GetBigInt + (bigint 1)
-                let n' =
-                    if n = (bigint (2. ** bits.Width)) then
-                        (bigint 0)
-                    else
-                        n
-                let res = FastData.MakeFastData bits.Width n'
+                let n = lastOut.toFastData.GetBigInt + (1I)
+                let res = FastData.MakeFastData bits.Width n
                 put 0 <| Data res
             elif
                 (extractBitFData (Data enable) 1 = 1u)
@@ -1101,13 +1096,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
 #endif
             if (extractBitFData (Data load) 1 = 0u) then
                 let lastOut = (getLastCycleOut 0)
-                let n = lastOut.toFastData.GetBigInt + (bigint 1)
-                let n' =
-                    if n = (bigint (2. ** bits.Width)) then
-                        (bigint 0)
-                    else
-                        n
-                let res = FastData.MakeFastData bits.Width n'
+                let n = lastOut.toFastData.GetBigInt + (1I)
+                let res = FastData.MakeFastData bits.Width n
                 put 0 <| Data res
             else
                 put 0 <| Data bits
@@ -1127,10 +1117,10 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | Data enable ->
             if (extractBitFData (Data enable) 1 = 1u) then
                 let lastOut = (getLastCycleOut 0)
-                let n = lastOut.toFastData.GetBigInt + (bigint 1)
+                let n = lastOut.toFastData.GetBigInt + (1I)
                 let n' =
-                    if n = (bigint (2. ** width)) then
-                        (bigint 0)
+                    if n = (1I <<< width) then
+                        (0I)
                     else
                         n
                 let res = FastData.MakeFastData width n'
@@ -1148,10 +1138,10 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             raise (AlgebraNotImplemented err)
     | CounterNoEnableLoad width ->
         let lastOut = (getLastCycleOut 0)
-        let n = lastOut.toFastData.GetBigInt + (bigint 1)
+        let n = lastOut.toFastData.GetBigInt + 1I
         let n' =
-            if n = (bigint (2. ** width)) then
-                (bigint 0)
+            if n = (1I <<< width) then
+                0I
             else
                 n
         let res = FastData.MakeFastData width n'

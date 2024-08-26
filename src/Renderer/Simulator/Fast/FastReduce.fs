@@ -723,12 +723,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 if cin = 0u then
                     a + b
                 else
-                    a + b + bigint 1
+                    a + b + 1I
 
             let sum = sumInt &&& bigIntMask w
 
             let cout =
-                if (sumInt >>> w) = bigint 0 then
+                if (sumInt >>> w) = 0I then
                     0u
                 else
                     1u
@@ -780,12 +780,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 if cin = 0u then
                     a + b
                 else
-                    a + b + bigint 1
+                    a + b + 1I
 
             let sum = sumInt &&& bigIntMask w
 
             let cout =
-                if (sumInt >>> w) = bigint 0 then
+                if (sumInt >>> w) = 0I then
                     0u
                 else
                     1u
@@ -810,7 +810,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let res =
                     match op with
                     | None -> a ^^^ b
-                    | Some Multiply -> (a * b) &&& ((bigint 1 <<< comp.InputWidth 0) - bigint 1)
+                    | Some Multiply -> (a * b) &&& ((1I <<< comp.InputWidth 0) - 1I)
 
         putBigInt 0 res
     | NbitsOr numberOfBits, false ->
@@ -844,7 +844,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         // BigWord (System.Numerics.BigInteger.op_OnesComplement a)  FIX: 2^n-1-a
         let w = comp.InputWidth 0
         // (bigint^w)
-        let mask = ((bigint 1) <<< w) - (bigint 1)
+        let mask = (1I <<< w) - 1I
         let res = mask - (a &&& mask)
         putBigInt 0 res
 
@@ -1031,8 +1031,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             match enable, load with
             | 1u, 0u ->
                 let lastOut = getLastCycleOutUInt32 0
-                let n = (bigint lastOut) + (bigint 1)
-                if n = (bigint (2. ** width)) then
+                let n = (bigint lastOut) + 1I
+                if n = (1I <<< width) then
                     0u
                 else
                     uint32 n
@@ -1051,8 +1051,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             match enable, load with
             | 1u, 0u ->
                 let lastOut = getLastCycleOutBigInt 0
-                let n = lastOut + (bigint 1)
-                if n = (bigint (2. ** width)) then
+                let n = lastOut + 1I
+                if n = (1I <<< width) then
                     0I
                 else
                     n
@@ -1072,7 +1072,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 0u ->
                 let lastOut = getLastCycleOutUInt32 0
                 let n = (bigint lastOut) + 1I
-                if n = (bigint (2. ** width)) then
+                if n = (1I <<< width) then
                     0u
                 else
                     uint32 n
@@ -1091,7 +1091,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 0u ->
                 let lastOut = getLastCycleOutBigInt 0
                 let n = lastOut + 1I
-                if n = (bigint (2. ** width)) then
+                if n = (1I <<< width) then
                     0I
                 else
                     n
@@ -1106,7 +1106,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 1u ->
                 let lastOut = getLastCycleOutUInt32 0
                 let n = (bigint lastOut) + 1I
-                if n = (bigint (2. ** width)) then
+                if n = (1I <<< width) then
                     0u
                 else
                     uint32 n
@@ -1121,7 +1121,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | 1u ->
                 let lastOut = getLastCycleOutBigInt 0
                 let n = lastOut + 1I
-                if n = (bigint (2. ** width)) then
+                if n = (1I <<< width) then
                     0I
                 else
                     n
@@ -1133,7 +1133,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let lastOut = getLastCycleOutUInt32 0
         let n = (bigint lastOut) + 1I
         let res =
-            if n = (bigint (2. ** width)) then
+            if n = (1I <<< width) then
                 0u
             else
                 uint32 n
@@ -1142,7 +1142,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let lastOut = getLastCycleOutBigInt 0
         let n = lastOut + 1I
         let res =
-            if n = (bigint (2. ** width)) then
+            if n = (1I <<< width) then
                 0I
             else
                 n

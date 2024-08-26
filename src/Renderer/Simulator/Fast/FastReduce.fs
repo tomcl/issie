@@ -61,8 +61,7 @@ let readMemoryAddrUInt32DataBigInt (mem: Memory1) (address: uint32) : bigint =
     Helpers.getMemData (bigint address) mem
 
 let readMemoryAddrBigIntDataUInt32 (mem: Memory1) (address: bigint) : uint32 =
-    let intAddr = convertBigintToUInt64 mem.AddressWidth address
-    let outDataInt = Helpers.getMemData (bigint intAddr) mem
+    let outDataInt = Helpers.getMemData address mem
     convertBigintToUInt32 mem.WordWidth outDataInt
 
 let readMemoryAddrBigIntDataBigInt (mem: Memory1) (address: bigint) : bigint =

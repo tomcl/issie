@@ -243,7 +243,7 @@ let cropToLength (len : int) (fromStart : bool) (str : string) =
 
 let getMemData (address: bigint) (memData: Memory1) =
 #if ASSERTS
-    assertThat (memData.AddressWidth > 63 || (1UL <<< memData.AddressWidth) > (uint64 address)) (
+    assertThat (memData.AddressWidth > 63 || (1I <<< memData.AddressWidth) > address) (
         sprintf "Inconsistent memory access: address %A, memData %A" address memData)
 #endif
     Map.tryFind address memData.Data

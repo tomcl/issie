@@ -463,23 +463,6 @@ let convertBigintToFastData (width: int) (b: bigint) =
     else
         { Dat = Word (uint32 b); Width = width }
 
-/// convert to 64 bits - if too large take LS 64 bits
-let convertFastDataToInt64 (d: FastData) =
-    match d.Dat with
-    | Word n -> uint64 n
-    | BigWord b ->
-        if d.Width > 64 then
-            b % (1I <<< 64)
-        else
-            b
-        |> uint64
-
-
-
-let convertBigintToUInt64 (w: int) (b: bigint) =
-    if w > 64 then b % (1I <<< 64) else b
-    |> uint64
-
 let convertBigintToUInt32 (w: int) (b: bigint) =
     if w > 32 then b % (1I <<< 32) else b
     |> uint32
@@ -552,31 +535,6 @@ let strToBigint (str: string) : Result<bigint, string> =
     match success with
     | false -> Error "Invalid number."
     | true -> Ok n
-(*
-
-let toInt = EEExtensions.Char.toInt
-
-/// convert a digit character: binary, decimal, or hexadecimal, to its numeric value
-let cDigitInt (ch:char) =
-    match toInt ch with
-    | d when d >= int32 '0' && d <= int32 '9' -> Some(d - int32 '0')
-    | d when d >= toInt 'A' && d <= toInt 'Z' -> Some(d - toInt 'A' + 10)
-    | _ -> None
-
-let convertUInt64 (stringToConvert: string) =
-    let rec pow64 n =
-    let getRadixNum (radix:int) (ns: int option list) =
-        if Seq.forall (function | Some n -> n < radix && n >= 0 | None -> false) ns
-        then Some (List.sumBy (fun n -> uint64 n + ))
-
-    let aInt = toInt 'A'
-    let s = EEExtensions.String.trim (EEExtensions.String.toUpper stringToConvert)
-    if EEExtensions.String.startsWith "0X" s then
-        let hexDigits = s[2..s.Length-1]
-        let convDigits = hexDigits |> List.map cDigitInt
-        if checkRadix 16
-
-*)
 
 let private countBits (num: bigint) : int =
 

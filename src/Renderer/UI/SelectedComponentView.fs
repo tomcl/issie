@@ -124,16 +124,6 @@ let private floatFormField name (width:string) defaultValue minValue onChange =
         ]
     ]
 
-let private int64FormField name (width:string) defaultValue minValue onChange =
-    Field.div [] [
-        Label.label [] [ str name ]
-        Input.number [
-            Input.Props [Style [Width width]; Min minValue]
-            Input.DefaultValue <| sprintf "%d" defaultValue
-            Input.OnChange (getInt64EventValue >> onChange)
-        ]
-    ]
-
 let private gateTypeDropdown =
     ()
 

@@ -466,7 +466,7 @@ let private createConstantPopup model dispatch =
     let intDefault = 1
     let parseConstantDialog model' =
         let dialog = model'.PopupDialogData
-        parseConstant Constants.maxConstantWidth
+        parseConstant Constants.maxIssieBusWidth
             (Option.defaultValue intDefault dialog.Int)
             (Option.defaultValue "" dialog.Text)
     let beforeText = (fun d -> div [] [d |> parseConstantDialog |> fst; br [] ])
@@ -516,7 +516,7 @@ let private createBusComparePopup (model:Model) dispatch =
     let intDefault = 1
     let parseBusCompDialog model' =
         let dialog = model'.PopupDialogData
-        parseBusCompareValue Constants.maxConstantWidth (Option.defaultValue intDefault dialog.Int) (Option.defaultValue "" dialog.Text)
+        parseBusCompareValue Constants.maxIssieBusWidth (Option.defaultValue intDefault dialog.Int) (Option.defaultValue "" dialog.Text)
     let beforeText = (fun d -> div [] [d |> parseBusCompDialog |> fst; br [] ])
     let placeholder = "Value: decimal, 0x... hex, 0b... binary"   
     let body = dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch

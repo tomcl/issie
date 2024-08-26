@@ -128,8 +128,8 @@ let addZerosBignum (width: int) (pFun: bigint -> string) (n: bigint) = pFun n |>
 /// string representation of the hex digits of num, without leading zero or prefix.
 /// Needed because "%x" does not work on bignums.
 let rec hexDigitsBignum (num: bigint) =
-    let hex32 (d: uint32) = $"%x{d}"
-    let hex32Filled (d: uint32) = $"%08x{d}"
+    let hex32 (d: uint32) = $"%X{d}"
+    let hex32Filled (d: uint32) = $"%08X{d}"
     let q,r = bigint.DivRem(num, 1I <<< 32)
     if q = 0I then
         hex32 (uint32 r) 
@@ -403,9 +403,9 @@ let BigIntToPaddedString maxChars radix (width: int) (fd: bigint) =
             // stripping leading zeros makes length ok
             pre + digits
         else
-            // truncate MS digits replacing by '..'
+            // truncate MS digits replacing by '...'
             pre
-            + ".."
+            + "..."
             + digits[n + 2 + pre.Length - maxChars .. n - 1]
 
 

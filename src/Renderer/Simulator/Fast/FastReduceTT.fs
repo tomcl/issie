@@ -63,7 +63,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 if w < 33 then
                     Data { Dat = Word 0u; Width = w }
                 else
-                    Data { Dat = BigWord(0I); Width = w }
+                    Data { Dat = BigWord 0I; Width = w }
             | w, _ -> comp.Outputs[n].FDataStep[simStepOld]
 
         fd
@@ -780,7 +780,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                     // BigWord (System.Numerics.BigInteger.op_OnesComplement a)  FIX: 2^n-1-a
                     let w = A.Width
                     // (bigint^w)
-                    let (minusOne: bigint) = (1I <<< w) - (1I)
+                    let (minusOne: bigint) = (1I <<< w) - 1I
                     BigWord(minusOne - a)
                 | Word a -> Word(~~~a)
 
@@ -1067,7 +1067,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 && (extractBitFData (Data load) 1 = 0u)
             then
                 let lastOut = (getLastCycleOut 0)
-                let n = lastOut.toFastData.GetBigInt + (1I)
+                let n = lastOut.toFastData.GetBigInt + 1I
                 let res = FastData.MakeFastData bits.Width n
                 put 0 <| Data res
             elif
@@ -1096,7 +1096,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
 #endif
             if (extractBitFData (Data load) 1 = 0u) then
                 let lastOut = (getLastCycleOut 0)
-                let n = lastOut.toFastData.GetBigInt + (1I)
+                let n = lastOut.toFastData.GetBigInt + 1I
                 let res = FastData.MakeFastData bits.Width n
                 put 0 <| Data res
             else
@@ -1117,10 +1117,10 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | Data enable ->
             if (extractBitFData (Data enable) 1 = 1u) then
                 let lastOut = (getLastCycleOut 0)
-                let n = lastOut.toFastData.GetBigInt + (1I)
+                let n = lastOut.toFastData.GetBigInt + 1I
                 let n' =
                     if n = (1I <<< width) then
-                        (0I)
+                        0I
                     else
                         n
                 let res = FastData.MakeFastData width n'

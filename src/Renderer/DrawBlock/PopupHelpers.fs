@@ -670,7 +670,7 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
         div [] [
             str $"How many bits should be used to address the data in memory?"
             br [];
-            str <| sprintf "%d bits yield %d memory locations." addressWidth (pow2int64 addressWidth)
+            str <| sprintf "%d bits yield %A memory locations." addressWidth (1I <<< addressWidth)
             br []; br []
             Input.number [
                 Input.Props [OnPaste preventDefault; Style [Width "60px"] ; AutoFocus true]

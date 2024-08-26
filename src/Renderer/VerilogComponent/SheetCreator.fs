@@ -307,7 +307,7 @@ let createIOComponent (item:ItemT) ioType (oldMap)  =
     let width = getWidthFromRange (Option.get item.IODecl).Range
     let compType = 
         match ioType with
-        |"input_decl" -> Input1 (width,Some 0)
+        |"input_decl" -> Input1 (width,Some 0I)
         |_ -> Output width
 
     let names =
@@ -1137,10 +1137,10 @@ let rec multiplexerNto1Circuit (inputs: List<Circuit>) (sel: Circuit) : Circuit 
         multiplexerNto1Circuit inputs' sel'
 
 // default case is last?
-let multiplexerCircuit (inputs: List<int64*Circuit>) (condition: Circuit) (defaultInput: Circuit): Circuit =
+let multiplexerCircuit (inputs: List<bigint*Circuit>) (condition: Circuit) (defaultInput: Circuit): Circuit =
     (defaultInput, inputs)
     ||> List.fold (fun prevCircuit (caseItem, inputCircuit) ->
-        let busComparator = createComponent (BusCompare (condition.OutWidth, bigint caseItem)) "CMP"
+        let busComparator = createComponent (BusCompare (condition.OutWidth, caseItem)) "CMP"
         let topCircuit = {Comps=[busComparator];Conns=[];Out=busComparator.OutputPorts[0];OutWidth=1}
         let condCircuit = joinCircuits [condition] [busComparator.InputPorts[0]] topCircuit
         let mux2 = createComponent Mux2 "mux2"
@@ -1247,7 +1247,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                     Map.add var newCircuit circuits
             )
         | Case case ->
-            let caseItemMap: Map<int64, StatementT> =
+            let caseItemMap: Map<bigint, StatementT> =
                 (Map.empty, case.CaseItems)
                 ||> Array.fold (fun map caseItem -> 
                     (map, caseItem.Expressions)
@@ -1259,7 +1259,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                         Map.add dec caseItem.Statement m
                     ) 
                 )
-            let muxInputs: Map<string, List<int64*Circuit>> =
+            let muxInputs: Map<string, List<bigint*Circuit>> =
                 (Map.empty, caseItemMap)
                 ||> Map.fold (fun inputs num stmt->
                     let circuits = compileModule (Statement stmt) varToCompMap currCircuits

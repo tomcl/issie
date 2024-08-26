@@ -255,7 +255,7 @@ module SymbolT =
         | ErrorSymbols of errorIds: ComponentId list * selectIds: ComponentId list * isDragAndDrop: bool
         | ChangeNumberOfBits of compId:ComponentId * NewBits:int 
         | ChangeLsb of compId: ComponentId * NewBits:bigint 
-        | ChangeInputValue of compId: ComponentId * newVal: int
+        | ChangeInputValue of compId: ComponentId * newVal: bigint
         | ChangeScale of compId:ComponentId * newScale:float * whichScale:ScaleAdjustment
         | ChangeConstant of compId: ComponentId * NewBits:bigint * NewText:string
         | ChangeBusCompare of compId: ComponentId * NewBits:bigint * NewText:string
@@ -511,7 +511,7 @@ module SheetT =
     type PopupDialogData = {
         Text : string option;
         Int : int option;
-        Int2: int64 option
+        Int2: bigint option
     }
 
     type Arrange = | AlignSymbols | DistributeSymbols

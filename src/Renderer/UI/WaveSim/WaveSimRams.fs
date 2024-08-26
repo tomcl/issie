@@ -68,12 +68,11 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
 
         /// output info for one table row filling the given zero memory gap or arbitrary size, or no line if there is no gap.
         let printGap (gStart:bigint) (gEnd:bigint) =
-            match int64 (gEnd - gStart) with
-            | 1L -> []
-            | 2L -> [print1 ((gEnd + gStart) / 2I, 0I, RAMNormal)]
-            | n when n > 2L ->
-                [print2 gStart gEnd 0I]
-            | _ ->
+            let gapSize = gStart - gEnd
+            if gapSize = 1I then []            
+            elif gapSize = 2I then  [print1 ((gEnd + gStart) / 2I, 0I, RAMNormal)]
+            elif  gapSize > 2I then [print2 gStart gEnd 0I]
+            else
                 failwithf $"What? gEnd={gEnd},gStart={gStart}: negative or zero gaps are impossible..."
 
         /// transform Sparse RAM info into strings to print in a table, adding extra lines for zero gaps

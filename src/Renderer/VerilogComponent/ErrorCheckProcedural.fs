@@ -197,7 +197,7 @@ let allCasesCovered
         let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap
         if condWidth = 0 then true
         else
-        let expNrOfCases = pow2int64(condWidth)
+        let expNrOfCases = (1I <<< condWidth)
         let caseNumbers = caseStmt.CaseItems |> Array.collect (fun caseItem -> caseItem.Expressions)
         let caseNumsUnique = 
             (Set.empty, caseNumbers) ||> Array.fold (fun casesCovered caseNumber ->
@@ -205,8 +205,8 @@ let allCasesCovered
                 let caseNumberDec = toDecimal num numBase width
                 Set.add caseNumberDec casesCovered
             )
-        let expCaseVals = [0.. int expNrOfCases-1] |> Set.ofList
-        let missingVars = Set.difference expCaseVals (caseNumsUnique |> Set.map int)
+        let expCaseVals = [0I..expNrOfCases-1I] |> Set.ofList
+        let missingVars = Set.difference expCaseVals (caseNumsUnique)
         Set.count missingVars = 0
 
 

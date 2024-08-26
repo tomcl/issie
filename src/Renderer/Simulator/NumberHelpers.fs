@@ -116,11 +116,11 @@ let big16 = 65536I
 let big32 = 1I <<< 32
 let big64 = 1I <<< 64
 
+/// Add commas to a string every 3 digits, and leading zeros to fill to given width
 let addZerosBignum (width: int) (pFun: bigint -> string) (n: bigint) = pFun n |> addCommasAndZeros width
 
-let addZeros (width: int) (pFun: int -> string) (n: int) = pFun n |> addCommasAndZeros width
 
-/// string representation of the hex digits of a bignum, without leading zero or prefix.
+/// string representation of the hex digits of num, without leading zero or prefix.
 /// Needed because "%x" does not work on bignums.
 let rec hexDigitsBignum (num: bigint) =
     let hex32 (d: uint32) = $"%x{d}"
@@ -132,23 +132,25 @@ let rec hexDigitsBignum (num: bigint) =
         hexDigitsBignum q + hex32Filled (uint32 r)
     
 
-
+/// print a bignum as hex
 let hexBignum (num: bigint) =
     "x" + hexDigitsBignum num
 
+/// print a bignum as binary
+let binBignum (num: bigint) = "b" + (hexToBin <| hexDigitsBignum num)
+
+/// NB without width bignum must be signed, but mostly Issie bignums are non-negative and use two's complement
+/// So this function may be of limited use.
+let sDecBignum (num: bigint) = num.ToString()
+
+/// This is the same as sDecBignum. It is here for symmetry.
+let decBignum (num: bigint) = num.ToString() //?
+
+/// Fill a hex printed bignum with zeros to a given width.
 let fillHexBignum width (n:bigint) =
     addZerosBignum width hexBignum n
 
-let binBignum (num: bigint) = "b" + (hexToBin <| hexDigitsBignum num)
-let sDecBignum (num: bigint) = num.ToString()
-let decBignum (num: bigint) = num.ToString() //?
-
-let hex (num: int) = hexBignum <| bigint num
-let fillHex width = addZeros width hex
-
-let bin (num: int) = binBignum <| bigint num
-let dec (num: int) = decBignum <| bigint num
-
+/// Fill a binary printed bignum with zeros to a given width.
 let fillBinBignum width = addZerosBignum width binBignum
 
 

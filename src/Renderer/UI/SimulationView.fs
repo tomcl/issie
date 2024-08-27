@@ -857,10 +857,14 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
     ]
 
 
-let tryGetSimData canvasState model =
+let tryGetSimData isWaveSim canvasState model =
     let model = MemoryEditorView.updateAllMemoryComps model
-    simCache <- simCacheInit ()
-    simulateModel None Constants.maxArraySize canvasState model
+    if isWaveSim then
+        simCacheWS <- simCacheInit ()
+    else
+        simCache <- simCacheInit ()
+    printfn $"TyyGetSimData: WS={isWaveSim}"
+    simulateModel isWaveSim None Constants.maxArraySize canvasState model
     |> function
         | Ok (simData), state -> 
             if simData.FastSim.ClockTick = 0 then 
@@ -872,7 +876,7 @@ let tryGetSimData canvasState model =
 
 let viewSimulation canvasState model dispatch =
     let startSimulation model _ =
-        tryGetSimData canvasState model
+        tryGetSimData false canvasState model
         |> function
             | Ok simData -> 
                 Ok simData
@@ -901,7 +905,7 @@ let viewSimulation canvasState model dispatch =
             not isSame
         | _ -> false
     
-    let simRes = simulateModel None Constants.maxArraySize canvasState model
+    let simRes = simulateModel false None Constants.maxArraySize canvasState model
     // let JSState = model.Diagram.GetCanvasState ()
     match model.CurrentStepSimulationStep with
     | None ->
@@ -1061,7 +1065,7 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
 
     match simType with
         | StepSim ->
-            tryGetSimData canvasState model
+            tryGetSimData false canvasState model
             |> function
                 | Ok (simData) -> 
                     model
@@ -1073,7 +1077,7 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
                     |> withMsgs (simErrFeedback simError (StartSimulation (Error simError)))
 
         | TruthTable ->
-            simulateModel None 2 canvasState model
+            simulateModel false None 2 canvasState model
             |> function
                 | Ok (simData), state ->
                     if simData.IsSynchronous = false then
@@ -1102,12 +1106,12 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
             let wsModel = getWSModel model
             //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
             match simulateModel
+                    true
                     model.WaveSimSheet
                     (wsModel.WSConfig.LastClock + Constants.maxStepsOverflow)
                     canvasState
                     model with
-            //| None ->
-            //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
+
             | (Error simError, _) ->
                 model
                 |> set currentStepSimulationStep_ (simError |> Error |> Some)

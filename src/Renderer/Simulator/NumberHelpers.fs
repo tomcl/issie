@@ -23,8 +23,27 @@ module Constants =
     /// max no of chars displayed before display functions truncate result
     let maxNumericCharsBeforeTruncation = 80
 
+/// Make negative bigints into the equivalent two's complement positive value.
+/// Must be given a width.
+let twosComp (width: int) (n: bigint) : bigint=
+    if n < 0I then
+        (1I <<< width) + n
+    else
+        n
 
-/// Convert an hex string into a binary string.
+/// Make twos comp bigint n into the equivalent signed bignum value.
+/// Must be given a width.
+let twosCompValue (width: int) (n: bigint) : bigint=
+    if n >= (1I <<< (width - 1)) then
+        n - (1I <<< width)
+    else
+        n
+
+//--------------------------------------------------------------------------------------------------------------//
+//-------------------------------------Printing of digital busses in given radixes------------------------------//
+//--------------------------------------------------------------------------------------------------------------//
+
+/// Convert a hex string into a binary string without unnecessary leading zeros.
 let private hexToBin (hStr: string) : string =
     let rec convert h =
         match h with
@@ -43,12 +62,15 @@ let private hexToBin (hStr: string) : string =
                 | '8' -> "1000"
                 | '9' -> "1001"
                 | 'a' -> "1010"
-                | 'b' -> "1011"
-                | 'c' -> "1100"
-                | 'd' -> "1101"
-                | 'e' -> "1110"
-                | 'f' -> "1111"
-                | c -> failwithf "Invalid char %c while converting hex %s to binary" c hStr
+                | 'a' | 'A' -> "1010"
+                | 'b' | 'B'  -> "1011"
+                | 'c' | 'C' -> "1100"
+                | 'd' | 'D' -> "1101"
+                | 'e' | 'E' -> "1110"
+                | 'f' | 'F' -> "1111"
+                | c ->
+                    printf "Invalid char %c while converting hex %s to binary" c hStr
+                    failwithf "Invalid char %c while converting hex %s to binary" c hStr
 
             digit + (convert h')
 
@@ -69,20 +91,62 @@ let private hexToBin (hStr: string) : string =
             | '7' -> "111"
             | '8' -> "1000"
             | '9' -> "1001"
-            | 'a' -> "1010"
-            | 'b' -> "1011"
-            | 'c' -> "1100"
-            | 'd' -> "1101"
-            | 'e' -> "1110"
-            | 'f' -> "1111"
-            | c -> failwithf "Invalid char %c while converting hex %s to binary" c hStr
+            | 'a' | 'A' -> "1010"
+            | 'b' | 'B'  -> "1011"
+            | 'c' | 'C' -> "1100"
+            | 'd' | 'D' -> "1101"
+            | 'e' | 'E' -> "1110"
+            | 'f' | 'F' -> "1111"
+            | c ->
+                printf "Invalid char %c while converting hex %s to binary" c hStr
+                failwithf "Invalid char %c while converting hex %s to binary" c hStr
 
         firstDigit + (convert chars')
 
+
+
+    
+
+/// Display a bignum as hex, always using 'x' prefix.
+/// NB - printf %x does bnot work for bignums
+let hexBignum (num: bigint) =
+    /// string representation of the hex digits of num, without leading zero or prefix.
+    /// Needed because "%x" does not work on bignums.
+    let rec hexDigitsBignum (num: bigint) =
+        let hex32 (d: uint32) = $"%X{d}"
+        let hex32Filled (d: uint32) = $"%08X{d}"
+        let q,r = bigint.DivRem(num, 1I <<< 32)
+        if q = 0I then
+            hex32 (uint32 r) 
+        else
+            hexDigitsBignum q + hex32Filled (uint32 r)
+
+    "x" + hexDigitsBignum num
+
+/// Display a bignum as binary, always using 'b' prefix.
+let binBignum (num: bigint) =
+    let hex =  hexBignum num
+    "b" + hexToBin hex[1..]
+
+
+/// Display bigint as signed twos complement value if width > 0.
+/// Otherwise display bigint in signed decimal as is.
+let sDecBignum (width: int) (num: bigint) =
+    match width with
+    | 0 -> num.ToString()
+    | _ -> (twosCompValue width num).ToString()
+
+/// The same as sDecBignum with width of 0.
+/// Display the bignum in signed decimal as is.
+let decBignum (num: bigint) = num.ToString()
+
+
 /// Format a hex or bin printed string adding commas every 4 digits.
+/// PrintedChars: hex or bin string prefixed 'x' or 'b'.
 /// If width > 0 pad with 0s up to width bits.
-/// if width = 0 work ok with no padding
-let addCommasAndZeros (width: int) (printedChars: string) =
+/// if width = 0 add commas but no leading zeros.
+/// Output: zero-filled string prexixed by 'x' or 'b'. up tp width bits.
+let private addCommasAndZeros (width: int) (printedChars: string) =
     let divCeiling n divisor = (n - 1 + divisor) / divisor
     let nonZeroDigits = printedChars[1 .. printedChars.Length - 1]
     let numDigits = nonZeroDigits.Length
@@ -97,7 +161,7 @@ let addCommasAndZeros (width: int) (printedChars: string) =
         (width - numDigits * bitsPerDigit)
         |> max 0
         |> fun n -> divCeiling n bitsPerDigit
-        |> min 64
+
 
     let digits = String.replicate extraZerosNum "0" + nonZeroDigits
     let num4Chunks = divCeiling digits.Length 4
@@ -121,55 +185,27 @@ let big16 = 65536I
 let big32 = 1I <<< 32
 let big64 = 1I <<< 64
 
-/// Add commas to a string every 3 digits, and leading zeros to fill to given width
-let addZerosBignum (width: int) (pFun: bigint -> string) (n: bigint) = pFun n |> addCommasAndZeros width
+/// Add commas to a string every 4 digits, and leading zeros to fill to given width in bits (not digits).
+/// If width = 0 do not add leading zeros.
+/// The string must be prefixed x or b to indicate hex or binary digits.
+/// pFun: function to generate print string.
+/// n: bigint to print with zeros and comms.
+let private addZerosBignum (width: int) (pFun: bigint -> string) (n: bigint) = pFun n |> addCommasAndZeros width
 
-
-/// string representation of the hex digits of num, without leading zero or prefix.
-/// Needed because "%x" does not work on bignums.
-let rec hexDigitsBignum (num: bigint) =
-    let hex32 (d: uint32) = $"%X{d}"
-    let hex32Filled (d: uint32) = $"%08X{d}"
-    let q,r = bigint.DivRem(num, 1I <<< 32)
-    if q = 0I then
-        hex32 (uint32 r) 
-    else
-        hexDigitsBignum q + hex32Filled (uint32 r)
-    
-
-/// print a bignum as hex
-let hexBignum (num: bigint) =
-    "x" + hexDigitsBignum num
-
-/// print a bignum as binary
-let binBignum (num: bigint) = "b" + (hexToBin <| hexDigitsBignum num)
-
-/// NB without width bignum must be signed, but mostly Issie bignums are non-negative and use two's complement
-/// So this function may be of limited use.
-let sDecBignum (num: bigint) = num.ToString()
-
-/// This is the same as sDecBignum. It is here for symmetry.
-let decBignum (num: bigint) = num.ToString() //?
-
-/// Fill a hex printed bignum with zeros to a given width.
+/// Fill a hex printed bigint with zeros to a given width in bits.
+/// Add commas every 4 digits for readability.
 let fillHexBignum width (n:bigint) =
     addZerosBignum width hexBignum n
 
 /// Fill a binary printed bignum with zeros to a given width.
-let fillBinBignum width = addZerosBignum width binBignum
+/// Add commas every 4 bits fro readability.
+let fillBinBignum width =
+    addZerosBignum width binBignum
 
 
-/// Convert a bit to string.
-let bitToString (bit: Bit) : string =
-    match bit with
-    | Zero -> "0"
-    | One -> "1"
-
-
-
-/// print a bignum according to a radix.
-/// if
-let rec bigValToPaddedString (width: int) (radix: NumberBase) (x: System.Numerics.BigInteger) =
+/// Display a bigint according to a radix and width in bits.
+/// if the radix is hex or bin zero-fill to the width, and separate with commas.
+let rec private printWithFill (width: int) (radix: NumberBase) (x: bigint) =
     if width = 0 then
         "0" // width = 0 is possible, and must not break this
     elif x < 0I then
@@ -177,7 +213,8 @@ let rec bigValToPaddedString (width: int) (radix: NumberBase) (x: System.Numeric
     elif width < 1 then
         $"Error: {width} is not a valid bignum width"
     elif x >= (1I <<< width) then
-        bigValToPaddedString width radix (x % (1I <<< width))
+        // if bignum is negative or has extra bits - force it to correct bit range
+        printWithFill width radix (x % (1I <<< width))
     else
         match radix with
         | SDec ->
@@ -188,67 +225,31 @@ let rec bigValToPaddedString (width: int) (radix: NumberBase) (x: System.Numeric
         | Dec -> x.ToString()
         | Bin
         | Hex ->
-            if width <= 64 then
-                (match radix with
+                 (match radix with
                  | Bin -> fillBinBignum
                  | Hex -> fillHexBignum
                  | _ -> failwithf "Can't happen")
                     width
                     x
-            else
-                bigValToPaddedString (width - 64) radix (x / (1I <<< 64))
-                + ","
-                + (match radix with
-                   | Hex -> (fillHexBignum 64 (x % (1I <<< 64)))[2..65]
-                   | _ -> (fillBinBignum 64 (x % (1I <<< 64)))[2..65])
-
-let rec bigValToString (radix: NumberBase) (x: System.Numerics.BigInteger) =
-    if x < 0I then
-        $"Bignum {x} is negative"
-    else
-        match radix with
-        | Dec
-        | SDec -> // can't know if sign is negative in this case
-            x.ToString()
-        | Bin
-        | Hex ->
-            if x <= (1I <<< 64) then
-                (match radix with
-                 | Bin -> binBignum >> addCommasAndZeros 0
-                 | Hex -> hexBignum >> addCommasAndZeros 0
-                 | _ -> failwithf "Can't happen") (
-                    x
-                )
-            elif radix = Bin then
-                "Can't display binary format > 64 bits"
-            else
-                bigValToString radix (x / (1I <<< 64))
-                
-
-
+               
 
 /// Convert bigint to string according to radix.
-/// binary and hex numbers are zero padded to width
-/// binary is displayed as hex if width > 8
+/// Binary and hex numbers are zero padded to width
+/// Binary is displayed as hex if width > 16
+/// Single-bit binary or hex numbers do not have x or b prefix.
+/// Multi-bit hex or binary numbers do.
 let valToPaddedString (width: int) (radix: NumberBase) (value: bigint) : string =
     match radix with
     | Dec -> decBignum value
+    | Bin when width < 2 -> (binBignum value)[1..1]
+    | Bin when width > 16 -> fillHexBignum width value
     | Bin -> fillBinBignum width value
-    | Hex when width <= 4 ->
-            match value with
-            | x when x < 10I -> string (char (int '0' + int x))
-            | x -> string (char (int 'A' + int x - 10))
+    | Hex when width <= 4 -> (hexBignum value)[1..1]
     | Hex -> fillHexBignum width value
-    | SDec -> sDecBignum value
+    | SDec -> sDecBignum width value
 
-/// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
-let private padToWidth width (bits: WireData) : WireData =
-    if bits.Length > width then
-        List.truncate width bits
-    else
-        bits @ List.replicate (width - bits.Length) Zero
-
-let fastDataToPaddedString maxChars radix (fd: FastData) =
+let private compress width maxChars radix s =
+    let maxChars = float maxChars
     let getPrefixAndDigits (s: string) =
         match s.Length, s.[0] with
         | n, '-' -> "-", s[1 .. n - 1]
@@ -256,19 +257,49 @@ let fastDataToPaddedString maxChars radix (fd: FastData) =
         | n, 'x' -> s.[0..0], s[1 .. n - 1]
         | _ -> "", s
 
-    let stripLeadingZeros s =
-        let rec strip index (s: string) =
-            if
-                index < s.Length - 1
-                && (s[index] = '0' || s[index] = ',')
-            then
-                strip (index + 1) s
+    let pre, digits = getPrefixAndDigits s
+    let n = digits.Length
+    let estimateCharLength c =
+        match c with
+        | ',' | '1' -> 0.75
+        | _ -> 1.0
+    let dotsLength = 3.0 * estimateCharLength '.'
+    let estimateLength digits =
+                digits
+                |> Seq.sumBy estimateCharLength
+
+    let findBestLength maxLength (digits: string) =
+        let lastDigitIndex = digits.Length - 1
+        let rec find sum num  =
+            if num = 0 then num
             else
-                s[index .. s.Length - 1]
+                let sum = sum + estimateCharLength digits[num]
+                if sum < maxLength then
+                    find sum (num - 1)
+                else
+                    num
+        digits[(find 0. lastDigitIndex)..lastDigitIndex]
+             
 
-        let pre, digits = getPrefixAndDigits s
-        pre, strip 0 digits
+    let preLength = if radix = Dec then 0. else 0.75
 
+
+    if preLength + estimateLength digits <= maxChars then // length is OK
+        pre + digits
+    else
+        let digitSpace = maxChars - preLength - dotsLength            
+        // truncate MS digits replacing by '...'
+        let truncatedDigits = findBestLength digitSpace digits
+        (pre
+        + "..."
+        + truncatedDigits)
+
+/// Print a FastData as a string with a given radix and width.
+/// If the string is too long, truncate it.
+/// MaxChars: the max printedlength of the string in char widths (emm).
+/// Radix: the radix to use for the string.
+/// Fd: the FastData to print.
+let fastDataToPaddedString maxChars radix (fd: FastData) =
     let displayRadix =
         match radix with
         | Bin when fd.Width > Constants.maxBinaryDisplayWidth -> Hex
@@ -288,32 +319,22 @@ let fastDataToPaddedString maxChars radix (fd: FastData) =
     | BigWord big ->
         let displayRadix =
             match displayRadix with
-            | Hex when fd.Width > Constants.maxHexOnlyDisplayWidth && (decBignum big).Length < 3 -> Hex
+            | Hex when fd.Width > Constants.maxHexOnlyDisplayWidth && (decBignum big).Length < 3 -> SDec
             | r -> r
-        bigValToPaddedString fd.Width displayRadix big
+        printWithFill fd.Width displayRadix big
     |> (fun s ->
         match s.Length < maxChars with
         | true -> s // no change needed
         | false ->
-            let pre, digits = stripLeadingZeros s
-            let n = digits.Length
+            compress fd.Width maxChars displayRadix s)
 
-            let pre' =
-                (match displayRadix with
-                 | Dec
-                 | SDec -> ""
-                 | _ -> $"{fd.Width}'")
-                + pre
+let UInt32ToPaddedString maxChars radix (width: int) (n: uint32) =
+    fastDataToPaddedString maxChars radix {Dat = Word n; Width = width}
 
-            if pre'.Length + digits.Length <= maxChars then
-                // stripping leading zeros makes length ok
-                pre' + digits
-            else
-                // truncate MS digits replacing by '..'
-                pre'
-                + ".."
-                + digits[n + 2 + pre'.Length - maxChars .. n - 1])
-
+let BigIntToPaddedString maxChars radix (width: int) (n: bigint) =
+    fastDataToPaddedString maxChars radix {Dat = BigWord n; Width = width}
+ 
+(*
 let UInt32ToPaddedString maxChars radix (width: int) (n: uint32) =
     let getPrefixAndDigits (s: string) =
         match s.Length, s.[0], s.[1] with
@@ -370,6 +391,8 @@ let BigIntToPaddedString maxChars radix (width: int) (fd: bigint) =
         | n, '-', _ -> "-", s[1 .. n - 1]
         | n, '0', 'b'
         | n, '0', 'x' -> s.[1..1], s[2 .. n - 1]
+        | n, 'b', _
+        | n, 'x', _ -> s.[0..0], s[1 .. n - 1]
         | _ -> "", s
 
     let stripLeadingZeros s =
@@ -405,23 +428,33 @@ let BigIntToPaddedString maxChars radix (width: int) (fd: bigint) =
         else
             // truncate MS digits replacing by '...'
             pre
-            + "..."
-            + digits[n + 2 + pre.Length - maxChars .. n - 1]
+            + (match radix with Hex -> "x" | Bin -> "b" | _ -> "")
+            + "..."            
+            + digits[n + 4 + pre.Length - maxChars .. n - 1]
+*)
+//-------------------------------------------------------------------------------------------//
+//---------------------------------WireData Conversion---------------------------------------//
+//-------------------------------------------------------------------------------------------//
 
+// this should be rationalised using otehr functions.
 
-/// make negative bigints into the equivalent two's complement positive value.
-/// Must be given a width.
-let twosComp (width: int) (n: bigint) : bigint=
-    if n < 0I then
-        (1I <<< width) + n
-    else
-        n
+/// Convert a bit to string.
+let bitToString (bit: Bit) : string =
+    match bit with
+    | Zero -> "0"
+    | One -> "1"
 
 /// Convert an int into a Bit list with the provided width. The Least
 /// Significant Bits are the one with low index (e.g. LSB is at position 0, MSB
 /// is at position N). Little Endian.
 /// If the number has more bits than width, then more bits will be returned.
 let convertIntToWireData (width: int) (num: bigint) : WireData =
+    /// Pad wireData with Zeros as the Most Significant Bits (e.g. at position N).
+    let padToWidth width (bits: WireData) : WireData =
+        if bits.Length > width then
+            List.truncate width bits
+        else
+            bits @ List.replicate (width - bits.Length) Zero
     let toBit =
         function
         | 0 -> Zero
@@ -451,6 +484,10 @@ let convertWireDataToInt (bits: WireData) : bigint =
         | One :: bits' -> (1I <<< idx) + convert bits' (idx + 1)
 
     convert bits 0
+
+//----------------------------------------------------------------------------------------------------------//
+//----------------------------------------------FastData Conversion-----------------------------------------//
+//----------------------------------------------------------------------------------------------------------//
 
 let convertIntToFastData (width: int) (n: uint32) =
     if width <= 32 then
@@ -522,6 +559,9 @@ let convertWireDataToFastData (wd: WireData) =
 let emptyFastData = { Width = 0; Dat = Word 0u }
 
 
+//--------------------------------------------------------------------------------------------------------------//
+//------------------------------------Numeric Parsing of Radixed Strings----------------------------------------//
+//--------------------------------------------------------------------------------------------------------------//
 
 /// Try to convert a string to a bigint, or return an error message if that was
 /// not possible.

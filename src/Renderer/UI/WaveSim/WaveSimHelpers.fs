@@ -379,7 +379,6 @@ type WaveSimButtonOptions = {
 
 /// end the current simulation
 let endButtonAction canvasState model dispatch ev =
-    printf "endbuttonaction"
     removeHighlights model dispatch
     dispatch <| EndWaveSim
 
@@ -390,7 +389,7 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
     let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
     let success = (ws.State = Success || ws.State=Loading)
 
-    let hasSimErr = Result.isError (ModelHelpers.resimulateWaveSim model)
+    let hasSimErr = Result.isError (ModelHelpers.resimulateWaveSimForErrors model)
 
     let errored =
         match hasSimErr, ws.State with

@@ -74,7 +74,7 @@ module TestFonts =
             let success, (num:bigint) = System.Numerics.BigInteger.TryParse(text)
             let numi = uint32 num
             // uncomment to see the parsed number
-            printfn $"BigInteger Parse: num={num}, success={success} hex= {NumberHelpers.hexDigitsBignum num}"
+            printfn $"BigInteger Parse: num={num}, success={success} hex= {NumberHelpers.hexBignum num}"
             let width =  textMeasureWidth font text
             let height = float fontSize
             let textEl = DrawHelpers.makeText 50. 100.  text font

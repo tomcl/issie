@@ -233,7 +233,14 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         |> fun model -> {model with WaveSimSheet = Some wsSheet}
     let wsModel = getWSModel model
     //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-    match ModelHelpers.simulateModel model.WaveSimSheet (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)  canvasState model with
+    let simRes =
+        ModelHelpers.simulateModel
+            true
+            model.WaveSimSheet
+            (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)
+            canvasState model
+
+    match simRes with
     //| None ->
     //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
     | (Error e, _) ->
@@ -312,7 +319,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
                 startEndButton
             ])
 
-    let messageOrControlButtons =
+    let needsBottomHalf, messageOrControlLine =
         let simError e =
             SimulationView.setSimErrorFeedback e model dispatch
             div [ errorMessageStyle ]
@@ -361,7 +368,6 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
                     ]
         | _ -> notRunning
 
-    let needsBottomHalf, messageOrControlLine = messageOrControlButtons
 
     div [ topHalfStyle ] [
         div [Style [MarginTop 20.; Display DisplayOptions.Flex; JustifyContent "space-between"]] [
@@ -388,7 +394,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
     let top, needsBottomHalf = topHalf canvasState model dispatch
     let needsRAMs = not <| Map.isEmpty wsModel.SelectedRams
     let height = calcWaveformAndScrollBarHeight wsModel
-    let bottomHalf = // this has fixed height
+    let bottomHalf() = // this has fixed height
         div [HTMLAttr.Id "BottomHalf" ; showWaveformsAndRamStyle (if needsRAMs then screenHeight() else height)] (
             if wsModel.SelectedWaves.Length > 0 then [
                 WaveSimWaveforms.showWaveforms model wsModel dispatch               
@@ -407,7 +413,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
                 top
                 //hr [ Style [ MarginBottom "0px";  MarginTop "0px"]]
                 
-                if needsBottomHalf then bottomHalf else div [] []
+                if needsBottomHalf then bottomHalf() else div [] []
                 //hr [ Style [ MarginBottom "0px"; MarginTop "0px" ]]
             ]
         

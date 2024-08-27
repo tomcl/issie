@@ -383,7 +383,7 @@ let simReset dispatch =
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails.
 /// Note that simulation is only redone if current canvas changes.
-let simulateModel (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
+let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
     let start = TimeHelpers.getTimeMs()
     match openSheetCanvasState, model.CurrentProj with
     | _, None -> 
@@ -394,16 +394,16 @@ let simulateModel (simulatedSheet: string option) (simulationArraySize: int) ope
             project.LoadedComponents 
             |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         (canvasState, otherComponents)
-        ||> Simulator.prepareSimulationMemoized simulationArraySize project.OpenFileName simSheet 
+        ||> Simulator.prepareSimulationMemoized isWaveSim simulationArraySize project.OpenFileName simSheet 
         |> TimeHelpers.instrumentInterval "MakeSimData" start
 
-let resimulateWaveSim (model: Model) : Result<SimulationData, SimulationError>  =
+let resimulateWaveSimForErrors (model: Model) : Result<SimulationData, SimulationError>  =
     let canv = model.Sheet.GetCanvasState()
     let ws = getWSModel model
     let simSize =
         match ws.State with
         | Success -> ws.WSConfig.LastClock + Constants.maxStepsOverflow
-        | _ -> 10 // small value does not matter whta it is.
-    simulateModel model.WaveSimSheet simSize canv model
+        | _ -> 10 // small value does not matter what it is.
+    simulateModel false model.WaveSimSheet simSize canv model
     |> fst
     

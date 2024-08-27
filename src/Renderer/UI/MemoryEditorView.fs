@@ -108,10 +108,10 @@ let private showRowWithAdrr memoryEditorData addr =
     | _ -> false
 
 let viewNum numBase =
-    match numBase with | Hex -> hexBignum | Dec -> decBignum | Bin -> binBignum | SDec -> sDecBignum
+    match numBase with | Hex -> hexBignum | Dec -> decBignum | Bin -> binBignum | SDec -> sDecBignum 0
 
 let viewFilledNum width numBase =
-    match numBase with | Hex -> fillHexBignum width | Dec -> decBignum | Bin -> fillBinBignum width | SDec -> sDecBignum
+    match numBase with | Hex -> fillHexBignum width | Dec -> decBignum | Bin -> fillBinBignum width | SDec -> sDecBignum width
 
 // let private baseToStr b = match b with | Hex -> "hex" | Dec -> "dec" | Bin -> "bin"
 

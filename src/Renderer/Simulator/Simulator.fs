@@ -316,7 +316,6 @@ let simCacheInit () = {
     StoredState = []
     StoredResult = Ok {
         FastSim = 
-            printfn "Creating cache"
             FastCreate.simulationPlaceholder
         Graph = Map.empty 
         Inputs = []
@@ -327,10 +326,13 @@ let simCacheInit () = {
         }
     }
         
-/// Used to store last canvas state and its simulation
+/// Used to store last canvas state and its simulation for Step & Truth Table simulation
 let mutable simCache: SimCache = simCacheInit ()
 
-let getFastSim() = simCache.FastSim
+/// Used to store last canvas state and its simulation for waveform simulation
+let mutable simCacheWS: SimCache = simCacheInit ()
+
+let getFastSim() = simCacheWS.FastSim
 
 let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=
     match cache.StoredResult with
@@ -364,6 +366,7 @@ let makeDummySimulationError msg = {
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. 
 let prepareSimulationMemoized
+        (isWaveSim: bool)
         (simulationArraySize: int)
         (openFileName: string)
         (diagramName : string)
@@ -371,23 +374,46 @@ let prepareSimulationMemoized
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> * CanvasState =
     //printfn $"Diagram{diagramName}, open={openFileName}, deps = {loadedDependencies |> List.map (fun dp -> dp.Name)}"
-    let storedArraySize = simCache.FastSim.MaxArraySize
+    if isWaveSim then
+        let storedArraySize = simCacheWS.FastSim.MaxArraySize
         
-    let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
-    let isSame = 
-            storedArraySize = simulationArraySize &&
-            diagramName = simCache.Name &&
-            cacheIsEqual simCache ldcs
-    if  isSame then
-        simCache.StoredResult, canvasState
+        let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
+        let isSame = 
+                storedArraySize = simulationArraySize &&
+                diagramName = simCacheWS.Name &&
+                cacheIsEqual simCacheWS ldcs
+        if  isSame then
+            simCacheWS.StoredResult, canvasState
+        else
+            printfn "New Waveform simulation"
+            simCacheWS <- {simCacheWS with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
+            let name, state, ldcs = getStateAndDependencies diagramName ldcs
+            let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs
+            let fastSim =
+                simResult
+                |> Result.map (fun sd -> sd.FastSim)
+                |> Result.defaultValue FastCreate.simulationPlaceholder
+            simCacheWS <- {simCacheWS with Name = diagramName; StoredResult = simResult; FastSim = fastSim}
+            simResult, canvasState
     else
-        printfn "New simulation"
-        simCache <- {simCache with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
-        let name, state, ldcs = getStateAndDependencies diagramName ldcs
-        let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs
-        let fastSim =
-            simResult
-            |> Result.map (fun sd -> sd.FastSim)
-            |> Result.defaultValue FastCreate.simulationPlaceholder
-        simCache <- {simCache with Name = diagramName; StoredResult = simResult; FastSim = fastSim}
-        simResult, canvasState
+        let storedArraySize = simCache.FastSim.MaxArraySize
+        
+        let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
+        let isSame = 
+                storedArraySize = simulationArraySize &&
+                diagramName = simCache.Name &&
+                cacheIsEqual simCache ldcs
+        if  isSame then
+            simCache.StoredResult, canvasState
+        else
+            printfn "New simulation"
+            simCache <- {simCache with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
+            let name, state, ldcs = getStateAndDependencies diagramName ldcs
+            let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs
+            let fastSim =
+                simResult
+                |> Result.map (fun sd -> sd.FastSim)
+                |> Result.defaultValue FastCreate.simulationPlaceholder
+            simCache <- {simCache with Name = diagramName; StoredResult = simResult; FastSim = fastSim}
+            simResult, canvasState
+        

@@ -544,12 +544,20 @@ let namesColumnProps (ws:WaveSimModel): IHTMLProp list = [
     namesColumnStyle ws
 ]
 
+let valueColumnTextStyle wsModel = {
+    DrawHelpers.defaultText with
+        FontSize = $"{wsModel.WSConfig.FontSize}px";
+        FontWeight = string wsModel.WSConfig.FontWeight
+        FontFamily = Constants.valueColumnFontFamily}
+
 let valuesColumnSize wsModel =
+    let colText = valueColumnTextStyle wsModel
+    let widthOfOneChar = DrawHelpers.getTextWidthInPixels colText "0" // not needed
     let selWaves = selectedWaves wsModel
     let maxValueBusWidth: int =
         selWaves
         |> List.map (fun wave -> wave.Width)
-        |> (fun lis -> 0 :: lis)
+        |> (fun lis -> 1 :: lis)
         |> List.max
     let sampleVals = 
         [maxValueBusWidth; min maxValueBusWidth NumberHelpers.Constants.maxBinaryDisplayWidth]
@@ -557,17 +565,18 @@ let valuesColumnSize wsModel =
                         let num = min (max num 1) (SimulatorTypes.bigIntMaskA.Length - 2)
                         let worstCaseVal, extra =
                             match wsModel.Radix with
-                            | CommonTypes.Hex | CommonTypes.Bin -> 0I, 2.
+                            | CommonTypes.Hex | CommonTypes.Bin -> (1I <<< num) - 1I, 50.
                             | CommonTypes.Dec -> SimulatorTypes.bigIntMask (num+1), 2.
                             | CommonTypes.SDec -> SimulatorTypes.bigIntMask (num-1), 10.
                         let (fd: SimulatorTypes.FastData) = {Dat=SimulatorTypes.BigWord worstCaseVal; Width=num}
-                        NumberHelpers.fastDataToPaddedString 10000 wsModel.Radix fd
-                        |> (fun s -> s[0..min (s.Length-1) Constants.valueColumnMaxChars])
-                        |> (fun v -> extra + DrawHelpers.getTextWidthInPixels Constants.valueColumnText v, v.Length+2))
+                        NumberHelpers.fastDataToPaddedString Constants.valueColumnMaxChars wsModel.Radix fd
+                        |> (fun v ->
+                            extra + DrawHelpers.getTextWidthInPixels colText v, v.Length+2))
     sampleVals
     |> List.unzip
     |> (fun (ws,nums) -> List.max ws, List.max nums)
-    |> (fun (w,num) -> int w + 20, num)
+    |> (fun (w,num) ->
+        int w + 20, num)
 
 /// Style properties for values column
 let valuesColumnStyle (ws: WaveSimModel) (colWidth:int) =

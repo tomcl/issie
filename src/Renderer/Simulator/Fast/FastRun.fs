@@ -163,14 +163,13 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     fs.FConstantComps |> Array.iter init
     //printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
-    //printfn "Loop init done"
-    printfn
-        "%d constant, %d input, %d clocked, %d ready to reduce from %d"
-        fs.FConstantComps.Length
-        fs.FGlobalInputComps.Length
-        fs.FClockedComps.Length
-        readyToReduce.Length
-        fs.FComps.Count
+    (*printfn "Loop init done"
+    //"%d constant, %d input, %d clocked, %d ready to reduce from %d"
+    fs.FConstantComps.Length
+    fs.FGlobalInputComps.Length
+    fs.FClockedComps.Length
+    readyToReduce.Length
+    fs.FComps.Count*)
 
     while readyToReduce.Length <> 0 do
         //printf "Adding %d combinational components %A" nextBatch.Length (pp nextBatch)

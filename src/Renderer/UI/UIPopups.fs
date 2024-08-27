@@ -499,7 +499,7 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
     let configDialog_ = waveSimModel_ >->  wSConfigDialog_  >-> Option.withDefault_ (getWSModel model).WSConfig
     let initConfig = Optic.get configDialog_ model
     let wsModel = getWSModel model
-    let fs = resimulateWaveSim model
+    let fs = resimulateWaveSimForErrors model
 
     let arraySize (c:WSConfig) =
         match fs with
@@ -555,9 +555,9 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
 
    
     let boxStyle = Style [Width Constants.wsButtonWidth; Font Constants.wsButtonFontSize; Height 24; Margin 10]
-    let colStyles = [   [Width 200; Margin "50px"; FontWeight 600];
+    let colStyles = [   [Width 200; Margin "50px"; PaddingTop "10px"; FontWeight 600];
                         [Width 70; PaddingRight "50px"];
-                        [Width 800; LineHeight "24px"; Margin "40px"]]
+                        [Width 800; LineHeight "24px"; Margin "40px"; PaddingTop "10px"]]
     let itemStyle = [Border "none"]
     let row items = tr [Style [BorderCollapse "collapse"; Height "60px"; TextAlign TextAlignOptions.Justify]]
                         (List.mapi (fun i item ->
@@ -565,7 +565,7 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
 
     div [Style []] [
         table [Style [LineHeight "40px"; BorderStyle "none"; BorderColor "white"; TextAlign TextAlignOptions.Left]] [
-            body [] [
+            tbody [] [ (*
                 row [
                         span [boxStyle] [str "First clock cycle:"]
                         Input.number [
@@ -577,17 +577,7 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
                         str "This value should be kept zero unless you know which part of a very long simulation you want to view. \
                               It can then be used to reduce the window over which scroll works and therefore make scroll easier to use."
  
-                    ]
-                row [
-                        span [boxStyle] [str "Last clock cycle:"]           
-                        Input.number [
-                            Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
-                            Input.DefaultValue <| string initConfig.LastClock
-                            Input.Color (if hasError "last" then IColor.IsDanger else IColor.IsBlack)
-                            Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt lastClock_)
-                        ]
-                        str "Very large values (> 100,000) may impact performance simulating large designs. The default is usually sufficient."
-                    ]
+                    ]*)
                 row [
                         span [boxStyle] [str "Waveform font size:"]           
                         Input.number [
@@ -608,6 +598,18 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
                         ]
                         str "Font weight of 300 = normal, 600 = bold, etc"
                     ]
+                row [
+                    span [boxStyle] [str "Max clock cycle:"]           
+                    Input.number [
+                        Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
+                        Input.DefaultValue <| string initConfig.LastClock
+                        Input.Color (if hasError "last" then IColor.IsDanger else IColor.IsBlack)
+                        Input.OnChange (JSHelpers.getIntEventValue >> setConfigInt lastClock_)
+                    ]
+                    str "Note that the waveform simulator will only simulate and scroll up to the current last cycle \
+                         which is much smaller than this unless cursor movement or scroll forces more to be simulated."
+                ]
+
             ]
         ]
 

@@ -89,9 +89,13 @@ let xShift clkCycleWidth =
 /// everywhere else.
 let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
     let waveData =
-        match Simulator.simCache.FastSim.Drivers[wave.DriverIndex] with
-        | Some d -> d
-        | None -> failwithf $"No driver found for wave {wave.DisplayName}"
+        match Array.tryItem wave.DriverIndex Simulator.simCacheWS.FastSim.Drivers with
+        | Some (Some d) -> d
+        | Some None ->
+            failwithf $"No driver found for wave {wave.DisplayName}"
+        | None ->
+            printfn $"Error: index {wave.DriverIndex} not found in fast simulation array"
+            failwithf $"Wave {wave.DisplayName} not found in fast simulation"
 
     match width with
     | w when w > 32 ->
@@ -435,7 +439,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
         let points = points |> Array.concat |> Array.distinct
         polyline (wavePolylineStyle points) []
     let waveData =
-        match Simulator.simCache.FastSim.Drivers[wave.DriverIndex] with
+        match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
         | Some d  -> d
         | None -> failwith $"No driver fround for {wave.DisplayName}"
     let waveform =

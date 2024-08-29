@@ -4,6 +4,7 @@ open EEExtensions
 open Fulma
 open Fable.React
 open Fable.React.Props
+open CommonTypes
 open PopupHelpers
 open ModelType
 open ModelHelpers

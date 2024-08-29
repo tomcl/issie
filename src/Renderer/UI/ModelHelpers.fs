@@ -1,4 +1,7 @@
 ﻿module ModelHelpers
+open Fulma
+open Fable.React
+open Fable.React.Props
 open CommonTypes
 open Sheet.SheetInterface
 open ModelType
@@ -51,6 +54,7 @@ let initWSModel  : WaveSimModel = {
     RamModalActive = false
     RamComps = []
     SelectedRams = Map.empty
+    RamStartLocation = Map.empty
     SearchString = ""
     ShowComponentDetail = Set.empty
     ShowSheetDetail = Set.empty
@@ -151,6 +155,8 @@ let getSavedWaveInfo (wsModel: WaveSimModel) : SavedWaveInfo =
         SelectedFRams = Some wsModel.SelectedRams
         SelectedRams = None
 
+        WSConfig = Some wsModel.WSConfig
+
         // The following fields are from the old waveform simulator.
         // They are no longer used.
         ClkWidth = None
@@ -169,6 +175,7 @@ let loadWSModelFromSavedWaveInfo (swInfo: SavedWaveInfo) : WaveSimModel =
             Radix = Option.defaultValue initWSModel.Radix swInfo.Radix
             WaveformColumnWidth = Option.defaultValue initWSModel.WaveformColumnWidth swInfo.WaveformColumnWidth
             SelectedRams = Option.defaultValue initWSModel.SelectedRams swInfo.SelectedFRams
+            WSConfig =Option.defaultValue initWSModel.WSConfig swInfo.WSConfig
     }
 
 //----------------------Print functions-----------------------------//
@@ -346,7 +353,6 @@ let execOneAsyncJobIfPossible (model: Model,cmd: Cmd<Msg>)=
         | [] -> (model,cmd)
         | job::_ -> 
             asyncJobs <- List.filter (fun job' -> job'.JobName <> job.JobName) asyncJobs 
-            printfn $"Executing async '{job.JobName}."
             job.JobWork model
             |> (fun (model', cmd') -> model', Cmd.batch [cmd; cmd'])
 
@@ -362,6 +368,46 @@ let getUpdatedLoadedComponents (project: Project) (model: Model) : Project =
 let setModelInt (optic_: Lens<Model,int>) (dispatch: Msg -> unit) maxVal minVal intToSet : unit =
     let intToSet = if intToSet > maxVal then maxVal else if intToSet < minVal then minVal else intToSet
     dispatch <| UpdateModel (Optics.Optic.set optic_ intToSet)
+
+//--------------------------------------------------------------------------------------------//
+//------------------------React Input Boxes for numeric Parsing with Elmish-------------------//
+//--------------------------------------------------------------------------------------------//
+
+// Code should be refactored to use these throughout
+
+/// Both input text and its parsed numeric value must be stored in the model.
+/// The two fields contain optics used to access these items in the model
+type ModelLocations = {
+     TextOptic_: Optics.Lens<Model,string>
+     ValOptic_: Lens<Model,bigint>
+}
+
+/// <summary> Display an input box which is parsed as a bigint and written back to the Model using
+/// textOptic (the text) and valOptic (the value). isValid must return true for the value to be written back to
+/// the model</summary>
+let inputBigint
+        (props: IHTMLProp list)
+        (placeholder:string)
+        (locs: ModelLocations)
+        (isValid: bigint -> Model -> bool)
+        (dispatch: Msg -> unit) 
+        (model:Model): ReactElement =
+
+    let isNowValid bigNum =  isValid bigNum (Optic.set locs.ValOptic_ bigNum model)
+
+    let parseInput (text:string) =
+        dispatch <| UpdateModel (Optics.Optic.set locs.TextOptic_ text)
+        match NumberHelpers.strToBigint text with
+        | Ok big when isNowValid big ->
+            dispatch <| UpdateModel (Optic.set locs.ValOptic_ big)
+        | _ -> ()
+            
+    Input.text [
+        Input.Props (props @ [OnPaste PopupHelpers.preventDefault; AutoFocus true; SpellCheck false])
+        Input.Placeholder placeholder
+        Input.DefaultValue (model |> Optics.Optic.get locs.TextOptic_)
+        Input.OnChange (JSHelpers.getTextEventValue >> parseInput)
+    ]
 
 
 //---------------------------------------------------------------------------------------------//

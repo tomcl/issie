@@ -71,7 +71,6 @@ let validateScrollBarInfo (wsm: WaveSimModel) =
 
 let inline updateViewerWidthInWaveSim w (model:Model) =
     let wsModel = getWSModel model
-    //dispatch <| SetViewerWidth w
     let namesColWidth = calcNamesColWidth wsModel
 
     /// The extra is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)

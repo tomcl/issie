@@ -113,7 +113,6 @@ let viewBuild model dispatch =
                         Label.label [ ]
                             [Select.select []
                             [ select [(OnChange(fun option -> 
-                                printfn "Value is: %s" option.Value
                                 Sheet (SheetT.Msg.SetDebugDevice option.Value) |> dispatch  ))]
                                 
                                 ([option [Value "";Selected true;Disabled true] [str ("Select Device")]] @ [option [Value "IceStick"] [str "IceStick"]] @ [option [Value "IssieStick-v0.1"] [str "IssieStick v0.1"] ] @ [option [Value "IssieStick-v1.0"] [str "IssieStick v1.0"] ])

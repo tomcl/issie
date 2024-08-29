@@ -226,10 +226,8 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
         let oldMaps = sym.PortMaps
         match getCloseByEdge sym pos with
         | None -> 
-            printfn "not on edge"
             {sym with MovingPort = None}
         | Some edge -> 
-            printfn $"{edge}"
             let newPortOrientation = oldMaps.Orientation |> Map.add portId edge
             let oldEdge = oldMaps.Orientation[portId]
             let newPortIdx = getPosIndex sym pos edge
@@ -238,11 +236,11 @@ let updatePortPos (sym:Symbol) (pos:XYPos) (portId: string) : Symbol =
             let oldPortOrder' =
                 oldMaps.Order 
                 |> Map.add oldEdge (oldMaps.Order[oldEdge] |> List.filter (fun el -> el <> portId))
+
             let newPortIdx' =
                 if newPortIdx > oldPortOrder'[edge].Length then oldPortOrder'[edge].Length
                 else if edge = oldEdge && oldIdx < newPortIdx then newPortIdx - 1
                 else newPortIdx
-            printfn $"{(newPortIdx, newPortIdx')}"
             
             let newPortOrder = 
                 oldPortOrder'

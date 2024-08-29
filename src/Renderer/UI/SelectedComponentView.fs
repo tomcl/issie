@@ -728,7 +728,6 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
                     "Enter constant value in decimal, hex, or binary:" 
                     cText 
                     (fun txt -> 
-                        printfn $"Setting {txt}"
                         dispatch <| SetPopupDialogText (Some txt))
                 
             ]              
@@ -760,7 +759,6 @@ let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch
                     "Enter bus compare value in decimal, hex, or binary:" 
                     cText 
                     (fun txt -> 
-                        printfn $"Setting {txt}"
                         dispatch <| SetPopupDialogText (Some txt))
                 
             ] 

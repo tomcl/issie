@@ -185,7 +185,6 @@ let makeSourceMenu
 
         let onSelect key  =
             let n1,n2, mem,_ = getMemorySetup dialog 1 // current values
-            printfn $"Select {key}"
             //dispatch <| ModelType.SetPopupDialogMemorySetup (Some(n1,n2,key,None))
             dispatch <| SetPopupDialogMemorySetup (Some (n1,n2,key, match key with | FromFile name -> Some name | _ -> None))
         
@@ -1016,11 +1015,9 @@ let removeAllCustomComps (name:string) project =
             comps |> List.filter (fun comp -> 
                 match comp.Type with
                 |Custom c when c.Name = name -> 
-                    printfn "custom %A" c
                     false
                 |_ -> true
             )
-        printfn "todeleteids %A" idsToBeDeleted
         let newConns =
             conns |> List.filter (fun conn ->
                 match conn.Source.HostId,conn.Target.HostId with

@@ -693,7 +693,6 @@ let simulationClockChangeAction dispatch simData (model': Model) =
     let chunkTime = min 2000. (estimatedTime / 5.)
     let chunk = int <| float steps * chunkTime / estimatedTime
     if steps > 2*initChunk && estimatedTime > 500. then 
-        printfn "test1"
         dispatch <| SetPopupProgress 
             (Some {
                 Speed = float (numComps * steps) / estimatedTime
@@ -863,7 +862,6 @@ let tryGetSimData isWaveSim canvasState model =
         simCacheWS <- simCacheInit ()
     else
         simCache <- simCacheInit ()
-    printfn $"TyyGetSimData: WS={isWaveSim}"
     simulateModel isWaveSim None Constants.maxArraySize canvasState model
     |> function
         | Ok (simData), state -> 
@@ -964,7 +962,6 @@ let viewSimulation canvasState model dispatch =
                     Button.button [
                         Button.Color IsSuccess
                         Button.OnClick (fun _ ->
-                            printfn "did a refresh with ok"
                             setInputDefaultsFromInputs simData.FastSim dispatch simData.ClockTickNumber
                             simCache <- {simCache with RestartSim = true}
                             ClosePopup |> dispatch

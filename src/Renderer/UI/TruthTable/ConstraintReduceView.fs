@@ -347,9 +347,9 @@ let dialogPopupNumericalConBody (cellIOs: CellIO list) existingCons infoMsg disp
         match dialogData.Int, dialogData.Int2, dialogData.ConstraintErrorMsg,
         dialogData.ConstraintIOSel, dialogData.ConstraintTypeSel with
         | Some v, _, None, Some io, Some Equ ->
-            printfn "Existing %A" existingCons
+            //printfn "Existing %A" existingCons
             let tentative = Equality {IO = io; Value = v}
-            printfn "Tentative: %A" (inCon2str tentative)
+            //printfn "Tentative: %A" (inCon2str tentative)
             match validateNumericalConstraint tentative existingCons with
             | Error err ->
                 err |> Some |> SetPopupConstraintErrorMsg |> ttDispatch

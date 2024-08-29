@@ -21,6 +21,9 @@ open DrawModelType
 open WaveSimNavigation
 open WaveSimSelect
 open DiagramStyle
+open WaveSimStyle
+open Optics
+open Optics.Operators
 
 
 /// Table row that shows the address and data of a RAM component.
@@ -32,16 +35,16 @@ let ramTableRow ((addr, data,rowType): string * string * RamRowType): ReactEleme
     ]
 
 /// Table showing contents of a RAM component.
-let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) : ReactElement =
+let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ramId, ramLabel): FComponentId * string) : ReactElement =
     let wanted = calcWaveformAndScrollBarHeight wsModel
-    let maxHeight = max (screenHeight() - (min wanted (screenHeight()/2.)) - 300.) 30.
     let fs = Simulator.getFastSim()
     match Map.tryFind ramId fs.FComps with
     | None -> div [] []
     | Some fc -> 
         let step = wsModel.CurrClkCycle
-        FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
-
+        if fs.ClockTick < step then
+            printf "Extending Fast Simulation to cycle %d\n in ramTable" step
+            FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
         // in some cases fast sim is run for one cycle less than currClockCycle
         let memData =
             match fc.FType with
@@ -51,42 +54,50 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
             | AsyncRAM1 mem -> 
                 match FastRun.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
                 |RamState mem -> mem
-                | x -> failwithf $"What? Unexpected state {x} from cycle {wsModel.CurrClkCycle} \
+                | x -> printf $"What? Unexpected state from cycle {wsModel.CurrClkCycle} \
                         in RAM component '{ramLabel}'. FastSim step = {fs.ClockTick}"
-            | _ -> failwithf $"Given a component {fc.FType} which is not a vaild RAM"
+                       printfn $"State is {x}"
+                       failwithf "unexpected Error in ramTable - see printed message"
+            | _ ->
+                failwithf $"Given a component {fc.FType} which is not a vaild RAM"
         let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
 
         let print w (a:bigint) = NumberHelpers.valToPaddedString w wsModel.Radix (((1I <<< w) - 1I) &&& a)
 
-        let lastLocation = (1I <<< memData.AddressWidth - 1) - 1I
+        let lastLocation = (1I <<< memData.AddressWidth) - 1I
+
+        let opticPath fc = waveSimModel_ >-> ramStartLocation_ >-> Optics.Map.valueWithDefault_ ("",0I) fc
+        let loc = {
+            TextOptic_ = opticPath ramId >-> Optics.fst_
+            ValOptic_ = opticPath ramId >-> Optics.snd_
+            }
+
+        let startDisplayLoc, windowedDisplay =
+            match Optic.get loc.ValOptic_ model,  Optic.get loc.TextOptic_ model with
+            | start, _ when memData.Data.Count > Constants.maxRamLocsWithSparseDisplay -> start, true
+            | _, text when text = "" -> 0I, false
+            | start, _ -> start, true
+
+        let maxHeight =
+            max (screenHeight() - (min wanted (screenHeight()/2.)) - 300.) 30.
+            |> (fun h -> h - 40.)
 
         /// print a single 0 location as one table row
         let print1 (a:bigint,b:bigint,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
-        /// print a range of zero locations as one table row
 
+        /// print a range of zero locations as one table row
         let print2 (a1:bigint) (a2:bigint) (d:bigint) = $"{print aWidth (a1+1I)} ... {print aWidth (a2-1I)}", $"{print dWidth d}",RAMNormal
 
         /// output info for one table row filling the given zero memory gap or arbitrary size, or no line if there is no gap.
         let printGap (gStart:bigint) (gEnd:bigint) =
-            let gapSize = gStart - gEnd
-            if gapSize = 1I then []            
+            let gapSize = gEnd - gStart
+            if gapSize = 1I || windowedDisplay then []            
             elif gapSize = 2I then  [print1 ((gEnd + gStart) / 2I, 0I, RAMNormal)]
             elif  gapSize > 2I then [print2 gStart gEnd 0I]
             else
                 failwithf $"What? gEnd={gEnd},gStart={gStart}: negative or zero gaps are impossible..."
 
-        /// transform Sparse RAM info into strings to print in a table, adding extra lines for zero gaps
-        /// line styling is controlled by a RamRowtype value and added later when the table row react is generated
-        let addGapLines (items: (bigint*bigint*RamRowType) list) = 
-            let startItem =
-                match (items[0]) with
-                | gapStart,_,_ when gapStart = -1I -> []
-                | gStart,dStart,rw-> [print1 (gStart,dStart,rw)]
-            List.pairwise items
-            |> List.collect (fun ((gStart,_,_),(gEnd,dEnd,rwe)) -> 
-                let thisItem = if gEnd = lastLocation + 1I then [] else [print1 (gEnd,dEnd,rwe)]
-                [printGap gStart gEnd; thisItem])
-            |> List.concat
+
 
         /// Add a RAMNormal RamRowType value to every location in mem.
         /// Add in additional locations for read and/or write if needed.
@@ -142,33 +153,76 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
                     match writeOpt with // overwrite RAMRead here is need be
                     | Some addr -> addToMap RAMWritten addr mem
                     | None -> mem))
- 
 
-        /// add fake locations beyong normal address range so that
+
+        /// If using a windowed (not-sparse) display, prune the memory map to the given range adding zeros for missing locations.
+        let generatewindowlocations (startLoc:bigint) (numOfLocs:int) (mem:Map<bigint,bigint>) =
+            Array.map (fun loc -> loc, (Map.tryFind loc mem |> Option.defaultValue 0I)) [| startLoc..startLoc + bigint numOfLocs-1I |]
+            |> Map.ofArray
+             
+
+
+                
+
+        /// add fake locations beyond normal address range so that
         /// addGapLines fills these (if need be). These locations are then removed
         let addEndPoints (items:(bigint*bigint*RamRowType) list)  =
+            let start = 0I
             let ad (a,d,rw) = a
             match items.Length with
-            | 0 -> [-1I,0I,RAMNormal;  lastLocation, 0I, RAMNormal]
+            | 0 -> [-1I, 0I ,RAMNormal;  lastLocation, 0I, RAMNormal]
             | _ ->
-                if ad items[0] < 0I then items else List.insertAt 0 (-1I,-1I,RAMNormal) items
+                if ad items[0] < start then items else List.insertAt 0 (start - 1I, start - 1I, RAMNormal) items
                 |> (fun items ->
-                    if ad items[items.Length-1] = lastLocation then 
+                    if ad items[items.Length-1] = lastLocation || windowedDisplay then 
                         items else 
                     List.insertAt items.Length (lastLocation+1I,0I,RAMNormal) items)
-    
 
+        /// Transform RAM info into strings to print in a table, adding extra lines for zero gaps if the display is sparse.
+        /// line styling is controlled by a RamRowtype value and added later when the table row react is generated
+        let addGapLines (addGaps: bool) (items: (bigint*bigint*RamRowType) list) =
+            List.pairwise items
+            |> List.collect (fun ((gStart,_,_),(gEnd,dEnd,rwe)) -> 
+                let thisItem = if gEnd = lastLocation + 1I  then [] else [print1 (gEnd,dEnd,rwe)]
+                [
+                    if addGaps then printGap gStart gEnd else []
+                    thisItem
+                ] )
+            |> List.concat
+
+            
         let lineItems =
             memData.Data
-            |> addReadWrite fc step
-            |> Map.toList
-            |> List.map (fun (a,(d,rw)) -> a,d,rw)
-            |> List.filter (fun (a,d,rw) -> d<>0I || rw <> RAMNormal)
-            |> List.sort
-            |> addEndPoints 
-            |> addGapLines
+            |> (if windowedDisplay then
+                    generatewindowlocations startDisplayLoc Constants.maxRamRowsDisplayed
+                    >> addReadWrite fc step
+                    >> Map.toList
+                    >> List.map (fun (a,(d,rw)) -> a,d,rw)
+                    >> List.sort
+                    >> addEndPoints
+                    >> addGapLines false
+                else
+                    addReadWrite fc step
+                    >> Map.toList
+                    >> List.map (fun (a,(d,rw)) -> a,d,rw)
+                    >> List.filter (fun (a,d,rw) -> d<>0I || rw <> RAMNormal)
+                    >> List.sort
+                    >> addEndPoints
+                    >> addGapLines true)
+            
+
         
 
+        let goodStartAddress big =
+            if big >= 0I && big < lastLocation then  
+                ""
+            else
+                $"Address ${big} is out of required range: 0 - {lastLocation}"
+            
+ 
+        let inputBox =
+            let props: IHTMLProp list = [Style [Width 200]]
+            ModelHelpers.inputBigint props "Window Start"  loc (fun big _ -> goodStartAddress big = "") dispatch model
 
         Level.item [
             Level.Item.Option.Props ramTableLevelProps
@@ -176,7 +230,7 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
         ] [
             Heading.h6 [
                 Heading.Option.Props [ centerAlignStyle ]
-            ] [ str ramLabel ]
+            ] [str ramLabel ; br [];  inputBox]
             div [Style [MaxHeight maxHeight;OverflowY OverflowOptions.Auto]] [
             Table.table [
                 Table.IsFullWidth
@@ -187,14 +241,14 @@ let ramTable (wsModel: WaveSimModel) ((ramId, ramLabel): FComponentId * string) 
                         th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string wsModel.CurrClkCycle)]]
                     ]
                 ]
-                tbody []
-                    (List.map ramTableRow lineItems) 
+                tbody [] (List.map (fun item -> ramTableRow item) lineItems)
+                                   
             ] ]
             br []
         ]
 
 /// Bulma Level component of tables showing RAM contents.
-let ramTables (wsModel: WaveSimModel) : ReactElement =
+let ramTables (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model): ReactElement =
     let inlineStyle (styles:CSSProp list) = div [Style (Display DisplayOptions.Inline :: styles)]
     let start = TimeHelpers.getTimeMs ()
     let selectedRams = Map.toList wsModel.SelectedRams
@@ -205,8 +259,10 @@ let ramTables (wsModel: WaveSimModel) : ReactElement =
                 |> List.map (fun (op, opStyle) -> inlineStyle [Margin "0px"] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
                 |> function 
                     | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
-                    | _ -> failwithf "What? Can't happen!"
-            List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable wsModel ram])  selectedRams
+                    | x ->
+                        printfn $"Unexpected failure in ramTables: x = {x}"
+                        failwithf "What? Can't happen!"
+            List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable dispatch wsModel model ram])  selectedRams
             |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
             |> Fulma.Table.table [
                 Table.TableOption.Props ramTablesLevelProps;

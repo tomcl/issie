@@ -639,11 +639,9 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 | Error _ -> failwithf "Writing verilog file FAILED"
 
                 let parsedCodeNearley = parseFromFile(code)
-                printfn $"{parsedCodeNearley}"
                 let output = Json.parseAs<ParserOutput> parsedCodeNearley
                 let result = Option.get output.Result
                 let fixedAST = fix result
-                printfn "fixed %A" fixedAST
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
 
                 let cs = SheetCreator.createSheet parsedAST project
@@ -768,7 +766,6 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                             |_ -> s+"\n"+linesList[v-1]
                         )
                         let fixedLine = replaceSubstringAtLocation linesList[line-1] suggestion (col-1) error.Length
-                        printfn $"fixed: {fixedLine}"
                         let fixedError = 
                             match line with
                             |1 -> fixedLine

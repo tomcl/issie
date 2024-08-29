@@ -430,7 +430,7 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
 /// a progress bar.
 let extendSimulation timeOut (ws:WaveSimModel) =
     let stepsNeeded = (ws.ShownCycles + ws.StartCycle) * ws.CycleMultiplier
-    printfn $"Extending simulation to {stepsNeeded} cycles"
+    //printfn $"Extending simulation to {stepsNeeded} cycles"
     if stepsNeeded > ws.WSConfig.LastClock then
         failwithf $"Trying to extend simulation to {stepsNeeded} which is beyond available clocks (ws.WSConfig.LastClock)"
     FastRun.runFastSimulation timeOut (stepsNeeded + Constants.extraSimulatedSteps) (Simulator.getFastSim())

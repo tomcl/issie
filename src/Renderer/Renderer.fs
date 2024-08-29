@@ -448,7 +448,6 @@ let keyPressListener initial =
     let subContextMenuCommand dispatch =
         renderer.ipcRenderer.on("context-menu-command", fun ev args ->
             let arg:string = unbox args |> Array.map string |> String.concat ""
-            printfn "%s" arg
             match arg.Split [|','|] |> Array.toList with
             | [ menuType ; item ] ->
                 //printfn "%A" $"Renderer context menu callback: {menuType} --> {item}"

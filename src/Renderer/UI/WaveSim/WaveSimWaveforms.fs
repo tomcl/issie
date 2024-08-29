@@ -194,7 +194,6 @@ let namesColumn model wsModel dispatch : ReactElement =
 let valueRows (wsModel: WaveSimModel) =
     let valueColWidth, valueColNumChars =
         valuesColumnSize wsModel
-    printfn $"col chars = {valueColNumChars}"
     selectedWaves wsModel
     |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycleDetail wave wave.Width)
     |> List.map (fun fd ->

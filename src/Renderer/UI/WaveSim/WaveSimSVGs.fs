@@ -344,8 +344,12 @@ let displayBigIntOnWave
     : list<ReactElement> =
     let textFont = wsModel.WSConfig.FontSize
     let textWeight = wsModel.WSConfig.FontWeight
-    let textSpec = {DrawHelpers.defaultText with FontSize = $"{textFont}px"; FontWeight = $"{textWeight}"; FontFamily = "Helvetica"}
-
+    let textSpec = {
+        DrawHelpers.defaultText with
+            FontSize = $"{textFont}px";
+            FontWeight = $"{textWeight}";
+            FontFamily = Constants.valueColumnFontFamily
+            }
     // find all clock cycles where there is a NonBinaryTransition.Change
     let changeTransitions =
         transitions

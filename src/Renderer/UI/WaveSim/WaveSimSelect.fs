@@ -710,20 +710,23 @@ let toggleRamSelection (ramId: FComponentId) (ramLabel: string) (wsModel: WaveSi
 
 /// Modal that, when active, allows users to select RAMs to view their contents.
 let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-        let ramRows (ram: FastComponent) : ReactElement =
-            tr [] [
-                td []
-                    [ Checkbox.checkbox []
-                        [ Checkbox.input [
-                            Props (checkboxInputProps @ [
-                                Checked <| isRamSelected ram.fId wsModel
-                                OnChange (fun _ -> toggleRamSelection ram.fId ram.FullName wsModel dispatch)
-                            ])
-                        ] ]
-                    ]
-                td [] [ label [ ramRowStyle ] [ str ram.FullName ] ]
-            ]
-
+        let fs = Simulator.getFastSim()
+        let ramRows (ramId: FComponentId) : ReactElement =
+            match Map.tryFind ramId fs.FComps with
+            | Some ram ->
+                tr [] [
+                    td []
+                        [ Checkbox.checkbox []
+                            [ Checkbox.input [
+                                Props (checkboxInputProps @ [
+                                    Checked <| isRamSelected ram.fId wsModel
+                                    OnChange (fun _ -> toggleRamSelection ram.fId ram.FullName wsModel dispatch)
+                                ])
+                            ] ]
+                        ]
+                    td [] [ label [ ramRowStyle ] [ str ram.FullName ] ]
+                ]
+            | None -> div [] []
         Modal.modal [
             Modal.IsActive wsModel.RamModalActive
             Modal.Props [Style [ZIndex 20000]]
@@ -758,7 +761,7 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                     hr []
                     Table.table [] [
                         tbody []
-                            (List.map (ramRows) wsModel.RamComps)
+                            (List.map ramRows wsModel.RamComps)
                     ]
                 ]
 

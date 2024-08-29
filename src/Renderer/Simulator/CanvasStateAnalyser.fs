@@ -380,8 +380,6 @@ let private getInPortRmInfo (m: MapData) (counts: Map<string,Connection list * i
     | Counter w ->
         let isDAndLoadDisconnected = checkAllPorts (condSelDisconnected ["D"; "LOAD"]) parentComp.InputPorts
         let isEnDisconnected = checkAllPorts (condSelDisconnected ["EN"]) parentComp.InputPorts
-        printfn "isDandLoaddisconnected: %A" isDAndLoadDisconnected
-        printfn "isEndisconnected: %A" isEnDisconnected
         match portName, isDAndLoadDisconnected, isEnDisconnected with
         | "D", true, _ | "LOAD", true, _ -> Removable (CounterNoLoad w)
         | "D", false, _ | "LOAD", false, _ -> Unremovable

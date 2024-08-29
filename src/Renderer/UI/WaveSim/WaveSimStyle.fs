@@ -127,6 +127,8 @@ module Constants =
     let waveLegendMaxChars = 35
     let valueColumnMaxChars = 35
     let multipliers = [1;2;5;10;20;50]
+    let maxRamRowsDisplayed = 50
+    let maxRamLocsWithSparseDisplay = 100
 
 // maybe these should be defined earlier in compile order? Or added as list functions?
 
@@ -562,16 +564,18 @@ let valuesColumnSize wsModel =
     let sampleVals = 
         [maxValueBusWidth; min maxValueBusWidth NumberHelpers.Constants.maxBinaryDisplayWidth]
         |> List.map (fun num ->
-                        let num = min (max num 1) (SimulatorTypes.bigIntMaskA.Length - 2)
+                        let num = min num (SimulatorTypes.bigIntMaskA.Length - 2)
                         let worstCaseVal, extra =
                             match wsModel.Radix with
-                            | CommonTypes.Hex | CommonTypes.Bin -> (1I <<< num) - 1I, 50.
-                            | CommonTypes.Dec -> SimulatorTypes.bigIntMask (num+1), 2.
+                            | CommonTypes.Bin -> (1I <<< num - 1), 20.
+                            | CommonTypes.Hex  -> (1I <<< num) - 1I, 20.
+                            | CommonTypes.Dec -> (1I <<< (num+1)), 2.
                             | CommonTypes.SDec -> SimulatorTypes.bigIntMask (num-1), 10.
                         let (fd: SimulatorTypes.FastData) = {Dat=SimulatorTypes.BigWord worstCaseVal; Width=num}
                         NumberHelpers.fastDataToPaddedString Constants.valueColumnMaxChars wsModel.Radix fd
                         |> (fun v ->
-                            extra + DrawHelpers.getTextWidthInPixels colText v, v.Length+2))
+                            let width =  DrawHelpers.getTextWidthInPixels colText v
+                            extra + 1.05 * width, v.Length+2))
     sampleVals
     |> List.unzip
     |> (fun (ws,nums) -> List.max ws, List.max nums)

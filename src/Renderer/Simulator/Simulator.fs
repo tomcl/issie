@@ -332,6 +332,8 @@ let mutable simCache: SimCache = simCacheInit ()
 /// Used to store last canvas state and its simulation for waveform simulation
 let mutable simCacheWS: SimCache = simCacheInit ()
 
+/// Used in wave simulation to obtain the currently active FastSimulation.
+/// This should exist, but if not it will contain a dummy
 let getFastSim() = simCacheWS.FastSim
 
 let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=

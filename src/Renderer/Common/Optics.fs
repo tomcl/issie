@@ -314,6 +314,13 @@ module Optics =
                         | None -> failwithf "%s" getFailErrorMessage),
             (fun v x -> Map.add k v x)
 
+        /// Safe lens to a value associated with a key in a map.
+        /// If the key does not exist defaultVal is returned
+        let inline valueWithDefault_ (defaultVal: 'v) (k: 'k) : Lens<Map<'k,'v>, 'v> =
+            ((Map.tryFind k)
+            >> function | Some v -> v
+                        | None -> defaultVal),
+            (fun v x -> Map.add k v x)
 
         /// Weak Isomorphism to an array of key-value pairs.
         let array_ : Isomorphism<Map<'k,'v>, ('k * 'v)[]> =

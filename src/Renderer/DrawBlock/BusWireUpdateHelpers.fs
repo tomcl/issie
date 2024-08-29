@@ -799,7 +799,6 @@ let resetJumpsOrIntersections (wire: Wire) =
     {wire with Segments = newSegs}
 
 let resetJumps (model:Model) : Model =
-        printfn "Reseting jumps or intersections..."
         (model.Wires, model.Wires)
         ||> Map.fold (fun wires wid wire ->
                 Map.add wid (resetJumpsOrIntersections wire) wires)

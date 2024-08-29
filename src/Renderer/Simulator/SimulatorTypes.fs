@@ -595,7 +595,6 @@ let rec evalExp exp =
             else
                 BinaryExp(l, BitAndOp, r)
     | BinaryExp(exp1, BitOrOp, exp2) ->
-        printfn "Or Case Matched"
         let left = evalExp exp1
         let right = evalExp exp2
 
@@ -745,8 +744,6 @@ and reduceArithmetic expression =
                 l
             else
                 l @ [ numDataExp ]
-
-    printfn "To Assemble: %A" (List.map expToString expressionsToAssemble)
 
     assembleArithmetic width expressionsToAssemble
 

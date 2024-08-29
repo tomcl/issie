@@ -396,7 +396,6 @@ let changeInstance (comp:Component) (change: PortChange) =
                 List.filter (fun (port:Port) -> port.PortNumber <> Some portNum) ports
                 |> List.sortBy (fun port -> port.PortNumber)
                 |> List.mapi (fun i port -> {port with PortNumber = Some i})
-            printfn $"deleteport:{labels.Length},{ports.Length}"
             labels,ports
         updateInfo dir upf comp
 
@@ -430,7 +429,6 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
         match comp.Type with
         | Custom ct -> //when ct.Form = Some User ->                
                 if oldSig = newSig then 
-                    printfn "Order matches!"
                     comp
                 elif mapPair List.sort newSig = mapPair List.sort oldSig then
                     printfn $"Reordering {comp.Label}"

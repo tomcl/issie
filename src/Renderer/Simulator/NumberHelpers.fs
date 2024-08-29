@@ -568,8 +568,8 @@ let emptyFastData = { Width = 0; Dat = Word 0u }
 let strToBigint (str: string) : Result<bigint, string> =
     let removeCommas (str: string) =
         str.Replace(",", "")
-    let str = str.ToLower()
-    let str = if str.Length > 1 && str[0] = 'x' || str[0]='b' then "0" + str else str
+    let str = str.ToLower().Trim()
+    let str = if str.Length > 1 && str[0] = 'x' || str[0]='b' || str.Length = 0 then "0" + str else str
     let success, n =
         str
         |> removeCommas

@@ -223,13 +223,6 @@ type Wave = {
     SVG: ReactElement option
 }
 
-type WSConfig = {
-    LastClock: int
-    FirstClock: int
-    FontSize: int
-    FontWeight: int
-}
-
 let lastClock_ = Lens.create (fun a -> a.LastClock) (fun s a -> {a with LastClock = s})
 let firstClock_ = Lens.create (fun a -> a.FirstClock) (fun s a -> {a with FirstClock = s})
 let fontSize_ = Lens.create (fun a -> a.FontSize) (fun s a -> {a with FontSize = s})
@@ -276,9 +269,14 @@ type WaveSimModel = {
     /// If the ram selection modal is visible.
     RamModalActive: bool
     /// List of RAM components on the sheet.
-    RamComps: FastComponent list
+    RamComps: FComponentId list
     /// Map of which RAM components have been selected.
     SelectedRams: Map<FComponentId, string>
+    /// If it exists this is the start location from which RAM locations are displayed.
+    /// It is transient.
+    /// The first component of the tuple is the text used to define the location.
+    /// The second component is the actual location.
+    RamStartLocation: Map<FComponentId, string * bigint>
     /// String which the user is searching the list of waves by.
     SearchString: string
     /// What is shown in wave sim sheet detail elements
@@ -313,6 +311,7 @@ type WaveSimModel = {
 }
 
 let wSConfig_ = Lens.create (fun a -> a.WSConfig) (fun s a -> {a with WSConfig = s})
+let ramStartLocation_ = Lens.create (fun a -> a.RamStartLocation) (fun s a -> {a with RamStartLocation = s})
 let wSConfigDialog_ = Lens.create (fun a -> a.WSConfigDialog) (fun s a -> {a with WSConfigDialog = s})
 
 type DiagEl = | Comp of Component | Conn of Connection

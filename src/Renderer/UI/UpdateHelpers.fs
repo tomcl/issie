@@ -341,14 +341,14 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | _, "WaveSimHelp", _ ->
             WaveSimHelp
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
-            printfn "Draw block sheet 'canvas'"
+            //printfn "Draw block sheet 'canvas'"
             if mouseInScalingBox then  
                 DBScalingBox model.Sheet.SelectedComponents
             else 
                 DBCanvas sheetXYPos
 
         | SheetT.MouseOn.Canvas, x, _ ->
-            printfn "Other issie element: type:'%A'-> id:'%A'" elType x
+            //printfn "Other issie element: type:'%A'-> id:'%A'" elType x
             IssieElement (element.ToString())
 
         | SheetT.MouseOn.Component compId, _, _->
@@ -432,25 +432,25 @@ let processContextMenuClick
         withNoCmd model
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock" ->
-        printfn "locking %s" sheet.SheetName
+        //printfn "locking %s" sheet.SheetName
         model
         |> changeLockState isSubSheet sheet (fun _ -> Locked)
         |> withNoCmd
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock" ->
-        printfn "Unlocking %s" sheet.SheetName
+        //printfn "Unlocking %s" sheet.SheetName
         model
         |> changeLockState isSubSheet sheet (fun _ -> Unlocked)
         |> withNoCmd
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock Subtree" ->
-        printfn "locking subtree %s" sheet.SheetName
+        //printfn "locking subtree %s" sheet.SheetName
         model
         |> changeSubtreeLockState isSubSheet sheet (fun _ -> Locked) 
         |> withNoCmd 
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock Subtree" ->
-        printfn "Unlocking subtree %s" sheet.SheetName
+        //printfn "Unlocking subtree %s" sheet.SheetName
         model
         |> changeSubtreeLockState isSubSheet sheet (fun _ -> Unlocked)
         |> withNoCmd 

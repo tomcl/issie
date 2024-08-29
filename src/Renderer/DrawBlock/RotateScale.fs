@@ -163,7 +163,6 @@ let reSizeSymbolTopLevel
     (symbolToSize: Symbol)
     (otherSymbol: Symbol)
     : BusWireT.Model =
-    printfn $"ReSizeSymbol: ToResize:{symbolToSize.Component.Label}, Other:{otherSymbol.Component.Label}"
 
     let scaledSymbol = reSizeSymbol wModel symbolToSize otherSymbol
 
@@ -535,7 +534,6 @@ let rotateSymbolByDegree (degree: Rotation) (sym:Symbol)  =
 /// <returns>New rotated symbol model</returns>
 let rotateBlock (compList:ComponentId list) (model:SymbolT.Model) (rotation:Rotation) = 
 
-    printfn "running rotateBlock"
     let SelectedSymbols = List.map (fun x -> model.Symbols |> Map.find x) compList
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 

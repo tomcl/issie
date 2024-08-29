@@ -189,7 +189,7 @@ module Refresh =
                                     State = Success
                                     AllWaves = spinnerInfo.WSM.AllWaves
                                     SelectedWaves = selectedWaves
-                                    RamComps = ramComps
+                                    RamComps = ramCompIds
                                     SelectedRams = selectedRams
                             } //|> validateScrollBarInfo
 
@@ -401,7 +401,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
                 makeScrollbar wsModel dispatch ]
             else []
             @
-            [WaveSimRams.ramTables wsModel] 
+            [WaveSimRams.ramTables dispatch wsModel model] 
         )
 
     div [Style [OverflowX OverflowOptions.Clip]] [

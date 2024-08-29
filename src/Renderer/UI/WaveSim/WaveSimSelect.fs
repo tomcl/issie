@@ -16,6 +16,8 @@ open ModelType
 open WaveSimStyle
 open WaveSimHelpers
 open SimulatorTypes
+open DiagramStyle
+open UIPopups
 
 /// return sheet with all latters capitalised
 let cap (sheet:string) = sheet.ToUpper()
@@ -736,7 +738,7 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                     OnClick (fun _ -> dispatch <| UpdateWSModel (fun ws -> {wsModel with RamModalActive = false}))
                 ]
             ] []
-            Modal.Card.card [] [
+            Modal.Card.card [Props [Style [Width 800]]] [
                 Modal.Card.head [] [
                     Modal.Card.title [] [
                         Level.level [] [
@@ -751,13 +753,17 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                     ]
                 ]
                 Modal.Card.body [] [
-                    str "Select synchronous RAM components to view their contents. "
-                    str "Note that asynchronous RAM components cannot be viewed in the waveform simulator. "
+                    str "Select synchronous RAM components to view their contents in any clock cycle. "
+                    str "Note that asynchronous RAM and ROM components cannot be viewed in the waveform simulator. "
                     br []
                     br []
-                    str "On a write, the corresponding row will be highlighted in red. "
-                    str "On a read, the corresponding row will be highlighted in blue. "
-                    str "Any memory address which has not been initialised with a value will not be shown in the table. "
+                    str "On a write, the corresponding location will be "; colorSpan "red" "highlighted in red during the clock cycle in which the written value is first output.";
+                    str " On a read, the corresponding location will be "; colorSpan "blue" "highlighted in blue.";
+                    br [] ; br []
+                    str "The RAM display has two modes: "; bSpan "sparse display"; str " and "; bSpan "windowed display. ";
+                    br []; str "Type in the"; iSpan " Window start"; str " box to set the locations viewed in a window. Leave it blank for sparse display.";
+                    br []; br [] 
+                    str "If the RAM has too many non-zero locations to display all at once, the windowed display will be used."
                     hr []
                     Table.table [] [
                         tbody []

@@ -130,6 +130,8 @@ module Constants =
     let maxRamRowsDisplayed = 50
     let maxRamLocsWithSparseDisplay = 100
 
+
+
 // maybe these should be defined earlier in compile order? Or added as list functions?
 
 let listMaxWithDef defaultValue lst =

@@ -530,7 +530,9 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
             ["fontweight"], not <| inBounds 100 900 c.FontWeight, $"Font weight must be between 100 and 900"
             [], warnSizeLarge c, $"Warning: very large simulation lengths and big designs result in high memory use and low performance. \
                                    Simulation data memory use for the current design is estimated as\n: \
-                                   {arraySizeMessage c}, in addition up to 5GB will be required for heap and code."                                                                
+                                   {arraySizeMessage c}, in addition up to 5GB will be required for heap and code. \
+                                   Windows systems using more than 6GB simulation array memory are likely to crash. This limit does not \
+                                   depend on PC physical memory."                                                                
         ]  
         |> List.filter (fun (_, isError, _) -> isError)
         |> List.map (fun (key, _, message) -> key, message)

@@ -21,7 +21,7 @@ module Constants =
             FontWeight = 500 // weight of text on waveforms
             }
     let maxWarnSimulationSize = 100000
-    let maxSimulationSize = 10000000
+    let maxSimulationSize = 4000000
     let minScrollingWindow = 200
     let wsButtonHeight = 30
     let wsButtonWidth = 120

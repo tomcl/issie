@@ -286,3 +286,5 @@ let zoomInSVG =
                 C125.535,77.047,122.178,73.689,118.035,73.689z"
             ] []
         ]
+
+let colorSpan color text = span [Style [Color color]] [str text]

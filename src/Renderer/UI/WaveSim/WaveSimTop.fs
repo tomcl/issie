@@ -209,6 +209,7 @@ module Refresh =
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
 /// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
 let refreshButtonAction canvasState model dispatch = fun _ ->
+    /// estimate of the memory resources used by this simulation
     let waveSimArraySteps =
         ( 0, model.WaveSim)
         ||> Map.fold (fun sum sheet ws  ->
@@ -218,7 +219,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         ||> Map.fold (fun sum sheet ws  ->
                 ws.AllWaves.Count + sum)
     printf $"Starting wavesim with {waveSimArraySteps} steps and {waves} waves."
-
+    /// update the model memories to match any updated linked initial contents files
     let model = MemoryEditorView.updateAllMemoryComps model
     let wsSheet = 
         match model.WaveSimSheet with
@@ -294,7 +295,11 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
 
     let refreshStartEndButton() =
         let refreshButtonSvg = if loading then emptyRefreshSVG else refreshSvg "white" "20px"
-        let startOrRenew model = refreshButtonAction canvasState model dispatch
+        /// This is the only action for creating a new (or changed) waveform simulator fast simulation
+        /// Once a simulation is created is maxClkCycle is fixed and cannot be changed. However the length
+        /// of the simulation can be changed by extending the simulation to any value less than its maxClkCycle.
+        let startOrRenew model =
+            refreshButtonAction canvasState model dispatch
         let waveEnd model = endButtonAction canvasState model dispatch
         let wbo = getWaveSimButtonOptions canvasState model wsModel
         let startEndButton =

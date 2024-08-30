@@ -728,7 +728,7 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                         ]
                     td [] [ label [ ramRowStyle ] [ str ram.FullName ] ]
                 ]
-            | None -> div [] []
+            | None -> tr [] [td [] []]
         Modal.modal [
             Modal.IsActive wsModel.RamModalActive
             Modal.Props [Style [ZIndex 20000]]

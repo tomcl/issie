@@ -873,7 +873,12 @@ let tryGetSimData isWaveSim canvasState model =
             Error simError
 
 let viewSimulation canvasState model dispatch =
+    /// This is the top-level function that creates a new fast simulation for the step simulator.
     let startSimulation model _ =
+        // make sure simulation runs with uptodate memory contents based on linked files.
+        // memory in model is not updated because the model update will be lost. This does
+        // matter because if memory contents are ever viewed the viewer will update them then.
+        let model = MemoryEditorView.updateAllMemoryComps model
         tryGetSimData false canvasState model
         |> function
             | Ok simData -> 

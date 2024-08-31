@@ -1,17 +1,18 @@
 ﻿module FastExtract
+
+(*
+    Functions that extract data from a fast simulation, or that manipulate the
+    simulation input data. NB - WaveSimSVGs as a few more data extraction functions
+    that cannot be placed here because they depend on model types.
+    TODO: Refactor to make the boundary between FastSim and Model clearer.
+*)
+
 open CommonTypes
 open SimulatorTypes
 open Helpers
 open FastRun
-open CommonTypes
-open TimeHelpers
-open SimulatorTypes
-open SynchronousUtils
 open NumberHelpers
-open FastCreate
-open FastReduce
-open FastReduceTT
-open Helpers
+
 
 /// sets the mutable simulation data for a given input at a given time step
 let private setSimulationInput (cid: ComponentId) (fd: FastData) (step: int) (fs: FastSimulation) =
@@ -257,3 +258,60 @@ let extractViewers (simulationData: SimulationData) : ((string * string) * int *
 
 let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project option) =
     List.forall (fun ldc -> Extractor.loadedComponentIsSameAsProject canv ldc p) fs.SimulatedCanvasState
+
+/// Get the input value of a fast component as a bigint.
+/// fc: the fast component to get the input from.
+/// inputNum: which input as numbered in the inputs array.
+/// step: which time step to get the value from.
+let getFastComponentInput (fc: FastComponent) (inputNum: int) (step:int) : bigint =
+    let a = fc.InputLinks[inputNum]
+    let w = a.Width
+    match w with
+    | w when w > 32 -> a.BigIntStep[step]
+    | _ -> a.UInt32Step[step] |> bigint
+
+let getFastComponentOutput (fc:FastComponent) (outputNum: int) (step:int) =
+    if fc.OutputWidth 0 > 32 then
+        fc.Outputs[outputNum].BigIntStep[step]
+    else
+        bigint fc.Outputs[outputNum].UInt32Step[step]
+
+/// Check if a fastComponent output is the same as the default value for all time steps.
+/// Used by simulationView.
+/// The current implementation seems not quite right when tick > MaxArraySize.
+/// ToDo - make this work for all time steps
+let outputsAreTheSameAsDefault (fs: FastSimulation) (fc: FastComponent) (tick: int) (currdefault: bigint) =
+    let outputarray =
+        if fc.OutputWidth 0 > 32 then
+            fc.Outputs[0].BigIntStep
+        else
+            Array.map (fun (x: uint32) -> twosComp (fc.OutputWidth 0) (bigint x)) fc.Outputs[0].UInt32Step
+    let slicedArray = Array.sub outputarray 0 ((tick+1) % fs.MaxArraySize)
+    let areAllElementsSame (arr: bigint array) =
+        match tick with
+        | n when n < 2 ->
+            true
+        | _ ->
+            Array.forall (fun elem -> elem = currdefault) arr
+    areAllElementsSame slicedArray
+
+/// Return array of simulation output values for a given output port.
+/// Values are returned from steos 0 to (tick - 1).
+/// Used by testParsser. Only works if tick < maxArraySize.
+let getArrayOfOutputs (fc: FastComponent) (outputNum: int) (ticks: int) : bigint array =
+    (if fc.Outputs[outputNum].UInt32Step.Length > 0
+    then 
+        Array.map (fun (d:uint32) -> bigint d) fc.Outputs[outputNum].UInt32Step
+    else
+        fc.Outputs[0].BigIntStep)
+    |> (fun a -> Array.sub a 0 (ticks - 1))
+
+
+
+(******************************************************************************
+ *                                                                            *
+ * NOTE: See WaveSimSVGs module for additional functions that extract data    *
+ * from a fast simulation. These cannot be included here because they depend  *
+ * on Model datatypes                                                         *
+ *                                                                            *
+ ******************************************************************************)

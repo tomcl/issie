@@ -241,15 +241,8 @@ let simulateAST ast src dst loadedComps=
                 |> Map.map (fun label id ->
                     match Map.tryFind (id,[]) fs.FComps with
                     | Some fc -> 
-                        let data = 
-                            (if fc.Outputs[0].UInt32Step.Length > 0
-                            then 
-                               Array.map (fun (d:uint32) -> bigint d) fc.Outputs[0].UInt32Step
-                            else
-                               fc.Outputs[0].BigIntStep)
-                            |> Array.toList
-                            |> List.take (ticks-1)
-                        {Label=label; Values=data}
+                        let data = FastExtract.getArrayOfOutputs fc 0 ticks
+                        {Label=label; Values= data |> Array.toList}
                     | _ -> failwithf "What? output doesn't have a fastcomponent"            
                 )
                 |> Map.values

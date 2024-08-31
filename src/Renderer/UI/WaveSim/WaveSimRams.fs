@@ -12,6 +12,7 @@ open Fable.React.Props
 open CommonTypes
 open ModelType
 open ModelHelpers
+open FastExtract
 open WaveSimStyle
 open WaveSimHelpers
 open TopMenuView
@@ -105,11 +106,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
         /// Write is always 1 cycle after WEN=1 and address.
         /// Read is 1 (0) cycles after address for sync (asynch) memories.
         let addReadWrite (fc:FastComponent) (step:int) (mem: Map<bigint,bigint>) =
-            let getBigint (a: IOArray) step : bigint =
-                let w = a.Width
-                match w with
-                | w when w > 32 -> a.BigIntStep[step]
-                | _ -> a.UInt32Step[step] |> bigint
+
 
             let readStep =
                 match fc.FType with
@@ -117,7 +114,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
                 | ROM1 _ | RAM1 _ -> step - 1
                 | _ -> failwithf $"What? {fc.FullName} should be a memory component"
 
-            let addrSteps step = getBigint fc.InputLinks[0] step
+            let addrSteps step = getFastComponentInput fc 0 step
 
             let readOpt =
                 match step, fc.FType with
@@ -130,7 +127,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
                 | _, ROM1 _ 
                 | _, AsyncROM1 _
                 | 0, _ -> None
-                | _, RAM1 _ | _, AsyncRAM1 _ when getBigint fc.InputLinks[2] (step-1) = 1I -> 
+                | _, RAM1 _ | _, AsyncRAM1 _ when getFastComponentInput fc 2 (step-1) = 1I -> 
                     addrSteps (step-1)
                     |> Some
                 | _ ->  

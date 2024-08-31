@@ -12,7 +12,7 @@ open SynchronousUtils
 open GraphBuilder
 open GraphMerger
 open SimulationGraphAnalyser
-open Extractor
+open CanvasExtractor
 
 // Building a SimulationGraph has four phases (not precisely in order of execution):
 // 1. Building a simulation graph made of SimulationComponents.
@@ -63,7 +63,7 @@ let rec sheetsNeeded (ldcs: LoadedComponent list) (sheet: string) : string list 
 /// diagramName: name of current open sheet.
 /// return updated list of all LDCs
 let getUpdatedLoadedComponentState diagramName canvasState projLdcs =
-    let ldc' = Extractor.extractLoadedSimulatorComponent canvasState diagramName
+    let ldc' = CanvasExtractor.extractLoadedSimulatorComponent canvasState diagramName
 
     let ldcs =
         let ldcIsOpen ldc = ldc.Name = diagramName
@@ -97,8 +97,8 @@ let getCurrentSimulationState
                     List.tryFind (fun (ldc': LoadedComponent) -> ldc'.Name = ldc.Name) p.LoadedComponents
                 with
                 | _, None -> false
-                | false, Some ldc' -> Extractor.loadedComponentIsEqual ldc ldc'
-                | true, Some _ -> Extractor.stateIsEqual ldc.CanvasState canvState)
+                | false, Some ldc' -> CanvasExtractor.loadedComponentIsEqual ldc ldc'
+                | true, Some _ -> CanvasExtractor.stateIsEqual ldc.CanvasState canvState)
 
         match simIsUpToDate, p.OpenFileName = fs.SimulatedTopSheet with
         | false, _ -> SimOutOfDate

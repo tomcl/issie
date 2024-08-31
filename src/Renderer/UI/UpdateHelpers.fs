@@ -10,7 +10,7 @@ open SimulatorTypes
 open ModelType
 open ModelHelpers
 open CommonTypes
-open Extractor
+open CanvasExtractor
 open MenuHelpers
 open TopMenuView
 open Sheet.SheetInterface
@@ -793,7 +793,7 @@ let findChange (model : Model) : bool =
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
         let canv = savedComponent.CanvasState
         let canv' = model.Sheet.GetCanvasState ()
-        (canv <> canv') && not (compareCanvas 100. canv canv')
+        (canv <> canv') && not (CanvasExtractor.compareCanvas 100. canv canv')
         //|> TimeHelpers.instrumentInterval "findChange" start
 
 /// Needed so that constant properties selection will work

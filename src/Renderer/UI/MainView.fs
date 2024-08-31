@@ -136,7 +136,7 @@ let viewSimSubTab canvasState model dispatch =
     | StepSim -> 
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Step Simulation" ]
-            SimulationView.viewSimulation canvasState model dispatch
+            StepSimulationTop.viewSimulation canvasState model dispatch
         ]
     | TruthTable ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [

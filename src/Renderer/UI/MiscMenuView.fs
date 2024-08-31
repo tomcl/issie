@@ -10,7 +10,7 @@ open CommonTypes
 open ModelType
 open ModelHelpers
 open MenuHelpers
-open Extractor
+open CanvasExtractor
 open FilesIO
 open PopupHelpers
 open DrawModelType

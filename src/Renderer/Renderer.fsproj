@@ -28,7 +28,7 @@
     <Compile Include="Simulator\SimulatorTypes.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />
-    <Compile Include="Simulator\Extractor.fs" />
+    <Compile Include="Simulator\CanvasExtractor.fs" />
     <Compile Include="Simulator\SynchronousUtils.fs" />
     <Compile Include="Simulator\CanvasStateAnalyser.fs" />
     <Compile Include="Simulator\GraphBuilder.fs" />
@@ -96,6 +96,7 @@
     <Compile Include="UI\TopMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />
     <Compile Include="UI\SimulationView.fs" />
+    <Compile Include="UI\StepSimulationTop.fs" />
     <Compile Include="UI\TruthTable\TruthTableReduce.fs" />
     <Compile Include="UI\TruthTable\TruthTableCreate.fs" />
     <Compile Include="UI\TruthTable\ConstraintReduceView.fs" />

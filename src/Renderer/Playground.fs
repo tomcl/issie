@@ -283,8 +283,8 @@ module Misc =
 
 
     let highLightChangedConnections dispatch =
-        dispatch (Sheet (SheetT.Msg.SelectWires Extractor.debugChangedConnections))
-        Extractor.debugChangedConnections <- []
+        dispatch (Sheet (SheetT.Msg.SelectWires CanvasExtractor.debugChangedConnections))
+        CanvasExtractor.debugChangedConnections <- []
 
 module Memory =
     open Fable.Core

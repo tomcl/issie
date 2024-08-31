@@ -216,7 +216,7 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
             //printfn $"IOLabel name {comp.FLabel}"
             let drivingComp = fastSim.FIOActive[ComponentLabel comp.FLabel,snd comp.fId]
             //printfn "driving compm done"
-            let labelWidth = FastRun.extractFastSimulationWidth fastSim (drivingComp.Id,snd drivingComp.fId) (OutputPortNumber 0)
+            let labelWidth = FastExtract.extractFastSimulationWidth fastSim (drivingComp.Id,snd drivingComp.fId) (OutputPortNumber 0)
             //printfn "label width fdone"
             match labelWidth with
             | 0 ->

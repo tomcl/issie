@@ -402,7 +402,7 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
     let isDirty = 
         simExists &&
         running && 
-        not <| FastRun.compareLoadedStates fs canv model.CurrentProj &&
+        not <| FastExtract.compareLoadedStates fs canv model.CurrentProj &&
         model.UIState = None &&
         not model.IsLoading
     

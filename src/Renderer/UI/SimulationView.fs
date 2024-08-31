@@ -88,7 +88,7 @@ let setFastSimInputsToDefault (fs:FastSimulation) =
         match w,defaultVal with
         | _, Some defaultVal -> cid, convertBigintToFastData w defaultVal
         | _, None -> cid, convertBigintToFastData w 0I)
-    |> List.iter (fun (cid, wire) -> FastRun.changeInput cid (FSInterface.IData wire) 0 fs)
+    |> List.iter (fun (cid, wire) -> FastExtract.changeInput cid (FSInterface.IData wire) 0 fs)
 
 let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
     let tick = clocktick
@@ -210,7 +210,7 @@ let private viewSimulationInputs
                     Button.OnClick (fun _ ->
                         let newBit = 1u - bit
                         let graph = simulationGraph
-                        FastRun.changeInput (ComponentId inputId) (IData {Dat = Word newBit; Width = 1}) simulationData.ClockTickNumber simulationData.FastSim
+                        FastExtract.changeInput (ComponentId inputId) (IData {Dat = Word newBit; Width = 1}) simulationData.ClockTickNumber simulationData.FastSim
                         dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                     )
                 ] [ str <| bitToString (match bit with 0u -> Zero | _ -> One)]
@@ -232,7 +232,7 @@ let private viewSimulationInputs
                                 CloseSimulationNotification |> dispatch
                                 // Feed input.
                                 let graph = simulationGraph
-                                FastRun.changeInput (ComponentId inputId) (IData bits) simulationData.ClockTickNumber simulationData.FastSim
+                                FastExtract.changeInput (ComponentId inputId) (IData bits) simulationData.ClockTickNumber simulationData.FastSim
                                 dispatch <| SetSimulationGraph(graph, simulationData.FastSim)
                         ))
                     ]
@@ -731,7 +731,7 @@ let simulationClockChangeAction dispatch simData (model': Model) =
 
 let private viewSimulationData (step: int) (simData : SimulationData) model dispatch =
     let viewerWidthList =
-        FastRun.extractViewers simData
+        FastExtract.extractViewers simData
         |> List.map (fun (_, width, _) -> width)
     let outputWidthList =
         simData.Outputs 
@@ -805,7 +805,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
             ]
     let maybeStatefulComponents() =
         let stateful = 
-            FastRun.extractStatefulComponents simData.ClockTickNumber simData.FastSim
+            FastExtract.extractStatefulComponents simData.ClockTickNumber simData.FastSim
             |> Array.toList
         match List.isEmpty stateful with
         | true -> div [] []
@@ -838,7 +838,7 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
         viewSimulationInputs
             simData.NumberBase
             simData
-            (FastRun.extractFastSimulationIOs simData.Inputs simData)
+            (FastExtract.extractFastSimulationIOs simData.Inputs simData)
             dispatch
 
 
@@ -848,9 +848,9 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                 str "Outputs &" 
                 tip "Add Viewer components to any sheet in the simulation" "Viewers"
             ]
-        viewViewers simData.NumberBase <| List.sort (FastRun.extractViewers simData)
+        viewViewers simData.NumberBase <| List.sort (FastExtract.extractViewers simData)
         viewSimulationOutputs simData.NumberBase
-        <| FastRun.extractFastSimulationIOs simData.Outputs simData
+        <| FastExtract.extractFastSimulationIOs simData.Outputs simData
 
         maybeStatefulComponents()
     ]

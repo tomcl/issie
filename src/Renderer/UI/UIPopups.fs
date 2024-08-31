@@ -531,7 +531,7 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
             [], warnSizeLarge c, $"Warning: very large simulation lengths and big designs result in high memory use and low performance. \
                                    Simulation data memory use for the current design is estimated as\n: \
                                    {arraySizeMessage c}, in addition up to 5GB will be required for heap and code. \
-                                   Windows systems using more than 6GB simulation array memory are likely to crash. This limit does not \
+                                   Systems using more than around 3GB simulation array memory may to crash. This limit does not \
                                    depend on PC physical memory."                                                                
         ]  
         |> List.filter (fun (_, isError, _) -> isError)

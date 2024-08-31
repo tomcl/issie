@@ -14,15 +14,7 @@ open ModelType
 open ModelHelpers
 open FastExtract
 open WaveSimStyle
-open WaveSimHelpers
-open TopMenuView
 open SimulatorTypes
-open NumberHelpers
-open DrawModelType
-open WaveSimNavigation
-open WaveSimSelect
-open DiagramStyle
-open WaveSimStyle
 open Optics
 open Optics.Operators
 

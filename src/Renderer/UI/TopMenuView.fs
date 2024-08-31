@@ -360,7 +360,12 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                             div [] [
                                 str "Cascading full adders to create 4-bit adder"
                             ]
+                        | "eratosthenes" ->
+                            div [] [
+                                str "The EEP1 CPU running a program to calculate 5000 prime numbers"
+                            ]
                         | _ -> str "Information about other design"
+
                         //br []
                       
                         //div [] [

@@ -97,11 +97,7 @@ let InputDefaultsEqualInputs fs (model:Model) (clocktick : int)=
     |> Map.map (fun fid fc ->
         let cid = fst fid
         if Map.containsKey cid (Optic.get SheetT.symbols_ model.Sheet) then
-            let newDefault =
-                if fc.OutputWidth 0 > 32 then
-                    fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
-                else
-                    bigint fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+            let newDefault = FastExtract.getFastComponentOutput fc 0 (tick % fs.MaxArraySize)
             let typ = (Optic.get (SheetT.symbolOf_ cid) model.Sheet).Component.Type
             match typ with
             | Input1(_, Some d) -> d = newDefault
@@ -122,19 +118,7 @@ let InputDefaultsEqualInputsRefresh fs (model:Model) =
             let currdefault = match typ with
                                     | Input1(_, Some d) -> d
                                     | _ -> 0I
-            let outputarray =
-                if fc.OutputWidth 0 > 32 then
-                    fc.Outputs[0].BigIntStep
-                else
-                    Array.map (fun (x: uint32) -> twosComp (fc.OutputWidth 0) (bigint x)) fc.Outputs[0].UInt32Step
-            let slicedArray = Array.sub outputarray 0 ((tick+1) % fs.MaxArraySize)
-            let areAllElementsSame (arr: bigint array) =
-                match tick with
-                | n when n < 2 ->
-                    true
-                | _ ->
-                    Array.forall (fun elem -> elem = currdefault) arr
-            areAllElementsSame slicedArray
+            FastExtract.outputsAreTheSameAsDefault fs fc tick currdefault
         else
             true)
     |> Map.values
@@ -156,11 +140,7 @@ let setInputDefaultsFromInputs fs (dispatch: Msg -> Unit) (clocktick: int)=
     |> Map.filter (fun cid fc -> fc.AccessPath = [] && match fc.FType with | Input1 _ -> true | _ -> false)
     |> Map.map (fun fid fc ->
         let cid = fst fid
-        let newDefault =
-            if fc.OutputWidth 0 > 32 then
-                fc.Outputs[0].BigIntStep[tick % fs.MaxArraySize]
-            else
-                bigint fc.Outputs[0].UInt32Step[tick % fs.MaxArraySize]
+        let newDefault = FastExtract.getFastComponentOutput fc 0 (tick % fs.MaxArraySize) 
         SymbolUpdate.updateSymbol (setInputDefault newDefault) cid
         |> Optic.map DrawModelType.SheetT.symbol_
         |> Optic.map ModelType.sheet_

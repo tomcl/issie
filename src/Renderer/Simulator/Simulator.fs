@@ -333,14 +333,18 @@ let simCacheInit () = {
         }
     }
         
-/// Used to store last canvas state and its simulation for Step & Truth Table simulation
+/// Used to store last canvas state and its simulation for Step & Truth Table simulation.
+/// This is memoized to avoid unnecessary recomputation, stored as a single global state
+/// to stop memory leaks caused by multiple simulations being stored.
 let mutable simCache: SimCache = simCacheInit ()
 
-/// Used to store last canvas state and its simulation for waveform simulation
+/// Used to store last canvas state and its simulation for waveform simulation.
+/// This is memoized to avoid unnecessary recomputation, stored as a single global state
+/// to stop memory leaks caused by multiple simulations being stored.
 let mutable simCacheWS: SimCache = simCacheInit ()
 
 /// Used in wave simulation to obtain the currently active FastSimulation.
-/// This should exist, but if not it will contain a dummy
+/// This should have previously been created, but if not it will contain a dummy
 let getFastSim() = simCacheWS.FastSim
 
 let cacheIsEqual (cache: SimCache) (ldcs: LoadedComponent list ) : bool=

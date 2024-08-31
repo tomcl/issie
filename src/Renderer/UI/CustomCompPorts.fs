@@ -19,7 +19,7 @@ open ModelType
 open ModelHelpers
 open CommonTypes
 open FilesIO
-open Extractor
+open CanvasExtractor
 open PopupHelpers
 open MenuHelpers
 

@@ -26,7 +26,7 @@ open CommonTypes
 open SimulatorTypes
 open TruthTableTypes
 open ConstraintReduceView
-open Extractor
+open CanvasExtractor
 open Simulator
 open TruthTableCreate
 open TruthTableReduce

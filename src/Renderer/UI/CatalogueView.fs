@@ -58,8 +58,8 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
     menuItem styles loadedComponent.Name (fun _ ->
         let custom = Custom {
             Name = loadedComponent.Name
-            InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
-            OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
+            InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) canvas
+            OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) canvas
             Form = loadedComponent.Form
             Description = loadedComponent.Description
         }
@@ -87,8 +87,8 @@ let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)
     menuItem styles loadedComponent.Name (fun _ ->
         let verilog = Custom {
             Name = loadedComponent.Name
-            InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) canvas
-            OutputLabels = Extractor.getOrderedCompLabels (Output 0) canvas
+            InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) canvas
+            OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) canvas
             Form = loadedComponent.Form
             Description = loadedComponent.Description
         }

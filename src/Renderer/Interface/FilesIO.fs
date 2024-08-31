@@ -626,7 +626,7 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
 /// load a component from its canvas and other elements
 let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo (sheetInfo:SheetInfo option) =
     let projectPath = dirName filePath
-    let inputs, outputs = Extractor.parseDiagramSignature canvas
+    let inputs, outputs = CanvasExtractor.parseDiagramSignature canvas
     //printfn "parsed component"
     let comps,conns = canvas
     let comps' = List.map (checkMemoryContents projectPath) comps

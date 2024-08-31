@@ -1,4 +1,4 @@
-module Extractor
+module CanvasExtractor
 
 open CommonTypes
 open Fable.Core

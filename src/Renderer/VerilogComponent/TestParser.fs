@@ -196,8 +196,8 @@ let simulateAST ast src dst loadedComps=
     // same order as in Verilog input
     let verilog = {
             Name = loadedComp.Name
-            InputLabels = Extractor.getOrderedCompLabels (Input1 (0, None)) cs
-            OutputLabels = Extractor.getOrderedCompLabels (Output 0) cs
+            InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) cs
+            OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) cs
             Form = loadedComp.Form
             Description = loadedComp.Description
         }

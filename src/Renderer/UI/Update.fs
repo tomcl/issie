@@ -274,7 +274,7 @@ let update (msg : Msg) oldModel =
         |> withNoMsg    
 
     | TryStartSimulationAfterErrorFix simType ->
-        SimulationView.tryStartSimulationAfterErrorFix simType model
+        StepSimulationTop.tryStartSimulationAfterErrorFix simType model
 
     | SetSimulationGraph (graph, fastSim) ->
         let simData =

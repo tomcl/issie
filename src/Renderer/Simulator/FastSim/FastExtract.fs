@@ -257,7 +257,7 @@ let extractViewers (simulationData: SimulationData) : ((string * string) * int *
         getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))
 
 let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project option) =
-    List.forall (fun ldc -> Extractor.loadedComponentIsSameAsProject canv ldc p) fs.SimulatedCanvasState
+    List.forall (fun ldc -> CanvasExtractor.loadedComponentIsSameAsProject canv ldc p) fs.SimulatedCanvasState
 
 /// Get the input value of a fast component as a bigint.
 /// fc: the fast component to get the input from.

@@ -21,7 +21,7 @@ open SimulationView
 open SimulatorTypes
 open SheetCreator
 open FastRun
-open SimulationBuilder
+open GraphBuilder
 open Node.Api
 open Node.ChildProcess
 open FSharp.Data
@@ -29,7 +29,7 @@ open EEExtensions
 open NearleyBindings
 open FSharp.Core
 open TimeHelpers
-open DependencyMerger
+open GraphMerger
 
 importGrammar
 importParser

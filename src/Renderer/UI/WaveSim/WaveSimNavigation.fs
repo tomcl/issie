@@ -463,7 +463,7 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
                     dispatch ClosePopup)
                 ]
                 [ itemLegend ]
-        let addSpaces n r = span [ Style[ PaddingLeft n; PaddingRight n]] [r]
+        let addSpaces n r = span [ Style [ PaddingLeft n; PaddingRight n]] [r]
         let menu =
             div []
                 [

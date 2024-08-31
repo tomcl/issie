@@ -662,6 +662,7 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
         Error <| sprintf "Can't load component %s because of Error: %s" (getBaseNameNoExtension filePath)  msg
     | Ok (Ok state) ->
         let canvas = getLatestCanvas state
+        printfn $"Loading sheet with info ={state.getSheetInfo |> Option.map (fun info -> info.Form)}" //>
         makeLoadedComponentFromCanvasData 
             canvas
             filePath 

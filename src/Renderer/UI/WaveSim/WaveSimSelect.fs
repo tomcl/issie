@@ -753,8 +753,8 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                     ]
                 ]
                 Modal.Card.body [] [
-                    str "Select synchronous RAM components to view their contents in any clock cycle. "
-                    str "Note that asynchronous RAM and ROM components cannot be viewed in the waveform simulator. "
+                    str "Select ROM or asynchronous RAM components to view their contents in any clock cycle. "
+                    str "Note that synchronous RAM components cannot currently be viewed in the waveform simulator. "
                     br []
                     br []
                     str "On a write, the corresponding location will be "; colorSpan "red" "highlighted in red during the clock cycle in which the written value is first output.";

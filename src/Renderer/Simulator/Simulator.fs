@@ -174,6 +174,25 @@ let saveStateInSimulation
             ComponentsById = compMap
             ConnectionsByPort = portMap })
 
+/// Look up a simulation (not a FastSimulation) component or return None.
+let rec findSimulationComponentOpt ((cid, ap): ComponentId * ComponentId list) (graph: SimulationGraph) =
+    match ap with
+    | [] -> Map.tryFind cid graph
+    | customCompId :: ap' ->
+        Map.tryFind customCompId graph
+        |> Option.bind (fun graph ->
+            graph.CustomSimulationGraph
+            |> Option.bind (fun graph -> findSimulationComponentOpt (cid, ap') graph))
+
+/// Look up  a simulation component (not a FastComponent)
+let findSimulationComponent ((cid, ap): ComponentId * ComponentId list) (sd: SimulationData) =
+    let fs = sd.FastSim
+    let graph = sd.Graph
+
+    match findSimulationComponentOpt (cid, ap) graph with
+    | None -> failwithf "What? Can't find component %A in SimulationData" fs.FComps[cid, ap].FullName
+    | Some sComp -> sComp
+
 /// Extract circuit data from inputs and return a checked SimulationData object or an error
 /// SimulationData has some technical debt, it wraps FastSimulation adding some redundant data
 let startCircuitSimulation

@@ -5,6 +5,7 @@ open SimulatorTypes
 open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers
+open FastExtract
 open Helpers
 
 /// Wraps SimulationIO and Viewer types in the CellIO DU Type
@@ -126,18 +127,18 @@ let simulateInputCombination
             (cid,IAlg (SingleTerm io))
         | x, y ->
             failwithf "what? CellData from input rows has IO: %A, and Data: %A." x y)
-    |> FastRun.changeInputBatch simData.ClockTickNumber simData.FastSim
+    |> FastExtract.changeInputBatch simData.ClockTickNumber simData.FastSim
 
     // Extract Output and Viewer values from the Fast Simulation
     let outputRow =
         (outputs,simData)
-        ||> FastRun.extractFastSimulationIOsFData
+        ||> FastExtract.extractFastSimulationIOsFData
         |> List.map (fun (comp,out) -> 
             match out with
             | IData wd -> {IO = SimIO comp; Data = Bits (convertFastDataToWireData wd)}
             | IAlg exp -> {IO = SimIO comp; Data = Algebra (expToString exp)})
     let viewerRow =
-        FastRun.extractViewers simData
+        FastExtract.extractViewers simData
         |> List.map (fun ((l,f),w,fs) ->
             match fs with
             | IData wd -> {IO = Viewer ((l,f),w); Data = Bits (convertFastDataToWireData wd)}
@@ -163,9 +164,9 @@ let truthTable
                 {simData with FastSim = fs}
             | _ -> 
                 failwithf "Error in building fast simulation for Truth Table evaluation"
-    let inputs = List.map fst (FastRun.extractFastSimulationIOsFData simData.Inputs tableSimData)
-    let outputs = List.map fst (FastRun.extractFastSimulationIOsFData simData.Outputs tableSimData)
-    let viewers = FastRun.extractViewers simData
+    let inputs = List.map fst (FastExtract.extractFastSimulationIOsFData simData.Inputs tableSimData)
+    let outputs = List.map fst (FastExtract.extractFastSimulationIOsFData simData.Outputs tableSimData)
+    let viewers = FastExtract.extractViewers simData
     let lhs,tCRC = tableLHS inputs ttType
     let rhs = List.map (fun i -> simulateInputCombination i outputs tableSimData) lhs
 

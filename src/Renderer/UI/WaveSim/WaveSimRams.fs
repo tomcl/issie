@@ -52,7 +52,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             | AsyncROM1 mem -> mem
             | RAM1 mem
             | AsyncRAM1 mem -> 
-                match FastRun.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
+                match FastExtract.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
                 |RamState mem -> mem
                 | x -> printf $"What? Unexpected state from cycle {wsModel.CurrClkCycle} \
                         in RAM component '{ramLabel}'. FastSim step = {fs.ClockTick}"

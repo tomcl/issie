@@ -639,7 +639,7 @@ let createAlgKeyPopup dispatch =
 let validateAlgebraInput (io: SimulationIO) (fsi: FSInterface) (tableSD: SimulationData) =
     let (cid,_,_) = io
     try
-        FastRun.changeInputFData cid fsi tableSD.ClockTickNumber tableSD.FastSim
+        FastExtract.changeInputFData cid fsi tableSD.ClockTickNumber tableSD.FastSim
         Ok 0 // Value of the result doesn't matter here, just that it is Ok.
     with
     | AlgebraNotImplemented err -> Error err

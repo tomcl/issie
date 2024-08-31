@@ -1,16 +1,13 @@
+module GraphMerger
 (*
-    DependencyMerger.fs
+    GraphMerger.fs
 
     This module collects functions that allow to validate and merge all the
     dependencies of a SimulationGraph.
 *)
-
-module DependencyMerger
-
 open CommonTypes
 open SimulatorTypes
-open SimulationRunner
-open SimulationBuilder
+open GraphBuilder
 open Helpers
 
 /// Map a dependency name to its simulation graph.
@@ -240,53 +237,7 @@ let private portNumberToLabel (InputPortNumber pNumber) (inputLabels: string lis
 #endif
     inputLabels[pNumber]
 
-/// Extract simulation input values as map.
-let private extractInputValuesAsMap graph graphInputs inputLabels : Map<InputPortNumber, WireData> =
-    extractIncompleteSimulationIOs graphInputs graph
-    |> List.map (fun ((_, ComponentLabel compLabel, _), wireData) ->
-        InputPortNumber
-        <| labelToPortNumber compLabel inputLabels,
-        wireData)
-    |> Map.ofList
 
-/// Extract simulation output values as map.
-let private extractOutputValuesAsMap graph graphOutputs outputLabels : Map<OutputPortNumber, WireData> =
-    extractSimulationIOs graphOutputs graph
-    |> List.map (fun ((_, ComponentLabel label, _), wireData) ->
-        OutputPortNumber
-        <| labelToPortNumber label outputLabels,
-        wireData)
-    |> Map.ofList
-
-/// Check that the outputs of a custom component have the same keys every time.
-/// This should be the case as we always use the same extraction function, so
-/// this function provides an extra guarantee that can probably be removed if
-/// performance is a concern.
-let private assertConsistentCustomOutputs
-    (outputs: Map<OutputPortNumber, WireData>)
-    (oldOutputs: Map<OutputPortNumber, WireData>)
-    =
-#if ASSERTS
-    outputs
-    |> Map.map (fun pNumber _ ->
-        assertThat (Option.isSome <| oldOutputs.TryFind pNumber)
-        <| sprintf "assertConsistentCustomOutputs, old %A, new %A" oldOutputs outputs)
-    |> ignore
-#else
-    ()
-#endif
-
-/// Create the Reducer for a custom component.
-/// Passing graphInputs and graphOutputs would not be strictly necessary, but it
-/// is good for performance as so the Input and Output nodes don't have to be
-/// searched every time.
-let private makeCustomReducer
-    (custom: CustomComponentType)
-    (graphInputs: SimulationIO list)
-    (graphOutputs: SimulationIO list)
-    : ReducerInput -> ReducerOutput
-    =
-    failwithf "Custom rducer should never be called"
 
 /// Recursively merge the simulationGraph with its dependencies (a dependecy can
 /// have its own dependencies).
@@ -316,10 +267,6 @@ let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMa
                 | Some dependencyGraph -> dependencyGraph
 
             let dependencyGraph = merger dependencyGraph dependencyMap
-            // Augment the custom component with the initial
-            // CustomSimulationGraph and the Custom reducer (that allows to use
-            // and update the CustomSimulationGraph).
-            let graphInputs, graphOutputs = getSimulationIOsFromGraph dependencyGraph
 
             let newComp = { comp with CustomSimulationGraph = Some dependencyGraph }
 

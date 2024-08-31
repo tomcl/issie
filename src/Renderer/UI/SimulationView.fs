@@ -752,14 +752,14 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                     Button.Color IsSuccess
                     Button.Disabled (simData.ClockTickNumber = 0)
                     Button.OnClick (fun _ ->
-                        if SimulationRunner.simTrace <> None then
+                        if GraphBuilder.simTrace then
                             printfn "*********************Incrementing clock from simulator button******************************"
                             printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
                         printfn "clock %d "simData.ClockTickNumber
                         FastRun.runFastSimulation None (simData.ClockTickNumber-1) simData.FastSim |> ignore
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
-                        if SimulationRunner.simTrace <> None then
+                        if GraphBuilder.simTrace then
                             printfn "-------------------------------------------------------------------------------------------"
                             printfn "*******************************************************************************************"
                         IncrementSimulationClockTick -1 |> dispatch
@@ -790,13 +790,13 @@ let private viewSimulationData (step: int) (simData : SimulationData) model disp
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
-                        if SimulationRunner.simTrace <> None then
+                        if GraphBuilder.simTrace then
                             printfn "*********************Incrementing clock from simulator button******************************"
                             printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
                         FastRun.runFastSimulation None (simData.ClockTickNumber+1) simData.FastSim |> ignore
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
-                        if SimulationRunner.simTrace <> None then
+                        if GraphBuilder.simTrace then
                             printfn "-------------------------------------------------------------------------------------------"
                             printfn "*******************************************************************************************"
                         IncrementSimulationClockTick 1 |> dispatch

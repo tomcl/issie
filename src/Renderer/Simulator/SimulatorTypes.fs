@@ -38,11 +38,6 @@ type SimulationComponentState =
     | RegisterState of FastData
     | RamState of Memory1
 
-/// Message used to feed forward evaluation. Clock
-/// tick => state changes to that in next cycle
-type IsClockTick =
-    | No
-    | Yes of SimulationComponentState // Pass the state only for clock ticks.
 
 /// Like Component but with additional dynamic info used by simulator
 /// Clocked components have state data.
@@ -73,28 +68,10 @@ type SimulationComponent =
       // State for synchronous stateful components, like flip flops and memories.
       // The state should only be changed when clock ticks are fed. Other changes
       // will be ignored.
-      State: SimulationComponentState }
+     }
 
 /// Map every ComponentId to its SimulationComponent.
 and SimulationGraph = Map<ComponentId, SimulationComponent>
-
-/// This drives the generation of component outputs
-/// it is processed by the Reducer function.
-and ReducerInput =
-    { Inputs: Map<InputPortNumber, WireData>
-      CustomSimulationGraph: SimulationGraph option
-      IsClockTick: IsClockTick }
-
-/// When all inputs are available the reducer function will generate
-/// these outputs. For custom components the SimulationGraph contains
-/// embedded state.
-and ReducerOutput =
-    { Outputs: Map<OutputPortNumber, WireData> option
-      NewCustomSimulationGraph: SimulationGraph option
-      NewState: SimulationComponentState } // Will be saved only after clock ticks.
-
-/// contains info needed to propagate wire value changes through a simulation.
-and OutputChange = { CComp: SimulationComponent; COutputs: Map<OutputPortNumber, WireData> }
 
 /// For every IO node, keep track of its Id, Label and wire width.
 /// - Id: to feed values into the simulationGraph.
@@ -1333,7 +1310,7 @@ let shortPSComp (comp: SimulationComponent) =
 
     match comp.Type with
     | Custom sc -> sprintf "%s:Custom.(%s.%A->%A)" lab sc.Name sc.InputLabels sc.OutputLabels
-    | _ -> sprintf "%s:%A.{%A}" lab comp.Type comp.State
+    | _ -> sprintf "%s:%A" lab comp.Type
 
 let printSimGraph (sg: SimulationGraph) =
     printfn

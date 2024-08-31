@@ -1,13 +1,11 @@
+module GraphBuilder
 (*
-    Builder.fs
+    GraphBuilder.fs
 
     This module collects functions to build a SimulationGraph, starting from
     a CanvasState. It also runs all the checks contained in Analyser to validate
     the graph is correct (and can be built in the first place).
 *)
-
-module SimulationBuilder
-
 open Helpers
 open NumberHelpers
 open CommonTypes
@@ -60,17 +58,7 @@ let rec private getValuesForPorts
             | None -> None
             | Some values -> Some <| wireData :: values
 
-/// Given a component type, return a function takes a ReducerInput and
-/// transform it into a ReducerOuptut.
-/// The ReducerOutput should have Outputs set to None if there are not enough
-/// ReducerInput.Inputs to calculate the outputs.
-/// For custom components, return a fake version of the reducer, that has to be
-/// replaced when resolving the dependencies.
-/// TODO: some components reducers are quite similar, for example Register and
-/// RegisterE and DFF and DFFE. It is probably a good idea to merge them
-/// together to avoid duplicated logic.
-let private getReducer (componentType: ComponentType) : ReducerInput -> ReducerOutput =
-    fun _ -> failwithf "Reducer function is legacy code and should never be called!"
+
 
 /// Build a map that, for each source port in the connections, keeps track of
 /// the ports it targets.
@@ -222,7 +210,7 @@ let private buildSimulationComponent
       Outputs = outputs
       OutputWidths = outputWidths
       CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.
-      State = getDefaultState comp.Type }
+    }
 
 let getLabelConnections (comps: Component list) (conns: Connection list) =
     let labels = comps |> List.filter (fun co -> co.Type = IOLabel)
@@ -367,3 +355,68 @@ let runCanvasStateChecksAndBuildGraph
         Ok
         <| buildSimulationGraph canvasState outputsWidth
     | None, None -> failwith "This should not happen, connections width should be available if no error was found."
+
+let mutable simTrace = false 
+
+
+
+/// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
+/// If they dont all have a value, an error is thrown.
+let extractSimulationIOs (simulationIOs: SimulationIO list) (graph: SimulationGraph) : (SimulationIO * WireData) list =
+    let extractWireData (inputs: Map<InputPortNumber, WireData>) : WireData =
+        match inputs.TryFind <| InputPortNumber 0 with
+        | None -> failwith "what? IO bit not set"
+        | Some bit -> bit
+
+    ([], simulationIOs)
+    ||> List.fold (fun result (ioId, ioLabel, width) ->
+        match graph.TryFind ioId with
+        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
+        | Some comp ->
+            ((ioId, ioLabel, width), extractWireData comp.Inputs)
+            :: result)
+
+/// Simlar to extractSimulationIOs, but do not fail if a bit is not set, just
+/// ignore it.
+let extractIncompleteSimulationIOs
+    (simulationIOs: SimulationIO list)
+    (graph: SimulationGraph)
+    : (SimulationIO * WireData) list
+    =
+    let extractWireData (inputs: Map<InputPortNumber, WireData>) : WireData option = inputs.TryFind <| InputPortNumber 0
+
+    ([], simulationIOs)
+    ||> List.fold (fun result (ioId, ioLabel, width) ->
+        match graph.TryFind ioId with
+        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel, width)
+        | Some comp ->
+            match extractWireData comp.Inputs with
+            | None -> result
+            | Some wireData -> ((ioId, ioLabel, width), wireData) :: result)
+
+/// Get ComponentIds, ComponentLabels and wire widths of all input and output
+/// nodes.
+let getSimulationIOs (components: Component list) : SimulationIO list * SimulationIO list =
+    (([], []), components)
+    ||> List.fold (fun (inputs, outputs) comp ->
+        match comp.Type with
+        | Input1(w, _) ->
+            ((ComponentId comp.Id, ComponentLabel comp.Label, w)
+             :: inputs,
+             outputs)
+        | Output w ->
+            (inputs,
+             (ComponentId comp.Id, ComponentLabel comp.Label, w)
+             :: outputs)
+        | _ -> (inputs, outputs))
+
+/// Get ComponentIds, ComponentLabels and wire widths of all input and output
+/// nodes in a simulationGraph.
+let getSimulationIOsFromGraph (graph: SimulationGraph) : SimulationIO list * SimulationIO list =
+    (([], []), graph)
+    ||> Map.fold (fun (inputs, outputs) compId comp ->
+        match comp.Type with
+        | Input1(w, _) -> ((comp.Id, comp.Label, w) :: inputs, outputs)
+        | Output w -> (inputs, (comp.Id, comp.Label, w) :: outputs)
+        | _ -> (inputs, outputs))
+

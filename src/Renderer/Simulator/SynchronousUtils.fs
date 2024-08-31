@@ -1,10 +1,10 @@
+module SynchronousUtils
+
 (*
     SynchronousUtils.fs
 
     Collection of functions that help to detect and deal with synchronous logic.
 *)
-
-module SynchronousUtils
 
 open CommonTypes
 open SimulatorTypes

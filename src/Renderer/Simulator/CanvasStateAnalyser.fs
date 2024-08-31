@@ -1,3 +1,5 @@
+module CanvasStateAnalyser
+
 (*
     CanvasStateAnalyser.fs
 
@@ -5,7 +7,6 @@
     CanvasState and SimulationGraph.
 *)
 
-module CanvasStateAnalyser
 
 open CommonTypes
 open SimulatorTypes
@@ -472,20 +473,6 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
         (fun pid -> m.ToInputPort[InputPortId pid])
         getInPortRmInfo
         getInErrType
-    //   match (checkCounts
-    //       m.OtherTargetConns
-    //       (fun conn -> conn.Target.Id)
-    //       (l2Pid m.OtherInputPorts)
-    //       (inPIdMap >> portMap)
-    //       ((=) 1)) with
-    //         | Some (compsAffected, connsAffected, count) ->
-    //             Some {
-    //                 ErrType = InputConnError count
-    //                 InDependency = None
-    //                 ComponentsAffected = compsAffected
-    //                 ConnectionsAffected = connsAffected
-    //             }
-    //         | None -> None
 
       match (checkCounts
           m.LabTargetConns
@@ -510,20 +497,6 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
         (fun pid -> m.ToOutputPort[OutputPortId pid])
         getOutPortRmInfo
         getOutErrType
-    //   match (checkCounts
-    //       m.OtherSourceConns
-    //       (fun conn -> conn.Source)
-    //       m.OtherOutputPorts
-    //       portMap
-    //       ((<) 0)) with
-    //         | Some (compsAffected, connsAffected, count) ->
-    //             Some {
-    //                 ErrType = OutputConnError count
-    //                 InDependency = None
-    //                 ComponentsAffected = compsAffected
-    //                 ConnectionsAffected = connsAffected
-    //             }
-    //         | None -> None
 
       checkConns conns m
 

@@ -9,22 +9,17 @@ module Simulator
 open CommonTypes
 open SimulatorTypes
 open SynchronousUtils
-open SimulationBuilder
-open SimulationRunner
-open DependencyMerger
+open GraphBuilder
+open GraphMerger
 open SimulationGraphAnalyser
 open Extractor
 
-// Simulating a circuit has four phases (not precisely in order of execution):
+// Building a SimulationGraph has four phases (not precisely in order of execution):
 // 1. Building a simulation graph made of SimulationComponents.
 // 2. Merging all the necessary dependencies.
 // 3. Analyse the graph to look for errors, such as unconnected ports,
 //    combinatorial loops, etc...
-// 4. Setting the values of the input nodes of the graph to kickstart the
-//    simulation process.
 
-/// Builds the graph and simulates it with all inputs zeroed.
-/// upper case a string
 let cap (sheet: string) = sheet.ToUpper()
 
 /// look up a sheet in a set of loaded components
@@ -282,16 +277,9 @@ let startCircuitSimulationFData
                     //Fast.compareFastWithGraph sd |> ignore
                     sd)
 
-/// Expose the extractSimulationIOs function from SimulationRunner.
-let extractSimulationIOs = SimulationRunner.extractSimulationIOs
+/// Expose the extractSimulationIOs function from SimulationBuilder.
+let extractSimulationIOs = GraphBuilder.extractSimulationIOs
 
-/// Get some info and the state of all stateful components in a graph.
-let extractStatefulComponents (graph: SimulationGraph) : SimulationComponent list =
-    graph
-    |> Map.toList
-    |> List.map snd
-    |> List.filter (fun comp -> comp.State <> NoState)
-// TODO: recursively search custom components?
 
 type SimCache = {
     Name: string

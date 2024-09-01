@@ -71,7 +71,7 @@ open System.Text.RegularExpressions
         /// this conversion does not affect the JSON generated.
         let convStateToJC ( compL, connL) = (List.map convertToJSONComponent compL, connL)
 
-
+        /// Code to convert a CanvasState to a JSON string, does not work for bigints (I think).
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
             let time = System.DateTime.Now
             //printfn "%A" cState
@@ -82,8 +82,8 @@ open System.Text.RegularExpressions
             | e ->
                 printfn "HELP: exception in SimpleJson.stringify %A" e
                 "Error in stringify"
-
-        let stateToJsonStringNew (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
+        /// Code to convert a CanvasState to a JSON string, allowing bigints
+        let stateToJsonStringExperimental (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
             let time = System.DateTime.Now
             try
                 Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time)), extra = extraCoder)

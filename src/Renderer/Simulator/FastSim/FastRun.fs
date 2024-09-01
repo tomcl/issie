@@ -297,9 +297,9 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
 /// Calculates the size in bytes / clock step of the simulation arrays
 /// bigint arrayshave very uncertain size, so an estimate of 16 bytes is assumed.
 /// this should be revisited for more accuracy
-let calculateTotalSimArraySizePerStep (actveComps: FastComponent array) (fs: FastSimulation) =
+let calculateTotalSimArraySizePerStep (activeComps: FastComponent array) (fs: FastSimulation) =
     let arraySumBy f a = if Array.length a = 0 then 0 else Array.sumBy f a
-    actveComps
+    activeComps
     |> arraySumBy (fun fc ->
         fc.Outputs
         |> arraySumBy (fun output ->

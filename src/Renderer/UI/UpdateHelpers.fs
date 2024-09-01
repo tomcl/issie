@@ -383,7 +383,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     // return the desired menu
     match rightClickElement with
     | SheetMenuBreadcrumb _ ->
-        if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumbDev"
+        if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumb"
     | DBScalingBox _ -> 
         "ScalingBox"
     | DBCustomComp _->        
@@ -780,7 +780,7 @@ let updateTimeStamp model =
 //Finds if the current canvas is different from the saved canvas
 // waits 50ms from last check
 
-let findChange (model : Model) : bool = 
+let currentSheetIsOutOfDate (model : Model) : bool = 
     let last = model.LastChangeCheckTime // NB no check to reduce total findChange time implemented yet - TODO if needed
     let start = TimeHelpers.getTimeMs()
 
@@ -793,7 +793,8 @@ let findChange (model : Model) : bool =
             |> List.find (fun lc -> lc.Name = prj.OpenFileName)
         let canv = savedComponent.CanvasState
         let canv' = model.Sheet.GetCanvasState ()
-        (canv <> canv') && not (CanvasExtractor.compareCanvas 100. canv canv')
+        savedComponent.LoadedComponentIsOutOfDate ||
+        ((canv <> canv') && not (CanvasExtractor.compareCanvas 100. canv canv'))
         //|> TimeHelpers.instrumentInterval "findChange" start
 
 /// Needed so that constant properties selection will work
@@ -849,7 +850,7 @@ let getLastMouseMsg msgQueue =
 
 let sheetMsg sMsg model = 
     let sModel, sCmd = SheetUpdate.update sMsg model
-    {sModel with SavedSheetIsOutOfDate = findChange sModel}, sCmd
+    {sModel with SavedSheetIsOutOfDate = currentSheetIsOutOfDate sModel}, sCmd
 
 let executePendingMessagesF n model =
     if n = (List.length model.Pending)

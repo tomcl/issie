@@ -568,19 +568,8 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
 
     div [Style []] [
         table [Style [LineHeight "40px"; BorderStyle "none"; BorderColor "white"; TextAlign TextAlignOptions.Left]] [
-            tbody [] [ (*
-                row [
-                        span [boxStyle] [str "First clock cycle:"]
-                        Input.number [
-                            Input.Props [OnPaste preventDefault;  boxStyle; AutoFocus true; ]
-                            Input.DefaultValue <| string initConfig.FirstClock
-                            Input.Color (if hasError "first" then IColor.IsDanger else IColor.IsBlack)
-                            Input.OnChange (JSHelpers.getIntEventValue >> (setConfigInt firstClock_))
-                        ]
-                        str "This value should be kept zero unless you know which part of a very long simulation you want to view. \
-                              It can then be used to reduce the window over which scroll works and therefore make scroll easier to use."
- 
-                    ]*)
+            tbody [] [
+
                 row [
                         span [boxStyle] [str "Waveform font size:"]           
                         Input.number [

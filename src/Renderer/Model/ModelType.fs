@@ -671,7 +671,7 @@ let popupDialogData_ = Lens.create (fun a -> a.PopupDialogData) (fun p a -> {a w
 let selectedComponent_ = Lens.create (fun a -> a.SelectedComponent) (fun s a -> {a with SelectedComponent = s})
 let userData_ = Lens.create (fun a -> a.UserData) (fun s a -> {a with UserData = s})
 let uISheetTrail_ = Lens.create (fun a -> a.UISheetTrail) (fun s a -> {a with UISheetTrail = s})
-
+let savedSheetIsOutOfDate_ = Lens.create (fun a -> a.SavedSheetIsOutOfDate) (fun s a -> {a with SavedSheetIsOutOfDate = s})
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_

@@ -164,19 +164,7 @@ let tryReadFileSync fPath =
     readFile fPath
     |> Ok
 
-/// Write base64 encoded data to file.
-/// Create file if it does not exist.
-let writeFileBase64 path data =
-    let options = createObj ["encoding" ==> "base64"] |> Some
-    try
-        #if FABLE_COMPILER
-        fs.writeFileSync(path, data, options)
-        #else
-        File.WriteAllBytes(path, System.Convert.FromBase64String(data))
-        #endif
-        Ok ()
-    with
-        | e -> Result.Error $"Error '{e.Message}' writing file '{path}'"   
+
 
 /// Write utf8 encoded data to file.
 /// Create file if it does not exist.
@@ -520,26 +508,43 @@ let initialiseMem (mem: Memory1) (projectPath:string) =
 
 
 
-/// Save a PNG file (encoded base64, as from draw2d)
-/// Overwrite existing file if needed
+/// Save a PNG file (encoded base64, as from draw2d).
+/// Overwrite existing file if needed.
+/// Not used now we do not have Draw2D.
+/// Probably not useful but maybe one day could be used to print schematic?
 let savePngFile folderPath baseName png = // TODO: catch error?
+    /// Write base64 encoded data to file.
+    /// Create file if it does not exist.
+    let writeFileBase64 path data =
+        let options = createObj ["encoding" ==> "base64"] |> Some
+        try
+            #if FABLE_COMPILER
+            fs.writeFileSync(path, data, options)
+            #else
+            File.WriteAllBytes(path, System.Convert.FromBase64String(data))
+            #endif
+            Ok ()
+        with
+            | e -> Result.Error $"Error '{e.Message}' writing file '{path}'"   
     let path = pathJoin [| folderPath; baseName + ".png" |]
     writeFileBase64 path png
-
-let formatSavedState (canvas,wave) =
-    CanvasWithFileWaveInfo(canvas,wave,System.DateTime.Now)
 
 
 
 /// Save state to normal file. Automatically add the .dgm suffix.
+/// This version will not correctly deal with bigint numbers.
+/// See svaStateToFileNew
 let saveStateToFile folderPath baseName state = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".dgm" |]
     let data = stateToJsonString state
     writeFile path data
 
-let saveStateToFileNew folderPath baseName state = // TODO: catch error?
+/// Save state to file. Automatically add the .dgm suffix.
+/// This is the new version of the function that uses the new state format and copes with bigints
+/// However, it seems that it is not used??
+let saveStateToFileExperimental folderPath baseName state = // TODO: catch error?
     let path = pathJoin [| folderPath; baseName + ".dgmNew" |]
-    let data = stateToJsonStringNew state
+    let data = stateToJsonStringExperimental state
     writeFile path data
 
 /// Create new empty diagram file. Automatically add the .dgm suffix.
@@ -649,6 +654,7 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
             OutputLabels = outputs
             Form = form
             Description = description
+            LoadedComponentIsOutOfDate = false
         }
     ldc, ramChanges
 

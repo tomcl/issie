@@ -37,6 +37,7 @@ let changeInput (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: Fa
     setSimulationInput cid fd step fastSim
     //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
     runCombinationalLogic step fastSim
+
 let changeInputFData (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: FastSimulation) =
     //printfn "wd=%A" wd
     let fd =
@@ -210,6 +211,7 @@ let extractFastSimulationIOs
         //printfn $"Extrcating: {io} --- {wd}"
         io, out)
 
+/// As extractFastSimulationIOs but for FData - used by truth table logic.
 let extractFastSimulationIOsFData
     (simIOs: SimulationIO list)
     (simulationData: SimulationData)
@@ -225,16 +227,18 @@ let extractFastSimulationIOsFData
         //printfn $"Extrcating: {io} --- {wd}"
         io, out)
 
+/// Extract a component's label and its full name which includes all of its path to root of simulation.
 let getFLabel (fs: FastSimulation) (fId: FComponentId) =
     let fc = fs.FComps[fId]
     let (ComponentLabel name) = fc.SimComponent.Label
     name, fc.FullName
 
+/// Extract the width of a component's output port.
 let extractFastSimulationWidth (fs: FastSimulation) (fid: FComponentId) (opn: OutputPortNumber) =
     let (OutputPortNumber n) = opn
     fs.FComps[fid].OutputWidth n
 
-/// Extract all Viewer components with names and wire widths. Used by legacy code.
+/// Extract all Viewer components with names and wire widths. 
 let extractViewers (simulationData: SimulationData) : ((string * string) * int * FSInterface) list =
     let fs = simulationData.FastSim
 
@@ -256,6 +260,7 @@ let extractViewers (simulationData: SimulationData) : ((string * string) * int *
         let width = fc.OutputWidth 0
         getFLabel fs fid, width, extractFastSimulationOutput fs simulationData.ClockTickNumber fid (OutputPortNumber 0))
 
+/// Check if the components and connections of a fast simulation and a canvas are the same.
 let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project option) =
     List.forall (fun ldc -> CanvasExtractor.loadedComponentIsSameAsProject canv ldc p) fs.SimulatedCanvasState
 
@@ -263,14 +268,21 @@ let compareLoadedStates (fs: FastSimulation) (canv: CanvasState) (p: Project opt
 /// fc: the fast component to get the input from.
 /// inputNum: which input as numbered in the inputs array.
 /// step: which time step to get the value from.
-let getFastComponentInput (fc: FastComponent) (inputNum: int) (step:int) : bigint =
+/// used by waveSimSVGs, maybe this function could be moved there and optimised as code there at cost of modularity.
+let inline getFastComponentInput (fc: FastComponent) (inputNum: int) (step:int) : bigint =
     let a = fc.InputLinks[inputNum]
     let w = a.Width
     match w with
     | w when w > 32 -> a.BigIntStep[step]
     | _ -> a.UInt32Step[step] |> bigint
 
-let getFastComponentOutput (fc:FastComponent) (outputNum: int) (step:int) =
+
+/// Get the output value of a fast component as a bigint.
+/// fc: the fast component to get the output from.
+/// outputNum: which output as numbered in the outputs array.
+/// step: which time step to get the value from.
+/// used by waveSimSVGs, maybe this function could be moved there and optimised as code there at cost of modularity.
+let inline getFastComponentOutput (fc:FastComponent) (outputNum: int) (step:int) =
     if fc.OutputWidth 0 > 32 then
         fc.Outputs[outputNum].BigIntStep[step]
     else

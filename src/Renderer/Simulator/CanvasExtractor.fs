@@ -254,7 +254,9 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
           InputLabels = inputs
           OutputLabels = outputs
           Form = None
-          Description = None }
+          Description = None
+          LoadedComponentIsOutOfDate = false
+          }
 
     ldc
 
@@ -281,12 +283,13 @@ let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedCompon
         |> Option.map (fun ldc' -> ldcIsEq ldc' ldc)
         |> Option.defaultValue false
 
-/// add given name,state to loadedcomponent lits as a loaded component (overwriting existing if needed)
+/// add given name,state to loadedcomponent list as a loaded component (overwriting existing if needed)
 let addStateToLoadedComponents openFileName canvasState loadedComponents =
     let ins, outs = parseDiagramSignature canvasState
 
     let ldc: LoadedComponent =
         { Name = openFileName
+          LoadedComponentIsOutOfDate = false
           InputLabels = ins
           OutputLabels = outs
           CanvasState = canvasState

@@ -929,6 +929,8 @@ type LoadedComponent = {
     /// Output port names, and port numbers in any created custom component
     OutputLabels : (string * int) list
     Form : CCForm option
+    /// If component needs saving to disk
+    LoadedComponentIsOutOfDate: bool
     Description: string option
 }
 
@@ -936,7 +938,9 @@ open Optics.Operators
 
 let formOpt_ = Lens.create (fun a -> a.Form) (fun s a -> match s with | None -> a | Some s -> {a with Form = Some s})
 let canvasState_ = Lens.create (fun a -> a.CanvasState) (fun s a -> {a with CanvasState = s})
+let loadedComponentIsOutOfDate_ = Lens.create (fun a -> a.LoadedComponentIsOutOfDate) (fun s a -> {a with LoadedComponentIsOutOfDate = s})
 let componentsState_ = canvasState_ >-> Optics.fst_
+
 
 /// Returns true if a component is clocked
 let rec isClocked (visitedSheets: string list) (ldcs: LoadedComponent list) (comp: Component) =
@@ -984,6 +988,7 @@ let openLoadedComponent_ =
         (fun lc' a -> {a with LoadedComponents = List.map (fun lc -> if lc.Name = a.OpenFileName then lc' else lc) a.LoadedComponents})
 
 let openFileName_ = Lens.create (fun a -> a.OpenFileName) (fun s a -> {a with OpenFileName = s})
+let workingFileName_ = Lens.create (fun a -> a.WorkingFileName) (fun s a -> {a with WorkingFileName = s})
 
 let loadedComponentOf_ (name:string) = 
     Lens.create 

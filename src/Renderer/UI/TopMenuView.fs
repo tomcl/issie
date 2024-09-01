@@ -110,6 +110,7 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
     createEmptyDgmFile pPath sheetName |> ignore
     {
         Name=sheetName
+        LoadedComponentIsOutOfDate = false
         WaveInfo = None
         TimeStamp = DateTime.Now
         FilePath= pathJoin [|pPath; sprintf "%s.dgm" sheetName|]
@@ -249,6 +250,7 @@ let addFileToProject model dispatch =
                     // Add the file to the project.
                     let newComponent = {
                         Name = name
+                        LoadedComponentIsOutOfDate = false
                         TimeStamp = System.DateTime.Now
                         WaveInfo = None
                         FilePath = pathJoin [|project.ProjectPath; name + ".dgm"|]
@@ -346,7 +348,7 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                         match basename with
                         | "cpu" ->
                             div [] [
-                                str "The EEP1 architecture designed in Year 1 labs"
+                                str "The EEP1 CPU architecture designed in Year 1 labs"
                             ]
                         | "fulladder" ->
                             div [] [
@@ -358,11 +360,11 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                             ]
                         | "adder (4-bit)" ->
                             div [] [
-                                str "Cascading full adders to create 4-bit adder"
+                                str "Cascading 1-bit full adders to create 4-bit adder"
                             ]
                         | "eratosthenes" ->
                             div [] [
-                                str "The EEP1 CPU running a program to calculate 5000 prime numbers"
+                                str "The EEP1 CPU running a program to calculate prime numbers"
                             ]
                         | _ -> str "Information about other design"
 
@@ -515,6 +517,9 @@ let changeLockState (isSubSheet: bool) (sheet: SheetTree) (updateLock: LockState
         | Some Locked -> ProtectedTopLevel
         | None -> form
     Optic.map (projectOpt_ >?> loadedComponentOf_ sheet.SheetName >?> formOpt_) (Option.map formUpdate)
+    >> Optic.set (projectOpt_ >?> loadedComponentOf_ sheet.SheetName >?> loadedComponentIsOutOfDate_) true
+    >> Optic.set savedSheetIsOutOfDate_ true
+    
 
 /// Change model to alter lock of tree with root sheet as determined by updateLock.
 /// Unlockable sheets are kept the same.

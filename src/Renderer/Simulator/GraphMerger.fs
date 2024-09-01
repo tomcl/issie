@@ -223,19 +223,6 @@ let private checkDependenciesAndBuildMap
 // Merge dependencies //
 //====================//
 
-/// Convert the label of a port on a custom componetnt to its port number.
-/// Assumes that all labels are unique, otherwise it is undefined behaviour.
-let private labelToPortNumber label (labels: string list) =
-    match List.tryFindIndex ((=) label) labels with
-    | None -> failwithf "what? Label %s not present in %A" label labels
-    | Some pNumber -> pNumber
-
-/// Convert the portNumber of a custom componetnt to its port lablel.
-let private portNumberToLabel (InputPortNumber pNumber) (inputLabels: string list) =
-#if ASSERTS
-    assertThat (inputLabels.Length > pNumber) "portNumberToLabel"
-#endif
-    inputLabels[pNumber]
 
 
 

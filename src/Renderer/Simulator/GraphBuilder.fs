@@ -360,40 +360,6 @@ let mutable simTrace = false
 
 
 
-/// Given a list of IO nodes (i.e. Inputs or outputs) extract their value.
-/// If they dont all have a value, an error is thrown.
-let extractSimulationIOs (simulationIOs: SimulationIO list) (graph: SimulationGraph) : (SimulationIO * WireData) list =
-    let extractWireData (inputs: Map<InputPortNumber, WireData>) : WireData =
-        match inputs.TryFind <| InputPortNumber 0 with
-        | None -> failwith "what? IO bit not set"
-        | Some bit -> bit
-
-    ([], simulationIOs)
-    ||> List.fold (fun result (ioId, ioLabel, width) ->
-        match graph.TryFind ioId with
-        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel)
-        | Some comp ->
-            ((ioId, ioLabel, width), extractWireData comp.Inputs)
-            :: result)
-
-/// Simlar to extractSimulationIOs, but do not fail if a bit is not set, just
-/// ignore it.
-let extractIncompleteSimulationIOs
-    (simulationIOs: SimulationIO list)
-    (graph: SimulationGraph)
-    : (SimulationIO * WireData) list
-    =
-    let extractWireData (inputs: Map<InputPortNumber, WireData>) : WireData option = inputs.TryFind <| InputPortNumber 0
-
-    ([], simulationIOs)
-    ||> List.fold (fun result (ioId, ioLabel, width) ->
-        match graph.TryFind ioId with
-        | None -> failwithf "what? Could not find io node: %A" (ioId, ioLabel, width)
-        | Some comp ->
-            match extractWireData comp.Inputs with
-            | None -> result
-            | Some wireData -> ((ioId, ioLabel, width), wireData) :: result)
-
 /// Get ComponentIds, ComponentLabels and wire widths of all input and output
 /// nodes.
 let getSimulationIOs (components: Component list) : SimulationIO list * SimulationIO list =
@@ -410,13 +376,4 @@ let getSimulationIOs (components: Component list) : SimulationIO list * Simulati
              :: outputs)
         | _ -> (inputs, outputs))
 
-/// Get ComponentIds, ComponentLabels and wire widths of all input and output
-/// nodes in a simulationGraph.
-let getSimulationIOsFromGraph (graph: SimulationGraph) : SimulationIO list * SimulationIO list =
-    (([], []), graph)
-    ||> Map.fold (fun (inputs, outputs) compId comp ->
-        match comp.Type with
-        | Input1(w, _) -> ((comp.Id, comp.Label, w) :: inputs, outputs)
-        | Output w -> (inputs, (comp.Id, comp.Label, w) :: outputs)
-        | _ -> (inputs, outputs))
 

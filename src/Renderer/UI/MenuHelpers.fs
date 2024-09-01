@@ -673,6 +673,7 @@ let private createEmptyDiagramFile projectPath name =
 
     {   
         Name = name
+        LoadedComponentIsOutOfDate = false
         TimeStamp = System.DateTime.Now
         WaveInfo = None
         FilePath = pathJoin [| projectPath; name + ".dgm" |]
@@ -863,6 +864,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             let origLdComp =
                 project.LoadedComponents
                 |> List.find (fun lc -> lc.Name = project.OpenFileName)
+                |> Optic.set loadedComponentIsOutOfDate_ false
             let savedWaveSim =
                 Map.tryFind project.OpenFileName model.WaveSim
                 |> Option.map getSavedWaveInfo
@@ -938,7 +940,7 @@ let saveOpenProjectInNewFormat (model: Model) =
         |> List.map (fun comp ->
             let sheetInfo = {Form=comp.Form;Description=comp.Description}
             let savedState = comp.CanvasState, None, Some sheetInfo
-            match saveStateToFileNew project.ProjectPath comp.Name savedState with
+            match saveStateToFileExperimental project.ProjectPath comp.Name savedState with
             | Ok _ -> printfn "Successfully saved %s" comp.Name
             | Error errr -> printfn "Error on saving %s: %s" comp.Name errr)
         |> fun _ -> printfn "Done"
@@ -975,6 +977,11 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
         printf "%s" $"Anomalous project: sheet {name}.dgm not found"
         SetFilesNotification <| errorFilesNotification 
            $"Warning: Issie could not find the file '{name}.dgm' in the project. Did you delete a file manually?"
+        |> dispatch
+        dispatch FinishUICmd
+    | Some {Form=Some (ProtectedTopLevel | ProtectedSubSheet)} when debugLevel = 0 ->
+        SetFilesNotification <| errorFilesNotification 
+            $"Warning: The sheet '{name}' is protected and cannot be opened."
         |> dispatch
         dispatch FinishUICmd
     | Some lc ->

@@ -248,6 +248,8 @@ let valToPaddedString (width: int) (radix: NumberBase) (value: bigint) : string 
     | Hex -> fillHexBignum width value
     | SDec -> sDecBignum width value
 
+/// Compress a string to a given estimated width (maxChars) in characters.
+/// TODO: maybe this should be exact using TextMetrics? Need to check performance.
 let private compress width maxChars radix s =
     let maxChars = float maxChars
     let getPrefixAndDigits (s: string) =
@@ -328,110 +330,23 @@ let fastDataToPaddedString maxChars radix (fd: FastData) =
         | false ->
             compress fd.Width maxChars displayRadix s)
 
+/// Print a uint32 (n) as a string with a given radix and width.
+/// If the string is too long, truncate it.
+/// MaxChars: the max printedlength of the string in char widths (emm).
+/// Radix: the radix to use for the string.
+/// width: the bus width within which n should be printed.
 let UInt32ToPaddedString maxChars radix (width: int) (n: uint32) =
     fastDataToPaddedString maxChars radix {Dat = Word n; Width = width}
 
+/// Print a bigint (n) as a string with a given radix and width.
+/// If the string is too long, truncate it.
+/// MaxChars: the max printedlength of the string in char widths (emm).
+/// Radix: the radix to use for the string.
+/// width: the bus width within which n should be printed.
 let BigIntToPaddedString maxChars radix (width: int) (n: bigint) =
     fastDataToPaddedString maxChars radix {Dat = BigWord n; Width = width}
  
-(*
-let UInt32ToPaddedString maxChars radix (width: int) (n: uint32) =
-    let getPrefixAndDigits (s: string) =
-        match s.Length, s.[0], s.[1] with
-        | n, '-', _ -> "-", s[1 .. n - 1]
-        | n, '0', 'b'
-        | n, '0', 'x' -> s.[1..1], s[2 .. n - 1]
-        | _ -> "", s
 
-    let stripLeadingZeros s =
-        let rec strip index (s: string) =
-            if
-                index < s.Length - 1
-                && (s[index] = '0' || s[index] = ',')
-            then
-                strip (index + 1) s
-            else
-                s[index .. s.Length - 1]
-
-        let pre, digits = getPrefixAndDigits s
-        pre, strip 0 digits
-
-    let displayRadix =
-        match radix with
-        | Bin when width > Constants.maxBinaryDisplayWidth -> Hex
-        | r -> r
-
-    let signBit = n &&& (1u <<< (width - 1))
-
-    let signExtendedW =
-        match displayRadix, signBit <> 0u with
-        | SDec, true -> int64 (int32 n) - (1L <<< width)
-        | _ -> int64 (uint64 n)
-
-    let s = valToPaddedString width displayRadix (bigint signExtendedW)
-
-    match s.Length < maxChars with
-    | true -> s // no change needed
-    | false ->
-        let pre, digits = stripLeadingZeros s
-        let n = digits.Length
-
-        if pre.Length + digits.Length <= maxChars then
-            // stripping leading zeros makes length ok
-            pre + digits
-        else
-            // truncate MS digits replacing by '..'
-            pre
-            + ".."
-            + digits[n + 2 + pre.Length - maxChars .. n - 1]
-
-let BigIntToPaddedString maxChars radix (width: int) (fd: bigint) =
-    let getPrefixAndDigits (s: string) =
-        match s.Length, s.[0], s.[1] with
-        | n, '-', _ -> "-", s[1 .. n - 1]
-        | n, '0', 'b'
-        | n, '0', 'x' -> s.[1..1], s[2 .. n - 1]
-        | n, 'b', _
-        | n, 'x', _ -> s.[0..0], s[1 .. n - 1]
-        | _ -> "", s
-
-    let stripLeadingZeros s =
-        let rec strip index (s: string) =
-            if
-                index < s.Length - 1
-                && (s[index] = '0' || s[index] = ',')
-            then
-                strip (index + 1) s
-            else
-                s[index .. s.Length - 1]
-
-        let pre, digits = getPrefixAndDigits s
-        pre, strip 0 digits
-
-    let displayRadix =
-        match radix with
-        | Bin when width > Constants.maxBinaryDisplayWidth -> Hex
-        | r -> r
-
-    let s = bigValToPaddedString width displayRadix fd
-    match s.Length < maxChars with
-    | true -> s // no change needed
-    | false ->
-        let pre, digits = stripLeadingZeros s
-        let n = digits.Length
-
-    
-
-        if pre.Length + digits.Length <= maxChars then
-            // stripping leading zeros makes length ok
-            pre + digits
-        else
-            // truncate MS digits replacing by '...'
-            pre
-            + (match radix with Hex -> "x" | Bin -> "b" | _ -> "")
-            + "..."            
-            + digits[n + 4 + pre.Length - maxChars .. n - 1]
-*)
 //-------------------------------------------------------------------------------------------//
 //---------------------------------WireData Conversion---------------------------------------//
 //-------------------------------------------------------------------------------------------//
@@ -587,7 +502,6 @@ let private countBits (num: bigint) : int =
     let n = log2Int num        
     if n = 0 then 1 else n
         
-
 /// Check a number is formed by at most <width> bits.
 let rec checkWidth (width: int) (num: bigint) : string option =
     if num < 0I then
@@ -610,18 +524,19 @@ let strToIntCheckWidth (width: int) (str: string) : Result<bigint, string> =
             | None -> Ok num
             | Some err -> Error err)
 
-let convertBinToDec (bits: string) : bigint =
-    let rec convert bits idx =
-        match bits with
-        | [] -> 0I
-        | '0' :: bits' -> convert bits' (idx - 1)
-        | '1' :: bits' -> (1I <<< idx) + convert bits' (idx - 1)
-        | _ -> failwithf "Not binary input, should not happen!"
-    convert ((bits.ToCharArray()) |> Array.toList) (bits.Length-1)
-    
-
 /// Converts a binary, hex or decimal number to decimal
+/// Non-standard - used by Verilog code. Should rationalise?
 let toDecimal (num: string) numBase (width:string) =
+    /// Convert a hex string into a binary string without unnecessary leading zeros.
+    let convertBinToDec (bits: string) : bigint =
+        let rec convert bits idx =
+            match bits with
+            | [] -> 0I
+            | '0' :: bits' -> convert bits' (idx - 1)
+            | '1' :: bits' -> (1I <<< idx) + convert bits' (idx - 1)
+            | _ -> failwithf "Not binary input, should not happen!"
+        convert ((bits.ToCharArray()) |> Array.toList) (bits.Length-1)
+
     let width = width |> int
     match numBase with
     | "'d" -> num |> bigint.Parse

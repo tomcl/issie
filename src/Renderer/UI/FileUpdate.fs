@@ -19,6 +19,7 @@ open Optics.Optic
 open Optics.Operators
 
 /// force either save of current file before action, or abort (closeProject is special case of this)
+/// In addition, if not aborting, save current lockstate of all files.
 let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch _ =
     let closeDialogButtons keepOpen _ =
         if keepOpen then
@@ -26,14 +27,32 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
         else
             dispatch nextAction
 
+    let lockStateHasChanged =
+        match model.CurrentProj with
+        | None -> ""
+        | Some p ->
+            p.LoadedComponents
+            |> List.filter (fun c -> c.LoadedComponentIsOutOfDate)
+            |> List.map (fun c -> c.Name)
+            |> String.concat ","
+
+
     if model.SavedSheetIsOutOfDate then 
         choicePopup 
-                $"{name}?" 
-                (div [] [ str "The current sheet has unsaved changes."])
-                "Go back to sheet" 
-                $"{name} without saving changes"  
-                closeDialogButtons 
-                dispatch
+            $"{name}?" 
+            (div [] [ str "The current sheet has unsaved changes."])
+            "Go back to sheet" 
+            $"{name} without saving changes"  
+            closeDialogButtons 
+            dispatch
+    elif lockStateHasChanged <> "" then
+        choicePopup 
+            $"Do you want to close without saving lock state?" 
+            (div [] [ str $"""The lockstate of {lockStateHasChanged} sheets has changed."""])
+            "Go back to sheet" 
+            $"{name} without saving changes"  
+            closeDialogButtons 
+            dispatch
     else
         dispatch nextAction
 

@@ -1,0 +1,10 @@
+LOOP ADD R0, #1
+     CMP R0, #100
+     JNE LOOP2
+     ADD R1, #1
+     MOV R0, #0
+     JMP LOOP
+     
+
+
+

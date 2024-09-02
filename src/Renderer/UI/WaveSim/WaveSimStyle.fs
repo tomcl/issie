@@ -126,7 +126,7 @@ module Constants =
 
     let waveLegendMaxChars = 35
     let valueColumnMaxChars = 35
-    let multipliers = [1;2;5;10;20;50]
+    let multipliers = [1;2;5;10;20;50;100;200;500;1000]
     let maxRamRowsDisplayed = 50
     let maxRamLocsWithSparseDisplay = 100
 

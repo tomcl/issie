@@ -303,7 +303,6 @@ let displayUInt32OnWave
     |> Array.map (fun gap ->
         let gapCycle = gap.Start - wsModel.StartCycle
         // generate string
-        printfn "gap.Start: %d, waveValues[gap.Start]: %d" gap.Start waveValues[gapCycle] //>
         let waveValue = UInt32ToPaddedString Constants.waveLegendMaxChars wsModel.Radix width waveValues[gapCycle]
         
         // calculate display widths

@@ -181,6 +181,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
 
             
         let lineItems =
+            let isInWindow loc = loc >= startDisplayLoc && loc < startDisplayLoc + bigint Constants.maxRamRowsDisplayed
             memData.Data
             |> (if windowedDisplay then
                     generatewindowlocations startDisplayLoc Constants.maxRamRowsDisplayed
@@ -188,8 +189,8 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
                     >> Map.toList
                     >> List.map (fun (a,(d,rw)) -> a,d,rw)
                     >> List.sort
-                    >> addEndPoints
-                    >> addGapLines false
+                    >> List.sortBy (fun (start,_,_) -> if  isInWindow start then 0 else 1) // put read and write at bottom if outside window
+                    >> List.map print1
                 else
                     addReadWrite fc step
                     >> Map.toList

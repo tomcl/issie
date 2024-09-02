@@ -556,7 +556,7 @@ let valueColumnTextStyle wsModel = {
 
 let valuesColumnSize wsModel =
     let colText = valueColumnTextStyle wsModel
-    let widthOfOneChar = DrawHelpers.getTextWidthInPixels colText "0" // not needed
+    let widthOfOneChar = DrawHelpers.getTextWidthInPixels colText "0"
     let selWaves = selectedWaves wsModel
     let maxValueBusWidth: int =
         selWaves
@@ -566,14 +566,13 @@ let valuesColumnSize wsModel =
     let sampleVals = 
         [maxValueBusWidth; min maxValueBusWidth NumberHelpers.Constants.maxBinaryDisplayWidth]
         |> List.map (fun num ->
-                        let num = min num (SimulatorTypes.bigIntMaskA.Length - 2)
                         let worstCaseVal, extra =
                             match wsModel.Radix with
-                            | CommonTypes.Bin -> (1I <<< num - 1), 20.
-                            | CommonTypes.Hex  -> (1I <<< num) - 1I, 20.
-                            | CommonTypes.Dec -> (1I <<< (num+1)), 2.
-                            | CommonTypes.SDec -> SimulatorTypes.bigIntMask (num-1), 10.
-                        let (fd: SimulatorTypes.FastData) = {Dat=SimulatorTypes.BigWord worstCaseVal; Width=num}
+                            | CommonTypes.Bin -> (1I <<< num - 1), 10.
+                            | CommonTypes.Hex  -> (1I <<< num) - 1I, 10.
+                            | CommonTypes.Dec -> (1I <<< num), 2.*widthOfOneChar
+                            | CommonTypes.SDec -> (1I <<< (num-1)),  3.*widthOfOneChar
+                        let (fd: SimulatorTypes.FastData) = {Dat=SimulatorTypes.BigWord worstCaseVal; Width=num+3}
                         NumberHelpers.fastDataToPaddedString Constants.valueColumnMaxChars wsModel.Radix fd
                         |> (fun v ->
                             let width =  DrawHelpers.getTextWidthInPixels colText v
@@ -582,7 +581,7 @@ let valuesColumnSize wsModel =
     |> List.unzip
     |> (fun (ws,nums) -> List.max ws, List.max nums)
     |> (fun (w,num) ->
-        int w + 20, num)
+        int w, num)
 
 /// Style properties for values column
 let valuesColumnStyle (ws: WaveSimModel) (colWidth:int) =

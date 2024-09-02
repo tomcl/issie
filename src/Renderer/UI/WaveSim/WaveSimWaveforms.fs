@@ -6,6 +6,16 @@ module WaveSimWaveforms
 //-----------------------Waveform display DOM Generation---------------------------------//
 //---------------------------------------------------------------------------------------//
 
+(*
+    This file contains the functions to generate the DOM elements for the waveforms
+    in the WaveSimulator. The waveforms are displayed in three columns: the leftmost
+    column contains the names of the waveforms, the middle column contains the waveforms
+    themselves, and the rightmost column contains the values of the waveforms at the
+    current clock cycle. The waveforms are generated as SVGs in the WaveSimSVGs module.
+    The functions in this file are responsible for generating the DOM elements that
+    display the waveforms in the browser.
+*)
+
 open Fulma
 open Fable.React
 open Fable.React.Props

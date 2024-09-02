@@ -1,9 +1,0 @@
-MOV R5, #3     // set up known values on R5...R7, test MOV with literal op2
-MOV R6, #255
-MOV R7, #13
-CMP R5, R6     // test CMP
-CMP R5, #3     // test CMP with literal op2
-AND R0, R5, R7 // test AND
-AND R0, #0x10 // test AND with literal op2
-
-

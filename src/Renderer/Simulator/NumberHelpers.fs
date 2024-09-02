@@ -316,7 +316,7 @@ let fastDataToPaddedString maxChars radix (fd: FastData) =
             | SDec, true -> int64 (int32 w) - (1L <<< fd.Width)
             | _ -> int64 (uint64 w)
 
-        valToPaddedString fd.Width displayRadix (bigint signExtendedW)
+        valToPaddedString fd.Width displayRadix (bigint w)
 
     | BigWord big ->
         let displayRadix =

@@ -131,6 +131,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                     then
                         dispatch <| SetWSModel {
                             wsModel with
+                                DraggedIndex = None
                                 HoveredLabel = Some wave.WaveId
                                 // Use wsModel.SelectedValues if somehow PrevSelectedWaves not set
                                 SelectedWaves = Option.defaultValue wsModel.SelectedWaves wsModel.PrevSelectedWaves

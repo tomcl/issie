@@ -231,6 +231,8 @@ let fontWeight_ = Lens.create (fun a -> a.FontWeight) (fun s a -> {a with FontWe
 /// Contains all information required by waveform simulator.
 /// One WaveSimModel per sheet.
 type WaveSimModel = {
+    /// default value for cursor in waveform Simulator
+    DefaultCursor : CursorType
     /// Configuration for the waveform simulator.//
     WSConfig: WSConfig
     /// temp copy of configuration used by dialog
@@ -313,6 +315,7 @@ type WaveSimModel = {
 let wSConfig_ = Lens.create (fun a -> a.WSConfig) (fun s a -> {a with WSConfig = s})
 let ramStartLocation_ = Lens.create (fun a -> a.RamStartLocation) (fun s a -> {a with RamStartLocation = s})
 let wSConfigDialog_ = Lens.create (fun a -> a.WSConfigDialog) (fun s a -> {a with WSConfigDialog = s})
+let defaultCursor_ = Lens.create (fun a -> a.DefaultCursor) (fun s a -> {a with DefaultCursor = s})
 
 type DiagEl = | Comp of Component | Conn of Connection
 
@@ -432,6 +435,7 @@ type Msg =
     | SetProject of Project
     | UpdateProject of (Project -> Project)
     | UpdateModel of (Model -> Model)
+    | DispatchDelayed of (int * Msg)
     | UpdateImportDecisions of Map<string, ImportDecision option>
     | UpdateProjectWithoutSyncing of (Project->Project)
     | ShowPopup of ((Msg -> Unit) -> Model -> ReactElement)
@@ -496,6 +500,7 @@ type Msg =
     | SaveModel
     | CheckMemory
     | ChangeWaveSimMultiplier of int
+    | RunAfterRender of ((Msg -> unit) * ((Msg -> unit) -> Model -> Model))
 
 
 //================================//
@@ -533,7 +538,6 @@ type SpinnerState =
    | WaveSimSpinner
 
 type SpinPayload = {
-    Payload: Model -> Model
     Name: string
     ToDo: int
     Total: int
@@ -570,6 +574,9 @@ let gridCache_ = Lens.create (fun a -> a.GridCache) (fun s a -> {a with GridCach
 
 
 type Model = {
+    /// Function to be run after rendering to update the model
+    RunAfterRender: ((Msg -> unit) -> (Model -> Model)) option
+    /// User data for the application
     UserData: UserData
     /// Map of sheet name to WaveSimModel
     WaveSim : Map<string, WaveSimModel>
@@ -658,6 +665,7 @@ type Model = {
 let waveSimSheet_ = Lens.create (fun a -> a.WaveSimSheet) (fun s a -> {a with WaveSimSheet = s})
 let waveSim_ = Lens.create (fun a -> a.WaveSim) (fun s a -> {a with WaveSim = s})
 
+let runAfterRender_ = Lens.create (fun a -> a.RunAfterRender) (fun s a -> {a with RunAfterRender = s})
 let rightPaneTabVisible_ = Lens.create (fun a -> a.RightPaneTabVisible) (fun s a -> {a with RightPaneTabVisible = s})
 let simSubTabVisible_ = Lens.create (fun a -> a.SimSubTabVisible) (fun s a -> {a with SimSubTabVisible = s})
 let buildVisible_ = Lens.create (fun a -> a.BuildVisible) (fun s a -> {a with BuildVisible = s})

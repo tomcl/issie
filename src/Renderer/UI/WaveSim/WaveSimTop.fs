@@ -23,14 +23,17 @@ open WaveSimNavigation
 open DiagramStyle
 
 open WaveSimSVGs.Constants
+open Optics
+open Optics.Operators
 
 /// Start or update a spinner popup
 let updateSpinner (name:string) payload (numToDo:int) (model: Model) =
     match model.SpinnerPayload with
     | Some sp when sp.Name = name ->
-        {model with SpinnerPayload = Some {Name = name; Payload = payload; ToDo = numToDo; Total = sp.Total}}
+        {model with SpinnerPayload = Some {Name = name; ToDo = numToDo; Total = sp.Total}}
     | _ ->
-        {model with SpinnerPayload = Some {Name = name; Payload = payload; ToDo = numToDo; Total = numToDo + 1}}
+        {model with SpinnerPayload = Some {Name = name; ToDo = numToDo; Total = numToDo + 1}}
+    |> (fun model -> {model with RunAfterRender = Some payload})
 
 /// remove the spinner popup
 let cancelSpinner (model:Model) =
@@ -101,10 +104,11 @@ module Refresh =
                     match action with
                     | ContinueSimAfterStartingSpinner ->
                         // long simulation, set spinner on and dispatch another refresh 
-                        let spinnerFunc = fun model ->
+                        let spinnerFunc = fun dispatch model ->
                             fst (refreshWaveSim false wsModel model)
-                        let model = model |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
-                        //printfn "ending refresh with continuation..."
+                        let model =
+                            model
+                            |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
                         model, Elmish.Cmd.none
                         |> TimeHelpers.instrumentInterval "refreshWaveSim" start
                     | ContinueSimWithSpinner
@@ -199,62 +203,123 @@ module Refresh =
                             match spinnerInfo.SpinnerPayload with
                             | None -> cancelSpinner model
                             | Some (spinnerName, spinnerAction) -> 
-                                updateSpinner spinnerName spinnerAction spinnerInfo.NumToDo model
-                            |> updateWSModel (fun _ -> ws)
+                                updateSpinner spinnerName (fun _dispatch model -> spinnerAction model) spinnerInfo.NumToDo model
+                            |> updateWSModel (fun _ -> {ws with DefaultCursor = Default})
                         model, Elmish.Cmd.none)
                         //|> TimeHelpers.instrumentInterval "refreshWaveSim" start)
-
 
 /// Refresh the state of the wave simulator according to the model and canvas state.
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
 /// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
 let refreshButtonAction canvasState model dispatch = fun _ ->
     /// estimate of the memory resources used by this simulation
+    let startWaveSimulation dispatch model =
+        let waveSimArraySteps =
+            ( 0, model.WaveSim)
+            ||> Map.fold (fun sum sheet ws  ->
+                    Simulator.getFastSim().MaxArraySize + sum)
+        let waves =
+            ( 0, model.WaveSim)
+            ||> Map.fold (fun sum sheet ws  ->
+                    ws.AllWaves.Count + sum)
+        /// update the model memories to match any updated linked initial contents files
+        let model = MemoryEditorView.updateAllMemoryComps model
+        let wsSheet = 
+            match model.WaveSimSheet with
+            | None ->
+                Option.get (getCurrFile model)
+            | Some sheet ->
+                sheet
+        let model = 
+            model
+            |> removeAllSimulationsFromModel
+            |> fun model -> {model with WaveSimSheet = Some wsSheet}
+        let wsModel = getWSModel model
+        //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
+        let simRes =
+            ModelHelpers.simulateModel
+                true
+                model.WaveSimSheet
+                (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)
+                canvasState model
+
+        match simRes with
+        //| None ->
+        //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
+        | (Error e, _) ->
+            dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
+        | (Ok simData, canvState) ->
+            if simData.IsSynchronous then
+                SimulationView.setFastSimInputsToDefault simData.FastSim
+                let wsModel = { wsModel with State = Loading}
+                dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
+                dispatch <| RefreshWaveSim wsModel
+                dispatch <| UpdateWSModel (fun wsModel -> {wsModel with  DefaultCursor = Default})
+            else
+                dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential}, wsSheet)
+
+    dispatch <| RunAfterRender(dispatch, fun dispatch model -> startWaveSimulation dispatch model; model)
+    
+
+/// Refresh the state of the wave simulator according to the model and canvas state.
+/// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
+/// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
+let refreshButtonActionNew canvasState model dispatch = fun _ ->
+    /// estimate of the memory resources used by this simulation
     let waveSimArraySteps =
         ( 0, model.WaveSim)
         ||> Map.fold (fun sum sheet ws  ->
                 Simulator.getFastSim().MaxArraySize + sum)
-    let waves =
-        ( 0, model.WaveSim)
-        ||> Map.fold (fun sum sheet ws  ->
-                ws.AllWaves.Count + sum)
-    printf $"Starting wavesim with {waveSimArraySteps} steps and {waves} waves."
-    /// update the model memories to match any updated linked initial contents files
-    let model = MemoryEditorView.updateAllMemoryComps model
-    let wsSheet = 
-        match model.WaveSimSheet with
-        | None ->
-            Option.get (getCurrFile model)
-        | Some sheet ->
-            sheet
-    printfn $"Refresh Button with width = {model.WaveSimViewerWidth}"
-    let model = 
-        model
-        |> removeAllSimulationsFromModel
-        |> fun model -> {model with WaveSimSheet = Some wsSheet}
-    let wsModel = getWSModel model
-    //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-    let simRes =
-        ModelHelpers.simulateModel
-            true
-            model.WaveSimSheet
-            (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)
-            canvasState model
 
-    match simRes with
-    //| None ->
-    //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
-    | (Error e, _) ->
-        dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
-    | (Ok simData, canvState) ->
-        if simData.IsSynchronous then
-            SimulationView.setFastSimInputsToDefault simData.FastSim
-            let wsModel = { wsModel with State = Loading}
-            dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
-            dispatch <| RefreshWaveSim wsModel 
-        else
-            dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
-           
+
+    //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
+    let startSimulation dispatch model =
+        let initModel = model
+        let waves =
+            ( 0, model.WaveSim)
+            ||> Map.fold (fun sum sheet ws  ->
+                    ws.AllWaves.Count + sum)
+        /// update the model memories to match any updated linked initial contents files
+        let model = MemoryEditorView.updateAllMemoryComps model
+        let wsSheet = 
+            match model.WaveSimSheet with
+            | None ->
+                Option.get (getCurrFile model)
+            | Some sheet ->
+                sheet
+        //printfn $"Refresh Button with width = {model.WaveSimViewerWidth}"
+        let model = 
+            model
+            |> removeAllSimulationsFromModel
+            |> fun model -> {model with WaveSimSheet = Some wsSheet}
+        let wsModel = getWSModel model
+        let simRes =
+            ModelHelpers.simulateModel
+                true
+                model.WaveSimSheet
+                (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)
+                canvasState model
+
+        match simRes with
+        | (Error e, _) ->
+            dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
+        | (Ok simData, canvState) ->
+            if simData.IsSynchronous then
+                SimulationView.setFastSimInputsToDefault simData.FastSim
+                let wsModel = { wsModel with State = Loading}
+                printfn "Starting simulation with RefreshWaveSim..."
+                dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
+                dispatch <| RefreshWaveSim wsModel 
+            else
+                dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
+        initModel
+        |> Optic.set (waveSimModel_ >-> defaultCursor_) CursorType.Default
+
+    dispatch <| UpdateWSModel (fun wsModel -> {wsModel with  DefaultCursor = Spinner})
+    dispatch <| RunAfterRender(dispatch, startSimulation)
+
+
+
 /// ReactElement showing instructions and wave sim buttons
 let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
     let title =
@@ -302,9 +367,10 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
             refreshButtonAction canvasState model dispatch
         let waveEnd model = endButtonAction canvasState model dispatch
         let wbo = getWaveSimButtonOptions canvasState model wsModel
+        let isLoading = Option.isSome model.RunAfterRender
         let startEndButton =
             button 
-                (topHalfButtonProps wbo.StartEndColor "startEndButton" false) 
+                (topHalfButtonPropsLoading isLoading wbo.StartEndColor "startEndButton" false) 
                 (fun ev -> dispatch <| ExecFuncInMessage((fun model _ ->
                                 if wbo.IsRunning then waveEnd model ev  else startOrRenew model ev),dispatch)
                            dispatch <| ExecFuncInMessage ((fun model _ -> ()), dispatch))
@@ -408,18 +474,19 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
             @
             [WaveSimRams.ramTables dispatch wsModel model] 
         )
-
-    div [Style [OverflowX OverflowOptions.Clip]] [
+    //printfn $"WaveSimTop: viewWaveSim called with spinner = {wsModel.DefaultCursor.Text()}."
+    div [
+        Style [
+            OverflowX OverflowOptions.Clip;
+            Cursor <| wsModel.DefaultCursor.Text()
+        ]
+    ] [
         WaveSimSelect.selectRamModal wsModel dispatch
         WaveSimSelect.selectWavesModal wsModel dispatch
         div [ viewWaveSimStyle ]
             [
-                //printfn $"WSmodel state: {wsModel.State}"
                 top
-                //hr [ Style [ MarginBottom "0px";  MarginTop "0px"]]
-                
-                if needsBottomHalf then bottomHalf() else div [] []
-                //hr [ Style [ MarginBottom "0px"; MarginTop "0px" ]]
+                if needsBottomHalf && Option.isNone model.SpinnerPayload then bottomHalf() else div [] []
             ]
         
     ]

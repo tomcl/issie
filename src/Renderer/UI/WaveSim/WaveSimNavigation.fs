@@ -420,7 +420,6 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
             // Text input box for manual selection of clock cycle
             Input.number [
                 Input.Props clkCycleInputProps
-
                 Input.Value (
                     match wsModel.ClkCycleBoxIsEmpty with
                     | true -> ""

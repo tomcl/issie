@@ -35,6 +35,7 @@ type CSSGridPos =
 
 
 let initWSModel  : WaveSimModel = {
+    DefaultCursor = CursorType.Default
     TopSheet = ""
     WSConfig = Constants.defaultWSConfig
     WSConfigDialog = None
@@ -450,6 +451,6 @@ let resimulateWaveSimForErrors (model: Model) : Result<SimulationData, Simulatio
         match ws.State with
         | Success -> ws.WSConfig.LastClock + Constants.maxStepsOverflow
         | _ -> 10 // small value does not matter what it is.
-    simulateModel false model.WaveSimSheet simSize canv model
+    simulateModel true model.WaveSimSheet simSize canv model
     |> fst
     

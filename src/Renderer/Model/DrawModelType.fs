@@ -471,31 +471,7 @@ module SheetT =
 
 
 
-    /// Keeps track of what cursor to show
-    type CursorType =
-        | Default
-        | ClickablePort
-        | NoCursor
-        | Spinner
-        | GrabWire
-        | GrabLabel
-        | GrabSymbol
-        | Grabbing
-        | ResizeNESW // HLP23 AUTHOR: BRYAN TAN 
-        | ResizeNWSE
-    with
-        member this.Text() = 
-            match this with
-            | Default -> "default"
-            | ClickablePort -> "move"
-            | NoCursor -> "none"
-            | Spinner -> "wait"
-            | GrabWire -> "crosshair"
-            | GrabSymbol -> "cell"
-            | GrabLabel -> "grab"
-            | Grabbing -> "grabbing"
-            | ResizeNESW -> "nesw-resize"   
-            | ResizeNWSE -> "nwse-resize"
+
 
     /// For Keyboard messages
     type KeyboardMsg =

@@ -1013,3 +1013,29 @@ type JSDiagramMsg =
     | UnselectComponent of unit
     | InferWidths of unit
     | SetHasUnsavedChanges of bool
+
+/// Keeps track of what cursor to show
+type CursorType =
+    | Default
+    | ClickablePort
+    | NoCursor
+    | Spinner
+    | GrabWire
+    | GrabLabel
+    | GrabSymbol
+    | Grabbing
+    | ResizeNESW
+    | ResizeNWSE
+with
+    member this.Text() = 
+        match this with
+        | Default -> "default"
+        | ClickablePort -> "move"
+        | NoCursor -> "none"
+        | Spinner -> "wait"
+        | GrabWire -> "crosshair"
+        | GrabSymbol -> "cell"
+        | GrabLabel -> "grab"
+        | Grabbing -> "grabbing"
+        | ResizeNESW -> "nesw-resize"   
+        | ResizeNWSE -> "nwse-resize"

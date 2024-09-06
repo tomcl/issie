@@ -268,10 +268,13 @@ let infoButtonProps color = [
         ]
     ]
 
-let topHalfButtonProps color buttonId isRightSide = [
+let topHalfButtonPropsLoading isLoading color buttonId isRightSide = [
     Button.Color color
+    Button.IsLoading isLoading
     Button.Props [HTMLAttr.Id buttonId ; topRowButtonStyle isRightSide]
 ]
+
+let topHalfButtonProps = topHalfButtonPropsLoading false
 
 let selectRamButtonProps buttonId = topHalfButtonProps IsInfo buttonId true
 
@@ -383,6 +386,7 @@ let clkCycleInputStyle = Style [
 
 /// Props for clock cycle text Input field
 let clkCycleInputProps : IHTMLProp list = [
+    AutoFocus true
     Min 0
     SpellCheck false
     Step 1

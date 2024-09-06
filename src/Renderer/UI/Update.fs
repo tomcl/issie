@@ -67,6 +67,9 @@ let update (msg : Msg) oldModel =
     //-------------------------------------------------------------------------------//
 
     match testMsg with
+    | RunAfterRender( dispatch, fn) ->
+        {model with RunAfterRender = Some fn}, Cmd.none
+
     | ChangeWaveSimMultiplier key ->
         let table = WaveSimStyle.Constants.multipliers
         if key < 0 || key >= table.Length then
@@ -230,6 +233,17 @@ let update (msg : Msg) oldModel =
 
     | UpdateModel( updateFn: Model -> Model) ->
         updateFn model, Cmd.none
+
+    | DispatchDelayed (timeInMs, msg) ->
+          let delayedCmd (dispatch: Msg -> unit) : unit =
+              let delayedDispatch = async {
+                  do! Async.Sleep timeInMs
+                  dispatch msg
+              }
+
+              Async.StartImmediate delayedDispatch
+
+          model, Cmd.ofSub delayedCmd
 
     | UpdateImportDecisions importDecisions' ->
         let updatedModel = 

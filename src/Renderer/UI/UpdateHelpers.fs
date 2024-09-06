@@ -71,6 +71,8 @@ let shortDisplayMsg (msg:Msg) =
         |> Option.defaultValue $"Invalid Ws mult key of {n}"
         |> Some
     | CheckMemory
+    | DispatchDelayed _
+    | RunAfterRender _
     | SaveModel -> None
     | SheetBackAction _ -> Some "SheetBackAction"
     | FileCommand(fc,_) -> Some $"{fc}"

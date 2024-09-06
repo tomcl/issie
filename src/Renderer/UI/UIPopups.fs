@@ -41,7 +41,6 @@ let simulationLegend (model:Model) (pp: PopupProgress) =
 
 /// Popup to implement spinner for long operations
 let viewSpinnerPopup (spinPayload:SpinPayload) (model: Model) (dispatch: (Msg -> Unit)) =
-    dispatch <| UpdateModel spinPayload.Payload
     let body (dispatch: Msg->Unit) (model: Model) =
         Progress.progress
             [   Progress.Color IsSuccess

@@ -53,6 +53,7 @@ let viewOnDiagramButtons model dispatch =
 
 
 let init() = {
+    RunAfterRender = None
     SpinnerPayload = None
     Spinner = None
     UISheetTrail = []
@@ -348,7 +349,6 @@ let displayView model dispatch =
 
     // the whole app window
     let cursorText = model.Sheet.CursorType.Text()
-    let topCursorText = match model.Sheet.CursorType with | SheetT.Spinner -> "wait" | _ -> ""
 
     let conns = BusWire.extractConnections model.Sheet.Wire
     let comps = SymbolUpdate.extractComponents model.Sheet.Wire.Symbol
@@ -375,6 +375,13 @@ let displayView model dispatch =
         then
             ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
 
+    let afterRenderHook: IHTMLProp list =
+        match model.RunAfterRender with
+        | Some fn ->
+            [Ref (fun element ->
+                    if element <> null then
+                        dispatch <| DispatchDelayed (0, UpdateModel ((fun model -> { model with RunAfterRender = None }) >> fn dispatch)))]
+        | None -> []
 
     match model.Spinner with
     | Some fn -> 
@@ -388,7 +395,7 @@ let displayView model dispatch =
         JSHelpers.delayedDispatch dispatch 1000 (SetTopMenu Closed) |> ignore
         div [] []
     else
-        div [
+        div (afterRenderHook @ [
                 HTMLAttr.Id "WholeApp"
                 OnMouseMove (processMouseMove false)
                 OnClick (processAppClick model.TopMenuOpenState dispatch)
@@ -401,7 +408,7 @@ let displayView model dispatch =
                     CSSProp.Custom("Overflow", "clip clip")
                     Height "calc(100%-4px)"
                     ]
-                ] [
+                ]) [
             // transient popups
             UIPopups.viewPopup model dispatch  
 

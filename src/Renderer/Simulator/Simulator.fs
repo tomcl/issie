@@ -377,7 +377,7 @@ let prepareSimulationMemoized
         if  isSame then
             simCacheWS.StoredResult, canvasState
         else
-            printfn "New Waveform simulation"
+            printfn $"New Waveform simulation of {simulationArraySize} clocks"
             simCacheWS <- {simCacheWS with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
             let name, state, ldcs = getStateAndDependencies diagramName ldcs
             let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs
@@ -398,7 +398,7 @@ let prepareSimulationMemoized
         if  isSame then
             simCache.StoredResult, canvasState
         else
-            printfn "New simulation"
+            printfn $"New simulation of {simulationArraySize} clocks"
             simCache <- {simCache with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
             let name, state, ldcs = getStateAndDependencies diagramName ldcs
             let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs

@@ -37,7 +37,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
         let step = wsModel.CurrClkCycle
         if fs.ClockTick < step then
             printf "Extending Fast Simulation to cycle %d\n in ramTable" step
-            FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
+        //FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
         // in some cases fast sim is run for one cycle less than currClockCycle
         let memData =
             match fc.FType with
@@ -211,7 +211,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             
  
         let inputBox =
-            let props: IHTMLProp list = [Style [Width 200]]
+            let props: IHTMLProp list = [Style [Width 200]; AutoFocus false]
             ModelHelpers.inputBigint props "Window Start"  loc (fun big _ -> goodStartAddress big = "") dispatch model
 
         Level.item [

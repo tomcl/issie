@@ -71,7 +71,7 @@ let update (msg : Msg) oldModel =
         {model with RunAfterRender = Some fn}, Cmd.none
 
     | ChangeWaveSimMultiplier key ->
-        let table = WaveSimStyle.Constants.multipliers
+        let table = Constants.multipliers
         if key < 0 || key >= table.Length then
             printf $"Warning: Can't change multiplier to key = {key}"
             model, Cmd.none   

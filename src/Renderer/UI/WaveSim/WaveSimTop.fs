@@ -50,7 +50,7 @@ module Refresh =
 
     /// Major function called after changes to extend simulation and/or redo waveforms.
     /// Note that after design change simulation must be recreated externally, and the function called with
-    /// newSimulation = true. That is because this function has no way to know that the simulation has changed
+    /// newSimulation = true. That is because this function has no way to know that the simulation has changed.
     /// This function performs (as required) three actions.
     /// 1. Extend the simulation to the current cycle (if not already done).
     /// 2. Remake the Wave headers, one for each selected waveform.
@@ -86,10 +86,17 @@ module Refresh =
             // NB during waveform simulation the simulation buffer is NOT used as a circular buffer. Simulation
             // length is therefore limited to the size of the buffer.
             // All date from time = 0 is stored.
-            let lastCycleNeeded = (wsModel.StartCycle + wsModel.ShownCycles - 1) * wsModel.SamplingZoom + 1
+
+            let lastCycleNeeded = 
+                ((wsModel.ShownCycles + wsModel.StartCycle - 1)*wsModel.SamplingZoom + //last shown cycle
+                    wsModel.SamplingZoom - 1) // last real cycle within this range
+                |> min wsModel.WSConfig.LastClock // cannot go beyond the last clock cycle
+
+            if lastCycleNeeded >= fs.MaxArraySize then
+                failwithf $"Sanity check failed: lastCycleNeeded = {lastCycleNeeded} >= fs.MaxArraySize = {fs.MaxArraySize}"
 
             FastRun.runFastSimulation (Some Constants.initSimulationTime) lastCycleNeeded fs
-            |> (fun speedOpt -> // if not None the simulation has timed out and has not yet complete
+            |> (fun speedOpt -> // if not None the simulation has timed out and has not yet completed
                     let cyclesToDo = lastCycleNeeded - fs.ClockTick // may be negative
                     let action =
                         match speedOpt, Option.isSome model.Spinner with
@@ -108,7 +115,7 @@ module Refresh =
                             fst (refreshWaveSim false wsModel model)
                         let model =
                             model
-                            |> updateSpinner "Waveforms simulation..." spinnerFunc cyclesToDo
+                            |> updateSpinner "Extending Circuit Simulation..." spinnerFunc cyclesToDo
                         model, Elmish.Cmd.none
                         |> TimeHelpers.instrumentInterval "refreshWaveSim" start
                     | ContinueSimWithSpinner
@@ -126,7 +133,8 @@ module Refresh =
                         // redo waves based on simulation data which is now correct
                         let allWaves = wsModel.AllWaves
 
-                        let simulationIsUptodate = Simulator.getFastSim().ClockTick > (wsModel.ShownCycles + wsModel.StartCycle-1)*wsModel.SamplingZoom
+                        let simulationIsUptodate = Simulator.getFastSim().ClockTick > lastCycleNeeded
+                                
 
                         // need to use isSameWave here because array index may have changed
                         let wavesToBeMade =
@@ -143,9 +151,6 @@ module Refresh =
                             |> List.map fst
                         if wsModel.StartCycle < 0 then
                             failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
-                        let endCycle = (wsModel.StartCycle + wsModel.ShownCycles - 1) * wsModel.SamplingZoom
-                        if endCycle > wsModel.WSConfig.LastClock then
-                            failwithf $"Sanity check failed: EndCycle ({endCycle}) > maxLastClk ({wsModel.WSConfig.LastClock})"
                         //printfn $"Waves to be made:{wavesToBeMade.Length}, sim uptodate = {simulationIsUptodate}"
                         //printfn $"Waves to be made:{wavesToBeMade.Length}, sim uptodate = {simulationIsUptodate}"
                         let spinnerInfo =  
@@ -163,7 +168,7 @@ module Refresh =
                                         let res2 = WaveSimSVGs.makeWaveformsWithTimeOut None res.WSM wavesToBeMade
                                         {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
                                     | numToDo, _ ->
-                                        let payload = Some ("Making waves", refreshWaveSim false res.WSM >> fst)
+                                        let payload = Some ("Updating Waveform Display: select fewer waveforms for better scroll performance", refreshWaveSim false res.WSM >> fst)
                                         {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
 
                         let ramComps =
@@ -261,62 +266,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
     dispatch <| RunAfterRender(dispatch, fun dispatch model -> startWaveSimulation dispatch model; model)
     
 
-/// Refresh the state of the wave simulator according to the model and canvas state.
-/// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
-/// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
-let refreshButtonActionNew canvasState model dispatch = fun _ ->
-    /// estimate of the memory resources used by this simulation
-    let waveSimArraySteps =
-        ( 0, model.WaveSim)
-        ||> Map.fold (fun sum sheet ws  ->
-                Simulator.getFastSim().MaxArraySize + sum)
 
-
-    //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
-    let startSimulation dispatch model =
-        let initModel = model
-        let waves =
-            ( 0, model.WaveSim)
-            ||> Map.fold (fun sum sheet ws  ->
-                    ws.AllWaves.Count + sum)
-        /// update the model memories to match any updated linked initial contents files
-        let model = MemoryEditorView.updateAllMemoryComps model
-        let wsSheet = 
-            match model.WaveSimSheet with
-            | None ->
-                Option.get (getCurrFile model)
-            | Some sheet ->
-                sheet
-        //printfn $"Refresh Button with width = {model.WaveSimViewerWidth}"
-        let model = 
-            model
-            |> removeAllSimulationsFromModel
-            |> fun model -> {model with WaveSimSheet = Some wsSheet}
-        let wsModel = getWSModel model
-        let simRes =
-            ModelHelpers.simulateModel
-                true
-                model.WaveSimSheet
-                (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)
-                canvasState model
-
-        match simRes with
-        | (Error e, _) ->
-            dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
-        | (Ok simData, canvState) ->
-            if simData.IsSynchronous then
-                SimulationView.setFastSimInputsToDefault simData.FastSim
-                let wsModel = { wsModel with State = Loading}
-                printfn "Starting simulation with RefreshWaveSim..."
-                dispatch <| SetWSModelAndSheet (wsModel, wsSheet)
-                dispatch <| RefreshWaveSim wsModel 
-            else
-                dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential }, wsSheet)
-        initModel
-        |> Optic.set (waveSimModel_ >-> defaultCursor_) CursorType.Default
-
-    dispatch <| UpdateWSModel (fun wsModel -> {wsModel with  DefaultCursor = Spinner})
-    dispatch <| RunAfterRender(dispatch, startSimulation)
 
 
 

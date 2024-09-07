@@ -673,7 +673,7 @@ let clkCycleText m i : IProp list =
         [
             SVGAttr.Custom("fontWeight", "bold")
         ]
-    if i * m.CycleMultiplier = m.CurrClkCycle then
+    if i * m.SamplingZoom = m.CursorDisplayCycle then
         cursorExtraProps @ props
     else
         props
@@ -753,7 +753,7 @@ let cursorCycleHighlightSVG m dispatch =
             /// getBoundingClientRect only works if ViewBox is 0 0 width height, so
             /// add m.StartCycle to account for when viewBoxMinX is not 0
             let cycle = (int <| (ev.clientX - bcr.left) / singleWaveWidth m) + m.StartCycle
-            dispatch <| UpdateWSModel (fun m -> {m with CurrClkCycle = cycle; CurrClkCycleDetail = cycle * m.CycleMultiplier})
+            dispatch <| UpdateWSModel (fun m -> {m with CursorDisplayCycle = cycle; CursorExactClkCycle = cycle * m.SamplingZoom})
         )
         ]
         (List.append 
@@ -761,7 +761,7 @@ let cursorCycleHighlightSVG m dispatch =
                 rect [
                     SVGAttr.Width (singleWaveWidth m)
                     SVGAttr.Height "100%"
-                    X (float (m.CurrClkCycle - m.StartCycle) * (singleWaveWidth m))
+                    X (float (m.CursorDisplayCycle - m.StartCycle) * (singleWaveWidth m))
                 ] []
             ]
             (backgroundSVG m count)

@@ -34,7 +34,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
     match Map.tryFind ramId fs.FComps with
     | None -> div [] []
     | Some fc -> 
-        let step = wsModel.CurrClkCycle
+        let step = wsModel.CursorExactClkCycle
         if fs.ClockTick < step then
             printf "Extending Fast Simulation to cycle %d\n in ramTable" step
         //FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
@@ -45,9 +45,9 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             | AsyncROM1 mem -> mem
             | RAM1 mem
             | AsyncRAM1 mem -> 
-                match FastExtract.extractFastSimulationState fs wsModel.CurrClkCycle ramId with
+                match FastExtract.extractFastSimulationState fs wsModel.CursorExactClkCycle ramId with
                 |RamState mem -> mem
-                | x -> printf $"What? Unexpected state from cycle {wsModel.CurrClkCycle} \
+                | x -> printf $"What? Unexpected state from cycle {wsModel.CursorExactClkCycle} \
                         in RAM component '{ramLabel}'. FastSim step = {fs.ClockTick}"
                        printfn $"State is {x}"
                        failwithf "unexpected Error in ramTable - see printed message"
@@ -228,7 +228,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             ] [ thead [] [
                     tr [] [
                         th [ centerAlignStyle ] [ str "Address"]
-                        th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string wsModel.CurrClkCycle)]]
+                        th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string wsModel.CursorExactClkCycle)]]
                     ]
                 ]
                 tbody [] (List.map (fun item -> ramTableRow item) lineItems)

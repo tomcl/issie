@@ -206,7 +206,7 @@ let valueRows (wsModel: WaveSimModel) =
     let valueColWidth, valueColNumChars =
         valuesColumnSize wsModel
     selectedWaves wsModel
-    |> List.map (fun wave -> getWaveValue wsModel.CurrClkCycleDetail wave wave.Width)
+    |> List.map (fun wave -> getWaveValue wsModel.CursorExactClkCycle wave wave.Width)
     |> List.map (fun fd ->
         match fd.Width, fd.Dat with
         | 1, Word b -> $" {b}" 
@@ -219,7 +219,7 @@ let valueRows (wsModel: WaveSimModel) =
 /// Numbers correspond to clock cycles multiplied by the current multiplier
 let clkCycleNumberRow (wsModel: WaveSimModel) =
     let makeClkCycleLabel i =
-        let n = i * wsModel.CycleMultiplier
+        let n = i * wsModel.SamplingZoom
         match singleWaveWidth wsModel with
         | width when width < float Constants.clkCycleNarrowThreshold && i % 5 <> 0 ->
             []
@@ -241,7 +241,7 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
 let private valuesColumn wsModel : ReactElement =
     let start = TimeHelpers.getTimeMs ()
     let width, rows = valueRows wsModel
-    let cursorClkNum = wsModel.CurrClkCycleDetail
+    let cursorClkNum = wsModel.CursorExactClkCycle
     let topRowNumber = [ div [Style [
             FontSize wsModel.WSConfig.FontSize ;
             VerticalAlign "bottom";

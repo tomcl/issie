@@ -56,7 +56,7 @@ let shortDSheetMsg (sMsg: SheetT.Msg) =
 /// short summary of wavesim message which has a lot of data
 let shortDWSM (ws: WaveSimModel) =
     let fs = Simulator.getFastSim()
-    Some <| sprintf $"WS<{fs.SimulatedTopSheet}->{ws.StartCycle}-{ws.CurrClkCycle}-\
+    Some <| sprintf $"WS<{fs.SimulatedTopSheet}->{ws.StartCycle}-{ws.CursorDisplayCycle}-\
             {ws.ShownCycles} Waves:{ws.AllWaves.Count} ({ws.SelectedWaves.Length})>"
 
 /// Function returning a short but usually informative display of message

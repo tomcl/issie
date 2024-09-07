@@ -1,6 +1,6 @@
 {
   "name": "issie",
-  "version": "5.1.14",
+  "version": "5.1.15",
   "description": "Schematic editor and Simulator",
   "homepage": "https://github.com/tomcl/issie",
   "bugs": {
@@ -97,7 +97,7 @@
     "css-loader": "^6",
     "del": "6.1.1",
     "dotenv": "^1",
-    "electron": "32.0.1",
+    "electron": "32.0.2",
     "electron-builder": "25.0.5",
     "electron-builder-notarize": "^1",
     "electron-notarize": "^1",

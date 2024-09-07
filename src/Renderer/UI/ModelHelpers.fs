@@ -13,7 +13,9 @@ open Optics.Operators
 
 module Constants =
     /// Needed to prevent possible overrun of simulation arrays
+    let multipliers = [1;2;5;10;20;50;100;200;500;1000]
     let maxStepsOverflow = 3
+    let waveSimRequiredArraySize wsModel = wsModel.WSConfig.LastClock + maxStepsOverflow + List.last multipliers
     let defaultWSConfig = {
             LastClock = 2000; // Simulation array limit during wave simulation
             FirstClock = 0; // first clock accessible - limits scroll range. NOT IMPLEMENTED
@@ -449,7 +451,7 @@ let resimulateWaveSimForErrors (model: Model) : Result<SimulationData, Simulatio
     let ws = getWSModel model
     let simSize =
         match ws.State with
-        | Success -> ws.WSConfig.LastClock + Constants.maxStepsOverflow
+        | Success | Loading -> Constants.waveSimRequiredArraySize ws
         | _ -> 10 // small value does not matter what it is.
     simulateModel true model.WaveSimSheet simSize canv model
     |> fst

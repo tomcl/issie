@@ -66,6 +66,18 @@ module Refresh =
         /// Make sure we always have consistent parameters. They will be written back to model after this function terminates.
         /// the validation may be done more than onece because this function is recursive, but that is OK.
         /// validateSimparas is idempotent unless model changes.
+
+        /// Payload for Spinner to use when refreshing waveforms with progress bar.
+        let getRefreshSimPayload model =
+            let wsModel = getWSModel model
+            fst (refreshWaveSim false wsModel model)  // get model after refreshWaveSim has run
+            |> (fun model ->
+                    // After waveform generation if possible focus must return to the clock cycle box
+                    // since typing in this causes waveform generation.
+                    let el = Browser.Dom.document.getElementById "clkCycleInput"
+                    if el <> null then el.focus()
+                    model)
+
         let wsModel =
             let createWaves (wsModel: WaveSimModel) =
                 {wsModel with AllWaves = WaveSimSVGs.getWaves wsModel (Simulator.getFastSim())}
@@ -79,7 +91,7 @@ module Refresh =
         // special case if simulation is empty there is nothing to do. Not sure why this is needed.
         let fs = Simulator.getFastSim()
         if fs.NumStepArrays = 0 then
-            model, Elmish.Cmd.none
+            model, Elmish.Cmd.none       
         else
             // The simulation must be run to the last cycle needed for the current view.
             // This may require no work, in which case runFastSimulation will return immediately.
@@ -87,17 +99,22 @@ module Refresh =
             // length is therefore limited to the size of the buffer.
             // All date from time = 0 is stored.
 
-            let lastCycleNeeded = 
-                ((wsModel.ShownCycles + wsModel.StartCycle - 1)*wsModel.SamplingZoom + //last shown cycle
-                    wsModel.SamplingZoom - 1) // last real cycle within this range
-                |> min wsModel.WSConfig.LastClock // cannot go beyond the last clock cycle
+            /// This is the highest simulation cycle that might be required in this simulation
+            /// as determined by the current WSConfig.
+            let cycleLimit = 
+                (wsModel.ShownCycles + wsModel.StartCycle)*wsModel.SamplingZoom //last shown cycle + 1, to get transitions
+                |> min (wsModel.WSConfig.LastClock + Constants.maxStepsOverflow - 1 + wsModel.SamplingZoom) // cannot go beyond the array
 
-            if lastCycleNeeded >= fs.MaxArraySize then
-                failwithf $"Sanity check failed: lastCycleNeeded = {lastCycleNeeded} >= fs.MaxArraySize = {fs.MaxArraySize}"
+            if cycleLimit >= fs.MaxArraySize then
+                failwithf $"Sanity check failed: lastCycleNeeded = {cycleLimit} >= fs.MaxArraySize = {fs.MaxArraySize}"
+
+            let lastCycleNeeded =
+                (wsModel.ShownCycles + wsModel.StartCycle)*wsModel.SamplingZoom + 1
+                |> min cycleLimit
 
             FastRun.runFastSimulation (Some Constants.initSimulationTime) lastCycleNeeded fs
             |> (fun speedOpt -> // if not None the simulation has timed out and has not yet completed
-                    let cyclesToDo = lastCycleNeeded - fs.ClockTick // may be negative
+                    let cyclesToDo = cycleLimit - fs.ClockTick // may be negative
                     let action =
                         match speedOpt, Option.isSome model.Spinner with
                         | None, _ ->
@@ -110,9 +127,9 @@ module Refresh =
                             ContinueSimWithSpinner          
                     match action with
                     | ContinueSimAfterStartingSpinner ->
-                        // long simulation, set spinner on and dispatch another refresh 
-                        let spinnerFunc = fun dispatch model ->
-                            fst (refreshWaveSim false wsModel model)
+                        // long simulation, set spinner on and dispatch another refresh
+                        printfn "dispatching continuation..."
+                        let spinnerFunc = fun _dispatch model -> getRefreshSimPayload model
                         let model =
                             model
                             |> updateSpinner "Extending Circuit Simulation..." spinnerFunc cyclesToDo
@@ -123,7 +140,7 @@ module Refresh =
                     | FinishedSim ->
                         if action = FinishSimNow || action = ContinueSimWithSpinner then 
                             // force simulation to finish now
-                            FastRun.runFastSimulation None lastCycleNeeded fs |> ignore
+                            FastRun.runFastSimulation None cycleLimit fs |> ignore
                             
                         // simulation has now always finished so can generate waves
 
@@ -133,8 +150,7 @@ module Refresh =
                         // redo waves based on simulation data which is now correct
                         let allWaves = wsModel.AllWaves
 
-                        let simulationIsUptodate = Simulator.getFastSim().ClockTick > lastCycleNeeded
-                                
+                        let simulationIsUptodate = Simulator.getFastSim().ClockTick >= lastCycleNeeded                               
 
                         // need to use isSameWave here because array index may have changed
                         let wavesToBeMade =
@@ -160,15 +176,15 @@ module Refresh =
                             WaveSimSVGs.makeWaveformsWithTimeOut (Some Constants.initSimulationTime) wsModel  wavesToBeMade
                             |> (fun res ->
                                     match wavesToBeMade.Length - res.NumberDone, res.TimeTaken with
-                                    | n, None -> 
+                                    | _, None | 0, _-> 
                                         {| WSM=res.WSM; SpinnerPayload=None; NumToDo=numToDo|} // finished
-                                    | _ when res.NumberDone = 0 -> 
-                                        failwithf "What? makewaveformsWithTimeOut must make at least one waveform"
                                     | numToDo, Some t when float numToDo * t / float res.NumberDone < Constants.maxSimulationTimeWithoutSpinner ->
                                         let res2 = WaveSimSVGs.makeWaveformsWithTimeOut None res.WSM wavesToBeMade
                                         {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
                                     | numToDo, _ ->
-                                        let payload = Some ("Updating Waveform Display: select fewer waveforms for better scroll performance", refreshWaveSim false res.WSM >> fst)
+                                        if res.NumberDone = 0 && numToDo > 0 then
+                                            printf $"No waves completed when {numToDo} are required. This is probably an error. Retrying refreshWaveSim"
+                                        let payload = Some ("Updating Waveform Display", refreshWaveSim false res.WSM >> fst)
                                         {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
 
                         let ramComps =
@@ -242,10 +258,11 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         let wsModel = getWSModel model
         //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
         let simRes =
+            // Here is where the new fast simulation is created
             ModelHelpers.simulateModel
                 true
                 model.WaveSimSheet
-                (wsModel.WSConfig.LastClock + ModelHelpers.Constants.maxStepsOverflow)
+                (Constants.waveSimRequiredArraySize wsModel)
                 canvasState model
 
         match simRes with
@@ -262,7 +279,6 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
                 dispatch <| UpdateWSModel (fun wsModel -> {wsModel with  DefaultCursor = Default})
             else
                 dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential}, wsSheet)
-
     dispatch <| RunAfterRender(dispatch, fun dispatch model -> startWaveSimulation dispatch model; model)
     
 

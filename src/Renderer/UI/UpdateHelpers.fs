@@ -66,7 +66,7 @@ let shortDWSM (ws: WaveSimModel) =
 let shortDisplayMsg (msg:Msg) =
     match msg with
     | ChangeWaveSimMultiplier n ->
-        List.tryItem n WaveSimStyle.Constants.multipliers
+        List.tryItem n Constants.multipliers
         |> Option.map (fun n -> $"Set WS multiplier to {n}")
         |> Option.defaultValue $"Invalid Ws mult key of {n}"
         |> Some

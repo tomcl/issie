@@ -861,9 +861,14 @@ type WaveIndexT = {
 }
 
 type WSConfig = {
+    /// This is the last clock cycle number possibly needed by a waveform simulation
     LastClock: int
+    /// currently this is always 0
+    /// TODO (maybe): implement simulation windows allowing this to be non-zero
     FirstClock: int
+    /// The size of the waveform sdispaly font
     FontSize: int
+    /// The weight of the waveform display font: 300 = normal, 600 = bold.
     FontWeight: int
 }
     

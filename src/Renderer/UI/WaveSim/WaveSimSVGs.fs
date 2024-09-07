@@ -193,12 +193,15 @@ let nonBinaryFillPoints (startCycle: int) (clkCycleWidth: float) (gap: Gap): arr
 let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: int) (shownCycles: int) (multiplier: int)
     : array<BinaryTransition> =
     let getBit bit = int32 bit
-    match startCycle, startCycle + shownCycles + 1 with
-    | startCyc, endCyc when startCyc = 0 && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
+    match startCycle, startCycle + shownCycles - 1 with
+    | startCyc, endCyc when startCyc = 0 && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues ->
+        // in this case, we need to add a 0 value to the start of the array
+        // we start on the first sample, end one after the last sample.
         subSamp waveValues startCyc (endCyc-startCyc+1) multiplier
         |> Array.append [| waveValues[0] |]
-    | startCyc, endCyc when 0 < startCyc && startCyc < endCyc && endCyc*multiplier < Array.length waveValues ->
-        subSamp waveValues (startCyc-1) (endCyc-startCyc+1) multiplier
+    | startCyc, endCyc when 0 < startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues ->
+        // in this case we can start one before the first data sample, end one after the last sample, to work out the first transition
+        subSamp waveValues (startCyc-1) (endCyc-startCyc+2) multiplier
     | _ ->
         printfn $"Before Bin failure: waveValues.Length {waveValues.Length} \
                 e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
@@ -509,31 +512,34 @@ let makeWaveformsWithTimeOut
     (ws: WaveSimModel)
     (wavesToBeMade: list<WaveIndexT>)
         : {| WSM: WaveSimModel ; NumberDone: int ; TimeTaken: option<float> |}=
-
-    let start = TimeHelpers.getTimeMs()
-    let allWaves, numberDone, timeTaken =
-        ((ws.AllWaves, 0, None), wavesToBeMade)
-        ||> List.fold (fun (all,n, _) wi ->
-                match timeOut, TimeHelpers.getTimeMs() - start with
-                | Some timeOut, timeSoFar when timeOut < timeSoFar ->
-                    all, n, Some timeSoFar
-                | _ ->
-                    (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
-    let finish = TimeHelpers.getTimeMs()
-    if Constants.showPerfLogs then
-        let countWavesWithWidthRange lowerLim upperLim =
-            wavesToBeMade
-            |> List.map (fun wi -> (Map.find wi allWaves).Width)
-            |> List.filter (fun width -> lowerLim <= width && width <= upperLim)
-            |> List.length
+    try
+        let start = TimeHelpers.getTimeMs()
+        let allWaves, numberDone, timeTaken =
+            ((ws.AllWaves, 0, None), wavesToBeMade)
+            ||> List.fold (fun (all,n, _) wi ->
+                    match timeOut, TimeHelpers.getTimeMs() - start with
+                    | Some timeOut, timeSoFar when timeOut < timeSoFar ->
+                        all, n, Some timeSoFar
+                    | _ ->
+                        (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
+        let finish = TimeHelpers.getTimeMs()
+        if Constants.showPerfLogs then
+            let countWavesWithWidthRange lowerLim upperLim =
+                wavesToBeMade
+                |> List.map (fun wi -> (Map.find wi allWaves).Width)
+                |> List.filter (fun width -> lowerLim <= width && width <= upperLim)
+                |> List.length
         
-        printfn "PERF:makeWaveformsWithTimeOut: generating visible only: %b" Constants.generateVisibleOnly
-        printfn "PERF:makeWaveformsWithTimeOut: making %d/%d waveforms" (List.length wavesToBeMade) (Map.count allWaves)
-        printfn "PERF:makeWaveformsWithTimeOut: binary = %d" (countWavesWithWidthRange 1 1)
-        printfn "PERF:makeWaveformsWithTimeOut: int32 = %d" (countWavesWithWidthRange 2 32)
-        printfn "PERF:makeWaveformsWithTimeOut: process took %.2fms" (finish-start)
-
-    {| WSM={ws with AllWaves = allWaves}; NumberDone=numberDone; TimeTaken = timeTaken|}
+            printfn "PERF:makeWaveformsWithTimeOut: generating visible only: %b" Constants.generateVisibleOnly
+            printfn "PERF:makeWaveformsWithTimeOut: making %d/%d waveforms" (List.length wavesToBeMade) (Map.count allWaves)
+            printfn "PERF:makeWaveformsWithTimeOut: binary = %d" (countWavesWithWidthRange 1 1)
+            printfn "PERF:makeWaveformsWithTimeOut: int32 = %d" (countWavesWithWidthRange 2 32)
+            printfn "PERF:makeWaveformsWithTimeOut: process took %.2fms" (finish-start)
+        {| WSM={ws with AllWaves = allWaves}; NumberDone=numberDone; TimeTaken = timeTaken|}
+    with
+        | ex -> 
+            printfn $"Error in makeWaveformsWithTimeOut: {ex.Message}"
+            {| WSM=ws; NumberDone=0; TimeTaken= None |}
 
 
 

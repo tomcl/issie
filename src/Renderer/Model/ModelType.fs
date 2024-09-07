@@ -248,17 +248,23 @@ type WaveSimModel = {
     /// List of which waves are currently visible in the waveform viewer.
     SelectedWaves: WaveIndexT list
     /// Left-most visible clock cycle.
+    /// this is scaled by CycleMultiplier, and therefore not the real clock cycle
+    /// for sampling zoom > 1X.
     StartCycle: int
     /// Total number of visible clock cycles.
+    /// This is scaled by cycleMultiplier, and therefore not the real clock cycle
+    /// for sampling zoom > 1X.
     ShownCycles: int
     /// Used for extreme zoom out. Sample waveforms every this number of cycles. Display sampled data.
-    CycleMultiplier: int
-    /// Current highlighted clock cycle.
-    CurrClkCycle: int
-    /// If the user is typing a clock cycle in but erases the contents of the box.
-    /// used when editing input box to allow integral clock cycles to be entered even when using extra zoom.
-    /// this field rounded down to nearest ClockCycleMultiplier multiple = CurrClockCycle
-    CurrClkCycleDetail: int
+    SamplingZoom: int
+    /// Current highlighted clock cycle displayed in the waveform viewer.
+    /// This is scaled by CycleMultiplier, and therefore not the real clock cycle
+    /// for sampling zoom > 1X.
+    CursorDisplayCycle: int
+    /// This is the real clock cycle of the cursor which determined the
+    /// values column contents. If sampling, a single highlighted waveform cycle
+    /// may represent multiple real clock cycles.
+    CursorExactClkCycle: int
     /// True if no number in clcock cycle box (special case).
     ClkCycleBoxIsEmpty: bool
     /// Radix in which values are being displayed in the wave simulator.

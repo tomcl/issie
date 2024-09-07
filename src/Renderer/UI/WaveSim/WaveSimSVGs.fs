@@ -434,7 +434,7 @@ let waveformIsUptodate (ws: WaveSimModel) (wave: Wave): bool =
     wave.StartCycle = ws.StartCycle &&
     wave.CycleWidth = singleWaveWidth ws &&
     wave.Radix = ws.Radix &&
-    wave.Multiplier = ws.CycleMultiplier
+    wave.Multiplier = ws.SamplingZoom
 
 /// <summary>Called when <c>InitiateWaveSimulation</c> message is dispatched and when wave
 /// simulator is refreshed. Generates or updates the SVG for a specific waveform
@@ -456,7 +456,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
 
         | 1 -> // binary waveform
             
-            let transitions = calculateBinaryTransitionsUInt32 waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.CycleMultiplier
+            let transitions = calculateBinaryTransitionsUInt32 waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.SamplingZoom
             let wavePoints =
                 let waveWidth = singleWaveWidth ws
                 Array.mapi (binaryWavePoints waveWidth ws.StartCycle) transitions
@@ -466,7 +466,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             svg (waveRowProps ws) [ polyline (wavePolylineStyle wavePoints) [] ]
 
         | w when w <= 32 -> // non-binary waveform
-            let transitions,waveValues = calculateNonBinaryTransitions waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.CycleMultiplier
+            let transitions,waveValues = calculateNonBinaryTransitions waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.SamplingZoom
             let fstPoints, sndPoints =
                 let waveWidth = singleWaveWidth ws
                 let startCycle = if Constants.generateVisibleOnly then ws.StartCycle else 0
@@ -478,7 +478,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             svg (waveRowProps ws) (List.append polyLines valuesSVG)
 
         | _ -> // non-binary waveform with width greather than 32
-            let transitions, sampledWaveValues = calculateNonBinaryTransitions waveData.DriverData.BigIntStep ws.StartCycle ws.ShownCycles ws.CycleMultiplier
+            let transitions, sampledWaveValues = calculateNonBinaryTransitions waveData.DriverData.BigIntStep ws.StartCycle ws.ShownCycles ws.SamplingZoom
 
             let fstPoints, sndPoints =
                 Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions |> Array.unzip
@@ -490,7 +490,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
         Radix = ws.Radix
         ShownCycles = ws.ShownCycles
         StartCycle = ws.StartCycle
-        Multiplier = ws.CycleMultiplier
+        Multiplier = ws.SamplingZoom
         CycleWidth = singleWaveWidth ws
         SVG = Some waveform}
 

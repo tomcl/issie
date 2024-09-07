@@ -31,7 +31,7 @@ open WaveSimStyle.Constants
 /// thumb position, and number of cycles the background represents.</returns>
 /// <remarks>Note: <c>bkg</c> = background; <c>tb</c> = thumb.</remarks>
 let generateScrollbarInfo (wsm: WaveSimModel): {| tbWidth: float; tbPos: float; bkgRep: int |} =
-    let mult = wsm.CycleMultiplier
+    let mult = wsm.SamplingZoom
     let bkgWidth = wsm.ScrollbarBkgWidth - 60. // 60 = 2x width of buttons
 
     /// <summary>Return target value when within min and max value, otherwise min or max.</summary>
@@ -84,7 +84,7 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
     let wholeCycles =
         max 1 (int (float waveColWidth / singleWaveWidth wsModel))
-        |> min (wsModel.WSConfig.LastClock / wsModel.CycleMultiplier) // make sure there can be no over-run when making viewer larger
+        |> min (wsModel.WSConfig.LastClock / wsModel.SamplingZoom) // make sure there can be no over-run when making viewer larger
         // prevent oscilaltion when number of cycles changes continuously due to width changes in values (rare corner case)
         |> (function | whole when abs (float (whole - wsModel.ShownCycles) / float wsModel.ShownCycles) < 0.1 -> wsModel.ShownCycles
                      | whole -> whole)
@@ -105,8 +105,8 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
         {
         wsModel with
             ShownCycles = wholeCycles
-            StartCycle = min wsModel.StartCycle (wsModel.WSConfig.LastClock - (wholeCycles - 1)*wsModel.CycleMultiplier)
-            CurrClkCycle = min wsModel.CurrClkCycle wsModel.WSConfig.LastClock
+            StartCycle = min wsModel.StartCycle (wsModel.WSConfig.LastClock - (wholeCycles - 1)*wsModel.SamplingZoom)
+            CursorDisplayCycle = min wsModel.CursorDisplayCycle wsModel.WSConfig.LastClock
             WaveformColumnWidth = finalWavesColWidth
             ScrollbarBkgWidth = scrollbarWidth
         }
@@ -128,28 +128,28 @@ let inline setViewerWidthInWaveSim w dispatch =
 let rec validateSimParas (ws: WaveSimModel) =
     if ws.StartCycle < 0 then
         validateSimParas {ws with StartCycle = 0}
-    elif ws.CurrClkCycleDetail > ws.WSConfig.LastClock then
-        validateSimParas {ws with CurrClkCycleDetail = ws.WSConfig.LastClock; CurrClkCycle = ws.WSConfig.LastClock/ws.CycleMultiplier}
-    elif (ws.StartCycle +  ws.ShownCycles-1)*ws.CycleMultiplier > ws.WSConfig.LastClock then
+    elif ws.CursorExactClkCycle > ws.WSConfig.LastClock then
+        validateSimParas {ws with CursorExactClkCycle = ws.WSConfig.LastClock; CursorDisplayCycle = ws.WSConfig.LastClock/ws.SamplingZoom}
+    elif (ws.StartCycle +  ws.ShownCycles-1)*ws.SamplingZoom > ws.WSConfig.LastClock then
         if ws.StartCycle = 0 then
-            {ws with ShownCycles = ws.WSConfig.LastClock / ws.CycleMultiplier + 1}
+            {ws with ShownCycles = ws.WSConfig.LastClock / ws.SamplingZoom + 1}
         else
-            validateSimParas {ws with StartCycle = max 0 (ws.WSConfig.LastClock / ws.CycleMultiplier - ws.ShownCycles + 1)}
-    elif ws.CurrClkCycle < ws.StartCycle  then
-        {ws with CurrClkCycle = ws.StartCycle; CurrClkCycleDetail = ws.StartCycle*ws.CycleMultiplier}
-    elif  ws.CurrClkCycle > ws.StartCycle + ws.ShownCycles - 1  then
+            validateSimParas {ws with StartCycle = max 0 (ws.WSConfig.LastClock / ws.SamplingZoom - ws.ShownCycles + 1)}
+    elif ws.CursorDisplayCycle < ws.StartCycle  then
+        {ws with CursorDisplayCycle = ws.StartCycle; CursorExactClkCycle = ws.StartCycle*ws.SamplingZoom}
+    elif  ws.CursorDisplayCycle > ws.StartCycle + ws.ShownCycles - 1  then
         let newCurrCycle =  ws.StartCycle + ws.ShownCycles - 1
-        {ws with CurrClkCycle = newCurrCycle; CurrClkCycleDetail = newCurrCycle * ws.CycleMultiplier}
+        {ws with CursorDisplayCycle = newCurrCycle; CursorExactClkCycle = newCurrCycle * ws.SamplingZoom}
     else ws
     //|> (fun ws -> printfn $"currClk={ws.CurrClkCycle} detail = {ws.CurrClkCycleDetail}"; ws)
     |> validateScrollBarInfo
 
 let changeMultiplier newMultiplier (ws: WaveSimModel) =
-    let oldM = ws.CycleMultiplier
+    let oldM = ws.SamplingZoom
     let sampsHalf = (float ws.ShownCycles - 1.) / 2.
     let newShown = 1 + min ws.ShownCycles (ws.WSConfig.LastClock / newMultiplier)
     let newStart = int ((float ws.StartCycle + sampsHalf) * float oldM / float newMultiplier - (float newShown - 1.) / 2.)
-    {ws with ShownCycles = newShown; StartCycle = newStart; CycleMultiplier = newMultiplier}
+    {ws with ShownCycles = newShown; StartCycle = newStart; SamplingZoom = newMultiplier}
     |> validateSimParas
 
 
@@ -159,7 +159,7 @@ let changeMultiplier newMultiplier (ws: WaveSimModel) =
 let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle: int) : unit =
     let start = TimeHelpers.getTimeMs ()
     let newDetail  = min (max newRealClkCycle 0) wsModel.WSConfig.LastClock
-    let mult = wsModel.CycleMultiplier
+    let mult = wsModel.SamplingZoom
     let newClkCycle = newRealClkCycle / mult
     let newClkCycle = max 0 newClkCycle
     let startCycle =
@@ -170,16 +170,16 @@ let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle
         dispatch <| GenerateWaveforms
             {wsModel with 
                 StartCycle = startCycle
-                CurrClkCycle = newClkCycle
+                CursorDisplayCycle = newClkCycle
                 ClkCycleBoxIsEmpty = false
-                CurrClkCycleDetail = newDetail
+                CursorExactClkCycle = newDetail
             }
     else
         dispatch <| SetWSModel
             {wsModel with
-                CurrClkCycle = newClkCycle
+                CursorDisplayCycle = newClkCycle
                 ClkCycleBoxIsEmpty = false
-                CurrClkCycleDetail = newDetail
+                CursorExactClkCycle = newDetail
             }
  
     |> TimeHelpers.instrumentInterval "setClkCycle" start
@@ -193,7 +193,7 @@ let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle
 /// <param name="moveByCycs">Number of non-integer cycles to move by.</param>
 let setScrollbarTbByCycs (wsm: WaveSimModel) (dispatch: Msg->unit) (moveByCycs: float): unit =
     let moveWindowBy = int (System.Math.Round moveByCycs)
-    let mult = wsm.CycleMultiplier
+    let mult = wsm.SamplingZoom
 
     /// <summary>Return target value when within min and max value, otherwise min or max.</summary>
     let bound (minV: int) (maxV: int) (tarV: int): int = tarV |> max minV |> min maxV
@@ -203,19 +203,19 @@ let setScrollbarTbByCycs (wsm: WaveSimModel) (dispatch: Msg->unit) (moveByCycs: 
     let newStartCyc = (wsm.StartCycle+moveWindowBy) |> bound minSimCyc (maxSimCyc-wsm.ShownCycles+1)
     let newCurrCyc =
         let newEndCyc = newStartCyc+wsm.ShownCycles-1
-        if newStartCyc <= wsm.CurrClkCycle && wsm.CurrClkCycle <= newEndCyc
+        if newStartCyc <= wsm.CursorDisplayCycle && wsm.CursorDisplayCycle <= newEndCyc
         then
-            wsm.CurrClkCycle
+            wsm.CursorDisplayCycle
         else
-            if abs (wsm.CurrClkCycle - newStartCyc) < abs (wsm.CurrClkCycle - newEndCyc)
+            if abs (wsm.CursorDisplayCycle - newStartCyc) < abs (wsm.CursorDisplayCycle - newEndCyc)
             then newStartCyc
             else newEndCyc
-    let detail = wsm.CurrClkCycleDetail
+    let detail = wsm.CursorExactClkCycle
     let detail = if newCurrCyc <> detail / mult then  newCurrCyc * mult else detail
     {
         wsm with StartCycle = newStartCyc;
-                 CurrClkCycle = newCurrCyc;
-                 CurrClkCycleDetail = detail;
+                 CursorDisplayCycle = newCurrCyc;
+                 CursorExactClkCycle = detail;
                  ScrollbarQueueIsEmpty = true
     }
     |> validateSimParas
@@ -266,7 +266,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
     let startCycle =
         // preferred start cycle to keep centre of screen ok
         let sc = (wsModel.StartCycle - (shownCycles - wsModel.ShownCycles)/2)
-        let cOffset = wsModel.CurrClkCycle - sc
+        let cOffset = wsModel.CursorDisplayCycle - sc
         sc
         // try to keep cursor on screen
         |> (fun sc -> 
@@ -277,7 +277,7 @@ let changeZoom (wsModel: WaveSimModel) (zoomIn: bool) (dispatch: Msg -> unit) =
             else
                 sc)
         // final limits check so no cycle is outside allowed range
-        |> min (wsModel.WSConfig.LastClock / wsModel.CycleMultiplier - shownCycles + 1)
+        |> min (wsModel.WSConfig.LastClock / wsModel.SamplingZoom - shownCycles + 1)
         |> max 0
 
         
@@ -399,11 +399,11 @@ let zoomButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
 /// Click on these to change the highlighted clock cycle.
 let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     /// Controls the number of cycles moved by the "◀◀" and "▶▶" buttons
-    let mult = wsModel.CycleMultiplier
+    let mult = wsModel.SamplingZoom
     let bigStepSize = max (2*mult) (wsModel.ShownCycles*mult / 2)
 
     let scrollWaveformsBy (numCycles: int) =
-        setClkCycle wsModel dispatch (wsModel.CurrClkCycleDetail + numCycles)
+        setClkCycle wsModel dispatch (wsModel.CursorExactClkCycle + numCycles)
 
     div [ clkCycleButtonStyle ]
         [
@@ -423,7 +423,7 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
                 Input.Value (
                     match wsModel.ClkCycleBoxIsEmpty with
                     | true -> ""
-                    | false -> string (wsModel.CurrClkCycleDetail)
+                    | false -> string (wsModel.CursorExactClkCycle)
                 )
                 // TODO: Test more properly with invalid inputs (including negative numbers)
                 Input.OnChange(fun c ->
@@ -456,7 +456,7 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
         let menuItem (key) =
             let itemLegend = str (match key with | 0 -> "Every Cycle (normal X1)" | _ -> $"Every {mulTable[key]} cycles")
             Menu.Item.li
-                [ Menu.Item.IsActive (Constants.multipliers[key] = wsModel.CycleMultiplier)
+                [ Menu.Item.IsActive (Constants.multipliers[key] = wsModel.SamplingZoom)
                   Menu.Item.OnClick (fun _ ->
                     dispatch <| ChangeWaveSimMultiplier (key);
                     dispatch ClosePopup)
@@ -476,6 +476,6 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
         let buttonClick = Button.OnClick (fun _ ->
             dispatch <| ShowStaticInfoPopup("Zoom Sampling Rate",menu,dispatch ))
         let expectedMaxShown = int (wsModel.WaveformColumnWidth / float Constants.minCycleWidth)
-        if wsModel.ShownCycles = expectedMaxShown || wsModel.CycleMultiplier > 1 then
-            Button.button ( buttonClick :: topHalfButtonProps IColor.IsDanger "ZoomButton" false) [str $"X{wsModel.CycleMultiplier}"]
+        if wsModel.ShownCycles = expectedMaxShown || wsModel.SamplingZoom > 1 then
+            Button.button ( buttonClick :: topHalfButtonProps IColor.IsDanger "ZoomButton" false) [str $"X{wsModel.SamplingZoom}"]
         else str ""

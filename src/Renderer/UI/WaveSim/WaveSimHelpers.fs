@@ -429,7 +429,7 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
 /// display all cycles on screen. TimeOut is an optional time out used to implement
 /// a progress bar.
 let extendSimulation timeOut (ws:WaveSimModel) =
-    let stepsNeeded = (ws.ShownCycles + ws.StartCycle) * ws.CycleMultiplier
+    let stepsNeeded = (ws.ShownCycles + ws.StartCycle) * ws.SamplingZoom
     //printfn $"Extending simulation to {stepsNeeded} cycles"
     if stepsNeeded > ws.WSConfig.LastClock then
         failwithf $"Trying to extend simulation to {stepsNeeded} which is beyond available clocks (ws.WSConfig.LastClock)"

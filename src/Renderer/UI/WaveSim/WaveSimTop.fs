@@ -86,7 +86,7 @@ module Refresh =
             // NB during waveform simulation the simulation buffer is NOT used as a circular buffer. Simulation
             // length is therefore limited to the size of the buffer.
             // All date from time = 0 is stored.
-            let lastCycleNeeded = (wsModel.StartCycle + wsModel.ShownCycles - 1) * wsModel.CycleMultiplier + 1
+            let lastCycleNeeded = (wsModel.StartCycle + wsModel.ShownCycles - 1) * wsModel.SamplingZoom + 1
 
             FastRun.runFastSimulation (Some Constants.initSimulationTime) lastCycleNeeded fs
             |> (fun speedOpt -> // if not None the simulation has timed out and has not yet complete
@@ -126,7 +126,7 @@ module Refresh =
                         // redo waves based on simulation data which is now correct
                         let allWaves = wsModel.AllWaves
 
-                        let simulationIsUptodate = Simulator.getFastSim().ClockTick > (wsModel.ShownCycles + wsModel.StartCycle-1)*wsModel.CycleMultiplier
+                        let simulationIsUptodate = Simulator.getFastSim().ClockTick > (wsModel.ShownCycles + wsModel.StartCycle-1)*wsModel.SamplingZoom
 
                         // need to use isSameWave here because array index may have changed
                         let wavesToBeMade =
@@ -143,7 +143,7 @@ module Refresh =
                             |> List.map fst
                         if wsModel.StartCycle < 0 then
                             failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
-                        let endCycle = (wsModel.StartCycle + wsModel.ShownCycles - 1) * wsModel.CycleMultiplier
+                        let endCycle = (wsModel.StartCycle + wsModel.ShownCycles - 1) * wsModel.SamplingZoom
                         if endCycle > wsModel.WSConfig.LastClock then
                             failwithf $"Sanity check failed: EndCycle ({endCycle}) > maxLastClk ({wsModel.WSConfig.LastClock})"
                         //printfn $"Waves to be made:{wavesToBeMade.Length}, sim uptodate = {simulationIsUptodate}"

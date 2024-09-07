@@ -283,23 +283,31 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
 
 /// Display the names, waveforms, and values of selected waveforms
 let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    if List.isEmpty wsModel.SelectedWaves then
-        div [] [] // no waveforms
-    else
-        let wHeight = calcWaveformHeight wsModel
-        let fixedHeight = Constants.softScrollBarWidth + Constants.topHalfHeight
-        let cssHeight =
-            if wsModel.SelectedRams.Count > 0 then
-                $"min( calc(50vh - (0.5 * {fixedHeight}px)) ,  {wHeight}px)"
-            else
-                $"min( calc(100vh - {fixedHeight}px) ,  {wHeight}px)"
+    try
+        if List.isEmpty wsModel.SelectedWaves then
+            div [] [] // no waveforms
+        else
+            let wHeight = calcWaveformHeight wsModel
+            let fixedHeight = Constants.softScrollBarWidth + Constants.topHalfHeight
+            let cssHeight =
+                if wsModel.SelectedRams.Count > 0 then
+                    $"min( calc(50vh - (0.5 * {fixedHeight}px)) ,  {wHeight}px)"
+                else
+                    $"min( calc(100vh - {fixedHeight}px) ,  {wHeight}px)"
 
-        div [ HTMLAttr.Id "Scroller";  Style [ Height cssHeight; Width "100%"; CSSProp.Custom("overflow", "hidden auto")]] [
-            div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
-                [
-                    namesColumn model wsModel dispatch 
-                    waveformColumn wsModel dispatch
-                    valuesColumn wsModel
+            div [ HTMLAttr.Id "Scroller";  Style [ Height cssHeight; Width "100%"; CSSProp.Custom("overflow", "hidden auto")]] [
+                div [ HTMLAttr.Id "WaveCols" ;showWaveformsStyle ]
+                    [
+                        namesColumn model wsModel dispatch 
+                        waveformColumn wsModel dispatch
+                        valuesColumn wsModel
+                    ]
                 ]
-            ]
-
+    with
+        // Catch any exceptions during waveform view calculation and display an error message.
+        // an error here is probably because the simulation has finished
+        // and is not fatal. this error boundary ignores the error
+        // and displays a blank div.
+        | ex ->
+            printfn $"Error in showWaveforms: {ex.Message}"
+            div [] []

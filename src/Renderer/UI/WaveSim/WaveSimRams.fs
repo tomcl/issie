@@ -239,28 +239,36 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
 
 /// Bulma Level component of tables showing RAM contents.
 let ramTables (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model): ReactElement =
-    let inlineStyle (styles:CSSProp list) = div [Style (Display DisplayOptions.Inline :: styles)]
     let start = TimeHelpers.getTimeMs ()
-    let selectedRams = Map.toList wsModel.SelectedRams
-    if List.length selectedRams > 0 then
-        let tables = 
-            let headerRow =
-                ["read", RAMRead; "overwritten",RAMWritten]
-                |> List.map (fun (op, opStyle) -> inlineStyle [Margin "0px"] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
-                |> function 
-                    | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
-                    | x ->
-                        printfn $"Unexpected failure in ramTables: x = {x}"
-                        failwithf "What? Can't happen!"
-            List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable dispatch wsModel model ram])  selectedRams
-            |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
-            |> Fulma.Table.table [
-                Table.TableOption.Props ramTablesLevelProps;
-                Table.IsFullWidth;
-                Table.IsBordered;
-                ]
-        div [HTMLAttr.Id "TablesDiv"] [ hr [ Style [ Margin "5px"]]; br [ Style [ Margin "0px"]]; tables]
-    else div [] []
+    try
+        let inlineStyle (styles:CSSProp list) = div [Style (Display DisplayOptions.Inline :: styles)]
+        
+        let selectedRams = Map.toList wsModel.SelectedRams
+        if List.length selectedRams > 0 then
+            let tables = 
+                let headerRow =
+                    ["read", RAMRead; "overwritten",RAMWritten]
+                    |> List.map (fun (op, opStyle) -> inlineStyle [Margin "0px"] [inlineStyle (ramTableRowStyle  opStyle) [str op]])
+                    |> function 
+                        | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
+                        | x ->
+                            printfn $"Unexpected failure in ramTables: x = {x}"
+                            failwithf "What? Can't happen!"
+                List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable dispatch wsModel model ram])  selectedRams
+                |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
+                |> Fulma.Table.table [
+                    Table.TableOption.Props ramTablesLevelProps;
+                    Table.IsFullWidth;
+                    Table.IsBordered;
+                    ]
+            div [HTMLAttr.Id "TablesDiv"] [ hr [ Style [ Margin "5px"]]; br [ Style [ Margin "0px"]]; tables]
+        else div [] []
+    with
+        // An error here is probably because the view code is displaying RAMs before simulation had finished.
+        // It is not fatal, and does no harm to the simulation. This error boundary ignores the error printing
+        // a message to the console, and displaying a blank div.
+        | e -> printfn "Error in ramTables display: %A" e.Message
+               div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 
 

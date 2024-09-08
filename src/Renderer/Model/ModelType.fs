@@ -697,6 +697,7 @@ let ldcOptM = projectOpt_ >?> loadedComponents_
 let nameM = project_ >-> openFileName_
 let nameOptM = projectOpt_ >?> openFileName_
 
+/// Update the WaveSimModel of the current waveSim sheet.
 let putWaveSim (wsm: WaveSimModel) (model: Model) =
     match model.WaveSimSheet with
     | None -> model

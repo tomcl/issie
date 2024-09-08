@@ -85,7 +85,7 @@ let update (msg : Msg) oldModel =
                 |> Optic.map waveSim_ (fun ws ->
                     let wsModel = ws[sheet]
                     Map.add sheet (WaveSimNavigation.changeMultiplier (table[key]) wsModel) ws)
-                |> (fun model -> WaveSimTop.Refresh.refreshWaveSim false (getWSModel model) model)
+                |> (fun model -> WaveSimTop.refreshWaveSim false (getWSModel model) model)
                 
 
     | CheckMemory ->
@@ -254,7 +254,7 @@ let update (msg : Msg) oldModel =
 
     | RefreshWaveSim ws ->
         // restart the wave simulator after design change etc that invalidates all waves
-        WaveSimTop.Refresh.refreshWaveSim true ws model
+        WaveSimTop.refreshWaveSim true ws model
 
     | AddWSModel (sheet, wsModel) ->
         model
@@ -264,12 +264,12 @@ let update (msg : Msg) oldModel =
     | GenerateWaveforms ws ->
         // Update the wave simulator with new waveforms
         // Is called whenever any waveform might need to be changed
-        WaveSimTop.Refresh.refreshWaveSim false ws model
+        WaveSimTop.refreshWaveSim false ws model
 
     | GenerateCurrentWaveforms ->
         // Update the wave simulator with new waveforms based on current WsModel
         let ws = getWSModel model
-        WaveSimTop.Refresh.refreshWaveSim false ws model
+        WaveSimTop.refreshWaveSim false ws model
 
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
         model

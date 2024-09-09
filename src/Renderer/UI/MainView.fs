@@ -53,7 +53,7 @@ let viewOnDiagramButtons model dispatch =
 
 
 let init() = {
-    RunAfterRender = None
+    RunAfterRenderWithSpinner = None
     SpinnerPayload = None
     Spinner = None
     UISheetTrail = []
@@ -376,11 +376,11 @@ let displayView model dispatch =
             ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
 
     let afterRenderHook: IHTMLProp list =
-        match model.RunAfterRender with
-        | Some fn ->
+        match model.RunAfterRenderWithSpinner with
+        | Some {FnToRun=fn} ->
             [Ref (fun element ->
                     if element <> null then
-                        dispatch <| DispatchDelayed (0, UpdateModel ((fun model -> { model with RunAfterRender = None }) >> fn dispatch)))]
+                        dispatch <| DispatchDelayed (0, UpdateModel ((fun model -> { model with RunAfterRenderWithSpinner = None }) >> fn dispatch)))]
         | None -> []
 
     match model.Spinner with

@@ -477,13 +477,13 @@ let makePopupButton (title: string) (menu: Model -> ReactElement) (buttonLegend:
 /// Called from the view function
 let viewPopup model dispatch =
     match model.PopupDialogData.Progress, model.PopupViewFunc, model.SpinnerPayload with
-    | None, None, None -> 
-        div [] []
-    | _, _, Some payload ->
+    | _, _, Some ({UseProgressBar=true} as payload) ->
         viewSpinnerPopup payload model dispatch
     | Some amount, _, _ ->
         progressPopup simulationLegend model dispatch
-    | None, Some popup, _ -> popup dispatch model 
+    | None, Some popup, _ -> popup dispatch model
+    | _ ->  div [] []
+
 
 
 

@@ -68,7 +68,7 @@ let update (msg : Msg) oldModel =
 
     match testMsg with
     | RunAfterRender( dispatch, fn) ->
-        {model with RunAfterRender = Some fn}, Cmd.none
+        {model with RunAfterRenderWithSpinner = Some {FnToRun=fn; ButtonSpinnerOn = true}}, Cmd.none
 
     | ChangeWaveSimMultiplier key ->
         let table = Constants.multipliers

@@ -540,12 +540,16 @@ type UserData = {
     Theme: DrawModelType.SymbolT.ThemeType
     }
 
-type SpinnerState =
-   | WaveSimSpinner
+
 
 type SpinPayload = {
+    /// if false do not show progress bat screen, but still show spinner in button.
+    UseProgressBar: bool
+    /// text displayed with progress bar
     Name: string
+    /// ToDo / Total = progress bar level
     ToDo: int
+    /// ToDo / Total = progress bar level 
     Total: int
     }
 
@@ -578,10 +582,14 @@ let sortType_ = Lens.create (fun a -> a.SortType) (fun s a -> {a with SortType =
 let algebraIns_ = Lens.create (fun a -> a.AlgebraIns) (fun s a -> {a with AlgebraIns = s})
 let gridCache_ = Lens.create (fun a -> a.GridCache) (fun s a -> {a with GridCache = s})
 
+type RunData = {
+    ButtonSpinnerOn: bool
+    FnToRun: ((Msg -> unit) -> (Model -> Model))
+}
 
 type Model = {
     /// Function to be run after rendering to update the model
-    RunAfterRender: ((Msg -> unit) -> (Model -> Model)) option
+    RunAfterRenderWithSpinner: RunData option
     /// User data for the application
     UserData: UserData
     /// Map of sheet name to WaveSimModel
@@ -671,7 +679,7 @@ type Model = {
 let waveSimSheet_ = Lens.create (fun a -> a.WaveSimSheet) (fun s a -> {a with WaveSimSheet = s})
 let waveSim_ = Lens.create (fun a -> a.WaveSim) (fun s a -> {a with WaveSim = s})
 
-let runAfterRender_ = Lens.create (fun a -> a.RunAfterRender) (fun s a -> {a with RunAfterRender = s})
+let runAfterRender_ = Lens.create (fun a -> a.RunAfterRenderWithSpinner) (fun s a -> {a with RunAfterRenderWithSpinner = s})
 let rightPaneTabVisible_ = Lens.create (fun a -> a.RightPaneTabVisible) (fun s a -> {a with RightPaneTabVisible = s})
 let simSubTabVisible_ = Lens.create (fun a -> a.SimSubTabVisible) (fun s a -> {a with SimSubTabVisible = s})
 let buildVisible_ = Lens.create (fun a -> a.BuildVisible) (fun s a -> {a with BuildVisible = s})

@@ -25,9 +25,13 @@ module Constants =
     let maxWarnSimulationSize = 100000
     let maxSimulationSize = 4000000
     let minScrollingWindow = 200
+
     let wsButtonHeight = 30
     let wsButtonWidth = 120
     let wsButtonFontSize = 16
+
+    /// initial number of clock cycles navigated by the scrollbar.
+    let scrollbarBkgRepCyclesInit = 100
 
 /// type used for CSS grids in the UI to position an item on a grid
 type CSSGridPos =
@@ -70,7 +74,7 @@ let initWSModel  : WaveSimModel = {
     ScrollbarTbPos = 0.0 // overwritten when first rendered
     ScrollbarTbOffset = None // default value: not in scroll
     ScrollbarBkgWidth = 0.0 // overwritten when first rendered
-    ScrollbarBkgRepCycs = 100 // default value
+    ScrollbarBkgRepCycs = Constants.scrollbarBkgRepCyclesInit // default value
     ScrollbarQueueIsEmpty = true // default value: empty scroll queue
 }
 

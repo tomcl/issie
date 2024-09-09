@@ -27,13 +27,17 @@ open Optics
 open Optics.Operators
 
 /// Start or update a spinner popup
-let updateSpinner (name:string) payload (numToDo:int) (model: Model) =
+let setProgressBar (name:string) payload (numToDo:int) (model: Model) =
     match model.SpinnerPayload with
-    | Some sp when sp.Name = name ->
-        {model with SpinnerPayload = Some {Name = name; ToDo = numToDo; Total = sp.Total}}
-    | _ ->
-        {model with SpinnerPayload = Some {Name = name; ToDo = numToDo; Total = numToDo + 1}}
-    |> (fun model -> {model with RunAfterRender = Some payload})
+    | Some sp when sp.Name = name -> // continuation of an existing progress bar
+        {model with SpinnerPayload = Some {sp with ToDo = numToDo}}
+    | _ -> // A new progress bar is needed
+        {model with SpinnerPayload = Some {UseProgressBar = true; Name = name; ToDo = numToDo; Total = numToDo + 1}}
+    |> (fun model -> {model with RunAfterRenderWithSpinner = Some {FnToRun=payload; ButtonSpinnerOn=true}})
+
+let setButtonSpinner payload (model: Model) =
+    {model with SpinnerPayload = Some {UseProgressBar = false; Name = ""; ToDo = 0; Total = 0}}
+    |> (fun model -> {model with RunAfterRenderWithSpinner = Some {FnToRun = payload; ButtonSpinnerOn = true}})
 
 /// remove the spinner popup
 let cancelSpinner (model:Model) =
@@ -49,7 +53,6 @@ let cancelSpinner (model:Model) =
 /// 2. Remake the Wave headers, one for each selected waveform.
 /// 3. Remake (or make for first time) the saved waveform SVGs for all selected waveforms.
 let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Model): Model * Elmish.Cmd<Msg> =
-
     // The function performs immediately the first part of the main long functions to determine their time and as needed splits
     // the rest of the work into multiple function calls using a spinner to alert the user to the delay.
     // The Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
@@ -65,11 +68,10 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     /// that otherwise remove focus.
     let dispatchFocusAfterRender model =
         let focusCurrClk1 _ model =
-            printfn "focussed!"//>
             let el = Browser.Dom.document.getElementById "clkCycleInput"
             if el <> null then el.focus()
             model
-        { model with RunAfterRender = Some <| Option.defaultValue focusCurrClk1 model.RunAfterRender}
+        { model with RunAfterRenderWithSpinner = Some <| Option.defaultValue {FnToRun=focusCurrClk1;ButtonSpinnerOn=false} model.RunAfterRenderWithSpinner }
 
            
     /// Make sure we always have consistent parameters. They will be written back to model after this function terminates.
@@ -84,14 +86,12 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     // Use the given (more uptodate) wsModel. This ensures it is returned from this function.
     let model = updateWSModel (fun _ -> wsModel) model
 
-    // Start timing - used in this function to decide whether a callback is needed to continue the work
-    let start = TimeHelpers.getTimeMs ()
-
     // local containing the current fast simulation to be examined and extended if need be.
     let fs = Simulator.getFastSim()
 
     /// This is the highest simulation cycle that might be required in this simulation
-    /// as determined by the current WSConfig.
+    /// as determined by the current WSConfig. The limit for this refresh will be the minimum
+    /// of this and what is required for the current view.
     let cycleLimit = 
         (wsModel.ShownCycles + wsModel.StartCycle)*wsModel.SamplingZoom //last shown cycle + 1, to get transitions
         |> min (wsModel.WSConfig.LastClock + Constants.maxStepsOverflow - 1 + wsModel.SamplingZoom) // cannot go beyond the array
@@ -110,23 +110,21 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
         // length is therefore limited to the size of the buffer.
         // All date from time = 0 is stored.
 
-
+        /// This function calculates the last cycle needed for the simulation for the current view.
         let lastCycleNeeded wsModel =
             (wsModel.ShownCycles + wsModel.StartCycle)*wsModel.SamplingZoom + 1
             |> min cycleLimit
         /// This function is called when the simulation is running and the spinner is needed.
         /// It dispatches a continuation which will recursively call refreshWaveSim
         let runSimulationWithSpinner cyclesToDo model =
-            printfn "dispatching continuation..."
             let spinnerFunc = fun _dispatch model ->
                 let wsModel = getWSModel model
                 fst (refreshWaveSim false wsModel model)  // get model after refreshWaveSim has run
             let model =
                 model
-                |> updateSpinner "Extending Circuit Simulation..." spinnerFunc cyclesToDo
+                |> setProgressBar $"Extending Circuit Simulation..." spinnerFunc cyclesToDo
             model, Elmish.Cmd.none
  
-
         FastRun.runFastSimulation (Some Constants.initSimulationTime) (lastCycleNeeded wsModel)  fs
         |> (fun speedOpt -> // if not None the fast simulation has timed out and has not yet completed
                 let cyclesToDo = (lastCycleNeeded wsModel) - fs.ClockTick // may be negative
@@ -134,7 +132,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 match speedOpt with
                 | Some speed when float cyclesToDo / speed + Constants.initSimulationTime > Constants.maxSimulationTimeWithoutSpinner ->
                     // The simulation is taking too long. We need to use a spinner.
-                    runSimulationWithSpinner cyclesToDo model // A callback to refreshWaveSim is made didpatched from this function
+                    runSimulationWithSpinner cyclesToDo model // A callback to refreshWaveSim is made dispatched from this function
                 | _ ->
                     // Force simulation to finish now in case it is not finished.
                     // We know this will be quick enough not to need a spinner.
@@ -145,8 +143,14 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                     // That decision is made below with the help of makeWaveformsWithTimeOut.
 
                     // Validate and update all parameters affecting waveforms.
-                    let model = updateViewerWidthInWaveSim model.WaveSimViewerWidth model
-                    let wsModel = getWSModel model
+                    let model =
+                        printfn "Cancelling spinner"
+                        updateViewerWidthInWaveSim model.WaveSimViewerWidth model
+                        // cancel any spinner so that when a new one is started
+                        // it will have teh correct total number of steps to do.
+                        //|> (fun model -> {model with SpinnerPayload = None})
+                    let wsModel =
+                        getWSModel model
                         
                     // redo waves based on simulation data which is now correct
                     let allWaves = wsModel.AllWaves
@@ -156,6 +160,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         // The simulation has changed due to viewer width change. We need to redo the simulation.
                         // This is done by calling refreshWaveSim again, we will come back here
                         // after the simulation has been redone and is uptodate.
+                        // TODO: maybe the viewer width check should be earlier in this function?
                         refreshWaveSim newSimulation wsModel model
                     else
                         // need to use isSameWave here because array index may have changed
@@ -173,12 +178,12 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                             failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
                         let spinnerInfo =  
                             let numToDo = wavesToBeMade.Length
-                            WaveSimSVGs.makeWaveformsWithTimeOut (Some Constants.initSimulationTime) wsModel  wavesToBeMade
+                            WaveSimSVGs.makeWaveformsWithTimeOut (Some <| Constants.initWaveformTime ) wsModel  wavesToBeMade
                             |> (fun res ->
                                     match wavesToBeMade.Length - res.NumberDone, res.TimeTaken with
                                     | _, None | 0, _-> 
                                         {| WSM=res.WSM; SpinnerPayload=None; NumToDo=numToDo|} // finished
-                                    | numToDo, Some t when float numToDo * t / float res.NumberDone < Constants.maxSimulationTimeWithoutSpinner ->
+                                    | numToDo, Some t when float numToDo * t / float res.NumberDone < Constants.maxWaveCreationTimeWithoutSpinner ->
                                         let res2 = WaveSimSVGs.makeWaveformsWithTimeOut None res.WSM wavesToBeMade
                                         {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
                                     | numToDo, _ ->
@@ -225,7 +230,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                             cancelSpinner model
                             |> dispatchFocusAfterRender
                         | Some (spinnerName, spinnerAction) -> 
-                            updateSpinner spinnerName (fun _dispatch model -> spinnerAction model) spinnerInfo.NumToDo model
+                            setButtonSpinner (fun _dispatch model -> spinnerAction model)  model
                         |> updateWSModel (fun _ -> {ws with DefaultCursor = Default})
                         |> (fun model -> model, Elmish.Cmd.none))
 
@@ -255,7 +260,9 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
             model
             |> removeAllSimulationsFromModel
             |> fun model -> {model with WaveSimSheet = Some wsSheet}
-        let wsModel = getWSModel model
+        let wsModel =
+            getWSModel model
+            |> fun wsModel -> {wsModel with ScrollbarBkgRepCycs= Constants.scrollbarBkgRepCyclesInit}
         //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
         let simRes =
             // Here is where the new fast simulation is created
@@ -333,7 +340,11 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
             refreshButtonAction canvasState model dispatch
         let waveEnd model = endButtonAction canvasState model dispatch
         let wbo = getWaveSimButtonOptions canvasState model wsModel
-        let isLoading = Option.isSome model.RunAfterRender
+        let isLoading =
+            match model.RunAfterRenderWithSpinner, model.SpinnerPayload with
+            | Some {ButtonSpinnerOn = true}, _ -> true
+            | _ , Some _ -> true
+            | _ -> false
         let startEndButton =
             button 
                 (topHalfButtonPropsLoading isLoading wbo.StartEndColor "startEndButton" false) 
@@ -452,7 +463,7 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
         div [ viewWaveSimStyle ]
             [
                 top
-                if needsBottomHalf && Option.isNone model.SpinnerPayload then bottomHalf() else div [] []
+                if needsBottomHalf && (match model.SpinnerPayload with | Some {UseProgressBar=true  } -> false | _ -> true) then bottomHalf() else div [] []
             ]
         
     ]

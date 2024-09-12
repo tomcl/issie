@@ -15,7 +15,8 @@ open CommonTypes
 open ModelType
 open WaveSimStyle
 open WaveSimHelpers
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open DiagramStyle
 open UIPopups
 

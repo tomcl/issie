@@ -8,7 +8,8 @@
 *)
 
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open Helpers
 open FastRun
 open NumberHelpers

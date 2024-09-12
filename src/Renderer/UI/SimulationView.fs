@@ -22,7 +22,8 @@ open PopupHelpers
 open MemoryEditorView
 open ModelType
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open CanvasExtractor
 open Simulator
 open Sheet.SheetInterface
@@ -272,7 +273,7 @@ let private viewStatefulComponents step comps numBase model dispatch =
         let label = getWithDefault fc.FullName
         match state with
         | RegisterState fd when fd.Width = 1 ->
-            let bit = if fd = SimulatorTypes.fastDataZero then Zero else One
+            let bit = if fd = SimGraphTypes.fastDataZero then Zero else One
             let label = sprintf "DFF: %s" <| label
             [ splittedLine (str label) (staticBitButton bit) ]
         | RegisterState bits ->
@@ -298,7 +299,7 @@ let private viewStatefulComponents step comps numBase model dispatch =
         | _ -> []
     div [] (List.collect makeStateLine comps )
 
-let getSimErrFeedbackMessages (simError:SimulatorTypes.SimulationError) (model:Model) : (Msg list) =
+let getSimErrFeedbackMessages (simError:SimGraphTypes.SimulationError) (model:Model) : (Msg list) =
     if simError.InDependency.IsNone then
         // Highlight the affected components and connection only if
         // the error is in the current diagram and not in a
@@ -313,7 +314,7 @@ let getSimErrFeedbackMessages (simError:SimulatorTypes.SimulationError) (model:M
     else
         []
 
-let setSimErrorFeedback (simError:SimulatorTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
+let setSimErrorFeedback (simError:SimGraphTypes.SimulationError) (model:Model) (dispatch: Msg -> Unit) =
     // let sheetDispatch sMsg = dispatch (Sheet sMsg)
     // let keyDispatch = SheetT.KeyPress >> sheetDispatch
     // if simError.InDependency.IsNone then

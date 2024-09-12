@@ -9,7 +9,8 @@ module GraphBuilder
 open Helpers
 open NumberHelpers
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open CanvasStateAnalyser
 
 /// Assert that the FData only contain a single bit, and return such bit.

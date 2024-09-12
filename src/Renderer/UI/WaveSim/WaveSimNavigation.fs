@@ -21,7 +21,7 @@ open ModelHelpers
 open WaveSimStyle
 open WaveSimHelpers
 open TopMenuView
-open SimulatorTypes
+open SimGraphTypes
 open WaveSimStyle.Constants
 
 /// <summary>Generate scrollbar SVG info based on current <c>WaveSimModel</c>.

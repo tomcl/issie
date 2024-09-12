@@ -2,7 +2,8 @@
 
 open CommonTypes
 open TimeHelpers
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open SynchronousUtils
 open NumberHelpers
 open Helpers

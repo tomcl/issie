@@ -14,7 +14,8 @@ open ModelType
 open ModelHelpers
 open FastExtract
 open WaveSimStyle
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open Optics
 open Optics.Operators
 

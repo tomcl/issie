@@ -8,7 +8,7 @@
 module TruthTableReduce
 open CommonTypes
 open TimeHelpers
-open SimulatorTypes
+open SimGraphTypes
 open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers

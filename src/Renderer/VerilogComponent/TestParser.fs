@@ -18,7 +18,8 @@ open CommonTypes
 open ErrorCheck
 open ErrorCheckProcedural
 open SimulationView
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open SheetCreator
 open FastRun
 open GraphBuilder

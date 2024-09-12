@@ -15,7 +15,8 @@ open ModelType
 open ModelHelpers
 open WaveSimStyle
 open WaveSimHelpers
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open NumberHelpers
 open WaveSimSelect
 open DiagramStyle

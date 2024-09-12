@@ -26,7 +26,8 @@ open ModelHelpers
 open WaveSimStyle
 open WaveSimHelpers
 open TopMenuView
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open NumberHelpers
 open DrawModelType
 open WaveSimNavigation

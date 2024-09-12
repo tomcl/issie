@@ -7,7 +7,8 @@
 
 module TruthTableTypes
 
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 
 //-------------------------------------------------------------------------------------//
 //-----------------------------Truth Table Types---------------------------------------//

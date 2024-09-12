@@ -1,5 +1,6 @@
 ﻿module TruthTableUpdate
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open Helpers
 open DiagramStyle
 open ModelType

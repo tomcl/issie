@@ -11,7 +11,8 @@ open Notifications
 open PopupHelpers
 open ModelType
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open CanvasExtractor
 open Simulator
 open ModelHelpers

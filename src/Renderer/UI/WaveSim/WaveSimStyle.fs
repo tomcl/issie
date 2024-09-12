@@ -580,7 +580,7 @@ let valuesColumnSize wsModel =
                             | CommonTypes.Hex  -> (1I <<< num) - 1I, 10.
                             | CommonTypes.Dec -> (1I <<< num), 2.*widthOfOneChar
                             | CommonTypes.SDec -> (1I <<< (num-1)),  3.*widthOfOneChar
-                        let (fd: SimulatorTypes.FastData) = {Dat=SimulatorTypes.BigWord worstCaseVal; Width=num+3}
+                        let (fd: SimGraphTypes.FastData) = {Dat=SimGraphTypes.BigWord worstCaseVal; Width=num+3}
                         NumberHelpers.fastDataToPaddedString Constants.valueColumnMaxChars wsModel.Radix fd
                         |> (fun v ->
                             let width =  DrawHelpers.getTextWidthInPixels colText v

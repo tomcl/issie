@@ -6,7 +6,7 @@ module GraphMerger
     dependencies of a SimulationGraph.
 *)
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
 open GraphBuilder
 open Helpers
 

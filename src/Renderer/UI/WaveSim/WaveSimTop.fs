@@ -144,7 +144,6 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 
                     // Validate and update all parameters affecting waveforms.
                     let model =
-                        printfn "Cancelling spinner"
                         updateViewerWidthInWaveSim model.WaveSimViewerWidth model
                         // cancel any spinner so that when a new one is started
                         // it will have teh correct total number of steps to do.

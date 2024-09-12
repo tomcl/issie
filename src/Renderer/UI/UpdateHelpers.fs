@@ -65,6 +65,7 @@ let shortDWSM (ws: WaveSimModel) =
 /// displayed using printf "%A".
 let shortDisplayMsg (msg:Msg) =
     match msg with
+    | WaveSimKeyPress _ -> None
     | ChangeWaveSimMultiplier n ->
         List.tryItem n Constants.multipliers
         |> Option.map (fun n -> $"Set WS multiplier to {n}")

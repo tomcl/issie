@@ -317,6 +317,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                     Cmd.none
             | false -> Cmd.none
 
+
         { model with CurrentKeyPresses = newPressedKeys }, newCmd
 
     | ManualKeyUp key ->

@@ -131,7 +131,27 @@ let update (msg : Msg) oldModel =
         | SheetT.KeyPress _, Some _ -> 
             // do not allow keys to affect Sheet when popup is on.
             model, Cmd.none
+        | SheetT.ManualKeyDown s, _ when s = "ArrowLeft" || s = "ArrowRight" ->
+            // intercept these keys and send them to the wave simulator
+            // needed because electron does not propagate onkeydown events through the DOM
+            // so we can't use the normal Elmish keydown handling
+            model, Cmd.ofMsg (WaveSimKeyPress s)
         | _ -> sheetMsg sMsg model
+
+    | WaveSimKeyPress s ->
+        // These keys implement navigation in teh Waveform simulator
+        let wsModel = getWSModel model
+        let moveCursorMsg num  = WaveSimNavigation.setClkCycleMsg wsModel (wsModel.CursorExactClkCycle + num)
+        if model.MousePointerIsOnRightSection then
+            let cmd =
+                match wsModel.State, s with
+                |Success, "ArrowLeft" -> Cmd.ofMsg (moveCursorMsg -1)
+                |Success, "ArrowRight" -> Cmd.ofMsg (moveCursorMsg 1)
+                | _ -> Cmd.none
+            model, cmd
+        else
+            model, Cmd.none
+
 
     | SynchroniseCanvas ->
         // used after drawblock components are centred on load to enusre that Issie CanvasState is updated

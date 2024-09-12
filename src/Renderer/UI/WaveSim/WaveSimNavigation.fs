@@ -155,8 +155,8 @@ let changeMultiplier newMultiplier (ws: WaveSimModel) =
 
 
 
-/// Set highlighted clock cycle number
-let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle: int) : unit =
+/// Return a Msg that will set highlighted clock cycle number
+let setClkCycleMsg (wsModel: WaveSimModel) (newRealClkCycle: int) : Msg =
     let start = TimeHelpers.getTimeMs ()
     let newDetail  = min (max newRealClkCycle 0) wsModel.WSConfig.LastClock
     let mult = wsModel.SamplingZoom
@@ -167,7 +167,7 @@ let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle
         |> (fun sc -> max sc (newClkCycle - wsModel.ShownCycles + 1))
 
     if startCycle <> wsModel.StartCycle then
-        dispatch <| GenerateWaveforms
+        GenerateWaveforms
             {wsModel with 
                 StartCycle = startCycle
                 CursorDisplayCycle = newClkCycle
@@ -175,14 +175,18 @@ let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle
                 CursorExactClkCycle = newDetail
             }
     else
-        dispatch <| SetWSModel
+        SetWSModel
             {wsModel with
                 CursorDisplayCycle = newClkCycle
                 ClkCycleBoxIsEmpty = false
                 CursorExactClkCycle = newDetail
             }
  
-    |> TimeHelpers.instrumentInterval "setClkCycle" start
+
+
+let setClkCycle (wsModel: WaveSimModel) (dispatch: Msg -> unit) (newRealClkCycle: int) : unit =
+    dispatch <| setClkCycleMsg wsModel  newRealClkCycle
+
 
 /// <summary>Move waveform view window by closest integer number of cycles.
 /// Current clock cycle (<c>WaveSimModel.CurrClkCycle</c>) is set to beginning or end depending on direction of movement. 

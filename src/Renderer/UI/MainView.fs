@@ -53,6 +53,7 @@ let viewOnDiagramButtons model dispatch =
 
 
 let init() = {
+    MousePointerIsOnRightSection = false
     RunAfterRenderWithSpinner = None
     SpinnerPayload = None
     Spinner = None
@@ -343,6 +344,8 @@ let displayView model dispatch =
             dispatch <| SetDragMode DragModeOff
             dispatch <| SetViewerWidth w 
         | _ -> ()
+        if ev.buttons = 0 then
+            dispatch <| UpdateModel (fun model -> {model with MousePointerIsOnRightSection = ev.clientX > float (windowX - wsViewerWidth)})
 
     let headerHeight = getHeaderHeight
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -416,6 +419,7 @@ let displayView model dispatch =
                 SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
 
             Notifications.viewNotifications model dispatch
+            let wsModel = ModelHelpers.getWSModel model
 
             // main window
             if model.PopupDialogData.Progress <> None  then
@@ -425,14 +429,10 @@ let displayView model dispatch =
                 // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
                 // main top bar function is early in compile order
                 TopMenuView.viewTopMenu model dispatch
+
                 // editing buttons overlaid bottom-left on canvas
                 viewOnDiagramButtons model dispatch
 
-                //--------------------------------------------------------------------------------------//
-                //------------------------ left section for Sheet (NOT USED) ---------------------------//
-                // div [ leftSectionStyle model ] [ div [ Style [ Height "100%" ] ] [ Sheet.view model.Sheet sheetDispatch ] ]
-
-                //--------------------------------------------------------------------------------------//
                 //---------------------------------right section----------------------------------------//
                 // right section has horizontal divider bar and tabs
                 div [

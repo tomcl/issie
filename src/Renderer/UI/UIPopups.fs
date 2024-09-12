@@ -369,13 +369,14 @@ let viewWaveInfoPopup dispatch feature =
                 li [] [ str "Hover mouse over a waveform name in the viewer to see it highlighted on the current schematic sheet."]
                 li [] [ str "Change schematic sheet to view or alter components on subsheets."]
                 li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use "; bSpan "Select Waves"; str " to add or delete."]     
-                li [] [ str "Scroll or use " ; bSpan "arrows" ; str " and "; DiagramStyle.zoomOutSVG; DiagramStyle.zoomInSVG;
+                li [] [ str "Scroll or use " ; bSpan "scrollbar arrows" ; str " and "; DiagramStyle.zoomOutSVG; DiagramStyle.zoomInSVG;
                         str " controls to show which cycles to display."]
-                li [] [ str "The "; bSpan "cursor cycle"; str " is colored and can be moved by "; bSpan "clicking on the waveforms";
-                        str " altering the number in the "; bSpan "cursor box"; str " or "; bSpan "clicking box arrows";
-                        str ". The RH column shows signal values in the cursor cycle"]
+                li [] [ str "The "; bSpan "cursor cycle"; str " is colored and can be moved by "; bSpan "clicking on the waveforms,";
+                        str " altering the number in the "; bSpan "cursor box,"; bSpan " clicking box arrows,"; str " or using the "; bSpan "Left and Right Arrow Keys";
+                        str " when the mouse is on the righthand side of the grey divider." ]
+                li [] [ str "The column to the right of the waveforms shows signal values in the cursor cycle" ]
                 li [] [ str "Drag the"; bSpan " grey vertical divider "; str "to alter the screen space used by waveforms"]
-                li [] [ str "Waveforms will scroll if you select more than will fit on the screen."]
+                li [] [ str "Waveforms will scroll vertically if you select more than will fit on the screen."]
                 li [] [ str "Use "; bSpan "Select RAM"; str " to view RAM contents for the current cycle."]
                 li [] [ str "Use "; bSpan "Bin Hex uDec sDec"; str " buttons to change the display radix."]
                 li [] [ bSpan "Ctrl/Shift/+"; str " and "; bSpan "Ctrl/Shift/-"; str " will "; bSpan " zoom "; str "the viewer."]

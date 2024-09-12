@@ -390,6 +390,7 @@ type TTMsg =
 
 
 type Msg =
+    | WaveSimKeyPress of string
     | ShowExitDialog
     | Sheet of DrawModelType.SheetT.Msg
     | UpdateUISheetTrail of (string list -> string list)
@@ -588,6 +589,8 @@ type RunData = {
 }
 
 type Model = {
+    /// remember from last mouse movement which side of grey divider it is on.
+    MousePointerIsOnRightSection: bool
     /// Function to be run after rendering to update the model
     RunAfterRenderWithSpinner: RunData option
     /// User data for the application

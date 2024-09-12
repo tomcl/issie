@@ -7,7 +7,7 @@ module SynchronousUtils
 *)
 
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
 open Helpers
 
 /// Tells wether a component is clocked or not. Note that Custom components may

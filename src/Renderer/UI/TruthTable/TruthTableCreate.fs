@@ -1,7 +1,8 @@
 ﻿module TruthTableCreate
 open CommonTypes
 open TimeHelpers
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers

@@ -7,7 +7,8 @@
 module Simulator
 
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open SynchronousUtils
 open GraphBuilder
 open GraphMerger

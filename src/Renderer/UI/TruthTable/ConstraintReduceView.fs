@@ -22,7 +22,8 @@ open PopupHelpers
 open MemoryEditorView
 open ModelType
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open TruthTableTypes
 open CanvasExtractor
 open Simulator

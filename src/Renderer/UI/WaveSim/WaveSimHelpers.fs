@@ -13,7 +13,8 @@ open Fable.React.Props
 open CommonTypes
 open ModelType
 open ModelHelpers
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open WaveSimStyle
 
 

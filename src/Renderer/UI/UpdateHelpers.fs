@@ -6,7 +6,8 @@ open Fable.React
 open Fable.React.Props
 open ElectronAPI
 open FilesIO
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open ModelType
 open ModelHelpers
 open CommonTypes

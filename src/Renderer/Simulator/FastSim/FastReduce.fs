@@ -1,7 +1,8 @@
 ﻿module FastReduce
 
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open NumberHelpers
 open System
 open Helpers

@@ -18,7 +18,8 @@ open ModelType
 open ModelHelpers
 open WaveSimStyle
 open WaveSimHelpers
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open WaveSimNavigation
 open DiagramStyle
 

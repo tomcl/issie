@@ -9,7 +9,7 @@ module CanvasStateAnalyser
 
 
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
 open BusWidthInferer
 
 // -- Checks performed

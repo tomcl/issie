@@ -1,7 +1,8 @@
 ﻿module Verilog
 
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 open SynchronousUtils
 open EEExtensions
 open FastRun

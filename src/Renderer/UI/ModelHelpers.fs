@@ -8,6 +8,7 @@ open ModelType
 open Elmish
 open Optics
 open Optics.Operators
+open SimTypes
 
 
 
@@ -424,7 +425,7 @@ let inputBigint
 // Add-on to simulator.fs code. This is the interface to the simulator from the view level.
 // it must be here because it references Model types.
 //
-open SimulatorTypes
+open SimGraphTypes
 
 let simReset dispatch =
     dispatch CloseSimulationNotification // Close error notifications.

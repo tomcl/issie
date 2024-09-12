@@ -9,7 +9,7 @@
 module SimulationGraphAnalyser
 
 open CommonTypes
-open SimulatorTypes
+open SimGraphTypes
 open SynchronousUtils
 open Helpers
 

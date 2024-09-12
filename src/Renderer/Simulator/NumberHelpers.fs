@@ -9,7 +9,8 @@ module NumberHelpers
 
 open CommonTypes
 open Helpers
-open SimulatorTypes
+open SimGraphTypes
+open SimTypes
 
 module Constants =
     /// width at which numbers that display as very small signe ddecimal numbers are so displayed

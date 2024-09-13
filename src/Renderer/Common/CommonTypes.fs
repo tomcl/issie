@@ -807,45 +807,6 @@ type OutputPortNumber = | OutputPortNumber of int
 
 (*---------------------------Types for wave Simulation----------------------------------------*)
 
-// The "NetList" types contain all the circuit from Diagram in an abstracted form that
-// removed layout info and connections as separate entities. However, connection Ids are
-// available as fileds in components for interface to the Diagram conmponents
-
-/// The driven (output) side of a connection.
-/// This is stored with a NLComponent output port number.
-/// Note that one output port can drive multiple NLTargets.
-type NLTarget = {
-    TargetCompId: ComponentId
-    InputPort: InputPortNumber
-    TargetConnId: ConnectionId
-    }
-
-/// The driving (input) side of a connection.
-/// This is stored with a NLComponent input port number
-type NLSource = {
-    SourceCompId: ComponentId
-    OutputPort: OutputPortNumber
-    SourceConnId: ConnectionId
-    }
-
-/// Components with inputs and outputs directly referencing other components.
-/// Output ports can connect to multiple components, or none.
-/// Input ports connect to a single driver, or nothing.
-type NetListComponent = {
-    Id : ComponentId
-    Type : ComponentType
-    Label : string
-    // List of input port numbers, and single mapped driving output port and component.
-    Inputs : Map<InputPortNumber, NLSource option>
-    // Mapping from each output port number to all of the input ports and
-    // Components connected to that port.
-    Outputs : Map<OutputPortNumber, NLTarget list>
-    }
-
-/// Circuit topology with connections abstracted away.
-/// Good for Wavesim calculations.
-type NetList = Map<ComponentId,NetListComponent>
-
 (*-----------------------------------------------------------------------------*)
 // Types used within waveform Simulation code, and for saved wavesim configuartion
 

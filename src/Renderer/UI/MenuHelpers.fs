@@ -676,8 +676,6 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
     }
     |> SetProject // this message actually changes the project in model
     |> dispatch
-    printfn "Centering schematic" //>
-    //dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW) //>
     dispatch SynchroniseCanvas
 
 

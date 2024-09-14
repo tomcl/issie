@@ -169,17 +169,21 @@ let compareConns tolerance conns1 conns2 =
         false
     | _ -> true
         
-
-
 /// Are two lists of components identical
 let compareComps tolerance comps1 comps2 =
-    let isClose a b = float ((a - b) * (a - b)) < tolerance
-    let compIdA (comps: Component List) = comps |> sortQBy (fun comp -> comp.Id)
-    let compsA1 = compIdA comps1
-    let compsA2 = compIdA comps2
+    let byId (comps: Component List) = comps |> sortQBy (fun comp -> comp.Id)
 
-    compsA1.Length = compsA2.Length
-    && List.forall2 (fun (c1: Component) (c2: Component) -> isClose c1.X c2.X && isClose c1.Y c2.Y) compsA1 compsA2
+    match byId comps1, byId comps2 with
+    |  [], [] -> true
+    | l1, l2 when l1.Length <> l2.Length -> false
+    | (c1 :: _) as c1L, ((c2 :: _) as c2L) ->
+        // if whole ckt has been translated this will be the offset.
+        let dx = c1.X - c2.X
+        let dy = c1.Y - c2.Y
+        let isClose c1 c2 = (c1.X - c2.X - dx)**2 +  (c1.Y - c2.Y - dy)**2 < tolerance
+        List.forall2 (fun (c1: Component) (c2: Component) -> isClose c1 c2 && (c1.isSame c2)) c1L c2L
+    | _ -> false // NB this cannot happen
+
 
 /// Robust comparison of two schematics. Tolerance determines how similar
 /// counts as equal.
@@ -187,15 +191,12 @@ let compareComps tolerance comps1 comps2 =
 /// use to detemine whether schematic needs to be saved
 /// NB for electrical circuit comparison use extractReducedState.
 let compareCanvas (tolerance: float) ((comps1, conns1): CanvasState) ((comps2, conns2): CanvasState) =
-    let reduce (comps: Component list) = comps |> sortQBy (fun comp -> comp.Id)
-    let compsOk = reduce comps1 = reduce comps2
-    let compsSamePos = compareComps tolerance comps1 comps2
+    let compsOk = compareComps tolerance comps1 comps2
     let connsOk = compareConns tolerance conns1 conns2
-    let comparesEqual = compsOk && compsSamePos && connsOk
-    //if not comparesEqual then
-        //printf "%s" $"comps:{compsOk}, compsSamePos:{compsSamePos}, connsOk:{connsOk}"
-    comparesEqual
-    
+    let comparesEqual = compsOk && connsOk
+    if not comparesEqual then
+        printf "%s" $"comps:{compsOk}, connsOk:{connsOk}" //>
+    comparesEqual    
 
 /// Compare the name and IOs of two sheets as loadedcomponents
 /// For backups, if these change something major has happened

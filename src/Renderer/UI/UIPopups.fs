@@ -369,10 +369,10 @@ let viewWaveInfoPopup dispatch feature =
                 li [] [ str "Hover mouse over a waveform name in the viewer to see it highlighted on the current schematic sheet."]
                 li [] [ str "Change schematic sheet to view or alter components on subsheets."]
                 li [] [ str "Drag names to reorder waveforms, use delete icon to delete, use "; bSpan "Select Waves"; str " to add or delete."]     
-                li [] [ str "Scroll or use " ; bSpan "scrollbar arrows" ; str " and "; DiagramStyle.zoomOutSVG; DiagramStyle.zoomInSVG;
+                li [] [ str "Scroll or use " ; bSpan "Scrollbar arrows" ; str " and "; DiagramStyle.zoomOutSVG; DiagramStyle.zoomInSVG;
                         str " controls to show which cycles to display."]
-                li [] [ str "The "; bSpan "cursor cycle"; str " is colored and can be moved by "; bSpan "clicking on the waveforms,";
-                        str " altering the number in the "; bSpan "cursor box,"; bSpan " clicking box arrows,"; str " or using the "; bSpan "Left and Right Arrow Keys";
+                li [] [ str "Move the coloured"; bSpan " cursor clock cycle"; str " using "; bSpan "a click on the waveforms,";
+                        str " the "; bSpan "cursor box number,"; bSpan " box controls,"; str " or "; bSpan "Left/Right Arrow Keys";
                         str " when the mouse is on the righthand side of the grey divider." ]
                 li [] [ str "The column to the right of the waveforms shows signal values in the cursor cycle" ]
                 li [] [ str "Drag the"; bSpan " grey vertical divider "; str "to alter the screen space used by waveforms"]

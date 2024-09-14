@@ -4,6 +4,11 @@ These are types used throughout the application
 
 module CommonTypes
 
+module Constants =
+    let equalityCheckTolerance = 0.0001
+    let labelPosTolerance = 0.00001
+
+
 open Fable.Core               
 open Optics
 #if FABLE_COMPILER
@@ -372,6 +377,8 @@ type SymbolInfo = {
     VScale: float option
 }
 
+
+
 let portOrder_ = Lens.create (fun c -> c.PortOrder) (fun n c -> {c with PortOrder = n})
 let portOrientation_ = Lens.create (fun c -> c.PortOrientation) (fun n c -> {c with PortOrientation = n})
 
@@ -405,8 +412,31 @@ type Component = {
     SymbolInfo : SymbolInfo option
 }
 
-with member this.getPort (PortId portId: PortId) = 
+with
+    member this.getPort (PortId portId: PortId) = 
         List.tryFind (fun (port:Port) -> port.Id = portId ) (this.InputPorts @ this.OutputPorts)
+
+    /// Equality function for components, includes all geometry except component position
+    member c1.isSame(c2: Component) =
+        c1.Id = c2.Id && c1.Type = c2.Type && c1.Label = c2.Label &&
+        c1.InputPorts = c2.InputPorts && c1.OutputPorts = c2.OutputPorts &&
+        match c1.SymbolInfo,  c2.SymbolInfo with
+        | Some s1, Some s2->
+            let dx = c1.X - c2.X
+            let dy = c1.Y - c2.Y
+            // check if label positions are equal
+            let labelPosEq =
+                match s1.LabelBoundingBox, s2.LabelBoundingBox with
+                | Some l1, Some l2 -> (l1.TopLeft.X - l2.TopLeft.X - dx)**2. + (l1.TopLeft.Y - l2.TopLeft.Y - dy)**2. < Constants.labelPosTolerance
+                | None, None -> true
+                | _ -> false
+            s1.HScale = s2.HScale && s1.VScale = s2.VScale && s1.LabelRotation = s2.LabelRotation &&
+            s1.PortOrder = s2.PortOrder &&
+            s1.PortOrientation = s2.PortOrientation && s1.ReversedInputPorts = s2.ReversedInputPorts &&
+            labelPosEq
+        | None, None -> true
+        | _ -> false
+
      
      
 let type_ = Lens.create (fun c -> c.Type) (fun n c -> {c with Type = n})

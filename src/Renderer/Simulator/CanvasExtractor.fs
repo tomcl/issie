@@ -181,6 +181,7 @@ let compareComps tolerance comps1 comps2 =
         let dx = c1.X - c2.X
         let dy = c1.Y - c2.Y
         let isClose c1 c2 = (c1.X - c2.X - dx)**2 +  (c1.Y - c2.Y - dy)**2 < tolerance
+        dx**2 + dy**2 < tolerance &&
         List.forall2 (fun (c1: Component) (c2: Component) -> isClose c1 c2 && (c1.isSame c2)) c1L c2L
     | _ -> false // NB this cannot happen
 

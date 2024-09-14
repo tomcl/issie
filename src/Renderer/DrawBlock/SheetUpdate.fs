@@ -241,7 +241,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 sheetCmd CheckAutomaticScrolling // Also check if there is automatic scrolling to continue
             else
                 Cmd.none
-        // keep last 4 updates yo filte corresponding OnScroll events
+        // keep last 4 updates to filter corresponding OnScroll events
         recentProgrammaticScrollPos <- scrollPos :: List.truncate 4 recentProgrammaticScrollPos
         scrollSequence <- scrollSequence + 1 // increment sequence counter
         viewIsAfterUpdateScroll <- true

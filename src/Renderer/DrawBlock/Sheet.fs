@@ -471,12 +471,14 @@ let getWindowParasToFitBox model (box: BoundingBox)  =
     getScreenEdgeCoords model
     |> Option.map (fun edge -> 
         let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
+        printfn $"------------------\nbox LRTB=({edge.Left},{edge.Right},{edge.Top},{edge.Bottom})" //>
         let wantedMag = min ((rh - lh)/box.W) ((bottom-top)/box.H)
         let magToUse = min wantedMag Constants.maxMagnification
         let xMiddle = (box.TopLeft.X + box.W/2.)*magToUse
         let xScroll = xMiddle - (rh-lh)/2.
         let yMiddle = (box.TopLeft.Y + (box.H)/2.)*magToUse
         let yScroll = yMiddle - (bottom-top)/2.
+        printfn $"mid XY=({xMiddle},{yMiddle}) scroll XY={xScroll},{yScroll}\n----------------" //>
         {|Scroll={X=xScroll; Y=yScroll}; MagToUse=magToUse|})
 
 let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingBox) =

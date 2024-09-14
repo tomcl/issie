@@ -259,6 +259,18 @@ let makeSourceMenu
             br []; br []
             Menu.menu []
                 [ Menu.list [] menu ]
+            Level.level [ Level.Level.Props [ Style [ Width "100%"; PaddingTop "20px"] ] ] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsSuccess
+                            Button.OnClick (fun _ -> 
+                                dispatch ClosePopup)
+                        ] [ str "Change Source" ]
+                    ]
+                ]
+            ]
         
         ]
 
@@ -664,6 +676,8 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
     }
     |> SetProject // this message actually changes the project in model
     |> dispatch
+    printfn "Centering schematic" //>
+    //dispatch <| Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW) //>
     dispatch SynchroniseCanvas
 
 

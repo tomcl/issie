@@ -286,7 +286,7 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
                 dispatch <| UpdateWSModel (fun wsModel -> {wsModel with  DefaultCursor = Default})
             else
                 dispatch <| SetWSModelAndSheet ({ wsModel with State = NonSequential}, wsSheet)
-    dispatch <| RunAfterRender(dispatch, fun dispatch model -> startWaveSimulation dispatch model; model)
+    dispatch <| RunAfterRender(true, fun dispatch model -> startWaveSimulation dispatch model; model)
     
 
 

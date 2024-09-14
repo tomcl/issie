@@ -508,7 +508,7 @@ type Msg =
     | SaveModel
     | CheckMemory
     | ChangeWaveSimMultiplier of int
-    | RunAfterRender of ((Msg -> unit) * ((Msg -> unit) -> Model -> Model))
+    | RunAfterRender of (bool * ((Msg -> unit) -> Model -> Model))
 
 
 //================================//

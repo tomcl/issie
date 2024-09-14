@@ -20,14 +20,16 @@ let fitCircuitToScreenUpdate (model: Model) =
     let model', parasOpt = fitCircuitToWindowParas model
     match parasOpt with
     | Some paras ->
-        //printf "CtrlW Calculated Scroll = %A" paras.Scroll
+        printf "CtrlW Calculated Scroll = %A" paras.Scroll //>
         model', 
         Cmd.batch 
             [
                 sheetCmd (SheetT.Msg.UpdateScrollPos paras.Scroll)
                 sheetCmd SheetT.Msg.UpdateBoundingBoxes
                 if abs (model.Zoom - model'.Zoom) > 0.001 then
-                    sheetCmd (SheetT.Msg.KeyPress CtrlW)
+                    printfn "Sheet has chnaged: recursively called CtrlW" //>
+                    ModelType.Msg.RunAfterRender (false, (fun dispatch model -> (dispatch <| ModelType.Msg.Sheet (SheetT.Msg.KeyPress CtrlW)); model))
+                    |> Cmd.ofMsg
             ]
     | None -> model, Cmd.none
 

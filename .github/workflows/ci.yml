@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      - tdc21_documentation
+      - dev-tc-new-docs
 
 jobs:
   build:

@@ -1,8 +1,8 @@
 ---
-layout: page
 title: User Guide
 category: Documentation
 categoryindex: 1
+index: 2
 ---
 
 ## Getting Started

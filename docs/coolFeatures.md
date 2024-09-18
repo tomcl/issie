@@ -1,9 +1,8 @@
 ---
-layout: page
 title: Features
-permalink: /cool-features/
 category: Documentation
 categoryindex: 1
+index: 3
 ---
 
 # Features list

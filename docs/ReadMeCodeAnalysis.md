@@ -1,6 +1,7 @@
 ---
 category: Documentation
 categoryindex: 1
+index: 4
 ---
 
 # Schematic Editor Features

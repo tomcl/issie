@@ -47,7 +47,7 @@ Now make the appropriate wiring to connect all the components by clicking on one
 
 Your design should look like this:
 
-![](../img/userGuide/firstDesign.gif)
+![](img/userGuide/firstDesign.gif)
 
 
 ### Simulation

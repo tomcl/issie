@@ -7,18 +7,15 @@
     <meta content="Main" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="What is ISSIE?
-" />
+    <meta property="og:title" content="Home" />
     <meta property="og:url" content="/issie/index.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="What is ISSIE?
-">
+    <meta name="twitter:title" content="Home">
     
-    <title>What is ISSIE?
- | issie</title>
+    <title>Home | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -55,13 +52,14 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/contact.html">
-    Contact
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/coolFeatures.html">
-    Features
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    Schematic Editor Features
+
   </a>
 </li>             
 <li class="nav-item ">
@@ -70,9 +68,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
-    Schematic Editor Features
-
+  <a class="nav-link" href="/issie/contact.html">
+    Contact
   </a>
 </li>             
 <li class="nav-header ">
@@ -145,13 +142,14 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/contact.html">
-    Contact
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/coolFeatures.html">
-    Features
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    Schematic Editor Features
+
   </a>
 </li>             
 <li class="nav-item ">
@@ -160,9 +158,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
-    Schematic Editor Features
-
+  <a class="nav-link" href="/issie/contact.html">
+    Contact
   </a>
 </li>             
 <li class="nav-header ">
@@ -205,25 +202,34 @@
 </aside>
 <main>
     <div id="content">
-        <h1><a name="What-is-ISSIE" class="anchor" href="#What-is-ISSIE">What is ISSIE?</a></h1>
+        
+<h1><a name="What-is-ISSIE" class="anchor" href="#What-is-ISSIE">What is ISSIE?</a></h1>
 <ul>
 <li>ISSIE is <strong>a very easy-to-use schematic editor and simulator</strong> for hierarchical design of <strong>digital logic circuits</strong>. Run it and see the built-in demos for what it can do! ISSIE is targeted at 1st year university students, but would be useful teaching in schools and even for quick hardware design and test in an industrial or research environment. For the latter use case although we allow Verilog input and output these features need a bit more work.</li>
 <li>ISSIE was motivated because we found that industry-standard CAD systems were too complex and buggy to be learnt in labs, and when learnt still nasty to use. Other educational products were too limited. We wanted <strong>a schematic-based system to teach hierarchical design and digital electronics visually that would scale to large designs</strong>.</li>
 <li>ISSIE is an <strong>open source project at Imperial College London developed over 5 years by students</strong>. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac targets.</li>
-<li>ISSIE is implemented using nearly 46K lines of F#, the equivalent of 150K lines in a typical OOP language. ISSIE has <strong>its own digital simulator</strong>.</li>
+<li>ISSIE is implemented using nearly 46K lines in the FP language F#, the equivalent of 150K lines in a typical OOP language. ISSIE's implementation is almost pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has <strong>its own digital simulator</strong>, which uses <strong>write-once semantics</strong> on mutable arrays to be close to functional programming and also efficient.</li>
+<li>ISSIE uses the <a href="https://fable.io/">FABLE F# to Javascript compiler</a>, <a href="https://elmish.github.io/elmish/">Elmish MVU framework</a>, and <a href="https://www.electronjs.org/">Electron</a>. This tool chain creates seemless cross-platform applications with simple and highly productive coding.</li>
 <li>ISSIE can generate Verilog output to drive FPGAs and has an integrated system to do this directly using the <strong>ISSIE-Stick</strong> hardware.</li>
-<li>For acronym geeks, ISSIE stands for: <em>Interactive Schematic Simulator with Integrated Editor</em>.</li>
+<li>
+For acronym geeks, ISSIE stands for: <em>Interactive Schematic Simulator with Integrated Editor</em>.
+<br><br>
+</li>
 </ul>
 <h1><a name="Running-ISSIE" class="anchor" href="#Running-ISSIE">Running ISSIE</a></h1>
 <p>Go to the <a href="https://github.com/tomcl/issie/releases/latest">latest ISSIE release</a>. Scroll down this page till at the bottom you find the <code>Assets</code> section - this has binaries for Windows and Macos PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level <code>ISSIE.exe</code> file with the blue ISSIE chip icon.</p>
+<br><br>
 <h1><a name="Help-and-User-Guides" class="anchor" href="#Help-and-User-Guides">Help and User Guides</a></h1>
 <p>For more setup information see the  <a href="https://github.com/tomcl/ISSIE#getting-started">Getting Started</a> section of the repo README.</p>
+<br><br>
 <h3><a name="A-Beginners-Tutorial-On-ISSIE" class="anchor" href="#A-Beginners-Tutorial-On-ISSIE">A Beginners Tutorial On ISSIE</a></h3>
-<p>Go through the  <a href="https://tomcl.github.io/issie/user-guide/">User Guide</a>.</p>
-<h3><a name="ISSIE-Under-The-Hood-for-Developers" class="anchor" href="#ISSIE-Under-The-Hood-for-Developers">ISSIE Under The Hood for Developers</a></h3>
-<p>The ISSIE <a href="https://github.com/tomcl/issie/wiki">wiki</a> has a large amount of information on the details of how ISSIE is designed, referencing a few student project reports with (a lot) of detail and background.</p>
-<h3><a name="ISSIE-Code-documentation-auto-generated" class="anchor" href="#ISSIE-Code-documentation-auto-generated">ISSIE Code documentation (auto-generated)</a></h3>
-<p>F# XML documentation on the <a href="https://tomcl.github.io/issie/reference/index.html">ISSIE API</a></p>
+<p>Go through the  <a href="UserGuide.html">User Guide</a>.
+<br><br></p>
+<h3><a name="ISSIE-for-Developers" class="anchor" href="#ISSIE-for-Developers">ISSIE for Developers</a></h3>
+<ul>
+<li>The ISSIE <a href="https://github.com/tomcl/issie/wiki">wiki</a> has a large amount of information on the details of how ISSIE is designed, referencing a few student project reports with (a lot) of detail and background.</li>
+<li>F# XML documentation on the <a href="reference/index.html">ISSIE API</a></li>
+</ul>
 <br><br>
 <h1><a name="Acknowledgements" class="anchor" href="#Acknowledgements">Acknowledgements</a></h1>
 <ul>
@@ -243,10 +249,6 @@ Dr Tom Clarke (Imperial College London, EEE department) for running HLP and his 
 <br><br>
 </li>
 </ul>
-<h1><a name="Contact" class="anchor" href="#Contact">Contact</a></h1>
-<p>If you encounter any problems using or downloading the software, please see the <a href="https://github.com/tomcl/issie/issues">Gihub Issue</a> page, or <a href="https://github.com/tomcl/issie/issues/new">create a new issue</a> on the ISSIE GitHub repository. Any feedback and suggestions are also welcome - we keep feature request issues and usually manage to implement them!</p>
-<p>if you want to use ISSIE in an educational context contact Dr. Tom Clarke, <a href="https://www.imperial.ac.uk/electrical-engineering">Department of Electronic &amp; Electrical Engineering, Imperial College London</a>.</p>
-<br><br>
 
         
     </div>
@@ -275,23 +277,13 @@ Dr Tom Clarke (Imperial College London, EEE department) for running HLP and his 
     </a>
   </li>
   <li class="level-3">
-    <a href="#ISSIE-Under-The-Hood-for-Developers">
-      ISSIE Under The Hood for Developers
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#ISSIE-Code-documentation-auto-generated">
-      ISSIE Code documentation (auto-generated)
+    <a href="#ISSIE-for-Developers">
+      ISSIE for Developers
     </a>
   </li>
   <li class="level-1">
     <a href="#Acknowledgements">
       Acknowledgements
-    </a>
-  </li>
-  <li class="level-1">
-    <a href="#Contact">
-      Contact
     </a>
   </li>
 </ul>

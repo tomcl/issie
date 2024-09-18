@@ -29,13 +29,13 @@ For more setup information see the  [Getting Started](https://github.com/tomcl/I
 
 ### A Beginners Tutorial On ISSIE
 
-Go through the  [User Guide](UserGuide.html).
+Go through the  [User Guide](userGuide.html).
 <br><br>
 
 ### ISSIE for Developers
 
 * The ISSIE [wiki](https://github.com/tomcl/issie/wiki) has a large amount of information on the details of how ISSIE is designed, referencing a few student project reports with (a lot) of detail and background.
-* F# XML documentation on the [ISSIE API](reference/index.html)
+* F# XML documentation on the [ISSIE API](Reference/index.html)
 
 <br><br>
 # Acknowledgements

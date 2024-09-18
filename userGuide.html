@@ -246,7 +246,7 @@
 - A=1, B=0<br />
 - A=1, B=1</p>
 <p>and check that the output is correct based on the truth table of the AND gate.</p>
-<p><img src="../img/userGuide/firstDesignSim.gif" alt="" /></p>
+<p><img src="img/userGuide/firstDesignSim.gif" alt="" /></p>
 <p><strong>Well Done!</strong> You just completed your first ISSIE design.</p>
 <h2><a name="Exploiting-the-ISSIE-Features" class="anchor" href="#Exploiting-the-ISSIE-Features">Exploiting the ISSIE Features</a></h2>
 <h3><a name="A-slightly-more-complex-design" class="anchor" href="#A-slightly-more-complex-design">A slightly more complex design</a></h3>
@@ -263,7 +263,7 @@ Delete the output <code>OUT</code>
 <li>Add a new 1-bit output <code>RESULT</code></li>
 <li>Make all necessary connections by dragging as before to achieve a diagram like the one bellow:</li>
 </ul>
-<p><img src="../img/userGuide/features1.png" alt="" /></p>
+<p><img src="img/userGuide/features1.png" alt="" /></p>
 <p>Again, <strong>simulate the design</strong> and check the output remains correct as you change the values of the 4 inputs</p>
 <h3><a name="Improving-the-looking-of-a-schematic" class="anchor" href="#Improving-the-looking-of-a-schematic">Improving the looking of a schematic</a></h3>
 <p>The schematic here is not easy to read. <strong>Let's improve it!</strong> The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:
@@ -274,7 +274,7 @@ Delete the output <code>OUT</code>
 5. Select the desired wire type (radiussed, jump or modern wires)</p>
 <p>You can view the shortcuts for all these modifications by clicking on the <code>edit</code> and <code>view</code> menus.</p>
 <p><strong>The improved schematic:</strong></p>
-<p><img src="../img/userGuide/features2.gif" alt="" /></p>
+<p><img src="img/userGuide/features2.gif" alt="" /></p>
 <h3><a name="Summary" class="anchor" href="#Summary">Summary</a></h3>
 <ul>
 <li>In the <code>Catalogue</code> Menu we can find an extensive and complete library of components (gates, flip-flops, RAMs, ROMs, n-bit registers)</li>
@@ -297,11 +297,11 @@ Delete the output <code>OUT</code>
 - 4-bit input named 'Addressor' (<code>INPUT/OUTPUT</code> =&gt; <code>Input</code>)
 4. Using 3 <code>SplitWire</code> components (<code>BUSES</code> =&gt; <code>SplitWire</code>) separate the 4-bit ROM output to 4 1-bit wires. (see image below)
 5. Make the appropriate connections to achieve the schematic below</p>
-<p><img src="../img/userGuide/custom.png" alt="" /></p>
+<p><img src="img/userGuide/custom.png" alt="" /></p>
 <h3><a name="Improving-the-design-sheet" class="anchor" href="#Improving-the-design-sheet">Improving the design sheet</a></h3>
 <p>It's time to use a hidden part of the Issie UI to <strong>move ports on custom symbols</strong>. Issie allows you to re-order and change the side of input and output ports of custom symbols by <code>CTRL</code> + <code>CLICKING ON THE PORT</code> you want to move. The UI, once you realise that you must keep <code>Ctrl</code> (<code>Cmd</code> on Macs) pressed, is intuitive.</p>
 <p>Preview how it works in the gif below:</p>
-<p><img src="../img/userGuide/custom2.gif" alt="" /></p>
+<p><img src="img/userGuide/custom2.gif" alt="" /></p>
 <h3><a name="ROM-Initialisation" class="anchor" href="#ROM-Initialisation">ROM Initialisation</a></h3>
 <p>Currently our ROM is empty as we selected the option <code>Enter Data Later</code> before. Let's put some values in our ROM.</p>
 <ol>
@@ -318,7 +318,7 @@ Delete the output <code>OUT</code>
 <p>Let's now make our top-level design a <strong>clocked</strong> one using a counter to form a custom addressor that will increment every clock cycle. Uing the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add a <code>Load</code> or <code>Enable</code> inputs.</p>
 <p>Add a <code>Counter</code> from the Catalogue (<code>FLIP FLOPS AND REGISTERS</code>). Now select the component and click on <code>Properties</code>. You can select to remove the <code>load</code> and <code>enable</code> ports and give them the default functionality (which is what we want in this case): enable=1; load=0;</p>
 <p>Create a schematic like the one below:</p>
-<p><img src="../img/userGuide/waveform.png" alt="" /></p>
+<p><img src="img/userGuide/waveform.png" alt="" /></p>
 <h3><a name="Simulating-your-design" class="anchor" href="#Simulating-your-design">Simulating your design</a></h3>
 <p>As soon as you connect everything correctly, You can simulate your design. Click on <code>Simulations</code> and then <code>Wave Simulation</code>.</p>
 <ul>
@@ -338,10 +338,10 @@ Select:
 <li>Check that the waveform simulator output matches your previous (Step Simulation) results.</li>
 <li>Drag the grey horizontal divider to make the waveforms larger or smaller (you can do this at any time).</li>
 </ul>
-<p><img src="../img/userGuide/waveform1.png" alt="" /></p>
+<p><img src="img/userGuide/waveform1.png" alt="" /></p>
 <h3><a name="Changing-your-design" class="anchor" href="#Changing-your-design">Changing your design</a></h3>
 <p>Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the <code>Refresh</code> button which will be enabled as soon as it detects a change in the schematic.</p>
-<p><img src="../img/userGuide/waveform2.png" alt="" /></p>
+<p><img src="img/userGuide/waveform2.png" alt="" /></p>
 <h2><a name="Truth-Table" class="anchor" href="#Truth-Table">Truth Table</a></h2>
 <p>One of ISSIE's features is the ability to view the truth table for a small combinational circuit.</p>
 <ul>
@@ -351,7 +351,7 @@ Select:
 <li>Click on <code>Remove Redundancies</code></li>
 <li>The truth table should look like this:</li>
 </ul>
-<p><img src="../img/userGuide/truthTable1.png" alt="" /></p>
+<p><img src="img/userGuide/truthTable1.png" alt="" /></p>
 <p>You can also select your inputs to be <strong>algebraic values</strong> to get an expression for each of your outputs.</p>
 <ul>
 <li>Click on <code>Back to full table</code></li>
@@ -359,10 +359,10 @@ Select:
 <li>Select the inputs you want to be algebraic values</li>
 <li>Truth table should now look like this:</li>
 </ul>
-<p><img src="../img/userGuide/truthTable2.png" alt="" /></p>
+<p><img src="img/userGuide/truthTable2.png" alt="" /></p>
 <h2><a name="Verilog-Component" class="anchor" href="#Verilog-Component">Verilog Component</a></h2>
 <p>Last but not least, ISSIE allows you to create combinational custom components by defining the logic in Verilog. Click on <code>Verilog</code> -&gt; <code>New Verilog Component</code> (Catalogue) and write the logic of your decoder in Verilog.</p>
-<p><img src="../img/userGuide/verilog1.png" alt="" /></p>
+<p><img src="img/userGuide/verilog1.png" alt="" /></p>
 <ul>
 <li>Click <code>Save</code></li>
 <li>Replace the previous Decoder with the new one (found under <code>Verilog</code> section in the Catalogue)</li>

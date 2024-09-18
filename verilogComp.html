@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Verilog Component" />
+    <meta property="og:url" content="/issie/verilogComp.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Verilog Component">
+    
+    <title>Verilog Component | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header active">
+  Documentation
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Component
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    DrawBlock Analysis
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contact
+  </a>
+</li>             
+<li class="nav-header ">
+  Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="nav-header active">
+  Documentation
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Component
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    DrawBlock Analysis
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contact
+  </a>
+</li>             
+<li class="nav-header ">
+  Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        
+<h1><a name="ISSIE-Verilog-Component" class="anchor" href="#ISSIE-Verilog-Component">ISSIE Verilog Component</a></h1>
+<h3><a name="Syntax" class="anchor" href="#Syntax">Syntax</a></h3>
+<p>Both old and new style syntax are supported.</p>
+<h4><a name="Old-style-example" class="anchor" href="#Old-style-example">Old style example</a></h4>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">module decoder(instr,carry,negative,jump,mux1_sel,mux2_sel);
+    input [15:0] instr;
+    input carry,negative;
+    output jump,mux1_sel,mux2_sel;
+
+    wire [3:0] opc = instr[15:12];
+
+    assign jump = opc[0] ? c|n : c&amp;n|op[1]; 
+    assign mux1_sel = (&amp;op[3:2]);
+    assign mux2_sel = negative;
+
+endmodule
+</code></pre></td></tr></table>
+<h4><a name="New-style-example" class="anchor" href="#New-style-example">New style example</a></h4>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">module decoder(
+    input [15:0] instr,
+    input carry,negative,
+    output jump,mux1_sel,mux2_sel
+);
+
+    wire [3:0] opc = instr[15:12];
+
+    assign jump = opc[0] ? c|n : c&amp;n|op[1]; 
+    assign mux1_sel = (&amp;op[3:2]);
+    assign mux2_sel = negative;
+
+endmodule
+</code></pre></td></tr></table>
+<h3><a name="Numbers" class="anchor" href="#Numbers">Numbers</a></h3>
+<p>Numbers are given in the form: <code>{width}'{radix}{value}</code>, where radix = <code>'b</code> or <code>'d</code> or <code>'h</code></p>
+<p>e.g. 16'h3fa5 , 4'b0101, 16'd154</p>
+<h3><a name="Operators" class="anchor" href="#Operators">Operators</a></h3>
+<p>Operators perform an opeation on one or more operands within an expression. An expression combines operands with appropriate operators to produce the desired functional expression.</p>
+<p>The table shows the operators in descending order of precedence. Operators with equal precedence are shown grouped.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="center"><p>Verilog Operator</p></th>
+<th align="center"><p>Name</p></th>
+<th align="center"><p>Notes and example</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center"><p>[ ]</p></td>
+<td align="center"><p>bit-select or part-select</p></td>
+<td align="center"><p>Used to select specific bits of a bus signal. Example: <code>instr[15:8]</code></p></td>
+</tr>
+<tr class="even">
+<td align="center"><p>( )</p></td>
+<td align="center"><p>parenthesis</p></td>
+<td align="center"><p>Used to define the order of operations. Example: <code> (a &verbar; b) &amp; c</code></p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p>! <br> ~ <br> (&amp;) <br> (\|) <br> (~&amp;) <br> (~\|)</p></td>
+<td align="center"><p>logical negation <br> negation <br> reduction AND <br> reduction OR <br> reduction NAND <br> reduction NOR</p></td>
+<td align="center"><p>The Verilog reduction operators are used to convert vectors to scalars. They operate on all of the bits in a vector to convert the answer to a single bit. <br> AND Reduction of 4'b1101 is: 0 <br> AND Reduction of 4'b1111 is: 1 <br> OR Reduction of 4'b1101 is: 1 <br> OR Reduction of 4'b0000 is: 0 <br> Example: <code>assign out = (&amp;a);</code></p></td>
+</tr>
+<tr class="even">
+<td align="center"><p>{ }</p></td>
+<td align="center"><p>concatenation</p></td>
+<td align="center"><p>Example: <code>{a[2:0],b[3:2],2'b01}</code> -&gt; result is 7 bits</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p>+ <br> –</p></td>
+<td align="center"><p>binary plus <br> binary minus</p></td>
+<td align="center"><p>The two operands must be of equal width N. The result is also N bits.</p></td>
+</tr>
+<tr class="even">
+<td align="center"><< <br> >> <br> >>></td>
+<td align="center"><p>logical shift left <br> logical shift right <br> arithmetic shift right</p></td>
+<td align="center"><p>The second operand of a shift is an unsigned integer. Example: <code>assign out[5:0] = in[5:0] << 3;</code> The result has the width of the input.</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p>&amp;</p></td>
+<td align="center"><p>bit-wise AND</p></td>
+<td align="center"><p>The two operands must have the same width.</p></td>
+</tr>
+<tr class="even">
+<td align="center"><p>^ <br> ~^ or ^~</p></td>
+<td align="center"><p>bit-wise XOR <br> bit-wise XNOR</p></td>
+<td align="center"><p>As above.</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p>\|</p></td>
+<td align="center"><p>bit-wise OR</p></td>
+<td align="center"><p>As above.</p></td>
+</tr>
+<tr class="even">
+<td align="center"><p>&amp;&amp;</p></td>
+<td align="center"><p>logical AND</p></td>
+<td align="center"><p>Logical means that 0-&gt;false, anything else -&gt; true. Operands can have different width.</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p>\|\|</p></td>
+<td align="center"><p>logical OR</p></td>
+<td align="center"><p>As above.</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>| ? : | conditional | Like an if-statement, corresponds to a MUX. Example: <code>assign jump = opc[0] ? c|n : c&amp;n|op[1];</code> |</p>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#ISSIE-Verilog-Component">
+      ISSIE Verilog Component
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Syntax">
+      Syntax
+    </a>
+  </li>
+  <li class="level-4">
+    <a href="#Old-style-example">
+      Old style example
+    </a>
+  </li>
+  <li class="level-4">
+    <a href="#New-style-example">
+      New style example
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Numbers">
+      Numbers
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Operators">
+      Operators
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

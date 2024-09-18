@@ -1,0 +1,1892 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Renderer" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="WaveSimNavigation (issie)" />
+    <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="WaveSimNavigation (issie)">
+    
+    <title>WaveSimNavigation (issie) | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="api-docs">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Component
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    DrawBlock Analysis
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contact
+  </a>
+</li>             
+<li class="nav-header ">
+  Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Component
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    DrawBlock Analysis
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contact
+  </a>
+</li>             
+<li class="nav-header ">
+  Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <div>
+  <h2>
+    WaveSimNavigation Module
+  </h2>
+  <dl class="fsdocs-metadata">
+    <dt>
+      Namespace: 
+      <a href="/issie/reference/global.html">
+        global
+      </a>
+    </dt>
+    <dt>
+      Assembly: Renderer.dll
+    </dt>
+  </dl>
+  <div class="fsdocs-xmldoc">
+    <div>
+      <p class="fsdocs-summary">
+         All the code that determines which clock cycles are viewed in the simulator.
+ basic functions are zooming and panning (moving + or - in time). Additional function
+ is a sample-based zoom for viewing very long waveforms..
+ Also implement cursor control.
+      </p>
+    </div>
+  </div>
+  <div>
+    <h3>
+      Functions and values
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Function or value
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2071', 2071)" onmouseover="showTip(event, '2071', 2071)">
+                <p>
+                  <a id="changeMultiplier">
+                    <a href="#changeMultiplier">
+                      <code><span>changeMultiplier&#32;<span>newMultiplier&#32;ws</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2071">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeMultiplier&#32;<span>newMultiplier&#32;ws</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        newMultiplier
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        ws
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  newMultiplier
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ws
+                </span>
+                :
+                <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2072', 2072)" onmouseover="showTip(event, '2072', 2072)">
+                <p>
+                  <a id="changeZoom">
+                    <a href="#changeZoom">
+                      <code><span>changeZoom&#32;<span>wsModel&#32;zoomIn&#32;dispatch</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2072">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeZoom&#32;<span>wsModel&#32;zoomIn&#32;dispatch</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        zoomIn
+                      </b>
+                      :
+                      <code>bool</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.changeZoom`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.changeZoom\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L248-248" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     If zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles).
+ otherwise reduce width. GenerateWaveforms message will reconstitute SVGs after the change.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    zoomIn
+                  </span>
+                  :
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2073', 2073)" onmouseover="showTip(event, '2073', 2073)">
+                <p>
+                  <a id="clkCycleButtons">
+                    <a href="#clkCycleButtons">
+                      <code><span>clkCycleButtons&#32;<span>wsModel&#32;dispatch</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2073">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>clkCycleButtons&#32;<span>wsModel&#32;dispatch</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.clkCycleButtons`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.clkCycleButtons\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L404-404" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Click on these to change the highlighted clock cycle.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2074', 2074)" onmouseover="showTip(event, '2074', 2074)">
+                <p>
+                  <a id="generateScrollbarInfo">
+                    <a href="#generateScrollbarInfo">
+                      <code><span>generateScrollbarInfo&#32;<span>wsm</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2074">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>generateScrollbarInfo&#32;<span>wsm</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsm
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                       - 
+                      Target <code>WaveSimModel</code>.
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>(type)</code>
+                  </span>
+                  Anonymous record contaning the information to be updated: thumb width,
+ thumb position, and number of cycles the background represents.
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.generateScrollbarInfo`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.generateScrollbarInfo\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L33-33" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    Generate scrollbar SVG info based on current <code>WaveSimModel</code>.
+ Called in <code>refreshWaveSim</code> after <code>WaveSimModel</code> has been changed.
+                  </p>
+                </div>
+              </summary>
+              <p class="fsdocs-remarks">
+                Note: <code>bkg</code> = background; <code>tb</code> = thumb.
+              </p>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsm
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Target <code>WaveSimModel</code>.
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>(type)</code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    Anonymous record contaning the information to be updated: thumb width,
+ thumb position, and number of cycles the background represents.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2075', 2075)" onmouseover="showTip(event, '2075', 2075)">
+                <p>
+                  <a id="makeScrollbar">
+                    <a href="#makeScrollbar">
+                      <code><span>makeScrollbar&#32;<span>wsm&#32;dispatch</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2075">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>makeScrollbar&#32;<span>wsm&#32;dispatch</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsm
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                       - 
+                      Target <code>WaveSimModel</code>.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                       - 
+                      Dispatch function to send messages with. Not used directly, but passed to <code>tbMouseMoveOp</code>.
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                  </span>
+                  React element to be placed in to DOM.
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.makeScrollbar`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.makeScrollbar\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L300-300" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    Make scrollbar element based on information in <code>WaveSimModel</code>.
+ Called in <code>viewWaveSim</code>, presumably after <code>refreshWaveSim</code> was called.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsm
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Target <code>WaveSimModel</code>.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Dispatch function to send messages with. Not used directly, but passed to <code>tbMouseMoveOp</code>.
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    React element to be placed in to DOM.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2076', 2076)" onmouseover="showTip(event, '2076', 2076)">
+                <p>
+                  <a id="multiplierMenuButton">
+                    <a href="#multiplierMenuButton">
+                      <code><span>multiplierMenuButton&#32;<span>wsModel&#32;dispatch</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2076">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>multiplierMenuButton&#32;<span>wsModel&#32;dispatch</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  wsModel
+                </span>
+                :
+                <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  dispatch
+                </span>
+                :
+                <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2077', 2077)" onmouseover="showTip(event, '2077', 2077)">
+                <p>
+                  <a id="setClkCycle">
+                    <a href="#setClkCycle">
+                      <code><span>setClkCycle&#32;<span>wsModel&#32;dispatch&#32;newRealClkCycle</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2077">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>setClkCycle&#32;<span>wsModel&#32;dispatch&#32;newRealClkCycle</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newRealClkCycle
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  wsModel
+                </span>
+                :
+                <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  dispatch
+                </span>
+                :
+                <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  newRealClkCycle
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2078', 2078)" onmouseover="showTip(event, '2078', 2078)">
+                <p>
+                  <a id="setClkCycleMsg">
+                    <a href="#setClkCycleMsg">
+                      <code><span>setClkCycleMsg&#32;<span>wsModel&#32;newRealClkCycle</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2078">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>setClkCycleMsg&#32;<span>wsModel&#32;newRealClkCycle</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newRealClkCycle
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/modeltype-msg.html">Msg</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.setClkCycleMsg`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.setClkCycleMsg\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L159-159" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Return a Msg that will set highlighted clock cycle number
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    newRealClkCycle
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/modeltype-msg.html">Msg</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2079', 2079)" onmouseover="showTip(event, '2079', 2079)">
+                <p>
+                  <a id="setScrollbarLastX">
+                    <a href="#setScrollbarLastX">
+                      <code><span>setScrollbarLastX&#32;<span>wsm&#32;dispatch&#32;isEmpty</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2079">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>setScrollbarLastX&#32;<span>wsm&#32;dispatch&#32;isEmpty</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsm
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                       - 
+                      Target <code>WaveSimModel</code>.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                       - 
+                      Dispatch function to send messages with.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        isEmpty
+                      </b>
+                      :
+                      <code>bool</code>
+                       - 
+                      Bool to be written to <code>WaveSimModel.ScrollbarQueueIsEmpty</code>.
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.setScrollbarLastX`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.setScrollbarLastX\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L243-243" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    Update <code>WaveSimModel</code> with new <code>ScrollbarQueueIsEmpty</code>.
+ Used to update is-empty counter to coalesce scrollbar mouse events together.
+ Update is achieved by dispatching a <code>UpdateWSModel</code> message, so as to not clog the queue with <code>GenerateWaveforms</code> messages.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsm
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Target <code>WaveSimModel</code>.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Dispatch function to send messages with.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    isEmpty
+                  </span>
+                  :
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Bool to be written to <code>WaveSimModel.ScrollbarQueueIsEmpty</code>.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2080', 2080)" onmouseover="showTip(event, '2080', 2080)">
+                <p>
+                  <a id="setScrollbarOffset">
+                    <a href="#setScrollbarOffset">
+                      <code><span>setScrollbarOffset&#32;<span>wsm&#32;dispatch&#32;offset</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2080">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>setScrollbarOffset&#32;<span>wsm&#32;dispatch&#32;offset</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsm
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                       - 
+                      Target <code>WaveSimModel</code>.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                       - 
+                      Dispatch function to send messages with.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        offset
+                      </b>
+                      :
+                      <code><span>float&#32;option</span></code>
+                       - 
+                      Offset option to be written to <code>WaveSimModel.ScrollbarTbOffset</code>.
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.setScrollbarOffset`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.setScrollbarOffset\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L234-234" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    Update <code>WaveSimModel</code> with new <code>ScrollbarTbOffset</code>.
+ Used when starting or clearing scrollbar drag mode.
+ Update is achieved by dispatching a <code>GenerateWaveforms</code> message.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsm
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Target <code>WaveSimModel</code>.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Dispatch function to send messages with.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    offset
+                  </span>
+                  :
+                  <code><span>float&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Offset option to be written to <code>WaveSimModel.ScrollbarTbOffset</code>.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2081', 2081)" onmouseover="showTip(event, '2081', 2081)">
+                <p>
+                  <a id="setScrollbarTbByCycs">
+                    <a href="#setScrollbarTbByCycs">
+                      <code><span>setScrollbarTbByCycs&#32;<span>wsm&#32;dispatch&#32;moveByCycs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2081">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>setScrollbarTbByCycs&#32;<span>wsm&#32;dispatch&#32;moveByCycs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsm
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                       - 
+                      Target <code>WaveSimModel</code>.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                       - 
+                      Dispatch function to send messages with.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        moveByCycs
+                      </b>
+                      :
+                      <code>float</code>
+                       - 
+                      Number of non-integer cycles to move by.
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.setScrollbarTbByCycs`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.setScrollbarTbByCycs\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L198-198" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    Move waveform view window by closest integer number of cycles.
+ Current clock cycle (<code>WaveSimModel.CurrClkCycle</code>) is set to beginning or end depending on direction of movement. 
+ Update is achieved by dispatching a <code>GenerateWaveforms</code> message.
+ Note the side-effect of clearing the <code>ScrollbarQueueIsEmpty</code> counter.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsm
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Target <code>WaveSimModel</code>.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Dispatch function to send messages with.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    moveByCycs
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Number of non-integer cycles to move by.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2082', 2082)" onmouseover="showTip(event, '2082', 2082)">
+                <p>
+                  <a id="setViewerWidthInWaveSim">
+                    <a href="#setViewerWidthInWaveSim">
+                      <code><span>setViewerWidthInWaveSim&#32;<span>w&#32;dispatch</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2082">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>setViewerWidthInWaveSim&#32;<span>w&#32;dispatch</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        w
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  Modifiers: 
+                  inline
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  w
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  dispatch
+                </span>
+                :
+                <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2083', 2083)" onmouseover="showTip(event, '2083', 2083)">
+                <p>
+                  <a id="updateScrollbar">
+                    <a href="#updateScrollbar">
+                      <code><span>updateScrollbar&#32;<span>wsm&#32;dispatch&#32;cursor&#32;action</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2083">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>updateScrollbar&#32;<span>wsm&#32;dispatch&#32;cursor&#32;action</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsm
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                       - 
+                      Target <code>WaveSimModel</code>.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                       - 
+                      Dispatch function to send messages with, not used directly.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        cursor
+                      </b>
+                      :
+                      <code>float</code>
+                       - 
+                      Cursor postion in relation to the screen, i.e. <code>event.clientX</code>.
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        action
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-scrollbarmouseaction.html">ScrollbarMouseAction</a></code>
+                       - 
+                      Scrollbar action to do, see choices for more info, in type of <code>ScrollbarMouseAction</code>.
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.updateScrollbar`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.updateScrollbar\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L365-365" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    Update waveform view information based on mouse postion in the X direction.
+ Called in <code>update</code> when <code>ScrollbarMouseMsg</code> is dispatched.
+                  </p>
+                </div>
+              </summary>
+              <p class="fsdocs-remarks">
+                Note that <code>screenX</code> does NOT scale with web zoom and will cause weird results!
+              </p>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsm
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Target <code>WaveSimModel</code>.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Dispatch function to send messages with, not used directly.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    cursor
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Cursor postion in relation to the screen, i.e. <code>event.clientX</code>.
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    action
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-scrollbarmouseaction.html">ScrollbarMouseAction</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    Scrollbar action to do, see choices for more info, in type of <code>ScrollbarMouseAction</code>.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2084', 2084)" onmouseover="showTip(event, '2084', 2084)">
+                <p>
+                  <a id="updateViewerWidthInWaveSim">
+                    <a href="#updateViewerWidthInWaveSim">
+                      <code><span>updateViewerWidthInWaveSim&#32;<span>w&#32;model</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2084">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>updateViewerWidthInWaveSim&#32;<span>w&#32;model</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        w
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  inline
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  w
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  model
+                </span>
+                :
+                <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2085', 2085)" onmouseover="showTip(event, '2085', 2085)">
+                <p>
+                  <a id="validateScrollBarInfo">
+                    <a href="#validateScrollBarInfo">
+                      <code><span>validateScrollBarInfo&#32;<span>wsm</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2085">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>validateScrollBarInfo&#32;<span>wsm</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsm
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.validateScrollBarInfo`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.validateScrollBarInfo\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L64-64" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Make scrollbar parameters consistent with changed zoom. This assumes the scrollbar
+ width has not changed, because that can only be calculated from the viewer width in model.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsm
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2086', 2086)" onmouseover="showTip(event, '2086', 2086)">
+                <p>
+                  <a id="validateSimParas">
+                    <a href="#validateSimParas">
+                      <code><span>validateSimParas&#32;<span>ws</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2086">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>validateSimParas&#32;<span>ws</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ws
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.validateSimParas`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.validateSimParas\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L128-128" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Must be called after any of the wavesim parameters are changed and before
+ they are used to generate waveforms.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ws
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2087', 2087)" onmouseover="showTip(event, '2087', 2087)">
+                <p>
+                  <a id="zoomButtons">
+                    <a href="#zoomButtons">
+                      <code><span>zoomButtons&#32;<span>wsModel&#32;dispatch</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2087">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>zoomButtons&#32;<span>wsModel&#32;dispatch</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wsModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:WaveSimNavigation.zoomButtons`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimNavigation.zoomButtons\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimNavigation.fs#L392-392" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Click on these buttons to change the number of visible clock cycles.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wsModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-wavesimmodel.html">WaveSimModel</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <div class="empty"></div>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

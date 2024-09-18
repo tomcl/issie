@@ -46,14 +46,14 @@
                 <li class="nav-header active">
   Documentation
 </li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/verilogComp.html">
-    Verilog Component
-  </a>
-</li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/userGuide.html">
     User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contact
   </a>
 </li>             
 <li class="nav-item ">
@@ -62,14 +62,14 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
-    DrawBlock Analysis
-
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Component
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/contact.html">
-    Contact
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    Schematic Editor Features
+
   </a>
 </li>             
 <li class="nav-header ">
@@ -93,6 +93,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
     ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
   </a>
 </li>
                 <li class="nav-header">
@@ -131,14 +136,14 @@
         <li class="nav-header active">
   Documentation
 </li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/verilogComp.html">
-    Verilog Component
-  </a>
-</li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/userGuide.html">
     User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contact
   </a>
 </li>             
 <li class="nav-item ">
@@ -147,14 +152,14 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
-    DrawBlock Analysis
-
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Component
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/contact.html">
-    Contact
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    Schematic Editor Features
+
   </a>
 </li>             
 <li class="nav-header ">
@@ -179,6 +184,11 @@
   <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
     ISSIE v3.0.9  - Happy Christmas!
   </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
 </li>
         <li class="nav-header">
   API Reference
@@ -195,7 +205,7 @@
         
 <h2><a name="Getting-Started" class="anchor" href="#Getting-Started">Getting Started</a></h2>
 <h3><a name="Downloading-and-Running-ISSIE" class="anchor" href="#Downloading-and-Running-ISSIE">Downloading and Running ISSIE</a></h3>
-<p>Start by clicking the <a href="https://github.com/tomcl/issie/releases/latest">download</a> button on the top-right of your screen. This opens the page of the latest release of ISSIE on GitHub. At the bottom of the page, you can find the latest prebuilt binary for your platform (Windows or Macos). Issie will require in total about 200M of disk space.</p>
+<p>Find the <a href="https://github.com/tomcl/issie/releases/latest">latest Issie release</a>. At the bottom of the page, you can find the latest pre-built binary for your platform (Windows or ARM64 Macos). Issie will require in total about 200M of disk space.</p>
 <ul>
 <li><strong>Windows:</strong> unzip *.zip anywhere and double-click the top-level <code>Issie.exe</code> application in the unzipped files.</li>
 <li>
@@ -229,7 +239,7 @@
 <p>Your design should look like this:</p>
 <p><img src="../img/userGuide/firstDesign.gif" alt="" /></p>
 <h3><a name="Simulation" class="anchor" href="#Simulation">Simulation</a></h3>
-<p>Time to simulate our design and see how the output <code>OUT</code> changes as we change the two inputs.</p>
+<p>Time to simulate the design and see how the output <code>OUT</code> changes as we change the two inputs.</p>
 <p>Click the <code>Simulation</code> tab which is located on the top-right corner and then <code>Start Simulation</code>. Now you can change the value of the two inputs and see how the value of the output. Try all 4 combinations of inputs:
 - A=0, B=0<br />
 - A=0, B=1<br />
@@ -240,7 +250,7 @@
 <p><strong>Well Done!</strong> You just completed your first ISSIE design.</p>
 <h2><a name="Exploiting-the-ISSIE-Features" class="anchor" href="#Exploiting-the-ISSIE-Features">Exploiting the ISSIE Features</a></h2>
 <h3><a name="A-slightly-more-complex-design" class="anchor" href="#A-slightly-more-complex-design">A slightly more complex design</a></h3>
-<p>Time to increase the complexity of our design and see how we can exploit the features of ISSIE to create clean and good-looking schematics.</p>
+<p>This section will exploit the features of ISSIE to create clean and good-looking schematics when making bigger designs.</p>
 <ul>
 <li>Add two more inputs named <code>C</code> and <code>D</code> each 1-bit.</li>
 <li>Add one OR gate and one 2-input MUX</li>
@@ -251,32 +261,32 @@ Delete the output <code>OUT</code>
 </ul>
 </li>
 <li>Add a new 1-bit output <code>RESULT</code></li>
-<li>Make all necessary connections to achieve a diagram like the one bellow:</li>
+<li>Make all necessary connections by dragging as before to achieve a diagram like the one bellow:</li>
 </ul>
 <p><img src="../img/userGuide/features1.png" alt="" /></p>
 <p>Again, <strong>simulate the design</strong> and check the output remains correct as you change the values of the 4 inputs</p>
-<h3><a name="Improving-the-looking-of-our-design" class="anchor" href="#Improving-the-looking-of-our-design">Improving the looking of our design</a></h3>
-<p>Clearly, this is a terrible and hard to understand design. <strong>Let's improve it!</strong> The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:
-1. Rotate, Flip and Move around all symbols
-2. Change and Move around the symbols' labels
-3. Manually route wires as you like
+<h3><a name="Improving-the-looking-of-a-schematic" class="anchor" href="#Improving-the-looking-of-a-schematic">Improving the looking of a schematic</a></h3>
+<p>The schematic here is not easy to read. <strong>Let's improve it!</strong> The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:
+1. Rotate, Flip and Move all symbols
+2. Change name and reposition the symbols' <em>labels</em> relative to the symbols
+3. Manually route any specific segment in a wire
 4. Auto-align elements
-5. Select the wire type we desire (radiussed, jump or modern wires)</p>
+5. Select the desired wire type (radiussed, jump or modern wires)</p>
 <p>You can view the shortcuts for all these modifications by clicking on the <code>edit</code> and <code>view</code> menus.</p>
-<p><strong>Let's now look at our improved schematic:</strong></p>
+<p><strong>The improved schematic:</strong></p>
 <p><img src="../img/userGuide/features2.gif" alt="" /></p>
 <h3><a name="Summary" class="anchor" href="#Summary">Summary</a></h3>
 <ul>
 <li>In the <code>Catalogue</code> Menu we can find an extensive and complete library of components (gates, flip-flops, RAMs, ROMs, n-bit registers)</li>
 <li>We can add any number of components in our sheet and name them as we like</li>
-<li>When clicking on a port, ISSIE shows us all the ports we can connect that port to.</li>
+<li>When clicking on a port, ISSIE shows us all the ports we can connect that port to: dragging from one port to another makes a wire.</li>
 <li>Wires are initially automatically routed</li>
-<li>We can modify our schematic as we like to create a good-looking design.</li>
+<li>Auto-routing can be selectively over-ridden by manual routing to make a better-looking schematic.</li>
 <li>We can simulate our design and check how the outputs change as we change the inputs.</li>
 </ul>
 <h2><a name="Using-Custom-Components" class="anchor" href="#Using-Custom-Components">Using Custom Components</a></h2>
-<h3><a name="Your-root-schematic" class="anchor" href="#Your-root-schematic">Your root schematic</a></h3>
-<p>Time now to learn how to use or schematics as cstom components in other design sheets. Here is the idea: The very simple and theoretically useless design we created earlier can be used as a decoder of a 4-bit message to produce a true/false result. Therefore, we are going to create a schematic with an asynchronous-read 4-bit ROM and the schematic we created before as a custom symbol.</p>
+<h3><a name="The-root-schematic" class="anchor" href="#The-root-schematic">The root schematic</a></h3>
+<p>In this section we will create a hierarchical design with multiple design sheets by using schematics as <em>custom symbols</em> in other design sheets. Here is the aim: The design we created earlier can be used in a larger design as a decoder of a 4-bit message to produce a true/false result. Therefore, we are going to create a schematic with an asynchronous-read 4-bit ROM using the schematic we created before as a <em>custom symbol</em>.</p>
 <p>Steps:
 1. Change the name of the current sheet from <code>main</code> to <code>decoder</code> (Sheets -&gt; rename)
 2. Add a new sheet and name it <code>main</code>
@@ -289,8 +299,8 @@ Delete the output <code>OUT</code>
 5. Make the appropriate connections to achieve the schematic below</p>
 <p><img src="../img/userGuide/custom.png" alt="" /></p>
 <h3><a name="Improving-the-design-sheet" class="anchor" href="#Improving-the-design-sheet">Improving the design sheet</a></h3>
-<p>It's time to use another cool feature of Issie: Moving ports in custom components. Issie allows you to re-order and change the side of input and output ports of custom components by <code>CTRL</code> + <code>CLICKING ON THE PORT</code> you want to move.</p>
-<p>Let's look how it works in the gif below:</p>
+<p>It's time to use a hidden part of the Issie UI to <strong>move ports on custom symbols</strong>. Issie allows you to re-order and change the side of input and output ports of custom symbols by <code>CTRL</code> + <code>CLICKING ON THE PORT</code> you want to move. The UI, once you realise that you must keep <code>Ctrl</code> (<code>Cmd</code> on Macs) pressed, is intuitive.</p>
+<p>Preview how it works in the gif below:</p>
 <p><img src="../img/userGuide/custom2.gif" alt="" /></p>
 <h3><a name="ROM-Initialisation" class="anchor" href="#ROM-Initialisation">ROM Initialisation</a></h3>
 <p>Currently our ROM is empty as we selected the option <code>Enter Data Later</code> before. Let's put some values in our ROM.</p>
@@ -300,11 +310,12 @@ Delete the output <code>OUT</code>
 <li>Change the content of the 16 memory location available by assigning a random 4-bit number to each one</li>
 <li>Click <code>done</code></li>
 </ol>
+<p>Issie also allows ROM and RAM initialisation via <code>.ram</code> text files of hex data in the Issie directory. See the Issie <strong>Eratosthenes</strong> demo for an example of this. The memory component <strong>properties</strong> tab offers additional options when there  <code>.ram</code> files present.</p>
 <h3><a name="Simulation-1" class="anchor" href="#Simulation-1">Simulation</a></h3>
 <p>Simulate your design! Change the value of the addressor input and see whether your decoder produces a true or false result for each number you assigned to the ROM.</p>
 <h2><a name="Waveform-Simulation" class="anchor" href="#Waveform-Simulation">Waveform Simulation</a></h2>
-<h3><a name="Creating-a-closed-loop-design" class="anchor" href="#Creating-a-closed-loop-design">Creating a closed loop design</a></h3>
-<p>Let's now make our top-level design a closed-loop one using a custom addressor which will increment every clock cycle. Now, using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which starting from 0, it increments by one every clock cycle.</p>
+<h3><a name="Creating-a-clocked-design" class="anchor" href="#Creating-a-clocked-design">Creating a clocked design</a></h3>
+<p>Let's now make our top-level design a <strong>clocked</strong> one using a counter to form a custom addressor that will increment every clock cycle. Uing the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add a <code>Load</code> or <code>Enable</code> inputs.</p>
 <p>Add a <code>Counter</code> from the Catalogue (<code>FLIP FLOPS AND REGISTERS</code>). Now select the component and click on <code>Properties</code>. You can select to remove the <code>load</code> and <code>enable</code> ports and give them the default functionality (which is what we want in this case): enable=1; load=0;</p>
 <p>Create a schematic like the one below:</p>
 <p><img src="../img/userGuide/waveform.png" alt="" /></p>
@@ -322,24 +333,26 @@ Select:
 </ul>
 </li>
 <li>Click <code>Done</code></li>
-<li>Change the data to either <code>hex</code> or <code>bin</code> to make them more readable</li>
-<li>Check that the waveform simulator output matches your previous (Step Simulation) results</li>
+<li>Change the data format to either <code>hex</code> or <code>bin</code> to make the waveforms more readable</li>
+<li>adjust the number of clock cycles displayed using the +/- zoom controls.</li>
+<li>Check that the waveform simulator output matches your previous (Step Simulation) results.</li>
+<li>Drag the grey horizontal divider to make the waveforms larger or smaller (you can do this at any time).</li>
 </ul>
 <p><img src="../img/userGuide/waveform1.png" alt="" /></p>
 <h3><a name="Changing-your-design" class="anchor" href="#Changing-your-design">Changing your design</a></h3>
-<p>Now add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator simply by clicking the <code>refresh</code> button which will be enabled as soon as it detects a change in the schematic.</p>
+<p>Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the <code>Refresh</code> button which will be enabled as soon as it detects a change in the schematic.</p>
 <p><img src="../img/userGuide/waveform2.png" alt="" /></p>
 <h2><a name="Truth-Table" class="anchor" href="#Truth-Table">Truth Table</a></h2>
-<p>One of ISSIE's features is the ability to view the truth table for a combinational circuit.</p>
+<p>One of ISSIE's features is the ability to view the truth table for a small combinational circuit.</p>
 <ul>
 <li>Click on <code>Simulations</code> and then <code>Truth Table</code></li>
 <li>Select the <code>DECODER</code> component</li>
 <li>Click on <code>Generate Truth Table</code> button on the 'Truth Table for selected logic' section</li>
 <li>Click on <code>Remove Redundancies</code></li>
-<li>Thuth table should look like this:</li>
+<li>The truth table should look like this:</li>
 </ul>
 <p><img src="../img/userGuide/truthTable1.png" alt="" /></p>
-<p>You can also select your inputs to be algebraic values to get an expression for each of your outputs.</p>
+<p>You can also select your inputs to be <strong>algebraic values</strong> to get an expression for each of your outputs.</p>
 <ul>
 <li>Click on <code>Back to full table</code></li>
 <li>Click on <code>Algebra</code></li>
@@ -357,7 +370,8 @@ Select:
 </ul>
 <h2><a name="Now-what" class="anchor" href="#Now-what">Now what?</a></h2>
 <p>You now know how to use ISSIE to create &amp; simulate digital designs.</p>
-<p>You can now create your designs (from simple circuits to fully functionable CPUs) and either simulate them or extract them as Verilog to use them with other tools.</p>
+<p>You can now create your designs (from simple circuits to fully functioning CPUs) and either simulate them or extract them as Verilog to use them with other tools.</p>
+<p>For inspiration, look when you start Issie under the <strong>demos</strong> option  for eratosthenes demo which consists of an EEP1 CPU running an Eratosthenes Sieve program written in EEP1 assembly language.</p>
 
         
     </div>
@@ -401,8 +415,8 @@ Select:
     </a>
   </li>
   <li class="level-3">
-    <a href="#Improving-the-looking-of-our-design">
-      Improving the looking of our design
+    <a href="#Improving-the-looking-of-a-schematic">
+      Improving the looking of a schematic
     </a>
   </li>
   <li class="level-3">
@@ -416,8 +430,8 @@ Select:
     </a>
   </li>
   <li class="level-3">
-    <a href="#Your-root-schematic">
-      Your root schematic
+    <a href="#The-root-schematic">
+      The root schematic
     </a>
   </li>
   <li class="level-3">
@@ -441,8 +455,8 @@ Select:
     </a>
   </li>
   <li class="level-3">
-    <a href="#Creating-a-closed-loop-design">
-      Creating a closed loop design
+    <a href="#Creating-a-clocked-design">
+      Creating a clocked design
     </a>
   </li>
   <li class="level-3">

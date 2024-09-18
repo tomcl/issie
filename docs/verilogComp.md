@@ -1,9 +1,8 @@
 ---
-layout: page
 title: Verilog Component
-permalink: /verilog-comp/
 category: Documentation
 categoryindex: 1
+index: 5
 ---
 
 

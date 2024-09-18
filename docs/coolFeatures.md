@@ -22,4 +22,4 @@ ISSIE provides numerous features to help you create nice and readable schematics
 | **Grid** | `View` -> `Toggle grid` | Choose whether you want the grid to appear on your sheets  |
 | **Wire Type** | `View` -> `Wire Type` | Choose between the 3 supported wire types: `Jump`, `Radiussed` or `Modern` wires  |
 | **Wire Arrows** | `View` -> `Toggle Wire Arrows` | Choose whether you want arrows at the end-points of your wires to demonstrate the direction of signals |
-| **Auto-routing** |     | Issie will **nearly always** route and separate all schematic connections neatly with no manual routing required. |
+| **Auto-routing** |     | Issie will **nearly always** route and separate all schematic connections neatly with no manual routing required. Any wire segment can be manually dragged to a desired position and "fixed" with otehr segments and wires auto-routed around it.|

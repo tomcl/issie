@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      - dev-tc-new-docs
+      - master
 
 jobs:
   build:

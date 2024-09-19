@@ -8,6 +8,13 @@ index: 5
 
 # ISSIE Verilog Component
 
+### Introduction
+
+Issie allows a Component defined by Verilog source code to be placed 
+on any sheet from the Catalog. The component behaviour is defined by
+its source which can be opened and edited from Properties. The editor
+provides syntax highlighting and error checking.
+
 ### Syntax
 
 Both old and new style syntax are supported.

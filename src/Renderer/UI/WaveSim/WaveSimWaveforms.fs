@@ -104,7 +104,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                         
                 )
                 OnMouseOut (fun _ ->
-                    dispatch <| SetWSModel {wsModel with HoveredLabel = None}
+                    dispatch <| SetWSModel {wsModel with HoveredLabel = None; DraggedIndex = None; PrevSelectedWaves = None }
                     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
                     dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (connsOfWave (Simulator.getFastSim()) wave, false))
                 )
@@ -146,7 +146,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                     ev.dataTransfer.dropEffect <- "move"
                     let nameColEl = Browser.Dom.document.getElementById "namesColumn"
                     let bcr = nameColEl.getBoundingClientRect ()
-                    let index = int (ev.clientY - bcr.top) / Constants.rowHeight - 1
+                    let index = int (ev.clientY - bcr.top) / Constants.rowHeight - 1 |> max 0 |> min (List.length wsModel.SelectedWaves)
                     let draggedWave =
                         match wsModel.DraggedIndex with
                         | Some waveId -> [waveId]

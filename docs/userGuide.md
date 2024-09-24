@@ -86,7 +86,7 @@ This section will exploit the features of ISSIE to create clean and good-looking
 
 Again, **simulate the design** and check the output remains correct as you change the values of the 4 inputs
 
-### Improving the looking of a schematic
+### Improving the look of a schematic
 
 
 The schematic here is not easy to read. **Let's improve it!** The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:

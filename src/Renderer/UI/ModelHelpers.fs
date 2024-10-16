@@ -433,6 +433,21 @@ let simReset dispatch =
     dispatch <| Sheet (DrawModelType.SheetT.ResetSelection) // Remove highlights.
     dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
 
+/// Return the waveform simulation graph, or an error if simulation would fail.
+/// This function does not create the simulation so is relatively fast.
+let validateWaveModel (simulatedSheet: string option) openSheetCanvasState model =
+    match openSheetCanvasState, model.CurrentProj with
+    | _, None -> 
+        Error (Simulator.makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!")
+    | canvasState, Some project ->
+        let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
+        let otherComponents = 
+            project.LoadedComponents 
+            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+        (canvasState, otherComponents)
+        ||> Simulator.validateWaveSimulation project.OpenFileName simSheet
+    
+
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails.

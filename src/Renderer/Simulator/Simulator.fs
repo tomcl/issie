@@ -176,16 +176,14 @@ let saveStateInSimulation
             ConnectionsByPort = portMap })
 
 
-/// Extract circuit data from inputs and return a checked SimulationData object or an error
-/// SimulationData has some technical debt, it wraps FastSimulation adding some redundant data
-let startCircuitSimulation
-    (simulationArraySize: int)
+
+/// Extract circuit data from inputs and return a valid SimulationGraph or an error
+let validateCircuitSimulation
     (diagramName: string)
     (canvasState: CanvasState)
     (loadedDependencies: LoadedComponent list)
-    : Result<SimulationData, SimulationError>
+    : Result<SimulationGraph, SimulationError>
     =
-
     // Tune for performance of initial zero-length simulation versus longer run.
     // Probably this is not critical.
     match runCanvasStateChecksAndBuildGraph canvasState loadedDependencies with
@@ -197,36 +195,52 @@ let startCircuitSimulation
             // Simulation graph is fully merged with dependencies.
             // Perform checks on it
             let components, connections = canvasState
-            let inputs, outputs = getSimulationIOs components
-
             match analyseSimulationGraph diagramName graph connections with
             | Some err -> Error err
-            | None ->
-                try
-                    match FastRun.buildFastSimulation simulationArraySize diagramName graph with
-                    | Ok fs ->
-                        let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
+            | None -> Ok graph
 
-                        Ok
-                            { FastSim = fs
-                              Graph = graph // NB graph is now not initialised with data
-                              Inputs = inputs
-                              Outputs = outputs
-                              IsSynchronous = hasSynchronousComponents graph
-                              NumberBase = Hex
-                              ClockTickNumber = 0 }
-                    | Error e -> Error e
-                with e ->
-                    printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
 
-                    Error
-                        { ErrType = InternalError e
-                          InDependency = None
-                          ComponentsAffected = []
-                          ConnectionsAffected = [] }
-                |> Result.map (fun sd ->
-                    //Fast.compareFastWithGraph sd |> ignore
-                    sd)
+/// Extract circuit data from inputs and return a checked SimulationData object or an error
+/// SimulationData has some technical debt, it wraps FastSimulation adding some redundant data
+let startCircuitSimulation
+    (simulationArraySize: int)
+    (diagramName: string)
+    (canvasState: CanvasState)
+    (loadedDependencies: LoadedComponent list)
+    : Result<SimulationData, SimulationError>
+    =
+
+    match validateCircuitSimulation diagramName canvasState loadedDependencies with
+    | Error e -> Error e
+    | Ok graph ->
+        try
+            match FastRun.buildFastSimulation simulationArraySize diagramName graph with
+            | Ok fs ->
+                let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
+                let components, _ = canvasState
+                let inputs, outputs = getSimulationIOs components
+
+
+                Ok
+                    {   FastSim = fs
+                        Graph = graph // NB graph is now not initialised with data
+                        Inputs = inputs
+                        Outputs = outputs
+                        IsSynchronous = hasSynchronousComponents graph
+                        NumberBase = Hex
+                        ClockTickNumber = 0 }
+            | Error e -> Error e
+        with e ->
+            printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
+
+            Error
+                {   ErrType = InternalError e
+                    InDependency = None
+                    ComponentsAffected = []
+                    ConnectionsAffected = [] }
+        |> Result.map (fun sd ->
+            //Fast.compareFastWithGraph sd |> ignore
+            sd)
 
 let startCircuitSimulationFData
     (simulationArraySize: int)
@@ -355,6 +369,17 @@ let makeDummySimulationError msg = {
         ConnectionsAffected = []
         ComponentsAffected = []
     }
+
+/// check a waveform simulation circuit for errors without actually creating the simulation
+let validateWaveSimulation
+        (openFileName: string)
+        (diagramName : string)
+        (canvasState : CanvasState)
+        (loadedDependencies : LoadedComponent list)
+        : Result<SimulationGraph, SimulationError>  =
+    let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
+    let name, state, ldcs = getStateAndDependencies diagramName ldcs
+    validateCircuitSimulation diagramName state ldcs
 
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. 

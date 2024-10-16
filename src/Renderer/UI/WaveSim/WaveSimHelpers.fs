@@ -390,7 +390,8 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
     let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
     let success = (ws.State = Success || ws.State=Loading)
 
-    let hasSimErr = Result.isError (ModelHelpers.resimulateWaveSimForErrors model)
+    let simCheck = validateWaveModel model.WaveSimSheet canv model
+    let hasSimErr = Result.isError simCheck
 
     let errored =
         match hasSimErr, ws.State with

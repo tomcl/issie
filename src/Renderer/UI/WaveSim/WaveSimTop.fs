@@ -338,6 +338,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
         /// of the simulation can be changed by extending the simulation to any value less than its maxClkCycle.
         let startOrRenew model =
             refreshButtonAction canvasState model dispatch
+
         let waveEnd model = endButtonAction canvasState model dispatch
         let wbo = getWaveSimButtonOptions canvasState model wsModel
         let isLoading =

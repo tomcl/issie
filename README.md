@@ -38,12 +38,10 @@ More info* then:
         * Click **More Info**
         * Then click **Run Anyway**
 * Macos: Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
-    * The binaries are not signed. You will need to 
-      [perform a one-off security bypass](https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac). 
-      Alternatively (and this may be simpler to do), you can do this by running:
-```
-sudo xattr -rd com.apple.quarantine /Applications/issie.app
-```
+    * If Macos asks you to do this, you will need to change your security settings to allow apps not downloaded from app store
+    * *Apple* -> *System settings* -> *Privacy & Security* -> (find at bottom of options by scrolling) *Allow Applications From* ->  *App Store and Known Developers*
+
+      
 
 Issie installs and runs without making system changes - all of its code is inside the directory you download. 
 You can delete this and replace it by a later version of Issie. Each design sheet is stored in a similarly named file under the project directory. 

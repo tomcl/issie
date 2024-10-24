@@ -28,7 +28,7 @@ open ContextMenus
 
 importSideEffects "./scss/main.css"
 
-let isMac = Node.Api.``process``.platform = Node.Base.Darwin
+let isMac = JSHelpers.isMac
 
 
 

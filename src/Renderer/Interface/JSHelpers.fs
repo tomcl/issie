@@ -12,6 +12,10 @@ open ElectronAPI
 open Fable.React
 open Elmish
 
+let isMac =
+    let platform = Node.Api.``process``.platform 
+    platform = Node.Base.Darwin || platform = Node.Base.Linux
+
 /// Fix to access the deprecated @electron.remote module.
 /// This must be enabled from main.fs
 /// NB the interface used here is not precisely correct, because it

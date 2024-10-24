@@ -287,7 +287,7 @@ let addFileToProject model dispatch =
 /// load demo project into Issie executables
 let loadDemoProject model dispatch basename =
     warnAppWidth dispatch (fun _ ->
-        let isMac = Node.Api.``process``.platform = Node.Base.Darwin
+        let isMac = JSHelpers.isMac
         let homeDir = if isMac then pathJoin [|FilesIO.staticDir(); ".."; ".."|] else "."
 
         let newDir = homeDir + "/demos/" + basename

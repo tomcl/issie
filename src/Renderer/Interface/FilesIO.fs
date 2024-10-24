@@ -41,7 +41,7 @@ let staticDir() =
     /// This identifies macos builds (arm64 too I hope!)
     /// on MacOs we think it should be ../Resources/static
     /// we hope staticDir will give this?
-    let isMac = Node.Api.``process``.platform = Node.Base.Darwin
+    let isMac = JSHelpers.isMac
     if productionBuild && not isMac then
         "./resources/static"
     elif productionBuild && isMac then

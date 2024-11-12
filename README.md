@@ -17,7 +17,7 @@ The application is mostly written in F#, which gets transpiled to JavaScript via
 [Webpack 5](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process: the electron-webpack build 
 is automated using the pre-existing scripts under the [scripts](scripts/) directory.
 
-The drawing capabilities are provided (now) by a custom schemetic editor library implemented in F# and specialised for digital components.
+The drawing capabilities are provided (now) by a custom schematic editor library implemented in F# and specialised for digital components.
 
 The choice of F# as main programming language for the app has been dictated by a few factors:
 
@@ -67,7 +67,7 @@ Download and install (if you already have these tools installed just check the v
 * [Node.js v20](https://nodejs.org/download/release/latest-v20.x/).
     * You do not need to install chocolatey (at the prompt for this) however you can if you want
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
-    * If you are using a different version of Node for developmnet on other projects, global install 
+    * If you are using a different version of Node for development on other projects, global install 
     (the default) may interfere with this. You will need to do a more complex local node install.
 * (recommended) Visual Studio 2022 which includes F# 8.0, Install with:
   * Workload: .Net Desktop development
@@ -137,7 +137,7 @@ Although the dev chain is complex, it is now very smooth and identical for all p
 * To update the tool versions (not normally needed) edit `dotnet-tools.json`.
 * To change the dotnet packages used (advanced) change `paket.dependencies` at top level **and** `paket.references` in the directory of the relevant `.fsproj` file. Currently dotnet packages are not pinned to versions so latest compatible versions are always used. This is probably wrong but seems to work well.
 * To interface to a new Node package from F# see the excellent [Fable documentation](https://fable.io/docs/communicate/js-from-fable.html). The **best** way to do this is to write an F# interface file which provides
-static typing (like a typescript definition file). In fact there is a wonderful automatic converter [ts2fable](https://github.com/fable-compiler/ts2fable) which generates F# interfaces from typescript `.d` files. This works well, but manual adjutsment is needed for anything complex. See [the Electon API interface](https://github.com/tomcl/issie/blob/master/src/Renderer/Common/ElectronAPI.fs) in Issie which was generated in this way from a published electron API `.d` files - in that case the manual adjustment was quite unpleasant because Electron API is very complex.
+static typing (like a typescript definition file). In fact there is a wonderful automatic converter [ts2fable](https://github.com/fable-compiler/ts2fable) which generates F# interfaces from typescript `.d` files. This works well, but manual adjustment is needed for anything complex. See [the Electron API interface](https://github.com/tomcl/issie/blob/master/src/Renderer/Common/ElectronAPI.fs) in Issie which was generated in this way from a published electron API `.d` files - in that case the manual adjustment was quite unpleasant because Electron API is very complex.
 * To understand Elmish and MVU read the excellent [Elmish book](https://zaid-ajaj.github.io/the-elmish-book/#/)
 * For more documentation on Issie in addition to XML code comments see the [Issie Wiki](https://github.com/tomcl/issie/wiki)
 
@@ -269,7 +269,7 @@ Contains source information that controls the project documentation web site [ht
 
 ## Project versus File in the Issie application
 
-Issie allows the users to create projects and files within those projects. A Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder any non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each deisgn file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
+Issie allows the users to create projects and files within those projects. A Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder any non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each design file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
 
 When opening a project, Issie will initially search the given repository for `.dgm` files, parse and load their content, and allow the user to open them in Issie or use them as components in other designs.
 

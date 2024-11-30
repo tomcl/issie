@@ -746,7 +746,7 @@ let viewTruthTable canvasState model dispatch =
         let wholeSimRes = ModelHelpers.simulateModel false None 2 canvasState model
         let wholeButton =
             match wholeSimRes with
-            | Error simError,_ ->
+            | Error simError, _ ->
                 Button.button
                     [
                         Button.Color IColor.IsWarning
@@ -754,7 +754,7 @@ let viewTruthTable canvasState model dispatch =
                             SimulationView.setSimErrorFeedback simError model dispatch
                             GenerateTruthTable (Some wholeSimRes) |> ttDispatch)
                     ] [str "See Problems"]
-            | Ok sd,_ ->
+            | Ok sd, _ ->
                 if sd.IsSynchronous = false then
                     Button.button
                         [
@@ -777,7 +777,7 @@ let viewTruthTable canvasState model dispatch =
         let selButton =
             match selSimRes with
             | None -> div [] []
-            | Some (Error simError,_) ->
+            | Some (Error simError, _) ->
                 Button.button
                     [
                         Button.Color IColor.IsWarning
@@ -785,7 +785,7 @@ let viewTruthTable canvasState model dispatch =
                             SimulationView.setSimErrorFeedback simError model dispatch
                             GenerateTruthTable selSimRes |> ttDispatch)
                     ] [str "See Problems"]
-            | Some (Ok sd,_) ->
+            | Some (Ok sd, _) ->
                 if sd.IsSynchronous = false then
                     Button.button
                         [
@@ -798,10 +798,18 @@ let viewTruthTable canvasState model dispatch =
                             Button.Color IColor.IsSuccess
                             Button.IsLight
                             Button.OnClick (fun _ ->
-                                let popup = Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
+                                let popup =
+                                    Notifications.errorPropsNotification "Truth Table generation only supported for Combinational Logic"
                                 dispatch <| SetPropertiesNotification popup)
                         ] [str "Generate Truth Table"]
-        div [] [
+        div [
+            // Outer container supports scrolling
+            Style [
+                MaxHeight "calc(100vh - 50px)" // Subtract the height of the fixed content at the top
+                OverflowY OverflowOptions.Auto // Enable vertical scrolling
+                Padding "10px" // Increase padding
+            ]
+        ] [
             str "Generate Truth Tables for combinational logic using this tab."
             br []
             hr []
@@ -810,8 +818,8 @@ let viewTruthTable canvasState model dispatch =
             wholeButton
             hr []
             Heading.h5 [] [str "Truth Table for selected logic"]
-            br  []
-            br  []
+            br []
+            br []
             selButton
             hr []
         ]
@@ -853,7 +861,14 @@ let viewTruthTable canvasState model dispatch =
                 makeMenuGroup true "Truth Table" [body; br []; hr []]
             ]
 
-        div [] [
+        div [
+            // Outer container supports scrolling
+            Style [
+                MaxHeight "calc(100vh - 50px)" // Subtract the height of the fixed content at the top
+                OverflowY OverflowOptions.Auto // Enable vertical scrolling
+                Padding "10px" // Increase padding
+            ]
+        ] [
             Button.button
                 [ Button.Color IsDanger; Button.OnClick closeTruthTable ]
                 [ str "Close Truth Table" ]
@@ -862,3 +877,4 @@ let viewTruthTable canvasState model dispatch =
                  pressing the \"Generate Truth Table\" button."
             menu
             ]
+

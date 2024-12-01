@@ -22,6 +22,7 @@ open Optics
 open Optics.Operators
 open TestParser
 open ContextMenus
+open SheetDisplay
 
 
 
@@ -458,14 +459,25 @@ let keyPressListener initial =
     let periodicMemoryCheckCommand dispatch =
         JSHelpers.periodicDispatch dispatch UpdateHelpers.Constants.memoryUpdateCheckTime CheckMemory |> ignore
 
+    let subWheel dispatch =
+        Browser.Dom.document.addEventListener("wheel", unbox (fun (e: Browser.Types.WheelEvent) ->
+            if e.ctrlKey || e.metaKey then
+                e.preventDefault() 
+                dispatch <| Sheet(
+                    if e.deltaY > 0. then
+                        SheetT.KeyPress SheetT.KeyboardMsg.ZoomOut 
+                    else 
+                        SheetT.KeyPress SheetT.KeyboardMsg.ZoomIn)
+        ))
 
     Cmd.batch [
         Cmd.ofSub subDown
         Cmd.ofSub subUp
         Cmd.ofSub subRightClick
         Cmd.ofSub subContextMenuCommand
+        Cmd.ofSub subWheel  // Add this for mouse wheel event
         //Cmd.ofSub periodicMemoryCheckCommand 
-        ]
+    ]
 
 
 

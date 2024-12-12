@@ -261,3 +261,6 @@ docsrc/tools/FSharp.Formatting.svclog
 .fsdocs/
 output/
 tmp/
+
+# macOS compilation
+*.provisionprofile

@@ -59,18 +59,24 @@
       "category": "public.app-category.productivity",
       "entitlements": "public/entitlements.mac.plist",
       "entitlementsInherit": "./public/entitlements.mac.plist",
-      "identity": "F7735AA14D8A32CE021D86077797AE9457C53603",
       "icon": "public/icon.icns",
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": "x64"
+        }, {
+          "target": "dmg",
+          "arch": "arm64"
+        }
       ],
       "hardenedRuntime": true,
-      "provisioningProfile": "embedded.provisionprofile"
+      "identity": "4ADD6B8606BC9F3C2124FEF100B9C828B58EF06E",
+      "provisioningProfile": "issie.provisionprofile",
+      "notarize": true
     },
     "dmg": {
       "icon": false
-    },
-    "afterAllArtifactBuild": "scripts/afterSignHook.js"
+    }
   },
   "dependencies": {
     "@electron/remote": "^2",

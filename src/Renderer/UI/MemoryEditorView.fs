@@ -243,15 +243,14 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
     let showRow = showRowWithAdrr memoryEditorData
     let viewNumD = viewFilledNum memory.WordWidth memoryEditorData.NumberBase
     let viewNumA = viewFilledNum memory.AddressWidth memoryEditorData.NumberBase
-    let numLocsToDisplay = 16I
     let maxLocAddr = ((1I <<< memory.AddressWidth) - 1I)
     let startLoc, endLoc =
         match memoryEditorData.Address with
-        | None -> 0I, min maxLocAddr numLocsToDisplay
+        | None -> 0I, maxLocAddr // If no address, starting from 0 to max.
         | Some a -> 
-            let maxDispLocWrapped = a + numLocsToDisplay - 1I
+            let maxDispLocWrapped = maxLocAddr
             let maxDispLoc = if maxDispLocWrapped > a then maxDispLocWrapped else twosComp memory.AddressWidth -1I
-            a, min  maxDispLoc maxLocAddr
+            a, maxDispLoc // Display from the given address to the maximum address.
     //printfn "makeEditorBody called"
 
     //printfn "Making body with data=%A, dynamic %A" memory.Data dynamicMem

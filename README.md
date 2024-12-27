@@ -64,15 +64,18 @@ Download and install (if you already have these tools installed just check the v
 
 
 * [.Net 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).  
-* [Node.js v20](https://nodejs.org/download/release/latest-v20.x/).
+* [Node.js v22](https://nodejs.org/en/download/prebuilt-installer/current).
     * You do not need to install chocolatey (at the prompt for this) however you can if you want
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.
+         * However as of Dec 2024 v22 node does not include the necessary latest v11 npm. After installing node you must update npm as follows
+              * npm install -g npm@latest
+              * After upgrade npm --version should return 11.x.x
     * If you are using a different version of Node for development on other projects, global install 
     (the default) may interfere with this. You will need to do a more complex local node install.
 * (recommended) Visual Studio 2022 which includes F# 8.0, Install with:
   * Workload: .Net Desktop development
   * Ticked: F# language support
-* (recommended) install [hyper.js](https://hyper.is/) or [Windows Terminal](https://github.com/microsoft/terminal) for Windows.
+* (recommended) install [hyper.js](https://hyper.is/) or [Windows Terminal](https://github.com/microsoft/terminal) for Windows. On windows change terminal settings if needed so terminal runs cmd window not powershell.
 
 ### Issie Development
 

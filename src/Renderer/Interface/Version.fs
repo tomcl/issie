@@ -26,11 +26,12 @@ module TestDU =
             Id : string
             Type : ComponentType // This is JSONComponent.ComponentType!
         }
-
+    /// Create a list of dummy components
     let makeDummyComponents() =
         [1..2]
         |> List.map (fun n -> {Id= $"{n}"; Type = NotConnected})
 
+    ///
     let testDUEquality() =
         let testCases = [NotConnected; Input(1,Some 1); Input(0,Some 0)]
         List.allPairs testCases testCases

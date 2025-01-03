@@ -195,8 +195,8 @@ let compareCanvas (tolerance: float) ((comps1, conns1): CanvasState) ((comps2, c
     let compsOk = compareComps tolerance comps1 comps2
     let connsOk = compareConns tolerance conns1 conns2
     let comparesEqual = compsOk && connsOk
-    if not comparesEqual then
-        printf "%s" $"comps:{compsOk}, connsOk:{connsOk}" //>
+    //if not comparesEqual then
+        //printf "%s" $"comps:{compsOk}, connsOk:{connsOk}" //>
     comparesEqual    
 
 /// Compare the name and IOs of two sheets as loadedcomponents

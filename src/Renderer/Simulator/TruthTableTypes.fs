@@ -36,7 +36,7 @@ open SimTypes
 
 type CellData =
     | Bits of wd: WireData
-    | Algebra of var: string
+    | Algebra of var: FastAlgExp
     | DC //Don't Care
 
 type CellIO =

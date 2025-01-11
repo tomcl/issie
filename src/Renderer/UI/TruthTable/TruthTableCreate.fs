@@ -8,6 +8,9 @@ open SynchronousUtils
 open NumberHelpers
 open FastExtract
 open Helpers
+open Fable.Core.JsInterop
+importSideEffects "katex/dist/katex.min.css"
+let katex: obj = importDefault "katex"
 
 /// Wraps SimulationIO and Viewer types in the CellIO DU Type
 let toCellIO simIOs viewers =
@@ -96,7 +99,7 @@ let tableLHS (inputs: SimulationIO list) (ttt: ModelType.TTType) :
         algebraInputs
         |> List.map (fun io -> 
             let (_,label,_) = io
-            {IO = SimIO io; Data = Algebra (string label)})
+            {IO = SimIO io; Data = Algebra (SingleTerm io)})
     
     if numericInputs.IsEmpty then
         // All inputs are algebraic, so only one row in table with all algebra
@@ -137,13 +140,13 @@ let simulateInputCombination
         |> List.map (fun (comp,out) -> 
             match out with
             | IData wd -> {IO = SimIO comp; Data = Bits (convertFastDataToWireData wd)}
-            | IAlg exp -> {IO = SimIO comp; Data = Algebra (expToString exp)})
+            | IAlg exp -> {IO = SimIO comp; Data = Algebra exp})
     let viewerRow =
         FastExtract.extractViewers simData
         |> List.map (fun ((l,f),w,fs) ->
             match fs with
             | IData wd -> {IO = Viewer ((l,f),w); Data = Bits (convertFastDataToWireData wd)}
-            | IAlg exp -> {IO = Viewer ((l,f),w); Data = Algebra (expToString exp)})
+            | IAlg exp -> {IO = Viewer ((l,f),w); Data = Algebra exp})
     outputRow @ viewerRow
 
 /// Create a Truth Table from Simulation Data, taking into account 

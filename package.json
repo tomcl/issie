@@ -64,7 +64,8 @@
         {
           "target": "dmg",
           "arch": "x64"
-        }, {
+        },
+        {
           "target": "dmg",
           "arch": "arm64"
         }
@@ -82,16 +83,17 @@
     "@electron/remote": "^2",
     "async-mutex": "^0.4",
     "bulma": "^0.9",
-    "uuid": "10.0.0",
     "bulma-tooltip": "^3",
     "core-js": "^3",
     "cross-zip": "^3",
     "font-awesome": "^4",
+    "katex": "^0.16.19",
     "nearley-unparse": "^1.0.1",
     "npm": "^10.2.0",
     "react-tooltip": "^5",
     "source-map-support": "^0.5",
-    "usb": "^2.4.3"
+    "usb": "^2.4.3",
+    "uuid": "10.0.0"
   },
   "devDependencies": {
     "@electron/remote": "^2",

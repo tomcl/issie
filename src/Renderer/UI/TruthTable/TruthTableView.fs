@@ -11,6 +11,7 @@ open Fulma
 open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
+open Fable.Core.JsInterop
 
 open NumberHelpers
 open Helpers
@@ -36,6 +37,8 @@ open Symbol
 open SymbolUpdate
 open Sheet.SheetInterface
 open DrawModelType
+
+let katex: obj = importDefault "katex"
 
 /// Updates MergeWires and SplitWire Component labels to MWx/SWx.
 /// Previous Issie versions had empty labels for these components.
@@ -668,7 +671,20 @@ let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =
             let width = List.length bits
             let value = viewFilledNum width numBase <| convertWireDataToInt bits
             div [cellStyle] [str value]
-        | Algebra a -> div [cellStyle] [str <| a]
+        // | Algebra a -> div [cellStyle] [str <| a]
+        | Algebra a ->
+            let katexString = expToKatex a
+            let renderedHtml =
+                katex?renderToString(
+                    katexString,
+                    createObj[
+                        "throwOnError" ==> false
+                    ]
+                )
+            div [
+                cellStyle
+                DangerouslySetInnerHTML { __html = renderedHtml }
+            ] []
         | DC -> div [cellStyle] [str <| "X"]
 
     let cells =

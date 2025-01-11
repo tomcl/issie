@@ -8,6 +8,9 @@ module rec SimGraphTypes
 
 open Fable.Core
 open CommonTypes
+open Fable.Core.JsInterop
+importSideEffects "katex/dist/katex.min.css"
+let katex: obj = importDefault "katex"
 
 /// Binary data used in simulation
 type Bit =
@@ -475,6 +478,89 @@ let expToString exp =
         expS[1 .. (expS.Length - 2)]
     else
         expS
+
+let rec expToKatex (exp: FastAlgExp) : string =
+    let rec expToKatex' exp =
+        match exp with
+        | SingleTerm (_, label, _) ->
+            // Variable
+            string label
+
+        | DataLiteral { Dat = Word w; Width = _ } ->
+            // Num to string
+            string w
+
+        | DataLiteral { Dat = BigWord w; Width = _ } ->
+            string w
+
+        | UnaryExp (NegOp, e) ->
+            // -
+            sprintf "(-%s)" (expToKatex' e)
+
+        | UnaryExp (NotOp, e) ->
+            // not, ~, use \overline
+            sprintf "\\overline{%s}" (expToKatex' e)
+
+        | UnaryExp (BitRangeOp (low, up), e) ->
+            // A[u:l] to A_{[u:l]}
+            let baseStr = expToKatex' e
+            if low = up then
+                sprintf "%s_{[%d]}" baseStr up
+            else
+                sprintf "%s_{[%d:%d]}" baseStr up low
+
+        | UnaryExp (CarryOfOp, e) ->
+            sprintf "\\mathrm{carry}\\bigl(%s\\bigr)" (expToKatex' e)
+
+        | BinaryExp (e1, AddOp, e2) ->
+            // +
+            sprintf "\\bigl(%s + %s\\bigr)" (expToKatex' e1) (expToKatex' e2)
+
+        | BinaryExp (e1, SubOp, e2) ->
+            // -
+            sprintf "\\bigl(%s - %s\\bigr)" (expToKatex' e1) (expToKatex' e2)
+
+        | BinaryExp (e1, BitAndOp, e2) ->
+            // AND, \cdot
+            sprintf "%s \\cdot %s" (expToKatex' e1) (expToKatex' e2)
+
+        | BinaryExp (e1, BitOrOp, e2) ->
+            // OR, +
+            sprintf "%s + %s" (expToKatex' e1) (expToKatex' e2)
+
+        | BinaryExp (e1, BitXorOp, e2) ->
+            // XOR, \oplus
+            sprintf "%s \\oplus %s" (expToKatex' e1) (expToKatex' e2)
+
+        | ComparisonExp (e, Equals, x) ->
+            // =
+            sprintf "\\bigl(%s = %s\\bigr)" (expToKatex' e) (string x)
+
+        | AppendExp exps ->
+            exps
+            |> List.map expToKatex'
+            |> String.concat "\\Vert "
+            |> sprintf "\\bigl(%s\\bigr)"
+
+    let rec arithmeticToKatex exp =
+        // change it to LaTeX
+        exp
+        |> flattenNestedArithmetic
+        |> List.mapi (fun i expr ->
+            match i, expr with
+            | 0, e -> expToKatex' e
+            | _, UnaryExp(NegOp, e) -> sprintf "- %s" (expToKatex' e)
+            | _, e -> sprintf "+ %s" (expToKatex' e))
+        |> String.concat " "
+
+    let katexStr = expToKatex' exp
+
+    // delete the outermost parentheses
+    if katexStr.StartsWith "(" && katexStr.EndsWith ")" then
+        katexStr[1 .. katexStr.Length - 2]
+    else
+        katexStr
+
 
 /// Recursively evaluates an expression to reduce it to its simplest form
 let rec evalExp exp =

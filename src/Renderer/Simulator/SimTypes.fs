@@ -23,7 +23,7 @@ type FData =
         match this with
         | Data { Dat = Word w; Width = _ } -> string w
         | Data { Dat = BigWord w; Width = _ } -> w.ToString()
-        | Alg exp -> expToString exp
+        | Alg exp -> expToKatex exp
 
     member this.toExp =
         match this with

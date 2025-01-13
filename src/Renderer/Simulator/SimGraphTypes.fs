@@ -406,78 +406,80 @@ let foldAppends (expressions: FastAlgExp list) =
     |> List.rev
 
 /// Converts an Algebraic Expression to a string for pretty printing
-let expToString exp =
-    let rec expToString' (exp: FastAlgExp) =
-        match exp with
-        | SingleTerm(_, label, _) -> string label
-        | DataLiteral { Dat = Word w; Width = _ } -> string w
-        | DataLiteral { Dat = BigWord w; Width = _ } -> string w
-        | UnaryExp(NegOp, exp) ->
-            let expStr = expToString' exp
-            $"(-{expStr})"
-        | UnaryExp(NotOp, exp) ->
-            let expStr = expToString' exp
-            $"(~{expStr})"
-        | UnaryExp(BitRangeOp(low, up), exp) ->
-            let expStr = expToString' exp
+/// This function is now used for debugging purposes, if Katex doesn't work as expected, we can use this function again
+/// by changing the name to expToKatex. -- 13/1/2025
+// let expToString exp =
+//     let rec expToString' (exp: FastAlgExp) =
+//         match exp with
+//         | SingleTerm(_, label, _) -> string label
+//         | DataLiteral { Dat = Word w; Width = _ } -> string w
+//         | DataLiteral { Dat = BigWord w; Width = _ } -> string w
+//         | UnaryExp(NegOp, exp) ->
+//             let expStr = expToString' exp
+//             $"(-{expStr})"
+//         | UnaryExp(NotOp, exp) ->
+//             let expStr = expToString' exp
+//             $"(~{expStr})"
+//         | UnaryExp(BitRangeOp(low, up), exp) ->
+//             let expStr = expToString' exp
 
-            if low = up then // Replace A[x:x] with A[x]
-                $"{expStr}[{up}]"
-            else if getAlgExpWidth exp = (up - low + 1) then
-                // Replace A[w-1:0] with A when A has width w
-                expStr
-            else
-                $"{expStr}[{up}:{low}]"
-        | UnaryExp(CarryOfOp, exp) ->
-            let expStr = expToString' exp
-            $"carry({expStr})"
-        | BinaryExp(exp1, AddOp, exp2) ->
-            // let expStr1 = expToString' exp1
-            // let expStr2 = expToString' exp2
-            // $"({expStr1}+{expStr2})"
-            $"({arithmeticToString exp})"
-        | BinaryExp(exp1, SubOp, exp2) ->
-            // let expStr1 = expToString' exp1
-            // let expStr2 = expToString' exp2
-            // $"({expStr1}-{expStr2})"
-            $"({arithmeticToString exp})"
-        | BinaryExp(exp1, BitAndOp, exp2) ->
-            let expStr1 = expToString' exp1
-            let expStr2 = expToString' exp2
-            $"({expStr1}&{expStr2})"
-        | BinaryExp(exp1, BitOrOp, exp2) ->
-            let expStr1 = expToString' exp1
-            let expStr2 = expToString' exp2
-            $"({expStr1}|{expStr2})"
-        | BinaryExp(exp1, BitXorOp, exp2) ->
-            let expStr1 = expToString' exp1
-            let expStr2 = expToString' exp2
-            $"({expStr1}⊕{expStr2})"
-        | ComparisonExp(exp, Equals, x) ->
-            let expStr = expToString' exp
-            $"({expStr} == {string x})"
-        | AppendExp exps ->
-            exps
-            |> List.map expToString'
-            |> String.concat "::"
-            |> (fun s -> $"({s})")
+//             if low = up then // Replace A[x:x] with A[x]
+//                 $"{expStr}[{up}]"
+//             else if getAlgExpWidth exp = (up - low + 1) then
+//                 // Replace A[w-1:0] with A when A has width w
+//                 expStr
+//             else
+//                 $"{expStr}[{up}:{low}]"
+//         | UnaryExp(CarryOfOp, exp) ->
+//             let expStr = expToString' exp
+//             $"carry({expStr})"
+//         | BinaryExp(exp1, AddOp, exp2) ->
+//             // let expStr1 = expToString' exp1
+//             // let expStr2 = expToString' exp2
+//             // $"({expStr1}+{expStr2})"
+//             $"({arithmeticToString exp})"
+//         | BinaryExp(exp1, SubOp, exp2) ->
+//             // let expStr1 = expToString' exp1
+//             // let expStr2 = expToString' exp2
+//             // $"({expStr1}-{expStr2})"
+//             $"({arithmeticToString exp})"
+//         | BinaryExp(exp1, BitAndOp, exp2) ->
+//             let expStr1 = expToString' exp1
+//             let expStr2 = expToString' exp2
+//             $"({expStr1}&{expStr2})"
+//         | BinaryExp(exp1, BitOrOp, exp2) ->
+//             let expStr1 = expToString' exp1
+//             let expStr2 = expToString' exp2
+//             $"({expStr1}|{expStr2})"
+//         | BinaryExp(exp1, BitXorOp, exp2) ->
+//             let expStr1 = expToString' exp1
+//             let expStr2 = expToString' exp2
+//             $"({expStr1}⊕{expStr2})"
+//         | ComparisonExp(exp, Equals, x) ->
+//             let expStr = expToString' exp
+//             $"({expStr} == {string x})"
+//         | AppendExp exps ->
+//             exps
+//             |> List.map expToString'
+//             |> String.concat "::"
+//             |> (fun s -> $"({s})")
 
-    and arithmeticToString exp =
-        exp
-        |> flattenNestedArithmetic
-        |> List.mapi (fun i expr ->
-            match i, expr with
-            | 0, e -> expToString' e
-            | _, UnaryExp(NegOp, e) -> $"- {expToString' e}"
-            | _, e -> $"+ {expToString' e}")
-        |> String.concat " "
+//     and arithmeticToString exp =
+//         exp
+//         |> flattenNestedArithmetic
+//         |> List.mapi (fun i expr ->
+//             match i, expr with
+//             | 0, e -> expToString' e
+//             | _, UnaryExp(NegOp, e) -> $"- {expToString' e}"
+//             | _, e -> $"+ {expToString' e}")
+//         |> String.concat " "
 
-    let expS = expToString' exp
-    // Remove the parentheses from the outermost expression
-    if expS.StartsWith "(" && expS.EndsWith ")" then
-        expS[1 .. (expS.Length - 2)]
-    else
-        expS
+//     let expS = expToString' exp
+//     // Remove the parentheses from the outermost expression
+//     if expS.StartsWith "(" && expS.EndsWith ")" then
+//         expS[1 .. (expS.Length - 2)]
+//     else
+//         expS
 
 let rec expToKatex (exp: FastAlgExp) : string =
     let rec expToKatex' exp =
@@ -702,9 +704,10 @@ let rec evalExp exp =
             else
                 reduceArithmetic (BinaryExp(exp, AddOp, DataLiteral { Dat = Word n; Width = w }))
         | l, r ->
-            if getAlgExpWidth l = 1 && getAlgExpWidth r = 1 then
-                reduceArithmetic (BinaryExp(l, AddOp, r))
-            else
+            // if getAlgExpWidth l = 1 && getAlgExpWidth r = 1 then
+            //     reduceArithmetic (BinaryExp(l, AddOp, r))
+            // else
+            // These code creates the problem... so comment it out
                 BinaryExp(l, BitXorOp, r)
     | BinaryExp(_, AddOp, _)
     | BinaryExp(_, SubOp, _) -> reduceArithmetic exp

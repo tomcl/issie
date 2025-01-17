@@ -87,7 +87,7 @@
     "core-js": "^3",
     "cross-zip": "^3",
     "font-awesome": "^4",
-    "katex": "^0.16.19",
+    "katex": "^0.16.21",
     "nearley-unparse": "^1.0.1",
     "npm": "^10.2.0",
     "react-tooltip": "^5",

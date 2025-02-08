@@ -66,3 +66,29 @@ type ParamSlot = {CompId: string; CompSlot: CompSlotName; }
 /// Every custom component instantiated on a sheet has a set of these bindings.
 type PSlotSpec<'PINT> = {ParamSlot: ParamSlot; Value: 'PINT; Constraints: PConstraint<'PINT> list}
 
+//-------------------------------------------------------------------------------------------------//
+//------------------------------Interface Types for HLP25------------------------------------------//
+//---------------------Replace the dummy placeholder by your content-------------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+/// For Part A: The state used to manage input boxes
+/// Model.PopupDialogData.DialogState.
+type Hlp25DialogState = unit // replace with your content: a record, Map, etc
+
+/// For Part A: the state used per instance of a custom component
+/// to bind the parameters of the Sheet defining the component
+/// To integers (or ParamExpressions).
+/// CustomComponentType.ParameterBindings
+type Hlp25CustomComponentState = unit // replace with your content: a Record, Map, etc
+
+/// For Part A: the state used per design sheet to define integer slots
+/// That have values defined with parameter expressions
+/// LoadedComponent.LCParameterSlots
+/// (also used in SheetInfo - to save / load files - but the LoadedComponent field is the only one used by HLP Teams)
+type Hlp25SheetInfo = unit // replace with your content: a Record, Map, etc
+
+/// For Part B: The additional state used to manage wave selector search boxes
+/// WaveSimModel.Hlp25State
+type Hlp25WSModelState = unit // replace with your content: a Record, Map, etc
+
+

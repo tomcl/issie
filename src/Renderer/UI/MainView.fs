@@ -90,6 +90,7 @@ let init() = {
     SavedSheetIsOutOfDate = false
     PopupViewFunc = None
     PopupDialogData = {
+        DialogState= None
         ProjectPath = ""
         Text = None
         ImportDecisions = Map.empty

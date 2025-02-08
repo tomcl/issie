@@ -549,7 +549,7 @@ let saveStateToFileExperimental folderPath baseName state = // TODO: catch error
 
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =
-    saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None})
+    saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None;ParameterSlots = None})
 
 let stripVertices (conn: LegacyCanvas.LegacyConnection) =
     {conn with Vertices = []}
@@ -655,6 +655,7 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
             Form = form
             Description = description
             LoadedComponentIsOutOfDate = false
+            LCParameterSlots = sheetInfo |> Option.bind (fun sI -> sI.ParameterSlots)
         }
     ldc, ramChanges
 
@@ -742,7 +743,7 @@ let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
         let name = ldc.Name
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        let sheetInfo = {Form=ldc.Form;Description=ldc.Description}
+        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterSlots=ldc.LCParameterSlots}
         saveStateToFile proj.ProjectPath name (state,waveInfo,Some sheetInfo) |> ignore
         removeFileWithExtn ".dgmauto" proj.ProjectPath name)
 

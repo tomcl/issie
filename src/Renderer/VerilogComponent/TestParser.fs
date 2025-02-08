@@ -195,12 +195,13 @@ let simulateAST ast src dst loadedComps=
         )
     let comps, conns = List.unzip memories
     // same order as in Verilog input
-    let verilog = {
+    let verilog: CustomComponentType = {
             Name = loadedComp.Name
             InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) cs
             OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) cs
             Form = loadedComp.Form
             Description = loadedComp.Description
+            ParameterBindings = None
         }
     let (verilogComp:Component) = createComponent (Custom verilog) "verilog"
     let verilogConns = 

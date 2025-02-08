@@ -160,6 +160,7 @@ type CustomComponentType = {
     InputLabels: (string * int) list
     OutputLabels: (string * int) list
     Form : CCForm option
+    ParameterBindings: Hlp25Types.Hlp25CustomComponentState option
     Description : string option
 }
 
@@ -892,6 +893,7 @@ type SavedWaveInfo = {
 type SheetInfo = {
     Form: CCForm option 
     Description: string option
+    ParameterSlots: Hlp25Types.Hlp25SheetInfo option
 }
 
 (*--------------------------------------------------------------------------------------------------*)
@@ -924,6 +926,7 @@ type LoadedComponent = {
     InputLabels : (string * int) list
     /// Output port names, and port numbers in any created custom component
     OutputLabels : (string * int) list
+    LCParameterSlots: Hlp25Types.Hlp25SheetInfo option
     Form : CCForm option
     /// If component needs saving to disk
     LoadedComponentIsOutOfDate: bool

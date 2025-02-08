@@ -52,7 +52,7 @@ let syncLoadedComponentsToDisk newProj oldProj =
     let saveToDisk ldc =
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        let sheetInfo = {Form=ldc.Form;Description=ldc.Description}
+        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterSlots=ldc.LCParameterSlots}
         saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo,Some sheetInfo)
         |> ignore
 

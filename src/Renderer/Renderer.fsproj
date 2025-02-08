@@ -116,6 +116,7 @@
     <Compile Include="UI\TruthTable\TruthTableUpdate.fs" />
     <Compile Include="UI\BuildView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
+    <Compile Include="UI\Hlp25Code.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />

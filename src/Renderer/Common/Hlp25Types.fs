@@ -8,6 +8,10 @@
 
 open System
 
+//------------------------------------------------------------------------------------------------//
+//--------------Types for Part A: Custom Components and Parameters--------------------------------//
+//------------------------------------------------------------------------------------------------//
+
 /// Probably needs to be bigint eventually to deal with the value of an N bit constant for n > 32.
 // There should be no porblem doing that but to gte started let us use int and move to bigint later when needed.
 type ParamInt = int
@@ -66,6 +70,22 @@ type ParamSlot = {CompId: string; CompSlot: CompSlotName; }
 /// Every custom component instantiated on a sheet has a set of these bindings.
 type PSlotSpec<'PINT> = {ParamSlot: ParamSlot; Value: 'PINT; Constraints: PConstraint<'PINT> list}
 
+//------------------------------------------------------------------------------------------------//
+//------------------------Types for Part B: Waveform Selector-------------------------------------//
+//------------------------------------------------------------------------------------------------//
+
+/// The data carroed by a node in a tree that represents the structure of the waveforms in the Waveform Selector
+/// This specifies the content of the node, which can be a component group, component, port etc
+type WTNode = unit // replace with your content: a record, Map, etc
+
+/// a tree that represents the structure of the waveforms in the Waveform Selector
+/// this is a skeleton type definition and should be changed as required in Part B
+type WaveTreeNode = { // replace if necessary with your own definiiton of a tree node
+    WTNode: WTNode;
+    HiddenNodes: WaveTreeNode list}
+
+/// a tree that represents the structure of the waveforms in the Waveform Selector
+type WaveDisplayTree = WaveTreeNode list
 //-------------------------------------------------------------------------------------------------//
 //------------------------------Interface Types for HLP25------------------------------------------//
 //---------------------Replace the dummy placeholder by your content-------------------------------//

@@ -50,6 +50,7 @@ let createComponent' id compType (name:string) inputPorts outputPorts =
         Label = name.ToUpper()
         InputPorts = inputPorts 
         OutputPorts = outputPorts
+        SlotInfo = None
         X = 0.
         Y = 0.
         H = 30.

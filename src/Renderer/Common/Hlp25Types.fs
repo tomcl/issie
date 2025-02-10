@@ -111,4 +111,9 @@ type Hlp25SheetInfo = unit // replace with your content: a Record, Map, etc
 /// WaveSimModel.Hlp25State
 type Hlp25WSModelState = unit // replace with your content: a Record, Map, etc
 
+/// For Part A: alternatively you could store slot information in the component record
+/// as an extra field.
+/// This field should store all the Component's slot information where slots are bound to parameters.
+type Hlp25ComponentSlots = unit // replace with your content: maybe a list?
+
 

@@ -1302,7 +1302,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                     OutputLabels=loadedComp.OutputLabels;
                     Form=None;
                     Description=None;
-                    ParameterBindings = loadedComp.LCParameterSlots
+                    ParameterBindings = None
                 }
             let comp = createComponent (Custom customCompType) modInst.Identifier.Name
             let portLabels = loadedComp.InputLabels@loadedComp.OutputLabels

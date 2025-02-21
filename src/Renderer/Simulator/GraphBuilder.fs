@@ -153,6 +153,9 @@ let compType t =
     | _ -> t.ToString()
 
 /// Build a simulation component.
+/// This function is called for each component in the canvas state.
+/// It writes the bus widths of the outputs of the component, and those
+/// of the inputs driven by the outputs of the component.
 let private buildSimulationComponent
     (sourceToTargetPort: Map<OutputPortId, (ComponentId * InputPortId) list>)
     (portIdToPortNumber: Map<InputPortId, InputPortNumber>)
@@ -180,23 +183,19 @@ let private buildSimulationComponent
                   <| getPortNumberOrFail port.PortNumber,
                   mapPortIdsToPortNumbers targets ])
         |> Map.ofList
-
-    // The inputs will be set during the simulation, we just need to initialise
-    // the ones for Output nodes, see below.
-    let inputs =
-        match comp.Type with
-        | Output width ->
-            // Initialise all outputs to zero. This is necessary because upon
-            // starting the simulation we need to feed all zeros. To do so, we
-            // need to feed all simulation inputs set to zero and a global clock
-            // tick. The problem is that both operations expect all outputs to
-            // be set as result, but they don't necessarily set all the outputs
-            // themselves. Therefore there is not an order you can run them in
-            // that will always work. Presetting the outputs solves the problem
-            // and the value does not matter as all outputs will be set again
-            // in that initialization process.
-            Map.empty.Add(InputPortNumber 0, List.replicate width Zero)
-        | _ -> Map.empty
+    let drivenInputs =
+        // determine the inputs driven by this components outputs, and their widths
+        outputs
+        |> Map.toList
+        |> List.collect (fun (OutputPortNumber x, inpL) -> List.map (fun (inpPort) -> inpPort, outputWidths[x]) inpL)
+        // The inputs will normally be set from driving outputs, but we just need to initialise
+        // the ones for Output nodes.
+        |> (fun inputs ->
+                match comp.Type with
+                | Output width ->
+                    ((ComponentId comp.Id, InputPortNumber 0),1) :: inputs
+                | _ -> inputs)
+      
 
     let outputWidths =
         match comp.Type with
@@ -207,8 +206,9 @@ let private buildSimulationComponent
     { Id = ComponentId comp.Id
       Type = comp.Type
       Label = ComponentLabel comp.Label
-      Inputs = inputs
+      DrivenInputWidths = drivenInputs
       Outputs = outputs
+      InputWidths = Map.empty // this will be filled in later from all components DrivenInputWidths
       OutputWidths = outputWidths
       CustomSimulationGraph = None // Custom components will be augumented by the DependencyMerger.
     }
@@ -256,6 +256,16 @@ let getLabelConnections (comps: Component list) (conns: Connection list) =
 
 /// Transforms a canvas state into a simulation graph.
 let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (SimulationGraph) =
+    /// Add the input widths to the inputs of each component.
+    let addInputWidthsToInputs comps =
+        (comps, comps)
+        ||> Map.fold (fun comps cid comp ->
+                (comps, comp.DrivenInputWidths)
+                ||> List.fold (fun comps ((cid,ipn),width) ->
+                        let compWithInput = comps[cid]
+                        let inputs' = Map.add ipn width compWithInput.InputWidths
+                        Map.add cid {compWithInput with InputWidths = inputs'} comps))
+
     let components, connections' = canvasState
     let labConns = getLabelConnections components connections'
     let connections = labConns @ connections'
@@ -289,7 +299,7 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
         ComponentId comp.Id, mapper comp ws)
     // |> debugPrint() // NOTE - for debugging only
     |> Map.ofList
-
+    |> addInputWidthsToInputs
 // Find out width of outputs of components from ConnectionsWidth map. Map<ConnectionId, "Width" option> -> Map<(ComponentId * "PortNumber"), "Width">
 let private findOutputWidths (canvasState: CanvasState) (connsWidth: ConnectionsWidth) =
     let comps, conns = canvasState

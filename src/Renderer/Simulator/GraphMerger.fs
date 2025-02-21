@@ -268,6 +268,7 @@ let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMa
 /// state: the current CanvasState.
 /// loadedDependencies: the loaded dependencies.
 /// graph: the fully merged SimulationGraph to update.
+/// NB SimulationGraph components include the widths of all input and output busses.
 let rec resolveParametersInSimulationGraph
     (bindings: Map<Hlp25Types.ParamName, Hlp25Types.ParamExpression<'PINT>>)
     (currDiagramName: string)

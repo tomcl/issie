@@ -260,6 +260,22 @@ let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMa
             currGraph.Add(compId, newComp)
         | _ -> currGraph // Ignore non-custom components.
     )
+/// Recursively update the SimulationGraph replacing integers with the correct parameter values.
+/// Parameter names, and slots using parameters, can be picked up from loadedDependencies
+/// Parameters can be resolved by looking at the parameter bindings of the custom components.
+/// bindings: parameter bindings for the current sheet.
+/// currDiagramName: the name of the current sheet.
+/// state: the current CanvasState.
+/// loadedDependencies: the loaded dependencies.
+/// graph: the fully merged SimulationGraph to update.
+let rec resolveParametersInSimulationGraph
+    (bindings: Map<Hlp25Types.ParamName, Hlp25Types.ParamExpression<'PINT>>)
+    (currDiagramName: string)
+    (state: CanvasState)
+    (loadedDependencies: LoadedComponent list)
+    (graph: SimulationGraph)
+    : Result<SimulationGraph, SimulationError>
+    = Ok graph // TODO, replace this with actual implementation.
 
 /// Try to resolve all the dependencies in a graph, and replace the reducer
 /// of the custom components with a simulationgraph.
@@ -278,3 +294,4 @@ let mergeDependencies
     | Ok dependencyMap ->
         // Recursively replace the dependencies, in a top down fashion.
         Ok <| merger graph dependencyMap
+    |> Result.bind (resolveParametersInSimulationGraph Map.empty currDiagramName state loadedDependencies)

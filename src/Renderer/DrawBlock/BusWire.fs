@@ -26,6 +26,22 @@ open DrawModelType.BusWireT
 
 [<AutoOpen>]
 module Constants =
+    /// if true display wire segments in colours to aid debugging
+    /// See rainbowColours for key
+    /// coloured wires are always displayed in modern format without circles
+    let debugWireSegments = false
+    /// the rainbow colors of the wire segments, when debugWireSegments = true
+    /// NB invisible zero-length segments will cause a colour to be skipped
+    let rainbowColours = [
+        "#FF0000"; // red index=0
+        "#FF7F00"; // orange index=1
+        "#FFFF00"; // yellow index=2
+        "#00FF00"; // green index = 3
+        "#00A0A0"; // turquoise index = 4
+        "#1010FF"; // blue index = 5
+        "#9B50FF"; // violet index = 6
+        // larger indices are displayed as black
+        ]
     /// default style of routing
     let initialWireType = Radial
     /// default arrow display
@@ -574,6 +590,21 @@ let renderModernWire (props:WireRenderProps) =
         |> List.map (fun seg -> $"L %.2f{seg.End.X} %.2f{seg.End.Y}")
         |> String.concat " "
 
+    let lineSVG (seg: ASegment) =
+        let colour =
+            List.tryItem seg.Segment.Index Constants.rainbowColours
+            |> Option.defaultValue "#000000"
+        let p1 = seg.Start
+        let p2 = seg.End
+        line [
+                X1 p1.X
+                Y1 p1.Y
+                X2 p2.X
+                Y2 p2.Y
+                SVGAttr.Stroke colour
+                SVGAttr.StrokeWidth (string props.StrokeWidthP)
+            ] []
+
     let pathPars:Path =
         { defaultPath with
             Stroke = colour
@@ -589,7 +620,11 @@ let renderModernWire (props:WireRenderProps) =
             seg.IntersectOrJumpList 
             |> List.map (fun x -> makeCircle x aseg.Start.Y circleParameters))
 
-    g [] (makeAnyPath segments[0].Start lineAttr pathPars :: circles segments)
+    if Constants.debugWireSegments then
+        g [] (segments |> List.map lineSVG)
+    else
+        g [] (makeAnyPath segments[0].Start lineAttr pathPars :: circles segments)
+    
 
         
 
@@ -711,10 +746,11 @@ let view (model : Model) (dispatch : Dispatch<Msg>) =
         FunctionComponent.Of(
             fun (props : WireRenderProps) ->
                 let wireReact =
-                    match props.DisplayType with    
-                    | Radial -> renderRadialWire props
-                    | Jump -> renderJumpWire props
-                    | Modern -> renderModernWire props
+                    match props.DisplayType, Constants.debugWireSegments with    
+                    | Radial, false -> renderRadialWire props
+                    | Jump,   false -> renderJumpWire props
+                    | Modern, false 
+                    | _,      true -> renderModernWire props
                 let polygon = {
                     defaultPolygon with
                         Fill = "black"

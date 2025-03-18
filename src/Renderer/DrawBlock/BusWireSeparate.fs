@@ -94,15 +94,15 @@ let bBoxToLines (ori: Orientation) (box: BoundingBox) : Line list =
     let tl = box.TopLeft
 
     match ori with
-    | Horizontal -> [ tl.Y, tl.X, tl.X + box.W; tl.Y + box.H, tl.X, tl.X + box.W ]
-    | Vertical -> [ tl.X, tl.Y, tl.Y + box.H; tl.X + box.W, tl.Y, tl.Y + box.H ]
-    |> List.map (fun (p, minB, maxB) ->
+    | Horizontal -> [ tl.Y, tl.X, tl.X + box.W, BARRIERNEG; tl.Y + box.H, tl.X, tl.X + box.W, BARRIERPOS ]
+    | Vertical -> [ tl.X, tl.Y, tl.Y + box.H, BARRIERNEG; tl.X + box.W, tl.Y, tl.Y + box.H, BARRIERPOS ]
+    |> List.map (fun (p, minB, maxB, bType) ->
         {   P = p
             B =
               { MinB = minB + smallOffset
                 MaxB = maxB - smallOffset }
             Orientation = ori
-            LType = BARRIER
+            LType = bType
             Seg1 = None
             SameNetLink = []
             Wid = ConnectionId ""
@@ -354,7 +354,7 @@ let expandCluster (index: int) (searchDir: LocSearchDir) (lines: Line array) =
         else
             let p = lines[i].P
             match lines[i].LType with
-            | BARRIER | FIXEDMANUALSEG | FIXEDSEG ->
+            | BARRIERPOS | BARRIERNEG | FIXEDMANUALSEG | FIXEDSEG ->
                 let p = lines[i].P
                 match searchDir with
                 | Upwards -> { loc with UpperFix = Some p }
@@ -564,7 +564,7 @@ let adjustSegmentsInModel
     lines
     |> List.iter (fun line ->
             (line.SameNetLink |> List.iter (fun line2 -> line2.P <- line.P)))
-    let lines = lines |> List.filter (fun line -> line.LType <> BARRIER)
+    let lines = lines |> List.filter (fun line -> line.LType <> BARRIERPOS && line.LType <> BARRIERNEG)
     let wires =
         (model.Wires, lines)
         ||> List.fold (fun wires line ->
@@ -706,7 +706,7 @@ let checkExtensionNoCrossings
             true
         else  
             let b = otherLine.B; 
-            if lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = BARRIER) then
+            if lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = BARRIERPOS || lines[i].LType = BARRIERNEG) then
                 check (i+1)
             else
                 false
@@ -767,6 +767,9 @@ let isSegmentExtensionOk
        segNum = segs.Length - 3 && segs[segs.Length-2].IsZero && sign segs[segs.Length-1].Length <> sign newLength
     then
         false // in this case a segment must backtrack from a nub - a bad idea
+    elif segNum = 0 && sign len <> sign newLength
+    then
+        false // in this case a segment must backtrack from a port - a bad idea
     else
         // finally, check whetehr the new extended segments overlap or cross other segments or symbol edges.
         checkExtensionNoOverlap extensionTolerance extension wire.WId info &&

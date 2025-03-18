@@ -168,8 +168,10 @@ with member this.Index = match this with | LineId i -> i
 
 [<StringEnum>]
 type LType = 
-    /// a non-segment fixed (symbol boundary) barrier
-    | BARRIER  
+    /// a non-segment fixed (symbol boundary) barrier extending in positive direction
+    | BARRIERPOS
+    /// a non-segment fixed (symbol boundary) barrier extending in negative direction
+    | BARRIERNEG
     /// a movable line segment
     | NORMSEG 
     /// a segment which is a fixed barrier in clustering but can change after.

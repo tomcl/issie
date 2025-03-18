@@ -181,7 +181,7 @@ let tryShiftVerticalSeg (model: Model) (intersectedBoxes: BoundingBox list) (wir
         let amountToShift =
             (swapXY viablePos wire.InitialOrientation).X
             - (swapXY wireVertices[4] wire.InitialOrientation).X
-
+        printfn $"vertical shift amount: {amountToShift}, dir {dir}"
         shiftVerticalSeg amountToShift
 
     let tryShiftLeftWire = tryShiftWireVert Left_
@@ -261,6 +261,7 @@ let rec tryShiftHorizontalSeg
     (intersectedBoxes: BoundingBox list)
     (wire: Wire)
     : Wire option =
+    printfn "Trying to shift horizontal seg"
     match callsLeft with
     | 0 -> None
     | n ->
@@ -484,11 +485,32 @@ let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 
         { wireToRoute with Segments = newSegments }
 
+/// add a nub and zero length segment to the start of the wire if needed
+let ensureStartingNub (wire: Wire) =
+    let updateIndices: Segment list -> Segment list =
+        List.mapi (fun i seg -> { seg with Index = i })
+
+    if wire.Segments.Length < 2 || wire.Segments[1].Length = 0. || wire.Segments[0].Length = 0. then
+        wire // can't add a starting nub if there is no wire or if the first segment is already a nub or zero length
+    else
+        printfn "Adding starting nub"
+        let dir = float <| sign wire.Segments[0].Length
+        let seg0 = wire.Segments[0]
+        let seg1 = wire.Segments[1]
+        let nub = { seg0 with Length = dir * nubLength; Draggable = false ; IntersectOrJumpList = []}
+        let zero = { seg1 with Length = 0. ; Draggable = true}
+        let newSeg2 = {seg0 with Length = seg0.Length - dir*nubLength; Draggable = true}
+        { wire with
+            Segments =
+                (nub :: zero :: newSeg2 :: wire.Segments[1..])
+                |> updateIndices }
+        
+let ensureBothNubs = ensureStartingNub >> reverseWire >> ensureStartingNub >> reverseWire
 
 /// top-level function which replaces autoupdate and implements a smarter version of same
 /// it is called every time a new wire is created, so is easily tested.
 let smartAutoroute (model: Model) (wire: Wire) : Wire =
-     
+    printfn "Smart autoroute"
     let initialWire = (autoroute model wire)
     
     // Snapping to Net only if model.SnapToNet toggled to be true
@@ -502,7 +524,9 @@ let smartAutoroute (model: Model) (wire: Wire) : Wire =
     match intersectedBoxes.Length with
     | 0 -> snappedToNetWire
     | _ ->
-        tryShiftVerticalSeg model intersectedBoxes snappedToNetWire
+        snappedToNetWire
+        |> ensureBothNubs
+        |> tryShiftVerticalSeg model intersectedBoxes
         |> Option.orElse (
             tryShiftHorizontalSeg maxCallsToShiftHorizontalSeg model intersectedBoxes snappedToNetWire
         )

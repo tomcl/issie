@@ -701,15 +701,18 @@ let checkExtensionNoCrossings
     let p = ext.ExtP
     let iMin = findInterval lines (b.MinB - overlap)
     let rec check i =
-        let otherLine = lines[i]
-        if i >= lines.Length || i < 0 || otherLine.P > otherLine.B.MaxB + overlap then 
+        if i >= lines.Length || i < 0 then 
             true
-        else  
-            let b = otherLine.B; 
-            if lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = BARRIERPOS || lines[i].LType = BARRIERNEG) then
-                check (i+1)
-            else
-                false
+        else
+            let otherLine = lines[i]
+            if otherLine.P > otherLine.B.MaxB + overlap then 
+                true
+            else  
+                let b = otherLine.B; 
+                if lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = BARRIERPOS || lines[i].LType = BARRIERNEG) then
+                    check (i+1)
+                else
+                    false
     check iMin
 
 

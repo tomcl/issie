@@ -559,8 +559,7 @@ let partialAutoroute (model: Model) (wire: Wire) (newPortPos: XYPos) (reversed: 
 let reverseWire (wire: Wire) =
     let newSegs =
         List.rev wire.Segments
-        |> List.indexed // I don't think we need to reverse the indices, test
-        |> List.map (fun (i, seg) -> { seg with Length = -seg.Length; Index = i })
+        |> List.mapi (fun i seg -> { seg with Length = -seg.Length; Index = i })
 
     { wire with
         Segments = newSegs

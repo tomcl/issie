@@ -29,7 +29,7 @@ module Constants =
     /// if true display wire segments in colours to aid debugging
     /// See rainbowColours for key
     /// coloured wires are always displayed in modern format without circles
-    let debugWireSegments = false
+    let debugWireSegments = true
     /// the rainbow colors of the wire segments, when debugWireSegments = true
     /// NB invisible zero-length segments will cause a colour to be skipped
     let rainbowColours = [

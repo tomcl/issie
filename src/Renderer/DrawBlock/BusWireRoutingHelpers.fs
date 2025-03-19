@@ -138,7 +138,7 @@ let swapXY (pos: XYPos) (orientation: Orientation) : XYPos =
     | Vertical -> { X = pos.Y; Y = pos.X }
 
 /// swap X & Y coordinats in BB if orientation is vertical
-let swapBB (box: BoundingBox) (orientation: Orientation) : BoundingBox =
+let swapBBXAndY (box: BoundingBox) (orientation: Orientation) : BoundingBox =
     match orientation with
     | Horizontal -> box
     | Vertical -> { 

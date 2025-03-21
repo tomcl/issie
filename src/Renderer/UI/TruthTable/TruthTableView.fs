@@ -677,7 +677,7 @@ let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =
             let renderedHtml =
                 katex?renderToString(
                     katexString,
-                    createObj[
+                    createObj [
                         "throwOnError" ==> false
                     ]
                 )

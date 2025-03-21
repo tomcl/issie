@@ -29,7 +29,7 @@ module Constants =
     /// if true display wire segments in colours to aid debugging
     /// See rainbowColours for key
     /// coloured wires are always displayed in modern format without circles
-    let debugWireSegments = true
+    let debugWireSegments = false
     /// the rainbow colors of the wire segments, when debugWireSegments = true
     /// NB invisible zero-length segments will cause a colour to be skipped
     let rainbowColours = [
@@ -40,6 +40,7 @@ module Constants =
         "#00A0A0"; // turquoise index = 4
         "#1010FF"; // blue index = 5
         "#9B50FF"; // violet index = 6
+        "#FF00FF"; // magenta index = 7"
         // larger indices are displayed as black
         ]
     /// default style of routing

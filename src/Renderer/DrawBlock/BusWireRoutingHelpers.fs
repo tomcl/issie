@@ -18,7 +18,7 @@ open Operators
 /// of symbols added is very small.
 let updateModelSymbols (model: BusWireT.Model) (symbols: Symbol list) : BusWireT.Model =
     // HLP23: note on fold implementation. symMap is both argument and result of the
-    // fold function => sequential set of updates. In thsi case much more efficient than Map.map
+    // fold function => sequential set of updates. In this case much more efficient than Map.map
     // over all symbols.
     // HLP23 - see also similar updateModelWires
     let symbols' =
@@ -132,7 +132,7 @@ type DirectionToMove =
     | Right_
 
 /// swap X and Y coordinates if orientation = Vertical
-let swapXY (pos: XYPos) (orientation: Orientation) : XYPos =
+let swapXYWhenVertical (pos: XYPos) (orientation: Orientation) : XYPos =
     match orientation with
     | Horizontal -> pos
     | Vertical -> { X = pos.Y; Y = pos.X }
@@ -142,7 +142,7 @@ let swapBBXAndY (box: BoundingBox) (orientation: Orientation) : BoundingBox =
     match orientation with
     | Horizontal -> box
     | Vertical -> { 
-            TopLeft = swapXY box.TopLeft orientation
+            TopLeft = swapXYWhenVertical box.TopLeft orientation
             W = box.H
             H = box.W }
 

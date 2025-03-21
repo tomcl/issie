@@ -257,6 +257,7 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
           OutputLabels = outputs
           Form = None
           Description = None
+          LCParameterSlots = None // TODO HLP25 check if parameterslots have changed
           LoadedComponentIsOutOfDate = false
           }
 
@@ -299,7 +300,9 @@ let addStateToLoadedComponents openFileName canvasState loadedComponents =
           Description = None
           WaveInfo = None
           FilePath = ""
-          TimeStamp = System.DateTime.Now }
+          TimeStamp = System.DateTime.Now
+          LCParameterSlots = None // TODO:HLP25 check if parameterslots need to be preserved from previous LDC
+         }
 
     loadedComponents
     |> List.filter (fun ldc -> ldc.Name <> openFileName)

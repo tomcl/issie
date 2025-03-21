@@ -24,6 +24,7 @@
     <Compile Include="Common\Optics.fs" />
     <Compile Include="Common\ElectronAPI.fs" />
     <Compile Include="Common\HashMap.fs" />
+    <Compile Include="Common\Hlp25Types.fs" />
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\DrawHelpers.fs" />
     <Compile Include="Common\Helpers.fs" />
@@ -115,11 +116,13 @@
     <Compile Include="UI\TruthTable\TruthTableUpdate.fs" />
     <Compile Include="UI\BuildView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
+    <Compile Include="UI\Hlp25CodeA.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
     <Compile Include="UI\WaveSim\WaveSimNavigation.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />
+    <Compile Include="UI\WaveSim\HLP25CodeB.fs" />
     <Compile Include="UI\WaveSim\WaveSimSVGs.fs" />
     <Compile Include="UI\WaveSim\WaveSimWaveforms.fs" />
     <Compile Include="UI\WaveSim\WaveSimRams.fs" />

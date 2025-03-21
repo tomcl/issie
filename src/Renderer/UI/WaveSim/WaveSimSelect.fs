@@ -1,10 +1,14 @@
-﻿/// Functions to make modal popup that allows waveforms to be selected or deselected for display
-module WaveSimSelect
+﻿module WaveSimSelect
 
 //---------------------------------------------------------------------------------------//
-//---------------------------Waveform Selection Popup------------------------------------//
+//-------------Waveform Selection Popup and RAM Selection Popup--------------------------//
 //---------------------------------------------------------------------------------------//
 
+// Functions to make modal popups that allows waveforms and RAMs
+// to be selected or deselected for display in the waveform simulator.
+
+
+// TODO: should RAM selection go to separate module or is it too small for that?
 
 open Fulma
 open Fulma.Extensions.Wikiki
@@ -19,6 +23,13 @@ open SimGraphTypes
 open SimTypes
 open DiagramStyle
 open UIPopups
+
+//--------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+//----------------------------Miscellaneous subfunctions for Wave Selection-------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+
 
 /// return sheet with all latters capitalised
 let cap (sheet:string) = sheet.ToUpper()
@@ -305,9 +316,44 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
     }
 
 
+/// Display info button with tooltip that has help message
+let infoButton  : ReactElement =
+    div 
+        [
+            HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsInfo} {Tooltip.IsTooltipRight}"
+            Tooltip.dataTooltip Constants.infoMessage
+            Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]] 
+        [str Constants.infoSignUnicode]
 
 
 
+/// Search bar to allow users to filter out waves by DisplayName
+/// some special cases '-', '*' collapse or expand (for selected waves)
+/// the wave select window.
+let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    div [] [
+        Input.text [
+            Input.Option.Props [
+                Style [
+                    MarginBottom "1rem"
+                    Width "30%"
+                    Float FloatOptions.Left
+                ]
+            ]
+            Input.Option.Placeholder "Search string"
+            Input.Option.OnChange (fun c ->
+                dispatch <| UpdateWSModel (fun ws -> {wsModel with SearchString = c.Value.ToUpper()})
+            )
+        ]
+        infoButton
+        label [Style [Float FloatOptions.Right; FontSize "24px"]]  [str $"{wsModel.SelectedWaves.Length} waves selected."]
+    ]
+
+//--------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+//-----------------------------Table of Selectable & Hidable Rows for Waves-------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------//
 
 
 /// Sets all waves as selected or not selected depending on value of selected
@@ -345,11 +391,7 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
         else [index] @ wsModel.SelectedWaves
     let wsModel = {wsModel with SelectedWaves = selectedWaves}
     dispatch <| GenerateWaveforms wsModel
-
-
-
-
-    
+   
 
 /// Toggle selection of a list of waves.
 let toggleSelectSubGroup (wsModel: WaveSimModel) dispatch (selected: bool) (waves: WaveIndexT list) =
@@ -390,35 +432,7 @@ let checkboxRow (wsModel: WaveSimModel) dispatch (index: WaveIndexT) =
                 [ str wave.DisplayName ]
         ]
 
-let infoButton  : ReactElement =
-    div 
-        [
-            HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsInfo} {Tooltip.IsTooltipRight}"
-            Tooltip.dataTooltip Constants.infoMessage
-            Style [FontSize "25px"; MarginTop "0px"; MarginLeft "10px"; Float FloatOptions.Left]] 
-        [str Constants.infoSignUnicode]
 
-/// Search bar to allow users to filter out waves by DisplayName
-/// some special cases '-', '*' collapse or expand (for selected waves)
-/// the wave select window.
-let searchBar (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    div [] [
-        Input.text [
-            Input.Option.Props [
-                Style [
-                    MarginBottom "1rem"
-                    Width "30%"
-                    Float FloatOptions.Left
-                ]
-            ]
-            Input.Option.Placeholder "Search string"
-            Input.Option.OnChange (fun c ->
-                dispatch <| UpdateWSModel (fun ws -> {wsModel with SearchString = c.Value.ToUpper()})
-            )
-        ]
-        infoButton
-        label [Style [Float FloatOptions.Right; FontSize "24px"]]  [str $"{wsModel.SelectedWaves.Length} waves selected."]
-    ]
 
 /// Implemements a checkbox, with toggle state stored in WaveSimModel under ShowDetailMap
 /// using  waveIds as key.
@@ -461,7 +475,7 @@ let waveCheckBoxItem  (wsModel:WaveSimModel) (waveIds:WaveIndexT list)  dispatch
         ]
     ]
 
-/// implements one row (with one port)
+/// Implements one row (with one port) that can be selected or deselected
 let makePortRow (ws: WaveSimModel) (dispatch: Msg -> Unit) (waves: Wave list)  =
     let wave = 
         match waves with 
@@ -479,7 +493,9 @@ let makePortRow (ws: WaveSimModel) (dispatch: Msg -> Unit) (waves: Wave list)  =
         td [] [str <| match wave.WaveId.PortType with | PortType.Output -> "Output" | PortType.Input -> "Input"]
         ]
 
-/// returns a tr react element representing a thing with a checkbox with summary name and details beneath
+/// Returns a tr react element representing a thing with a checkbox with summary name and details beneath
+/// Implements a group of waves, components or sheets that can be hidden or shown, with a checkbox to select all
+/// and a summary item that can be clicked to show details.
 let makeSelectionGroup 
         (showDetails:bool)
         (ws: WaveSimModel) 
@@ -536,6 +552,9 @@ let rec makeComponentGroup showDetails (ws: WaveSimModel) (dispatch: Msg->Unit) 
 
         makeSelectionGroup showDetails ws dispatch summaryReact compRows cBox waves  
 
+/// Recursively make a row in the wave selection table for a single sheet, component group, component or wave.
+/// Lower levels are hidden by default, unless selected by the search bar.
+/// Lower levels of detail are handled by makeComponentGroup, makeComponentRow and makePortRow.
 let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> Unit) (subSheet: string list) (waves: Wave list) =  
     let cBox = SheetItem subSheet
     let fs = Simulator.getFastSim()
@@ -566,6 +585,12 @@ let rec makeSheetRow  (showDetails: bool) (ws: WaveSimModel) (dispatch: Msg -> U
     else
         makeSelectionGroup showDetails ws dispatch (summaryName ws cBox subSheet waves ) rows cBox waves
 
+//--------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+//----------------------Top level Waveform Selection Modal for Wave Simulator-----------------------------//
+//--------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+
 /// This is a workaropund for a potential data inconsistency in the waves and selected waves of a FastSimulation
 /// it ensure that the selector only lists valid waves by filtering all waves against valid components
 /// It would be better to understand the (occasional) bug that leads to this inconsistency.
@@ -584,6 +609,7 @@ let ensureWaveConsistency (ws:WaveSimModel) =
             printfn $"ok selected waves length = {okSelectedWaves.Length} <> selectedwaves length = {ws.SelectedWaves.Length}"
         okWaves, okSelectedWaves
 
+/// display the wave selection rows.
 let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> unit) : ReactElement =
 
     if not ws.WaveModalActive then div [] []
@@ -623,7 +649,11 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
         buttonFunc
         (str "Select Waves")
 
+
+/// Top-level waveform selector.
 /// Modal that, when active, allows users to select waves to be viewed.
+/// Waves can be selected by clicking on their names.
+/// Waves can be filtered by typing in the search bar.
 let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     let endModal _ = 
         dispatch <| UpdateWSModel (fun ws ->

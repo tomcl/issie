@@ -62,6 +62,7 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
             OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) canvas
             Form = loadedComponent.Form
             Description = loadedComponent.Description
+            ParameterBindings = None
         }
         
         Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "")) |> dispatch
@@ -91,6 +92,7 @@ let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)
             OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) canvas
             Form = loadedComponent.Form
             Description = loadedComponent.Description
+            ParameterBindings = None
         }
         
         Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, verilog, "")) |> dispatch
@@ -645,7 +647,10 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
 
                 let cs = SheetCreator.createSheet parsedAST project
-                let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {Form = Some (Verilog name);Description=None})
+                let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {
+                                Form = Some (Verilog name);
+                                Description=None;
+                                ParameterSlots = None})
 
                 match writeFile path2 toSaveCanvasState with
                 | Ok _ -> 

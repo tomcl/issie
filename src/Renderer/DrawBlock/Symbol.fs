@@ -651,6 +651,7 @@ let makeComponent (pos: XYPos) (compType: ComponentType) (id:string) (label:stri
             Label = label 
             InputPorts = inputPorts
             OutputPorts  = outputPorts
+            SlotInfo = None
             X  = pos.X - float w / 2.0
             Y = pos.Y - float h / 2.0
             H = float h 

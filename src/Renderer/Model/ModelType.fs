@@ -93,6 +93,7 @@ type PopupDialogData = {
     BadLabel: bool
     IntList: int list option;
     IntList2: int list option;
+    DialogState: Hlp25Types.Hlp25DialogState option
 }
 
 let text_ = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
@@ -248,6 +249,10 @@ type WaveSimModel = {
     AllWaves: Map<WaveIndexT, Wave>
     /// List of which waves are currently visible in the waveform viewer.
     SelectedWaves: WaveIndexT list
+    /// State used in Wave Selector from HLP25 teams
+    /// This is in addition to SelectedWaves
+    Hlp25State: Hlp25Types.Hlp25WSModelState option
+
     /// Left-most visible clock cycle.
     /// this is scaled by CycleMultiplier, and therefore not the real clock cycle
     /// for sampling zoom > 1X.

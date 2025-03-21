@@ -44,7 +44,7 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         // "DEBUG: Saving Sheet"
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
-        let sheetInfo = {Form=Some (Verilog name);Description=None} //only user defined sheets are editable and thus saveable
+        let sheetInfo: SheetInfo = {Form=Some (Verilog name);Description=None; ParameterSlots=None} //only user defined sheets are editable and thus saveable
         let savedState = newCS, getSavedWave model,(Some sheetInfo)
         saveStateToFile project.ProjectPath name savedState
         |> displayAlertOnError dispatch
@@ -55,7 +55,10 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         let savedWaveSim =
             Map.tryFind name model.WaveSim
             |> Option.map getSavedWaveInfo
-        let (SheetInfo:SheetInfo option) = match origLdComp.Form with |None -> None |Some form -> Some {Form=Some form;Description=origLdComp.Description}
+        let (SheetInfo:SheetInfo option) =
+            match origLdComp.Form with
+            |None -> None
+            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterSlots=origLdComp.LCParameterSlots}
         let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData newCS origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
         let newState =
             newCS
@@ -119,6 +122,7 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         OutputLabels = []
         Form = Some User
         Description = None
+        LCParameterSlots = None
     }
     
 /// rename a sheet
@@ -259,6 +263,7 @@ let addFileToProject model dispatch =
                         OutputLabels = []
                         Form = Some User
                         Description = None
+                        LCParameterSlots = None
                     }
                     let updatedProject =
                         { project with

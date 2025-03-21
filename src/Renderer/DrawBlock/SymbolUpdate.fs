@@ -502,6 +502,7 @@ let createDummyComponent (pos: XYPos) (h: float) (w:float) : Component =
         X = pos.X - w / 2.
         Y = pos.Y - h / 2.
         Type = ComponentType.GateN (And, 2)
+        SlotInfo = None
         Id = uuid()
         Label = ""
         InputPorts = []

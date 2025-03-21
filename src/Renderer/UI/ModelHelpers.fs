@@ -42,6 +42,7 @@ type CSSGridPos =
 
 
 let initWSModel  : WaveSimModel = {
+    Hlp25State = None
     DefaultCursor = CursorType.Default
     TopSheet = ""
     WSConfig = Constants.defaultWSConfig

@@ -34,7 +34,6 @@ open Fulma
 open Fulma.Color
 
 
-
 /// Save the Verilog file currently open, return the new sheet's Loadedcomponent if this has changed.
 /// Do not change model.
 let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=

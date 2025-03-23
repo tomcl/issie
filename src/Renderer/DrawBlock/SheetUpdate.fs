@@ -475,11 +475,12 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 
     // ---------------------------- Issie Messages ---------------------------- //
 
-    | InitialiseCreateComponent (ldcs, compType, lbl) ->
+    | InitialiseCreateComponent (ldcs, compType, lbl, addParamComp) ->
+        // printfn "InitialiseCreateComponent update received testmsg: '%A'" testMsg
         match compType with
         | IsGate -> 
             { model with
-                Action = (InitialisedCreateComponent (ldcs, compType, lbl));
+                Action = (InitialisedCreateComponent (ldcs, compType, lbl, addParamComp));
                 UndoList = appendUndoList model.UndoList model;
                 TmpModel = Some model;
                 Wire.Symbol.HintPane = Some [
@@ -488,7 +489,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                     ]
             }, Cmd.none
         | NoGate ->
-            { model with Action = (InitialisedCreateComponent (ldcs, compType, lbl)) ; TmpModel = Some model; UndoList = appendUndoList model.UndoList model}, Cmd.none
+            { model with Action = (InitialisedCreateComponent (ldcs, compType, lbl, addParamComp))
+                         TmpModel = Some model
+                         UndoList = appendUndoList model.UndoList model
+            }, Cmd.none
     | FlushCommandStack -> { model with UndoList = []; RedoList = []; TmpModel = None }, Cmd.none
     | ResetModel ->
         { model with

@@ -29,7 +29,7 @@ open System
 open TopMenuView
 open MenuHelpers
 open SheetCreator
-open Hlp25Types
+open ParameterTypes
 
 NearleyBindings.importGrammar
 NearleyBindings.importFix
@@ -311,7 +311,7 @@ let private createArithmeticPopup compType (model: Model) dispatch =
     }
 
     let inputField model' =
-        Hlp25CodeA.paramInputField model' prompt intDefault None constraints None slot dispatch
+        ParameterView.paramInputField model' prompt intDefault None constraints None slot dispatch
 
     let buttonAction =
         fun (model': Model) ->
@@ -326,7 +326,7 @@ let private createArithmeticPopup compType (model: Model) dispatch =
                     failwithf $"Received error message '{err}' when creating N-bits {compName}"
             let comp = toComp compParamSpec.Value
             let addParamCompFunction = 
-                Some <| Hlp25CodeA.addParamComponent compParamSpec dispatch
+                Some <| ParameterView.addParamComponent compParamSpec dispatch
 
             createCompStdLabel comp addParamCompFunction model dispatch
             dispatch <| ReloadSelectedComponent compParamSpec.Value
@@ -530,7 +530,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
     }
 
     let inputField model' =
-        Hlp25CodeA.paramInputField model' prompt intDefault None constraints None slot dispatch
+        ParameterView.paramInputField model' prompt intDefault None constraints None slot dispatch
 
     let buttonText = "Add"
     let buttonAction =
@@ -544,7 +544,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
                 | Ok paramSpec -> paramSpec
                 | Error err -> failwithf $"Received error message {err} when creating N-bits XOR"
             let addParamCompFunction = 
-                Some <| Hlp25CodeA.addParamComponent compParamSpec dispatch
+                Some <| ParameterView.addParamComponent compParamSpec dispatch
 
             let regWidth = compParamSpec.Value;
 

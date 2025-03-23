@@ -232,10 +232,6 @@ let fileMenu (dispatch) =
             makeDebugItem "Web worker performance test" None
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
 
-            makeDebugItem "Add Parameter Slot" None
-                (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.TestCompUpateLens.testParamsSlotsView,dispatch))
-
-
         ]
 
         makeMenu false "Verilog" [

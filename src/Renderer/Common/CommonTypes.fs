@@ -160,7 +160,7 @@ type CustomComponentType = {
     InputLabels: (string * int) list
     OutputLabels: (string * int) list
     Form : CCForm option
-    ParameterBindings: Hlp25Types.Hlp25CustomComponentState option
+    ParameterBindings: ParameterTypes.Hlp25CustomComponentState option
     Description : string option
 }
 
@@ -411,7 +411,7 @@ type Component = {
     /// Field used only when sheet is saved from Draw Block: Symbol info is copied here
     /// This field is not uptodate when symbol is being edited in Draw Block
     SymbolInfo : SymbolInfo option
-    SlotInfo : Hlp25Types.Hlp25ComponentSlots option
+    SlotInfo : ParameterTypes.Hlp25ComponentSlots option
 }
 
 with
@@ -531,7 +531,7 @@ module JSONComponent =
         Label : string // All components have a label that may be empty.
         InputPorts : Port list // position on this list determines inputPortNumber
         OutputPorts : Port list // position in this lits determines OutputPortNumber
-        SlotInfo : Hlp25Types.Hlp25ComponentSlots option
+        SlotInfo : ParameterTypes.Hlp25ComponentSlots option
         X : float
         Y : float
         H : float
@@ -897,7 +897,7 @@ type SavedWaveInfo = {
 type SheetInfo = {
     Form: CCForm option 
     Description: string option
-    ParameterSlots: Hlp25Types.Hlp25SheetInfo option
+    ParameterSlots: ParameterTypes.Hlp25SheetInfo option
 }
 
 (*--------------------------------------------------------------------------------------------------*)
@@ -930,7 +930,7 @@ type LoadedComponent = {
     InputLabels : (string * int) list
     /// Output port names, and port numbers in any created custom component
     OutputLabels : (string * int) list
-    LCParameterSlots: Hlp25Types.Hlp25SheetInfo option
+    LCParameterSlots: ParameterTypes.Hlp25SheetInfo option
     Form : CCForm option
     /// If component needs saving to disk
     LoadedComponentIsOutOfDate: bool

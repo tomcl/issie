@@ -25,6 +25,7 @@ open FilesIO
 open CatalogueView
 open TopMenuView
 open MenuHelpers
+open Hlp25Types
 
 open CatalogueView.Constants
 
@@ -467,76 +468,41 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
     ]
 
 
-let private makeNumberOfBitsField model (comp:Component) text dispatch =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    
-    let title, width =
+let private makeNumberOfBitsField model (comp: Component) text dispatch =    
+    let title, width, slot =
         match comp.Type with
-        | Input1 (w, _) | Output w | NbitsAdder w  | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w 
-        | NbitsXor (w,_) | NbitsAnd w | NbitsOr w |NbitsNot w 
-        | Register w | RegisterE w |Counter w |CounterNoEnable w |CounterNoEnableLoad w |CounterNoLoad w | Viewer w -> "Number of bits", w
-        | NbitSpreader w -> "Width of output bus", w
-        | SplitWire w -> "Number of bits in the top (LSB) wire", w
-        | BusSelection( w, _) -> "Number of bits selected: width", w
-        | BusCompare( w, _) -> "Bus width", w
-        | BusCompare1( w,_, _) -> "Bus width", w
-        | Constant1(w, _,_) -> "Number of bits in the wire", w
-        | c -> failwithf "makeNumberOfBitsField called with invalid component: %A" c
+        | Input1 (w, _) | Output w -> "Number of bits", w, IO comp.Label
+        | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
+        | NbitsXor (w, _) | NbitsAnd w | NbitsOr w |NbitsNot w 
+        | Register w | RegisterE w
+        | Counter w | CounterNoEnable w | CounterNoEnableLoad w |CounterNoLoad w
+        | Viewer w -> "Number of bits", w, Buswidth
+        | NbitSpreader w -> "Width of output bus", w, Buswidth
+        | SplitWire w -> "Number of bits in the top (LSB) wire", w, Buswidth
+        | BusSelection (w, _) -> "Number of bits selected: width", w, Buswidth
+        | BusCompare (w, _) -> "Bus width", w, Buswidth
+        | BusCompare1 (w, _, _) -> "Bus width", w, Buswidth
+        | Constant1 (w, _, _) -> "Number of bits in the wire", w, Buswidth
+        | c -> failwithf $"makeNumberOfBitsField called with invalid component: {c}"
 
-    intFormField title "60px" (bigint width) 1 (
-        fun newWidth ->
-            let newWidth = int newWidth
-            if newWidth < 1
-            then
-                let props = errorPropsNotification "Invalid number of bits."
-                dispatch <| SetPropertiesNotification props
-            else
-                model.Sheet.ChangeWidth sheetDispatch (ComponentId comp.Id) newWidth
-                let text' = match comp.Type with | BusSelection _ -> text | _ -> MenuHelpers.formatLabelAsBus newWidth text
-                //SetComponentLabelFromText model comp text' // change the JS component label
-                let lastUsedWidth = 
-                    match comp.Type with 
-                    | SplitWire _ | BusSelection _ | Constant1 _ -> 
-                        model.LastUsedDialogWidth 
-                    | _ ->  
-                        newWidth
-                dispatch (ReloadSelectedComponent (lastUsedWidth)) // reload the new component
-                dispatch <| SetPopupDialogInt (Some newWidth)
-                dispatch ClosePropertiesNotification
-    )
+    let constraints = [MinVal (PInt 1, $"{title} must be positive")]
 
-let private makeNumberOfInputsField model (comp:Component) dispatch =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    
-    let errText =
-        model.PopupDialogData.Int
-        |> Option.map (fun i ->
-            if i < 2 || i > Constants.maxGateInputs then
-                sprintf "Must have between %d and %d inputs" 2 Constants.maxGateInputs
-            else
-                "")
-        |> Option.defaultValue ""
+    Hlp25CodeA.paramInputField model title 1 (Some width) constraints (Some comp) slot dispatch
 
-    let title, oldType, nInp =
+
+let private makeNumberOfInputsField model (comp: Component) dispatch =
+    let prompt, nInp =
         match comp.Type with
-        | GateN (gType, n) -> "Number of inputs", gType, n
-        | c -> failwithf "makeNumberOfInputsField called with invalid component: %A" c
+        | GateN (_, n) -> "Number of inputs", n
+        | c -> failwithf $"makeNumberOfInputsField called with invalid component: {c}"
 
-    div [] [
-        span
-            [Style [Color Red]]
-            [str errText]
-
-        intFormField title "60px" (bigint nInp) 2 (
-            fun newInpNum ->
-                let newInpNum = int newInpNum
-                if newInpNum >= 2 && newInpNum <= Constants.maxGateInputs then
-                    model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) oldType newInpNum
-                    dispatch <| SetPopupDialogInt (Some newInpNum)
-                else
-                    dispatch <| SetPopupDialogInt (Some newInpNum)
-        )
+    let constraints = [
+        MinVal (PInt 2, "Must have at least 2 inputs")
+        MaxVal (PInt maxGateInputs, $"Cannot have more than {maxGateInputs} inputs")
     ]
+
+    Hlp25CodeA.paramInputField model prompt  1 (Some nInp) constraints (Some comp) NGateInputs dispatch
+
 
 let private changeMergeN model (comp:Component) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -923,6 +889,8 @@ let private makeDescription (comp:Component) model dispatch =
             |_ -> $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
                     vertical position on the design sheet of the Input or Output components at the time the symbol is added."
             //TODO: remaining
+        
+        // let listmodel = model.CurrentProj.LoadedComponents
 
         div [] [
             boldSpan $"{custom.Name}"
@@ -941,6 +909,8 @@ let private makeDescription (comp:Component) model dispatch =
             ul [] (toHTMLList custom.OutputLabels)
             br []
             makeScaleAdjustmentField model comp dispatch
+            br []
+            Hlp25CodeA.makeParamsFieldCC model comp custom dispatch
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
     | DFFE -> div [] [
@@ -1174,6 +1144,9 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                                 dispatchWithModel (fun model _ -> createSheetDescriptionPopup model None sheetName dispatch))
                         ]
                         [str "Add Description"]
+                    br []
+                    br []
+                    Hlp25CodeA.viewParameters model dispatch
                     ]
             |Some descr ->
                 div [] [
@@ -1184,13 +1157,15 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                     br []
                     Button.button
                         [
-                            Button.Color IsSuccess
+                            Button.Color IsInfo
                             Button.OnClick (fun _ ->
                                 dispatchWithModel((fun model _ -> createSheetDescriptionPopup model sheetDescription sheetName dispatch))
                             )
                         ]
                         [str "Edit Description"]
+                    br []
+                    br []
+                    Hlp25CodeA.viewParameters model dispatch
                     ]
         |None -> null
     |> (fun react -> div [Style [Height "calc(100vh - 150px)"; OverflowY OverflowOptions.Auto]] [react])
-

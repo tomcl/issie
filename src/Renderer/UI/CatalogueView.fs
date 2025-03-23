@@ -29,6 +29,7 @@ open System
 open TopMenuView
 open MenuHelpers
 open SheetCreator
+open Hlp25Types
 
 NearleyBindings.importGrammar
 NearleyBindings.importFix
@@ -43,15 +44,13 @@ let menuItem styles label onClick =
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick; Style styles ] ]
         [ str label ]
 
-let private createComponent compType label model dispatch =
-    Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, compType, label)) |> dispatch
+let private createComponent compType label createParam model dispatch =
+    Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, compType, label, createParam)) |> dispatch
 
 // Anything requiring a standard label should be checked and updated with the correct number suffix in Symbol/Sheet, 
 // so give the label ""
-let createCompStdLabel comp model dispatch =
-    createComponent comp "" model dispatch
-
-
+let createCompStdLabel comp createParam model dispatch =
+    createComponent comp "" createParam model dispatch
 
 let private makeCustom styles model dispatch (loadedComponent: LoadedComponent)  =
     let canvas = loadedComponent.CanvasState
@@ -65,7 +64,7 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
             ParameterBindings = None
         }
         
-        Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "")) |> dispatch
+        Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "", None)) |> dispatch
     )
 
 let private makeCustomList styles model dispatch =
@@ -95,7 +94,7 @@ let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)
             ParameterBindings = None
         }
         
-        Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, verilog, "")) |> dispatch
+        Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, verilog, "", None)) |> dispatch
     )
 
 let private makeVerilogList styles model dispatch =
@@ -107,7 +106,6 @@ let private makeVerilogList styles model dispatch =
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         |> List.filter (fun comp -> match comp.Form with Some (Verilog _)-> true |_ -> false)
         |> List.map (makeVerilog styles model dispatch)
-
 
 
 
@@ -131,7 +129,7 @@ let private createInputPopup typeStr (compType: int * bigint option -> Component
             let inputText = getText dialogData
             let widthInt = getInt dialogData
             let defaultValueInt = getInt2 dialogData
-            createComponent (compType (widthInt, Some defaultValueInt)) (MenuHelpers.formatLabelFromType (compType (widthInt, Some defaultValueInt)) inputText) model dispatch
+            createComponent (compType (widthInt, Some defaultValueInt)) (MenuHelpers.formatLabelFromType (compType (widthInt, Some defaultValueInt)) inputText) None model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
@@ -141,6 +139,7 @@ let private createInputPopup typeStr (compType: int * bigint option -> Component
                 |> (fun s -> s = "" || not (String.startsWithLetter s))
             (getInt dialogData < 1) || notGoodLabel
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
 
 let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
     let title = sprintf "Add %s node" typeStr
@@ -162,7 +161,7 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
             // TODO: repeat this throughout this file and selectedcomponentview (use functions)
             let inputText = getText dialogData
             let inputInt = getInt dialogData
-            createComponent (compType inputInt) (MenuHelpers.formatLabelFromType (compType inputInt) inputText) model dispatch
+            createComponent (compType inputInt) (MenuHelpers.formatLabelFromType (compType inputInt) inputText) None model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
@@ -235,7 +234,7 @@ let private createGateNPopup (gateType: GateComponentType) (model: Model) dispat
         fun (model': Model) ->
             let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
-            createCompStdLabel (GateN (gateType, inputInt)) model dispatch
+            createCompStdLabel (GateN (gateType, inputInt)) None model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
@@ -254,7 +253,7 @@ let private createMergeNPopup (model: Model) dispatch =
         fun (model': Model) ->
             let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
-            createCompStdLabel (MergeN inputInt) model dispatch
+            createCompStdLabel (MergeN inputInt) None model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
@@ -276,7 +275,7 @@ let private createSplitNPopup (model: Model) dispatch =
             let outputInt = getInt dialogData 
             let outputWidthList = getIntList dialogData numInputsDefault 1
             let outputLSBList = getIntList2 dialogData numInputsDefault 0
-            createCompStdLabel (SplitN (outputInt, outputWidthList, outputLSBList)) model dispatch
+            createCompStdLabel (SplitN (outputInt, outputWidthList, outputLSBList)) None model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) ->
@@ -285,96 +284,64 @@ let private createSplitNPopup (model: Model) dispatch =
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
-let private createNbitsAdderPopup (model:Model) dispatch =
-    let title = sprintf "Add N bits adder"
-    let beforeInt =
-        fun _ -> str "How many bits should each operand have?"
-    let intDefault = model.LastUsedDialogWidth
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+/// Component creation popup box for n-bit arithmetic components
+let private createArithmeticPopup compType (model: Model) dispatch =
+    let compName, toComp = 
+        match compType with
+        | NbitsAdder _ -> "adder", NbitsAdder
+        | NbitsXor _ -> "XOR", fun n -> NbitsXor (n, None)
+        | NbitsAnd _ -> "AND", NbitsAnd
+        | NbitsOr _ -> "OR", NbitsOr
+        | NbitsNot _ -> "NOT", NbitsNot
+        | _ -> failwithf $"Invalid component type {compType} for arithmetic popup"
+
+    let title = $"Add N bits {compName}"
+    let prompt = "How many bits should the input/output have?"
     let buttonText = "Add"
+    let intDefault = model.LastUsedDialogWidth
+    let slot = Buswidth
+    
+    let constraints = [MinVal (PInt 1, $"Number of bits in {compName} must be positive")]
+ 
+    let defaultParamSpec = {
+        CompSlot = slot
+        Expression = PInt intDefault
+        Constraints = constraints
+        Value = intDefault
+    }
+
+    let inputField model' =
+        Hlp25CodeA.paramInputField model' prompt intDefault None constraints None slot dispatch
+
     let buttonAction =
         fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData
-            //printfn "creating adder %d" inputInt
-            createCompStdLabel (NbitsAdder inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
-            dispatch ClosePopup
-    let isDisabled =
-        fun (model': Model) -> getInt model'.PopupDialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+            let inputFieldDialog = 
+                match model'.PopupDialogData.DialogState with
+                | Some inputSpec -> Map.find slot inputSpec
+                | None -> failwithf "Param input field must set new param info"
+            let compParamSpec =
+                match inputFieldDialog with
+                | Ok paramSpec -> paramSpec
+                | Error err ->
+                    failwithf $"Received error message '{err}' when creating N-bits {compName}"
+            let comp = toComp compParamSpec.Value
+            let addParamCompFunction = 
+                Some <| Hlp25CodeA.addParamComponent compParamSpec dispatch
 
-
-let private createNbitsXorPopup (model:Model) dispatch =
-    let title = sprintf "Add N bits XOR gates"
-    let beforeInt =
-        fun _ -> str "How many bits should each operand have?"
-    let intDefault = model.LastUsedDialogWidth
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
-    let buttonText = "Add"
-    let buttonAction =
-        fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData
-            //printfn "creating XOR %d" inputInt
-            createCompStdLabel (NbitsXor(inputInt,None)) {model with LastUsedDialogWidth = inputInt} dispatch
+            createCompStdLabel comp addParamCompFunction model dispatch
+            dispatch <| ReloadSelectedComponent compParamSpec.Value
             dispatch ClosePopup
-    let isDisabled =
-        fun (model: Model) -> getInt model.PopupDialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
-let private createNbitsAndPopup (model:Model) dispatch =
-    let title = sprintf "Add N bits AND gates"
-    let beforeInt =
-        fun _ -> str "How many bits should each operand have?"
-    let intDefault = model.LastUsedDialogWidth
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
-    let buttonText = "Add"
-    let buttonAction =
-        fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData
-            //printfn "creating XOR %d" inputInt
-            createCompStdLabel (NbitsAnd inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
-            dispatch ClosePopup
     let isDisabled =
-        fun (model': Model) -> getInt model'.PopupDialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+        fun model' ->
+            model'.PopupDialogData.DialogState
+            |> function
+               | Some specs -> Map.find slot specs |> Result.isError
+               | None -> failwithf "Dialog state must exist for input box"
 
-let private createNbitsOrPopup (model:Model) dispatch =
-    let title = sprintf "Add N bits OR gates"
-    let beforeInt =
-        fun _ -> str "How many bits should each operand have?"
-    let intDefault = model.LastUsedDialogWidth
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
-    let buttonText = "Add"
-    let buttonAction =
-        fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData
-            //printfn "creating XOR %d" inputInt
-            createCompStdLabel (NbitsOr inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
-            dispatch ClosePopup
-    let isDisabled =
-        fun (model': Model) -> getInt model'.PopupDialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
+    dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
-let private createNbitsNotPopup (model:Model) dispatch =
-    let title = sprintf "Add N bits NOT gates"
-    let beforeInt =
-        fun _ -> str "How many bits should the input/output have?"
-    let intDefault = model.LastUsedDialogWidth
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
-    let buttonText = "Add"
-    let buttonAction =
-        fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData
-            //printfn "creating XOR %d" inputInt
-            createCompStdLabel (NbitsNot inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
-            dispatch ClosePopup
-    let isDisabled =
-        fun (model': Model) -> getInt model'.PopupDialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createNbitSpreaderPopup (model:Model) dispatch =
     let title = sprintf "Add 1-to-N bit spreader"
@@ -388,7 +355,7 @@ let private createNbitSpreaderPopup (model:Model) dispatch =
             let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
             //printfn "creating XOR %d" inputInt
-            createCompStdLabel (NbitSpreader inputInt) {model with LastUsedDialogWidth = inputInt} dispatch
+            createCompStdLabel (NbitSpreader inputInt) None {model with LastUsedDialogWidth = inputInt} dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) -> getInt model.PopupDialogData < 1
@@ -407,7 +374,7 @@ let private createSplitWirePopup model dispatch =
         fun (model': Model) ->
             let dialogData = model'.PopupDialogData
             let inputInt = getInt dialogData
-            createCompStdLabel (SplitWire inputInt) model dispatch
+            createCompStdLabel (SplitWire inputInt) None model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) -> getInt model'.PopupDialogData < 1
@@ -485,7 +452,7 @@ let private createConstantPopup model dispatch =
                 | Ok n -> n
                 | Error _ -> 0I // should never happen?
             let text' = if text = "" then "0" else text
-            createCompStdLabel (Constant1(width, constant, text')) model dispatch
+            createCompStdLabel (Constant1(width, constant, text')) None model dispatch
             dispatch ClosePopup
     let isDisabled = parseConstantDialog >> snd >> Option.isNone
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
@@ -505,7 +472,7 @@ let private createBusSelectPopup model dispatch =
             let dialogData = model'.PopupDialogData
             let width = getInt dialogData
             let lsb = int32 (getInt2 dialogData)
-            createCompStdLabel (BusSelection(width,lsb)) model dispatch
+            createCompStdLabel (BusSelection(width,lsb)) None model dispatch
             dispatch ClosePopup
     let isDisabled =
         fun (model': Model) -> getInt model'.PopupDialogData < 1 || getInt2 model'.PopupDialogData < 0I
@@ -533,31 +500,70 @@ let private createBusComparePopup (model:Model) dispatch =
                 | Ok n -> n
                 | Error _ -> 0I // should never happen?
             let text' = if text = "" then "0" else text
-            createCompStdLabel (BusCompare1(width,constant,text')) model dispatch
+            createCompStdLabel (BusCompare1(width,constant,text')) None model dispatch
             dispatch ClosePopup
     let isDisabled = parseBusCompDialog >> snd >> Option.isNone
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 let private createRegisterPopup regType (model:Model) dispatch =
-    let title = sprintf "Add Register" 
-    let beforeInt =
-        fun _ -> str "How wide should the register be (in bits)?"
+    let title = match regType with
+                    | Register _ -> sprintf "Add Register" 
+                    | RegisterE _ -> sprintf "Add Register with Enable"
+                    | Counter _-> sprintf "Add Counter"
+                    | _ -> failwithf "Invalid register type"
+
+    let prompt = match regType with
+                    | Register _ -> "How wide should the register be (in bits)?"
+                    | RegisterE _ -> "How wide should the register be (in bits)?"
+                    | Counter _ -> "How wide should the counter be (in bits)?"
+                    | _ -> failwithf "Invalid register type"
     let intDefault = model.LastUsedDialogWidth
-    let body = dialogPopupBodyOnlyInt beforeInt intDefault dispatch
+    let slot = Buswidth
+
+    let constraints = [MinVal (PInt 1, "Register width must be positive")]
+
+    let defaultParamSpec = {
+        CompSlot = slot
+        Expression = PInt intDefault
+        Constraints = constraints
+        Value = intDefault
+    }
+
+    let inputField model' =
+        Hlp25CodeA.paramInputField model' prompt intDefault None constraints None slot dispatch
+
     let buttonText = "Add"
     let buttonAction =
-        fun (model': Model) ->
-            let dialogData = model'.PopupDialogData
-            let inputInt = getInt dialogData
-            createCompStdLabel (regType inputInt) model dispatch
+        fun model' ->
+            let inputFieldDialog = 
+                match model'.PopupDialogData.DialogState with
+                | Some inputSpec -> Map.find slot inputSpec
+                | None -> failwithf "Param input field must set new param info"
+            let compParamSpec =
+                match inputFieldDialog with
+                | Ok paramSpec -> paramSpec
+                | Error err -> failwithf $"Received error message {err} when creating N-bits XOR"
+            let addParamCompFunction = 
+                Some <| Hlp25CodeA.addParamComponent compParamSpec dispatch
+
+            let regWidth = compParamSpec.Value;
+
+            match regType with
+            | Register _ -> createCompStdLabel (Register regWidth) addParamCompFunction model dispatch
+            | RegisterE _ -> createCompStdLabel (RegisterE regWidth) addParamCompFunction model dispatch
+            | Counter _ -> createCompStdLabel (Counter regWidth) addParamCompFunction model dispatch
+            | _ -> failwithf "Invalid register type"
             dispatch ClosePopup
+
     let isDisabled =
-        fun (model': Model) -> getInt model'.PopupDialogData < 1
-    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+        fun model' ->
+            model'.PopupDialogData.DialogState
+            |> function
+               | Some specs -> Map.find slot specs |> Result.isError
+               | None -> failwithf "Dialog state must exist for input box"
 
-
- 
-    
+    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
+    dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
 let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
     let title = "Create memory"
@@ -583,7 +589,7 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
             let memory = FilesIO.initialiseMem  initMem dialogData.ProjectPath
             match memory with
             | Ok mem ->
-                createCompStdLabel (memType mem)  model dispatch
+                createCompStdLabel (memType mem) None model dispatch
                 dispatch ClosePopup
             | Error mess ->
                 dispatch <| SetPopupDialogMemorySetup (addError (Some mess) dialogData.MemorySetup)
@@ -878,11 +884,11 @@ let viewCatalogue model dispatch =
                                                                                                                          together wires within a sheet. Each set of labels \
                                                                                                                          muts have exactly one driving input. \
                                                                                                                          A label can also be used to terminate an unused output"
-                          catTip1 "Not Connected" (fun  _ -> dispatchAsFunc (createComponent (NotConnected) "")) "Not connected component to terminate unused output."]                          
+                          catTip1 "Not Connected" (fun  _ -> dispatchAsFunc (createComponent (NotConnected) "" None)) "Not connected component to terminate unused output."]                          
                     makeMenuGroup
                         "Buses"
                         [ 
-                        catTip1 "MergeWires"  (fun  _ -> dispatchAsFunc (createComponent MergeWires "")) "Use Mergewires when you want to \
+                        catTip1 "MergeWires"  (fun  _ -> dispatchAsFunc (createComponent MergeWires "" None)) "Use Mergewires when you want to \
                                                                                        join the bits of a two busses to make a wider bus. \
                                                                                        Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                        after placing component to change this."
@@ -905,43 +911,43 @@ let viewCatalogue model dispatch =
                         catTip1 "N bits spreader" (fun  _ -> dispatchAsFunc (createNbitSpreaderPopup)) "Replicates a 1 bit input onto all N bits of an output bus"]
                     makeMenuGroup
                         "Gates"
-                        [ catTip1 "Not"  (fun  _ -> dispatchAsFunc (createCompStdLabel Not)) "Invertor: output is negation of input"
-                          catTip1 "And"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (And, 2))))
+                        [ catTip1 "Not"  (fun  _ -> dispatchAsFunc (createCompStdLabel Not None) ) "Invertor: output is negation of input"
+                          catTip1 "And"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (And, 2)) None))
                                                 "Output is 1 if all the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Or"   (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Or, 2))))
+                          catTip1 "Or"   (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Or, 2)) None))
                                                 "Output is 1 if any of the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Xor"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xor, 2))))
+                          catTip1 "Xor"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xor, 2)) None))
                                                 "Output is 1 if an odd number of inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Nand" (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nand, 2))))
+                          catTip1 "Nand" (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nand, 2)) None))
                                                 "Output is 0 if all the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Nor"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nor, 2))))
+                          catTip1 "Nor"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nor, 2)) None))
                                                 "Output is 0 if any of the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Xnor" (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xnor, 2))))
+                          catTip1 "Xnor" (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xnor, 2)) None))
                                                 "Output is 1 if an even number of inputs are 1. Use Properties to add more inputs"]
                     makeMenuGroup
                         "Mux / Demux"
-                        [ catTip1 "2-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux2)) <| muxTipMessage "two"
-                          catTip1 "4-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux4)) <| muxTipMessage "four"
-                          catTip1 "8-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux8)) <| muxTipMessage "eight"                                                             
-                          catTip1 "2-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux2))  <| deMuxTipMessage "two"  
-                          catTip1 "4-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux4))  <| deMuxTipMessage "four"
-                          catTip1 "8-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux8))  <| deMuxTipMessage "eight" ]
+                        [ catTip1 "2-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux2 None)) <| muxTipMessage "two"
+                          catTip1 "4-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux4 None)) <| muxTipMessage "four"
+                          catTip1 "8-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux8 None)) <| muxTipMessage "eight"                                                             
+                          catTip1 "2-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux2 None))  <| deMuxTipMessage "two"  
+                          catTip1 "4-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux4 None))  <| deMuxTipMessage "four"
+                          catTip1 "8-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux8 None))  <| deMuxTipMessage "eight" ]
                     makeMenuGroup
                         "Arithmetic"
-                        [ catTip1 "N bits adder" (fun  _ -> dispatchAsFunc (createNbitsAdderPopup)) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
-                          catTip1 "N bits XOR" (fun  _ -> dispatchAsFunc (createNbitsXorPopup)) "N bit XOR gates - use to make subtractor or comparator"
-                          catTip1 "N bits AND" (fun  _ -> dispatchAsFunc (createNbitsAndPopup)) "N bit AND gates"
-                          catTip1 "N bits OR" (fun  _ -> dispatchAsFunc (createNbitsOrPopup)) "N bit OR gates"
-                          catTip1 "N bits NOT" (fun  _ -> dispatchAsFunc (createNbitsNotPopup)) "N bit NOT gates"]
+                        [ catTip1 "N bits adder" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAdder 1)) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
+                          catTip1 "N bits XOR" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsXor (1, None))) "N bit XOR gates - use to make subtractor or comparator"
+                          catTip1 "N bits AND" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAnd 1)) "N bit AND gates"
+                          catTip1 "N bits OR" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsOr 1)) "N bit OR gates"
+                          catTip1 "N bits NOT" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsNot 1)) "N bit NOT gates"]
 
                     makeMenuGroup
                         "Flip Flops and Registers"
-                        [ catTip1 "D-flip-flop" (fun  _ -> dispatchAsFunc (createCompStdLabel DFF)) "D flip-flop - note that clock is assumed always connected to a global clock, \
+                        [ catTip1 "D-flip-flop" (fun  _ -> dispatchAsFunc (createCompStdLabel DFF None)) "D flip-flop - note that clock is assumed always connected to a global clock, \
                                                                                                    so ripple counters cannot be implemented in Issie"
-                          catTip1 "D-flip-flop with enable" (fun  _ -> dispatchAsFunc (createCompStdLabel DFFE)) "D flip-flop: output will remain unchanged when En is 0"
-                          catTip1 "Register" (fun  _ -> dispatchAsFunc (createRegisterPopup Register)) "N D flip-flops with inputs and outputs combined into single N bit busses"
-                          catTip1 "Register with enable" (fun  _ -> dispatchAsFunc (createRegisterPopup RegisterE)) "As register but outputs stay the same if En is 0"
-                          catTip1 "Counter" (fun  _ -> dispatchAsFunc (createRegisterPopup Counter)) "N-bits counter with customisable enable and load inputs"]
+                          catTip1 "D-flip-flop with enable" (fun  _ -> dispatchAsFunc (createCompStdLabel DFFE None)) "D flip-flop: output will remain unchanged when En is 0"
+                          catTip1 "Register" (fun  _ -> dispatchAsFunc (createRegisterPopup (Register 0))) "N D flip-flops with inputs and outputs combined into single N bit busses"
+                          catTip1 "Register with enable" (fun  _ -> dispatchAsFunc (createRegisterPopup (RegisterE 0))) "As register but outputs stay the same if En is 0"
+                          catTip1 "Counter" (fun  _ -> dispatchAsFunc (createRegisterPopup (Counter 0))) "N-bits counter with customisable enable and load inputs"]
                     makeMenuGroup
                         "Memories"
                         [ catTip1 "ROM (asynchronous)" (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncROM1)) "This is combinational: \

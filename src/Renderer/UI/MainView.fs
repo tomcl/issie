@@ -93,6 +93,7 @@ let init() = {
         DialogState= None
         ProjectPath = ""
         Text = None
+        Text2 = None
         ImportDecisions = Map.empty
         Int = None
         Int2 = None
@@ -162,6 +163,7 @@ let private  viewRightTab canvasState model dispatch =
                 [ str "Click on a component to add it to the diagram. Hover on components for details." ]
             CatalogueView.viewCatalogue model dispatch
         ]
+        
     | Properties ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Component properties" ]

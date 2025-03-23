@@ -25,7 +25,7 @@ open FilesIO
 open CatalogueView
 open TopMenuView
 open MenuHelpers
-open Hlp25Types
+open ParameterTypes
 
 open CatalogueView.Constants
 
@@ -487,7 +487,7 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
 
     let constraints = [MinVal (PInt 1, $"{title} must be positive")]
 
-    Hlp25CodeA.paramInputField model title 1 (Some width) constraints (Some comp) slot dispatch
+    ParameterView.paramInputField model title 1 (Some width) constraints (Some comp) slot dispatch
 
 
 let private makeNumberOfInputsField model (comp: Component) dispatch =
@@ -501,7 +501,7 @@ let private makeNumberOfInputsField model (comp: Component) dispatch =
         MaxVal (PInt maxGateInputs, $"Cannot have more than {maxGateInputs} inputs")
     ]
 
-    Hlp25CodeA.paramInputField model prompt  1 (Some nInp) constraints (Some comp) NGateInputs dispatch
+    ParameterView.paramInputField model prompt  1 (Some nInp) constraints (Some comp) NGateInputs dispatch
 
 
 let private changeMergeN model (comp:Component) dispatch =
@@ -910,7 +910,7 @@ let private makeDescription (comp:Component) model dispatch =
             br []
             makeScaleAdjustmentField model comp dispatch
             br []
-            Hlp25CodeA.makeParamsFieldCC model comp custom dispatch
+            ParameterView.makeParamsFieldCC model comp custom dispatch
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
     | DFFE -> div [] [
@@ -1146,7 +1146,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         [str "Add Description"]
                     br []
                     br []
-                    Hlp25CodeA.viewParameters model dispatch
+                    ParameterView.viewParameters model dispatch
                     ]
             |Some descr ->
                 div [] [
@@ -1165,7 +1165,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         [str "Edit Description"]
                     br []
                     br []
-                    Hlp25CodeA.viewParameters model dispatch
+                    ParameterView.viewParameters model dispatch
                     ]
         |None -> null
     |> (fun react -> div [Style [Height "calc(100vh - 150px)"; OverflowY OverflowOptions.Auto]] [react])

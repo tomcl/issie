@@ -1,6 +1,6 @@
-﻿module Hlp25CodeA
+﻿module ParameterView
 
-open Hlp25Types
+open ParameterTypes
 open EEExtensions
 open VerilogTypes
 open Fulma
@@ -625,10 +625,10 @@ let updateComponents
 /// Updates the LCParameterSlots DefaultParams section.
 type UpdateInfoSheetChoise = 
     | DefaultParams of string * int * bool
-    | ParamSlots of ParamSlot * Hlp25Types.ParamExpression * ParamConstraint list
+    | ParamSlots of ParamSlot * ParameterTypes.ParamExpression * ParamConstraint list
 
 
-let updateInfoSheetDefaultParams (currentSheetInfo:option<Hlp25Types.Hlp25SheetInfo>) (paramName: string) (value: int) (delete:bool)=
+let updateInfoSheetDefaultParams (currentSheetInfo:option<ParameterTypes.Hlp25SheetInfo>) (paramName: string) (value: int) (delete:bool)=
     if delete then
         match currentSheetInfo with
         | Some infoSheet -> 
@@ -647,7 +647,7 @@ let updateInfoSheetDefaultParams (currentSheetInfo:option<Hlp25Types.Hlp25SheetI
         Some currentSheetInfo
 
 
-let updateInfoSheetParamSlots (currentSheetInfo:option<Hlp25Types.Hlp25SheetInfo>) (paramSlot: Hlp25Types.ParamSlot) (expression: Hlp25Types.ParamExpression) (constraints: Hlp25Types.ParamConstraint list) =
+let updateInfoSheetParamSlots (currentSheetInfo:option<ParameterTypes.Hlp25SheetInfo>) (paramSlot: ParameterTypes.ParamSlot) (expression: ParameterTypes.ParamExpression) (constraints: ParameterTypes.ParamConstraint list) =
     match currentSheetInfo with
     | Some infoSheet -> 
         let newParamSlots = infoSheet.ParamSlots |> Map.add paramSlot {Expression = expression; Constraints = constraints}
@@ -663,7 +663,7 @@ let updateParameter (project: CommonTypes.Project) (model: Model) =
 
 
 let getParamsSlot (currentSheet: CommonTypes.LoadedComponent) =
-    let getter = CommonTypes.lcParameterSlots_ >?> Hlp25Types.paramSlots_
+    let getter = CommonTypes.lcParameterSlots_ >?> ParameterTypes.paramSlots_
     match currentSheet.LCParameterSlots with
     | Some _ -> currentSheet ^. getter
     | None -> None
@@ -848,10 +848,10 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                     sheetDefaultParams |> Map.toList |> List.map (fun (key, value) ->
                         let paramName =
                             match key with 
-                            | Hlp25Types.ParamName s -> s
+                            | ParameterTypes.ParamName s -> s
                         let paramVal = 
                             match value with
-                            |Hlp25Types.PInt i -> string i
+                            |ParameterTypes.PInt i -> string i
                             | x -> string x
                         tr [] [
                             td [] [str paramName]
@@ -1036,10 +1036,10 @@ let makeParamsFieldCC model (comp:Component) (custom:CustomComponentType) dispat
                     mergedParamBindings |> Map.toList |> List.map (fun (key, value) ->
                         let paramName =
                             match key with 
-                            | Hlp25Types.ParamName s -> s
+                            | ParameterTypes.ParamName s -> s
                         let paramVal = 
                             match value with
-                            |Hlp25Types.PInt i -> string i
+                            |ParameterTypes.PInt i -> string i
                             | x -> string x
                         tr [] [
                             td [] [str paramName]

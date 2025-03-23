@@ -14,7 +14,7 @@ open SimTypes
 open TruthTableTypes
 open Fable.React
 open VerilogTypes
-open Hlp25Types
+open ParameterTypes
 open Optics
 open Optics.Operators
 

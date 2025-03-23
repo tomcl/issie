@@ -39,6 +39,7 @@ open Helpers
 open ModelType
 open CommonTypes
 open CodeEditorHelpers
+open System.Text.RegularExpressions
 
 module Constants =
     let infoSignUnicode = "\U0001F6C8"
@@ -121,7 +122,8 @@ let preventDefault (e: Browser.Types.ClipboardEvent) = e.preventDefault()
 
 let getText (dialogData : PopupDialogData) =
     Option.defaultValue "" dialogData.Text
-
+let getText2 (dialogData : PopupDialogData) =
+    Option.defaultValue "" dialogData.Text2
 let getImportDecisions (dialogData : PopupDialogData) =
     dialogData.ImportDecisions
 
@@ -593,9 +595,12 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
     intDefault |> Some |> SetPopupDialogInt |> dispatch
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
-        let goodLabel =
+        let goodLabelStart =
                 getText dialogData
                 |> (fun s -> String.startsWithLetter s || s = "")
+        let goodLabelLetters =
+                 getText dialogData
+                 |> (fun s -> Regex.IsMatch(s, "^[a-zA-Z0-9]+$") || s = "")
         div [] [
             beforeText dialogData
             Input.text [
@@ -603,7 +608,8 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
                 Input.Placeholder placeholder
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
-            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabel] [str "Name must start with a letter"]            
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabelStart] [str "Name must start with a letter."]            
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden (goodLabelLetters || not goodLabelStart)] [str "Name can only contain letters and numbers."]  
             br []
             br []
             beforeInt dialogData

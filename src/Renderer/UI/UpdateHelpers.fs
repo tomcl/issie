@@ -155,6 +155,7 @@ let shortDisplayMsg (msg:Msg) =
     | ClosePopup 
     | SetPopupDialogBadLabel _ 
     | SetPopupDialogText _ 
+    | SetPopupDialogText2 _
     | SetPopupDialogCode _ 
     | SetPopupDialogVerilogErrors _ 
     | SetPopupDialogInt _ 
@@ -163,6 +164,8 @@ let shortDisplayMsg (msg:Msg) =
     | SetPopupDialogTwoInts _ 
     | SetPopupDialogIntList _
     | SetPopupDialogIntList2 _
+    | AddPopupDialogParamSpec _
+    | ClearPopupDialogParamSpec _
     | SetPropertiesExtraDialogText _ 
     | SetPopupDialogBadLabel _ 
     | SetPopupDialogMemorySetup _  

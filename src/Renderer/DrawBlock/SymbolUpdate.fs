@@ -795,6 +795,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     | ChangeConstant (compId, newVal, newText) -> 
         let newsymbol = changeConstantf model compId newVal newText
         (replaceSymbol model newsymbol compId), Cmd.none
+    | ChangeCustom (compId, oldComp, newComp) ->
+        let newSymbol = changeCustom model compId oldComp newComp
+        let newPorts = addToPortModel model newSymbol
+        let newModel = {model with Ports = newPorts}
+        // printf $"{newSymbol}"
+        (replaceSymbol newModel newSymbol compId), Cmd.none
     
     | ChangeBusCompare (compId, newVal, newText) -> 
         let newsymbol = changeBusComparef model compId newVal newText

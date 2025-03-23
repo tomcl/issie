@@ -339,5 +339,68 @@ module Memory =
 
     let mutable modelCopy: Model option = None
 
+    
+/// This is to add a dummy slot to this sheet, the expression of the slot is a random generated integer between 10 and 50
+module TestCompUpateLens =
+    open Hlp25CodeA
+    open Hlp25Types
+    open Optics
+    open Optics.Operators
+    open ModelType      
+    open PopupHelpers   
+    open System.Text.RegularExpressions
+    open Fable.React   
+    open ElectronAPI
+    open DrawHelpers
+    open Fable.Core.JsInterop
+    open Fable.React
+    open Fable.React.Props
+    open CommonTypes
+    open DrawModelType
 
+    #if FABLE_COMPILER
+    let uuid():string = import "v4" "uuid"
+    #else
+    let uuid():string = System.Guid.NewGuid.ToString()
+    #endif
+    let createDummySlot (project: CommonTypes.Project) id (expression: Hlp25Types.ParamExpression) (constraints: Hlp25Types.ParamConstraint list) dispatch =
+        let slot = {CompId = id; CompSlot = Buswidth}
+        Hlp25CodeA.modifyInfoSheet project (Hlp25CodeA.ParamSlots (slot,expression,constraints)) dispatch
+    let createDummySymbol (project: CommonTypes.Project) id busWidth =
 
+        let createDummyComponent id busWidth (pos: XYPos) (h: float) (w:float) : Component =
+            {
+                H = h
+                W = w
+                X = pos.X - w / 2.
+                Y = pos.Y - h / 2.
+                Type = ComponentType.Register busWidth
+                SlotInfo = None
+                Id = id
+                Label = ""
+                InputPorts = []
+                OutputPorts = []
+                SymbolInfo = None
+            }
+        let createAnnotation (theme: DrawModelType.SymbolT.ThemeType) (pos: XYPos)  =
+            (14.0,14.0)
+            ||> createDummyComponent id busWidth pos
+            |> SymbolUpdate.createSymbolRecord [] theme
+
+        createAnnotation DrawModelType.SymbolT.ThemeType.Colourful ( {X = 2000.0;Y = 2000.0})
+
+    let testParamsSlotsView (model:Model) dispatch= 
+        let rng = System.Random()
+        let randomInRange = rng.Next(10, 50) 
+        let expression = (Hlp25Types.PInt randomInRange) 
+        let uuid = uuid()
+        match model.CurrentProj with
+        | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
+        | Some project -> 
+            let currentSymbols = model ^.Hlp25CodeA.modelToSymbols
+            let newSymbols = currentSymbols |> Map.add (ComponentId uuid) (createDummySymbol project uuid randomInRange )
+            let newModel = snd Hlp25CodeA.modelToSymbols newSymbols
+            newModel |> UpdateModel |> dispatch
+            
+            createDummySlot project uuid expression [(MaxVal (PInt 50, "Max 50")); (MinVal (PInt 10, "Min 10"))] dispatch
+            

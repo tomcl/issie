@@ -14,6 +14,7 @@ open SimTypes
 open TruthTableTypes
 open Fable.React
 open VerilogTypes
+open Hlp25Types
 open Optics
 open Optics.Operators
 
@@ -74,6 +75,7 @@ type ImportDecision =
 /// Possible fields that may (or may not) be used in a dialog popup.
 type PopupDialogData = {
     Text : string option;
+    Text2: string option;
     Int : int option;
     ImportDecisions : Map<string, ImportDecision option>
     Int2: bigint option
@@ -93,10 +95,11 @@ type PopupDialogData = {
     BadLabel: bool
     IntList: int list option;
     IntList2: int list option;
-    DialogState: Hlp25Types.Hlp25DialogState option
+    DialogState: Hlp25DialogState option
 }
 
 let text_ = Lens.create (fun a -> a.Text) (fun s a -> {a with Text = s})
+let text2_ = Lens.create (fun a -> a.Text2) (fun s a -> {a with Text2 = s})
 let importDecisions_ = Lens.create (fun a -> a.ImportDecisions) (fun s a -> {a with ImportDecisions = s})
 let int_ = Lens.create (fun a -> a.Int) (fun s a -> {a with Int = s})
 let int2_ = Lens.create (fun a -> a.Int2) (fun s a -> {a with Int2 = s})
@@ -116,6 +119,7 @@ let verilogErrors_ = Lens.create (fun a -> a.VerilogErrors) (fun s a -> {a with 
 let badLabel_ = Lens.create (fun a -> a.BadLabel) (fun s a -> {a with BadLabel = s})
 let intlist_ = Lens.create (fun a -> a.IntList) (fun s a -> {a with IntList = s})
 let intlist2_ = Lens.create (fun a -> a.IntList2) (fun s a -> {a with IntList2 = s})
+let paramCompSpec_ = Lens.create (fun a -> a.DialogState) (fun s a -> {a with DialogState = s})
 type TopMenu = | Closed | Project | Files |TransientClosed
 
 //==========//
@@ -251,7 +255,7 @@ type WaveSimModel = {
     SelectedWaves: WaveIndexT list
     /// State used in Wave Selector from HLP25 teams
     /// This is in addition to SelectedWaves
-    Hlp25State: Hlp25Types.Hlp25WSModelState option
+    Hlp25State: Hlp25WSModelState option
 
     /// Left-most visible clock cycle.
     /// this is scaled by CycleMultiplier, and therefore not the real clock cycle
@@ -455,6 +459,7 @@ type Msg =
     | ShowStaticInfoPopup of (string * ReactElement * (Msg -> Unit))
     | ClosePopup
     | SetPopupDialogText of string option
+    | SetPopupDialogText2 of string option
     | SetPopupDialogBadLabel of bool
     | SetPopupDialogCode of string option
     | SetPopupDialogVerilogErrors of ErrorInfo list
@@ -464,6 +469,8 @@ type Msg =
     | SetPopupDialogTwoInts of (bigint option * IntMode * string option)
     | SetPopupDialogIntList of int list option
     | SetPopupDialogIntList2 of int list option
+    | AddPopupDialogParamSpec of (CompSlotName * Result<NewParamCompSpec, ParamError>)
+    | ClearPopupDialogParamSpec of CompSlotName
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option

@@ -261,6 +261,7 @@ module SymbolT =
         | ChangeBusCompare of compId: ComponentId * NewBits:bigint * NewText:string
         | ChangeReversedInputs of compId: ComponentId
         | ChangeAdderComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
+        | ChangeCustom of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ChangeCounterComponent of compId: ComponentId * oldComp: Component * newComp: ComponentType
         | ResetModel // For Issie Integration
         | LoadComponents of  LoadedComponent list * Component list // For Issie Integration
@@ -461,7 +462,8 @@ module SheetT =
         | Idle
         | Scaling
         // ------------------------------ Issie Actions ---------------------------- //
-        | InitialisedCreateComponent of LoadedComponent list * ComponentType * string
+        // (ComponentId -> Unit) is function used to add created component to parameter slots
+        | InitialisedCreateComponent of LoadedComponent list * ComponentType * string * (ComponentId -> Unit) option
         | MovingPort of portId: string//?? should it have the port id?
         | ResizingSymbol of CommonTypes.ComponentId * XYPos
 
@@ -534,7 +536,9 @@ module SheetT =
         | SetPopupDialogText of string option
         | SetPopupDialogInt of int option
         // ------------------- Issie Interface Messages ----------------------
-        | InitialiseCreateComponent of LoadedComponent list * ComponentType * string // Need to initialise for drag-and-drop
+        // Need to initialise for drag-and-drop
+        // (ComponentId -> Unit) is function used to add created component to parameter slots
+        | InitialiseCreateComponent of LoadedComponent list * ComponentType * string * (ComponentId -> Unit) option
         | FlushCommandStack
         | ResetModel
         | UpdateSelectedWires of ConnectionId list * bool

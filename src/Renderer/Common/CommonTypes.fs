@@ -943,7 +943,7 @@ let formOpt_ = Lens.create (fun a -> a.Form) (fun s a -> match s with | None -> 
 let canvasState_ = Lens.create (fun a -> a.CanvasState) (fun s a -> {a with CanvasState = s})
 let loadedComponentIsOutOfDate_ = Lens.create (fun a -> a.LoadedComponentIsOutOfDate) (fun s a -> {a with LoadedComponentIsOutOfDate = s})
 let componentsState_ = canvasState_ >-> Optics.fst_
-
+let lcParameterSlots_ = Prism.create (fun a -> a.LCParameterSlots) (fun s a -> {a with LCParameterSlots = Some s})
 
 /// Returns true if a component is clocked
 let rec isClocked (visitedSheets: string list) (ldcs: LoadedComponent list) (comp: Component) =

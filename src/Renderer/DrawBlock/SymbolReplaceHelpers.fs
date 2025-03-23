@@ -299,6 +299,12 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
         )
     
 
+let changeCustom (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
+    let symbol = Map.find compId symModel.Symbols
+    symbol 
+    |> map component_ (
+        set type_ newCompType
+    )
 
 let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
     let oldCompType = oldComp.Type

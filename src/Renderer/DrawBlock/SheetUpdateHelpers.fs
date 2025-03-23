@@ -801,7 +801,7 @@ let mMoveUpdate
     | DragAndDrop ->
         moveSymbols model mMsg
 
-    | InitialisedCreateComponent (ldcs, compType, lbl) ->
+    | InitialisedCreateComponent (ldcs, compType, lbl, addParamComp) ->
         let labelTest = 
             match compType with
             |Input _ | Input1 (_,_) |Output _ |Viewer _ |IOLabel ->
@@ -809,6 +809,11 @@ let mMoveUpdate
             | _ ->
                 if lbl = "" then SymbolUpdate.generateLabel model.Wire.Symbol compType else lbl
         let newSymbolModel, newCompId = SymbolUpdate.addSymbol ldcs model.Wire.Symbol mMsg.Pos compType labelTest
+        
+        // Use new component ID to add parameterised component to parameter slots
+        match addParamComp with
+        | Some addParamSlot -> addParamSlot newCompId
+        | None -> ()
 
         { model with Wire = { model.Wire with Symbol = newSymbolModel }
                      Action = DragAndDrop

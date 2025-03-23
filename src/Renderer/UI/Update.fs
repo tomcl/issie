@@ -433,6 +433,7 @@ let update (msg : Msg) oldModel =
                         ImportDecisions = Map.empty;
                         Int = None;
                         Int2 = None;
+                        DialogState = None;
                         MemorySetup = None;
                         MemoryEditorData = None;
                         VerilogCode = None;
@@ -443,6 +444,11 @@ let update (msg : Msg) oldModel =
     | SetPopupDialogText text ->
         model
         |> set (popupDialogData_ >-> text_) text
+        |> withNoMsg
+
+    | SetPopupDialogText2 text ->
+        model
+        |> set (popupDialogData_ >-> text2_) text
         |> withNoMsg
 
     | SetPopupDialogBadLabel isBad ->
@@ -488,6 +494,28 @@ let update (msg : Msg) oldModel =
     | SetPopupDialogIntList2 intlist2->
         model
         |> set (popupDialogData_ >-> intlist2_) intlist2
+        |> withNoMsg
+
+    | AddPopupDialogParamSpec (slotName, paramCompSpec) ->
+        let paramInputs_ = popupDialogData_ >-> paramCompSpec_
+        let newInputs = 
+            model
+            |> get paramInputs_
+            |> Option.defaultValue Map.empty
+            |> Map.add slotName paramCompSpec
+        model
+        |> set paramInputs_ (Some newInputs)
+        |> withNoMsg
+
+    | ClearPopupDialogParamSpec slotName ->
+        let paramInputs_ = popupDialogData_ >-> paramCompSpec_
+        let newInputs = 
+            model
+            |> get paramInputs_
+            |> Option.defaultValue Map.empty
+            |> Map.remove slotName
+        model
+        |> set paramInputs_ (Some newInputs)
         |> withNoMsg
 
     | SetPopupDialogMemorySetup m ->

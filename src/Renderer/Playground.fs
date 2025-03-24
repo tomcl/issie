@@ -165,7 +165,6 @@ module Breadcrumbs =
     open Fable.React
     open Fable.React.Props
     open Browser.Types
-    open HLP25CodeBsn722
     open WaveSimSelect
 
     let config = MiscMenuView.Constants.defaultConfig
@@ -175,22 +174,6 @@ module Breadcrumbs =
         PopupHelpers.closablePopup
             "Design Hierarchy of current sheet"
             (MiscMenuView.hierarchyBreadcrumbs config dispatch model)
-            (div [] []) []
-            dispatch
-    
-    let testWaveSelectBreadcrumbs model dispatch =
-        let action _ _ = ()
-        PopupHelpers.closablePopup
-            "Design Wave Selection Hierarchy of current sheet"
-            (waveSelectBreadcrumbs defaultWaveSimModel dispatch model)
-            (div [] []) []
-            dispatch
-
-    let testWaveSelectModal model dispatch =
-        let action _ _ = ()
-        PopupHelpers.closablePopup
-            "Select Waves Modal"
-            (selectWavesModalHlp25 defaultWaveSimModel dispatch model)
             (div [] []) []
             dispatch
 

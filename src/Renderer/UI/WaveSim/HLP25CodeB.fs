@@ -1,6 +1,4 @@
 ﻿module HLP25CodeB
-
-open Hlp25Types
 open Fable.React
 open Fable.React.Props
 open Fulma
@@ -151,41 +149,7 @@ let waveSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement
         ]
     ]
 
-// let waveSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-//     // Create autocomplete suggestions using the current waves.
-//     let suggestions =
-//         wsModel.AllWaves
-//         |> Map.values
-//         |> Seq.map (fun wave -> wave.ViewerDisplayName)
-//         |> Seq.distinct
-//         |> Seq.toList
-//     div [ searchBoxContainerStyle ] [
-//         Input.text [
-//             Input.Option.Value wsModel.WaveSearchString
-//             Input.Option.Props [
-//                 Style [ MarginBottom "1rem"; Width "100%" ]
-//                 // Link the input to the datalist for autocomplete.
-//                 HTMLAttr.Custom ("list", "waveSuggestions")
-//             ]
-//             Input.Option.Placeholder "Search wave names..."
-//             Input.Option.OnChange (fun value -> 
-//                 dispatch (UpdateWSModel (fun wsm ->
-//                     { wsm with
-//                         WaveSearchString = value.Value.ToUpper()
-//                         ComponentSearchString = "" // Clear component search when wave search changes.
-//                         PortSearchString = ""        // Clear port search when wave search changes.
-//                     }
-//                 ))
-//             )
-//         ]
-//         // The datalist element holding autocomplete suggestions.
-//         datalist [ HTMLAttr.Id "waveSuggestions" ] (
-//             suggestions
-//             |> List.map (fun suggestion ->
-//                 option [ HTMLAttr.Value suggestion ] []
-//             )
-//         )
-//     ]
+
 
 /// Search box for sheet names.
 let sheetSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
@@ -457,7 +421,7 @@ type WaveSelectionOutput = {
 
 /// Top-level function to select and filter waves for display.
 /// Uses the filtering logic from `filterWaves`.
-let selectWavesHlp25 (ws: WaveSimModel) (dispatch: Msg -> unit) : WaveSelectionOutput =
+let selectWaves (ws: WaveSimModel) (dispatch: Msg -> unit) : WaveSelectionOutput =
     if not ws.WaveModalActive then 
         { WaveList = []; ShowDetails = false }
     else
@@ -533,7 +497,7 @@ let renderwaves (ws: WaveSimModel) (dispatch: Msg -> unit) (waveselect: WaveSele
 /// Displays the modal for wave selection. The top row shows the info button and wave count,
 /// below it a horizontal row of search boxes (from HLP25CodeBdw722) is displayed,
 /// and then a two‑column grid shows the wave selection (left) and breadcrumbs (right).
-let selectWavesModalHlp25 (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Model) : ReactElement =
+let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Model) : ReactElement =
     // Helper to close the modal and reset search string.
     let resetSearchFilters (ws: WaveSimModel) =
         { ws with 
@@ -677,7 +641,7 @@ let selectWavesModalHlp25 (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model
                         OverflowY OverflowOptions.Auto
                     ]
                 ] [
-                    let waveselect = selectWavesHlp25 wsModel dispatch
+                    let waveselect = selectWaves wsModel dispatch
                     renderwaves wsModel dispatch waveselect
                 ]
             ]
@@ -696,8 +660,7 @@ let selectWavesModalHlp25 (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model
 // -----------------------------------------
 // Create and Implement WaveDisplayTree
 // -----------------------------------------
-// Type definitions must go here, because they depend on CommonTypes
-// Hlp25Types is above CommonTypes for Hlp25CodeA
+
 
 type WTNode =  
     | SheetNode of string list 
@@ -885,6 +848,8 @@ let makeWaveDisplayTree (wsModel: WaveSimModel) (showDetails: bool) (wavesToDisp
 let getWaveDisplayName (wave: Wave) : string =
     wave.SubSheet @ [wave.PortLabel] 
     |> List.reduce (fun acc s ->acc + "." + s)
+
+
 let implementWaveSelector (wsModel: WaveSimModel) (dispatch: Msg -> unit) (wTree: WaveDisplayTree): ReactElement =
     // This function implements the display of the waveform selection table
     // as a set of rows that can be hidden or displayed.

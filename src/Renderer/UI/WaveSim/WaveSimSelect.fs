@@ -23,6 +23,10 @@ open SimGraphTypes
 open SimTypes
 open DiagramStyle
 open UIPopups
+open MenuHelpers
+open TopMenuView
+open HLP25CodeBsn722
+open HLP25CodeB
 
 //--------------------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------------------//
@@ -627,14 +631,14 @@ let selectWaves (ws: WaveSimModel) (subSheet: string list) (dispatch: Msg -> uni
                 okWaves
             | "*" ->
                 okSelectedWaves
-                |> List.map (fun wi -> ws.AllWaves[wi])                       
+                |> List.map (fun wi -> ws.AllWaves[wi])                           
             | _ ->
                 List.filter (fun x -> x.ViewerDisplayName.ToUpper().Contains(searchText)) okWaves
         let showDetails = ((wavesToDisplay.Length < 10) || searchText.Length > 0) && searchText <> "-"
         wavesToDisplay
-        |> makeSheetRow showDetails ws dispatch []
-
-
+        // |> makeSheetRow showDetails ws dispatch []
+        |> makeWaveDisplayTree ws showDetails 
+        |> implementWaveSelector ws dispatch
 
 
 /// Button to activate wave selection modal
@@ -654,7 +658,7 @@ let selectWavesButton (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEle
 /// Modal that, when active, allows users to select waves to be viewed.
 /// Waves can be selected by clicking on their names.
 /// Waves can be filtered by typing in the search bar.
-let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Model): ReactElement =
     let endModal _ = 
         dispatch <| UpdateWSModel (fun ws ->
             {wsModel with
@@ -702,6 +706,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElem
             Modal.Card.body [Props [Style [OverflowY OverflowOptions.Visible]]] [   
                 searchBar wsModel dispatch
                 selectWaves wsModel [] dispatch
+                HLP25CodeBsn722.waveSelectBreadcrumbs wsModel dispatch model
             ]
             Modal.Card.foot [Props [Style [Display DisplayOptions.InlineBlock; Float FloatOptions.Right]]]
                 [
@@ -805,6 +810,3 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                 Modal.Card.foot [] []
             ]
         ]
-
-
-

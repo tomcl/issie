@@ -375,7 +375,6 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                             Label = newLabel
                             InputPorts = []
                             OutputPorts = [newPort]
-                            SlotInfo = None
                             X = 0
                             Y = 0
                             H = 0
@@ -416,7 +415,6 @@ let correctCanvasState (selectedCanvasState: CanvasState) (wholeCanvasState: Can
                             Label = newLabel
                             InputPorts = [newPort]
                             OutputPorts = []
-                            SlotInfo = None
                             X = 0
                             Y = 0
                             H = 0
@@ -679,7 +677,7 @@ let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =
             let renderedHtml =
                 katex?renderToString(
                     katexString,
-                    createObj [
+                    createObj[
                         "throwOnError" ==> false
                     ]
                 )

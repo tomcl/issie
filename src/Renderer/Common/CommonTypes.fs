@@ -411,7 +411,6 @@ type Component = {
     /// Field used only when sheet is saved from Draw Block: Symbol info is copied here
     /// This field is not uptodate when symbol is being edited in Draw Block
     SymbolInfo : SymbolInfo option
-    SlotInfo : Hlp25Types.Hlp25ComponentSlots option
 }
 
 with
@@ -420,7 +419,7 @@ with
 
     /// Equality function for components, includes all geometry except component position
     member c1.isSame(c2: Component) =
-        c1.Id = c2.Id && c1.Type = c2.Type && c1.Label = c2.Label && c1.SlotInfo = c2.SlotInfo &&
+        c1.Id = c2.Id && c1.Type = c2.Type && c1.Label = c2.Label &&
         c1.InputPorts = c2.InputPorts && c1.OutputPorts = c2.OutputPorts &&
         match c1.SymbolInfo,  c2.SymbolInfo with
         | Some s1, Some s2->
@@ -446,7 +445,6 @@ let inputPorts_ = Lens.create (fun c -> c.InputPorts) (fun n c -> {c with InputP
 let outputPorts_ = Lens.create (fun c -> c.OutputPorts) (fun n c -> {c with OutputPorts = n})
 let h_ = Lens.create (fun c -> c.H) (fun n c -> {c with H= n})
 let w_ = Lens.create (fun c -> c.W) (fun n c -> {c with W= n})
-let slotInfo_ = Lens.create (fun c -> c.SlotInfo) (fun n c -> {c with SlotInfo = n})
 
 
 /// JSConnection mapped to F# record.
@@ -531,7 +529,6 @@ module JSONComponent =
         Label : string // All components have a label that may be empty.
         InputPorts : Port list // position on this list determines inputPortNumber
         OutputPorts : Port list // position in this lits determines OutputPortNumber
-        SlotInfo : Hlp25Types.Hlp25ComponentSlots option
         X : float
         Y : float
         H : float
@@ -733,7 +730,6 @@ let legacyTypesConvert (lComps, lConns) =
             Label = comp.Label // All components have a label that may be empty.
             InputPorts = comp.InputPorts // position on this list determines inputPortNumber
             OutputPorts = comp.OutputPorts // position in this lits determines OutputPortNumber
-            SlotInfo = None
             X = comp.X
             Y = comp.Y
             H = comp.H

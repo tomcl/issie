@@ -45,11 +45,13 @@ type SimulationComponent =
     { Id: ComponentId
       Type: ComponentType
       Label: ComponentLabel
+      // Mapping from each input port number to its value (it will be set
+      // during the simulation process).
+      // TODO: maybe using a list would improve performance?
+      Inputs: Map<InputPortNumber, WireData>
       // Mapping from each output port number to all of the ports and
       // Components connected to that port.
       Outputs: Map<OutputPortNumber, (ComponentId * InputPortNumber) list>
-      DrivenInputWidths: ((ComponentId * InputPortNumber) * int) list
-      InputWidths: Map<InputPortNumber, int>
       OutputWidths: int array
       // this is MUTABLE and used only during clock tick change propagation
       // location n = true => the output (of a synchronous component) has been

@@ -322,6 +322,12 @@ type WaveSimModel = {
     /// If true, queue is clear and can dispatch scrollbar update.
     /// Otherwise, an update is in progress and mouse event should not be pushed onto the queue.</summary>
     ScrollbarQueueIsEmpty: bool
+    WaveSearchString: string
+    SheetSearchString: string
+    ComponentSearchString: string
+    PortSearchString: string
+    ComponentTypeSearchString: string
+    HighlightedSheets: Set<string list>
 }
 
 let wSConfig_ = Lens.create (fun a -> a.WSConfig) (fun s a -> {a with WSConfig = s})

@@ -50,7 +50,6 @@ let createComponent' id compType (name:string) inputPorts outputPorts =
         Label = name.ToUpper()
         InputPorts = inputPorts 
         OutputPorts = outputPorts
-        SlotInfo = None
         X = 0.
         Y = 0.
         H = 30.
@@ -1302,7 +1301,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                     OutputLabels=loadedComp.OutputLabels;
                     Form=None;
                     Description=None;
-                    ParameterBindings = None
+                    ParameterBindings = loadedComp.LCParameterSlots
                 }
             let comp = createComponent (Custom customCompType) modInst.Identifier.Name
             let portLabels = loadedComp.InputLabels@loadedComp.OutputLabels

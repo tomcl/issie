@@ -78,6 +78,13 @@ let initWSModel  : WaveSimModel = {
     ScrollbarBkgWidth = 0.0 // overwritten when first rendered
     ScrollbarBkgRepCycs = Constants.scrollbarBkgRepCyclesInit // default value
     ScrollbarQueueIsEmpty = true // default value: empty scroll queue
+
+    WaveSearchString = ""
+    SheetSearchString = ""
+    ComponentSearchString = ""
+    PortSearchString = ""
+    ComponentTypeSearchString = ""
+    HighlightedSheets = Set.empty
 }
 
 /// This is needed because DrawBlock cannot directly access Issie Model.

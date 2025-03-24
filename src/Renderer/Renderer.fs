@@ -223,6 +223,8 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.MiscTests.testAssets())
             makeWinDebugItem  "Test Breadcrumbs" None 
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testBreadcrumbs,dispatch))
+            makeWinDebugItem  "Test WaveSelect Breadcrumbs" None 
+                (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testWaveSelectBreadcrumbs,dispatch))
             makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
 

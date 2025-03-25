@@ -275,8 +275,7 @@ let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIn
     let fc = fastSim.WaveComps[waveIndex.Id]
     match fc.SubSheet with
     | [] -> fastSim.SimulatedTopSheet + "." + dispName
-    | [sheet] -> sheet + "." + dispName      
-    | path ->  camelCaseDottedWords(path[path.Length - 2]) + "." + dispName
+    | path ->  camelCaseDottedWords(path[path.Length - 1]) + "." + dispName
 
 /// Make Wave for each component and port on sheet
 let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =

@@ -45,84 +45,72 @@ let ensureWaveConsistency (ws: WaveSimModel) =
         printfn "ok selected waves length = %d <> selectedwaves length = %d" okSelectedWaves.Length ws.SelectedWaves.Length
     okWaves, okSelectedWaves
 
+let getComponentName (wave: Wave) =
+    let fs = Simulator.getFastSim()
+    let comp = Simulator.getFastSim().WaveComps.[wave.WaveId.Id]
+    match comp.FType with
+    | Not -> "NOT"
+    | Mux2 -> "MUX2"
+    | Demux2 -> "DEMUX2"
+    | DFF -> "DFF"
+    | DFFE -> "DFFE"
+    | Register _ -> "REGISTER"
+    | RegisterE _ -> "REGISTER-E"
+    | ROM1 _ -> "ROM"
+    | RAM1 _ -> "RAM"
+    | AsyncROM1 _ -> "ASYNC-ROM"
+    | AsyncRAM1 _ -> "ASYNC-RAM"
+    | Custom _ -> "CUSTOM"
+    | Input1 _ -> "INPUT"
+    | Output _ -> "OUTPUT"
+    | Constant1 _ -> "CONSTANT"
+    | BusSelection _ -> "BUS-SELECT"
+    | IOLabel -> "IO-LABEL"
+    | _ -> comp.FType.ToString().ToUpper()
+
 /// Filtering function that applies an AND operation across all five search criteria.
-let filterWaves (wsModel: WaveSimModel) (waves: Wave list) (dispatch: Msg -> unit) =
+let filterWaves (wsModel: WaveSimModel) (waves: Wave list) =
     let filteredWaves, matchingSheets =
-        waves
-        |> List.fold (fun (filtered, sheetSet) wave ->
+        (([],Set.empty), waves)
+        ||> List.fold (fun (filtered, sheetSet) wave ->
             let addMatchingSheet sheet = Set.add sheet sheetSet
 
-            // Check for sheet name matches.
-            let matchesSheet, updatedSheets1 =
-                if wsModel.SheetSearchString = "" then true, sheetSet
-                else
-                    match wave.SubSheet with
-                    | [] ->
-                        let topSheet = Simulator.getFastSim().SimulatedTopSheet
-                        let matches = topSheet.ToUpper().Contains(wsModel.SheetSearchString)
-                        if matches then true, addMatchingSheet [] else false, sheetSet
-                    | sheets ->
-                        let matches = sheets |> List.exists (fun s -> s.ToUpper().Contains(wsModel.SheetSearchString))
-                        if matches then true, addMatchingSheet sheets else false, sheetSet
+            let waveSheet (wave: Wave) =
+                match List.rev wave.SubSheet with
+                | [] -> Simulator.getFastSim().SimulatedTopSheet
+                | sheet :: _ -> sheet
 
-            // Check for component name matches.
-            let matchesComponent, updatedSheets2 =
-                if wsModel.ComponentSearchString = "" then true, updatedSheets1
-                else 
-                    let matches = wave.CompLabel.ToUpper().Contains(wsModel.ComponentSearchString)
-                    if matches then true, addMatchingSheet wave.SubSheet else false, updatedSheets1
+            let matchWithBox (searchString: string) (matcher:string) (waveOpt: Wave option) =
+                waveOpt
+                |> Option.bind (fun wave ->
+                    let s = searchString.Trim().ToUpper()
+                    if s = "" || s = "*" ||
+                       matcher.ToUpper().Contains s
+                    then Some wave
+                    else None)
+            Some wave
+            |> matchWithBox wsModel.SheetSearchString (waveSheet wave)
+            |> matchWithBox wsModel.ComponentSearchString wave.CompLabel
+            |> matchWithBox wsModel.PortSearchString wave.PortLabel
+            |> matchWithBox wsModel.WaveSearchString wave.ViewerDisplayName
+            |> matchWithBox wsModel.ComponentTypeSearchString  (getComponentName wave)
+            |> function | None -> filtered, sheetSet
+                        | Some wave -> wave :: filtered, addMatchingSheet wave.SubSheet)
 
-            // Check for port name matches.
-            let matchesPort, updatedSheets3 =
-                if wsModel.PortSearchString = "" then true, updatedSheets2
-                else 
-                    let matches = wave.PortLabel.ToUpper().Contains(wsModel.PortSearchString)
-                    if matches then true, addMatchingSheet wave.SubSheet else false, updatedSheets2
-
-            // Check for wave name matches.
-            let matchesWave, updatedSheets4 =
-                if wsModel.WaveSearchString = "" || wsModel.WaveSearchString = "*" then true, updatedSheets3
-                else 
-                    let matches = wave.ViewerDisplayName.ToUpper().Contains(wsModel.WaveSearchString)
-                    if matches then true, addMatchingSheet wave.SubSheet else false, updatedSheets3
-
-            // Check for component type matches.
-            let matchesComponentType, updatedSheets5 =
-                if wsModel.ComponentTypeSearchString = "" || wsModel.ComponentTypeSearchString = "*" then true, updatedSheets4
-                else
-                    let fs = Simulator.getFastSim()
-                    let comp = fs.WaveComps.[wave.WaveId.Id]
-                    let typeStr =
-                        match comp.FType with
-                        | Not -> "NOT"
-                        | Mux2 -> "MUX2"
-                        | Demux2 -> "DEMUX2"
-                        | DFF -> "DFF"
-                        | DFFE -> "DFFE"
-                        | Register _ -> "REGISTER"
-                        | RegisterE _ -> "REGISTER-E"
-                        | ROM1 _ -> "ROM"
-                        | RAM1 _ -> "RAM"
-                        | AsyncROM1 _ -> "ASYNC-ROM"
-                        | AsyncRAM1 _ -> "ASYNC-RAM"
-                        | Custom _ -> "CUSTOM"
-                        | Input1 _ -> "INPUT"
-                        | Output _ -> "OUTPUT"
-                        | Constant1 _ -> "CONSTANT"
-                        | BusSelection _ -> "BUS-SELECT"
-                        | IOLabel -> "IO-LABEL"
-                        | _ -> comp.FType.ToString().ToUpper()
-                    let matches = typeStr.Contains(wsModel.ComponentTypeSearchString)
-                    if matches then true, addMatchingSheet wave.SubSheet else false, updatedSheets4
-
-            if matchesSheet && matchesComponent && matchesPort && matchesWave && matchesComponentType then
-                (wave :: filtered, updatedSheets5)
-            else
-                (filtered, updatedSheets5)
-        ) ([], Set.empty)
     // Update the model with highlighted sheets.
-    dispatch (UpdateWSModel (fun wsm -> { wsModel with HighlightedSheets = matchingSheets }))
+    printfn "Filtered waves: %d from %d" filteredWaves.Length waves.Length
     filteredWaves
+
+let wavesToDisplay (ws: WaveSimModel) dispatch =
+        let okWaves, okSelectedWaves = ensureWaveConsistency ws
+        match ws.WaveSearchString with
+        | "" | "-" -> filterWaves ws okWaves
+        | "*" ->
+            okWaves
+            //|> List.map (fun wi -> ws.AllWaves.[wi])
+            |> fun waves -> filterWaves ws waves
+        | _ -> filterWaves ws okWaves
+
 
 // -----------------------------------------
 // Search Box UI Components
@@ -209,21 +197,13 @@ let componentTypeSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : Rea
 // -----------------------------------------
 
 /// Displays a breadcrumb of sheets based on the current search and wave matches.
-let waveSelectBreadcrumbs (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Model) : ReactElement =
+let waveSelectBreadcrumbs (wsModel: WaveSimModel) (filteredWaves: Wave list) (dispatch: Msg -> unit) (model: Model) : ReactElement =
     match model.CurrentProj with
     | None -> div [] [ str "No project open" ]
     | Some project ->
         let updatedProject = ModelHelpers.getUpdatedLoadedComponents project model
         let updatedModel = { model with CurrentProj = Some updatedProject }
         let okWaves, okSelectedWaves = ensureWaveConsistency wsModel
-        let filteredWaves =
-            match wsModel.WaveSearchString with
-            | "" | "-" -> filterWaves wsModel okWaves dispatch
-            | "*" ->
-                okSelectedWaves
-                |> List.map (fun waveId -> wsModel.AllWaves.[waveId])
-                |> fun waves -> filterWaves wsModel waves dispatch
-            | _ -> filterWaves wsModel okWaves dispatch
         let filteredWaveNames = filteredWaves |> List.map (fun wave -> wave.ViewerDisplayName)
         // Extract sheet names from wave names.
         let sheetNames =
@@ -421,22 +401,13 @@ type WaveSelectionOutput = {
 
 /// Top-level function to select and filter waves for display.
 /// Uses the filtering logic from `filterWaves`.
-let selectWaves (ws: WaveSimModel) (dispatch: Msg -> unit) : WaveSelectionOutput =
+let selectWaves (ws: WaveSimModel) (waves: Wave list) (dispatch: Msg -> unit) : WaveSelectionOutput =
     if not ws.WaveModalActive then 
         { WaveList = []; ShowDetails = false }
     else
-        let okWaves, okSelectedWaves = ensureWaveConsistency ws
-        let wavesToDisplay =
-            match ws.WaveSearchString with
-            | "" | "-" -> filterWaves ws okWaves dispatch
-            | "*" ->
-                okSelectedWaves
-                |> List.map (fun wi -> ws.AllWaves.[wi])
-                |> fun waves -> filterWaves ws waves dispatch
-            | _ -> filterWaves ws okWaves dispatch
-        let showDetails = ((List.length wavesToDisplay < 10) || (ws.WaveSearchString.Length > 0))
+        let showDetails = ((List.length waves < 10) || (ws.WaveSearchString.Length > 0))
                           && (ws.WaveSearchString <> "-")
-        { WaveList = wavesToDisplay; ShowDetails = showDetails }
+        { WaveList = waves; ShowDetails = showDetails }
 
 let makeFlatGroupRow showDetails (ws: WaveSimModel) (dispatch: Msg -> unit)
       (subSheet: string list) (grp: ComponentGroup) (wavesInGroup: Wave list) =
@@ -529,132 +500,136 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
             closeModal ()
         // Always reset the search string.
         dispatch (UpdateWSModel (fun ws -> { ws with SearchString = "" }))
-    Modal.modal [
-        Modal.IsActive wsModel.WaveModalActive
-        Modal.Props [ Style [ ZIndex 20000 ] ]
-    ] [
-        // Modal background to allow closing on click.
-        Modal.background [
-            Props [ OnClick (fun _ -> dispatch (UpdateWSModel (fun ws -> { ws with WaveModalActive = false }))) ]
-        ] []
-        // Main modal card.
-        Modal.Card.card [ Props [ Style [ MinWidth "90%" ] ] ] [
-            // Header with title and delete button.
-            Modal.Card.head [] [
-                Modal.Card.title [] [
-                    Level.level [] [
-                        Level.left [] [ str "Select Waves" ]
-                        Level.right [] [
-                            Delete.delete [
-                                Delete.Option.Size IsMedium
-                                Delete.Option.OnClick handleModalClose
-                            ] []
-                        ]
-                    ]
-                ]
-            ]
-            // Body with info row, search boxes row, then two columns for selection and breadcrumbs.
-            Modal.Card.head [
-                Props [
-                    Style [
-                        BackgroundColor "white"
-                        Border "none"
-                        Margin "0"
-                        Padding "0"
-                        Height "auto"
-                        BorderTopLeftRadius "0"
-                        BorderTopRightRadius "0"
-                    ]
-                ]
-            ] [
-                div [
-                    Style [
-                        GridColumn "1 / span 2"
-                        MarginBottom "15px"
-                        MarginTop "15px"
-                        Display DisplayOptions.Flex
-                        FlexDirection "row"
-                        FlexWrap "wrap"
-                        MarginLeft "10px"
-                    ]
-                ] [
-                    waveSearchBox wsModel dispatch
-                    sheetSearchBox wsModel dispatch
-                    componentSearchBox wsModel dispatch
-                    portSearchBox wsModel dispatch
-                    componentTypeSearchBox wsModel dispatch
-                    // Info button and wave count.
-                    div [ Style [ Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
-                        infoButton
-                        div [ Style [ MarginLeft "10px" ] ] [
-                            str (sprintf "%d waves selected" (List.length wsModel.SelectedWaves))
-                        ]
-                    ]
-                    // Select All button.
-                    div [ Style [ MarginLeft "15px"; Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
-                        Checkbox.checkbox [] [
-                            Checkbox.input [
-                                Props [
-                                    Checked (wsModel.WaveSearchString = "*")
-                                    OnChange (fun _ ->
-                                        let newSearch =
-                                            if wsModel.WaveSearchString = "*" then "" else "*"
-                                        dispatch (UpdateWSModel (fun ws -> { ws with WaveSearchString = newSearch }))
-                                    )
-                                ]
+
+    if not wsModel.WaveModalActive then div [] []
+    else
+        let filteredWaves = wavesToDisplay wsModel dispatch
+        Modal.modal [
+            Modal.IsActive wsModel.WaveModalActive
+            Modal.Props [ Style [ ZIndex 20000 ] ]
+        ] [
+            // Modal background to allow closing on click.
+            Modal.background [
+                Props [ OnClick (fun _ -> dispatch (UpdateWSModel (fun ws -> { ws with WaveModalActive = false }))) ]
+            ] []
+            // Main modal card.
+            Modal.Card.card [ Props [ Style [ MinWidth "90%" ] ] ] [
+                // Header with title and delete button.
+                Modal.Card.head [] [
+                    Modal.Card.title [] [
+                        Level.level [] [
+                            Level.left [] [ str "Select Waves" ]
+                            Level.right [] [
+                                Delete.delete [
+                                    Delete.Option.Size IsMedium
+                                    Delete.Option.OnClick handleModalClose
+                                ] []
                             ]
-                            str "Select All Waves"
                         ]
                     ]
                 ]
-
-            ]
-
-            // Body with info row, search boxes row, then two columns for selection and breadcrumbs.
-            Modal.Card.body [
-                Props [
-                    Style [
-                        Height "70vh"
-                        OverflowY OverflowOptions.Visible
-                        Display DisplayOptions.Grid
-                        GridTemplateColumns "1fr 1fr"
-                        GridGap "10px"
-                        Width "100%"
-                    ]
-                ]
-            ] [
-                
-                // Left column: breadcrumbs with its own scrollbar.
-                div [
-                    Style [
-                        Height "100%"
-                        OverflowY OverflowOptions.Auto
-                    ]
-                ] [ 
-                    waveSelectBreadcrumbs wsModel dispatch model 
-                ]
-
-                // Right column: wave selection with its own scrollbar.
-                div [
-                    Style [
-                        Height "100%"
-                        OverflowY OverflowOptions.Auto
+                // Body with info row, search boxes row, then two columns for selection and breadcrumbs.
+                Modal.Card.head [
+                    Props [
+                        Style [
+                            BackgroundColor "white"
+                            Border "none"
+                            Margin "0"
+                            Padding "0"
+                            Height "auto"
+                            BorderTopLeftRadius "0"
+                            BorderTopRightRadius "0"
+                        ]
                     ]
                 ] [
-                    let waveselect = selectWaves wsModel dispatch
-                    renderwaves wsModel dispatch waveselect
+                    div [
+                        Style [
+                            GridColumn "1 / span 2"
+                            MarginBottom "15px"
+                            MarginTop "15px"
+                            Display DisplayOptions.Flex
+                            FlexDirection "row"
+                            FlexWrap "wrap"
+                            MarginLeft "10px"
+                        ]
+                    ] [
+                        waveSearchBox wsModel dispatch
+                        sheetSearchBox wsModel dispatch
+                        componentSearchBox wsModel dispatch
+                        portSearchBox wsModel dispatch
+                        componentTypeSearchBox wsModel dispatch
+                        // Info button and wave count.
+                        div [ Style [ Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
+                            infoButton
+                            div [ Style [ MarginLeft "10px" ] ] [
+                                str (sprintf "%d waves selected" (List.length wsModel.SelectedWaves))
+                            ]
+                        ]
+                        // Select All button.
+                        div [ Style [ MarginLeft "15px"; Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
+                            Checkbox.checkbox [] [
+                                Checkbox.input [
+                                    Props [
+                                        Checked (wsModel.WaveSearchString = "*")
+                                        OnChange (fun _ ->
+                                            let newSearch =
+                                                if wsModel.WaveSearchString = "*" then "" else "*"
+                                            dispatch (UpdateWSModel (fun ws -> { ws with WaveSearchString = newSearch }))
+                                        )
+                                    ]
+                                ]
+                                str "Select All Waves"
+                            ]
+                        ]
+                    ]
+
                 ]
-            ]
-            // Footer with Done button.
-            Modal.Card.foot [ Props [ Style [ Display DisplayOptions.InlineBlock; Float FloatOptions.Right ] ] ] [
-                Fulma.Button.button [
-                    Fulma.Button.OnClick (fun _ -> closeModal ())
-                    Fulma.Button.Color IsSuccess
-                    Fulma.Button.Props [ Style [ Display DisplayOptions.InlineBlock; Float FloatOptions.Right ] ]
-                ] [ str "Done" ]
+
+                // Body with info row, search boxes row, then two columns for selection and breadcrumbs.
+                Modal.Card.body [
+                    Props [
+                        Style [
+                            Height "70vh"
+                            OverflowY OverflowOptions.Visible
+                            Display DisplayOptions.Grid
+                            GridTemplateColumns "1fr 1fr"
+                            GridGap "10px"
+                            Width "100%"
+                        ]
+                    ]
+                ] [
+                
+                    // Left column: breadcrumbs with its own scrollbar.
+                    div [
+                        Style [
+                            Height "100%"
+                            OverflowY OverflowOptions.Auto
+                        ]
+                    ] [ 
+                        waveSelectBreadcrumbs wsModel filteredWaves dispatch model 
+                    ]
+
+                    // Right column: wave selection with its own scrollbar.
+                    div [
+                        Style [
+                            Height "100%"
+                            OverflowY OverflowOptions.Auto
+                        ]
+                    ] [
+                        let waveselect = selectWaves wsModel filteredWaves dispatch
+                        renderwaves wsModel dispatch waveselect
+                    ]
+                ]
+                // Footer with Done button.
+                Modal.Card.foot [ Props [ Style [ Display DisplayOptions.InlineBlock; Float FloatOptions.Right ] ] ] [
+                    Fulma.Button.button [
+                        Fulma.Button.OnClick (fun _ -> closeModal ())
+                        Fulma.Button.Color IsSuccess
+                        Fulma.Button.Props [ Style [ Display DisplayOptions.InlineBlock; Float FloatOptions.Right ] ]
+                    ] [ str "Done" ]
+                ]
             ]
         ]
-    ]
 
 
 // -----------------------------------------

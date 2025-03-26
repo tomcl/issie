@@ -121,6 +121,7 @@
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
     <Compile Include="UI\WaveSim\WaveSimNavigation.fs" />
+    <Compile Include="UI\WaveSim\HLP25CodeB.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />
     <Compile Include="UI\WaveSim\WaveSimSVGs.fs" />
     <Compile Include="UI\WaveSim\WaveSimWaveforms.fs" />

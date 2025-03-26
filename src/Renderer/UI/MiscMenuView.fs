@@ -17,6 +17,7 @@ open DrawModelType
 open Optics
 
 
+
 (****************************************************************************************************
 *****************************************************************************************************
                    Miscellaneous Code to perform Top Menu based UI functions.
@@ -33,6 +34,7 @@ type BreadcrumbConfig = {
     ElementStyleProps: CSSProp list
     /// button options (other than OnClick and Color)
     ButtonOptions: Button.Option list 
+    NoWaves: SheetTree -> int
     }
 
 module Constants =
@@ -44,7 +46,7 @@ module Constants =
                 BorderStyle "solid";
                 Padding "50px"]
 
-    let defaultConfig = {
+    let defaultConfig: BreadcrumbConfig = {
         AllowDuplicateSheets = false
         BreadcrumbIdPrefix = "BreadcrumbDefault"
         ColorFun = fun _ -> IColor.IsGreyDark
@@ -64,6 +66,7 @@ module Constants =
                 Button.IsFocused true
                 Button.Disabled false
                 ]
+        NoWaves = (fun _ -> 0)
     }
 
 //--------------------------------------------------------------------------------------------//
@@ -148,6 +151,7 @@ let makeGridFromSheetsWithPositions
     |> List.map (fun (pos, sheet) ->
             let crumbId = cfg.BreadcrumbIdPrefix + ":" + sheet.SheetName + ":" + String.concat ":" sheet.LabelPath
             let extraStyle = match sheet.SubSheets with | [] -> [BackgroundColor "white"; BorderWidth "0px"] | _ -> cfg.ElementStyleProps
+            let number = cfg.NoWaves sheet
             gridElement
                 crumbId
                 cfg.ElementProps
@@ -158,7 +162,33 @@ let makeGridFromSheetsWithPositions
                     Button.Color (cfg.ColorFun sheet)
                     Button.Modifiers [Modifier.TextColor IColor.IsLight]
                     Button.OnClick(fun ev -> cfg.ClickAction sheet dispatch)
-                    ] [str $"{sheet.SheetName}" ]))             
+                    ] [
+                        let name =
+                            match cfg.AllowDuplicateSheets, sheet.LabelPath with
+                            | true, [] -> sheet.SheetName
+                            | true, path -> path[path.Length - 1]
+                            | false, _ -> sheet.SheetName
+                        str $"{name}"
+                        if number > 0 then
+                            div [
+                                Style [
+                                    Position PositionOptions.Absolute
+                                    CSSProp.Bottom "0px"
+                                    CSSProp.Right "0px"
+                                    BackgroundColor "transparent"  // Remove white background
+                                    Width "20px"  // Increased size to fit text
+                                    Height "20px"
+                                    Display DisplayOptions.Flex
+                                    AlignItems AlignItemsOptions.Center
+                                    JustifyContent "center"
+                                    FontSize "10px"  // Increased font size
+                                    Color "white"  // Ensure text is visible
+                                    CSSProp.Overflow OverflowOptions.Visible // Prevents text from being clipped
+                                ]
+                            ] [str $"{number}"]
+                        else
+                            null
+                    ]))             
 
     |> gridBox Constants.gridBoxSeparation 
     

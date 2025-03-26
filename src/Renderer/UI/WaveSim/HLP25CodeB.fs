@@ -208,10 +208,9 @@ let waveSelectBreadcrumbs (wsModel: WaveSimModel) (filteredWaves: Wave list) (di
         // Extract sheet names from wave names.
         let sheetNames =
             filteredWaveNames
-            |> List.collect (fun name ->
+            |> List.map (fun name ->
                 name.Split('.')
-                |> Array.map (fun s -> s.Trim().ToLowerInvariant())
-                |> Array.toList)
+                |> fun s -> s[0].Trim().ToLowerInvariant())
         let sheetCounts = sheetNames |> List.countBy id
         let sheetColor (sheet: SheetTree) =
             let sheetName = sheet.SheetName.Trim().ToUpperInvariant()
@@ -245,9 +244,10 @@ let waveSelectBreadcrumbs (wsModel: WaveSimModel) (filteredWaves: Wave list) (di
                 ClickAction = updateSearchStringHelper
                 ColorFun = sheetColor
                 NoWaves = sheetMatches
+                AllowDuplicateSheets = true
         }
         let breadcrumbs = [
-            div [ Style [ TextAlign TextAlignOptions.Center; FontSize "15px" ] ] [ str "Sheets with Design Hierarchy" ]
+            div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ] ] [ str "Design Hierarchy: click to filter" ]
             MiscMenuView.hierarchyBreadcrumbs breadcrumbConfig dispatch updatedModel
         ]
         div [] breadcrumbs

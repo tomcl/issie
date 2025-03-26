@@ -163,7 +163,12 @@ let makeGridFromSheetsWithPositions
                     Button.Modifiers [Modifier.TextColor IColor.IsLight]
                     Button.OnClick(fun ev -> cfg.ClickAction sheet dispatch)
                     ] [
-                        str $"{sheet.SheetName}"
+                        let name =
+                            match cfg.AllowDuplicateSheets, sheet.LabelPath with
+                            | true, [] -> sheet.SheetName
+                            | true, path -> path[path.Length - 1]
+                            | false, _ -> sheet.SheetName
+                        str $"{name}"
                         if number > 0 then
                             div [
                                 Style [

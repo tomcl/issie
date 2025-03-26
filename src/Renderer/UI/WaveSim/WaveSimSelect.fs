@@ -271,11 +271,14 @@ let getName (index: WaveIndexT) (fastSim: FastSimulation) : string =
     | PortType.Output -> getOutputName true fc (OutputPortNumber index.PortNumber) fastSim
     |> caseCompAndPortName
 
+/// The sheet name here is the  runtime (custom component label) sheet name
+/// TODO: We should add to FastComponent a good unique but minimal "design-time name".
 let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIndexT) =
     let fc = fastSim.WaveComps[waveIndex.Id]
-    match fc.SubSheet with
+    match List.rev fc.SubSheet with
     | [] -> fastSim.SimulatedTopSheet + "." + dispName
-    | path ->  camelCaseDottedWords(path[path.Length - 1]) + "." + dispName
+    | sheetName :: _  ->
+        camelCaseDottedWords(sheetName) + "." + dispName
 
 /// Make Wave for each component and port on sheet
 let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =

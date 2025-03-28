@@ -910,7 +910,7 @@ let private makeDescription (comp:Component) model dispatch =
             br []
             makeScaleAdjustmentField model comp dispatch
             br []
-            ParameterView.makeParamsFieldCC model comp custom dispatch
+            ParameterView.makeParamBindingEntryBoxes model comp custom dispatch
         ]
     | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
     | DFFE -> div [] [

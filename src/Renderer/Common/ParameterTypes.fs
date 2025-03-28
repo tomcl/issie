@@ -1,11 +1,11 @@
 ﻿module ParameterTypes
 
 //------------------------------------------------------------------------------------------------//
-//----------------------Types for Custom Components and Parameters--------------------------------//
+//----Types for Parameters defined on sheets and bound to values by custom component instances----//
 //------------------------------------------------------------------------------------------------//
 
 /// Probably needs to be bigint eventually to deal with the value of an N bit constant for n > 32.
-// There should be no porblem doing that but to get started let us use int and move to bigint later when needed.
+// There should be no problem doing that but to get started let us use int and move to bigint later when needed.
 type ParamInt = int
 
 /// A named parameter in a custom component type
@@ -20,6 +20,7 @@ type ParamName = ParamName of string
 /// The actual parameter value is customisable so that the same code can be used for int parameters (normal)
 /// and BigInt parameters (needed for constant values in N bit components).
 /// For MVP set 'PINT = int
+/// TODO: refactor this to use an enumeration DU for operators to reduce cases.
 type ParamExpression =
     | PInt of ParamInt
     | PParameter of ParamName
@@ -45,6 +46,7 @@ type CompSlotName =
     | Buswidth
     | NGateInputs
     | IO of Label: string
+    | CustomCompParam of ParamName: string // TODO: implement this case
 
 /// A slot in a component instance that can be bound to a parameter expression
 /// CompId should be a ComponentId but then we would need these types to be defined after CommonTypes.
@@ -61,7 +63,7 @@ type ConstrainedExpr = {
     Constraints: ParamConstraint list
 }
 
-/// Specification for a new parameterised component being created
+/// Data for a new parameterised slot being created
 type NewParamCompSpec = {
     CompSlot: CompSlotName
     Expression: ParamExpression
@@ -69,55 +71,31 @@ type NewParamCompSpec = {
     Value: ParamInt
 }
 
-/// For Part A: The state used to manage input boxes
-/// Model.PopupDialogData.DialogState.
-type Hlp25DialogState = Map<CompSlotName, Result<NewParamCompSpec, ParamError>>
+/// The Elmish Model state used to manage input boxes that can be used to define parameter expressions.
+/// Part of Model.PopupDialogData.DialogState.
+type ParamBoxDialogState = Map<CompSlotName, Result<NewParamCompSpec, ParamError>>
 
 /// Map from name to expression for each parameter
 type ParamBindings = Map<ParamName, ParamExpression>
 
-/// For Part A: the state used per instance of a custom component
-/// to bind the parameters of the Sheet defining the component
-/// To integers (or ParamExpressions).
-/// CustomComponentType.ParameterBindings
-type Hlp25CustomComponentState = ParamBindings
 
 /// For Part A: alternatively you could store slot information in the component record
 /// as an extra field.
 /// This field should store all the Component's slot information where slots are bound to parameters.
-type Hlp25ComponentSlots = Map<ParamSlot, ConstrainedExpr>
+type ComponentSlotExpr = Map<ParamSlot, ConstrainedExpr>
 
 /// The state used per design sheet to define integer slots
 /// that have values defined with parameter expressions
 /// LoadedComponent.LCParameterSlots
 /// (also used in SheetInfo - to save / load files - but the LoadedComponent field is the only one used by HLP Teams)
-type Hlp25SheetInfo = {
+type ParameterDefs = {
     DefaultBindings: ParamBindings
-    ParamSlots: Hlp25ComponentSlots
+    ParamSlots: ComponentSlotExpr
 }
 
-/// Lenses for Hlp25SheetInfo
+/// Lenses for ParamDefs
 let defaultBindings_ = Optics.Lens.create (fun s -> s.DefaultBindings) (fun v s -> {s with DefaultBindings = v})
 let paramSlots_ = Optics.Lens.create (fun s -> s.ParamSlots) (fun v s -> {s with ParamSlots = v})
 
 
-//------------------------------------------------------------------------------------------------//
-//------------------------Types for Part B: Waveform Selector-------------------------------------//
-//------------------------------------------------------------------------------------------------//
 
-/// The data carroed by a node in a tree that represents the structure of the waveforms in the Waveform Selector
-/// This specifies the content of the node, which can be a component group, component, port etc
-type WTNode = unit // replace with your content: a record, Map, etc
-
-/// a tree that represents the structure of the waveforms in the Waveform Selector
-/// this is a skeleton type definition and should be changed as required in Part B
-type WaveTreeNode = { // replace if necessary with your own definiiton of a tree node
-    WTNode: WTNode;
-    HiddenNodes: WaveTreeNode list}
-
-/// a tree that represents the structure of the waveforms in the Waveform Selector
-type WaveDisplayTree = WaveTreeNode list
-
-/// For Part B: The additional state used to manage wave selector search boxes
-/// WaveSimModel.Hlp25State
-type Hlp25WSModelState = unit // replace with your content: a Record, Map, etc

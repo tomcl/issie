@@ -275,10 +275,7 @@ let getName (index: WaveIndexT) (fastSim: FastSimulation) : string =
 /// TODO: We should add to FastComponent a good unique but minimal "design-time name".
 let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIndexT) =
     let fc = fastSim.WaveComps[waveIndex.Id]
-    match List.rev fc.SubSheet with
-    | [] -> fastSim.SimulatedTopSheet + "." + dispName
-    | sheetName :: _  ->
-        camelCaseDottedWords(sheetName) + "." + dispName
+    camelCaseDottedWords(fc.SimSheetName) + "." + dispName
 
 /// Make Wave for each component and port on sheet
 let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =

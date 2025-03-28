@@ -99,6 +99,10 @@ type FastComponent =
       FullName: string
       /// label of component
       FLabel: string
+      /// The unique name of the sheet the component is in, or the name of the custom component.
+      /// if needed be disambiguated by part of the custom component instances label.
+      SimSheetName: string
+      /// Unique name of sheet as design sheet path to root of simulation
       SheetName: string list
       // these fields are used only to determine component ordering for correct evaluation
       mutable Touched: bool // legacy field
@@ -170,40 +174,45 @@ type SheetPort = {
 // root. Since custom components have been removed this no longer complicates the simulation.
 type FastSimulation =
     {
-        // last step number (starting from 0) which is simulated.
+        /// last step number (starting from 0) which is simulated.
         mutable ClockTick: int
-        // Maximum size of simulation arrays - after which they form a circular buffer
+        /// Maximum size of simulation arrays - after which they form a circular buffer
         MaxArraySize: int
-        // top-level inputs to the simulation
+        /// top-level inputs to the simulation
         FGlobalInputComps: FastComponent array
-        // constants
+        /// constants
         FConstantComps: FastComponent array
-        // clocked components
+        /// clocked components
         FClockedComps: FastComponent array
-        // Components that will be reduced in order allowing sequential reduction to implement simulation
+        /// Components that will be reduced in order allowing sequential reduction to implement simulation
         FOrderedComps: FastComponent array
-        // which is the active component for each set of labels?
+        /// which is the active component for each set of labels?
         mutable FIOActive: Map<ComponentLabel * ComponentId list, FastComponent>
-        // list of deferred links driven from inactive IOlabls - at end of linkage the
-        // corresponding active IOLabel can be substituted as driver an dthe link made
+        /// list of deferred links driven from inactive IOlabls - at end of linkage the
+        /// corresponding active IOLabel can be substituted as driver an dthe link made
         mutable FIOLinks: ((FastComponent * InputPortNumber) * FastComponent) list
-        // Fast components: this array is longer than FOrderedComps because it contains
-        // IOlabel components that are redundant in the simulation
+        /// Fast components: this array is longer than FOrderedComps because it contains
+        /// IOlabel components that are redundant in the simulation.
+        /// It doe snot contain custom Components
         FComps: Map<FComponentId, FastComponent>
+        /// Custom Components.
         FCustomComps: Map<FComponentId, FastComponent>
-        // Fast components: this map is longer than FComps because it contains
-        // Custom components not used by Fast simulation but needed in Waveform simulation
+        /// Fast components: this map is longer than FComps because it contains
+        /// Custom components not used by Fast simulation but needed in Waveform simulation
         WaveComps: Map<FComponentId, FastComponent>
+        /// Map from a component's Access Path to the run-time unique SimSheetName of the sheet
+        SimSheetNameMap: Map<ComponentId list,string>
+        /// Map from a component to its SimulationComponent and Access Path
         FSComps: Map<FComponentId, SimulationComponent * ComponentId list>
-        // look up from output port of custom component to the relevant Output component
+        /// look up from output port of custom component to the relevant Output component
         FCustomOutputCompLookup: Map<(ComponentId * ComponentId list) * OutputPortNumber, FComponentId>
-        // GatherData from which this simulation was made
+        /// GatherData from which this simulation was made
         G: GatherData
-        // Total number of step arrays (= drivers)
+        /// Total number of step arrays (= drivers)
         NumStepArrays: int
-        // Each driver represents one output with its data
+        /// Each driver represents one output with its data
         Drivers: Driver option array
-        // Each wave index represents one component port with associated driver and data
+        /// Each wave index represents one component port with associated driver and data
         WaveIndex: WaveIndexT array
         /// Connections on simulated sheets indexed by directly connected port. Each connection appears twice.
         ConnectionsByPort: Map<SheetPort, Connection list>
@@ -218,7 +227,10 @@ type FastSimulation =
         SimulatedTopSheet: string
         /// Total size of the output arrays per time-step.
         TotalArraySizePerStep: int
-    }
+    } with
+
+    member this.getSimSheetName(fId:FComponentId) =
+        this.FCustomComps[fId]
 
 /// GatherTemp is the output type used to accumulate lists of data links when recursively exploring SimulationGraph
 /// as first step in flattening it.
@@ -261,8 +273,9 @@ and GatherData =
       /// Note that Custom components are not included in this list.
       AllComps: Map<ComponentId * ComponentId list, SimulationComponent * ComponentId list>  // maps to component and its path in the graph
      }
-
-    member this.getFullName(cid, ap) =
+    /// human readable dot-separated name of component in simulation.
+    /// This uses the component labels to the root of the simulation and therefore is unique.
+    member this.getFullSimName ((cid, ap):FComponentId) =
         List.map
             (fun cid ->
                 match Map.tryFind cid this.Labels with
@@ -271,13 +284,15 @@ and GatherData =
             (ap @ [ cid ])
         |> String.concat "."
 
-    member this.getSheetName(cid, ap) =
+    member this.getFullSimPath((cid, ap):FComponentId) =
         List.map
             (fun cid ->
                 match Map.tryFind cid this.Labels with
                 | Some lab -> lab.ToUpper()
                 | None -> "*")
             (ap @ [ cid ])
+
+
 
 
 /// - Top level data tracking a simulation

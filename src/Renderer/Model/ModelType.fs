@@ -192,7 +192,6 @@ type DriverT = {
     DriverId: FComponentId
     Port: OutputPortNumber
 }
-
 /// Information required to display a waveform.
 type Wave = {
     /// Uniquely identifies a waveform
@@ -207,20 +206,22 @@ type Wave = {
     CycleWidth: float
     /// radix of waveform numbers
     Radix: NumberBase
-    /// unique within design sheet (SheetId)
-    /// [] for top-level waveform: path to sheet
-    /// Currently unused.
-    SheetId: ComponentId list
+    /// Unique sheet identifier within the whole simulation.
+    /// Human-readable string representing the wave's sheet
+    SheetId: string
     SubSheet: string list // SheetId mapped to custom component names
     /// Wires connected to this waveform. Used to highlight wires
     /// when hovering over wave label.
     Conns: ConnectionId list
-    /// Name shown in the waveform viewer. Not guaranteed to be unique.
     DisplayName: string
-    /// Number of bits in wave
+    /// Name shown in the waveform viewer. Not guaranteed to be unique.
     ViewerDisplayName: string
+    /// Label of the component the waveform is on.
     CompLabel: string
+    /// Label of the port the waveform is on.
     PortLabel: string
+    /// Custom Component Label of the sheet instance the waveform is on, or the top-level sheet.
+    SheetLabel: string
     /// width of the waveform's bus
     Width: int
     /// Array indexed by clock cycle to show value of wave.
@@ -228,6 +229,8 @@ type Wave = {
     /// SVG of waveform
     SVG: ReactElement option
 }
+
+
 
 let lastClock_ = Lens.create (fun a -> a.LastClock) (fun s a -> {a with LastClock = s})
 let firstClock_ = Lens.create (fun a -> a.FirstClock) (fun s a -> {a with FirstClock = s})

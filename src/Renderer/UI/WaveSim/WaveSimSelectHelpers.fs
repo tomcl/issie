@@ -1,4 +1,12 @@
-﻿module HLP25CodeB
+﻿module WaveSimSelectHelpers
+
+//---------------------------------------------------------------------------------------//
+//-------------Waveform Selection Popup and RAM Selection Helpers------------------------//
+//---------------------------------------------------------------------------------------//
+
+// Functions to make modal popups that allows waveforms and RAMs
+// to be selected or deselected for display in the waveform simulator.
+
 open Fable.React
 open Fable.React.Props
 open Fulma
@@ -68,39 +76,34 @@ let getComponentName (wave: Wave) =
     | IOLabel -> "IO-LABEL"
     | _ -> comp.FType.ToString().ToUpper()
 
-/// Filtering function that applies an AND operation across all five search criteria.
+/// Filtering function that applies an AND operation across four search criteria.
+/// OfSheet is used to return the waves that match the sheet box
+/// All returns all filtered waves without any sheet filtering.
 let filterWaves (wsModel: WaveSimModel) (waves: Wave list) =
-    let filteredWaves, matchingSheets =
-        (([],Set.empty), waves)
-        ||> List.fold (fun (filtered, sheetSet) wave ->
-            let addMatchingSheet sheet = Set.add sheet sheetSet
 
-            let waveSheet (wave: Wave) =
-                match List.rev wave.SubSheet with
-                | [] -> Simulator.getFastSim().SimulatedTopSheet
-                | sheet :: _ -> sheet
+    let matchWithBox (searchString: string) (matcher:string) =
+        let s = searchString.Trim().ToUpper()
+        s = "" || s = "*" || matcher.ToUpper().Contains s
 
-            let matchWithBox (searchString: string) (matcher:string) (waveOpt: Wave option) =
-                waveOpt
-                |> Option.bind (fun wave ->
-                    let s = searchString.Trim().ToUpper()
-                    if s = "" || s = "*" ||
-                       matcher.ToUpper().Contains s
-                    then Some wave
-                    else None)
-            Some wave
-            |> matchWithBox wsModel.SheetSearchString (waveSheet wave)
-            |> matchWithBox wsModel.ComponentSearchString wave.CompLabel
-            |> matchWithBox wsModel.PortSearchString wave.PortLabel
-            |> matchWithBox wsModel.WaveSearchString wave.ViewerDisplayName
-            |> matchWithBox wsModel.ComponentTypeSearchString  (getComponentName wave)
-            |> function | None -> filtered, sheetSet
-                        | Some wave -> wave :: filtered, addMatchingSheet wave.SubSheet)
+    let searchFilteredWaves =
+        waves
+        |> List.filter (fun wave -> 
+            matchWithBox wsModel.ComponentSearchString wave.CompLabel
+            && matchWithBox wsModel.PortSearchString wave.PortLabel
+            && matchWithBox wsModel.WaveSearchString wave.ViewerDisplayName
+            && matchWithBox wsModel.ComponentTypeSearchString (getComponentName wave)
+        )
+
+    let filteredSheets =
+        searchFilteredWaves
+        |> List.filter (fun wave -> matchWithBox wsModel.SheetSearchString (wave.SheetId))
 
     // Update the model with highlighted sheets.
-    printfn "Filtered waves: %d from %d" filteredWaves.Length waves.Length
-    filteredWaves
+    printfn "Filtered waves: (%d,%d) from %d" filteredSheets.Length searchFilteredWaves.Length waves.Length
+    {| All = searchFilteredWaves; OfSheet = filteredSheets|}
 
+/// TODO - sort this function out.
+/// It does not seem to do much at the moment.
 let wavesToDisplay (ws: WaveSimModel) dispatch =
         let okWaves, okSelectedWaves = ensureWaveConsistency ws
         match ws.WaveSearchString with
@@ -197,23 +200,22 @@ let componentTypeSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : Rea
 // -----------------------------------------
 
 /// Displays a breadcrumb of sheets based on the current search and wave matches.
-let waveSelectBreadcrumbs (wsModel: WaveSimModel) (filteredWaves: Wave list) (dispatch: Msg -> unit) (model: Model) : ReactElement =
+let waveSelectBreadcrumbs
+        (wsModel: WaveSimModel)
+        (filteredWaves: {| All: Wave list; OfSheet: Wave list|})
+        (dispatch: Msg -> unit)
+        (model: Model) : ReactElement =
     match model.CurrentProj with
     | None -> div [] [ str "No project open" ]
     | Some project ->
+        let fs = Simulator.getFastSim()
         let updatedProject = ModelHelpers.getUpdatedLoadedComponents project model
         let updatedModel = { model with CurrentProj = Some updatedProject }
-        let okWaves, okSelectedWaves = ensureWaveConsistency wsModel
-        let filteredWaveNames = filteredWaves |> List.map (fun wave -> wave.ViewerDisplayName)
         // Extract sheet names from wave names.
-        let sheetNames =
-            filteredWaveNames
-            |> List.map (fun name ->
-                name.Split('.')
-                |> fun s -> s[0].Trim().ToLowerInvariant())
-        let sheetCounts = sheetNames |> List.countBy id
+        let sheetCounts =
+            filteredWaves.All |> List.countBy (fun wave -> wave.SheetLabel)
         let sheetColor (sheet: SheetTree) =
-            let sheetName = sheet.SheetName.Trim().ToUpperInvariant()
+            let sheetName = sheet.SimName fs
             let sheetSearch = wsModel.SheetSearchString.Trim().ToUpperInvariant()
             // Collect the other search strings.
             let otherSearches =
@@ -233,18 +235,21 @@ let waveSelectBreadcrumbs (wsModel: WaveSimModel) (filteredWaves: Wave list) (di
                 else
                     IColor.IsCustomColor "darkslategrey"
         let sheetMatches (sheet: SheetTree) =
-            match List.tryFind (fun (name, _) -> name = sheet.SheetName.ToLowerInvariant()) sheetCounts with
+            match List.tryFind (fun (name, _) -> name = sheet.SimName fs) sheetCounts with
             | Some (_, count) -> count
             | None -> 0
         let updateSearchStringHelper (sheet: SheetTree) : (Msg -> unit) -> unit =
             fun dispatch ->
-                dispatch (UpdateWSModel (fun ws -> { ws with SheetSearchString = sheet.SheetName.ToUpperInvariant() }))
+                dispatch (UpdateWSModel (fun ws -> { ws with SheetSearchString = sheet.SimName fs}))
+        let sheetName (node: SheetTree) =
+            node.SimName fs
         let breadcrumbConfig = { 
             MiscMenuView.Constants.defaultConfig with
                 ClickAction = updateSearchStringHelper
                 ColorFun = sheetColor
                 NoWaves = sheetMatches
                 AllowDuplicateSheets = true
+                BreadcrumbText = Some sheetName
         }
         let breadcrumbs = [
             div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ] ] [ str "Design Hierarchy: click to filter" ]
@@ -616,7 +621,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                             OverflowY OverflowOptions.Auto
                         ]
                     ] [
-                        let waveselect = selectWaves wsModel filteredWaves dispatch
+                        let waveselect = selectWaves wsModel filteredWaves.OfSheet dispatch
                         renderwaves wsModel dispatch waveselect
                     ]
                 ]

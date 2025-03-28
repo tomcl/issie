@@ -656,7 +656,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {
                                 Form = Some (Verilog name);
                                 Description=None;
-                                ParameterSlots = None})
+                                ParameterDefinitions = None})
 
                 match writeFile path2 toSaveCanvasState with
                 | Ok _ -> 

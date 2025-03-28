@@ -8,18 +8,11 @@ open Fable.React
 open Fable.React.Props
 
 open JSHelpers
-open NumberHelpers
 open ModelType
 open CommonTypes
-open MemoryEditorView
 open PopupHelpers
-open UIPopups
-open Notifications
 open Sheet.SheetInterface
 open DrawModelType
-open FilesIO
-open TopMenuView
-open MenuHelpers
 open Optics
 open Optics.Operators
 open Optic
@@ -27,17 +20,32 @@ open System.Text.RegularExpressions
 open Fulma.Extensions.Wikiki
 
 //------------------------------------------------------------------------------------------------
-//------------------------------ Team Holly Code for HLP25 Part A --------------------------------
+//------------------------------ Handle parameters defined on design sheets ----------------------
 //------------------------------------------------------------------------------------------------
 
-/// Lenses for accessing sheet parameter information
+(*
+ * Parameters are symbols defined constant values that can be used in the design.
+ * Parameter definitions have integer default values given in the sheet definition (properties pane).
+ * These can be over-ridden per instance by definitions in the component instance (properties pane).
+ * Parameter values can in general be defined using parameter expressions containing in-scope parameters
+ * Parameter scope is currently defined to be all component instances on the parameter sheet.
+ * Parameters are used in parameter expressions in the properties pane of components.
+ *
+ * See Common/parameterTypes.fs for the types used to represent parameters and parameter expressions.
+ *)
+
+
+
+// Lenses & Prisms for accessing sheet parameter information
+
+
 let lcParameterInfoOfModel_ = openLoadedComponentOfModel_ >?> lcParameterSlots_ 
 let paramSlotsOfModel_ = lcParameterInfoOfModel_ >?> paramSlots_
 let defaultBindingsOfModel_ = lcParameterInfoOfModel_ >?> defaultBindings_
 
 let modelToSymbols = sheet_ >-> SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
 
-let symbolsToSymbol (componentId: ComponentId): Optics.Lens<Map<ComponentId, SymbolT.Symbol>, SymbolT.Symbol> =
+let symbolsToSymbol_ (componentId: ComponentId): Optics.Lens<Map<ComponentId, SymbolT.Symbol>, SymbolT.Symbol> =
     Lens.create
         (fun symbols -> 
             match Map.tryFind componentId symbols with
@@ -47,13 +55,13 @@ let symbolsToSymbol (componentId: ComponentId): Optics.Lens<Map<ComponentId, Sym
             symbols |> Map.add componentId symbol)
 
 
-let symbolToComponent : Optics.Lens<SymbolT.Symbol, Component> =
+let symbolToComponent_ : Optics.Lens<SymbolT.Symbol, Component> =
     Lens.create
         (fun symbol -> symbol.Component)
         (fun newComponent symbol -> { symbol with Component = newComponent })
 
 
-let compSlotToValue (compSlotName:CompSlotName) : Optics.Lens<Component, int> = 
+let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> = 
     Lens.create
         (fun comp ->
             match compSlotName with
@@ -146,11 +154,11 @@ let compSlotToValue (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
 /// NB - the Lens cannot be part of the slot record because the Lens type can change depending on 'PINT.
 /// Maybe this will be fixed by using a D.U. for the slot type: however for MVP
 /// we can simplify things by dealing only with int parameters.
-let makeCompUpdateLens (slot: ParamSlot) : Optics.Lens<Model, int> =
+let modelToSlot_ (slot: ParamSlot) : Optics.Lens<Model, int> =
     modelToSymbols
-    >-> symbolsToSymbol (ComponentId slot.CompId)
-    >-> symbolToComponent
-    >-> compSlotToValue slot.CompSlot
+    >-> symbolsToSymbol_ (ComponentId slot.CompId)
+    >-> symbolToComponent_
+    >-> compSlot_ slot.CompSlot
 
 
 /// returns the value of a parameter expression given a set of parameter bindings.
@@ -212,6 +220,9 @@ let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpr
             Error $"Parameters {paramList} could not be resolved"
 
 let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string =
+    // TODO refactor ParamExpression DU and this function to to elminate duplication
+    // for multiple binary operators. Could use a local function here, but the better
+    // solution would be refactoring the DU.
     match expr with
     | PInt value -> string value
     | PParameter (ParamName name) -> name
@@ -628,7 +639,7 @@ type UpdateInfoSheetChoise =
     | ParamSlots of ParamSlot * ParameterTypes.ParamExpression * ParamConstraint list
 
 
-let updateInfoSheetDefaultParams (currentSheetInfo:option<ParameterTypes.Hlp25SheetInfo>) (paramName: string) (value: int) (delete:bool)=
+let updateInfoSheetDefaultParams (currentSheetInfo:option<ParameterTypes.ParameterDefs>) (paramName: string) (value: int) (delete:bool)=
     if delete then
         match currentSheetInfo with
         | Some infoSheet -> 
@@ -647,7 +658,7 @@ let updateInfoSheetDefaultParams (currentSheetInfo:option<ParameterTypes.Hlp25Sh
         Some currentSheetInfo
 
 
-let updateInfoSheetParamSlots (currentSheetInfo:option<ParameterTypes.Hlp25SheetInfo>) (paramSlot: ParameterTypes.ParamSlot) (expression: ParameterTypes.ParamExpression) (constraints: ParameterTypes.ParamConstraint list) =
+let updateInfoSheetParamSlots (currentSheetInfo:option<ParameterTypes.ParameterDefs>) (paramSlot: ParameterTypes.ParamSlot) (expression: ParameterTypes.ParamExpression) (constraints: ParameterTypes.ParamConstraint list) =
     match currentSheetInfo with
     | Some infoSheet -> 
         let newParamSlots = infoSheet.ParamSlots |> Map.add paramSlot {Expression = expression; Constraints = constraints}
@@ -689,7 +700,7 @@ let modifyInfoSheet (project: CommonTypes.Project) (choise: UpdateInfoSheetChois
     let newProject = {project with LoadedComponents = updatedComponents}
     updateParameter newProject |> UpdateModel |> dispatch
 
-
+/// Creates a popup that allows a parameter integer value to be added.
 let addParameterBox model dispatch =
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: testAddParameterBox called when no project is currently open"
@@ -737,7 +748,8 @@ let addParameterBox model dispatch =
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
-
+/// Creates a popup that allows a parameter integer value to be edited.
+/// TODO: this should be a special cases of a more general popup for parameter expressions?
 let editParameterBox model parameterName dispatch   = 
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
@@ -811,7 +823,8 @@ let deleteParameterBox model parameterName dispatch  =
         modifyInfoSheet (project) (DefaultParams(parameterName,0,true)) dispatch
 
 
-/// Generates parameter view to the main view, allowing the user to add, edit and delete parameter to the sheet
+/// UI to display and manage parameters for a design sheet.
+/// TODO: add structural abstraction.
 let private makeParamsField model (comp:LoadedComponent) dispatch =
     let sheetDefaultParams = getDefaultParams comp
     match sheetDefaultParams.IsEmpty with
@@ -879,8 +892,9 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                 [str "Add Parameter"]
         ]
 
-
-let updateCustomComponentType (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
+/// Update a custom component with new I/O component widths.
+/// Used when these chnage as result of parameter changes.
+let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
     let updateLabels labels =
         labels |> List.map (fun (label, width) ->
             match Map.tryFind label labelToEval with
@@ -896,8 +910,10 @@ let updateCustomComponentType (labelToEval: Map<string, int>) (newBindings: Para
                                     ParameterBindings = Some newBindings }
         { comp with Type = Custom updatedCustom }
     | _ -> comp
-    
-let EditCCParameterBox model parameterName currValue comp (custom: CustomComponentType) dispatch   = 
+
+/// create a popup to edit in the model a custom component parameter binding
+/// TODO - maybe comp should be a ComponentId with actual component looked up from model for safety?
+let editParameterBindingPopup model parameterName currValue comp (custom: CustomComponentType) dispatch   = 
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
     | Some project ->
@@ -951,7 +967,7 @@ let EditCCParameterBox model parameterName currValue comp (custom: CustomCompone
 
                 printf $"labeltoeval = {labelToEval}"
 
-                let newestComponent = updateCustomComponentType labelToEval newBindings comp
+                let newestComponent = updateCustomComponent labelToEval newBindings comp
                 let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
                 let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
                 let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
@@ -986,7 +1002,8 @@ let EditCCParameterBox model parameterName currValue comp (custom: CustomCompone
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
-let makeParamsFieldCC model (comp:Component) (custom:CustomComponentType) dispatch =
+/// UI component for custom component definition of parameter bindings
+let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentType) dispatch =
     let ccParams = 
         match custom.ParameterBindings with
         | Some bindings -> bindings
@@ -1046,7 +1063,7 @@ let makeParamsFieldCC model (comp:Component) (custom:CustomComponentType) dispat
                             td [] [str paramVal]
                             td [] [
                                 Button.button // TODO-ELENA: this is sketchy
-                                    [ Fulma.Button.OnClick(fun _ -> EditCCParameterBox model paramName (int paramVal) comp custom dispatch)
+                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model paramName (int paramVal) comp custom dispatch)
                                       Fulma.Button.Color IsInfo
                                     ] 
                                     [str "Edit"]
@@ -1057,7 +1074,8 @@ let makeParamsFieldCC model (comp:Component) (custom:CustomComponentType) dispat
             ]
         ]
 
-/// Generate component slots view for properties panel
+/// Generate component slots view for design sheet properties panel
+/// This is read-only.
 let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispatch = 
     let sheetParamsSlots = getParamsSlot comp
 
@@ -1074,7 +1092,8 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             | MaxVal (_, err)  | MinVal (_, err) -> err
 
 
-    // Define a function to display PSlotSpec<int>
+    /// UI component to display a single parameterised Component slot definition.
+    /// This is read-only.
     let renderSlotSpec (slot: ParamSlot) (expr: ConstrainedExpr) =
         let slotNameStr =
             match slot.CompSlot with
@@ -1099,8 +1118,10 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             ] (List.map constraintExpression expr.Constraints)
         ]
 
-    // Main component to display Hlp25ComponentSlots
-    let slotView (slots: Hlp25ComponentSlots) =
+    /// UI component to display parametrised Component slot definitions 
+    /// on the properties panel of a design sheet.
+    /// This is read-only - changes can be made via the priperties of the component.
+    let slotView (slotMap: ComponentSlotExpr) =
         div [Class "component-slots"] [ 
             label [Class "label"] [ str "Parameterised Components"]
             // br []
@@ -1120,7 +1141,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
                 ]
                 tbody [] (
                         // slots |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr
-                        slots |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr)
+                        slotMap |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr)
                     )
                 ]
         ]
@@ -1133,7 +1154,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
                 ]
         |Some sheetParamsSlots -> slotView sheetParamsSlots
 
-
+/// UI interface for viewing the parameter expressions of a component
 let viewParameters (model: ModelType.Model) dispatch =
     
     match model.Sheet.SelectedComponents with

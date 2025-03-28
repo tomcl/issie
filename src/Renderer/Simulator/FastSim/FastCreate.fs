@@ -1,5 +1,5 @@
 ﻿module FastCreate
-
+open EEExtensions
 open CommonTypes
 open TimeHelpers
 open SimGraphTypes
@@ -49,7 +49,8 @@ let emptyFastSimulation diagramName =
       ConnectionsByPort = Map.empty
       ComponentsById = Map.empty
       SimulatedCanvasState = []
-      SimulatedTopSheet = diagramName }
+      SimulatedTopSheet = diagramName
+      SimSheetNameMap=Map.empty}
 
 let simulationPlaceholder = emptyFastSimulation ""
 let getFid (cid: ComponentId) (ap: ComponentId list) =
@@ -298,6 +299,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
       cId = sComp.Id
       FType = sComp.Type
       AccessPath = accessPath
+      SimSheetName = ""
       SheetName = []
       Touched = false
       DrivenComponents = []
@@ -567,8 +569,14 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]
         let fc = createFastComponent numSteps comp ap
-
-        { fc with FullName = g.getFullName fid; SheetName = g.getSheetName fid }
+        let sheetLabel =
+            match ap with
+            | [] -> f.SimulatedTopSheet
+            | _ -> g.Labels[List.last ap]
+        { fc with
+            FullName = g.getFullSimName fid;
+            SheetName = g.getFullSimPath fid
+            SimSheetName = sheetLabel.ToUpperInvariant()}
 
     let comps, customComps =
         ((Map.empty, Map.empty), g.AllComps)
@@ -578,6 +586,34 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
             else
                 Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) m, mc)
 
+    let customSimSheetNames =
+        customComps
+        |> Map.values
+        |> List.ofArray
+        |> List.groupBy (fun fc ->
+            match fc.FType with
+            | Custom {Name = name} -> name
+            | _ -> failwithf "What? This should be a custom component")
+        |> List.collect (fun (name, ccL) ->
+            match ccL with
+            | [cc] -> [cc.fId,name] // use the design-time name
+            | path ->
+                let labels = path |> List.map (fun fc -> fc.FLabel)
+                let labelPartStartIndex =
+                    [0..(List.minBy String.length labels).Length - 1]
+                    |> List.tryFind (fun i -> labels |> List.exists (fun lab -> lab[i] <> labels[0][i]))
+                labels
+                |> List.mapi (fun i lab -> match labelPartStartIndex with | Some index -> lab[index..] | None -> $"{i}")
+                |> List.groupBy id
+                |> List.collect (function | l, [lab] -> [lab] | l, labs -> labs |> List.mapi (fun i lab -> lab + $"{i}"))
+                |> List.zip path
+                |> List.map (fun (fc, partLabel) -> fc.fId, name + ":" + partLabel))
+        |> Map.ofList
+
+
+                         
+
+
     let customOutLookup =
         g.CustomOutputCompLinks
         |> Map.toList
@@ -586,9 +622,29 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
 
     instrumentTime "createInitFastCompPhase" start
 
+    let addSimSheetPaths (comps:Map<FComponentId,FastComponent>) =
+        comps
+        |> Map.map (fun (cid,ap) fc ->
+            match fc.AccessPath with
+            | [] -> {fc with SimSheetName = f.SimulatedTopSheet.ToUpperInvariant()}
+            | path -> {fc with SimSheetName = customSimSheetNames[List.last path,path[0..path.Length-2]].ToUpperInvariant()})
+
+    let comps = addSimSheetPaths comps
+    let customComps = addSimSheetPaths customComps
+
+
+    let simSheetNames =
+        (Map.toList customComps @ Map.toList comps)
+        |> List.map (fun (fid,fc) -> snd fid, fc.SimSheetName)
+        |> List.distinct
+        |> Map.ofList
+
+        
+
     { f with
-        FComps = comps
-        FCustomComps = customComps
+        FComps = addSimSheetPaths comps 
+        FCustomComps = addSimSheetPaths customComps
+        SimSheetNameMap = simSheetNames
         MaxArraySize = simulationArraySize
         FSComps = g.AllComps
         FCustomOutputCompLookup = customOutLookup
@@ -597,8 +653,8 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
 
 /// Has side effect of making IOLabels of same name (in the same graph) all use same output array
 /// this means that an input to any one will produce an output on all, for no effort.
-/// IOLabels without driven inputs that are thus not used are later on flagged inactive
-/// they must not be reduced, and will not be included in the ordered component list
+/// IOLabels without driven inputs that are thus not used are later on flagged inactive.
+/// They must not be reduced, and will not be included in the ordered component list
 let private reLinkIOLabels (fs: FastSimulation) =
     // Go through all the components driven by IOLabels and link them from the active label
     // at this point exactly one out of every labelled set will be active, and contained in FIOActive
@@ -687,7 +743,7 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
 
                 match linked with
                 | None -> ()
-                | Some(fid, opn) -> failwithf "Multiple linkage: (previous driver was %A,%A)" (g.getFullName fid) opn
+                | Some(fid, opn) -> failwithf "Multiple linkage: (previous driver was %A,%A)" (g.getFullSimName fid) opn
 
                 linkCheck <- Map.add (fDrivenId, InputPortNumber ipn) (fDriverId, OutputPortNumber opn) linkCheck
                 let fDriven = f.FComps[fDrivenId]

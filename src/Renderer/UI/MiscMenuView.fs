@@ -28,6 +28,7 @@ open Optics
 type BreadcrumbConfig = {
     AllowDuplicateSheets: bool
     BreadcrumbIdPrefix: string
+    BreadcrumbText: (SheetTree -> string) option
     ColorFun: SheetTree -> IColor
     ClickAction: SheetTree -> (Msg -> unit) -> unit
     ElementProps: IHTMLProp list
@@ -49,6 +50,7 @@ module Constants =
     let defaultConfig: BreadcrumbConfig = {
         AllowDuplicateSheets = false
         BreadcrumbIdPrefix = "BreadcrumbDefault"
+        BreadcrumbText = None
         ColorFun = fun _ -> IColor.IsGreyDark
         ClickAction = fun _ _ -> ()
         ElementProps = [ ]
@@ -164,10 +166,11 @@ let makeGridFromSheetsWithPositions
                     Button.OnClick(fun ev -> cfg.ClickAction sheet dispatch)
                     ] [
                         let name =
-                            match cfg.AllowDuplicateSheets, sheet.LabelPath with
-                            | true, [] -> sheet.SheetName
-                            | true, path -> path[path.Length - 1]
-                            | false, _ -> sheet.SheetName
+                            match cfg.BreadcrumbText, cfg.AllowDuplicateSheets, sheet.LabelPath with
+                            | Some f,_,_ -> f sheet
+                            | _, true, [] -> sheet.SheetName
+                            | _, true, path -> path[path.Length - 1]
+                            | _, false, _ -> sheet.SheetName
                         str $"{name}"
                         if number > 0 then
                             div [

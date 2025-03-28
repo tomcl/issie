@@ -277,12 +277,14 @@ let makeSourceMenu
 /// Node in the sheet tree, child nodes correspond to custom components in sheet.
 type SheetTree = {
     /// path of custom component labels to node or [] if node is top level
-    LabelPath: string list 
-    /// name of sheet
+    LabelPath: string list
+    /// design-time name of sheet
     SheetName: string
     /// path of sheet names to current sheet name - NB this is not unique
-    SheetNamePath: string list
+    SheetAccessPath: ComponentId list
     /// unique name to display on breadcrumbs
+    /// this is usually the design-time name of sheet
+    /// with instance name added if this is not unique
     BreadcrumbName: string
     /// size of tree including this node (1 for leaves)
     Size: int
@@ -292,9 +294,16 @@ type SheetTree = {
     SubSheets: SheetTree list
     /// Use only to display tree on a grid
     GridArea: CSSGridPos option
-    }
+    } with
 
-with member this.lookupPath path =
+     member this.SimName (fs:SimTypes.FastSimulation) =
+        if not <| fs.SimSheetNameMap.ContainsKey this.SheetAccessPath then
+            printfn $"SheetTree.SimName: {this.LabelPath} not in map"
+            "Error"
+        else
+            fs.SimSheetNameMap.[this.SheetAccessPath]
+
+     member this.lookupPath path =
         let rec lookup sheet =
             match sheet.LabelPath = path with
             | true -> Some sheet
@@ -336,13 +345,13 @@ let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
         |> List.map (fun ldc -> ldc.Name,ldc)
         |> Map.ofList
 
-    let rec subSheets (path: string list) (sheet: string) (labelPath: string list) (sheetPath: string list): SheetTree=
+    let rec subSheets (path: string list) (sheet: string) (labelPath: string list) (sheetPath: ComponentId list): SheetTree=
         let ldc = Map.tryFind sheet ldcMap
         match ldc with
         | None -> {
             SheetName=sheet
             LabelPath = []
-            SheetNamePath = []
+            SheetAccessPath = []
             Size = 1;
             Depth = 0;
             SubSheets = [];
@@ -355,14 +364,14 @@ let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
             |> List.collect (fun comp -> 
                     match comp.Type with 
                     | Custom ct when not <| List.contains ct.Name path -> 
-                        [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [sheet])] 
+                        [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [ComponentId comp.Id])] 
                     | _ -> 
                         [])
             |> (fun subs -> {
                     SheetName = sheet;
                     BreadcrumbName = sheet
                     LabelPath = labelPath
-                    SheetNamePath = sheetPath
+                    SheetAccessPath = sheetPath
                     Depth =
                         subs
                         |> List.map (fun s -> s.Depth)

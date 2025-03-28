@@ -124,7 +124,7 @@ let updateSymbolRAMs (ramCheck: Component list) (sModel: SymbolT.Model) =
 
 
 let loadComponentWithRAMChanges newCS savedWaveSim ldc model =
-        let sheetInfo:SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterSlots=ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
+        let sheetInfo:SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions=ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
         let filePath = ldc.FilePath
         let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData newCS filePath DateTime.Now savedWaveSim (Some sheetInfo)
         model
@@ -434,7 +434,7 @@ let writeComponentToFile comp =
     let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo,Some {
         Form=comp.Form;
         Description=comp.Description
-        ParameterSlots = None})
+        ParameterDefinitions = None})
     writeFile comp.FilePath data
 
 /// return an option containing sequence data and file name and directory of the latest
@@ -877,7 +877,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
-        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description ; ParameterSlots= ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
+        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description ; ParameterDefinitions= ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
         let savedState = canvasState, getSavedWave model,(Some sheetInfo)
         if isAuto then
             failwithf "Auto saving is no longer used"
@@ -896,7 +896,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             let (SheetInfo:SheetInfo option) =
                 match origLdComp.Form with
                 |None -> None
-                |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterSlots=origLdComp.LCParameterSlots}
+                |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots}
             let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
             let newState =
                 canvasState
@@ -925,7 +925,7 @@ let saveOpenFileToModel model =
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
-        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterSlots= ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
+        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions= ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
         let savedState = canvasState, getSavedWave model,(Some sheetInfo)
         saveStateToFile project.ProjectPath project.OpenFileName savedState |> ignore
         removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
@@ -938,7 +938,7 @@ let saveOpenFileToModel model =
         let (SheetInfo:SheetInfo option) =
             match origLdComp.Form with
             |None -> None
-            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterSlots=origLdComp.LCParameterSlots}
+            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots}
         let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
         let sModel, newState =
             canvasState
@@ -969,7 +969,7 @@ let saveOpenProjectInNewFormat (model: Model) =
     | Some project ->
         project.LoadedComponents
         |> List.map (fun comp ->
-            let sheetInfo = {Form=comp.Form;Description=comp.Description; ParameterSlots= comp.LCParameterSlots}
+            let sheetInfo = {Form=comp.Form;Description=comp.Description; ParameterDefinitions= comp.LCParameterSlots}
             let savedState = comp.CanvasState, None, Some sheetInfo
             match saveStateToFileExperimental project.ProjectPath comp.Name savedState with
             | Ok _ -> printfn "Successfully saved %s" comp.Name

@@ -38,6 +38,24 @@ open DiagramStyle
 // Helper Functions & Filtering Logic
 // -----------------------------------------
 
+type TableRow = TableRow of ReactElement
+
+let waveRowIProps props rowItems : TableRow =
+    tr props (rowItems |> List.map (fun cell -> td [Style [BorderStyle "none"]] [ cell ]))
+    |> TableRow
+
+let waveRow props rowItems = waveRowIProps [Style props] rowItems
+    
+
+let wavePropsTable (rows: TableRow list) =
+    table [ Style [ Background "#f0f0f0"] ] [
+        tbody
+            [Style []]
+            (rows |> List.map (function | TableRow row -> row))
+        ]
+
+    
+
 /// Ensures that only valid waves (and selected waves) are returned.
 let ensureWaveConsistency (ws: WaveSimModel) =
     let fs = Simulator.getFastSim()
@@ -79,8 +97,8 @@ let getComponentName (wave: Wave) =
 /// Filtering function that applies an AND operation across four search criteria.
 /// OfSheet is used to return the waves that match the sheet box
 /// All returns all filtered waves without any sheet filtering.
-let filterWaves (wsModel: WaveSimModel) (waves: Wave list) =
-
+let filterWaves (wsModel: WaveSimModel) =
+    let waves, okSelectedWaves = ensureWaveConsistency wsModel
     let matchWithBox (searchString: string) (matcher:string) =
         let s = searchString.Trim().ToUpper()
         s = "" || s = "*" || matcher.ToUpper().Contains s
@@ -96,23 +114,11 @@ let filterWaves (wsModel: WaveSimModel) (waves: Wave list) =
 
     let filteredSheets =
         searchFilteredWaves
-        |> List.filter (fun wave -> matchWithBox wsModel.SheetSearchString (wave.SheetId))
+        |> List.filter (fun wave -> matchWithBox ("$" + wsModel.SheetSearchString + "$") ("$" + wave.SheetId + "$"))
 
     // Update the model with highlighted sheets.
-    printfn "Filtered waves: (%d,%d) from %d" filteredSheets.Length searchFilteredWaves.Length waves.Length
     {| All = searchFilteredWaves; OfSheet = filteredSheets|}
 
-/// TODO - sort this function out.
-/// It does not seem to do much at the moment.
-let wavesToDisplay (ws: WaveSimModel) dispatch =
-        let okWaves, okSelectedWaves = ensureWaveConsistency ws
-        match ws.WaveSearchString with
-        | "" | "-" -> filterWaves ws okWaves
-        | "*" ->
-            okWaves
-            //|> List.map (fun wi -> ws.AllWaves.[wi])
-            |> fun waves -> filterWaves ws waves
-        | _ -> filterWaves ws okWaves
 
 
 // -----------------------------------------
@@ -323,11 +329,10 @@ let toggleSelectSubGroup (wsModel: WaveSimModel) (dispatch: Msg -> unit) (select
             List.except waves wsModel.SelectedWaves
     dispatch (GenerateWaveforms { wsModel with SelectedWaves = selectedWaves })
 
-let checkboxRow (wsModel: WaveSimModel) (dispatch: Msg -> unit) (index: WaveIndexT) =
+let checkboxRow (wsModel: WaveSimModel) (dispatch: Msg -> unit) (index: WaveIndexT) : TableRow =
     let fontStyle = if isWaveSelected index wsModel then boldFontStyle else normalFontStyle
     let wave = wsModel.AllWaves.[index]
-    tr [fontStyle] [
-        td [ noBorderStyle ] [
+    waveRow fontStyle [
             Checkbox.checkbox [] [
                 Checkbox.input [
                     Props (checkboxInputProps @ [
@@ -336,9 +341,8 @@ let checkboxRow (wsModel: WaveSimModel) (dispatch: Msg -> unit) (index: WaveInde
                     ])
                 ]
             ]
+            str wave.DisplayName 
         ]
-        td [ noBorderStyle ] [ str wave.DisplayName ]
-    ]
 
 let checkBoxItem wsModel isChecked waveIds dispatch =
     Checkbox.checkbox [] [
@@ -360,11 +364,12 @@ let waveCheckBoxItem (wsModel: WaveSimModel) (waveIds: WaveIndexT list) dispatch
             |> List.head
             |> snd
     let checkBoxState = List.exists (fun w -> List.contains w wsModel.SelectedWaves) minDepthSelectedWaves
-    Checkbox.checkbox [] [
+    Checkbox.checkbox  [] [
         Checkbox.input [
             Props [
                 Checked checkBoxState
                 OnChange (fun _ -> toggleSelectSubGroup wsModel dispatch (not checkBoxState) waveIds)
+                Style [MarginRight "10px"]
             ]
         ]
     ]
@@ -378,25 +383,33 @@ let makePortRow (ws: WaveSimModel) (dispatch: Msg -> unit) (waves: Wave list) =
         match wave.SubSheet with
         | [] -> str (Simulator.getFastSim().SimulatedTopSheet)
         | _ -> subSheetsToNameReact wave.SubSheet
-    tr [] [
-        td [] [ waveCheckBoxItem ws [wave.WaveId] dispatch ]
-        td [] [ str wave.PortLabel ]
-        td [] [ str (match wave.WaveId.PortType with | PortType.Output -> "Output" | PortType.Input -> "Input") ]
+    waveRow [] [
+        waveCheckBoxItem ws [wave.WaveId] dispatch 
+        str wave.PortLabel 
+        str (match wave.WaveId.PortType with | PortType.Output -> "Output" | PortType.Input -> "Input") 
     ]
 
-let makeSelectionGroup showDetails (ws: WaveSimModel) (dispatch: Msg -> unit)
-      (summaryItem: ReactElement) (rowItems: ReactElement list)
-      (cBox: CheckBoxStyle) (waves: Wave list) =
+let makeSelectionGroup
+        showDetails
+        (ws: WaveSimModel)
+        (dispatch: Msg -> unit)
+        (summaryItem: ReactElement)
+        (rows: TableRow list)
+        (cBox: CheckBoxStyle)
+        (waves: Wave list) =
     let wi = wavesToIds waves
-    tr (summaryProps false cBox ws dispatch) [
-        th [] [ waveCheckBoxItem ws wi dispatch ]
-        th [] [
-            details (detailsProps showDetails cBox ws dispatch) [
-                summary (summaryProps true cBox ws dispatch) [ summaryItem ]
-                Table.table [] [ tbody [] rowItems ]
-            ]
+    waveRowIProps (summaryProps false cBox ws dispatch) [
+        waveCheckBoxItem ws wi dispatch 
+            
+        details (detailsProps showDetails cBox ws dispatch) [
+                    summary (summaryProps true cBox ws dispatch) [ summaryItem ]
+                    wavePropsTable rows]
+                
+                
         ]
-    ]
+            
+        
+    
 
 /// Type to output the selected waves and a flag for whether to show detailed view.
 type WaveSelectionOutput = {
@@ -407,43 +420,52 @@ type WaveSelectionOutput = {
 /// Top-level function to select and filter waves for display.
 /// Uses the filtering logic from `filterWaves`.
 let selectWaves (ws: WaveSimModel) (waves: Wave list) (dispatch: Msg -> unit) : WaveSelectionOutput =
-    if not ws.WaveModalActive then 
-        { WaveList = []; ShowDetails = false }
-    else
-        let showDetails = ((List.length waves < 10) || (ws.WaveSearchString.Length > 0))
-                          && (ws.WaveSearchString <> "-")
-        { WaveList = waves; ShowDetails = showDetails }
+    let waves = List.sortBy (fun wave -> wave.ViewerDisplayName) waves
+    let showDetails = ((List.length waves < 20) || (ws.WaveSearchString.Length > 0))
+                        && (ws.WaveSearchString <> "-")
+    { WaveList = waves; ShowDetails = showDetails }
 
-let makeFlatGroupRow showDetails (ws: WaveSimModel) (dispatch: Msg -> unit)
-      (subSheet: string list) (grp: ComponentGroup) (wavesInGroup: Wave list) =
+let makeFlatGroupRow
+        showDetails (ws: WaveSimModel)
+        (dispatch: Msg -> unit)
+        (subSheet: string list)
+        (grp: ComponentGroup)
+        (wavesInGroup: Wave list) =
     let cBox = GroupItem (grp, subSheet)
     let summaryReact = summaryName ws cBox subSheet wavesInGroup
     let rowItems =
         wavesInGroup
+        |> List.groupBy (fun (wave:Wave) -> wave.CompLabel)
+        |> (fun x -> x)
+        |> List.collect (fun (_, waves) -> waves |> List.mapi (fun i wave -> {|W=wave; IsFirst = i=0|}))
         |> List.map (fun wave ->
-            tr [] [
-                td [] [ str wave.ViewerDisplayName ]
-                td [] [
-                    input [
-                        Type "Checkbox"
-                        OnChange (fun _ -> toggleWaveSelection wave.WaveId ws dispatch)
-                        Checked (isWaveSelected wave.WaveId ws)
-                    ]
+            let isSelected = isWaveSelected wave.W.WaveId ws
+            let fontStyle = if isSelected then boldFontStyle else normalFontStyle
+            waveRow (MarginRight "10px" :: fontStyle) [
+                input [
+                    Type "Checkbox"
+                    OnChange (fun _ -> toggleWaveSelection wave.W.WaveId ws dispatch)
+                    Checked isSelected                    
                 ]
+                p
+                    [Style ([MarginRight "10px"; MarginLeft "10px"; Color "blue"] @ boldFontStyle)]
+                    [str <| if wave.IsFirst then $"{wave.W.CompLabel}" else ""]
+                str $"{wave.W.PortLabel}"               
             ]
         )
     makeSelectionGroup showDetails ws dispatch summaryReact rowItems cBox wavesInGroup
 
-let makeFlatList (ws: WaveSimModel) (dispatch: Msg -> unit)
-      (subSheet: string list) (waves: Wave list) (showDetails: bool) =
+let makeFlatList
+        (ws: WaveSimModel)
+        (dispatch: Msg -> unit)
+        (subSheet: string list)
+        (waves: Wave list)
+        (showDetails: bool) =
     let fs = Simulator.getFastSim()
     let groupedBySubSheet =
         waves
-        |> List.groupBy (fun w ->
-            match w.SubSheet with
-            | [] -> "Top-Level"
-            | sheetPath -> String.concat "." sheetPath
-        )
+        |> List.groupBy (fun w -> w.SheetId)
+
     let subSheetRows =
         groupedBySubSheet
         |> List.map (fun (subSheetName, wavesInSubSheet) ->
@@ -456,9 +478,9 @@ let makeFlatList (ws: WaveSimModel) (dispatch: Msg -> unit)
                 )
             makeSelectionGroup showDetails ws dispatch (str subSheetName) groupRows (SheetItem [subSheetName]) wavesInSubSheet
         )
-    Table.table [ Table.IsBordered; Table.IsFullWidth; Table.Props [ Style [ BorderWidth 0 ] ] ] [
-        tbody [] subSheetRows
-    ]
+
+    wavePropsTable subSheetRows
+    
 
 let renderwaves (ws: WaveSimModel) (dispatch: Msg -> unit) (waveselect: WaveSelectionOutput) : ReactElement =
     let showDetails = waveselect.ShowDetails
@@ -470,9 +492,8 @@ let renderwaves (ws: WaveSimModel) (dispatch: Msg -> unit) (waveselect: WaveSele
 // Modal Display for Wave Selection
 // -----------------------------------------
 
-/// Displays the modal for wave selection. The top row shows the info button and wave count,
-/// below it a horizontal row of search boxes (from HLP25CodeBdw722) is displayed,
-/// and then a two‑column grid shows the wave selection (left) and breadcrumbs (right).
+/// Displays the modal for wave selection. The top row shows the serach boxes.
+/// Below a two‑column grid shows the wave selection (left) and breadcrumbs (right).
 let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Model) : ReactElement =
     // Helper to close the modal and reset search string.
     let resetSearchFilters (ws: WaveSimModel) =
@@ -508,7 +529,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
 
     if not wsModel.WaveModalActive then div [] []
     else
-        let filteredWaves = wavesToDisplay wsModel dispatch
+        let filteredWaves = filterWaves wsModel
         Modal.modal [
             Modal.IsActive wsModel.WaveModalActive
             Modal.Props [ Style [ ZIndex 20000 ] ]
@@ -558,18 +579,16 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                             MarginLeft "10px"
                         ]
                     ] [
+                        // Info button and wave count.
+                        div [ Style [ Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
+                            infoButton
+                        ]
+                        // search boxes
                         waveSearchBox wsModel dispatch
                         sheetSearchBox wsModel dispatch
                         componentSearchBox wsModel dispatch
                         portSearchBox wsModel dispatch
                         componentTypeSearchBox wsModel dispatch
-                        // Info button and wave count.
-                        div [ Style [ Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
-                            infoButton
-                            div [ Style [ MarginLeft "10px" ] ] [
-                                str (sprintf "%d waves selected" (List.length wsModel.SelectedWaves))
-                            ]
-                        ]
                         // Select All button.
                         div [ Style [ MarginLeft "15px"; Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
                             Checkbox.checkbox [] [
@@ -637,11 +656,12 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
         ]
 
 
-// -----------------------------------------
-// Create and Implement WaveDisplayTree
-// -----------------------------------------
+//----------------------------------------------------------------------------------------//
+//-------------Waveform Selection Tree Display and Helpers--------------------------------//
+//-------------THIS CODE IS NOT USED IN THE CURRENT IMPLEMENTATION------------------------//
+//----------------------------------------------------------------------------------------//
 
-
+(*
 type WTNode =  
     | SheetNode of string list 
     | ComponentNode of FComponentId 
@@ -844,27 +864,27 @@ let implementWaveSelector (wsModel: WaveSimModel) (dispatch: Msg -> unit) (wTree
             | PortNode wave -> [wave]
             | _ -> List.collect collectWaves n.HiddenNodes
         collectWaves node
+        |> List.sortBy (fun wave -> getWaveDisplayName wave)
     
     /// Create a row for a port node (leaf node in tree)
-    let makePortNodeRow (wave: Wave) : ReactElement =
+    let makePortNodeRow (wave: Wave) : TableRow =
         let subSheet =
             match wave.SubSheet with
             | [] -> str (Simulator.getFastSim().SimulatedTopSheet)
             | _  -> subSheetsToNameReact wave.SubSheet
 
-        tr [] [
-            td [] [waveCheckBoxItem wsModel [wave.WaveId] dispatch]
-            td [] [str wave.PortLabel]
-            td [] [
-                str <| 
-                match wave.WaveId.PortType with 
-                | PortType.Output -> "Output" 
-                | PortType.Input -> "Input"
-            ]
+        waveRow [] [
+            waveCheckBoxItem wsModel [wave.WaveId] dispatch
+            str wave.PortLabel
+            (match wave.WaveId.PortType with 
+            | PortType.Output -> "Output" 
+            | PortType.Input -> "Input"
+            |> str)
+            
         ]
     
     /// Create a row for a component node with its port details
-    let rec makeComponentNodeRow (node: WaveTreeNode) : ReactElement =
+    let rec makeComponentNodeRow (node: WaveTreeNode) : TableRow =
         match node.WTNode with
         | ComponentNode compId ->
             let fc = Simulator.getFastSim().WaveComps[compId]
@@ -882,7 +902,7 @@ let implementWaveSelector (wsModel: WaveSimModel) (dispatch: Msg -> unit) (wTree
         | _ -> failwithf "Expected ComponentNode but got something else"
     
     /// Create a row for a group node with its component details
-    let rec makeGroupNodeRow (node: WaveTreeNode) : ReactElement =
+    let rec makeGroupNodeRow (node: WaveTreeNode) : TableRow =
         match node.WTNode with
         | GroupNode (cGroup, subSheet) ->
             let waves = getWavesFromNode node
@@ -902,7 +922,7 @@ let implementWaveSelector (wsModel: WaveSimModel) (dispatch: Msg -> unit) (wTree
         | _ -> failwithf "Expected GroupNode but got something else"
     
     /// Create a row for a sheet node with its group and subsheet details
-    let rec makeSheetNodeRow (node: WaveTreeNode) : ReactElement =
+    let rec makeSheetNodeRow (node: WaveTreeNode) : TableRow =
         match node.WTNode with
         | SheetNode subSheet ->
             // If this is the top sheet, we render it differently (as a table)
@@ -917,12 +937,7 @@ let implementWaveSelector (wsModel: WaveSimModel) (dispatch: Msg -> unit) (wTree
                         | PortNode wave -> makePortNodeRow wave
                         )
                 
-                Table.table [
-                    Table.IsBordered
-                    Table.IsFullWidth
-                    Table.Props [
-                        Style [BorderWidth 0]
-                    ]] [tbody [] rows]
+                waveRow [] [wavePropsTable rows]
             else
                 // For non-top sheets
                 let waves = getWavesFromNode node
@@ -953,14 +968,5 @@ let implementWaveSelector (wsModel: WaveSimModel) (dispatch: Msg -> unit) (wTree
             | ComponentNode _ -> makeComponentNodeRow node
             | PortNode wave -> makePortNodeRow wave)
     
-    // If there's only one element and it's a table, return it directly
-    match elements with
-    | [single] -> single
-    | _ -> 
-        // Otherwise wrap all elements in a table
-        Table.table [
-            Table.IsBordered
-            Table.IsFullWidth
-            Table.Props [
-                Style [BorderWidth 0]
-            ]] [tbody [] elements]
+    wavePropsTable elements
+    *)

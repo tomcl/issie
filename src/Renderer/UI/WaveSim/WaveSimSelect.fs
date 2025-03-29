@@ -134,20 +134,24 @@ let getInputPortName (compType: ComponentType) (port: InputPortNumber) : string 
     | BusSelection _ -> failwithf "BusSelection should not occur in getInputPortName"
 
 /// Get names for waves that are from Input ports
+/// TODO: unify this with DrawBlock and widthInferror logic
+
 let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) : string =
     let portName : string = getInputPortName comp.FType port
     let bitLims : string =
         match comp.FType with
+        //| RegisterE _ when port = InputPortNumber 1 -> bitLimsString (0, 0)
+        | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
+        | NbitsXor(w, _) | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  
+        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
+        | BusCompare(w,_) | BusCompare1(w,_,_) |GateN(_,w) |Register w | RegisterE w | NbitSpreader w ->
+            bitLimsString (w - 1, 0)
         | Not | BusCompare _ | BusCompare1 _ | GateN _
         | Mux2 | Mux4 | Mux8 | Decode4 | Demux2 | Demux4 | Demux8
         | DFF | Register _ | DFFE | RegisterE _ |Counter _
-        |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _|NbitSpreader _ ->
+        |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
             bitLimsString (0, 0)
 
-        | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
-        | NbitsXor(w, _) | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w  
-        | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w ->
-            bitLimsString (w - 1, 0)
         | Shift(w,m,tp) -> bitLimsString (w - 1, 0)
         // TODO: Find the right parameters for RAMs and ROMs.
         | ROM1 _ | AsyncROM1 _ | RAM1 _ | AsyncRAM1 _ ->
@@ -206,6 +210,7 @@ let getOutputPortName (compType: ComponentType) (port: OutputPortNumber) : strin
     | BusSelection _ -> failwithf "BusSeleciton should not occur in getOutputName"
 
 /// Get names for waves that are from Output ports
+/// TODO: unify this with DrawBlock and widthInferror logic
 let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber) (fastSim: FastSimulation): string =
     let portName = getOutputPortName comp.FType port
     let bitLims =

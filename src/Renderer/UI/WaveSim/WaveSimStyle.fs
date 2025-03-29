@@ -200,7 +200,7 @@ let errorMessageStyle = Style [
 
 /// Style of checkboxes
 let checkboxStyle = Style [
-    Margin "0 5px 0 5px"
+    //Margin "0 5px 0 5px"
     Cursor "pointer"
     Float FloatOptions.Left
 ]
@@ -211,22 +211,23 @@ let checkboxInputProps : IHTMLProp list = [
     checkboxStyle
 ]
 
-let boldFontStyle = Style [
+let boldFontStyle = [
     FontWeight "bold"
     FontSize "14px"
 ]
 
-let normalFontStyle = Style [
+let normalFontStyle = [
     FontWeight "normal"
     FontSize "14px"
 ]
 
-let noBorderStyle = Style [
+let noBorderStyle = [
     BorderWidth 0
+    BorderCollapse "collapse"
 ]
 
 /// Style for selectRamButton
-let selectRamButtonStyle = Style [
+let selectRamButtonStyle = [
     Height Constants.rowHeight
     FontSize "16px"
     Position PositionOptions.Relative

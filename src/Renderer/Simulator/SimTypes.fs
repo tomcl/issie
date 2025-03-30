@@ -102,6 +102,10 @@ type FastComponent =
       /// The unique name of the sheet the component is in, or the name of the custom component.
       /// if needed be disambiguated by part of the custom component instances label.
       SimSheetName: string
+      /// SimSheetNamePath is the access path to the root of the simulation mapped to SimSheetNames of custom components
+      /// The last element is the SimSheetName of the sheet the component is in.
+      /// It is used by the Wave Selector to determine which waves are subsheets of a given Wave.SheetId.
+      SimSheetNamePath: string list
       /// Unique name of sheet as design sheet path to root of simulation
       SheetName: string list
       // these fields are used only to determine component ordering for correct evaluation
@@ -225,12 +229,17 @@ type FastSimulation =
         SimulatedCanvasState: LoadedComponent list
         /// The root sheet being simulated
         SimulatedTopSheet: string
+        /// Map from SimSheetName to the parent sheet CustomComponent, or None if the sheet is top-level
+        SimSheetStructure: Map<string,FastComponent option>
+
         /// Total size of the output arrays per time-step.
         TotalArraySizePerStep: int
     } with
 
     member this.getSimSheetName(fId:FComponentId) =
-        this.FCustomComps[fId]
+        this.FCustomComps[fId].SimSheetName
+
+ 
 
 /// GatherTemp is the output type used to accumulate lists of data links when recursively exploring SimulationGraph
 /// as first step in flattening it.

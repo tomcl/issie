@@ -97,10 +97,27 @@ let getComponentName (wave: Wave) =
     | IOLabel -> "IO-LABEL"
     | _ -> comp.FType.ToString().ToUpperInvariant()
 
+let isSubSheetOf (subSheetId: string) (sheets: string list) =
+    let fs = Simulator.getFastSim()
+    let rec isSubSheetOf' subSheetId =
+        List.contains subSheetId sheets ||
+        match fs.SimSheetStructure[subSheetId] with
+        | None -> false
+        | Some parent -> isSubSheetOf' parent.SimSheetName
+    isSubSheetOf' subSheetId
+
+let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
+    let s = ws.SheetSearchString.Trim().ToUpperInvariant()
+    if s.EndsWith "*" then
+        newSheetName + "*"
+    else
+        newSheetName
+
 /// Filtering function that applies an AND operation across four search criteria.
 /// OfSheet is used to return the waves that match the sheet box
 /// All returns all filtered waves without any sheet filtering.
 let filterWaves (wsModel: WaveSimModel) =
+    let fs = Simulator.getFastSim()
     let waves, okSelectedWaves = ensureWaveConsistency wsModel
     let matchWithBox (searchString: string) (matcher:string) =
         let s = searchString.Trim().ToUpperInvariant()
@@ -114,18 +131,28 @@ let filterWaves (wsModel: WaveSimModel) =
             && matchWithBox wsModel.WaveSearchString wave.ViewerDisplayName
             && matchWithBox wsModel.ComponentTypeSearchString (getComponentName wave)
         )
-    let sheet = wsModel.SheetSearchString.Trim().ToUpperInvariant()
+    let sheetBox = wsModel.SheetSearchString.Trim().ToUpperInvariant()
+    let sheet = sheetBox.TrimEnd '*'
+    let allSubSheets = sheetBox.EndsWith "*"
+    let allSheets =
+        fs.SimSheetStructure.Keys
+        |> Seq.toList
+
     let filteredSheets =
-        let exactMatch =
-            searchFilteredWaves
-            |> List.tryPick (fun wave -> if wave.SheetId = sheet then Some sheet else None)
-        let waveFilter =
-            match exactMatch with
-            | Some sheetMatched -> fun wave -> wave.SheetId = sheetMatched
-            | None -> fun wave -> sheet = "" || sheet = "*" || wave.SheetId.Contains(sheet)
-        searchFilteredWaves |> List.filter waveFilter
-    // Update the model with highlighted sheets.
-    {| All = searchFilteredWaves; OfSheet = filteredSheets|}
+        allSheets
+        |> List.tryPick (fun sheet' -> if sheet' = sheet then Some [sheet] else None)
+        |> Option.defaultValue (List.filter (fun (sheetId:string) -> sheetId.Contains sheet) allSheets)
+
+    let searchSheets =
+        allSheets
+        |> List.filter (fun sheet -> List.contains sheet filteredSheets ||
+                                     (allSubSheets && isSubSheetOf sheet filteredSheets))
+
+    let sheetFilteredWaves =
+        searchFilteredWaves
+        |> List.filter (fun wave -> List.contains wave.SheetId searchSheets)
+
+    {| All = searchFilteredWaves; Sheets = searchSheets; OfSheet = sheetFilteredWaves|}
 
 
 
@@ -171,6 +198,27 @@ let sheetSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
         ]
     ]
 
+/// Checkbox to select all subsheets.
+let selectAllSubsheetsBox (ws:WaveSimModel) dispatch =
+    let s = ws.SheetSearchString
+    div [ Style [ MarginLeft "15px"; Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
+        Checkbox.checkbox [] [
+            Checkbox.input [
+                Props [
+                    Checked (s.EndsWith "*")
+                    OnChange (fun _ ->
+                        let newSearch =
+                            if s.EndsWith "*" then s.TrimEnd('*')
+                            else s + "*"
+                        dispatch (UpdateWSModel (fun ws -> { ws with SheetSearchString = newSearch }))
+                    )
+                ]
+            ]
+            str "All Subsheets"
+        ]
+    ]
+
+
 /// Search box for component names.
 let componentSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     div [ searchBoxContainerStyle ] [
@@ -197,17 +245,7 @@ let portSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement
         ]
     ]
 
-/// Search box for component types.
-let componentTypeSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    div [ searchBoxContainerStyle ] [
-        Input.text [
-            Input.Option.Props [ Style [ MarginBottom "1rem"; Width "100%" ] ]
-            Input.Option.Placeholder "Search component types..."
-            Input.Option.OnChange (fun value ->
-                dispatch (UpdateWSModel (fun wsm -> { wsm with ComponentTypeSearchString = value.Value.ToUpper() }))
-            )
-        ]
-    ]
+
 
 // -----------------------------------------
 // Breadcrumb Display
@@ -216,7 +254,7 @@ let componentTypeSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : Rea
 /// Displays a breadcrumb of sheets based on the current search and wave matches.
 let waveSelectBreadcrumbs
         (wsModel: WaveSimModel)
-        (filteredWaves: {| All: Wave list; OfSheet: Wave list|})
+        (filteredWaves: {| All: Wave list; Sheets: string list; OfSheet: Wave list|})
         (dispatch: Msg -> unit)
         (model: Model) : ReactElement =
     match model.CurrentProj with
@@ -232,29 +270,17 @@ let waveSelectBreadcrumbs
             let sheetName = sheet.SimName fs
             let sheetSearch = wsModel.SheetSearchString.Trim().ToUpperInvariant()
             // Collect the other search strings.
-            let otherSearches =
-                [ wsModel.WaveSearchString; wsModel.ComponentSearchString; wsModel.PortSearchString; wsModel.ComponentTypeSearchString ]
-                |> List.map (fun s -> s.Trim().ToUpperInvariant())
-                |> List.filter ((<>) "")
-            if sheetSearch <> "" then
-                // If a sheet is clicked then highlight it exclusively.
-                if sheetName = sheetSearch then
-                    IColor.IsCustomColor "pink"
-                else
-                    IColor.IsCustomColor "darkslategrey"
+            if List.contains sheetName filteredWaves.Sheets then
+                IColor.IsCustomColor "pink"
             else
-                // If no sheet is clicked, check if the sheetName matches any other search string.
-                if otherSearches |> List.exists (fun search -> sheetName.Contains(search)) then
-                    IColor.IsCustomColor "pink"
-                else
-                    IColor.IsCustomColor "darkslategrey"
+                IColor.IsCustomColor "darkslategrey"
         let sheetMatches (sheet: SheetTree) =
             match List.tryFind (fun (name, _) -> name = sheet.SimName fs) sheetCounts with
             | Some (_, count) -> count
             | None -> 0
         let updateSearchStringHelper (sheet: SheetTree) : (Msg -> unit) -> unit =
             fun dispatch ->
-                dispatch (UpdateWSModel (fun ws -> { ws with SheetSearchString = sheet.SimName fs}))
+                dispatch (UpdateWSModel (fun ws -> { ws with SheetSearchString = updateSheetString (sheet.SimName fs) ws}))
         let sheetName (node: SheetTree) =
             node.SimName fs
         let breadcrumbConfig = { 
@@ -382,15 +408,13 @@ let waveCheckBoxItem (wsModel: WaveSimModel) (waveIds: WaveIndexT list) dispatch
         ]
     ]
 
+                        
+
 let makePortRow (ws: WaveSimModel) (dispatch: Msg -> unit) (waves: Wave list) =
     let wave =
         match waves with
         | [wave] -> wave
         | _ -> failwithf "Expected a single wave in port row; got %d" waves.Length
-    let subSheet =
-        match wave.SubSheet with
-        | [] -> str (Simulator.getFastSim().SimulatedTopSheet)
-        | _ -> subSheetsToNameReact wave.SubSheet
     waveRow [] [
         waveCheckBoxItem ws [wave.WaveId] dispatch 
         str wave.PortLabel 
@@ -615,23 +639,8 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                         sheetSearchBox wsModel dispatch
                         componentSearchBox wsModel dispatch
                         portSearchBox wsModel dispatch
-                        componentTypeSearchBox wsModel dispatch
-                        // Select All button.
-                        div [ Style [ MarginLeft "15px"; Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
-                            Checkbox.checkbox [] [
-                                Checkbox.input [
-                                    Props [
-                                        Checked (wsModel.WaveSearchString = "*")
-                                        OnChange (fun _ ->
-                                            let newSearch =
-                                                if wsModel.WaveSearchString = "*" then "" else "*"
-                                            dispatch (UpdateWSModel (fun ws -> { ws with WaveSearchString = newSearch }))
-                                        )
-                                    ]
-                                ]
-                                str "Select All Waves"
-                            ]
-                        ]
+                        // Select All Subsheets checkbox
+                        selectAllSubsheetsBox wsModel dispatch
                     ]
 
                 ]

@@ -50,7 +50,8 @@ let emptyFastSimulation diagramName =
       ComponentsById = Map.empty
       SimulatedCanvasState = []
       SimulatedTopSheet = diagramName
-      SimSheetNameMap=Map.empty}
+      SimSheetNameMap = Map.empty
+      SimSheetStructure = Map.empty}
 
 let simulationPlaceholder = emptyFastSimulation ""
 let getFid (cid: ComponentId) (ap: ComponentId list) =
@@ -300,6 +301,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
       FType = sComp.Type
       AccessPath = accessPath
       SimSheetName = ""
+      SimSheetNamePath = []
       SheetName = []
       Touched = false
       DrivenComponents = []
@@ -573,6 +575,8 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
             match ap with
             | [] -> f.SimulatedTopSheet
             | _ -> g.Labels[List.last ap]
+
+            
         { fc with
             FullName = g.getFullSimName fid;
             SheetName = g.getFullSimPath fid
@@ -622,16 +626,24 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
 
     instrumentTime "createInitFastCompPhase" start
 
-    let addSimSheetPaths (comps:Map<FComponentId,FastComponent>) =
+    let addSimSheetNames (comps:Map<FComponentId,FastComponent>) =
         comps
         |> Map.map (fun (cid,ap) fc ->
             match fc.AccessPath with
             | [] -> {fc with SimSheetName = f.SimulatedTopSheet.ToUpperInvariant()}
             | path -> {fc with SimSheetName = customSimSheetNames[List.last path,path[0..path.Length-2]].ToUpperInvariant()})
 
-    let comps = addSimSheetPaths comps
-    let customComps = addSimSheetPaths customComps
+    let comps = addSimSheetNames comps
+    let customComps = addSimSheetNames customComps
 
+    let addSimSheetPaths (comps:Map<FComponentId,FastComponent>) =
+        comps
+        |> Map.map (fun (fId,ap) fc ->
+            [0..(List.length ap - 1)]
+            |> List.map (fun i ->
+                let fId = ap[i],ap[0..i-1]
+                customComps[fId].SimSheetName)
+            |> (fun sp -> {fc with SimSheetNamePath = f.SimulatedTopSheet :: sp}))
 
     let simSheetNames =
         (Map.toList customComps @ Map.toList comps)
@@ -639,12 +651,21 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
         |> List.distinct
         |> Map.ofList
 
-        
+    let simSheetStructure : Map<string,FastComponent option> =
+        (customComps |> Map.toList)
+        |> List.append (comps |> Map.toList)
+        |> List.map (fun ((cid,ap),fc) ->
+            let parent : FastComponent option =
+                List.tryLast ap
+                |> Option.map (fun cid -> customComps[cid, ap[0..ap.Length-2]])
+            fc.SimSheetName, parent)
+        |> Map.ofList
 
     { f with
         FComps = addSimSheetPaths comps 
         FCustomComps = addSimSheetPaths customComps
         SimSheetNameMap = simSheetNames
+        SimSheetStructure = simSheetStructure
         MaxArraySize = simulationArraySize
         FSComps = g.AllComps
         FCustomOutputCompLookup = customOutLookup

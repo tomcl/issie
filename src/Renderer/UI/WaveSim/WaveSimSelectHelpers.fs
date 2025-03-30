@@ -38,6 +38,9 @@ open DiagramStyle
 // Helper Functions & Filtering Logic
 // -----------------------------------------
 
+module Constants =
+    let numPortColumns = 4
+
 type TableRow = TableRow of ReactElement
 
 let waveRowIProps props rowItems : TableRow =
@@ -92,7 +95,7 @@ let getComponentName (wave: Wave) =
     | Constant1 _ -> "CONSTANT"
     | BusSelection _ -> "BUS-SELECT"
     | IOLabel -> "IO-LABEL"
-    | _ -> comp.FType.ToString().ToUpper()
+    | _ -> comp.FType.ToString().ToUpperInvariant()
 
 /// Filtering function that applies an AND operation across four search criteria.
 /// OfSheet is used to return the waves that match the sheet box
@@ -100,8 +103,8 @@ let getComponentName (wave: Wave) =
 let filterWaves (wsModel: WaveSimModel) =
     let waves, okSelectedWaves = ensureWaveConsistency wsModel
     let matchWithBox (searchString: string) (matcher:string) =
-        let s = searchString.Trim().ToUpper()
-        s = "" || s = "*" || matcher.ToUpper().Contains s
+        let s = searchString.Trim().ToUpperInvariant()
+        s = "" || s = "*" || matcher.ToUpperInvariant().Contains s
 
     let searchFilteredWaves =
         waves
@@ -111,11 +114,16 @@ let filterWaves (wsModel: WaveSimModel) =
             && matchWithBox wsModel.WaveSearchString wave.ViewerDisplayName
             && matchWithBox wsModel.ComponentTypeSearchString (getComponentName wave)
         )
-
+    let sheet = wsModel.SheetSearchString.Trim().ToUpperInvariant()
     let filteredSheets =
-        searchFilteredWaves
-        |> List.filter (fun wave -> matchWithBox ("$" + wsModel.SheetSearchString + "$") ("$" + wave.SheetId + "$"))
-
+        let exactMatch =
+            searchFilteredWaves
+            |> List.tryPick (fun wave -> if wave.SheetId = sheet then Some sheet else None)
+        let waveFilter =
+            match exactMatch with
+            | Some sheetMatched -> fun wave -> wave.SheetId = sheetMatched
+            | None -> fun wave -> sheet = "" || sheet = "*" || wave.SheetId.Contains(sheet)
+        searchFilteredWaves |> List.filter waveFilter
     // Update the model with highlighted sheets.
     {| All = searchFilteredWaves; OfSheet = filteredSheets|}
 
@@ -426,6 +434,7 @@ let selectWaves (ws: WaveSimModel) (waves: Wave list) (dispatch: Msg -> unit) : 
     { WaveList = waves; ShowDetails = showDetails }
 
 let makeFlatGroupRow
+        (portsPerRow: int)
         showDetails (ws: WaveSimModel)
         (dispatch: Msg -> unit)
         (subSheet: string list)
@@ -436,23 +445,41 @@ let makeFlatGroupRow
     let rowItems =
         wavesInGroup
         |> List.groupBy (fun (wave:Wave) -> wave.CompLabel)
-        |> (fun x -> x)
-        |> List.collect (fun (_, waves) -> waves |> List.mapi (fun i wave -> {|W=wave; IsFirst = i=0|}))
-        |> List.map (fun wave ->
-            let isSelected = isWaveSelected wave.W.WaveId ws
-            let fontStyle = if isSelected then boldFontStyle else normalFontStyle
-            waveRow (MarginRight "10px" :: fontStyle) [
-                input [
-                    Type "Checkbox"
-                    OnChange (fun _ -> toggleWaveSelection wave.W.WaveId ws dispatch)
-                    Checked isSelected                    
-                ]
-                p
-                    [Style ([MarginRight "10px"; MarginLeft "10px"; Color "blue"] @ boldFontStyle)]
-                    [str <| if wave.IsFirst then $"{wave.W.CompLabel}" else ""]
-                str $"{wave.W.PortLabel}"               
-            ]
-        )
+        |> List.collect (fun (comp, waves) ->
+            waves
+            |> List.mapi (fun i wave -> {|W=wave; Column = i|})
+            |> List.groupBy (fun waves -> waves.Column / portsPerRow)
+            |> List.map (fun (portCol, waves) ->
+                let isFirst = waves[0].Column = 0
+                let portCells (wave:{|W:Wave;Column:int|}) =
+                    let isSelected = isWaveSelected wave.W.WaveId ws
+                    let fontStyle = if isSelected then boldFontStyle else normalFontStyle
+
+                    [
+                        div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center ]] [
+                            input [
+                                Type "Checkbox"
+                                OnChange (fun _ -> toggleWaveSelection wave.W.WaveId ws dispatch)
+                                Checked isSelected
+                                Style (MarginLeft "10px" :: MarginRight "5px" :: fontStyle)
+                            ]
+                            p [Style (MarginRight "10px" :: fontStyle)] [str $"{wave.W.PortLabel}"]
+                        ]
+                    ]
+                let compNameCell =
+                    p
+                        [Style ([MarginRight "10px"; MarginLeft "10px"; Color "blue"] @ boldFontStyle)]
+                        [str <| if isFirst then $"{waves[0].W.CompLabel}" else ""]
+
+                let portNameCells =
+                    [0..portsPerRow-1]
+                    |> List.collect (fun i ->
+                        List.tryItem i waves
+                        |> function | None -> [str ""] | Some wave -> portCells wave)
+                waveRow [] (compNameCell :: portNameCells)))
+
+                    
+            
     makeSelectionGroup showDetails ws dispatch summaryReact rowItems cBox wavesInGroup
 
 let makeFlatList
@@ -474,7 +501,7 @@ let makeFlatList
             let groupRows =
                 componentGroups
                 |> List.map (fun (grp, groupWaves) ->
-                    makeFlatGroupRow showDetails ws dispatch [] grp groupWaves
+                    makeFlatGroupRow Constants.numPortColumns showDetails ws dispatch [] grp groupWaves
                 )
             makeSelectionGroup showDetails ws dispatch (str subSheetName) groupRows (SheetItem [subSheetName]) wavesInSubSheet
         )

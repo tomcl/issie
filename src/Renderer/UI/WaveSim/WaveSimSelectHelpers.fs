@@ -33,6 +33,7 @@ open WaveSimHelpers
 open SimGraphTypes
 open SimTypes
 open DiagramStyle
+open Optics
 
 // -----------------------------------------
 // Helper Functions & Filtering Logic
@@ -40,6 +41,7 @@ open DiagramStyle
 
 module Constants =
     let numPortColumns = 4
+    let maxRecommendedViewerWaves = 50
 
 type TableRow = TableRow of ReactElement
 
@@ -130,6 +132,7 @@ let filterWaves (wsModel: WaveSimModel) =
             && matchWithBox wsModel.PortSearchString wave.PortLabel
             && matchWithBox wsModel.WaveSearchString wave.ViewerDisplayName
             && matchWithBox wsModel.ComponentTypeSearchString (getComponentName wave)
+            && (not wsModel.ShowOnlySelected || List.contains wave.WaveId okSelectedWaves)
         )
     let sheetBox = wsModel.SheetSearchString.Trim().ToUpperInvariant()
     let sheet = sheetBox.TrimEnd '*'
@@ -199,25 +202,47 @@ let sheetSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
     ]
 
 /// Checkbox to select all subsheets.
-let selectAllSubsheetsBox (ws:WaveSimModel) dispatch =
-    let s = ws.SheetSearchString
+let waveCheckBox
+        (state_: Lens<WaveSimModel,'STATE>)
+        (isChecked: 'STATE -> bool)
+        (action: bool -> 'STATE -> 'STATE)
+        (name: string)
+        (ws:WaveSimModel)
+        dispatch =
+    let state = Optic.get state_ ws
+    let ticked = isChecked state
     div [ Style [ MarginLeft "15px"; Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
         Checkbox.checkbox [] [
             Checkbox.input [
                 Props [
-                    Checked (s.EndsWith "*")
+                    Checked (isChecked state)
                     OnChange (fun _ ->
-                        let newSearch =
-                            if s.EndsWith "*" then s.TrimEnd('*')
-                            else s + "*"
-                        dispatch (UpdateWSModel (fun ws -> { ws with SheetSearchString = newSearch }))
+                        dispatch (UpdateWSModel <| Optic.map state_ (action ticked) )
                     )
                 ]
             ]
-            str "All Subsheets"
+            str name
         ]
     ]
 
+let selectAllSubsheetsBox (ws:WaveSimModel) dispatch =
+    waveCheckBox
+        sheetSearchString_
+        (fun (s:string) -> s.EndsWith "*")
+        (fun _ (s:string) -> if s.EndsWith "*" then s.TrimEnd('*') else s + "*")
+        "All Subsheets"
+        ws
+        dispatch
+
+
+let showOnlySelectedBox (ws:WaveSimModel) dispatch =
+    waveCheckBox
+        showOnlySelected_
+        id
+        (fun _ ticked -> not ticked)
+        "Show Only Selected"
+        ws
+        dispatch
 
 /// Search box for component names.
 let componentSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
@@ -420,24 +445,32 @@ let makePortRow (ws: WaveSimModel) (dispatch: Msg -> unit) (waves: Wave list) =
         str wave.PortLabel 
         str (match wave.WaveId.PortType with | PortType.Output -> "Output" | PortType.Input -> "Input") 
     ]
-
-let makeSelectionGroup
+/// Makes a summary row which is one row of a table and
+/// can be expanded to show more details presented as a sub-table.
+/// The details are passed as:
+/// rows - a list of TableRow elements each representing a component with some ports or a group of components.
+/// waves: the corresponding list of waveforms to display.
+/// In general waves.Length > rows.Length since one row will typically have multiple ports and therefore multiple waves.
+/// The summary item is the ReactElement to display in the summary row: it is given Style etc from summaryProps.
+let makeSummaryItem
         showDetails
         (ws: WaveSimModel)
-        (dispatch: Msg -> unit)
         (summaryItem: ReactElement)
         (rows: TableRow list)
         (cBox: CheckBoxStyle)
-        (waves: Wave list) =
+        (waves: Wave list)
+        (dispatch: Msg -> unit) =
     let wi = wavesToIds waves
-    waveRowIProps (summaryProps false cBox ws dispatch) [
-        waveCheckBoxItem ws wi dispatch 
-            
-        details (detailsProps showDetails cBox ws dispatch) [
+    waveRowIProps
+        (summaryProps false cBox ws dispatch)
+        [
+            waveCheckBoxItem ws wi dispatch             
+            details
+                (detailsProps showDetails cBox ws dispatch)
+                [
                     summary (summaryProps true cBox ws dispatch) [ summaryItem ]
-                    wavePropsTable rows]
-                
-                
+                    wavePropsTable rows
+                ]
         ]
             
         
@@ -449,23 +482,17 @@ type WaveSelectionOutput = {
     ShowDetails: bool
 }
 
-/// Top-level function to select and filter waves for display.
-/// Uses the filtering logic from `filterWaves`.
-let selectWaves (ws: WaveSimModel) (waves: Wave list) (dispatch: Msg -> unit) : WaveSelectionOutput =
-    let waves = List.sortBy (fun wave -> wave.ViewerDisplayName) waves
-    let showDetails = ((List.length waves < 20) || (ws.WaveSearchString.Length > 0))
-                        && (ws.WaveSearchString <> "-")
-    { WaveList = waves; ShowDetails = showDetails }
+
 
 let makeFlatGroupRow
-        (portsPerRow: int)
-        showDetails (ws: WaveSimModel)
-        (dispatch: Msg -> unit)
-        (subSheet: string list)
+        showDetails
+        (ws: WaveSimModel)
         (grp: ComponentGroup)
-        (wavesInGroup: Wave list) =
-    let cBox = GroupItem (grp, subSheet)
-    let summaryReact = summaryName ws cBox subSheet wavesInGroup
+        (wavesInGroup: Wave list)
+        (dispatch: Msg -> unit) =
+    let portsPerRow = Constants.numPortColumns
+    let cBox = GroupItem (grp, [])
+    let summaryReact = summaryName ws cBox [] wavesInGroup
     let rowItems =
         wavesInGroup
         |> List.groupBy (fun (wave:Wave) -> wave.CompLabel)
@@ -504,41 +531,41 @@ let makeFlatGroupRow
 
                     
             
-    makeSelectionGroup showDetails ws dispatch summaryReact rowItems cBox wavesInGroup
+    makeSummaryItem showDetails ws summaryReact rowItems cBox wavesInGroup dispatch
 
-let makeFlatList
+let makeSelectionTable
         (ws: WaveSimModel)
-        (dispatch: Msg -> unit)
-        (subSheet: string list)
         (waves: Wave list)
-        (showDetails: bool) =
+        (dispatch: Msg -> unit)
+        =
     let fs = Simulator.getFastSim()
-    let groupedBySubSheet =
+    let waves = List.sortBy (fun wave -> wave.ViewerDisplayName) waves
+    let sheetNum = waves |> List.distinctBy (fun w -> w.SheetId) |> List.length
+    let showDetails =
+        ((List.length waves < 50) ||
+        (ws.WaveSearchString.Length > 0)) ||
+         ws.ShowOnlySelected ||
+         sheetNum < 2
+    let subSheetRows =
         waves
         |> List.groupBy (fun w -> w.SheetId)
-
-    let subSheetRows =
-        groupedBySubSheet
         |> List.map (fun (subSheetName, wavesInSubSheet) ->
             let componentGroups =
-                wavesInSubSheet |> List.groupBy (fun wave -> getCompGroup fs wave)
+                wavesInSubSheet
+                |> List.groupBy (fun wave -> getCompGroup fs wave)
             let groupRows =
                 componentGroups
                 |> List.map (fun (grp, groupWaves) ->
-                    makeFlatGroupRow Constants.numPortColumns showDetails ws dispatch [] grp groupWaves
+                    makeFlatGroupRow showDetails ws grp groupWaves dispatch
                 )
-            makeSelectionGroup showDetails ws dispatch (str subSheetName) groupRows (SheetItem [subSheetName]) wavesInSubSheet
+            makeSummaryItem showDetails ws (str subSheetName) groupRows (SheetItem [subSheetName]) wavesInSubSheet dispatch
         )
     div [] [
         p [Style [FontSize "20px"; FontWeight "600"; MarginLeft "10px"]] [str "Waveform Selection"]
         wavePropsTable subSheetRows]
     
 
-let renderwaves (ws: WaveSimModel) (dispatch: Msg -> unit) (waveselect: WaveSelectionOutput) : ReactElement =
-    let showDetails = waveselect.ShowDetails
-    let wavelist = waveselect.WaveList
-    // Use the new flat approach
-    makeFlatList ws dispatch [] wavelist showDetails
+
 
 // -----------------------------------------
 // Modal Display for Wave Selection
@@ -556,6 +583,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
              PortSearchString = ""
              ComponentTypeSearchString = ""
              HighlightedSheets = Set.empty
+             ShowOnlySelected = false
         }
 
     let closeModal () =
@@ -566,9 +594,9 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
     // Handler for closing the modal (with confirmation if >50 waves are selected).
     let handleModalClose _ =
         let numWaves = List.length wsModel.SelectedWaves
-        if numWaves > 50 then
+        if numWaves > Constants.maxRecommendedViewerWaves then
             UIPopups.viewWaveSelectConfirmationPopup
-                50
+                Constants.maxRecommendedViewerWaves
                 numWaves
                 (fun finish _ ->
                     dispatch ClosePopup
@@ -591,7 +619,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                 Props [ OnClick (fun _ -> dispatch (UpdateWSModel (fun ws -> { ws with WaveModalActive = false }))) ]
             ] []
             // Main modal card.
-            Modal.Card.card [ Props [ Style [ MinWidth "90%" ] ] ] [
+            Modal.Card.card [ Props [ Style [ MinWidth "95%" ] ] ] [
                 // Header with title and delete button.
                 Modal.Card.head [] [
                     Modal.Card.title [] [
@@ -644,6 +672,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                         portSearchBox wsModel dispatch
                         // Select All Subsheets checkbox
                         selectAllSubsheetsBox wsModel dispatch
+                        showOnlySelectedBox wsModel dispatch
                     ]
 
                 ]
@@ -679,8 +708,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                             OverflowY OverflowOptions.Auto
                         ]
                     ] [
-                        let waveselect = selectWaves wsModel filteredWaves.OfSheet dispatch
-                        renderwaves wsModel dispatch waveselect
+                        makeSelectionTable wsModel filteredWaves.OfSheet dispatch
                     ]
                 ]
                 // Footer with Done button.

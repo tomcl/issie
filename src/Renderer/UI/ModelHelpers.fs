@@ -83,6 +83,7 @@ let initWSModel  : WaveSimModel = {
     PortSearchString = ""
     ComponentTypeSearchString = ""
     HighlightedSheets = Set.empty
+    ShowOnlySelected = false
 }
 
 /// This is needed because DrawBlock cannot directly access Issie Model.

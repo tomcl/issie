@@ -830,16 +830,6 @@ let setWaveSheetSelectionOpen (wsModel: WaveSimModel) (subSheets: string list li
         | true -> Set.union setChange wsModel.ShowSheetDetail
     {wsModel with ShowSheetDetail = newSelect}   
 
-/// Sets or clears a subset of ShowComponentDetail
-let setWaveComponentSelectionOpen (wsModel: WaveSimModel) (fIds: FComponentId list)  (show: bool) =
-    let fIdSet = Set.ofList fIds
-    let newSelect =
-        match show with
-        | true -> Set.union fIdSet  wsModel.ShowComponentDetail
-        | false -> Set.difference wsModel.ShowComponentDetail fIdSet
-    {wsModel with ShowComponentDetail = newSelect}
-
-
 /// Sets or clears a subset of ShowGroupDetail
 let setWaveGroupSelectionOpen (wsModel: WaveSimModel) (grps :(ComponentGroup*string list) list)  (show: bool) =
     let grpSet = Set.ofList grps
@@ -849,47 +839,46 @@ let setWaveGroupSelectionOpen (wsModel: WaveSimModel) (grps :(ComponentGroup*str
         | false -> Set.difference wsModel.ShowGroupDetail grpSet
     {wsModel with ShowGroupDetail = newSelect}
 
-let setSelectionOpen (wsModel: WaveSimModel) (cBox: CheckBoxStyle) (show:bool) =
+let setSelectionOpen (cBox: CheckBoxStyle) (show:bool) (wsModel: WaveSimModel)=
     match cBox with
-    | PortItem _ -> failwithf "What? setselectionopen cannot be called from a Port"
-    | ComponentItem fc -> setWaveComponentSelectionOpen wsModel [fc.fId] show
     | GroupItem (grp,subSheet) -> setWaveGroupSelectionOpen wsModel [grp,subSheet] show
     | SheetItem subSheet -> setWaveSheetSelectionOpen wsModel [subSheet] show
-
+    | x -> failwithf $"What? setSelectionOpen cannot be called from a '{x}' item"
 
 /// Props for HTML Summary element
+/// <param name="isSummary">True if this is a summary element, false if it is a details element.</param>
+/// isSummary is used to determine if the click handler is used.
 let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = [
 
-    let clickHandler (e:Browser.Types.Event) = 
+    let summaryOpenCloseClickHandler (e:Browser.Types.Event) = 
         if isSummary then
             let show =
                 match cBox with
-                | PortItem _ -> false
-                | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
                 | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
                 | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
-            dispatch <| UpdateWSModel (fun ws -> setSelectionOpen ws cBox (not show))
+                | _ -> failwithf "Not currently used"
+            dispatch <| UpdateWSModel (setSelectionOpen cBox (not show))
+
     let size,weight =
         match cBox with 
         | SheetItem _ -> "20px", "bold"
         | ComponentItem _ -> "16px", "bold"
-        | GroupItem _ -> "18px", "bold"
-        | PortItem _ -> "12px", "normal"
+        | GroupItem _ -> "14px", "bold"
+        | PortItem _ -> "14px", "normal"
     Style [
         FontSize size
         FontWeight weight
     ]
-    OnClick clickHandler
+    OnClick summaryOpenCloseClickHandler
 ]
 
 /// Props for HTML Details element
 let detailsProps showDetails cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
     let show =
         match cBox with
-        | PortItem _ -> false
-        | ComponentItem fc -> Set.contains fc.fId ws.ShowComponentDetail
         | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
         | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
+        | _ -> failwithf "Not currently used"
     [
         Open (show || showDetails)
     ]

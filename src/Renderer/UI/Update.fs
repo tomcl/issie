@@ -293,9 +293,7 @@ let update (msg : Msg) oldModel =
         WaveSimTop.refreshWaveSim false ws model
 
     | SetWaveComponentSelectionOpen (fIdL, show) ->       
-        model
-        |> updateWSModel (fun ws -> WaveSimStyle.setWaveComponentSelectionOpen ws fIdL show)
-        |> withNoMsg
+        failwithf "Not implemented: SetWaveComponentSelectionOpen %A %A" fIdL show
 
     | SetWaveGroupSelectionOpen (fIdL, show) -> 
         model

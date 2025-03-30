@@ -331,8 +331,11 @@ type WaveSimModel = {
     PortSearchString: string
     ComponentTypeSearchString: string
     HighlightedSheets: Set<string list>
+    /// if true, show only the selected waves in the waveform selector
+    ShowOnlySelected: bool
 }
-
+let showOnlySelected_ = Lens.create (fun a -> a.ShowOnlySelected) (fun s a -> {a with ShowOnlySelected = s})
+let sheetSearchString_ = Lens.create (fun a -> a.SheetSearchString) (fun s a -> {a with SheetSearchString = s})
 let wSConfig_ = Lens.create (fun a -> a.WSConfig) (fun s a -> {a with WSConfig = s})
 let ramStartLocation_ = Lens.create (fun a -> a.RamStartLocation) (fun s a -> {a with RamStartLocation = s})
 let wSConfigDialog_ = Lens.create (fun a -> a.WSConfigDialog) (fun s a -> {a with WSConfigDialog = s})

@@ -292,7 +292,7 @@ let waveSelectBreadcrumbs
                 BreadcrumbText = Some sheetName
         }
         let breadcrumbs = [
-            div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ] ] [ str "Design Hierarchy: click to filter" ]
+            div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ; FontWeight 600; PaddingBottom "10px"] ] [ str "Design Hierarchy: click to filter by sheet" ]
             MiscMenuView.hierarchyBreadcrumbs breadcrumbConfig dispatch updatedModel
         ]
         div [] breadcrumbs
@@ -529,8 +529,9 @@ let makeFlatList
                 )
             makeSelectionGroup showDetails ws dispatch (str subSheetName) groupRows (SheetItem [subSheetName]) wavesInSubSheet
         )
-
-    wavePropsTable subSheetRows
+    div [] [
+        p [Style [FontSize "20px"; FontWeight "600"; MarginLeft "10px"]] [str "Waveform Selection"]
+        wavePropsTable subSheetRows]
     
 
 let renderwaves (ws: WaveSimModel) (dispatch: Msg -> unit) (waveselect: WaveSelectionOutput) : ReactElement =
@@ -595,7 +596,9 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                 Modal.Card.head [] [
                     Modal.Card.title [] [
                         Level.level [] [
-                            Level.left [] [ str "Select Waves" ]
+                            Level.left
+                                [Props [Style [FontSize "20px"; FontWeight "600"]]]
+                                [ str "Select Waveforms using selection pane checkboxes. Filter using top boxes or clicking hierarchy" ]
                             Level.right [] [
                                 Delete.delete [
                                     Delete.Option.Size IsMedium

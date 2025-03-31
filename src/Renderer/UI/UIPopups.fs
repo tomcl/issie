@@ -418,9 +418,15 @@ let viewWaveSelectConfirmationPopup numRequired numWaves action dispatch =
     
     let warning = 
         div [] [
-            str $"You have selected {numWaves} waveforms. "
-            str $"Consider reducing this number to less than {numRequired}. Too many waveforms selected in the viewer may impact viewer reponsiveness. \
-                 Best practice is to select only the waveforms you need to view."
+            str $"You have selected {numWaves} waveforms. "; br []
+            str $"Consider reducing this number to less than {numRequired}."; br []
+            str "Too many waveforms selected in the viewer may impact viewer reponsiveness."; br []
+            str "Best practice is to select only the waveforms you need to view, deleting older waveforms."
+            br []; br []
+            bSpan "HINT. "; str "You can view your selected waveforms using the top line controls by removing text in all filter boxes "
+            str "and checking the "; bSpan "Show Only Selected "
+            str "checkbox."; br []
+            str "The wave selection check boxes then allow you to deselect unwanted waveforms."
         ]  
        
     let body (dialogData:PopupDialogData) =

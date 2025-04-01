@@ -213,11 +213,9 @@ let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpr
     | unresolvedExpr ->
         let unresolvedParams = collectUnresolved unresolvedExpr |> List.distinct
         match unresolvedParams with
-        | [] -> Error "Unexpected error: no unresolved parameters found"
-        | [singleParam] -> Error $"Parameter {singleParam} could not be resolved"
-        | multipleParams -> 
-            let paramList = String.concat ", " multipleParams
-            Error $"Parameters {paramList} could not be resolved"
+        | p :: _ -> Error $"{p} has not been defined as a parameter on this sheet"
+        | _ -> failwithf "List of unresolved parameters cannot be empty"
+
 
 let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string =
     // TODO refactor ParamExpression DU and this function to to elminate duplication
@@ -368,17 +366,21 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
         |> Seq.toList
     
     let validPattern = @"^[0-9a-zA-Z()+\-*/%\s]+$"  // Allow only numbers, letters, operators, spaces, and parentheses
-    if text = "" then Error "Input Empty"
+    if text = "" then Error "Enter a value"
     elif not (Regex.IsMatch(text, validPattern)) then
-        let invalidChars = text |> Seq.filter (fun c -> not (Regex.IsMatch(c.ToString(), validPattern))) |> Seq.distinct |> Seq.toArray
-        Error (sprintf "Contains unsupported characters: %A" invalidChars)
+        text
+        |> Seq.filter (fun c -> not (Regex.IsMatch(c.ToString(), validPattern)))
+        |> Seq.head
+        |> fun c -> Error $"Character '{c}' is not allowed"
     else
         match tokenize text with
-        | [] -> Error "Input Empty"
+        | [] -> Error "Enter a value"
         | tokens ->
             match parseExpressionTokens tokens with
             | Ok (expr, []) -> Ok expr  // Ensure no leftover tokens
-            | Ok (_, leftover) -> Error (sprintf "Unexpected characters at end of expression: %s" (String.concat "" leftover))
+            | Ok (_, leftover) ->
+                let leftoverChars = String.concat "" leftover
+                Error $"Unexpected characters '{leftoverChars}' at end of expression"
             | Error e -> Error e
 
 

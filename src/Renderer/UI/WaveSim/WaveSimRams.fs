@@ -13,6 +13,7 @@ open CommonTypes
 open ModelType
 open ModelHelpers
 open FastExtract
+open WaveSimTypes
 open WaveSimStyle
 open SimGraphTypes
 open SimTypes

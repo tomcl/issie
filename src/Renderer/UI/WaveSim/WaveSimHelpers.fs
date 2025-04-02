@@ -15,6 +15,7 @@ open ModelType
 open ModelHelpers
 open SimGraphTypes
 open SimTypes
+open WaveSimTypes
 open WaveSimStyle
 
 

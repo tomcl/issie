@@ -264,7 +264,6 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         let wsModel =
             getWSModel model
             |> fun wsModel -> {wsModel with ScrollbarBkgRepCycs= Constants.scrollbarBkgRepCyclesInit}
-        //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
         let simRes =
             // Here is where the new fast simulation is created
             ModelHelpers.simulateModel
@@ -274,8 +273,6 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
                 canvasState model
 
         match simRes with
-        //| None ->
-        //    dispatch <| SetWSModel { wsModel with State = NoProject; FastSim = FastCreate.emptyFastSimulation "" }
         | (Error e, _) ->
             dispatch <| SetWSModelAndSheet ({ wsModel with State = SimError e }, wsSheet)
         | (Ok simData, canvState) ->
@@ -453,7 +450,6 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
             @
             [WaveSimRams.ramTables dispatch wsModel model] 
         )
-    //printfn $"WaveSimTop: viewWaveSim called with spinner = {wsModel.DefaultCursor.Text()}."
     div [
         Style [
             OverflowX OverflowOptions.Clip;
@@ -461,13 +457,14 @@ let viewWaveSim canvasState (model: Model) dispatch : ReactElement =
         ]
     ] [
         WaveSimSelect.selectRamModal wsModel dispatch
-        //WaveSimSelect.selectWavesModal wsModel dispatch model
-        //HLP25CodeBsn722.selectWavesModalHlp25 wsModel dispatch model
         WaveSimSelectHelpers.selectWavesModal wsModel dispatch model
         div [ viewWaveSimStyle ]
             [
                 top
-                if needsBottomHalf && (match model.SpinnerPayload with | Some {UseProgressBar=true  } -> false | _ -> true) then bottomHalf() else div [] []
+                if needsBottomHalf &&
+                   (match model.SpinnerPayload with | Some {UseProgressBar=true  } -> false | _ -> true)
+                then bottomHalf()
+                else div [] []
             ]
         
     ]

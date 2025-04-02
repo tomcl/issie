@@ -41,6 +41,7 @@ open Optics
 
 module Constants =
     let numPortColumns = 4
+    let maxWarningViewerWaves = 25
     let maxRecommendedViewerWaves = 50
 
 type TableRow = TableRow of ReactElement
@@ -130,8 +131,6 @@ let filterWaves (wsModel: WaveSimModel) =
         |> List.filter (fun wave -> 
             matchWithBox wsModel.ComponentSearchString wave.CompLabel
             && matchWithBox wsModel.PortSearchString wave.PortLabel
-            && matchWithBox wsModel.WaveSearchString wave.ViewerDisplayName
-            && matchWithBox wsModel.ComponentTypeSearchString (getComponentName wave)
             && (not wsModel.ShowOnlySelected || List.contains wave.WaveId okSelectedWaves)
         )
     let sheetBox = wsModel.SheetSearchString.Trim().ToUpperInvariant()
@@ -192,7 +191,7 @@ let sheetSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
         Input.text [
             Input.Option.Value wsModel.SheetSearchString  // Bind current value
             Input.Option.Props [ Style [ MarginBottom "1rem"; Width "100%" ] ]
-            Input.Option.Placeholder "Search sheet names..."
+            Input.Option.Placeholder "Filter sheet names..."
             Input.Option.OnChange (fun value ->
                 dispatch (UpdateWSModel (fun wsm -> 
                     { wsm with SheetSearchString = value.Value.ToUpper() }
@@ -250,7 +249,7 @@ let componentSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEl
         Input.text [
             Input.Option.Value wsModel.ComponentSearchString
             Input.Option.Props [ Style [ MarginBottom "1rem"; Width "100%" ] ]
-            Input.Option.Placeholder "Search component names..."
+            Input.Option.Placeholder "Filter component labels..."
             Input.Option.OnChange (fun value ->
                 dispatch (UpdateWSModel (fun wsm -> { wsm with ComponentSearchString = value.Value.ToUpper() }))
             )
@@ -263,7 +262,7 @@ let portSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement
         Input.text [
             Input.Option.Value wsModel.PortSearchString
             Input.Option.Props [ Style [ MarginBottom "1rem"; Width "100%" ] ]
-            Input.Option.Placeholder "Search port names..."
+            Input.Option.Placeholder "Filter port names..."
             Input.Option.OnChange (fun value ->
                 dispatch (UpdateWSModel (fun wsm -> { wsm with PortSearchString = value.Value.ToUpper() }))
             )
@@ -316,9 +315,30 @@ let waveSelectBreadcrumbs
                 AllowDuplicateSheets = true
                 BreadcrumbText = Some sheetName
         }
+        let hierarchyText =
+            let allSheets = fs.SimSheetStructure |> Map.keys |> Seq.toList
+            let sheetFilter = wsModel.SheetSearchString.ToUpperInvariant().Trim()
+            let withSubsheets = sheetFilter.EndsWith "*"
+            let sheetFilter = sheetFilter.TrimEnd '*'
+            match sheetFilter, withSubsheets with
+            | "" , _  ->
+                "Design hierarchy: click to filter by sheet"
+            | sheet , false when List.contains sheet allSheets ->
+                $"Design hierarchy: filtered by {sheet} without subsheets"
+            | sheet , true when List.contains sheet allSheets ->
+                $"Design hierarchy: filtered by {sheet} with subsheets"
+            | sheet , true ->
+                $"Design hierarchy: filtered by {sheet} with subsheets"
+            | sheet , false ->
+                $"Design hierarchy: filtered by {sheet} without subsheets"
+
         let breadcrumbs = [
-            div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ; FontWeight 600; PaddingBottom "10px"] ] [ str "Design Hierarchy: click to filter by sheet" ]
-            MiscMenuView.hierarchyBreadcrumbs breadcrumbConfig dispatch updatedModel
+            div [Style [Display DisplayOptions.Flex; FlexDirection "column"; AlignItems AlignItemsOptions.Center]] [
+                div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ; FontWeight 600; PaddingBottom "10px"] ] [
+                    str hierarchyText
+                    ]
+                MiscMenuView.hierarchyBreadcrumbs breadcrumbConfig dispatch updatedModel
+                ]
         ]
         div [] breadcrumbs
 
@@ -560,9 +580,16 @@ let makeSelectionTable
                 )
             makeSummaryItem showDetails ws (str subSheetName) groupRows (SheetItem [subSheetName]) wavesInSubSheet dispatch
         )
-    div [] [
-        p [Style [FontSize "20px"; FontWeight "600"; MarginLeft "10px"]] [str "Waveform Selection"]
-        wavePropsTable subSheetRows]
+    let messageColour =
+        match ws.SelectedWaves.Length with
+        | n when n > Constants.maxRecommendedViewerWaves -> "red"
+        | n when n > Constants.maxWarningViewerWaves -> "orange"
+        | _ -> "green"
+    div [Style [Display DisplayOptions.Flex; FlexDirection "column"; AlignItems AlignItemsOptions.Center]]
+        [
+            p [Style [FontSize "20px"; FontWeight "600"; Color messageColour; PaddingBottom "15px"]] [str $"{ws.SelectedWaves.Length} waveforms selected"]       
+            wavePropsTable subSheetRows
+        ]
     
 
 
@@ -661,15 +688,16 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                             MarginLeft "10px"
                         ]
                     ] [
-                        // Info button and wave count.
+                        // Info button and wave count. Not needed currently
+                        (*
                         div [ Style [ Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
                             infoButton
-                        ]
+                        ]*) 
                         // search boxes
-                        waveSearchBox wsModel dispatch
-                        sheetSearchBox wsModel dispatch
+                        // waveSearchBox wsModel dispatch // Not needed currently
                         componentSearchBox wsModel dispatch
                         portSearchBox wsModel dispatch
+                        sheetSearchBox wsModel dispatch
                         // Select All Subsheets checkbox
                         selectAllSubsheetsBox wsModel dispatch
                         showOnlySelectedBox wsModel dispatch
@@ -714,7 +742,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                 // Footer with Done button.
                 Modal.Card.foot [ Props [ Style [ Display DisplayOptions.InlineBlock; Float FloatOptions.Right ] ] ] [
                     Fulma.Button.button [
-                        Fulma.Button.OnClick (fun _ -> closeModal ())
+                        Fulma.Button.OnClick (fun _ -> handleModalClose ())
                         Fulma.Button.Color IsSuccess
                         Fulma.Button.Props [ Style [ Display DisplayOptions.InlineBlock; Float FloatOptions.Right ] ]
                     ] [ str "Done" ]

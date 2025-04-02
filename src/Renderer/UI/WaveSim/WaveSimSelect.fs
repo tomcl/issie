@@ -322,6 +322,7 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
         SheetId = fc.SimSheetName
         Conns = []
         SVG = None
+        HatchedCycles = EvilHoverCache.initGapStore 0
     }
 
 

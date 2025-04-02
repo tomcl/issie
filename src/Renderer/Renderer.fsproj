@@ -118,6 +118,8 @@
     <Compile Include="UI\ParameterView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />
+    <Compile Include="UI\WaveSim\WaveSimTypes.fs" />
+    <Compile Include="UI\WaveSim\EvilHoverCache.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
     <Compile Include="UI\WaveSim\WaveSimNavigation.fs" />

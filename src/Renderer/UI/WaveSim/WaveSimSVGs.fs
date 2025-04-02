@@ -13,6 +13,7 @@ open Fable.React.Props
 open CommonTypes
 open ModelType
 open ModelHelpers
+open WaveSimTypes
 open WaveSimStyle
 open WaveSimHelpers
 open SimGraphTypes
@@ -20,6 +21,7 @@ open SimTypes
 open NumberHelpers
 open WaveSimSelect
 open DiagramStyle
+open EvilHoverCache
 
 
 module Constants =
@@ -61,14 +63,6 @@ type Transition =
     | BinaryTransition of BinaryTransition
     | NonBinaryTransition of NonBinaryTransition
 
-/// Stores information about gaps between NonBinaryTransitions.
-/// Used in displayValuesOnWave
-type Gap = {
-    // First cycle which is Change after a Const cycle
-    Start: int
-    // How many Const cycles there are immediately after this Change transition
-    Length: int
-}
 
 
 
@@ -107,7 +101,7 @@ let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
             | _ ->
                 // TODO: Find better default value here
                 // TODO: Should probably make it so that you can't call this function in the first place.
-                printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
+                //printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
                 {Dat = Word 0u; Width = width}
     | _ ->      
         Array.tryItem clkCycleDetail waveData.DriverData.UInt32Step
@@ -115,7 +109,7 @@ let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
             | Some (fData) -> 
                 { Dat = Word fData; Width = width}
             | _ ->
-                printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
+                //printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
                 {Dat = Word 0u; Width = width}
 
 /// Make left and right x-coordinates for a clock cycle.
@@ -255,12 +249,14 @@ let getWaves (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
 
 
 /// <summary>Generates SVG to display non-binary values on waveforms.</summary>
+/// This function has side effect of recording hatched gaps in <c>gapCache</c>.
 /// <remarks>Should be refactored together with <c>displayBigIntOnWave</c>.</remarks>
 let displayUInt32OnWave 
     (wsModel: WaveSimModel)
     (width: int) 
     (waveValues: array<uint32>)
     (transitions: array<NonBinaryTransition>)
+    (gapCache: GapStore)
     : list<ReactElement> =
     let textFont = wsModel.WSConfig.FontSize
     let textWeight = wsModel.WSConfig.FontWeight
@@ -289,6 +285,8 @@ let displayUInt32OnWave
             Array.append changeTransitions [|wsModel.StartCycle+transitions.Length-1|] // add dummry change length end
         |> Array.pairwise
         |> Array.map (fun (i1, i2) -> {Start = i1; Length = i2-i1}) // get start and length of gap
+
+
     
     // utility functions for SVG generation
     /// <summary>Function to make polygon fill for a gap.</summary>
@@ -296,12 +294,14 @@ let displayUInt32OnWave
     let makePolyfill (points: array<XYPos>) = 
         let points = points |> Array.distinct
         polyline (wavePolyfillStyle points) []
+          
 
     /// <summary>Function to make text element for a gap.</summary>
     /// <param name="start">Starting X location of element.</param>
     let makeTextElement (isStart) (start: float) (waveValue: string) =
         text (singleValueOnWaveProps isStart textFont textWeight start) [ str waveValue ]
-    
+
+
     // create text element for every gap
     gaps
     |> Array.map (fun gap ->
@@ -317,13 +317,16 @@ let displayUInt32OnWave
         
         match gapWidth with
         | w when (w < singleWidth * 1.05) -> // display filled polygon
-            let fillPoints = nonBinaryFillPoints wsModel.StartCycle cycleWidth gap 
+            let fillPoints = nonBinaryFillPoints wsModel.StartCycle cycleWidth gap
+            let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
+
             let fill = makePolyfill fillPoints
+            EvilHoverCache.addGapToStore gapCache gap
             [ fill ]
-        | w when (w < doubleWidth * 1.1) -> // diplay 1 copy at centre
+        | w when (w < doubleWidth * 1.1) -> // display 1 copy at centre
             let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
             let singleText = makeTextElement true (float gapCycle * cycleWidth + gapCenterPadWidth) waveValue
-            [ singleText ] 
+            [ singleText ]
         | w  -> // display 2 copies at end of gaps
             let singleCycleCenterPadWidth = // if a single cycle gap can include 2 copies, set arbitrary padding
                 (*if cycleWidth < doubleWidth
@@ -336,18 +339,20 @@ let displayUInt32OnWave
             let endPadWidth = (float gap.Length * cycleWidth - startPadWidth - singleWidth)
             let startText = makeTextElement true (float gapCycle * cycleWidth + startPadWidth) waveValue
             let endText = makeTextElement false (float (gapCycle + gap.Length) * cycleWidth - startPadWidth) waveValue
-            [ startText; endText ] 
+            [ startText; endText ]
 
     )
     |> List.concat
 
 /// <summary>Generates SVG to display <c>bigint</c> values on waveforms.</summary>
+/// This function has side effect of recording hatched gaps in <c>gapCache</c>.
 /// <remarks>Should be refactored together with <c>displayUInt32OnWave</c>.</remarks>
 let displayBigIntOnWave
     (wsModel: WaveSimModel)
     (width: int) 
     (waveValues: array<bigint>)
     (transitions: array<NonBinaryTransition>)
+    (gapCache: GapStore)
     : list<ReactElement> =
     let textFont = wsModel.WSConfig.FontSize
     let textWeight = wsModel.WSConfig.FontWeight
@@ -408,6 +413,7 @@ let displayBigIntOnWave
         
         match gapWidth with
         | w when (w < singleWidth * 1.05) -> // display filled polygon
+            EvilHoverCache.addGapToStore gapCache gap
             let fillPoints = nonBinaryFillPoints wsModel.StartCycle cycleWidth gap
             let fill = makePolyfill fillPoints
             [ fill ]
@@ -453,7 +459,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
         match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
         | Some d  -> d
         | None -> failwith $"No driver fround for {wave.DisplayName}"
-    let waveform =
+    let waveform, (gaps:GapStore) =
         match wave.Width with
         | 0 -> 
             failwithf "Cannot have wave of width 0"
@@ -467,7 +473,7 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
                 |> Array.concat
                 |> Array.distinct
 
-            svg (waveRowProps ws) [ polyline (wavePolylineStyle wavePoints) [] ]
+            svg (waveRowProps ws) [ polyline (wavePolylineStyle wavePoints) [] ], initGapStore 0
 
         | w when w <= 32 -> // non-binary waveform
             let transitions,waveValues = calculateNonBinaryTransitions waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.SamplingZoom
@@ -475,27 +481,31 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
                 let waveWidth = singleWaveWidth ws
                 let startCycle = if Constants.generateVisibleOnly then ws.StartCycle else 0
                 Array.mapi (nonBinaryWavePoints waveWidth 0) transitions |> Array.unzip
-            
-            let valuesSVG = displayUInt32OnWave ws wave.Width waveValues transitions
+            let gapStore = EvilHoverCache.initGapStore (ws.ShownCycles/ 2 + 1)
+            let valuesSVG = displayUInt32OnWave ws wave.Width waveValues transitions gapStore
+            EvilHoverCache.finaliseStore gapStore
             let polyLines = [makePolyline fstPoints; makePolyline sndPoints]
 
-            svg (waveRowProps ws) (List.append polyLines valuesSVG)
+            svg (waveRowProps ws) (List.append polyLines valuesSVG), gapStore
 
         | _ -> // non-binary waveform with width greather than 32
             let transitions, sampledWaveValues = calculateNonBinaryTransitions waveData.DriverData.BigIntStep ws.StartCycle ws.ShownCycles ws.SamplingZoom
 
             let fstPoints, sndPoints =
                 Array.mapi (nonBinaryWavePoints (singleWaveWidth ws) 0) transitions |> Array.unzip
+            let gapStore = EvilHoverCache.initGapStore (ws.ShownCycles/ 2 + 1)
+            let valuesSVG = displayBigIntOnWave ws wave.Width sampledWaveValues transitions gapStore
+            EvilHoverCache.finaliseStore gapStore
+ 
 
-            let valuesSVG = displayBigIntOnWave ws wave.Width sampledWaveValues transitions
-
-            svg (waveRowProps ws) (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG)
+            svg (waveRowProps ws) (List.append [makePolyline fstPoints; makePolyline sndPoints] valuesSVG), gapStore
     {wave with 
         Radix = ws.Radix
         ShownCycles = ws.ShownCycles
         StartCycle = ws.StartCycle
         Multiplier = ws.SamplingZoom
         CycleWidth = singleWaveWidth ws
+        HatchedCycles = gaps
         SVG = Some waveform}
 
 
@@ -523,6 +533,7 @@ let makeWaveformsWithTimeOut
                         all, n, Some timeSoFar
                     | _ ->
                         (Map.change wi (Option.map (generateWaveform ws wi)) all), n+1, None)
+
         let finish = TimeHelpers.getTimeMs()
         if Constants.showPerfLogs then
             let countWavesWithWidthRange lowerLim upperLim =

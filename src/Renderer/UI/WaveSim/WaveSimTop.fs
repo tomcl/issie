@@ -20,6 +20,7 @@ open WaveSimStyle
 open WaveSimHelpers
 open SimGraphTypes
 open SimTypes
+open WaveSimTypes
 open WaveSimNavigation
 open DiagramStyle
 open WaveSimSelectHelpers

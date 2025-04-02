@@ -693,10 +693,6 @@ let cursorCycleHighlightSVG m dispatch =
             let svgEl = Browser.Dom.document.getElementById "svgToolTip"
             let svgHighlight = Browser.Dom.document.getElementById "ClkCycleHighlight"
             let bcr = svgHighlight.getBoundingClientRect ()
-            let cycleWidth = bcr.width / float m.ShownCycles
-            let numWaves = List.length m.SelectedWaves
-           
-
             let cycle = (int <| ((ev.clientX - bcr.left) / singleWaveWidth m)) + m.StartCycle
             let waveNum = (int <| (ev.clientY - bcr.top) / float Constants.rowHeight) - 1
             let numValText = EvilHoverCache.getWaveToolTip cycle waveNum m

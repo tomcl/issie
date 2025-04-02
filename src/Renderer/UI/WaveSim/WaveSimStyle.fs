@@ -11,128 +11,11 @@ open Fable.React.Props
 open CommonTypes
 open ModelType
 open ModelHelpers
+open Fable.Core
+open Fable.Core.JsInterop
+open Fulma.Extensions.Wikiki
 
-module Constants =
-    // Width of names column - replaced by calcNamesColWidth function
-
-    /// Width of values column
-    let valuesColWidth = 100
-    let deleteSymbolWidth = 20
-    let scrollBarWidth = 15
-
-    /// Width of left margin of waveform simulator
-    let leftMargin = 30
-    /// Width of right margin of waveform simulator
-    let rightMargin = 0
-
-    /// Height of each row in name and value columns.
-    /// Same as SVG ViewBox Height.
-    let rowHeight = 30
-
-    let colWidth = 120
-
-    /// Width of line that separates each clock cycle.
-    let clkLineWidth = 0.8
-    /// Width of each waveform line.
-    let lineThickness : float = 0.8
-    let columnFontSize = "12px"
- 
-    let columnFontFamily = "Helvetica"
- 
-    let valueColumnFontSize = "12px"
-    let valueColumnFontFamily = "Helvetica"
-
-    let valueColumnText = 
-        { DrawHelpers.defaultText with 
-            FontSize = valueColumnFontSize
-            FontFamily = valueColumnFontFamily}
-
-    let fontSizeValueOnWave = "10px"
-    /// Text used to display vlaues on non-binary waves
-    let valueOnWaveText = { DrawHelpers.defaultText with FontSize = "5px" } // dummy size
-    /// Whitespace padding between repeated values displayed on non-binary waves.
-    let valueOnWavePadding = 75.0
-    /// Whitespace padding between non-binary wave values and the edge of transition.
-    let valueOnWaveEdgePadding = 4.0
-
-    /// Border between columns and headers of waveform viewer.
-    let borderProperties = "2px solid rgb(219,219,219)"
-
-    /// Padding between name label/value label and waveform column.
-    let labelPadding = 3
-    /// Color for cursor and values column
-    let namesValuesColumnColor = "Lavender"
-    let cursorColumnColor = "purple"
-    let cursorColumnOpacity = 0.15
-
-    /// <summary>Height of scrollbar, in pixels. Affects only the SVG and not the buttons.
-    /// Currently set to same height as buttons.</summary>
-    let softScrollBarWidth: float = 25.0
-
-    /// <summary>Minimum width of the scrollbar thumb, in pixels.</summary>
-    let scrollbarThumbMinWidth: float = 10.0
-
-    /// height of the top half of the wave sim window (including tabs) when waveforms are displayed
-    let topHalfHeight = 260.
-
-    // helpers constants
-    /// initial time running simulation without spinner to check speed (in ms)
-    let initSimulationTime = 100.
-    /// max estimated time to run simulation and not need a spinner (in ms)
-    let maxSimulationTimeWithoutSpinner = 300.
-
-
-    /// initial time making waveforms without spinner to check speed (in ms)
-    let initWaveformTime = 50.
-        /// max estimated time to generate new waveforms and not need a spinner (in ms)
-    let maxWaveCreationTimeWithoutSpinner = 100.
-
-
-
-    /// The horizontal length of a transition cross-hatch for non-binary waveforms
-    let nonBinaryTransLen : float = 2.
-
-    /// The height of the viewbox used for a wave's SVG. This is the same as the height
-    /// of a label in the name and value columns.
-    /// TODO: Combine this with WaveSimStyle.Constants.rowHeight?
-    let viewBoxHeight : float = 30.0
-
-    /// Height of a waveform
-    let waveHeight : float = 0.8 * viewBoxHeight
-    /// Vertical padding between top and bottom of each wave and the row it is in.
-    let spacing : float = (viewBoxHeight - waveHeight) / 2.
-
-    /// y-coordinate of the top of a waveform
-    let yTop = spacing
-    /// y-coordiante of the bottom of a waveform
-    let yBot = waveHeight + spacing
-
-    /// minium number of cycles on screen when zooming in
-    let minVisibleCycles = 3
-
-    /// Minimum number of visible clock cycles.
-    let minCycleWidth = 5
-
-    let zoomChangeFactor = 1.5
-
-    /// If the width of a non-binary waveform is less than this value, display a cross-hatch
-    /// to indicate a non-binary wave is rapidly changing value.
-    let clkCycleNarrowThreshold = 20
-
-    /// number of extra steps simulated beyond that used in simulation. Is this needed?
-    let extraSimulatedSteps = 5 
-
-    let infoMessage = 
-        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
-
-    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
-
-    let infoSignUnicode = "\U0001F6C8"
-
-    let waveLegendMaxChars = 35
-    let valueColumnMaxChars = 35
-    let maxRamRowsDisplayed = 50
-    let maxRamLocsWithSparseDisplay = 100
+open WaveSimTypes
 
 
 
@@ -364,6 +247,60 @@ let singleValueOnWaveProps isStart textFont textWeight xpos: list<IProp> = [
     Y (0.5 * Constants.viewBoxHeight + textFont / 2.)
     Style [ TextAnchor (if isStart then "start" else "end"); FontFamily "Helvetica"; FontSize textFont; FontWeight textWeight ]
 ]
+
+/// SVG group element for tooltip.
+/// The props of the tooltip, as well as its text, are set in the function <c>changeToolTip</c>.
+/// Initila props make it invisible.
+let svgToolTip (ws: WaveSimModel) tipText (xPos:float) (yPos:float) =
+    g [Id "toolTipGroup"] [
+        rect [
+            Id "svgToolTipRect2"
+            SVGAttr.Width 50.0
+            SVGAttr.Height 20.0
+            SVGAttr.Fill "black"
+            SVGAttr.Opacity Constants.tooltipShadowOpacity
+            Style [ Visibility "hidden" ]
+        ] []
+        rect [
+            Id "svgToolTipRect1"
+            SVGAttr.Width 50.0
+            SVGAttr.Height 20.0
+            SVGAttr.Fill Constants.tooltipBackgroundColor
+            SVGAttr.Opacity 1.0
+            Style [ Visibility "hidden" ]
+        ] []
+        text (
+            Id "svgToolTipText" ::
+            SVGAttr.Fill Constants.tooltipTextColour ::
+            SVGAttr.Opacity "1.0" ::
+            singleValueOnWaveProps true ws.WSConfig.FontSize ws.WSConfig.FontWeight xPos
+        ) [str tipText]
+
+    ]
+/// <summary>Change the tooltip text and position.</summary>
+/// <param name="tipText">Text to display in the tooltip.</param>
+/// <param name="xPos">X-coordinate of the tooltip.</param>
+/// <param name="yPos">Y-coordinate of the tooltip.</param>
+/// <param name="ttXMaxEdge">Maximum X-coordinate of the tooltip right edge.</param>
+/// <param name="isVisible">True if the tooltip is visible, false if it is hidden.</param>
+let changeToolTip tipText (xPos:float) (yPos:float) (ttXMaxEdge: float) (isVisible: bool)=
+    let svgText = Browser.Dom.document.getElementById "svgToolTipText"
+    let tooltipGroup = Browser.Dom.document.getElementById "toolTipGroup"
+    let changeShape shapeId w x y show =
+        let shape = Browser.Dom.document.getElementById shapeId
+        shape.setAttributeNS("", "width", string w)
+        shape.setAttributeNS("", "x", string x)
+        shape.setAttributeNS("", "y", string y)
+        shape.setAttributeNS("", "style", if show then "visibility: visible" else "visibility: hidden")
+    if svgText = null then
+        printfn "Can't find svgToolTipText in changeToolTip"
+    else
+        svgText.textContent <- tipText
+        let w = svgText?getComputedTextLength()
+        let adjXPos = if xPos + w + 10. > ttXMaxEdge then ttXMaxEdge - w - 10. else xPos
+        changeShape "svgToolTipRect1" (w+10.) adjXPos yPos isVisible
+        changeShape "svgToolTipRect2" (w+10.) (adjXPos + 2.) (yPos + 2.) isVisible
+        changeShape "svgToolTipText" w (adjXPos + 5.) (yPos + 16.) isVisible
 
 /// Style for clock cycle buttons
 let clkCycleButtonStyle = Style [
@@ -619,7 +556,7 @@ let waveformColumnStyle = Style [
 
 /// Style for rows in waveforms column
 let waveRowsStyle width = Style [
-    Height "100%" 
+    Height "100%"
     OverflowX OverflowOptions.Hidden
     Display DisplayOptions.Grid
     //FontSize "13px"
@@ -719,6 +656,7 @@ let waveRowProps m : IProp list =
 /// Style of line separating clock cycles
 let clkLineStyle = Style [
     Stroke "rgb(200,200,200)"
+    Opacity 0.5
     StrokeWidth Constants.clkLineWidth
 ]
 
@@ -739,16 +677,37 @@ let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
 let cursorCycleHighlightSVG m dispatch =
     let count = List.length m.SelectedWaves
     svg [
+        SVGAttr.Fill Constants.cursorColumnColor
+        SVGAttr.Opacity 1.0 //Constants.cursorColumnOpacity
+
         Style [
             GridColumnStart 1
             GridRowStart 1
+            ZIndex 33
         ]
         SVGAttr.Height (string ((count + 1) * Constants.rowHeight) + "px")
         SVGAttr.Width (viewBoxWidth m)
-        SVGAttr.Fill Constants.cursorColumnColor
-        SVGAttr.Opacity Constants.cursorColumnOpacity
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
         Id "ClkCycleHighlight"
+        OnMouseMove (fun ev ->
+            let svgEl = Browser.Dom.document.getElementById "svgToolTip"
+            let svgHighlight = Browser.Dom.document.getElementById "ClkCycleHighlight"
+            let bcr = svgHighlight.getBoundingClientRect ()
+            let cycleWidth = bcr.width / float m.ShownCycles
+            let numWaves = List.length m.SelectedWaves
+           
+
+            let cycle = (int <| ((ev.clientX - bcr.left) / singleWaveWidth m)) + m.StartCycle
+            let waveNum = (int <| (ev.clientY - bcr.top) / float Constants.rowHeight) - 1
+            let numValText = EvilHoverCache.getWaveToolTip cycle waveNum m
+            let ttXPos = (float cycle * singleWaveWidth m)
+            let ttYPos = ( float waveNum * float Constants.rowHeight + 16. / 2.)
+            let ttText = if numValText = "" then "" else $"Cycle:{cycle}. Value:{numValText}"
+            let ttXMaxEdge = float m.ShownCycles * singleWaveWidth m
+            changeToolTip ttText ttXPos ttYPos ttXMaxEdge (numValText <> "")
+
+
+        )
         OnClick (fun ev ->
             let svgEl = Browser.Dom.document.getElementById "ClkCycleHighlight"
             let bcr = svgEl.getBoundingClientRect ()
@@ -761,15 +720,22 @@ let cursorCycleHighlightSVG m dispatch =
             dispatch <| UpdateWSModel (fun m -> {m with CursorDisplayCycle = cycle; CursorExactClkCycle = cycle * m.SamplingZoom})
         )
         ]
-        (List.append 
+        (List.concat [
+
             [
                 rect [
                     SVGAttr.Width (singleWaveWidth m)
                     SVGAttr.Height "100%"
+                    SVGAttr.Opacity 0.2
                     X (float (m.CursorDisplayCycle - m.StartCycle) * (singleWaveWidth m))
                 ] []
             ]
+            
             (backgroundSVG m count)
+
+            [ svgToolTip m "" 100. 200.]
+
+        ]
         )
 
 /// Props for radix tabs

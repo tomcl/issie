@@ -192,6 +192,27 @@ type DriverT = {
     DriverId: FComponentId
     Port: OutputPortNumber
 }
+
+/// A gap in a waveform.
+/// Stores information about gaps between NonBinaryTransitions.
+/// Used in displayValuesOnWave, and also to store hatched information.
+[<Struct>]
+type Gap =
+    {
+        // First cycle which is Change after a Const cycle
+        Start: int
+        // How many Const cycles there are immediately after this Change transition
+        Length: int
+    }
+
+type GapStore = {
+    Gaps : Gap array
+    mutable NextGap : int
+    mutable GapStart:int
+    mutable GapEnd:int
+}
+
+
 /// Information required to display a waveform.
 type Wave = {
     /// Uniquely identifies a waveform
@@ -228,6 +249,8 @@ type Wave = {
     DriverIndex: int
     /// SVG of waveform
     SVG: ReactElement option
+    /// Hatched (greyed out) Gaps in waveform
+    HatchedCycles: GapStore
 }
 
 

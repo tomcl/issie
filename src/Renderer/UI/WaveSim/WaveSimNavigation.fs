@@ -18,11 +18,12 @@ open Fable.React.Props
 open CommonTypes
 open ModelType
 open ModelHelpers
+open WaveSimTypes
 open WaveSimStyle
 open WaveSimHelpers
 open TopMenuView
 open SimGraphTypes
-open WaveSimStyle.Constants
+open WaveSimTypes.Constants
 
 /// <summary>Generate scrollbar SVG info based on current <c>WaveSimModel</c>.
 /// Called in <c>refreshWaveSim</c> after <c>WaveSimModel</c> has been changed.</summary>
@@ -326,7 +327,7 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
         [
             HTMLAttr.Id "scrollbarThumb";
             SVGAttr.X $"0px"; SVGAttr.Y "0.5px";
-            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.softScrollBarWidth-1.0}px";
+            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{Constants.softScrollBarWidth-1.0}px";
             SVGAttr.Fill "white"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
         ]
 
@@ -335,7 +336,7 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
             HTMLAttr.Id "scrollbarBkg";
             Style [ Cursor "grab"];
             SVGAttr.X $"%.1f{pos}px"; SVGAttr.Y "0.5px";
-            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{WaveSimStyle.Constants.softScrollBarWidth-1.0}px";
+            SVGAttr.Width $"%.1f{width}px"; SVGAttr.Height $"%.1f{Constants.softScrollBarWidth-1.0}px";
             SVGAttr.Fill "lightgrey"; SVGAttr.Stroke "gray"; SVGAttr.StrokeWidth "1px";
             OnMouseDown tbMouseDownHandler; OnMouseUp tbMouseUpHandler; OnMouseMove tbMouseMoveHandler;
         ]
@@ -345,7 +346,7 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
             (fun _ -> scrollWaveformViewBy -1.0)
             (str "◀")
         svg
-            [Style [Width $"{bkgWidth}"; Height $"{WaveSimStyle.Constants.softScrollBarWidth}px"];]
+            [Style [Width $"{bkgWidth}"; Height $"{Constants.softScrollBarWidth}px"];]
             [
                 rect (bkgPropList bkgWidth) []; // background
                 rect (tbPropList wsm.ScrollbarTbPos wsm.ScrollbarTbWidth) []; // thumb

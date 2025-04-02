@@ -30,6 +30,7 @@ open SimGraphTypes
 open SimTypes
 open NumberHelpers
 open DrawModelType
+open WaveSimTypes
 open WaveSimNavigation
 open WaveSimSVGs
 open WaveSimSelect
@@ -272,7 +273,7 @@ let waveformColumn (wsModel: WaveSimModel) dispatch : ReactElement =
             | None ->
                 div [] [] // the GenerateCurrentWaveforms message will soon update this
         )
-
+    
     div [ waveformColumnStyle ]
         [
             cursorCycleHighlightSVG wsModel dispatch

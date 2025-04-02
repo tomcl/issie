@@ -696,7 +696,7 @@ let cursorCycleHighlightSVG m dispatch =
             let cycle = (int <| ((ev.clientX - bcr.left) / singleWaveWidth m)) + m.StartCycle
             let waveNum = (int <| (ev.clientY - bcr.top) / float Constants.rowHeight) - 1
             let numValText = EvilHoverCache.getWaveToolTip cycle waveNum m
-            let ttXPos = (float cycle * singleWaveWidth m)
+            let ttXPos = float (cycle - m.StartCycle) * singleWaveWidth m
             let ttYPos = ( float waveNum * float Constants.rowHeight + 16. / 2.)
             let ttText = if numValText = "" then "" else $"Cycle:{cycle*m.SamplingZoom}. Value:{numValText}"
             let ttXMaxEdge = float m.ShownCycles * singleWaveWidth m

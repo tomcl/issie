@@ -57,15 +57,16 @@ let getWaveToolTip (cycle:int) (waveNum: int) (ws:WaveSimModel) =
     | Some index ->
         let wave = ws.AllWaves[index]
         let start = wave.StartCycle
+        let arrayIndex = cycle * ws.SamplingZoom
         //printfn $"Wave - Start: {start}, Cycle: {cycle}, {wave.ViewerDisplayName}, NextGap={wave.HatchedCycles.NextGap}"
-        if checkIfHatched wave.HatchedCycles (cycle - start)
+        if checkIfHatched wave.HatchedCycles cycle
         then
             match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
             | Some {DriverData = data} ->
                 if data.Width <= 32 then
-                     NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.UInt32Step[cycle]
+                     NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.UInt32Step[arrayIndex]
                 else
-                    NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.BigIntStep[cycle]
+                    NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.BigIntStep[arrayIndex]
             | None ->
                 ""
         else

@@ -250,57 +250,10 @@ let singleValueOnWaveProps isStart textFont textWeight xpos: list<IProp> = [
 
 /// SVG group element for tooltip.
 /// The props of the tooltip, as well as its text, are set in the function <c>changeToolTip</c>.
-/// Initila props make it invisible.
-let svgToolTip (ws: WaveSimModel) tipText (xPos:float) (yPos:float) =
-    g [Id "toolTipGroup"] [
-        rect [
-            Id "svgToolTipRect2"
-            SVGAttr.Width 50.0
-            SVGAttr.Height 20.0
-            SVGAttr.Fill "black"
-            SVGAttr.Opacity Constants.tooltipShadowOpacity
-            Style [ Visibility "hidden" ]
-        ] []
-        rect [
-            Id "svgToolTipRect1"
-            SVGAttr.Width 50.0
-            SVGAttr.Height 20.0
-            SVGAttr.Fill Constants.tooltipBackgroundColor
-            SVGAttr.Opacity 1.0
-            Style [ Visibility "hidden" ]
-        ] []
-        text (
-            Id "svgToolTipText" ::
-            SVGAttr.Fill Constants.tooltipTextColour ::
-            SVGAttr.Opacity "1.0" ::
-            singleValueOnWaveProps true ws.WSConfig.FontSize ws.WSConfig.FontWeight xPos
-        ) [str tipText]
-
-    ]
-/// <summary>Change the tooltip text and position.</summary>
-/// <param name="tipText">Text to display in the tooltip.</param>
-/// <param name="xPos">X-coordinate of the tooltip.</param>
-/// <param name="yPos">Y-coordinate of the tooltip.</param>
-/// <param name="ttXMaxEdge">Maximum X-coordinate of the tooltip right edge.</param>
-/// <param name="isVisible">True if the tooltip is visible, false if it is hidden.</param>
-let changeToolTip tipText (xPos:float) (yPos:float) (ttXMaxEdge: float) (isVisible: bool)=
-    let svgText = Browser.Dom.document.getElementById "svgToolTipText"
-    let tooltipGroup = Browser.Dom.document.getElementById "toolTipGroup"
-    let changeShape shapeId w x y show =
-        let shape = Browser.Dom.document.getElementById shapeId
-        shape.setAttributeNS("", "width", string w)
-        shape.setAttributeNS("", "x", string x)
-        shape.setAttributeNS("", "y", string y)
-        shape.setAttributeNS("", "style", if show then "visibility: visible" else "visibility: hidden")
-    if svgText = null then
-        printfn "Can't find svgToolTipText in changeToolTip"
-    else
-        svgText.textContent <- tipText
-        let w = svgText?getComputedTextLength()
-        let adjXPos = if xPos + w + 10. > ttXMaxEdge then ttXMaxEdge - w - 10. else xPos
-        changeShape "svgToolTipRect1" (w+10.) adjXPos yPos isVisible
-        changeShape "svgToolTipRect2" (w+10.) (adjXPos + 2.) (yPos + 2.) isVisible
-        changeShape "svgToolTipText" w (adjXPos + 5.) (yPos + 16.) isVisible
+/// Initial props make it invisible.
+let svgWaveToolTip (ws: WaveSimModel) : ReactElement =
+    let iProps = singleValueOnWaveProps true ws.WSConfig.FontSize ws.WSConfig.FontWeight 0.
+    EvilHoverCache.evilSvgToolTip "waveTip" ws "" iProps
 
 /// Style for clock cycle buttons
 let clkCycleButtonStyle = Style [
@@ -673,6 +626,19 @@ let backgroundSVG (wsModel: WaveSimModel) count : ReactElement list =
     [ wsModel.StartCycle + 1 .. endCycle wsModel + 1 ] 
     |> List.map (fun x -> clkLine (float x * singleWaveWidth wsModel))
 
+/// Change Tooltip SVG element based on mouse position.
+let setWaveToolTip (m: WaveSimModel) (ev:Browser.Types.MouseEvent) =
+    let svgHighlight = Browser.Dom.document.getElementById "ClkCycleHighlight"
+    let bcr = svgHighlight.getBoundingClientRect ()
+    let cycle = (int <| ((ev.clientX - bcr.left) / singleWaveWidth m)) + m.StartCycle
+    let waveNum = (int <| (ev.clientY - bcr.top) / float Constants.rowHeight) - 1
+    let numValText = EvilHoverCache.getWaveToolTip cycle waveNum m
+    let ttXPos = float (cycle - m.StartCycle) * singleWaveWidth m
+    let ttYPos = ( float waveNum * float Constants.rowHeight + 16. / 2.)
+    let ttText = if numValText = "" then "" else $"Cycle:{cycle*m.SamplingZoom}. Value:{numValText}"
+    let ttXMaxEdge = float m.ShownCycles * singleWaveWidth m
+    EvilHoverCache.changeToolTip "waveTip" ttText ttXPos ttYPos ttXMaxEdge (numValText <> "")
+
 /// Controls the background highlighting of which clock cycle is selected
 let cursorCycleHighlightSVG m dispatch =
     let count = List.length m.SelectedWaves
@@ -689,21 +655,7 @@ let cursorCycleHighlightSVG m dispatch =
         SVGAttr.Width (viewBoxWidth m)
         ViewBox (viewBoxMinX m + " 0 " + viewBoxWidth m  + " " + string (Constants.viewBoxHeight * float (count + 1)))
         Id "ClkCycleHighlight"
-        OnMouseMove (fun ev ->
-            let svgEl = Browser.Dom.document.getElementById "svgToolTip"
-            let svgHighlight = Browser.Dom.document.getElementById "ClkCycleHighlight"
-            let bcr = svgHighlight.getBoundingClientRect ()
-            let cycle = (int <| ((ev.clientX - bcr.left) / singleWaveWidth m)) + m.StartCycle
-            let waveNum = (int <| (ev.clientY - bcr.top) / float Constants.rowHeight) - 1
-            let numValText = EvilHoverCache.getWaveToolTip cycle waveNum m
-            let ttXPos = float (cycle - m.StartCycle) * singleWaveWidth m
-            let ttYPos = ( float waveNum * float Constants.rowHeight + 16. / 2.)
-            let ttText = if numValText = "" then "" else $"Cycle:{cycle*m.SamplingZoom}. Value:{numValText}"
-            let ttXMaxEdge = float m.ShownCycles * singleWaveWidth m
-            changeToolTip ttText ttXPos ttYPos ttXMaxEdge (numValText <> "")
-
-
-        )
+        OnMouseMove (setWaveToolTip m)
         OnClick (fun ev ->
             let svgEl = Browser.Dom.document.getElementById "ClkCycleHighlight"
             let bcr = svgEl.getBoundingClientRect ()
@@ -729,7 +681,7 @@ let cursorCycleHighlightSVG m dispatch =
             
             (backgroundSVG m count)
 
-            [ svgToolTip m "" 100. 200.]
+            [ svgWaveToolTip m ] // reactElement for tooltip made visible, text chnaged, and moved as needed
 
         ]
         )

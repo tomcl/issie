@@ -9,6 +9,7 @@ index: 1
 
 * ISSIE is an **easy-to-use schematic editor and simulator** for hierarchical design of **digital logic circuits**. Run it and see the built-in demos for what it can do! ISSIE is targeted at 1st year university students, but would be useful teaching in schools and even for quick hardware design and test in an industrial or research environment. For the latter use case although we allow Verilog input and output these features need a bit more work.
 * ISSIE was motivated because we found that industry-standard CAD systems were too complex and buggy to be learnt in labs, and when learnt still nasty to use. Other educational products were too limited. We wanted **a schematic-based system to teach hierarchical design and digital electronics visually that would scale to large designs**.
+   - We find that EEE-educated internal PhD candidates starting with schematic logic designs usually have a better understanding of what **digital hardware is** than those from otehr institutions starting with HDL.
 * ISSIE is an **open source project at Imperial College London developed over 5 years by students**. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac targets.
 * ISSIE is implemented using nearly 46K lines in the FP language F#, the equivalent of 150K lines in a typical OOP language. ISSIE's implementation is almost pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has **its own digital simulator**, which uses **write-once semantics** on mutable arrays to be close to functional programming and also efficient.
 * ISSIE uses the [FABLE F# to Javascript compiler](https://fable.io/), [Elmish MVU framework](https://elmish.github.io/elmish/), and [Electron](https://www.electronjs.org/). This tool chain creates seemless cross-platform applications with simple and highly productive coding.
@@ -19,6 +20,20 @@ index: 1
 # Running ISSIE
 
 Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows and Macos PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level `ISSIE.exe` file with the blue ISSIE chip icon. 
+
+# Issie Feature Development Roadmap
+
+## 2024 
+* Workaround React 17 undocumented memory leak!
+* Much better User interface to Waveform Simulator
+* Allow much longer simulation times keeping waveforms in memory
+* Automatic whole-circuit wire segment separation for almost perfect auto-routing
+
+## 2025
+* New better UI Waveform selector
+* Tooltips on waveform Simulator waveforms
+* Symbolic parameters to make component bit-widths etc adjustable (in progress)
+* Improvements to Verilog parser and to-Issie synthesis (in progress)
 
 <br><br>
 # Help and User Guides
@@ -51,6 +66,7 @@ Go through the  [User Guide](userGuide.html).
 - Archontis Pantelopoulos for creating the Verilog Component and improving ISSIE over Summer 2022
 - Petra Ratkai and Yujie Wang for improving the Verilog compiler & ISSIE simulator in 2022-23.
 - Samuel Wang for on-demand waveform creation and a software scrollbar to improve the waveform simulator over Summer 2024.
-- Dr Tom Clarke (Imperial College London, EEE department) for running HLP and his continued work maintaining and improving the 46K lines of ISSIE code throughout
+- The Hign Level Programming 24/25 cohort for new waveform selector and parameter mechanism
+- Dr Tom Clarke (Imperial College London, EEE department) for running HLP and his continued work maintaining and improving the 50K lines of ISSIE code throughout
 <br><br>
 

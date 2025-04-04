@@ -16,6 +16,10 @@ For every wave in the simulation.
 
 open ModelType
 open WaveSimTypes
+open Fable.React
+open Fable.React.Props
+open Fable.Core.JsInterop
+
 
 /// A gap in the wave simulator, represented by a start cycle and a length.
 /// the only gaps that are stored are relevant are those that correspond to hatched
@@ -70,5 +74,60 @@ let getWaveToolTip (cycle:int) (waveNum: int) (ws:WaveSimModel) =
             | None ->
                 ""
         else
+
              ""
 
+/// SVG group element for tooltip.
+/// The props of the tooltip, as well as its text, are set in the function <c>changeToolTip</c>.
+/// Initila props make it invisible.
+let evilSvgToolTip (tipName: string) (ws: WaveSimModel) tipText (textProps: IProp list) : ReactElement =
+    g [Id (tipName + "Group")] [
+        rect [
+            Id (tipName + "Rect2")
+            SVGAttr.Width 50.0
+            SVGAttr.Height 20.0
+            SVGAttr.Fill "black"
+            SVGAttr.Opacity Constants.tooltipShadowOpacity
+            Style [ Visibility "hidden" ]
+        ] []
+        rect [
+            Id (tipName + "Rect1")
+            SVGAttr.Width 50.0
+            SVGAttr.Height 20.0
+            SVGAttr.Fill Constants.tooltipBackgroundColor
+            SVGAttr.Opacity 1.0
+            Style [ Visibility "hidden" ]
+        ] []
+        text (
+            Id (tipName + "Text") ::
+            SVGAttr.Fill Constants.tooltipTextColour ::
+            SVGAttr.Opacity "1.0" ::
+            textProps
+        ) [str tipText]
+
+    ]
+
+/// <summary>Change the tooltip text and position.</summary>
+/// <param name="tipText">Text to display in the tooltip.</param>
+/// <param name="xPos">X-coordinate of the tooltip.</param>
+/// <param name="yPos">Y-coordinate of the tooltip.</param>
+/// <param name="ttXMaxEdge">Maximum X-coordinate of the tooltip right edge.</param>
+/// <param name="isVisible">True if the tooltip is visible, false if it is hidden.</param>
+let changeToolTip tipName tipText (xPos:float) (yPos:float) (ttXMaxEdge: float) (isVisible: bool)=
+    let textSvgName = tipName + "Text"
+    let svgText = Browser.Dom.document.getElementById textSvgName
+    let changeShape shapeId w x y show =
+        let shape = Browser.Dom.document.getElementById shapeId
+        shape.setAttributeNS("", "width", string w)
+        shape.setAttributeNS("", "x", string x)
+        shape.setAttributeNS("", "y", string y)
+        shape.setAttributeNS("", "style", if show then "visibility: visible" else "visibility: hidden")
+    if svgText = null then
+        printfn $"Can't find '{textSvgName}' element in DOM needed by changeToolTip with tipName='{tipName}'"
+    else
+        svgText.textContent <- tipText
+        let w = svgText?getComputedTextLength()
+        let adjXPos = if xPos + w + 10. > ttXMaxEdge then ttXMaxEdge - w - 10. else xPos
+        changeShape (tipName + "Rect1") (w+10.) adjXPos yPos isVisible
+        changeShape (tipName + "Rect2") (w+10.) (adjXPos + 2.) (yPos + 2.) isVisible
+        changeShape textSvgName w (adjXPos + 5.) (yPos + 16.) isVisible

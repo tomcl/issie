@@ -368,32 +368,51 @@ Add to the main sheet:
 <p>Simulate your design! Change the value of the addressor input and see whether your decoder produces a true or false result for each number you assigned to the ROM.</p>
 <h2><a name="Waveform-Simulation" class="anchor" href="#Waveform-Simulation">Waveform Simulation</a></h2>
 <h3><a name="Creating-a-clocked-design" class="anchor" href="#Creating-a-clocked-design">Creating a clocked design</a></h3>
-<p>Let's now make our top-level design a <strong>clocked</strong> one using a counter to form a custom addressor that will increment every clock cycle. Uing the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add a <code>Load</code> or <code>Enable</code> inputs.</p>
-<p>Add a <code>Counter</code> from the Catalogue (<code>FLIP FLOPS AND REGISTERS</code>). Now select the component and click on <code>Properties</code>. You can select to remove the <code>load</code> and <code>enable</code> ports and give them the default functionality (which is what we want in this case): enable=1; load=0;</p>
-<p>Create a schematic like the one below:</p>
+<p>Let's now modify our previous design to make it <strong>clocked</strong> (sequential). We use a counter to form a custom addressor that will increment every clock cycle. Using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add <code>Load</code> or <code>Enable</code> inputs.</p>
+<p>Add a <code>Counter</code> from the Catalogue (<code>FLIP FLOPS AND REGISTERS</code>). Now select the component and click on <code>Properties</code>. In properties remove the <code>load</code> and <code>enable</code> ports and give them the default functionality (which is what we want in this case): enable=1; load=0;</p>
+<p>Edit the previous design to create a schematic like the one below:</p>
 <p><img src="img/userGuide/waveform.png" alt="" /></p>
 <h3><a name="Simulating-your-design" class="anchor" href="#Simulating-your-design">Simulating your design</a></h3>
 <p>As soon as you connect everything correctly, You can simulate your design. Click on <code>Simulations</code> and then <code>Wave Simulation</code>.</p>
 <ul>
 <li>Click the <code>Start Simulation</code> button</li>
 <li>Click <code>Select Waves</code></li>
+</ul>
+<p><img src="img/userGuide/select1.png" alt="" /></p>
+<ul>
+<li>Click the <code>Main</code> breadcrumb to filter so only main sheet ports are visible.</li>
+</ul>
+<p><img src="img/userGuide/select2.png" alt="" /></p>
+<ul>
 <li>
 Select:
 <ul>
-<li><code>AROM1.Dout[3:0]</code></li>
-<li><code>REG1.Dout[3:0]</code></li>
-<li><code>RESULT: DECODER1.RESULT</code></li>
+<li><code>AROM1 Addr</code></li>
+<li><code>CNT1 Q[3:0]</code></li>
+<li><code>DECODER1  RESULT</code></li>
 </ul>
 </li>
 <li>Click <code>Done</code></li>
+<li>
+To check what you have selected:
+<ul>
+<li>Click <code>Select waves again</code></li>
+<li>Click <code>Show only selected</code></li>
+<li>Click <code>Done</code></li>
+</ul>
+</li>
+<li>Use <code>Select RAM</code> to select the ROM contents to view.</li>
 <li>Change the data format to either <code>hex</code> or <code>bin</code> to make the waveforms more readable</li>
-<li>adjust the number of clock cycles displayed using the +/- zoom controls.</li>
+<li>adjust the number of clock cycles displayed using the <code>+/-</code> zoom controls.</li>
+<li>Order the waveforms <code>CNT1 / AROM1 / RESULT</code> by dragging the waveform names up or down.</li>
 <li>Check that the waveform simulator output matches your previous (Step Simulation) results.</li>
-<li>Drag the grey horizontal divider to make the waveforms larger or smaller (you can do this at any time).</li>
+<li>Use the scroll bar to view additional clock cycles.</li>
+<li>Drag the grey horizontal divider to make the waveform display wider or narrower (you can do this at any time).</li>
+<li>You can check how these features work on a much larger design with 100,000 clock cycles using the Eratosthenes sieve demo.</li>
 </ul>
 <p><img src="img/userGuide/waveform1.png" alt="" /></p>
 <h3><a name="Changing-your-design" class="anchor" href="#Changing-your-design">Changing your design</a></h3>
-<p>Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the <code>Refresh</code> button which will be enabled as soon as it detects a change in the schematic.</p>
+<p>Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the <code>Refresh</code> button which will be enabled as soon as there is a change in the schematic.</p>
 <p><img src="img/userGuide/waveform2.png" alt="" /></p>
 <h2><a name="Truth-Table" class="anchor" href="#Truth-Table">Truth Table</a></h2>
 <p>One of ISSIE's features is the ability to view the truth table for a small combinational circuit.</p>
@@ -409,7 +428,7 @@ Select:
 <ul>
 <li>Click on <code>Back to full table</code></li>
 <li>Click on <code>Algebra</code></li>
-<li>Select the inputs you want to be algebraic values</li>
+<li>Select the inputs (<code>C</code>, <code>B</code>, <code>A</code>) you want to be algebraic values</li>
 <li>Truth table should now look like this:</li>
 </ul>
 <p><img src="img/userGuide/truthTable2.png" alt="" /></p>
@@ -424,7 +443,7 @@ Select:
 <h2><a name="Now-what" class="anchor" href="#Now-what">Now what?</a></h2>
 <p>You now know how to use ISSIE to create &amp; simulate digital designs.</p>
 <p>You can now create your designs (from simple circuits to fully functioning CPUs) and either simulate them or extract them as Verilog to use them with other tools.</p>
-<p>For inspiration, look when you start Issie under the <strong>demos</strong> option  for eratosthenes demo which consists of an EEP1 CPU running an Eratosthenes Sieve program written in EEP1 assembly language.</p>
+<p>For inspiration, look when you start Issie under the <strong>demos</strong> option  for Eratosthenes Sieve demo which consists of an EEP1 CPU running an Eratosthenes Sieve program written in EEP1 assembly language. The sieve occupies most of EEP1 RAM and the program takes 200,000 clock cycles to run.</p>
 
         
     </div>

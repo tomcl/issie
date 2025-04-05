@@ -262,22 +262,22 @@
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left"><p>Waveform selector</p></td>
+<td align="left"><p><strong>Waveform selector</strong></p></td>
 <td align="left"><p>HLP cohort 2025</p></td>
-<td align="left"><p>Finished April</p></td>
+<td align="left"><p>Finished</p></td>
 </tr>
 <tr class="even">
-<td align="left"><p>Waveform tooltips</p></td>
+<td align="left"><p><strong>Waveform tooltips</strong></p></td>
 <td align="left"><p>TC</p></td>
-<td align="left"><p>Finished April</p></td>
+<td align="left"><p>Finished</p></td>
 </tr>
 <tr class="odd">
-<td align="left"><p>Parameters</p></td>
+<td align="left"><p><strong>Parameters</strong></p></td>
 <td align="left"><p>HLP cohort 2025</p></td>
 <td align="left"><p>Due to be finished and integrated May</p></td>
 </tr>
 <tr class="even">
-<td align="left"><p>Verilog Compiler</p></td>
+<td align="left"><p><strong>Verilog Compiler</strong></p></td>
 <td align="left"><p>FYP student</p></td>
 <td align="left"><p>Due to be finished June, Integrated July.</p></td>
 </tr>
@@ -285,9 +285,9 @@
 </table>
 
 <h3><a name="Waveform-selector" class="anchor" href="#Waveform-selector">Waveform selector</a></h3>
-<p>The old waveform selector was very difficult to navigate and confusing. The new selector used new breadcrumbs to select sheets and an optimised UI to select component ports. The overall selector UI is quite difficult to get right. Try it and let us know if it is confusing in any way.|</p>
+<p>The old waveform selector was very difficult to navigate and confusing. The new selector uses a breadcrumb tree to select sheets and an optimised UI to select component ports. The selector UI was quite difficult to get right. Try it and let us know if it can be improved.</p>
 <h3><a name="Waveform-tooltips" class="anchor" href="#Waveform-tooltips">Waveform tooltips</a></h3>
-<p>The waveform simulator greys out parts of non-binary waveforms where there is not enough room to print the waveform value. This is the only thing to do, but the loss of information is not nice. Tooltips solve this. Technically these tooltips break normal Issie development rules by using mutable variables and changing the DOM outside of Elmish MVU. The motivation is that the must have excellent time and space performance to work and not</p>
+<p>The waveform simulator greys out parts of non-binary waveforms where there is not enough room to print the waveform value. This is the only thing to do, but the loss of information is not nice. Tooltips solve this. Technically these tooltips break normal Issie development rules by using mutable variables and changing the DOM outside of Elmish MVU. The motivation for this is that they must have excellent time and space performance. Poor time performance is less usable, poor space performance impacts how large a design can be simulated. The code is quite short and can be found in the <code>EvilHoverCache</code> module. The mutability is local, so this does not much cause maintenance problems.</p>
 <p>This feature finishes the <em>obvious</em> feature set needed for a waveform simulator with a pleasant and intuitive UI. There are as always other advanced features that we could add.</p>
 <h3><a name="Parameters" class="anchor" href="#Parameters">Parameters</a></h3>
 <p>Issie has since the beginning had an inherent limitation in that designs cannot be parametrised, e.g. to make register files arbitrary bit-width. This year the HLP class worked on the problem of how to <em>parametrise</em> Issie design sheets. For example, an up/down counter could be designed as a single sheet and then used in a design multiple times as counters of different widths.</p>

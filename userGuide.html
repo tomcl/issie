@@ -334,16 +334,22 @@ Delete the output <code>OUT</code>
 <h2><a name="Using-Custom-Components" class="anchor" href="#Using-Custom-Components">Using Custom Components</a></h2>
 <h3><a name="The-root-schematic" class="anchor" href="#The-root-schematic">The root schematic</a></h3>
 <p>In this section we will create a hierarchical design with multiple design sheets by using schematics as <em>custom symbols</em> in other design sheets. Here is the aim: The design we created earlier can be used in a larger design as a decoder of a 4-bit message to produce a true/false result. Therefore, we are going to create a schematic with an asynchronous-read 4-bit ROM using the schematic we created before as a <em>custom symbol</em>.</p>
-<p>Steps:
-1. Change the name of the current sheet from <code>main</code> to <code>decoder</code> (Sheets -&gt; rename)
-2. Add a new sheet and name it <code>main</code>
-3. Add to the main sheet:
-- Asynchronous ROM (<code>MEMORIES</code> =&gt; <code>ROM (asynchronous)</code>). Select 4 bits addressor, 4 bits data and the <code>Enter data later</code> option
-- Your decoder (<code>THIS PROJECT</code> =&gt; <code>decoder</code>)
-- 1-bit output named 'RESULT' (<code>INPUT/OUTPUT</code> =&gt; <code>Output</code>)
-- 4-bit input named 'Addressor' (<code>INPUT/OUTPUT</code> =&gt; <code>Input</code>)
-4. Using 3 <code>SplitWire</code> components (<code>BUSES</code> =&gt; <code>SplitWire</code>) separate the 4-bit ROM output to 4 1-bit wires. (see image below)
-5. Make the appropriate connections to achieve the schematic below</p>
+<h4><a name="Steps" class="anchor" href="#Steps">Steps</a></h4>
+<ol>
+<li>Change the name of the current sheet from <code>main</code> to <code>decoder</code> (Sheets -&gt; rename)</li>
+<li>Add a new sheet and name it <code>main</code></li>
+<li>
+Add to the main sheet:
+<ul>
+<li>Asynchronous ROM (<code>MEMORIES</code> =&gt; <code>ROM (asynchronous)</code>). Select 4 bits addressor, 4 bits data and the <code>Enter data later</code> option</li>
+<li>Your decoder (<code>THIS PROJECT</code> =&gt; <code>decoder</code>)</li>
+<li>1-bit output named 'RESULT' (<code>INPUT/OUTPUT</code> =&gt; <code>Output</code>)</li>
+<li>4-bit input named 'Addressor' (<code>INPUT/OUTPUT</code> =&gt; <code>Input</code>)</li>
+</ul>
+</li>
+<li>Using 3 <code>SplitWire</code> components (<code>BUSES</code> =&gt; <code>SplitWire</code>) separate the 4-bit ROM output to 4 1-bit wires. (see image below)</li>
+<li>Make the appropriate connections to achieve the schematic below</li>
+</ol>
 <p><img src="img/userGuide/custom.png" alt="" /></p>
 <h3><a name="Improving-the-design-sheet" class="anchor" href="#Improving-the-design-sheet">Improving the design sheet</a></h3>
 <p>It's time to use a hidden part of the Issie UI to <strong>move ports on custom symbols</strong>. Issie allows you to re-order and change the side of input and output ports of custom symbols by <code>CTRL</code> + <code>CLICKING ON THE PORT</code> you want to move. The UI, once you realise that you must keep <code>Ctrl</code> (<code>Cmd</code> on Macs) pressed, is intuitive.</p>
@@ -479,6 +485,11 @@ Select:
   <li class="level-3">
     <a href="#The-root-schematic">
       The root schematic
+    </a>
+  </li>
+  <li class="level-4">
+    <a href="#Steps">
+      Steps
     </a>
   </li>
   <li class="level-3">

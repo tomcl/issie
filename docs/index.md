@@ -25,11 +25,12 @@ Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest)
 
 #### 2024 
 * Workaround unexpected & undocumented React 17 memory leak
-* Much better User interface to Waveform Simulator
-* Allow much longer simulation times keeping waveforms in memory
+* Better user interface to Waveform Simulator
+* Longer simulation times keeping waveforms in memory
 * Automatic whole-circuit wire segment separation for almost perfect auto-routing
 
 #### 2025
+
 * New Waveform Selector for waveform simulations
 * Tooltips on waveform simulator waveforms
 * Symbolic parameters to make component bit-widths etc adjustable (in progress)
@@ -39,7 +40,9 @@ Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest)
 <br><br>
 # Help and User Guides
 
-For more setup information see the  [Getting Started](https://github.com/tomcl/ISSIE#getting-started) section of the repo README.
+### Getting Started
+
+See the  [Getting Started](https://github.com/tomcl/ISSIE#getting-started) section of the repo README.
 
 <br><br>
 
@@ -67,7 +70,7 @@ Go through the  [User Guide](userGuide.html).
 - Archontis Pantelopoulos for creating the Verilog Component and improving ISSIE over Summer 2022
 - Petra Ratkai and Yujie Wang for improving the Verilog compiler & ISSIE simulator in 2022-23.
 - Samuel Wang for on-demand waveform creation and a software scrollbar to improve the waveform simulator over Summer 2024.
-- The Hign Level Programming 24/25 cohort for new waveform selector and parameter mechanism
+- The High Level Programming 24/25 cohort for new waveform selector and parameter mechanism
 - Dr Tom Clarke (Imperial College London, EEE department) for running HLP and his continued work maintaining and improving the 50K lines of ISSIE code throughout
 <br><br>
 

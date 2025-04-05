@@ -23,3 +23,4 @@ ISSIE provides numerous features to help you create nice and readable schematics
 | **Wire Arrows** | `View` -> `Toggle Wire Arrows` | Choose whether you want arrows at the end-points of your wires to show the direction of signals |
 | **Auto-routing with fixed segments** |     | Issie will **nearly always** route and separate all schematic connections neatly with no manual routing required. Any wire segment can be manually dragged to a desired position and "fixed" with other segments and wires auto-routed around it.|
 | **Right-click menus** | Right-click on any schematic component or the background sheet will give you useful actions |
+| **Keyboard shortcuts** | Most actions have shortcuts documented from the main **info** button or individually on menus.

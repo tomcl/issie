@@ -121,14 +121,15 @@ You can view the shortcuts for all these modifications by clicking on the `edit`
 
 In this section we will create a hierarchical design with multiple design sheets by using schematics as *custom symbols* in other design sheets. Here is the aim: The design we created earlier can be used in a larger design as a decoder of a 4-bit message to produce a true/false result. Therefore, we are going to create a schematic with an asynchronous-read 4-bit ROM using the schematic we created before as a *custom symbol*. 
 
-Steps: 
+#### Steps
+
 1. Change the name of the current sheet from `main` to `decoder` (Sheets -> rename)
 2. Add a new sheet and name it `main`
 3. Add to the main sheet:
-  - Asynchronous ROM (`MEMORIES` => `ROM (asynchronous)`). Select 4 bits addressor, 4 bits data and the `Enter data later` option
-  - Your decoder (`THIS PROJECT` => `decoder`)
-  - 1-bit output named 'RESULT' (`INPUT/OUTPUT` => `Output`) 
-  - 4-bit input named 'Addressor' (`INPUT/OUTPUT` => `Input`) 
+   - Asynchronous ROM (`MEMORIES` => `ROM (asynchronous)`). Select 4 bits addressor, 4 bits data and the `Enter data later` option
+   - Your decoder (`THIS PROJECT` => `decoder`)
+   - 1-bit output named 'RESULT' (`INPUT/OUTPUT` => `Output`) 
+   - 4-bit input named 'Addressor' (`INPUT/OUTPUT` => `Input`) 
 4. Using 3 `SplitWire` components (`BUSES` => `SplitWire`) separate the 4-bit ROM output to 4 1-bit wires. (see image below)
 5. Make the appropriate connections to achieve the schematic below
 

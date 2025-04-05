@@ -1,8 +1,8 @@
 ---
-title: Contact
+title: Contacts
 category: Documentation
 categoryindex: 1
-index: 6
+index: 7
 ---
 
 # Contacts

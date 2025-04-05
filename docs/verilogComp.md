@@ -1,19 +1,18 @@
 ---
-title: Verilog Component
+title: Verilog Components
 category: Documentation
 categoryindex: 1
 index: 5
 ---
 
 
-# ISSIE Verilog Component
+# ISSIE Verilog Components
 
 ### Introduction
 
-Issie allows a Component defined by Verilog source code to be placed 
+Issie allows a component defined by Verilog source code to be placed 
 on any sheet from the Catalog. The component behaviour is defined by
-its source which can be opened and edited from Properties. The editor
-provides syntax highlighting and error checking.
+its synthesisable Verilog which can be opened and edited from Properties. The editor provides syntax highlighting and error checking.
 
 ### Syntax
 
@@ -64,7 +63,7 @@ e.g. 16'h3fa5 , 4'b0101, 16'd154
 
 ### Operators
 
-Operators perform an opeation on one or more operands within an expression. An expression combines operands with appropriate operators to produce the desired functional expression.
+Operators perform an operation on one or more operands within an expression. An expression combines operands with appropriate operators to produce the desired functional expression.
 
 The table shows the operators in descending order of precedence. Operators with equal precedence are shown grouped.
 

@@ -255,9 +255,9 @@
 <table>
 <thead>
 <tr class="header">
-<th><p>Feature</p></th>
-<th><p>Author(s)</p></th>
-<th><p>Status</p></th>
+<th><p>:Feature</p></th>
+<th><p>:Author(s)</p></th>
+<th><p>:Status</p></th>
 </tr>
 </thead>
 <tbody>
@@ -287,7 +287,7 @@
 <h3><a name="Waveform-selector" class="anchor" href="#Waveform-selector">Waveform selector</a></h3>
 <p>The old waveform selector was very difficult to navigate and confusing. The new selector used new breadcrumbs to select sheets and an optimised UI to select component ports. The overall selector UI is quite difficult to get right. Try it and let us know if it is confusing in any way.|</p>
 <h3><a name="Waveform-tooltips" class="anchor" href="#Waveform-tooltips">Waveform tooltips</a></h3>
-<p>The waveform simulator greys out parts of non-binary waveforms where there is not enough room to print the waveform value. This is the only thing to do, but the loss of information is not nice. Tooltips solve this. technically these tooltips break normal Issie development rules by using mutable variables and changing the DOM outside of Elmish MVU.</p>
+<p>The waveform simulator greys out parts of non-binary waveforms where there is not enough room to print the waveform value. This is the only thing to do, but the loss of information is not nice. Tooltips solve this. Technically these tooltips break normal Issie development rules by using mutable variables and changing the DOM outside of Elmish MVU. The motivation is that the must have excellent time and space performance to work and not</p>
 <p>This feature finishes the <em>obvious</em> feature set needed for a waveform simulator with a pleasant and intuitive UI. There are as always other advanced features that we could add.</p>
 <h3><a name="Parameters" class="anchor" href="#Parameters">Parameters</a></h3>
 <p>Issie has since the beginning had an inherent limitation in that designs cannot be parametrised, e.g. to make register files arbitrary bit-width. This year the HLP class worked on the problem of how to <em>parametrise</em> Issie design sheets. For example, an up/down counter could be designed as a single sheet and then used in a design multiple times as counters of different widths.</p>

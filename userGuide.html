@@ -73,6 +73,11 @@
     Contact
   </a>
 </li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
 <li class="nav-header ">
   Examples
 </li>             
@@ -186,6 +191,11 @@
     Contact
   </a>
 </li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
 <li class="nav-header ">
   Examples
 </li>             
@@ -258,7 +268,7 @@
 <li>
 <strong>MacOS:</strong> Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
 <ul>
-<li>The binaries are not signed. You will need to <a href="https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac">perform a one-off security bypass</a>.</li>
+<li>The MacOs binaries are signed.</li>
 </ul>
 </li>
 </ul>
@@ -273,25 +283,31 @@
 <p>This process creates a folder where your project will be stored and the first sheet of your project, called <code>main</code>. You can see this by clicking at the <code>Sheets</code> selection button.</p>
 <h3><a name="Your-first-design" class="anchor" href="#Your-first-design">Your first design</a></h3>
 <p>Let's start with a very simple schematic: a simple 2-input AND gate.</p>
-<p>Add the following components to your canvas from the <code>Catalogue</code> tab:
-- <code>INPUT/OUTPUT</code> =&gt; <code>Input</code> =&gt; Name: 'A', Bits: 1
-- <code>INPUT/OUTPUT</code> =&gt; <code>Input</code> =&gt; Name: 'B', Bits: 1
-- <code>GATES</code> =&gt; <code>And</code>
-- <code>INPUT/OUTPUT</code> =&gt; <code>Output</code> =&gt; Name: 'OUT', Bits: 1</p>
-<p>Now make the appropriate wiring to connect all the components by clicking on one port and dragging the wire to the port you want to connect it to.
-<strong>Connect:</strong>
-- Input 'A' to the first input port of the AND gate
-- Input 'B' to the second input port of the AND gate
-- Output 'OUT' to the output port of the AND gate</p>
+<p>Add the following components to your canvas from the <code>Catalogue</code> tab:</p>
+<ul>
+<li><code>INPUT/OUTPUT</code> =&gt; <code>Input</code> =&gt; Name: 'A', Bits: 1</li>
+<li><code>INPUT/OUTPUT</code> =&gt; <code>Input</code> =&gt; Name: 'B', Bits: 1</li>
+<li><code>GATES</code> =&gt; <code>And</code></li>
+<li><code>INPUT/OUTPUT</code> =&gt; <code>Output</code> =&gt; Name: 'OUT', Bits: 1</li>
+</ul>
+<p>Now make the appropriate wiring to connect all the components by clicking on one port and dragging the wire to the port you want to connect it to.</p>
+<p><strong>Connect:</strong></p>
+<ul>
+<li>Input 'A' to the first input port of the AND gate</li>
+<li>Input 'B' to the second input port of the AND gate</li>
+<li>Output 'OUT' to the output port of the AND gate</li>
+</ul>
 <p>Your design should look like this:</p>
 <p><img src="img/userGuide/firstDesign.gif" alt="" /></p>
 <h3><a name="Simulation" class="anchor" href="#Simulation">Simulation</a></h3>
 <p>Time to simulate the design and see how the output <code>OUT</code> changes as we change the two inputs.</p>
-<p>Click the <code>Simulation</code> tab which is located on the top-right corner and then <code>Start Simulation</code>. Now you can change the value of the two inputs and see how the value of the output. Try all 4 combinations of inputs:
-- A=0, B=0<br />
-- A=0, B=1<br />
-- A=1, B=0<br />
-- A=1, B=1</p>
+<p>Click the <code>Simulation</code> tab which is located on the top-right corner and then <code>Start Simulation</code>. Now you can change the value of the two inputs and see how the value of the output. Try all 4 combinations of inputs:</p>
+<ul>
+<li>A=0, B=0</li>
+<li>A=0, B=1</li>
+<li>A=1, B=0</li>
+<li>A=1, B=1</li>
+</ul>
 <p>and check that the output is correct based on the truth table of the AND gate.</p>
 <p><img src="img/userGuide/firstDesignSim.gif" alt="" /></p>
 <p><strong>Well Done!</strong> You just completed your first ISSIE design.</p>
@@ -313,12 +329,14 @@ Delete the output <code>OUT</code>
 <p><img src="img/userGuide/features1.png" alt="" /></p>
 <p>Again, <strong>simulate the design</strong> and check the output remains correct as you change the values of the 4 inputs</p>
 <h3><a name="Improving-the-look-of-a-schematic" class="anchor" href="#Improving-the-look-of-a-schematic">Improving the look of a schematic</a></h3>
-<p>The schematic here is not easy to read. <strong>Let's improve it!</strong> The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:
-1. Rotate, Flip and Move all symbols
-2. Change name and reposition the symbols' <em>labels</em> relative to the symbols
-3. Manually route any specific segment in a wire
-4. Auto-align elements
-5. Select the desired wire type (radiussed, jump or modern wires)</p>
+<p>The schematic here is not easy to read. <strong>Let's improve it!</strong> The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:</p>
+<ol>
+<li>Rotate, Flip and Move all symbols</li>
+<li>Change name and reposition the symbols' <em>labels</em> relative to the symbols</li>
+<li>Manually route any specific segment in a wire</li>
+<li>Auto-align elements</li>
+<li>Select the desired wire type (radiussed, jump or modern wires)</li>
+</ol>
 <p>You can view the shortcuts for all these modifications by clicking on the <code>edit</code> and <code>view</code> menus.</p>
 <p><strong>The improved schematic:</strong></p>
 <p><img src="img/userGuide/features2.gif" alt="" /></p>

@@ -226,16 +226,16 @@
         
 <h1><a name="What-is-ISSIE" class="anchor" href="#What-is-ISSIE">What is ISSIE?</a></h1>
 <ul>
-<li>ISSIE is an <strong>easy-to-use schematic editor and simulator</strong> for hierarchical design of <strong>digital logic circuits</strong>. Run it and see the built-in demos for what it can do! ISSIE is targeted at 1st year university students, but would be useful teaching in schools and even for quick hardware design and test in an industrial or research environment. For the latter use case although we allow Verilog input and output these features need a bit more work.</li>
+<li>ISSIE is an <strong>easy-to-use schematic editor and simulator</strong> for hierarchical design of <strong>digital logic circuits</strong>. Run it and see the built-in demos for what it can do! ISSIE is targeted at 1st year university students, but would be useful teaching in schools and even for quick hardware design and test in an industrial or research environment. For the latter use case although we allow Verilog input and output these features need a bit more work to be as complete and nice as the rest of ISSIE.</li>
 <li>
 ISSIE was motivated because we found that industry-standard CAD systems were too complex and buggy to be learnt in labs, and when learnt still nasty to use. Other educational products were too limited. We wanted <strong>a schematic-based system to teach hierarchical design and digital electronics visually that would scale to large designs</strong>.
 <ul>
-<li>We find that EEE-educated internal PhD candidates starting with schematic logic designs usually have a better understanding of what <strong>digital hardware is</strong> than those from otehr institutions starting with HDL.</li>
+<li>We find that EEE-educated internal PhD candidates starting with schematic logic designs usually have a better understanding of what <strong>digital hardware is</strong> than those from other institutions starting with HDL.</li>
 </ul>
 </li>
 <li>ISSIE is an <strong>open source project at Imperial College London developed over 5 years by students</strong>. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac targets.</li>
-<li>ISSIE is implemented using nearly 46K lines in the FP language F#, the equivalent of 150K lines in a typical OOP language. ISSIE's implementation is almost pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has <strong>its own digital simulator</strong>, which uses <strong>write-once semantics</strong> on mutable arrays to be close to functional programming and also efficient.</li>
-<li>ISSIE uses the <a href="https://fable.io/">FABLE F# to Javascript compiler</a>, <a href="https://elmish.github.io/elmish/">Elmish MVU framework</a>, and <a href="https://www.electronjs.org/">Electron</a>. This tool chain creates seemless cross-platform applications with simple and highly productive coding.</li>
+<li>ISSIE is implemented using nearly 50K lines in the Functional-first language F#, the equivalent of 150K lines in a typical OOP language. ISSIE's implementation is almost pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has <strong>its own digital simulator</strong>, which uses <strong>write-once semantics</strong> on mutable (JS typed) arrays to combine the robustness of functional programming with high performance.</li>
+<li>ISSIE uses the <a href="https://fable.io/">FABLE F# to Javascript compiler</a>, <a href="https://elmish.github.io/elmish/">Elmish MVU framework</a>, and <a href="https://www.electronjs.org/">Electron</a>. This tool chain creates seamless cross-platform applications with simple and highly productive coding.</li>
 <li>ISSIE can generate Verilog output to drive FPGAs and has an integrated system to do this directly using the <strong>ISSIE-Stick</strong> hardware.</li>
 <li>
 For acronym geeks, ISSIE stands for: <em>Interactive Schematic Simulator with Integrated Editor</em>.
@@ -243,8 +243,8 @@ For acronym geeks, ISSIE stands for: <em>Interactive Schematic Simulator with In
 </li>
 </ul>
 <h1><a name="Running-ISSIE" class="anchor" href="#Running-ISSIE">Running ISSIE</a></h1>
-<p>Go to the <a href="https://github.com/tomcl/issie/releases/latest">latest ISSIE release</a>. Scroll down this page till at the bottom you find the <code>Assets</code> section - this has binaries for Windows and Macos PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level <code>ISSIE.exe</code> file with the blue ISSIE chip icon.</p>
-<h3><a name="Issie-Feature-Development-Roadmap" class="anchor" href="#Issie-Feature-Development-Roadmap">Issie Feature Development Roadmap</a></h3>
+<p>Go to the <a href="https://github.com/tomcl/issie/releases/latest">latest ISSIE release</a>. Scroll down this page till at the bottom you find the <code>Assets</code> section - this has binaries for Windows and Macos PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level <code>issie.exe</code> file with the blue ISSIE chip icon.</p>
+<h3><a name="ISSIE-Feature-Development-Roadmap" class="anchor" href="#ISSIE-Feature-Development-Roadmap">ISSIE Feature Development Roadmap</a></h3>
 <h4><a name="2024" class="anchor" href="#2024">2024</a></h4>
 <ul>
 <li>Workaround unexpected &amp; undocumented React 17 memory leak</li>
@@ -311,8 +311,8 @@ Dr Tom Clarke (Imperial College London, EEE department) for running HLP and his 
     </a>
   </li>
   <li class="level-3">
-    <a href="#Issie-Feature-Development-Roadmap">
-      Issie Feature Development Roadmap
+    <a href="#ISSIE-Feature-Development-Roadmap">
+      ISSIE Feature Development Roadmap
     </a>
   </li>
   <li class="level-4">

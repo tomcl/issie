@@ -687,7 +687,7 @@ img {
 }
 
 #content > table {
-    margin: var(--spacing-300) 10;
+    margin: var(--spacing-300) 0;
 }
 
 blockquote {

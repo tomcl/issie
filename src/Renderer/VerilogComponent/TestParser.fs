@@ -247,8 +247,7 @@ let simulateAST ast src dst loadedComps=
                         {Label=label; Values= data |> Array.toList}
                     | _ -> failwithf "What? output doesn't have a fastcomponent"            
                 )
-                |> Map.values
-                |> List.ofSeq
+                |> Map.valuesL
             
             | _ -> failwithf "couldn't build simulation graph"
         | Error error -> failwithf $"wrong simulation graph - {error}"

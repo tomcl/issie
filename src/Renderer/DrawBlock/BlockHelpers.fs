@@ -1,4 +1,5 @@
 ﻿module BlockHelpers
+open EEExtensions
 open CommonTypes
 open DrawModelType
 open DrawModelType.SymbolT
@@ -414,8 +415,7 @@ let isPortInSymbol (portId: string) (symbol: Symbol) : bool =
 /// HLP23: AUTHOR dgs119
 let getConnSyms (wModel: BusWireT.Model) =
     wModel.Wires
-    |> Map.values
-    |> Seq.toList
+    |> Map.valuesL
     |> List.map (fun wire -> (getSourceSymbol wModel wire, getTargetSymbol wModel wire))
     |> List.filter (fun (symA, symB) -> symA.Id <> symB.Id)
     |> List.distinctBy (fun (symA, symB) -> Set.ofList [ symA; symB ])
@@ -440,7 +440,7 @@ let connsBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Map<C
 /// Gets Wires between symbols.
 /// HLP23: AUTHOR dgs119
 let wiresBtwnSyms (wModel: BusWireT.Model) (symA: Symbol) (symB: Symbol) : Wire list =
-    connsBtwnSyms wModel symA symB |> Map.toList |> List.map snd
+    connsBtwnSyms wModel symA symB |> Map.valuesL
 
 /// Filters Ports by Symbol.
 /// HLP23: AUTHOR dgs119

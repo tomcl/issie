@@ -1,5 +1,5 @@
 module ErrorCheckProcedural
-
+open EEExtensions
 open VerilogTypes
 open Fable.Core.JsInterop
 open CommonTypes
@@ -817,8 +817,7 @@ let checkModuleInstantiations
     let inputPorts = 
         portMap
         |> Map.filter (fun k v -> v="input")
-        |> Map.keys
-        |> Seq.toList
+        |> Map.keysL
     let lhsVariables = 
         foldAST getAssignments' [] (VerilogInput ast)
         |> List.map (fun assign -> assign.LHS.Primary.Name)

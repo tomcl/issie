@@ -1,5 +1,5 @@
 module SheetCreator
-
+open EEExtensions
 open VerilogTypes
 open CommonTypes
 open DrawHelpers
@@ -844,11 +844,11 @@ let overlaps (slice1:Slice) (slice2:Slice) =
 /// debug:
 let isCircuitValid (circuit:Circuit) (varToCompMap:Map<string,Component>)=
     let inputPorts = 
-        circuit.Comps @ (Map.values varToCompMap |> Seq.toList)
+        circuit.Comps @ (Map.valuesL varToCompMap)
         |> List.collect (fun comp -> comp.InputPorts)
         |> List.map (fun port -> port.Id)
     let outputPorts =
-        circuit.Comps @ (Map.values varToCompMap |> Seq.toList)
+        circuit.Comps @ (Map.valuesL varToCompMap)
         |> List.collect (fun comp -> comp.OutputPorts)
         |> List.map (fun port -> port.Id)
     let wrongConns =

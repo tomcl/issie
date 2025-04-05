@@ -2,6 +2,7 @@
 
 open Elmish
 open Fable.React.Props
+open EEExtensions
 open DrawHelpers
 open CommonTypes
 open Fable.React
@@ -158,7 +159,7 @@ let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT
             | IOLabel  -> //Wire label is special case: if the driver of the wire label is not included -> keep same name
                           //else generate new label (cannot have wire labels with same name driven by 2 different components)
                 let inPortId = oldSymbol.Component.InputPorts[0].Id
-                let wires = wireMap |> Map.toList |> List.map snd
+                let wires = wireMap |> Map.valuesL
                 let targetWire = 
                     wires
                     |> List.tryFind (fun w -> w.InputPort = (InputPortId inPortId)) 

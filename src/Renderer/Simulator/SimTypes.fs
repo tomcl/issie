@@ -5,6 +5,7 @@
 //---------------------------------------------------------------------------------------//
 
 open Fable.Core
+open EEExtensions
 open CommonTypes
 open SimGraphTypes
 
@@ -380,8 +381,8 @@ let extractLabel (label: ComponentLabel) =
 // every net is therefore part of one netgroup which is either a single net, or a group of nets associated
 // with a set of IOLabel connectors having a given common label.
 
-let mapKeys (map: Map<'a, 'b>) = Map.keys map |> Array.ofSeq
-let mapValues (map: Map<'a, 'b>) = Map.values map |> Array.ofSeq
+let mapKeys (map: Map<'a, 'b>) = Map.keysA map
+let mapValues (map: Map<'a, 'b>) = Map.valuesA map
 let mapItems (map: Map<'a, 'b>) = Map.toArray map
 
 

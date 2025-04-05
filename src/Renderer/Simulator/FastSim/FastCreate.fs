@@ -592,8 +592,7 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
 
     let customSimSheetNames =
         customComps
-        |> Map.values
-        |> List.ofArray
+        |> Map.valuesL
         |> List.groupBy (fun fc ->
             match fc.FType with
             | Custom {Name = name} -> name

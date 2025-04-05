@@ -12,7 +12,7 @@ module WaveSimTop
 open Fulma
 open Fable.React
 open Fable.React.Props
-
+open EEExtensions
 open CommonTypes
 open ModelType
 open ModelHelpers
@@ -206,7 +206,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                             |> List.sortBy (fun fc -> fc.FullName)
 
                         let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
-                        let allWaveA = Map.keys allWaves |> Seq.toArray
+                        let allWaveA = Map.keysA allWaves
                         // arrayIndex may have changed, so we have to use new arrayIndex
                         // if we cannot find it, then the selected wave no longer exists and is dropped
                         let selectedWaves = 

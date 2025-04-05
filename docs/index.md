@@ -24,7 +24,7 @@ Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest)
 ### Issie Feature Development Roadmap
 
 #### 2024 
-* Workaround React 17 undocumented memory leak!
+* Workaround unexpected & undocumented React 17 memory leak
 * Much better User interface to Waveform Simulator
 * Allow much longer simulation times keeping waveforms in memory
 * Automatic whole-circuit wire segment separation for almost perfect auto-routing

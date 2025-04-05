@@ -1,0 +1,2550 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Renderer" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="SymbolReplaceHelpers (issie)" />
+    <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="SymbolReplaceHelpers (issie)">
+    
+    <title>SymbolReplaceHelpers (issie) | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="api-docs">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    Schematic Editor
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-header ">
+  Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    Schematic Editor
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-header ">
+  Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <div>
+  <h2>
+    SymbolReplaceHelpers Module
+  </h2>
+  <dl class="fsdocs-metadata">
+    <dt>
+      Namespace: 
+      <a href="/issie/reference/global.html">
+        global
+      </a>
+    </dt>
+    <dt>
+      Assembly: Renderer.dll
+    </dt>
+  </dl>
+  <div class="fsdocs-xmldoc">
+    <div>
+      <p class="fsdocs-summary">
+        
+      </p>
+    </div>
+  </div>
+  <div>
+    <h3>
+      Functions and values
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Function or value
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1783', 1783)" onmouseover="showTip(event, '1783', 1783)">
+                <p>
+                  <a id="addNumberPort">
+                    <a href="#addNumberPort">
+                      <code><span>addNumberPort&#32;<span>pType&#32;pNum&#32;sym&#32;edgeOpt</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1783">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>addNumberPort&#32;<span>pType&#32;pNum&#32;sym&#32;edgeOpt</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        pType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        pNum
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        edgeOpt
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-edge.html">Edge</a>&#32;option</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.addNumberPort`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.addNumberPort\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L134-134" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     add the port specified by its type and number to the given symbol
+ if edgeOpt is None the port will be added on the same edge as the port
+ with the highest number
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pNum
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    edgeOpt
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-edge.html">Edge</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1784', 1784)" onmouseover="showTip(event, '1784', 1784)">
+                <p>
+                  <a id="addPorts">
+                    <a href="#addPorts">
+                      <code><span>addPorts&#32;<span>pType&#32;pNumList&#32;edgeOpt&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1784">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>addPorts&#32;<span>pType&#32;pNumList&#32;edgeOpt&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        pType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        pNumList
+                      </b>
+                      :
+                      <code><span>int&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        edgeOpt
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-edge.html">Edge</a>&#32;option</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.addPorts`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.addPorts\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L217-217" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     add the ports specified by the type and the list of port numbers
+ if edgeOpt is None they will be added on the same edge as the port
+ with the highest number
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pNumList
+                  </span>
+                  :
+                  <code><span>int&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    edgeOpt
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-edge.html">Edge</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1785', 1785)" onmouseover="showTip(event, '1785', 1785)">
+                <p>
+                  <a id="changeAdderComponent">
+                    <a href="#changeAdderComponent">
+                      <code><span>changeAdderComponent&#32;<span>symModel&#32;compId&#32;oldComp&#32;newCompType</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1785">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeAdderComponent&#32;<span>symModel&#32;compId&#32;oldComp&#32;newCompType</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        oldComp
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newCompType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compId
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  oldComp
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  newCompType
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1786', 1786)" onmouseover="showTip(event, '1786', 1786)">
+                <p>
+                  <a id="changeBusComparef">
+                    <a href="#changeBusComparef">
+                      <code><span>changeBusComparef&#32;<span>symModel&#32;compId&#32;constantVal&#32;constantText</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1786">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeBusComparef&#32;<span>symModel&#32;compId&#32;constantVal&#32;constantText</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        constantVal
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        constantText
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.changeBusComparef`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.changeBusComparef\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L84-84" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Updates the value of a busCompare1 component and returns the updated symbol
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compId
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    constantVal
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    constantText
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1787', 1787)" onmouseover="showTip(event, '1787', 1787)">
+                <p>
+                  <a id="changeConstantf">
+                    <a href="#changeConstantf">
+                      <code><span>changeConstantf&#32;<span>symModel&#32;compId&#32;constantVal&#32;constantText</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1787">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeConstantf&#32;<span>symModel&#32;compId&#32;constantVal&#32;constantText</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        constantVal
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        constantText
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.changeConstantf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.changeConstantf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L74-74" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Updates the value of a constant1 component and returns the updated symbol
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compId
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    constantVal
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    constantText
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1788', 1788)" onmouseover="showTip(event, '1788', 1788)">
+                <p>
+                  <a id="changeCounterComponent">
+                    <a href="#changeCounterComponent">
+                      <code><span>changeCounterComponent&#32;<span>symModel&#32;compId&#32;oldComp&#32;newCompType</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1788">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeCounterComponent&#32;<span>symModel&#32;compId&#32;oldComp&#32;newCompType</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        oldComp
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newCompType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compId
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  oldComp
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  newCompType
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1789', 1789)" onmouseover="showTip(event, '1789', 1789)">
+                <p>
+                  <a id="changeCustom">
+                    <a href="#changeCustom">
+                      <code><span>changeCustom&#32;<span>symModel&#32;compId&#32;oldComp&#32;newCompType</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1789">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeCustom&#32;<span>symModel&#32;compId&#32;oldComp&#32;newCompType</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        oldComp
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newCompType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compId
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  oldComp
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  newCompType
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1790', 1790)" onmouseover="showTip(event, '1790', 1790)">
+                <p>
+                  <a id="changeGateComponent">
+                    <a href="#changeGateComponent">
+                      <code><span>changeGateComponent&#32;<span>symModel&#32;compId&#32;gateType&#32;n</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1790">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeGateComponent&#32;<span>symModel&#32;compId&#32;gateType&#32;n</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        gateType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-gatecomponenttype.html">GateComponentType</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        n
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compId
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  gateType
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-gatecomponenttype.html">GateComponentType</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  n
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1791', 1791)" onmouseover="showTip(event, '1791', 1791)">
+                <p>
+                  <a id="changeInputValue">
+                    <a href="#changeInputValue">
+                      <code><span>changeInputValue&#32;<span>symModel&#32;compId&#32;newVal</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1791">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeInputValue&#32;<span>symModel&#32;compId&#32;newVal</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newVal
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.changeInputValue`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.changeInputValue\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L64-64" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     This function should be called for Input1 components only. Sets the default
+ value to be used in simulations for an Input1 component if it is not driven.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compId
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    newVal
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1792', 1792)" onmouseover="showTip(event, '1792', 1792)">
+                <p>
+                  <a id="changeLsbf">
+                    <a href="#changeLsbf">
+                      <code><span>changeLsbf&#32;<span>symModel&#32;compId&#32;newLsb</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1792">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeLsbf&#32;<span>symModel&#32;compId&#32;newLsb</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newLsb
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.changeLsbf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.changeLsbf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L50-50" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Helper function to change the number of bits expected in the LSB port of BusSelection and BusCompare
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compId
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    newLsb
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1793', 1793)" onmouseover="showTip(event, '1793', 1793)">
+                <p>
+                  <a id="changeMergeNComponent">
+                    <a href="#changeMergeNComponent">
+                      <code><span>changeMergeNComponent&#32;<span>symModel&#32;compId&#32;numInputs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1793">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeMergeNComponent&#32;<span>symModel&#32;compId&#32;numInputs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        numInputs
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compId
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  numInputs
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1794', 1794)" onmouseover="showTip(event, '1794', 1794)">
+                <p>
+                  <a id="changeNumberOfBitsf">
+                    <a href="#changeNumberOfBitsf">
+                      <code><span>changeNumberOfBitsf&#32;<span>symModel&#32;compId&#32;newBits</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1794">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeNumberOfBitsf&#32;<span>symModel&#32;compId&#32;newBits</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newBits
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.changeNumberOfBitsf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.changeNumberOfBitsf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L15-15" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Helper function to change the number of bits expected in a port of each component type.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compId
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    newBits
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1795', 1795)" onmouseover="showTip(event, '1795', 1795)">
+                <p>
+                  <a id="changeReversedInputs">
+                    <a href="#changeReversedInputs">
+                      <code><span>changeReversedInputs&#32;<span>symModel&#32;compId</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1795">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeReversedInputs&#32;<span>symModel&#32;compId</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compId
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1796', 1796)" onmouseover="showTip(event, '1796', 1796)">
+                <p>
+                  <a id="changeSplitNComponent">
+                    <a href="#changeSplitNComponent">
+                      <code><span>changeSplitNComponent&#32;<span>symModel&#32;compId&#32;numOutputs&#32;widths&#32;lsbs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1796">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>changeSplitNComponent&#32;<span>symModel&#32;compId&#32;numOutputs&#32;widths&#32;lsbs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compId
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        numOutputs
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        widths
+                      </b>
+                      :
+                      <code><span>int&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        lsbs
+                      </b>
+                      :
+                      <code><span>int&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compId
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  numOutputs
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  widths
+                </span>
+                :
+                <code><span>int&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  lsbs
+                </span>
+                :
+                <code><span>int&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1797', 1797)" onmouseover="showTip(event, '1797', 1797)">
+                <p>
+                  <a id="createNewPort">
+                    <a href="#createNewPort">
+                      <code><span>createNewPort&#32;<span>no&#32;hostID&#32;portType</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1797">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>createNewPort&#32;<span>no&#32;hostID&#32;portType</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        no
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        hostID
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        portType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  no
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  hostID
+                </span>
+                :
+                <code>string</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  portType
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1798', 1798)" onmouseover="showTip(event, '1798', 1798)">
+                <p>
+                  <a id="deleteNumberPort">
+                    <a href="#deleteNumberPort">
+                      <code><span>deleteNumberPort&#32;<span>pType&#32;pNum&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1798">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>deleteNumberPort&#32;<span>pType&#32;pNum&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        pType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        pNum
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.deleteNumberPort`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.deleteNumberPort\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L179-179" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     remove the port specified by its type and number from the given symbol
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pNum
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1799', 1799)" onmouseover="showTip(event, '1799', 1799)">
+                <p>
+                  <a id="deletePorts">
+                    <a href="#deletePorts">
+                      <code><span>deletePorts&#32;<span>pType&#32;pNumList&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1799">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>deletePorts&#32;<span>pType&#32;pNumList&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        pType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        pNumList
+                      </b>
+                      :
+                      <code><span>int&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.deletePorts`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.deletePorts\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L223-223" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     delete ports specified by the list of port numbers
+ must be in ascending order because otherwise wrong ports will be deleted
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pNumList
+                  </span>
+                  :
+                  <code><span>int&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1800', 1800)" onmouseover="showTip(event, '1800', 1800)">
+                <p>
+                  <a id="portNoDown">
+                    <a href="#portNoDown">
+                      <code><span>portNoDown&#32;<span>port</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1800">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>portNoDown&#32;<span>port</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        port
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  port
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1801', 1801)" onmouseover="showTip(event, '1801', 1801)">
+                <p>
+                  <a id="portNoUp">
+                    <a href="#portNoUp">
+                      <code><span>portNoUp&#32;<span>port</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1801">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>portNoUp&#32;<span>port</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        port
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  port
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1802', 1802)" onmouseover="showTip(event, '1802', 1802)">
+                <p>
+                  <a id="updateSymPortMaps">
+                    <a href="#updateSymPortMaps">
+                      <code><span>updateSymPortMaps&#32;<span>newPortMaps&#32;newInputPorts&#32;newOutputPorts&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1802">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>updateSymPortMaps&#32;<span>newPortMaps&#32;newInputPorts&#32;newOutputPorts&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        newPortMaps
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-portmaps.html">PortMaps</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newInputPorts
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        newOutputPorts
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  newPortMaps
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-portmaps.html">PortMaps</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  newInputPorts
+                </span>
+                :
+                <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  newOutputPorts
+                </span>
+                :
+                <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  sym
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1803', 1803)" onmouseover="showTip(event, '1803', 1803)">
+                <p>
+                  <a id="varyNumberOfPorts">
+                    <a href="#varyNumberOfPorts">
+                      <code><span>varyNumberOfPorts&#32;<span>pType&#32;numInPorts&#32;numOutPorts&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1803">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>varyNumberOfPorts&#32;<span>pType&#32;numInPorts&#32;numOutPorts&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        pType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        numInPorts
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        numOutPorts
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SymbolReplaceHelpers.varyNumberOfPorts`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SymbolReplaceHelpers.varyNumberOfPorts\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SymbolReplaceHelpers.fs#L231-231" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     add and remove ports to obtain the given number of input and output ports
+ the ports will be added at the highest index, as well as removed from the end
+ of the port list
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-porttype.html">PortType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    numInPorts
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    numOutPorts
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <div class="empty"></div>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,3525 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Renderer" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="RotateScale (issie)" />
+    <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="RotateScale (issie)">
+    
+    <title>RotateScale (issie) | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="api-docs">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    Schematic Editor
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-header ">
+  Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Guide
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/ReadMeCodeAnalysis.html">
+    Schematic Editor
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-header ">
+  Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <div>
+  <h2>
+    RotateScale Module
+  </h2>
+  <dl class="fsdocs-metadata">
+    <dt>
+      Namespace: 
+      <a href="/issie/reference/global.html">
+        global
+      </a>
+    </dt>
+    <dt>
+      Assembly: Renderer.dll
+    </dt>
+  </dl>
+  <div class="fsdocs-xmldoc">
+    <div>
+      <p class="fsdocs-summary">
+        
+      </p>
+    </div>
+  </div>
+  <div>
+    <h3>
+      Types
+    </h3>
+    <table class="table outer-list fsdocs-entity-list">
+      <thead>
+        <tr>
+          <td>
+            Type
+          </td>
+          <td>
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="PortInfo">
+                <a href="/issie/reference/rotatescale-portinfo.html">
+                  PortInfo
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RotateScale.PortInfo`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RotateScale.PortInfo\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L24-24" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 Record containing all the information required to calculate the position of a port on the sheet.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="SymConnDataT">
+                <a href="/issie/reference/rotatescale-symconndatat.html">
+                  SymConnDataT
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RotateScale.SymConnDataT`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RotateScale.SymConnDataT\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L173-173" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 For each edge of the symbol, store a count of how many connections it has to other symbols.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="wireSymbols">
+                <a href="/issie/reference/rotatescale-wiresymbols.html">
+                  wireSymbols
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RotateScale.wireSymbols`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RotateScale.wireSymbols\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L64-64" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                
+              </p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h3>
+      Functions and values
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Function or value
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1384', 1384)" onmouseover="showTip(event, '1384', 1384)">
+                <p>
+                  <a id="adjustPosForBlockFlip">
+                    <a href="#adjustPosForBlockFlip">
+                      <code><span>adjustPosForBlockFlip&#32;<span>flip&#32;h&#32;w&#32;pos</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1384">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>adjustPosForBlockFlip&#32;<span>flip&#32;h&#32;w&#32;pos</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        flip
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-fliptype.html">FlipType</a></code>
+                       - 
+                        Flipped horizontally or vertically
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        h
+                      </b>
+                      :
+                      <code>float</code>
+                       - 
+                       Original height of symbol (Before flip)
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        w
+                      </b>
+                      :
+                      <code>float</code>
+                       - 
+                       Original width of symbol (Before flip)
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        pos
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                  </span>
+                  New top left point of the symbol
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.adjustPosForBlockFlip`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.adjustPosForBlockFlip\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L396-396" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been flipped
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    flip
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-fliptype.html">FlipType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                      Flipped horizontally or vertically
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    h
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Original height of symbol (Before flip)
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    w
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Original width of symbol (Before flip)
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pos
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New top left point of the symbol
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1385', 1385)" onmouseover="showTip(event, '1385', 1385)">
+                <p>
+                  <a id="adjustPosForBlockRotation">
+                    <a href="#adjustPosForBlockRotation">
+                      <code><span>adjustPosForBlockRotation&#32;<span>rotation&#32;h&#32;w&#32;pos</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1385">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>adjustPosForBlockRotation&#32;<span>rotation&#32;h&#32;w&#32;pos</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        rotation
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                       - 
+                       Rotated CW or AntiCW
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        h
+                      </b>
+                      :
+                      <code>float</code>
+                       - 
+                       Original height of symbol (Before rotation)
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        w
+                      </b>
+                      :
+                      <code>float</code>
+                       - 
+                       Original width of symbol (Before rotation)
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        pos
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                  </span>
+                  New top left point of the symbol
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.adjustPosForBlockRotation`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.adjustPosForBlockRotation\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L376-376" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Get the new top left of a symbol after it has been rotated
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    rotation
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Rotated CW or AntiCW
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    h
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Original height of symbol (Before rotation)
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    w
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Original width of symbol (Before rotation)
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    pos
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New top left point of the symbol
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1386', 1386)" onmouseover="showTip(event, '1386', 1386)">
+                <p>
+                  <a id="alignPortsOffset">
+                    <a href="#alignPortsOffset">
+                      <code><span>alignPortsOffset&#32;<span>movePInfo&#32;otherPInfo</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1386">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>alignPortsOffset&#32;<span>movePInfo&#32;otherPInfo</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        movePInfo
+                      </b>
+                      :
+                      <code><a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        otherPInfo
+                      </b>
+                      :
+                      <code><a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  movePInfo
+                </span>
+                :
+                <code><a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  otherPInfo
+                </span>
+                :
+                <code><a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1387', 1387)" onmouseover="showTip(event, '1387', 1387)">
+                <p>
+                  <a id="alignSymbols">
+                    <a href="#alignSymbols">
+                      <code><span>alignSymbols&#32;<span>wModel&#32;symbolToSize&#32;otherSymbol</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1387">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>alignSymbols&#32;<span>wModel&#32;symbolToSize&#32;otherSymbol</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        symbolToSize
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        otherSymbol
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  wModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symbolToSize
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  otherSymbol
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1388', 1388)" onmouseover="showTip(event, '1388', 1388)">
+                <p>
+                  <a id="findSelectedSymbols">
+                    <a href="#findSelectedSymbols">
+                      <code><span>findSelectedSymbols&#32;<span>compList&#32;model</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1388">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>findSelectedSymbols&#32;<span>compList&#32;model</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        compList
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compList
+                </span>
+                :
+                <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  model
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1389', 1389)" onmouseover="showTip(event, '1389', 1389)">
+                <p>
+                  <a id="flipBlock">
+                    <a href="#flipBlock">
+                      <code><span>flipBlock&#32;<span>compList&#32;model&#32;flip</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1389">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>flipBlock&#32;<span>compList&#32;model&#32;flip</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        compList
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                       - 
+                       List of ComponentId's of selected components
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                       - 
+                       Current symbol model
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        flip
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-fliptype.html">FlipType</a></code>
+                       - 
+                       Type of flip to do
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                  </span>
+                  New flipped symbol model
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.flipBlock`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.flipBlock\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L686-686" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Flips a block of symbols, returning the new symbol model
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compList
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     List of ComponentId's of selected components
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Current symbol model
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    flip
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-fliptype.html">FlipType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Type of flip to do
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New flipped symbol model
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1390', 1390)" onmouseover="showTip(event, '1390', 1390)">
+                <p>
+                  <a id="flipPointAboutBlockCentre">
+                    <a href="#flipPointAboutBlockCentre">
+                      <code><span>flipPointAboutBlockCentre&#32;<span>point&#32;center&#32;flip</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1390">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>flipPointAboutBlockCentre&#32;<span>point&#32;center&#32;flip</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        point
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                       - 
+                       Original XYPos
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        center
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                       - 
+                       The center XYPos that the point is flipped about
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        flip
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-fliptype.html">FlipType</a></code>
+                       - 
+                       Horizontal or Vertical flip
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                  </span>
+                  New flipped point
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.flipPointAboutBlockCentre`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.flipPointAboutBlockCentre\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L360-360" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a flip type and returns the point flipped about the centre
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    point
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Original XYPos
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    center
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     The center XYPos that the point is flipped about
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    flip
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-fliptype.html">FlipType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Horizontal or Vertical flip
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New flipped point
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1391', 1391)" onmouseover="showTip(event, '1391', 1391)">
+                <p>
+                  <a id="flipSymbolInBlock">
+                    <a href="#flipSymbolInBlock">
+                      <code><span>flipSymbolInBlock&#32;<span>flip&#32;blockCentre&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1391">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>flipSymbolInBlock&#32;<span>flip&#32;blockCentre&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        flip
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-fliptype.html">FlipType</a></code>
+                       - 
+                        Flip horizontally or vertically
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        blockCentre
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                       - 
+                       Symbol to be flipped
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  New symbol after flipped about block centre.
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.flipSymbolInBlock`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.flipSymbolInBlock\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L446-446" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Flip a symbol horizontally or vertically in its block.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    flip
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-fliptype.html">FlipType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                      Flip horizontally or vertically
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    blockCentre
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Symbol to be flipped
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New symbol after flipped about block centre.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1392', 1392)" onmouseover="showTip(event, '1392', 1392)">
+                <p>
+                  <a id="getBlock">
+                    <a href="#getBlock">
+                      <code><span>getBlock&#32;<span>symbols</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1392">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>getBlock&#32;<span>symbols</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symbols
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharplist-1">List</a>&lt;<a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&gt;</span></code>
+                       - 
+                       Selected symbols list
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                  </span>
+                  Bounding Box
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.getBlock`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.getBlock\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L311-311" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Get the bounding box of multiple selected symbols
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symbols
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharplist-1">List</a>&lt;<a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Selected symbols list
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    Bounding Box
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1393', 1393)" onmouseover="showTip(event, '1393', 1393)">
+                <p>
+                  <a id="getOppEdgePortInfo">
+                    <a href="#getOppEdgePortInfo">
+                      <code><span>getOppEdgePortInfo&#32;<span>wModel&#32;symbolToSize&#32;otherSymbol</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1393">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>getOppEdgePortInfo&#32;<span>wModel&#32;symbolToSize&#32;otherSymbol</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        symbolToSize
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        otherSymbol
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><span>(<span><a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a>&#32;*&#32;<a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a></span>)</span>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.getOppEdgePortInfo`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.getOppEdgePortInfo\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L76-76" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Try to get two ports that are on opposite edges.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symbolToSize
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    otherSymbol
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><span>(<span><a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a>&#32;*&#32;<a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a></span>)</span>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1394', 1394)" onmouseover="showTip(event, '1394', 1394)">
+                <p>
+                  <a id="getPortAB">
+                    <a href="#getPortAB">
+                      <code><span>getPortAB&#32;<span>wModel&#32;wireSyms</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1394">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>getPortAB&#32;<span>wModel&#32;wireSyms</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        wireSyms
+                      </b>
+                      :
+                      <code><a href="/issie/reference/rotatescale-wiresymbols.html">wireSymbols</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;*&#32;<a href="/issie/reference/commontypes-port.html">Port</a></span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  wModel
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  wireSyms
+                </span>
+                :
+                <code><a href="/issie/reference/rotatescale-wiresymbols.html">wireSymbols</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/commontypes-port.html">Port</a>&#32;*&#32;<a href="/issie/reference/commontypes-port.html">Port</a></span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1395', 1395)" onmouseover="showTip(event, '1395', 1395)">
+                <p>
+                  <a id="getScalingFactorAndOffsetCentre">
+                    <a href="#getScalingFactorAndOffsetCentre">
+                      <code><span>getScalingFactorAndOffsetCentre&#32;<span>min&#32;matchMin&#32;max&#32;matchMax</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1395">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>getScalingFactorAndOffsetCentre&#32;<span>min&#32;matchMin&#32;max&#32;matchMax</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        min
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        matchMin
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        max
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        matchMax
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span>float&#32;*&#32;float</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  min
+                </span>
+                :
+                <code>float</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  matchMin
+                </span>
+                :
+                <code>float</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  max
+                </span>
+                :
+                <code>float</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  matchMax
+                </span>
+                :
+                <code>float</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span>float&#32;*&#32;float</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1396', 1396)" onmouseover="showTip(event, '1396', 1396)">
+                <p>
+                  <a id="getScalingFactorAndOffsetCentreGroup">
+                    <a href="#getScalingFactorAndOffsetCentreGroup">
+                      <code><span>getScalingFactorAndOffsetCentreGroup&#32;<span>matchBBMin&#32;matchBBMax&#32;selectedSymbols</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1396">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>getScalingFactorAndOffsetCentreGroup&#32;<span>matchBBMin&#32;matchBBMax&#32;selectedSymbols</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        matchBBMin
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        matchBBMax
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        selectedSymbols
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><span>(<span>float&#32;*&#32;float</span>)</span>&#32;*&#32;<span>(<span>float&#32;*&#32;float</span>)</span></span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  matchBBMin
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  matchBBMax
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  selectedSymbols
+                </span>
+                :
+                <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><span>(<span>float&#32;*&#32;float</span>)</span>&#32;*&#32;<span>(<span>float&#32;*&#32;float</span>)</span></span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1397', 1397)" onmouseover="showTip(event, '1397', 1397)">
+                <p>
+                  <a id="groupNewSelectedSymsModel">
+                    <a href="#groupNewSelectedSymsModel">
+                      <code><span>groupNewSelectedSymsModel&#32;<span>compList&#32;model&#32;selectedSymbols&#32;modifySymbolFunc</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1397">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>groupNewSelectedSymsModel&#32;<span>compList&#32;model&#32;selectedSymbols&#32;modifySymbolFunc</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        compList
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        selectedSymbols
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        modifySymbolFunc
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;->&#32;<a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  compList
+                </span>
+                :
+                <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  model
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  selectedSymbols
+                </span>
+                :
+                <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  modifySymbolFunc
+                </span>
+                :
+                <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;->&#32;<a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1398', 1398)" onmouseover="showTip(event, '1398', 1398)">
+                <p>
+                  <a id="makePortInfo">
+                    <a href="#makePortInfo">
+                      <code><span>makePortInfo&#32;<span>sym&#32;port</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1398">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>makePortInfo&#32;<span>sym&#32;port</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        port
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.makePortInfo`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.makePortInfo\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L38-38" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     TODO: this is mostly copy pasted code from Symbol.getPortPos, perhaps abstract out the existing code there to use makePortInfo.
+ Could not simply use getPortPos because more data (side, topBottomGap, etc.) is needed to caclulate the new dimensions of the resized symbol.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    port
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-port.html">Port</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/rotatescale-portinfo.html">PortInfo</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1399', 1399)" onmouseover="showTip(event, '1399', 1399)">
+                <p>
+                  <a id="noSymbolOverlap">
+                    <a href="#noSymbolOverlap">
+                      <code><span>noSymbolOverlap&#32;<span>boxesIntersect&#32;boundingBoxes&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1399">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>noSymbolOverlap&#32;<span>boxesIntersect&#32;boundingBoxes&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        boxesIntersect
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a>&#32;->&#32;<a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a>&#32;->&#32;bool</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        boundingBoxes
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  boxesIntersect
+                </span>
+                :
+                <code><span><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a>&#32;->&#32;<a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a>&#32;->&#32;bool</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  boundingBoxes
+                </span>
+                :
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  sym
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1400', 1400)" onmouseover="showTip(event, '1400', 1400)">
+                <p>
+                  <a id="oneCompBoundsBothEdges">
+                    <a href="#oneCompBoundsBothEdges">
+                      <code><span>oneCompBoundsBothEdges&#32;<span>selectedSymbols</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1400">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>oneCompBoundsBothEdges&#32;<span>selectedSymbols</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        selectedSymbols
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  selectedSymbols
+                </span>
+                :
+                <code><span><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a>&#32;list</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1401', 1401)" onmouseover="showTip(event, '1401', 1401)">
+                <p>
+                  <a id="optimiseSymbol">
+                    <a href="#optimiseSymbol">
+                      <code><span>optimiseSymbol&#32;<span>wModel&#32;symbol&#32;boundingBoxes</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1401">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>optimiseSymbol&#32;<span>wModel&#32;symbol&#32;boundingBoxes</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        symbol
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        boundingBoxes
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.optimiseSymbol`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.optimiseSymbol\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L199-199" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Finds the optimal size and position for the selected symbol w.r.t. to its surrounding symbols.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symbol
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    boundingBoxes
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1402', 1402)" onmouseover="showTip(event, '1402', 1402)">
+                <p>
+                  <a id="postUpdateScalingBox">
+                    <a href="#postUpdateScalingBox">
+                      <code><span>postUpdateScalingBox&#32;<span><span>(<span>model,&#32;cmd</span>)</span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1402">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>postUpdateScalingBox&#32;<span><span>(<span>model,&#32;cmd</span>)</span></span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        cmd
+                      </b>
+                      :
+                      <code><span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a>&#32;*&#32;<span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  model
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  cmd
+                </span>
+                :
+                <code><span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a>&#32;*&#32;<span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1403', 1403)" onmouseover="showTip(event, '1403', 1403)">
+                <p>
+                  <a id="reSizeSymbol">
+                    <a href="#reSizeSymbol">
+                      <code><span>reSizeSymbol&#32;<span>wModel&#32;symbolToSize&#32;otherSymbol</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1403">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>reSizeSymbol&#32;<span>wModel&#32;symbolToSize&#32;otherSymbol</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        symbolToSize
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        otherSymbol
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.reSizeSymbol`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.reSizeSymbol\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L133-133" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     HLP23: To test this, it must be given two symbols interconnected by wires. It then resizes symbolToSize
+ so that the connecting wires are exactly straight
+ HLP23: It should work out the interconnecting wires (wires) from
+ the two symbols, wModel.Wires and sModel.Ports
+ It will do nothing if symbolToOrder is not a Custom component (which has adjustable size).
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symbolToSize
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    otherSymbol
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1404', 1404)" onmouseover="showTip(event, '1404', 1404)">
+                <p>
+                  <a id="reSizeSymbolTopLevel">
+                    <a href="#reSizeSymbolTopLevel">
+                      <code><span>reSizeSymbolTopLevel&#32;<span>wModel&#32;symbolToSize&#32;otherSymbol</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1404">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>reSizeSymbolTopLevel&#32;<span>wModel&#32;symbolToSize&#32;otherSymbol</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        symbolToSize
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        otherSymbol
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.reSizeSymbolTopLevel`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.reSizeSymbolTopLevel\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L161-161" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     For UI to call ResizeSymbol.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    symbolToSize
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    otherSymbol
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1405', 1405)" onmouseover="showTip(event, '1405', 1405)">
+                <p>
+                  <a id="rotateBlock">
+                    <a href="#rotateBlock">
+                      <code><span>rotateBlock&#32;<span>compList&#32;model&#32;rotation</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1405">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>rotateBlock&#32;<span>compList&#32;model&#32;rotation</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        compList
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                       - 
+                       List of ComponentId's of selected components
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                       - 
+                       Current symbol model
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        rotation
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                       - 
+                       Type of rotation to do
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                  </span>
+                  New rotated symbol model
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.rotateBlock`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.rotateBlock\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L535-535" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Rotates a block of symbols, returning the new symbol model
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compList
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     List of ComponentId's of selected components
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Current symbol model
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    rotation
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Type of rotation to do
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New rotated symbol model
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1406', 1406)" onmouseover="showTip(event, '1406', 1406)">
+                <p>
+                  <a id="rotatePointAboutBlockCentre">
+                    <a href="#rotatePointAboutBlockCentre">
+                      <code><span>rotatePointAboutBlockCentre&#32;<span>point&#32;centre&#32;rotation</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1406">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>rotatePointAboutBlockCentre&#32;<span>point&#32;centre&#32;rotation</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        point
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                       - 
+                       Original XYPos
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        centre
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        rotation
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                       - 
+                       Clockwise or Anticlockwise 
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                  </span>
+                  New flipped point
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.rotatePointAboutBlockCentre`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.rotatePointAboutBlockCentre\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L332-332" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Takes a point Pos, a centre Pos, and a rotation type and returns the point flipped about the centre
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    point
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Original XYPos
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    centre
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    rotation
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Clockwise or Anticlockwise 
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New flipped point
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1407', 1407)" onmouseover="showTip(event, '1407', 1407)">
+                <p>
+                  <a id="rotateSymbolByDegree">
+                    <a href="#rotateSymbolByDegree">
+                      <code><span>rotateSymbolByDegree&#32;<span>degree&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1407">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>rotateSymbolByDegree&#32;<span>degree&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        degree
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.rotateSymbolByDegree`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.rotateSymbolByDegree\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L523-523" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     HLP 23: AUTHOR Klapper - Rotates a symbol based on a degree, including: ports and component parameters.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    degree
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1408', 1408)" onmouseover="showTip(event, '1408', 1408)">
+                <p>
+                  <a id="rotateSymbolInBlock">
+                    <a href="#rotateSymbolInBlock">
+                      <code><span>rotateSymbolInBlock&#32;<span>rotation&#32;blockCentre&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1408">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>rotateSymbolInBlock&#32;<span>rotation&#32;blockCentre&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        rotation
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                       - 
+                        Clockwise or Anticlockwise rotation
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        blockCentre
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                       - 
+                       Symbol to be rotated
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  New symbol after rotated about block centre.
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.rotateSymbolInBlock`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.rotateSymbolInBlock\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L412-412" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Rotate a symbol in its block.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    rotation
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-rotation.html">Rotation</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                      Clockwise or Anticlockwise rotation
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    blockCentre
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Symbol to be rotated
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New symbol after rotated about block centre.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1409', 1409)" onmouseover="showTip(event, '1409', 1409)">
+                <p>
+                  <a id="scaleSymbol">
+                    <a href="#scaleSymbol">
+                      <code><span>scaleSymbol&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1409">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>scaleSymbol&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        arg0
+                      </b>
+                      :
+                      <code><span>float&#32;*&#32;float</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg1
+                      </b>
+                      :
+                      <code><span>float&#32;*&#32;float</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  arg0
+                </span>
+                :
+                <code><span>float&#32;*&#32;float</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  arg1
+                </span>
+                :
+                <code><span>float&#32;*&#32;float</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  sym
+                </span>
+                :
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1410', 1410)" onmouseover="showTip(event, '1410', 1410)">
+                <p>
+                  <a id="scaleSymbolInBlock">
+                    <a href="#scaleSymbolInBlock">
+                      <code><span>scaleSymbolInBlock&#32;<span>scaleType&#32;block&#32;sym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1410">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>scaleSymbolInBlock&#32;<span>scaleType&#32;block&#32;sym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        scaleType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-scaletype.html">ScaleType</a></code>
+                       - 
+                       Scale up or down. Scaling distance is constant
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        block
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                       - 
+                       Bounding box of selected components
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                       - 
+                       Symbol to be rotated
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                  </span>
+                  New symbol after scaled about block centre.
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.scaleSymbolInBlock`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.scaleSymbolInBlock\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L496-496" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                    HLP 23: AUTHOR Ismagilov - Scales selected symbol up or down.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    scaleType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-scaletype.html">ScaleType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Scale up or down. Scaling distance is constant
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    block
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Bounding box of selected components
+                  </p>
+                </dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                     Symbol to be rotated
+                  </p>
+                </dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    New symbol after scaled about block centre.
+                  </p>
+                </dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1411', 1411)" onmouseover="showTip(event, '1411', 1411)">
+                <p>
+                  <a id="tryWireSymOppEdge">
+                    <a href="#tryWireSymOppEdge">
+                      <code><span>tryWireSymOppEdge&#32;<span>wModel&#32;wire&#32;sym&#32;otherSym</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1411">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>tryWireSymOppEdge&#32;<span>wModel&#32;wire&#32;sym&#32;otherSym</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        wModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        wire
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        sym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        otherSym
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/commontypes-edge.html">Edge</a>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RotateScale.tryWireSymOppEdge`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RotateScale.tryWireSymOppEdge\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/RotateScale.fs#L177-177" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     If a wire between a target symbol and another symbol connects opposite edges, return the edge that the wire is connected to on the target symbol 
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wire
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    otherSym
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/commontypes-edge.html">Edge</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1412', 1412)" onmouseover="showTip(event, '1412', 1412)">
+                <p>
+                  <a id="updateOrInsert">
+                    <a href="#updateOrInsert">
+                      <code><span>updateOrInsert&#32;<span>symConnData&#32;edge&#32;cid</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1412">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>updateOrInsert&#32;<span>symConnData&#32;edge&#32;cid</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        symConnData
+                      </b>
+                      :
+                      <code><a href="/issie/reference/rotatescale-symconndatat.html">SymConnDataT</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        edge
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-edge.html">Edge</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        cid
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/rotatescale-symconndatat.html">SymConnDataT</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  symConnData
+                </span>
+                :
+                <code><a href="/issie/reference/rotatescale-symconndatat.html">SymConnDataT</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  edge
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-edge.html">Edge</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  cid
+                </span>
+                :
+                <code><a href="/issie/reference/commontypes-componentid.html">ComponentId</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><a href="/issie/reference/rotatescale-symconndatat.html">SymConnDataT</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <div class="empty"></div>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

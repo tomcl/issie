@@ -21,19 +21,20 @@ index: 1
 
 Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows and Macos PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level `ISSIE.exe` file with the blue ISSIE chip icon. 
 
-# Issie Feature Development Roadmap
+### Issie Feature Development Roadmap
 
-## 2024 
+#### 2024 
 * Workaround React 17 undocumented memory leak!
 * Much better User interface to Waveform Simulator
 * Allow much longer simulation times keeping waveforms in memory
 * Automatic whole-circuit wire segment separation for almost perfect auto-routing
 
-## 2025
-* New better UI Waveform selector
-* Tooltips on waveform Simulator waveforms
+#### 2025
+* New Waveform Selector for waveform simulations
+* Tooltips on waveform simulator waveforms
 * Symbolic parameters to make component bit-widths etc adjustable (in progress)
 * Improvements to Verilog parser and to-Issie synthesis (in progress)
+* See [Issue 506](https://github.com/tomcl/issie/issues/506) for possible small changes.
 
 <br><br>
 # Help and User Guides
@@ -50,7 +51,7 @@ Go through the  [User Guide](userGuide.html).
 ### ISSIE for Developers
 
 * The ISSIE [wiki](https://github.com/tomcl/issie/wiki) has a large amount of information on the details of how ISSIE is designed, referencing a few student project reports with (a lot) of detail and background.
-* F# XML documentation on the [ISSIE API](Reference/index.html)
+* F# XML documentation on the [ISSIE API](reference/index.html)
 
 <br><br>
 # Acknowledgements

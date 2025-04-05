@@ -285,13 +285,6 @@ module List =
 
 
     /// Extract Ok elements from result list, return list of Ok values
-
-
-
-
-
-
-
     [<CompiledName("OkList")>]
     let okList lst = [ for x in lst do match x with | Ok y -> yield y | _ -> (); yield! []]
 
@@ -336,16 +329,37 @@ module Map =
         match table.TryFind key with | Some v -> v |None -> defaultValue
 
     /// Return array of all values in table
-    [<CompiledName("Values")>]
-    let values (table:Map<'Key,'Value>) =
+    [<CompiledName("ValuesA")>]
+    let valuesA (table:Map<'Key,'Value>) =
         table |> Map.toArray |> Array.map snd
 
     /// Return array of all keys in table
-    [<CompiledName("Keys")>]
-    let keys (table:Map<'Key,'Value>) =
+    [<CompiledName("KeysA")>]
+    let keysA (table:Map<'Key,'Value>) =
         table |> Map.toArray |> Array.map fst
 
+    /// Return list of all values in table
+    [<CompiledName("ValuesL")>]
+    let valuesL (table:Map<'Key,'Value>) =
+        table |> Map.toList |> List.map snd
 
+    /// Return list of all keys in table
+    [<CompiledName("KeysL")>]
+    let keysL (table:Map<'Key,'Value>) =
+        table |> Map.toList |> List.map fst
+
+    /// Return m1 with items in m2 added.
+    /// If key is in both m1 and m2, the value in m2 is used.
+    [<CompiledName("AddMap")>]
+    let addMap (m1:Map<'Key,'Value>) (m2:Map<'Key,'Value>) =
+        m2 |> Map.fold (fun m k v -> Map.add k v m) m1
+
+    /// Return m with key-value pairs from l added.
+    /// If key is in both m and l, the value in l is used.
+    [<CompiledName("AddListToMap")>]
+    let addListToMap (m:Map<'Key,'Value>) (l:('Key*'Value) list) =
+        (m, l)
+        ||> List.fold (fun m (k,v) -> Map.add k v m)
 
 
 

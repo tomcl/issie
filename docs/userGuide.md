@@ -13,7 +13,7 @@ Find the [latest Issie release](https://github.com/tomcl/issie/releases/latest).
 
 - **Windows:** unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
 - **MacOS:** Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
-    - The binaries are not signed. You will need to [perform a one-off security bypass](https://www.wikihow.com/Install-Software-from-Unsigned-Developers-on-a-Mac).
+    - The MacOs binaries are signed. 
     
 
 ### Creating a New Project
@@ -34,13 +34,16 @@ This process creates a folder where your project will be stored and the first sh
 Let's start with a very simple schematic: a simple 2-input AND gate. 
 
 Add the following components to your canvas from the `Catalogue` tab:
+
 - `INPUT/OUTPUT` => `Input` => Name: 'A', Bits: 1
 - `INPUT/OUTPUT` => `Input` => Name: 'B', Bits: 1
 - `GATES` => `And` 
 - `INPUT/OUTPUT` => `Output` => Name: 'OUT', Bits: 1
 
 Now make the appropriate wiring to connect all the components by clicking on one port and dragging the wire to the port you want to connect it to. 
+
 **Connect:**
+
 - Input 'A' to the first input port of the AND gate
 - Input 'B' to the second input port of the AND gate
 - Output 'OUT' to the output port of the AND gate
@@ -56,6 +59,7 @@ Your design should look like this:
 Time to simulate the design and see how the output `OUT` changes as we change the two inputs.
 
 Click the `Simulation` tab which is located on the top-right corner and then `Start Simulation`. Now you can change the value of the two inputs and see how the value of the output. Try all 4 combinations of inputs: 
+
 - A=0, B=0  
 - A=0, B=1  
 - A=1, B=0  
@@ -90,6 +94,7 @@ Again, **simulate the design** and check the output remains correct as you chang
 
 
 The schematic here is not easy to read. **Let's improve it!** The ISSIE canvas is fully customisable to allow the creation of readable and good-looking schematics. Specifically, we can:
+
 1. Rotate, Flip and Move all symbols 
 2. Change name and reposition the symbols' *labels* relative to the symbols
 3. Manually route any specific segment in a wire

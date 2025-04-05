@@ -21,7 +21,7 @@ jobs:
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.ISSIE_DOCS_TOKEN }}
-        publish_dir: ./output
+        publish_dir: docs
 
 
 # A new personal access token must be generated to allow the GitHub Actions workflow to push to the repository.

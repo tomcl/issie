@@ -34,7 +34,7 @@ Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest)
 * Tooltips on waveform simulator waveforms
 * Symbolic parameters to make component bit-widths etc adjustable (in progress)
 * Improvements to Verilog parser and to-Issie synthesis (in progress)
-* See [Issue 506](https://github.com/tomcl/issie/issues/506) for possible small changes
+* See [Issue 506](https://github.com/tomcl/issie/issues/506) for possible small changes.
 
 <br><br>
 # Help and User Guides

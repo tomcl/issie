@@ -9,7 +9,7 @@ index: 2
 
 ### Downloading and Running ISSIE
 
-Find the [latest Issie release](https://github.com/tomcl/issie/releases/latest). At the bottom of the page, you can find the latest pre-built binary for your platform (Windows or ARM64 Macos). Issie will require in total about 200M of disk space.
+Find the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). At the bottom of the page, you can find the latest pre-built binary for your platform (Windows or ARM64 Macos). ISSIE will require in total about 200M of disk space.
 
 - **Windows:** unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
 - **MacOS:** Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
@@ -19,7 +19,7 @@ Find the [latest Issie release](https://github.com/tomcl/issie/releases/latest).
 ### Creating a New Project
 
 
-Once you open Issie you should see two options: `New Project` and `Open Project`. 
+Once you open ISSIE you should see two options: `New Project` and `Open Project`. 
   
 - Click `New Project`
 - Navigate to the folder you want to save your project
@@ -143,7 +143,7 @@ In this section we will create a hierarchical design with multiple design sheets
 ### Improving the design sheet
 
 
-It's time to use a hidden part of the Issie UI to **move ports on custom symbols**. Issie allows you to re-order and change the side of input and output ports of custom symbols by `CTRL` + `CLICKING ON THE PORT` you want to move. The UI, once you realise that you must keep `Ctrl` (`Cmd` on Macs) pressed, is intuitive.
+It's time to use a hidden part of the ISSIE UI to **move ports on custom symbols**. ISSIE allows you to re-order and change the side of input and output ports of custom symbols by `CTRL` + `CLICKING ON THE PORT` you want to move. The UI, once you realise that you must keep `Ctrl` (`Cmd` on Macs) pressed, is intuitive.
 
 Preview how it works in the gif below:
 
@@ -160,7 +160,7 @@ Currently our ROM is empty as we selected the option `Enter Data Later` before. 
 3. Change the content of the 16 memory location available by assigning a random 4-bit number to each one
 4. Click `done`
 
-Issie also allows ROM and RAM initialisation via `.ram` text files of hex data in the Issie directory. See the Issie **Eratosthenes** demo for an example of this. The memory component **properties** tab offers additional options when there  `.ram` files present.
+ISSIE also allows ROM and RAM initialisation via `.ram` text files of hex data in the ISSIE directory. See the ISSIE **Eratosthenes** demo for an example of this. The memory component **properties** tab offers additional options when there  `.ram` files present.
 
 ### Simulation
 
@@ -262,4 +262,4 @@ You now know how to use ISSIE to create & simulate digital designs.
 
 You can now create your designs (from simple circuits to fully functioning CPUs) and either simulate them or extract them as Verilog to use them with other tools.
 
-For inspiration, look when you start Issie under the **demos** option  for Eratosthenes Sieve demo which consists of an EEP1 CPU running an Eratosthenes Sieve program written in EEP1 assembly language. The sieve occupies most of EEP1 RAM and the program takes 200,000 clock cycles to run.
+For inspiration, look when you start ISSIE under the **demos** option  for Eratosthenes Sieve demo which consists of an EEP1 CPU running an Eratosthenes Sieve program written in EEP1 assembly language. The sieve occupies most of EEP1 RAM and the program takes 200,000 clock cycles to run.

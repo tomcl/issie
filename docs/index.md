@@ -7,21 +7,21 @@ index: 1
 
 # What is ISSIE?
 
-* ISSIE is an **easy-to-use schematic editor and simulator** for hierarchical design of **digital logic circuits**. Run it and see the built-in demos for what it can do! ISSIE is targeted at 1st year university students, but would be useful teaching in schools and even for quick hardware design and test in an industrial or research environment. For the latter use case although we allow Verilog input and output these features need a bit more work.
+* ISSIE is an **easy-to-use schematic editor and simulator** for hierarchical design of **digital logic circuits**. Run it and see the built-in demos for what it can do! ISSIE is targeted at 1st year university students, but would be useful teaching in schools and even for quick hardware design and test in an industrial or research environment. For the latter use case although we allow Verilog input and output these features need a bit more work to be as complete and nice as the rest of ISSIE.
 * ISSIE was motivated because we found that industry-standard CAD systems were too complex and buggy to be learnt in labs, and when learnt still nasty to use. Other educational products were too limited. We wanted **a schematic-based system to teach hierarchical design and digital electronics visually that would scale to large designs**.
-   - We find that EEE-educated internal PhD candidates starting with schematic logic designs usually have a better understanding of what **digital hardware is** than those from otehr institutions starting with HDL.
+   - We find that EEE-educated internal PhD candidates starting with schematic logic designs usually have a better understanding of what **digital hardware is** than those from other institutions starting with HDL.
 * ISSIE is an **open source project at Imperial College London developed over 5 years by students**. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac targets.
-* ISSIE is implemented using nearly 46K lines in the FP language F#, the equivalent of 150K lines in a typical OOP language. ISSIE's implementation is almost pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has **its own digital simulator**, which uses **write-once semantics** on mutable arrays to be close to functional programming and also efficient.
-* ISSIE uses the [FABLE F# to Javascript compiler](https://fable.io/), [Elmish MVU framework](https://elmish.github.io/elmish/), and [Electron](https://www.electronjs.org/). This tool chain creates seemless cross-platform applications with simple and highly productive coding.
+* ISSIE is implemented using nearly 50K lines in the Functional-first language F#, the equivalent of 150K lines in a typical OOP language. ISSIE's implementation is almost pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has **its own digital simulator**, which uses **write-once semantics** on mutable (JS typed) arrays to combine the robustness of functional programming with high performance.
+* ISSIE uses the [FABLE F# to Javascript compiler](https://fable.io/), [Elmish MVU framework](https://elmish.github.io/elmish/), and [Electron](https://www.electronjs.org/). This tool chain creates seamless cross-platform applications with simple and highly productive coding.
 * ISSIE can generate Verilog output to drive FPGAs and has an integrated system to do this directly using the **ISSIE-Stick** hardware.
 * For acronym geeks, ISSIE stands for: *Interactive Schematic Simulator with Integrated Editor*.
 <br><br>
 
 # Running ISSIE
 
-Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows and Macos PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level `ISSIE.exe` file with the blue ISSIE chip icon. 
+Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows and Macos PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level `issie.exe` file with the blue ISSIE chip icon. 
 
-### Issie Feature Development Roadmap
+### ISSIE Feature Development Roadmap
 
 #### 2024 
 * Workaround unexpected & undocumented React 17 memory leak

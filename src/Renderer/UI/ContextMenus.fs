@@ -2,6 +2,7 @@
 open Fable.Core
 open Fable.Core.JsInterop
 open ElectronAPI
+
 //
 // **** DO NOT open or use renderer module code ****
 //
@@ -66,7 +67,7 @@ let makeMenu
         Map.tryFind menuType menuMap
         |> function
             | None ->
-                printfn "%s" $"Error: '{menuType}' must be a valid menu name: one of {menuMap |> Map.keys |> List.ofSeq}"
+                printfn "%s" $"Error: '{menuType}' must be a valid menu name: one of {menuMap |> Map.keys |> Seq.toList}"
                 ["unknown_menu"]
             | Some cases ->
                 cases

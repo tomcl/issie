@@ -7,7 +7,7 @@ module CanvasStateAnalyser
     CanvasState and SimulationGraph.
 *)
 
-
+open EEExtensions
 open CommonTypes
 open SimGraphTypes
 open BusWidthInferer
@@ -477,7 +477,7 @@ let private checkPortsAreConnectedProperly (canvasState: CanvasState) =
       match (checkCounts
           m.LabTargetConns
           (fun conn -> m.ToComp[ComponentId conn.Target.HostId].Label)
-          (m.LabGroup |> Map.toList |> List.map fst)
+          (m.LabGroup |> Map.keysL)
           (labMap)
           ((=) 1)) with
             | Some (labelId, connsAffected, count) ->

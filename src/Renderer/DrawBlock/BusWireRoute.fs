@@ -1,5 +1,5 @@
 ﻿module BusWireRoute
-
+open EEExtensions
 open CommonTypes
 open BlockHelpers
 open DrawModelType.SymbolT
@@ -86,8 +86,7 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
 
     let allBoundingBoxes =
         model.Symbol.Symbols
-        |> Map.values
-        |> Seq.toList
+        |> Map.valuesL
         |> List.filter (fun s -> s.Annotation = None)
         |> List.map (fun s -> (s.Component, Symbol.getSymbolBoundingBox s))
 

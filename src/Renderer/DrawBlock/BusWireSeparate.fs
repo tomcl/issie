@@ -1,4 +1,5 @@
 ﻿module BusWireSeparate
+open EEExtensions
 open CommonTypes
 open DrawModelType.SymbolT
 open DrawModelType.BusWireT
@@ -852,8 +853,7 @@ let removeModelCorners wires (model: Model) =
     let wires = model.Wires
     let corners =
         wires
-        |> Map.values
-        |> Seq.toList
+        |> Map.valuesL
         |> List.collect (findWireCorner info maxCornerSize)
     (info, corners)
     ||> List.fold removeCorner
@@ -912,7 +912,7 @@ let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: 
     /// Add linked line changes before movement changes. Movement changes will override
     /// linked line chnages if need be.
 
-    let allWires = model.Wires |> Map.keys |> Seq.toList
+    let allWires = model.Wires |> Map.keysL
 
     /// We do the line generation for ALL wires
     /// Then, after all  segments are clustered, we actually change segments only in clusters
@@ -1004,7 +1004,7 @@ let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
             else cId, wire)
         |> Map.ofList
     { model with Wires = newWires }
-    |> updateWireSegmentJumpsAndSeparations (Map.keys newWires |> Seq.toList)
+    |> updateWireSegmentJumpsAndSeparations (Map.keysL newWires)
 
 /// all wires from comps have all segments made auto.
 /// then the separation logic is rerun on these wires
@@ -1032,6 +1032,6 @@ let reRouteWiresFrom  (comps: ComponentId list) (model: Model) =
     let model = {model with Wires = wires'}
     (model, wires')
     ||> Map.fold (fun model wid wire -> Optic.map (wireOf_ wid) (smartAutoroute model) model)
-    |> fun model -> updateWireSegmentJumpsAndSeparations (wires' |> Map.keys |> Seq.toList) model
+    |> fun model -> updateWireSegmentJumpsAndSeparations (wires' |> Map.keysL) model
 
 

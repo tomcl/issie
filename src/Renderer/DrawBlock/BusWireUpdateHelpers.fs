@@ -1,5 +1,5 @@
 ﻿module BusWireUpdateHelpers
-
+open EEExtensions
 open CommonTypes
 open BlockHelpers
 open DrawModelType.SymbolT
@@ -54,8 +54,7 @@ let getClickedSegment (model: Model) (wireId: ConnectionId) (mouse: XYPos) : ASe
         let wire = model.Wires[wid]
         model.Wires
         |> Map.filter (fun wid wire' -> wire'.OutputPort = wire.OutputPort)
-        |> Map.values
-        |> List.ofSeq
+        |> Map.valuesL
         |> List.collect getAbsSegments
         |> List.filter (fun aSeg ->
             let d = distanceBetweenPointAndSegment aSeg.Start aSeg.End mouse

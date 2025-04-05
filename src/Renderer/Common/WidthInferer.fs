@@ -3,7 +3,7 @@
 *)
 
 module BusWidthInferer
-
+open EEExtensions
 open CommonTypes
 open Helpers
 
@@ -24,8 +24,8 @@ open Helpers
 //       - return
 
 
-let mapKeys (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map fst |> List.ofSeq
-let mapValues (map:Map<'a,'b>) = map |> Map.toSeq |> Seq.map snd |> List.ofSeq
+let mapKeys (map:Map<'a,'b>) = map |> Map.keysL
+let mapValues (map:Map<'a,'b>) = map |> Map.valuesL
 let mapItems (map:Map<'a,'b>) = map |> Map.toSeq |> List.ofSeq
 
 

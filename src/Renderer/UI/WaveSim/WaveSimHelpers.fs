@@ -9,7 +9,7 @@ open Fulma
 open Fulma.Extensions.Wikiki
 open Fable.React
 open Fable.React.Props
-
+open EEExtensions
 open CommonTypes
 open ModelType
 open ModelHelpers
@@ -215,8 +215,7 @@ let td1 react = td [] [ react ]
 let getConnectedWaves (ws:WaveSimModel) (wave:Wave) : Wave list =
     ws.AllWaves
     |> Map.filter (fun wi _ -> wi.SimArrayIndex = wave.WaveId.SimArrayIndex)
-    |> Map.values
-    |> Seq.toList
+    |> Map.valuesL
 
 /// convenience type for use when checking which drivers are connected
 type PortIndex = FastComponent * int * PortType
@@ -300,8 +299,7 @@ let connectedIOs (fs: FastSimulation) (sp: SheetPort) =
     | {Type = IOLabel} as comp -> 
         let sheet = sp.Sheet
         comps
-        |> Map.values
-        |> Seq.toList
+        |> Map.valuesL
         |> List.collect (
             function | {Type=IOLabel; Label = label} as comp1 when label = comp.Label -> 
                         (

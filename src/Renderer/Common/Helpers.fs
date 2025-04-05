@@ -5,6 +5,7 @@
 *)
 
 module Helpers
+open EEExtensions
 open CommonTypes
 open System.Text.RegularExpressions
     [<AutoOpen>]
@@ -156,10 +157,10 @@ let nocr (s:string) =
 // NB mapKeys and mapValues should probably be changed to use F# 6 Map.kets, Map.values
 
 /// Array of map keys
-let inline mapKeys (map:Map<'a,'b>) = map |> Map.toArray |> Array.map fst
+let inline mapKeys (map:Map<'a,'b>) = map |> Map.keysA
 
 /// Array of map values
-let inline mapValues (map:Map<'a,'b>) = map |> Map.toArray |> Array.map snd 
+let inline mapValues (map:Map<'a,'b>) = map |> Map.valuesA
 
 /// Map a function over a pair of elements.
 /// mapPair f (x,y) = f x, f y.

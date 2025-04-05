@@ -1,5 +1,5 @@
 module ErrorCheck
-
+open EEExtensions
 open VerilogTypes
 open Fable.Core.JsInterop
 open CommonTypes
@@ -424,7 +424,7 @@ let checkWiresAndAssignments
         |> List.map fst
         |> List.append wireNameList'
 
-    let outputNameList = portMap |> Map.toList |> List.map fst 
+    let outputNameList = portMap |> Map.keysL
     /// Helper function to extract all inputs + wires declared + outputs
     /// prior to the assignment being checked
     let getCurrentInputWireList location = 

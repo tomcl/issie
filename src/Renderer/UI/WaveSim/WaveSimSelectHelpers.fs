@@ -6,7 +6,7 @@
 
 // Functions to make modal popups that allows waveforms and RAMs
 // to be selected or deselected for display in the waveform simulator.
-
+open EEExtensions
 open Fable.React
 open Fable.React.Props
 open Fulma
@@ -66,8 +66,7 @@ let wavePropsTable (rows: TableRow list) =
 let ensureWaveConsistency (ws: WaveSimModel) =
     let fs = Simulator.getFastSim()
     let okWaves =
-        Map.values ws.AllWaves
-        |> Seq.toList
+        Map.valuesL ws.AllWaves
         |> List.filter (fun wave -> Map.containsKey wave.WaveId.Id fs.WaveComps)
     if okWaves.Length <> ws.AllWaves.Count then
         printfn "EnsureWaveConsistency: waves,Length=%d, ws.AllWaves.Count=%d" okWaves.Length ws.AllWaves.Count
@@ -316,7 +315,7 @@ let waveSelectBreadcrumbs
                 BreadcrumbText = Some sheetName
         }
         let hierarchyText =
-            let allSheets = fs.SimSheetStructure |> Map.keys |> Seq.toList
+            let allSheets = fs.SimSheetStructure |> Map.keysL
             let sheetFilter = wsModel.SheetSearchString.ToUpperInvariant().Trim()
             let withSubsheets = sheetFilter.EndsWith "*"
             let sheetFilter = sheetFilter.TrimEnd '*'
@@ -363,7 +362,7 @@ let infoButton : ReactElement =
 
 let toggleSelectAll (selected: bool) (wsModel: WaveSimModel) (dispatch: Msg -> unit) : unit =
     let start = TimeHelpers.getTimeMs ()
-    let selectedWaves = if selected then Map.keys wsModel.AllWaves |> Seq.toList else []
+    let selectedWaves = if selected then Map.keysL wsModel.AllWaves else []
     dispatch (GenerateWaveforms { wsModel with SelectedWaves = selectedWaves })
     |> TimeHelpers.instrumentInterval "toggleSelectAll" start
 

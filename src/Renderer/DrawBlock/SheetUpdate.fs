@@ -1,5 +1,5 @@
 ﻿module SheetUpdate
-
+open EEExtensions
 open CommonTypes
 open Browser
 open Elmish
@@ -156,8 +156,8 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = []} , Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlA ->
-        let symbols = model.Wire.Symbol.Symbols |> Map.toList |> List.map fst
-        let wires = model.Wire.Wires |> Map.toList |> List.map fst
+        let symbols = model.Wire.Symbol.Symbols |> Map.keysL
+        let wires = model.Wire.Wires |> Map.keysL
         { model with
             SelectedComponents = symbols
             SelectedWires = wires
@@ -450,7 +450,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         model, symbolCmd SymbolT.SaveSymbols
 
     | WireType Jump ->
-        let wires = model.Wire.Wires |> Map.toList |> List.map fst
+        let wires = model.Wire.Wires |> Map.keysL
         model,
         Cmd.batch [
             wireCmd (BusWireT.UpdateWireDisplayType BusWireT.Jump)
@@ -458,7 +458,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         ]
 
     | WireType Radiussed ->
-        let wires = model.Wire.Wires |> Map.toList |> List.map fst
+        let wires = model.Wire.Wires |> Map.keysL
         model,
         Cmd.batch [
             wireCmd (BusWireT.UpdateWireDisplayType BusWireT.Radial)
@@ -466,7 +466,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         ]
        
     | WireType Modern ->
-        let wires = model.Wire.Wires |> Map.toList |> List.map fst
+        let wires = model.Wire.Wires |> Map.keysL
         model,
         Cmd.batch [
             wireCmd (BusWireT.UpdateWireDisplayType BusWireT.Modern)

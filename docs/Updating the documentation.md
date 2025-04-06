@@ -21,12 +21,15 @@ The Markdown source files can be found on the ISSIE repo:
 * Embedded (PNG) graphics: `/docs/img/**.*.md`
 * In documentation source files the file path separator is always `/`
 
-For developer preview of changes set up the repo as for code development and use `dotnet fsdocs build` in the repo root directory. You can find markdown file output under `/output` but note that it will not pick up web references from there so pictures and some links will not work.
+### How to develop documentation
 
-We ought to have a better way to do local documentation previews!
+For developer preview of changes  use `dotnet fsdocs watch --noapidocs` in the repo root directory. The documentation (without API) will be generated. See [Issue 532](https://github.com/tomcl/issie/issues/532) for more details of this limitation.
 
-#### Debugging
+PR changed documentation markdown files.
+
+
+### Gotcha
 
 Documentation builds for ISSIE need a secret key on the repo generated as documented [on the wiki](https://github.com/tomcl/issie/wiki/0-Project-Documentation-Website).
 
-This must be regenerated every 6 months or so.
+This must be regenerated every 6 months or so and uploaded to the repo.

@@ -14,6 +14,10 @@ Find the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest).
 - **Windows:** unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
 - **MacOS:** Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
     - The MacOs binaries are signed. 
+- **If you can't find a binary**: 
+   - MacOs binaries are sometimes not uptodate. You can always generate your only binary by 
+[setting up for development](https://github.com/tomcl/ISSIE#issie-development) and running `npm run dist`. This will not need to be signed if runnng on your own machine. Note that you do not need to edit source code to generate a binary.
+   - You can look through previous releases to find the last posted binary for your system. However ISSIE newer releases often have significant new functionality and bug fixes. It is best to have the latest release,
     
 
 ### Creating a New Project

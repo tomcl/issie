@@ -80,8 +80,10 @@ Download and install (if you already have these tools installed just check the v
 ### Issie Development
 
 1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or clone it locally, or fork it on github and then clone it locally.
+   - If downloading as zip you must on Windows unblock the zip file's MOTW mark. In file explorer, right-clik on the zip file and select properties. Then click `unblock`.
+   - Afte unblocking extract all files from the zip file as normal.
 
-2. Check you have the .NET and Node prerequisites above if you want to do more than make binaries, also: VS 2022 (or latest VS Code + ionide, or Rider) installed.
+3. Check you have the .NET and Node prerequisites above if you want to do more than make binaries, also: VS 2022 (or latest VS Code + ionide, or Rider) installed.
    * In a terminal window: `node -v` shows Node version. `dotnet --version` shows Dotnet version.
 
 4. Navigate from the repo master branch root directory (which contains this README), in a command-line interpreter, or start one from directory context menu.

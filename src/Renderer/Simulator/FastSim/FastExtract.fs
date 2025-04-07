@@ -47,7 +47,6 @@ let changeInputFData (cid: ComponentId) (input: FSInterface) (step: int) (fastSi
         | IAlg exp -> Alg exp
 
     setSimulationInputFData cid fd step fastSim
-    //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
     runCombinationalLogicFData step fastSim
 
 /// Change multiple inputs in one batch before re-running the simulation

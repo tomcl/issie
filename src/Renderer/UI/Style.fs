@@ -206,8 +206,8 @@ let ttGridColumnProps index = [
     TextAlign TextAlignOptions.Left
     GridColumnStart <| string (index+1)
     GridColumnEnd <| string (index+2)
-    OverflowX OverflowOptions.Auto
-    OverflowWrap "break-word"
+    //OverflowX OverflowOptions.Auto
+    //OverflowWrap "break-word"
 ]
 
 let ttGridHiddenColumnProps gridWidth= [

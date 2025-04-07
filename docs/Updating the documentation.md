@@ -2,7 +2,7 @@
 title: Updating This Documentation
 category: Documentation
 categoryindex: 1
-index: 6
+index: 11
 ---
 
 
@@ -18,14 +18,16 @@ The Markdown source files can be found on the ISSIE repo:
 
 * Documentation Pages: `/docs/*.md`
 * ISSIE Blog Pages: `/docs/updates/*.md`
-* Embedded (PNG) graphics: `/docs/img/**.*.md`
+* Embedded (PNG) graphics: `/docs/img/**/*.md`
 * In documentation source files the file path separator is always `/`
 
 ### How to develop documentation
 
-For developer preview of changes  use `dotnet fsdocs watch --noapidocs` in the repo root directory. The documentation (without API) will be generated. See [Issue 532](https://github.com/tomcl/issie/issues/532) for more details of this limitation.
+For developer preview of changes  use `dotnet fsdocs watch --noapidocs` in the repo root directory. The documentation (without API) will be generated and a browser window opened to preview. Changes will get reloaded automatically. 
 
-PR changed documentation markdown files.
+See [Issue 532](https://github.com/tomcl/issie/issues/532) for more details of why watch does not work with API.
+
+PR to ISSIE master the changed documentation.
 
 
 ### Gotcha

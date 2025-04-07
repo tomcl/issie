@@ -1097,7 +1097,7 @@
                         inputs
                       </b>
                       :
-                      <code><span><a href="/issie/reference/simgraphtypes-simulationio.html">SimulationIO</a>&#32;list</span></code>
+                      <code><span><span>(<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;*&#32;<a href="/issie/reference/commontypes-componentlabel.html">ComponentLabel</a>&#32;*&#32;int</span>)</span>&#32;list</span></code>
                     </span>
                     <br/>
                     <span>
@@ -1142,7 +1142,7 @@
                   inputs
                 </span>
                 :
-                <code><span><a href="/issie/reference/simgraphtypes-simulationio.html">SimulationIO</a>&#32;list</span></code>
+                <code><span><span>(<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;*&#32;<a href="/issie/reference/commontypes-componentlabel.html">ComponentLabel</a>&#32;*&#32;int</span>)</span>&#32;list</span></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
               <dt class="fsdocs-param">
@@ -1344,7 +1344,7 @@
                 <p>
                   <a id="makeOnOffToggle">
                     <a href="#makeOnOffToggle">
-                      <code><span>makeOnOffToggle&#32;<span>state&#32;changeAction&#32;onText&#32;offText</span></span></code>
+                      <code><span>makeOnOffToggle&#32;<span>algIsAllowed&#32;valueState&#32;changeAction&#32;onText&#32;offText</span></span></code>
                     </a>
                   </a>
                 </p>
@@ -1352,14 +1352,22 @@
               <div class="fsdocs-tip" id="455">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>makeOnOffToggle&#32;<span>state&#32;changeAction&#32;onText&#32;offText</span></span></code>
+                  <code><span>makeOnOffToggle&#32;<span>algIsAllowed&#32;valueState&#32;changeAction&#32;onText&#32;offText</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        state
+                        algIsAllowed
+                      </b>
+                      :
+                      <code>bool</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        valueState
                       </b>
                       :
                       <code>bool</code>
@@ -1404,7 +1412,15 @@
             <dl class="fsdocs-params">
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
-                  state
+                  algIsAllowed
+                </span>
+                :
+                <code>bool</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  valueState
                 </span>
                 :
                 <code>bool</code>

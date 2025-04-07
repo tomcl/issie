@@ -292,7 +292,7 @@ let mDownUpdate
                                     wireCmd (BusWireT.ResetJumps [])])
     | _ ->
         match (mouseOn model mMsg.Pos) with
-        | Canvas when mMsg.ShiftKeyDown ->
+        | Canvas when mMsg.ShiftKeyDown || model.CtrlKeyDown ->
             // Start Panning with drag, setting up offset to calculate scroll poistion during drag.
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
             {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
@@ -379,7 +379,7 @@ let mDownUpdate
                                 LastValidPos = mMsg.Pos; 
                                 LastValidBoundingBoxes=model.BoundingBoxes; 
                                 SelectedWires = newWires; Action = action; 
-                                LastMousePos = mMsg.Pos}, // TmpModel = Some model},
+                                LastMousePos = mMsg.Pos}, 
                             Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                         wireCmd (BusWireT.SelectWires newWires)
                                         sheetCmd msg]
@@ -427,38 +427,45 @@ let mDownUpdate
                 if model.CtrlKeyDown
                 then model.SelectedComponents, model.SelectedWires //do not deselect if in CtrlKeyDown mode
                 else [], []
-            // Start Creating Selection Box and Reset Selected Components
+            /// Start Creating Selection Box and Reset Selected Components
             let initialiseSelection = 
                 {model.DragToSelectBox with TopLeft= {X=mMsg.Pos.X; Y=mMsg.Pos.Y}}
+            /// correct model when dragging to select
+            let selectingModel = {
+                model with
+                    DragToSelectBox = initialiseSelection;
+                    SelectedComponents = newComponents;
+                    SelectedWires = newWires;
+                    Action = Selecting
+                   }
+            /// command to select the components and wires
+            let updateSelectionCmd =
+                Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
+                            wireCmd (BusWireT.SelectWires newWires) ]
             match model.CtrlKeyDown with
             | true ->
                 match model.ErrorComponents with
-                | [] -> 
-                    {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires },
-                    Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                                wireCmd (BusWireT.SelectWires newWires) ]
+                | [] ->
+                    selectingModel, updateSelectionCmd
+                            
                 | _ -> 
-                        //printfn "Error components (Right)"
-                        {model with Action = DragAndDrop}, 
-                        Cmd.none
+                    //printfn "Error components (Right)"
+                    {model with Action = DragAndDrop}, 
+                    Cmd.none
 
             | false ->
                 match model.ScalingBox with
                 | None ->
-                    {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires},
-                    Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                                wireCmd (BusWireT.SelectWires newWires) ]
+                    selectingModel, updateSelectionCmd
                 | _ ->
                     match model.ErrorComponents with
                     | [] -> 
                         //printfn "No error components (Wrong)"
-                        {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires},
-                        Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
-                                    wireCmd (BusWireT.SelectWires newWires)]
+                        selectingModel, updateSelectionCmd
                     | _ -> 
                         //printfn "Error components (Right)"
                         {model with Action = DragAndDrop}, 
-                        Cmd.batch [sheetCmd DoNothing]
+                            Cmd.batch [sheetCmd DoNothing]
 
 /// Mouse Drag Update, can be: drag-to-selecting, moving symbols, connecting wire between ports.
 let mDragUpdate 

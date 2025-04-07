@@ -87,6 +87,7 @@ module Constants =
     let labelCorrection = {X= 0.; Y= 0.}
 
     let customComponentHint = ["Press Ctrl and drag to"; "move ports or resize symbol"]
+    let canvasHint = ["Press Ctrl or Shift and drag to"; "move canvas"]
     
     
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.

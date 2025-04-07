@@ -266,7 +266,7 @@ let viewInfoPopup dispatch =
             li [] [tSpan "Zoom canvas in: " ; keyOf2  "Alt" "Up"]
             li [] [tSpan "Zoom canvas out: " ; keyOf2  "Alt" "Down"; rule]
             li [] [tSpan "Zoom circuit to fit screen: " ; keyOf2  "Ctrl" "W"]
-            li [] [tSpan "Scroll (mouse): " ; keyOf2 "Shift" "Left-Click"; bSpan " on canvas and drag"]
+            li [] [tSpan "Scroll (mouse): " ; keyOf2 "Shift" "Left-Click"; tSpan " or "; keyOf2 "Ctrl" "Left-Click"; bSpan " on canvas and drag"]
             li [] [tSpan "Scroll (touch-pad): " ; bSpan "Two-finger scrolling on touchpad"]
             li [] [tSpan "Scroll (touch-screen): " ; bSpan "One-finger drag on screen"; rule]
             li [] [tSpan "Rotate symbol (clockwise/anticlockwise): "; keyOf2 "Ctrl" "Right/Left Arrow"]

@@ -68,11 +68,6 @@
     Verilog Components
   </a>
 </li>             
-<li class="nav-item active">
-  <a class="nav-link" href="/issie/Updating the documentation.html">
-    Updating This Documentation
-  </a>
-</li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
@@ -84,8 +79,18 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/contact.html">
     Contacts
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
   </a>
 </li>             
 <li class="nav-header ">
@@ -178,11 +183,6 @@
     Verilog Components
   </a>
 </li>             
-<li class="nav-item active">
-  <a class="nav-link" href="/issie/Updating the documentation.html">
-    Updating This Documentation
-  </a>
-</li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
@@ -194,8 +194,18 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/contact.html">
     Contacts
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
   </a>
 </li>             
 <li class="nav-header ">
@@ -252,12 +262,13 @@
 <ul>
 <li>Documentation Pages: <code>/docs/*.md</code></li>
 <li>ISSIE Blog Pages: <code>/docs/updates/*.md</code></li>
-<li>Embedded (PNG) graphics: <code>/docs/img/**.*.md</code></li>
+<li>Embedded (PNG) graphics: <code>/docs/img/**/*.md</code></li>
 <li>In documentation source files the file path separator is always <code>/</code></li>
 </ul>
 <h3><a name="How-to-develop-documentation" class="anchor" href="#How-to-develop-documentation">How to develop documentation</a></h3>
-<p>For developer preview of changes  use <code>dotnet fsdocs watch --noapidocs</code> in the repo root directory. The documentation (without API) will be generated. See <a href="https://github.com/tomcl/issie/issues/532">Issue 532</a> for more details of this limitation.</p>
-<p>PR changed documentation markdown files.</p>
+<p>For developer preview of changes  use <code>dotnet fsdocs watch --noapidocs</code> in the repo root directory. The documentation (without API) will be generated and a browser window opened to preview. Changes will get reloaded automatically.</p>
+<p>See <a href="https://github.com/tomcl/issie/issues/532">Issue 532</a> for more details of why watch does not work with API.</p>
+<p>PR to ISSIE master the changed documentation.</p>
 <h3><a name="Gotcha" class="anchor" href="#Gotcha">Gotcha</a></h3>
 <p>Documentation builds for ISSIE need a secret key on the repo generated as documented <a href="https://github.com/tomcl/issie/wiki/0-Project-Documentation-Website">on the wiki</a>.</p>
 <p>This must be regenerated every 6 months or so and uploaded to the repo.</p>

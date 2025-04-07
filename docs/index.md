@@ -10,7 +10,7 @@ index: 1
 * ISSIE is an **easy-to-use schematic editor and simulator** for hierarchical design of **digital logic circuits**. Run it and see the built-in demos for what it can do! ISSIE is targeted at 1st year university students, but would be useful teaching in schools and even for quick hardware design and test in an industrial or research environment. For the latter use case although we allow Verilog input and output these features need a bit more work to be as complete and nice as the rest of ISSIE.
 * ISSIE was motivated because we found that industry-standard CAD systems were too complex and buggy to be learnt in labs, and when learnt still nasty to use. Other educational products were too limited. We wanted **a schematic-based system to teach hierarchical design and digital electronics visually that would scale to large designs**.
    - We find that EEE-educated internal PhD candidates starting with schematic logic designs usually have a better understanding of what **digital hardware is** than those from other institutions starting with HDL.
-* ISSIE is an **open source project at Imperial College London developed over 5 years by students**. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac targets.
+* ISSIE is an **open source project at Imperial College London developed over 5 years by students and staff**. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac and linux targets.
 * ISSIE is implemented using nearly 50K lines in the Functional-first language F#, the equivalent of 150K lines in a typical OOP language. ISSIE's implementation is almost pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has **its own digital simulator**, which uses **write-once semantics** on mutable (JS typed) arrays to combine the robustness of functional programming with high performance.
 * ISSIE uses the [FABLE F# to Javascript compiler](https://fable.io/), [Elmish MVU framework](https://elmish.github.io/elmish/), and [Electron](https://www.electronjs.org/). This tool chain creates seamless cross-platform applications with simple and highly productive coding.
 * ISSIE can generate Verilog output to drive FPGAs and has an integrated system to do this directly using the **ISSIE-Stick** hardware.
@@ -19,7 +19,9 @@ index: 1
 
 # Running ISSIE
 
-Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows and Macos PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level `issie.exe` file with the blue ISSIE chip icon. 
+Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows and Macos and linux PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). 
+
+No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level `issie.exe` file with the blue ISSIE chip icon. 
 
 ### ISSIE Feature Development Roadmap
 
@@ -53,7 +55,7 @@ Go through the  [User Guide](userGuide.html).
 
 ### ISSIE for Developers
 
-* The ISSIE [wiki](https://github.com/tomcl/issie/wiki) has a large amount of information on the details of how ISSIE is designed, referencing a few student project reports with (a lot) of detail and background.
+* The ISSIE [wiki](https://github.com/tomcl/issie/wiki) has information on the details of how ISSIE is designed, referencing a few student project reports with (a lot) of detail and background.
 * F# XML documentation on the [ISSIE API](reference/index.html)
 
 <br><br>
@@ -71,6 +73,6 @@ Go through the  [User Guide](userGuide.html).
 - Petra Ratkai and Yujie Wang for improving the Verilog compiler & ISSIE simulator in 2022-23.
 - Samuel Wang for on-demand waveform creation and a software scrollbar to improve the waveform simulator over Summer 2024.
 - The High Level Programming 24/25 cohort for new waveform selector and parameter mechanism
-- Dr Tom Clarke (Imperial College London, EEE department) for running HLP and his continued work maintaining and improving the 50K lines of ISSIE code throughout
+- Dr Tom Clarke (Imperial College London, EEE department) for running HLP and his continued work maintaining and improving ISSIE code throughout
 <br><br>
 

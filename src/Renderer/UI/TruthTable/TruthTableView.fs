@@ -616,7 +616,7 @@ let viewOutputHider table hidden dispatch =
         let isChecked = not <| List.contains io hidden
         let changeAction = (fun _ ->
             dispatch <| ToggleHideTTColumn io)
-        let toggle = makeOnOffToggle isChecked changeAction "Visible" "Hidden"
+        let toggle = makeOnOffToggle true isChecked changeAction "Visible" "Hidden"
         let ioLabel = str io.getLabel
         makeElementLine [ioLabel;toggle]
     if table.FilteredMap.IsEmpty then
@@ -739,7 +739,7 @@ let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
             let all = headings @ body
             let grid = div [(ttGridContainerStyle model)] all
             dispatch <| SetTTGridCache (Some grid)
-            grid
+            div [Style [ ]] [grid]
 
 let restartTruthTable canvasState model dispatch = fun _ ->
     let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)
@@ -823,8 +823,8 @@ let viewTruthTable canvasState model dispatch =
         div [
             // Outer container supports scrolling
             Style [
-                MaxHeight "calc(100vh - 50px)" // Subtract the height of the fixed content at the top
-                OverflowY OverflowOptions.Auto // Enable vertical scrolling
+                //MaxHeight "calc(100vh - 50px)" // Subtract the height of the fixed content at the top
+                //OverflowY OverflowOptions.Auto // Enable vertical scrolling
                 Padding "10px" // Increase padding
             ]
         ] [
@@ -852,16 +852,24 @@ let viewTruthTable canvasState model dispatch =
             | Error e -> SimulationView.viewSimulationError canvasState e model TruthTable dispatch
             | Ok table -> 
                 let truncation =
-                    Notification.notification [Notification.Color IsWarning; Notification.IsLight] [
-                        str "Due to a large number of input combinations, caused by inputs that are
-                            too wide or too numerous, the truth table has been truncated. Please use
-                            more restrictive input constraints, or set wider inputs as algebraic variables."
+                    Notification.notification [
+                        Notification.Color IsWarning;
+                        Notification.IsLight
+                        Notification.Props [Style [WhiteSpace WhiteSpaceOptions.Nowrap; OverflowX OverflowOptions.Hidden]]
+                    ] [
+                        str "You can use input constraints, or algebraic variables, to reduce the number of rows."
                     ]
-                div [] [
+                div [Style[
+                        MaxWidth <| rightSectionWidth model;
+                        MaxHeight "calc(100vh - 300px)";
+                        OverflowX OverflowOptions.Auto;
+                        OverflowY OverflowOptions.Auto;
+                        PaddingRight "10px"
+                        ]] [
                     if table.IsTruncated then
                         truncation
                     viewReductions table model dispatch
-                    br []; br []
+                    br [];
                     viewTruthTableData table model ttDispatch]
                
         let constraints =
@@ -876,23 +884,25 @@ let viewTruthTable canvasState model dispatch =
             Menu.menu []  [
                 makeMenuGroup false "Filter" [constraints; br [] ; hr []]
                 makeMenuGroup false "Hide/Un-hide Columns" [hidden; br []; hr []]
-                makeMenuGroup true "Truth Table" [body; br []; hr []]
+                //makeMenuGroup true "Truth Table" [body; br []; hr []]
             ]
 
         div [
             // Outer container supports scrolling
             Style [
-                MaxHeight "calc(100vh - 50px)" // Subtract the height of the fixed content at the top
-                OverflowY OverflowOptions.Auto // Enable vertical scrolling
+                //MaxHeight "calc(100vh - 50px)" // Subtract the height of the fixed content at the top
+                //OverflowY OverflowOptions.Auto // Enable vertical scrolling
                 Padding "10px" // Increase padding
             ]
         ] [
+            div [Style [Float FloatOptions.Left; FontSize "20px"; FontWeight "Bold" ]] [str "Truth Table"]
             Button.button
-                [ Button.Color IsDanger; Button.OnClick closeTruthTable ]
+                [ Button.Color IsDanger; Button.OnClick closeTruthTable; Button.Props [Style [Float FloatOptions.Right ]]]
                 [ str "Close Truth Table" ]
-            br []; br []
+            div [Style [Clear ClearOptions.Both]] []
             str "The Truth Table generator uses the diagram as it was at the moment of
                  pressing the \"Generate Truth Table\" button."
             menu
+            div [Style [Width "100%"]] [body; br []; hr []]
             ]
 

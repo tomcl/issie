@@ -62,7 +62,7 @@ let makeElementLine (elsLeftAlign: ReactElement list) (elsRightAlign: ReactEleme
 
     let itemListRight =
         elsRightAlign
-        |> List.map (fun el -> Level.item [] [el])
+        |> List.map (fun el -> Level.item [Level.Item.Option.Props [Style [Width "200px"; Float FloatOptions.Left]]] [el])
 
     Level.level [] [
             Level.left [] itemListLeft
@@ -498,17 +498,17 @@ let viewConstraints (model:Model) dispatch =
 //-------------------View/Helper Functions for Reduction Popups------------------------//
 //-------------------------------------------------------------------------------------//
 
-let makeOnOffToggle state changeAction onText offText =
+let makeOnOffToggle (algIsAllowed:bool)  valueState changeAction onText offText =
     Level.item [ Level.Item.HasTextCentered ] [
         Field.div [ Field.HasAddonsCentered ] [
             Control.div [] [ Button.button [
-                Button.Color (if state = true then IsSuccess else NoColor)
-                Button.OnClick (if state = false then changeAction else (fun _ -> ()))
+                Button.Color (if valueState then IsSuccess else NoColor)
+                Button.OnClick (if not valueState then changeAction else (fun _ -> ()))
             ] [ str onText ] ]
             Control.div [] [ Button.button [
-                Button.Color (if state = false then IsDanger else NoColor)
-                Button.OnClick (if state = true then changeAction else (fun _ -> ()))
-            ] [ str offText ] ]
+               Button.Color (if not valueState then IsDanger elif algIsAllowed then  NoColor else IsWarning)
+               Button.OnClick (if valueState && algIsAllowed then changeAction else (fun _ -> ()))
+            ] [ str <| if algIsAllowed then offText else "No Algebra"] ]
         ]
     ]
 
@@ -658,16 +658,28 @@ let dialogPopupReductionBody inputs tableSD (dispatch: Msg -> unit) =
             match dialogData.AlgebraInputs with
             | Some l -> l
             | None -> failwithf "what? PopupDialogData.AlgebraInputs is None in popup body"
-        let toggleAction io =
-            fun _ -> dispatch <| TruthTableMsg (TogglePopupAlgebraInput (io,tableSD))
+        let toggleAction (io as (_,lab,_)) =
+            fun _ ->
+                dispatch <| TruthTableMsg (TogglePopupAlgebraInput (io,tableSD))
         let toggles =
             inputs
-            |> List.map (fun io ->
-                let state = not(List.contains io algInputs)
-                let toggle = makeOnOffToggle state (toggleAction io) "Values" "Algebra"
-                let (_,label,_) = io
-                makeElementLine [(str <| string label);toggle] [])
-                |> div []
+            |> List.map (fun (io as (_,lab,width)) ->
+                // Check if the IO is already in the list of algebra inputs
+                let isValInput = not (List.contains io algInputs)
+                let isValidated =
+                    if isValInput then
+                        let alg = IAlg <| SingleTerm io
+                        let zero = IData <| { Dat = Word 0u; Width = width }
+                        let tryAlg = validateAlgebraInput io alg tableSD
+                        validateAlgebraInput io zero tableSD |> ignore
+                        Result.isOk tryAlg                       
+                    else
+                        true
+                let toggle = makeOnOffToggle isValidated isValInput (toggleAction io) "Values" "Algebra"
+                makeElementLine [str <| string lab] [toggle])
+                |> div [Style [Width "400px"]]
+       
+
         let error = 
             match dialogData.AlgebraError with
             | None -> div [] []

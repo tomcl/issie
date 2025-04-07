@@ -144,7 +144,7 @@ let viewSimSubTab canvasState model dispatch =
         ]
     | TruthTable ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Truth Tables" ]
+            //Heading.h4 [] [ str "Truth Tables" ]
             TruthTableView.viewTruthTable canvasState model dispatch
         ]
     | WaveSim -> 

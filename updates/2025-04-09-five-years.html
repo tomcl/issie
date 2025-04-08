@@ -48,6 +48,11 @@
   Documentation
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Home
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/userGuide.html">
     User Guide
   </a>
@@ -168,6 +173,11 @@
   Documentation
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Home
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/userGuide.html">
     User Guide
   </a>
@@ -269,10 +279,11 @@
 <h2><a name="Elmish-Model-View-Update" class="anchor" href="#Elmish-Model-View-Update">Elmish Model-View-Update</a></h2>
 <p>Nearly all of the Issie UI runs using a strict MVU architecture in which a single global model record (with many sub-records) holds all persistent state. The Elmish framework uses a React virtual DOM and allows global state to be distributed using react components. <em>Issie does not do this</em>. Performance is obtained by caching parts of the View that do not change in a given update. Because we write pure functional code this is very easily done by comparing function inputs and not evaluating functions if they don't change.</p>
 <p>This paradigm works very well. Different parts of Issie code do not have unexpected interactions because they use different parts of the state, and where they do change state what they do is transparent. As a result Issie development is robust. Features can safely be added, or code refactored, looking only at a small part of the code base and not understanding the rest. This is the expected result of functional programming but it was not obvious it would work well in a large application.</p>
-<p>Originally we designed the schematic editor as <a href="https://github.com/tomcl/issie/wiki/Draw%E2%80%90Block">three nested blocks</a> dealing with sheet, wire, and symbol-level operations respectively. These almost work like react components and we tried to hide information so that for example symbol messages could only operate on symbol state. That worked well in general, but badly in a few specific cases. We have moved to a system with escape hatches that allows but discourages each block's code from sending messages that change a higher-level block's state.</p>
+<p>The initial Issie design used the open source general purpose Javascript drawing package <a href="https://github.com/freegroup/draw2d">Draw2D</a>, with some small modifications to implement wires with specific bit-widths. This was problematic to interface to the rest of Issie, because it was stateful, and it was also very buggy. We redesigned the schematic editor in F# from scratch in year 2. The new design used <a href="https://github.com/tomcl/issie/wiki/Draw%E2%80%90Block">three nested blocks</a> dealing with sheet, wire, and symbol-level operations respectively using an SVG canvas. The three blocks work like react components and we tried originally to hide information so that for example symbol messages could only operate on symbol state. That worked well in general, but badly in a few specific cases. We have moved to a system with escape hatches that allows but discourages each block's code from sending messages that change a higher-level block's state.</p>
+<p>Since rewriting the schematic editor in F# we have had no significant bugs. The design has proven very robust and been enhanced with very many added features without any change to the basic structure. The schematic editor now comprises about 20K lines of code.</p>
 <h2><a name="F-s-Enforced-Layering-of-Software-no-forward-references" class="anchor" href="#F-s-Enforced-Layering-of-Software-no-forward-references">F#'s Enforced Layering of Software: no forward references</a></h2>
 <p>F# is an opinionated language and the compiler originally had  a strict rule not allowing forward references. For F# 7 that was relaxed a bit, so that a module could be tagged recursive and have arbitrary forward references. The restriction between modules of no forward references remains.</p>
-<p>We generally found that code naturally layered so that this restriction was no problem. Because we have a near-strict functional programming paradigm it is easy to work out module boundaries.  We had one case - the waveform simulator, where the code as originally written was in a recursive module and seemed impossible to separate into layers. It was also extremely difficult to work with. A major refactoring of code (done in several stages) together with a reworking of the use of global state split this into 11 separate modules, none of which are recursive. The new code is much easier to work with than the old. So this is a case example of why <em>writing</em> code without forward references on a large scale correlates with more maintainable code. If you cannot do that: look again at your design.</p>
+<p>We generally found that is code naturally layered so that this restriction was no problem. Because we have a near-strict functional programming paradigm it is easy to work out module boundaries.  We had one case - the waveform simulator, where the code as originally written was in a recursive module and seemed impossible to separate into layers. It was also extremely difficult to work with. A major refactoring of code (done in several stages) together with a reworking of the use of global state split this into 11 separate modules, none of which are recursive. The new code is much easier to work with than the old. So this is a case example of why <em>writing</em> code without forward references on a large scale correlates with more maintainable code. If you cannot do that: look again at your design.</p>
 <p>Issie currently has 4 <em>recursive</em> modules, all containing types and little else. It in general is impossible to avoid types that depend in a circular fashion on other types because message types  must reference implementation types, and (sometimes) implementation types must reference message types.</p>
 <h2><a name="Functional-Programming-Mutable-data-and-Recursion" class="anchor" href="#Functional-Programming-Mutable-data-and-Recursion">Functional Programming, Mutable data, and Recursion</a></h2>
 <p>We use <a href="https://github.com/tomcl/issie/wiki/1---Coding-guidelines-for-ISSIE">guidelines for F#</a> that discourage mutable data more than is typical in the language. For example, we do not use for loops and instead use <code>List.map</code> and so on. Very occasionally there are examples where an unbounded while loop is needed and implementing this through recursion seems artificial. But much more often we find that programmers need help to see that a declarative solution to a coding problem is possible and more readable than something using sequence. Even when forced not to use mutable variables a programmer will use linear recursion or folding - both of which effectively perform sequential update - unnecessarily.</p>

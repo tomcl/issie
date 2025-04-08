@@ -17,50 +17,30 @@ index: 1
 * For acronym geeks, ISSIE stands for: *Interactive Schematic Simulator with Integrated Editor*.
 <br><br>
 
-# Running ISSIE
+# Getting Started
 
-Go to the [latest ISSIE release](https://github.com/tomcl/issie/releases/latest). Scroll down this page till at the bottom you find the `Assets` section - this has binaries for Windows and Macos and linux PCs. Download the appropriate one and unzip it anywhere (or add the dmg file to applications under Macos by double-clicking). 
+See [Getting Started](gettingStarted.html).
 
-No installation is required - ISSIE runs from the unzipped files under windows if you double-click the top-level `issie.exe` file with the blue ISSIE chip icon. 
+# User Tutorial
 
-### ISSIE Feature Development Roadmap
+Users will find the one page [User Tutorial](userGuide.html) here a useful introduction to Issie features.
 
-#### 2024 
+# ISSIE Feature Development Roadmap
+
+### 2024 
 * Workaround unexpected & undocumented React 17 memory leak
 * Better user interface to Waveform Simulator
 * Longer simulation times keeping waveforms in memory
 * Automatic whole-circuit wire segment separation for almost perfect auto-routing
 
-#### 2025
+### 2025
 
-* New Waveform Selector for waveform simulations
-* Tooltips on waveform simulator waveforms
+* New Waveform Selector for waveform simulations (complete)
+* Tooltips on waveform simulator waveforms (complete)
 * Symbolic parameters to make component bit-widths etc adjustable (in progress)
 * Improvements to Verilog parser and to-Issie synthesis (in progress)
 * See [Issue 506](https://github.com/tomcl/issie/issues/506) for possible small changes.
 
-<br><br>
-# Help and User Guides
-
-### Getting Started
-
-See the  [Getting Started](https://github.com/tomcl/ISSIE#getting-started) section of the repo README.
-
-<br><br>
-
-### A One Page Beginner's Tutorial On ISSIE
-
-Go through the  [User Tutorial](userGuide.html).
-<br><br>
-
-### ISSIE for Developers
-
-* The ISSIE [wiki](https://github.com/tomcl/issie/wiki) has information on the details of how ISSIE is designed: 
-   - [Coding guidelines](https://github.com/tomcl/issie/wiki/1---Coding-guidelines-for-ISSIE)
-   - [Code Overview](https://github.com/tomcl/issie/wiki/0---Issie-Source-Code-Overview)
-   - Details of main algorithms
-* The [Reports page](reports.md) has some long technical reports on parts of ISSIE.
-* F# XML documentation on the [ISSIE API](reference/index.html)
 
 <br><br>
 

@@ -11,7 +11,7 @@ Issie development over 5 years has added roughly 10K lines of code per year. It 
 
 ## Elmish Model-View-Update
 
-Nearly all of the Issie UI runs using a strict MVU architecture in which a single global model record (with many sub-records) holds all persistent state. The Elmish framework uses a React virtual DOM and allows global state to be distributed using react components. *Issie does not do this*. Performance is obtained by caching parts of the View that do not change in a given update. Because we write pure functional code this is very easily done by comparing function inputs and not evaluating functions if they don't change.
+Nearly all of the Issie UI runs using a strict MVU architecture in which a single global model record (with many sub-records) holds all persistent state. The Elmish framework uses a React virtual DOM and allows global state to be distributed using React components. *Issie does not do this and keeps all state in one place*. Performance is obtained by caching parts of the View that do not change in a given update. Because we write pure functional code this is very easily done by comparing function inputs and not evaluating functions if they don't change.
 
 This paradigm works very well. Different parts of Issie code do not have unexpected interactions because they use different parts of the state, and where they do change state what they do is transparent. As a result Issie development is robust. Features can safely be added, or code refactored, looking only at a small part of the code base and not understanding the rest. This is the expected result of functional programming but it was not obvious it would work well in a large application.
 
@@ -27,7 +27,7 @@ We generally found that is code naturally layered so that this restriction was n
 
 Issie currently has 4 *recursive* modules, all containing types and little else. It in general is impossible to avoid types that depend in a circular fashion on other types because message types  must reference implementation types, and (sometimes) implementation types must reference message types.
 
-## Functional Programming, Mutable data, and Recursion
+## Functional Programming, mutable data, and recursion
 
 We use [guidelines for F#](https://github.com/tomcl/issie/wiki/1---Coding-guidelines-for-ISSIE) that discourage mutable data more than is typical in the language. For example, we do not use for loops and instead use `List.map` and so on. Very occasionally there are examples where an unbounded while loop is needed and implementing this through recursion seems artificial. But much more often we find that programmers need help to see that a declarative solution to a coding problem is possible and more readable than something using sequence. Even when forced not to use mutable variables a programmer will use linear recursion or folding - both of which effectively perform sequential update - unnecessarily.
 
@@ -53,13 +53,13 @@ let consecutiveLists (lst: int list) : int list list =
     failwithf "not implemented"
 ```
 
-Programmers are told to prefer solutions of type 3 over 2 over 1, and not allowed to use mutable variables. Even then only one in ten, without training to think declaratively, will solve this problem in the most natural, and easily simplest, way:
+Students were told to prefer solutions of type 3 over 2 over 1, and not allowed to use mutable variables. Even then only one in ten, without training to think declaratively, will solve this problem in the most natural, and easily simplest, way:
 
 ```
 let declarativeConsecutiveLists (lst: int list) : int list list =
     List.indexed lst // add positions in list
     |> List.groupBy (fun (index,number) -> number - index) // consecutive integer sub-lists have constant (number - index)
-    |> List.map (fun (grp, grpLst) -> grpLst |> List.map snd)
+    |> List.map (fun (grp, grpLst) -> grpLst |> List.map snd) // remove positions
 ```
 
 Showing a class of programmers many such problems, asking them to each generate pencil and paper approximate solutions, and then comparing these, is a great way to reprogram brains into thinking declaratively when that is appropriate. The point being that *when* declarative solutions exist they are nearly always more readable than more implementation-focussed iterative, or iterative-equivalent using fold or recursion, solutions.
@@ -76,17 +76,17 @@ The most unpleasant part of the technical stack for us is React. Its merit is th
 
 We had last year a very unpleasant experience with an unexplained memory leak. We normally just can't get memory leaks, a functional style of programming makes that impossible, unless the Model contains unbounded data structures. In the end we traced this to an undocumented [React 17 bug](https://github.com/tomcl/issie/issues/463) in not garbage collecting `Ref` hook references. This was fixed in React 18 with the fix never back-ported to React 17.
 
-FABLE is outstanding technology. We have never had problems with it, and with many others thank Alfonso Garcia-Caro for its development.
+[FABLE](https://fable.io/) is outstanding technology. We have never had problems with it, and thank Alfonso Garcia-Caro and its many contributors for its development.
 
-Developing the Issie simulator in F# has been challenging because we want both time and space performance. Understanding this fully requires knowledge of:
+Developing the Issie simulator in F# has been challenging because we want both time and space performance. Understanding this requires knowledge of:
 
 * F# compiler optimisations
-* FABLE translation
+* FABLE translation from F# to Javascript
 * Chromium JVM optimisations
 
-Chromium is a JVM forked from the Chrome browser and used in Electron. The Chromisum developers made a decision a few years ago to use compressed (32 bit) pointers in the heap. That limits the heap size to 4GB and practically, because of multiple space garbage collection, more like 2GB. This limitation is regrettable but baked into Chromium, for typical use cases the time advantage of pointer compression far outweighs the disadvantage of a space limitation. 
+Chromium is a JVM forked from the Chrome browser and used in Electron. The Chromium developers made a decision a few years ago to use compressed (32 bit) pointers in the heap. That limits the heap size to 4GB and practically, because of multiple space garbage collection, more like 2GB. This limitation is regrettable but baked into Chromium, for typical use cases the time advantage of pointer compression far outweighs the disadvantage of a space limitation. 
 
-Our use case is not typical, and it creates problems for Issie when simulating very large designs. We needed to implement simulation data storage using JS numeric typed arrays that are not stored in the heap by Chromium (the array elements need not be garbage collected) and therefore can be larger than 4GB. Doing this from F# is in fact quite straightfoward because numeric arrays in F# are translated to typed numeric arrays in Javascript: but it requires some care. If interested see [Yujie's technical Report](https://tomcl.github.io/issie/pdf/1714652_Rpt_A%20high%20performance%20digital%20circuit%20simulator%20for%20ISSIE.pdf).
+Our use case is not typical, and the heap size limit creates problems for Issie when simulating very large designs. We needed to implement simulation data storage using JS numeric typed arrays that are not stored in the heap by Chromium (the array elements need not be garbage collected) and therefore can be larger than 4GB. Doing this from F# is in fact quite straightfoward because numeric arrays in F# are translated to typed numeric arrays in Javascript: but it requires some care. If interested see [Yujie's technical Report](https://tomcl.github.io/issie/pdf/1714652_Rpt_A%20high%20performance%20digital%20circuit%20simulator%20for%20ISSIE.pdf).
 
 ## Overall
 

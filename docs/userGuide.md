@@ -1,5 +1,5 @@
 ---
-title: User Guide
+title: User Tutorial
 category: Documentation
 categoryindex: 1
 index: 2

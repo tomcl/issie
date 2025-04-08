@@ -15,15 +15,20 @@ index: 1
 * ISSIE uses the [FABLE F# to Javascript compiler](https://fable.io/), [Elmish MVU framework](https://elmish.github.io/elmish/), and [Electron](https://www.electronjs.org/). This tool chain creates seamless cross-platform applications with simple and highly productive coding.
 * ISSIE can generate Verilog output to drive FPGAs and has an integrated system to do this directly using **ISSIE-Stick** hardware.
 * For acronym geeks, ISSIE stands for: *Interactive Schematic Simulator with Integrated Editor*.
+  
 <br><br>
 
 # Getting Started
 
 See [Getting Started](gettingStarted.html).
 
+<br><br>
+
 # User Tutorial
 
 Users will find the one page [User Tutorial](userGuide.html) here a useful introduction to Issie features.
+
+<br><br>
 
 # ISSIE Feature Development Roadmap
 

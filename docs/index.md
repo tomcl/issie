@@ -5,7 +5,15 @@ categoryindex: 1
 index: 1
 ---
 
-# What is ISSIE?
+# Issie Documentation Home
+
+See [Getting Started](gettingStarted.html) for how to put Issie on your laptop or develop Issie.
+
+See [User Tutorial](userGuide.html) for a useful introduction to Issie on one page which you can follow or read.
+
+<br>
+
+## What is ISSIE?
 
 * ISSIE is an **easy-to-use schematic editor and simulator** for hierarchical design of **digital logic circuits**. Run it and see the built-in demos for what it can do! ISSIE is targeted at 1st year university students, but would be useful teaching in schools and even for quick hardware design and test in an industrial or research environment. For the latter use case although we allow Verilog input and output these features need a bit more work to be as complete and nice as the rest of ISSIE.
 * ISSIE was motivated because we found that industry-standard CAD systems were too complex and buggy to be learnt in labs, and when learnt still nasty to use. Other educational products were too limited. We wanted a system to teach hierarchical design and digital electronics visually that would scale to large designs.
@@ -18,40 +26,29 @@ index: 1
 * ISSIE can also accept Verilog source, using this to define and simulate equivalent schematic components.
 * For acronym geeks, ISSIE stands for: *Interactive Schematic Simulator with Integrated Editor*.
   
-<br><br>
 
-# Getting Started
+<br>
 
-See [Getting Started](gettingStarted.html).
+## ISSIE Development Roadmap
 
-<br><br>
-
-# User Tutorial
-
-Users will find the one page [User Tutorial](userGuide.html) here a useful introduction to Issie features.
-
-<br><br>
-
-# ISSIE Feature Development Roadmap
-
-### 2024 
+#### 2024 
 * Workaround unexpected & undocumented React 17 memory leak
 * Better user interface to Waveform Simulator
 * Longer simulation times keeping waveforms in memory
 * Automatic whole-circuit wire segment separation for almost perfect auto-routing
 
-### 2025
+#### 2025
 
 * New Waveform Selector for waveform simulations (complete)
 * Tooltips on waveform simulator waveforms (complete)
 * Symbolic parameters to make component bit-widths etc adjustable (in progress)
 * Improvements to Verilog parser and to-Issie synthesis (in progress)
-* See [Issue 506](https://github.com/tomcl/issie/issues/506) for possible small changes.
+* See [Issue 506](https://github.com/tomcl/issie/issues/506) for possible other changes.
 
 
-<br><br>
+<br>
 
-# Acknowledgements
+## Acknowledgements
 
 - **Marco Selvatici** for the 8K lines of base code written for his 3rd year BEng FYP at Imperial College London.
 - **Edoardo Santi** for work improving ISSIE over Summer 2020 and creating the waveform simulator

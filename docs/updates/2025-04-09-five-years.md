@@ -1,8 +1,8 @@
 ---
 title:  Five years of Issie
 date:   2025-04-09 01:00:01 +0100
-category: Updates
-index: 6
+category: Blog Updates
+index: 100
 ---
 # Five years of Issie development: the good, the bad, and the ugly
 

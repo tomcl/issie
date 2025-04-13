@@ -249,15 +249,12 @@ let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string 
         "(" + renderParamExpression left currentPrecedence + "%" + renderParamExpression right currentPrecedence + ")" 
 
 
-/// Evaluates a list of constraints got from slots against a set of parameter bindings to
-/// check what values of param are allowed.
-/// NB here 'PINT is not a polymorphic type but a type parameter that will be instantiated to int or bigint.
+/// Evaluates a set of parameter bindings against a list of constraints
+/// and returns a list of violated constraints
 let evaluateConstraints
-        (paramBindings: ParamBindings)
-        (exprSpecs: ConstrainedExpr list)
-        (dispatch: Msg -> unit)
-            : Result<Unit, ParamConstraint list> =
-
+    (paramBindings: ParamBindings)
+    (exprSpecs: ConstrainedExpr list)
+    : Result<Unit, ParamConstraint list> =
 
     let failedConstraints konst expr =
         let resultExpression = evaluateParamExpression paramBindings expr
@@ -269,22 +266,13 @@ let evaluateConstraints
                     | MaxVal (expr, errorMsg) -> 
                         match evaluateParamExpression paramBindings expr with
                         | Ok maxValue -> value > maxValue
-                        | Error err -> // evaluation of constraint failed
-                            let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
-                            dispatch <| SetPopupDialogText (Some (string errMsg))
-                            false
+                        | Error err -> false    // Failed to evaluate constraint
                     | MinVal (expr, _) -> 
                         match evaluateParamExpression paramBindings expr with
                         | Ok minValue -> value < minValue
-                        | Error err -> // evaluation of constraint failed
-                            let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
-                            dispatch <| SetPopupDialogText (Some (string errMsg))
-                            false
+                        | Error err -> false    // Failed to evaluate constraint
                     )
-            | Error err ->
-                let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
-                dispatch <| SetPopupDialogText (Some (string errMsg))
-                List.empty
+            | Error err -> []
     
     let result =
         exprSpecs
@@ -359,7 +347,7 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
 
     // Tokenizer: Splits input into numbers, variables, and operators
     let tokenize (input: string) =
-        let pattern = @"\d+[a-zA-Z]*|[a-zA-Z]+\d*|[()+\-*/%]"
+        let pattern = @"-?\d+[a-zA-Z]*|[a-zA-Z]+\d*|[()+\-*/%]"
         Regex.Matches(input, pattern)
         |> Seq.cast<Match>
         |> Seq.map (fun m -> m.Value)
@@ -533,6 +521,39 @@ let rec exprContainsParams
         -> exprContainsParams left || exprContainsParams right
 
 
+/// Check the constraints on the parameter bindings of the current sheet
+/// given a new expression for a parameter
+let checkBindings
+    (model: Model)
+    (paramName: ParamName)
+    (value: ParamInt)
+    : Result<unit, ParamError> =
+
+    // TODO-RYAN: Should really consider making getting bindings and slots a function
+    let newBindings = 
+        model
+        |> get defaultBindingsOfModel_
+        |> Option.defaultValue Map.empty
+        |> Map.add paramName (PInt value)
+
+    // TODO-RYAN: Should also really consider making this a function
+    let paramSlots =
+        model
+        |> get paramSlotsOfModel_
+        |> Option.defaultValue Map.empty
+
+    let extractErrorMsg constr =
+        match constr with
+        | MinVal (_, err) | MaxVal (_, err) -> err
+
+    // TODO-RYAN: Add some more helpful info to the constraint error messages
+    let exprSpecs = paramSlots |> Map.values |> Array.toList
+
+    evaluateConstraints newBindings exprSpecs
+    |> Result.mapError (function lst -> List.head lst)
+    |> Result.mapError extractErrorMsg
+
+
 /// Adds or updates a parameter slot in loaded component param slots
 /// Removes the entry if the expression does not contain parameters
 let updateParamSlot
@@ -597,7 +618,7 @@ let paramInputField
         // Only return first violated constraint
         let checkConstraints expr =
             let exprSpec = {Expression = expr; Constraints = constraints}
-            match evaluateConstraints paramBindings [exprSpec] dispatch with
+            match evaluateConstraints paramBindings [exprSpec] with
             | Ok () -> Ok ()
                 // Error (renderParamExpression expr)
             | Error (firstConstraint :: _) ->
@@ -607,7 +628,12 @@ let paramInputField
 
         let exprResult = parseExpression inputExpr
         let newVal = Result.bind (evaluateParamExpression paramBindings) exprResult
-        let constraintCheck = Result.bind checkConstraints exprResult
+        // TODO-RYAN: This line is getting a bit long
+        // TODO-RYAN: Also add support for CustomCompSlot
+        let constraintCheck =
+            match compSlotName with
+            | SheetParam paramName -> Result.bind (checkBindings model paramName) newVal
+            | _ -> Result.bind checkConstraints exprResult
 
         // Either update component or prepare creation of new component
         let useExpr expr value =
@@ -825,7 +851,7 @@ let addParameterBox model dispatch =
 
 /// Creates a popup that allows a parameter integer value to be edited.
 /// TODO: this should be a special cases of a more general popup for parameter expressions?
-let editParameterBox model parameterName dispatch   = 
+let editParameterBox model paramName dispatch   = 
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
     | Some project ->
@@ -833,12 +859,12 @@ let editParameterBox model parameterName dispatch   =
         let currentSheet = project.LoadedComponents
                                    |> List.find (fun lc -> lc.Name = project.OpenFileName)
         let title = "Edit parameter value"
-        let currentValue = getDefaultParams currentSheet |> Map.find (ParamName parameterName)
+        let currentValue = getDefaultParams currentSheet |> Map.find (ParamName paramName)
         let intPrompt = 
             fun _ ->
                 div []
                     [
-                        str $"New value for the parameter {parameterName}:"
+                        str $"New value for the parameter {paramName}:"
                         br []
                         str $"(current value: {currentValue})"
                     ]
@@ -863,7 +889,7 @@ let editParameterBox model parameterName dispatch   =
     // (dispatch: Msg -> unit)
     // : ReactElement =
 
-        let prompt = $"New value for parameter {parameterName}"
+        let prompt = $"New value for parameter {paramName}"
 
         let constraints = 
             model
@@ -881,14 +907,13 @@ let editParameterBox model parameterName dispatch   =
         // let body = dialogPopupBodyOnlyInt intPrompt defaultVal dispatch
         let buttonText = "Set value"
 
+        let slot = SheetParam <| ParamName paramName
+
         // Update the parameter value then close the popup
         let buttonAction =
             fun (model': Model) -> 
-                // let newParamName =  parameterName 
+                // let newParamName =  paramName 
                 // let newValue = getInt model'.PopupDialogData
-
-                // TODO-RYAN: THIS SHOULD NOT BE BUSWIDTH!
-                let slot = Buswidth
 
                 // TODO-RYAN: Tidy this up
                 let inputFieldDialog = 
@@ -901,7 +926,7 @@ let editParameterBox model parameterName dispatch   =
                     | Error err -> failwithf $"Failed to extract expression due to error '{err}'"
 
                 // TODO-RYAN: There needs to be some error checking forcing this to an int
-                let newParamName = parameterName
+                let newParamName = paramName
                 let newValue =
                     match compParamSpec.Expression with
                     | PInt value -> value
@@ -921,7 +946,9 @@ let editParameterBox model parameterName dispatch   =
         // Disabled if any constraints are violated
         let isDisabled = 
             fun (model': Model) ->
-                let newParamName =  parameterName 
+                // TODO-RYAN: This code is duplicated everywhere - definitely needs to be
+                //            wrapped into a function
+                let newParamName =  paramName 
                 let newValue = getInt model'.PopupDialogData
                 let newBindings =
                     model'
@@ -936,22 +963,22 @@ let editParameterBox model parameterName dispatch   =
                     |> Map.toList
                     |> List.map snd
 
-                evaluateConstraints newBindings exprSpecs dispatch
+                evaluateConstraints newBindings exprSpecs
                 |> Result.isError
 
         let body model' =
-            paramInputField model' prompt defaultVal (Some defaultVal) constraints None Buswidth dispatch
+            paramInputField model' prompt defaultVal (Some defaultVal) constraints None slot dispatch
 
         // TODO-RYAN: tidyup
         // dialogPopup title body buttonText buttonAction isDisabled [] dispatch
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
-let deleteParameterBox model parameterName dispatch  = 
+let deleteParameterBox model paramName dispatch  = 
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: testDeleteParameterBox called when no project is currently open"
     | Some project ->
-        modifyInfoSheet (project) (DefaultParams(parameterName,0,true)) dispatch
+        modifyInfoSheet (project) (DefaultParams(paramName,0,true)) dispatch
 
 
 /// UI to display and manage parameters for a design sheet.
@@ -1026,7 +1053,7 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
 
 /// create a popup to edit in the model a custom component parameter binding
 /// TODO - maybe comp should be a ComponentId with actual component looked up from model for safety?
-let editParameterBindingPopup model parameterName currValue (comp: Component) (custom: CustomComponentType) dispatch   = 
+let editParameterBindingPopup model paramName currValue (comp: Component) (custom: CustomComponentType) dispatch   = 
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
     | Some project ->
@@ -1038,7 +1065,7 @@ let editParameterBindingPopup model parameterName currValue (comp: Component) (c
             fun _ ->
                 div []
                     [
-                        str $"New value for the parameter {parameterName}:"
+                        str $"New value for the parameter {paramName}:"
                         br []
                         str $"(current value: {currValue})"
                     ]
@@ -1048,11 +1075,11 @@ let editParameterBindingPopup model parameterName currValue (comp: Component) (c
         // TODO-RYAN: Find a way of adding in an expression evaluation box
         // TODO-RYAN: Add proper constraints
 
-        let prompt = $"New value for parameter {parameterName}"
+        let prompt = $"New value for parameter {paramName}"
 
         let inputField model' =
-            // paramInputField model' prompt currValue (Some currValue) [] (Some comp) (CustomCompParam parameterName) dispatch
-            paramInputField model' prompt currValue None [] None (CustomCompParam parameterName) dispatch
+            // paramInputField model' prompt currValue (Some currValue) [] (Some comp) (CustomCompParam paramName) dispatch
+            paramInputField model' prompt currValue None [] None (CustomCompParam paramName) dispatch
 
         let body = dialogPopupBodyOnlyInt intPrompt currValue dispatch
         let buttonText = "Set value"
@@ -1060,10 +1087,10 @@ let editParameterBindingPopup model parameterName currValue (comp: Component) (c
         // Update the parameter value then close the popup
         let buttonAction =
             fun (model': Model) -> 
-                let newParamName =  parameterName 
+                let newParamName =  paramName 
 
                 // TODO-RYAN: Implement the update function here
-                let slot = CustomCompParam parameterName
+                let slot = CustomCompParam paramName
 
                 let inputFieldDialog = 
                     match model'.PopupDialogData.DialogState with
@@ -1123,7 +1150,7 @@ let editParameterBindingPopup model parameterName currValue (comp: Component) (c
         // if constraints are not met, disable the button
         let isDisabled =
             fun (model': Model) ->
-                let newParamName =  parameterName 
+                let newParamName =  paramName 
                 let newValue = getInt model'.PopupDialogData
                 let newBindings =
                     match custom.ParameterBindings with
@@ -1139,7 +1166,7 @@ let editParameterBindingPopup model parameterName currValue (comp: Component) (c
                         |> List.map snd
                     | None -> List.Empty
 
-                evaluateConstraints newBindings exprSpecs dispatch
+                evaluateConstraints newBindings exprSpecs
                 |> Result.isError
 
         // dialogPopup title body buttonText buttonAction isDisabled [] dispatch

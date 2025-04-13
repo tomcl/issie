@@ -421,6 +421,24 @@ let getLCParamInfo (model: Model) =
     |> get lcParameterInfoOfModel_
     |> Option.defaultValue {ParamSlots = Map.empty; DefaultBindings = Map.empty}
 
+/// Update a custom component with new I/O component widths.
+/// Used when these chnage as result of parameter changes.
+let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
+    let updateLabels labels =
+        labels |> List.map (fun (label, width) ->
+            match Map.tryFind label labelToEval with
+            | Some newWidth when newWidth <> width -> (label, newWidth) // Update width if changed
+            | _ -> (label, width) // Keep the same if unchanged
+        )
+    
+    match comp.Type with
+    | Custom customComponent ->
+        let updatedCustom = { customComponent with 
+                                    InputLabels = updateLabels customComponent.InputLabels
+                                    OutputLabels = updateLabels customComponent.OutputLabels
+                                    ParameterBindings = Some newBindings }
+        { comp with Type = Custom updatedCustom }
+    | _ -> comp
 
 /// Use sheet component update functions to perform updates
 let updateComponent dispatch model slot value =
@@ -436,6 +454,61 @@ let updateComponent dispatch model slot value =
         match comp.Type with
         | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
         | _ -> failwithf $"Gate cannot have type {comp.Type}"
+    | CustomCompParam param -> 
+        let custom = 
+            match comp.Type with
+            | Custom c -> c
+            | _ -> failwithf "Custom component slot must be in custom component"
+
+        // TODO-RYAN: Should definitely be using a lens for this
+        let currentSheet = 
+            match model.CurrentProj with
+            | None -> failwithf "Warning: testEditParameterBox called when no project is currently open"
+            | Some project ->
+                // Prepare dialog popup.
+                project.LoadedComponents |> List.find (fun lc -> lc.Name = custom.Name)
+
+        // TODO-RYAN: Use much better functional abstraction
+        // let newValue = getInt model'.PopupDialogData
+        let newBindings =
+            match custom.ParameterBindings with
+            | Some bindings -> bindings
+            | None -> Map.empty
+            |> Map.add (ParamName param) (PInt value)
+        
+        let labelToEval = 
+            match currentSheet.LCParameterSlots with
+            | Some sheetInfo ->
+                printf $"paramslots = {sheetInfo.ParamSlots}"
+                sheetInfo.ParamSlots
+                |> Map.toSeq // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
+                |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
+                    match paramSlot.CompSlot with
+                    | IO label -> 
+                        printf $"label = {label}"
+                        let evaluatedValue = 
+                            match evaluateParamExpression newBindings constrainedExpr.Expression with
+                            | Ok expr -> expr
+                            | Error _ -> 0
+                        printf $"evaluatedvalue = {evaluatedValue}"
+                        Some (label, evaluatedValue)
+                    | _ -> None 
+                )
+                |> Map.ofSeq // Convert to map
+            | None -> Map.empty
+
+
+        let newestComponent = updateCustomComponent labelToEval newBindings comp
+        let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
+        let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
+        let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
+        updateModelSymbol newModel |> UpdateModel |> dispatch
+
+        printf $"{comp}"
+        let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
+        model.Sheet.DoBusWidthInference dispatchnew
+
+
 
     // Update most recent bus width
     match slot.CompSlot, comp.Type with
@@ -775,14 +848,65 @@ let editParameterBox model parameterName dispatch   =
             | PInt intVal -> intVal
             | _ -> failwithf "Edit parameter box only supports integer bindings"
 
-        let body = dialogPopupBodyOnlyInt intPrompt defaultVal dispatch
+
+        // TODO-RYAN: make this all nice and tidy (and bug free)
+        // paramInputField model title 
+
+    //             let paramInputField
+    // (model: Model)
+    // (prompt: string)
+    // (defaultValue: int)
+    // (currentValue: Option<int>)
+    // (constraints: ParamConstraint list)
+    // (comp: Component option)
+    // (compSlotName: CompSlotName)
+    // (dispatch: Msg -> unit)
+    // : ReactElement =
+
+        let prompt = $"New value for parameter {parameterName}"
+
+        let constraints = 
+            model
+            |> get paramSlotsOfModel_
+            |> Option.defaultValue Map.empty
+            |> Map.toList
+            |> List.map snd
+            |> List.collect (function expr -> expr.Constraints)
+
+        // TODO-RYAN: Figure out how to have something other than buswidth here
+        //            - some changes are definitely needed to param input field to make it more generic
+        // TODO-RYAN: Need to make it so that this only takes integers
+        // let inputField = paramInputField model prompt defaultVal (Some defaultVal) constraints None Buswidth dispatch
+
+        // let body = dialogPopupBodyOnlyInt intPrompt defaultVal dispatch
         let buttonText = "Set value"
 
         // Update the parameter value then close the popup
         let buttonAction =
             fun (model': Model) -> 
-                let newParamName =  parameterName 
-                let newValue = getInt model'.PopupDialogData
+                // let newParamName =  parameterName 
+                // let newValue = getInt model'.PopupDialogData
+
+                // TODO-RYAN: THIS SHOULD NOT BE BUSWIDTH!
+                let slot = Buswidth
+
+                // TODO-RYAN: Tidy this up
+                let inputFieldDialog = 
+                    match model'.PopupDialogData.DialogState with
+                    | Some inputSpec -> Map.find slot inputSpec
+                    | None -> failwithf "Param input field must set new param info"
+                let compParamSpec =
+                    match inputFieldDialog with
+                    | Ok paramSpec -> paramSpec
+                    | Error err -> failwithf $"Failed to extract expression due to error '{err}'"
+
+                // TODO-RYAN: There needs to be some error checking forcing this to an int
+                let newParamName = parameterName
+                let newValue =
+                    match compParamSpec.Expression with
+                    | PInt value -> value
+                    | _ -> failwithf "Input field can only accept integers"
+
                 modifyInfoSheet project (DefaultParams (newParamName,newValue,false)) dispatch
                 let newBindings =
                     model'
@@ -815,6 +939,11 @@ let editParameterBox model parameterName dispatch   =
                 evaluateConstraints newBindings exprSpecs dispatch
                 |> Result.isError
 
+        let body model' =
+            paramInputField model' prompt defaultVal (Some defaultVal) constraints None Buswidth dispatch
+
+        // TODO-RYAN: tidyup
+        // dialogPopup title body buttonText buttonAction isDisabled [] dispatch
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -894,28 +1023,10 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                 [str "Add Parameter"]
         ]
 
-/// Update a custom component with new I/O component widths.
-/// Used when these chnage as result of parameter changes.
-let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
-    let updateLabels labels =
-        labels |> List.map (fun (label, width) ->
-            match Map.tryFind label labelToEval with
-            | Some newWidth when newWidth <> width -> (label, newWidth) // Update width if changed
-            | _ -> (label, width) // Keep the same if unchanged
-        )
-    
-    match comp.Type with
-    | Custom customComponent ->
-        let updatedCustom = { customComponent with 
-                                    InputLabels = updateLabels customComponent.InputLabels
-                                    OutputLabels = updateLabels customComponent.OutputLabels
-                                    ParameterBindings = Some newBindings }
-        { comp with Type = Custom updatedCustom }
-    | _ -> comp
 
 /// create a popup to edit in the model a custom component parameter binding
 /// TODO - maybe comp should be a ComponentId with actual component looked up from model for safety?
-let editParameterBindingPopup model parameterName currValue comp (custom: CustomComponentType) dispatch   = 
+let editParameterBindingPopup model parameterName currValue (comp: Component) (custom: CustomComponentType) dispatch   = 
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
     | Some project ->
@@ -932,6 +1043,17 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                         str $"(current value: {currValue})"
                     ]
 
+
+        // TODO-RYAN: body should be a parameter input field
+        // TODO-RYAN: Find a way of adding in an expression evaluation box
+        // TODO-RYAN: Add proper constraints
+
+        let prompt = $"New value for parameter {parameterName}"
+
+        let inputField model' =
+            // paramInputField model' prompt currValue (Some currValue) [] (Some comp) (CustomCompParam parameterName) dispatch
+            paramInputField model' prompt currValue None [] None (CustomCompParam parameterName) dispatch
+
         let body = dialogPopupBodyOnlyInt intPrompt currValue dispatch
         let buttonText = "Set value"
 
@@ -939,7 +1061,25 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
         let buttonAction =
             fun (model': Model) -> 
                 let newParamName =  parameterName 
-                let newValue = getInt model'.PopupDialogData
+
+                // TODO-RYAN: Implement the update function here
+                let slot = CustomCompParam parameterName
+
+                let inputFieldDialog = 
+                    match model'.PopupDialogData.DialogState with
+                    | Some inputSpec -> Map.find slot inputSpec
+                    | None -> failwithf "Param input field must set new param info"
+                let compParamSpec =
+                    match inputFieldDialog with
+                    | Ok paramSpec -> paramSpec
+                    | Error err ->
+                        failwithf $"Received error message '{err}' when editing parameter binding"
+                
+                dispatch <| UpdateModel (updateParamSlot {CompId = comp.Id; CompSlot = compParamSpec.CompSlot} {Expression = compParamSpec.Expression; Constraints = compParamSpec.Constraints})
+
+                let newValue = compParamSpec.Value
+
+                // let newValue = getInt model'.PopupDialogData
                 let newBindings =
                     match custom.ParameterBindings with
                     | Some bindings -> bindings
@@ -1002,7 +1142,8 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 evaluateConstraints newBindings exprSpecs dispatch
                 |> Result.isError
 
-        dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+        // dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+        dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
 /// UI component for custom component definition of parameter bindings
 let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentType) dispatch =
@@ -1102,7 +1243,8 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             | Buswidth -> "Buswidth"
             | NGateInputs -> "Num inputs"
             | IO label -> $"Input/output {label}"
-        
+            | CustomCompParam param -> $"Parameter {param}"
+
         let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
                         string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label
                     else

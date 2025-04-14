@@ -27,6 +27,16 @@ open Optics.Operators
 
 let mutable uiStartTime: float = 0.
 
+type EvilUIState =
+    | EvilCodeEditor
+    | EvilUIPopup
+    | EvilNoState
+
+/// This is a hack to determine how global keys are processed.
+/// Default processing of " "
+/// this is not wanted for draw block, or code editor.
+/// however for input boxes "v " muist be correctly processed
+let mutable evilUIState = EvilNoState
 
     
 
@@ -68,6 +78,12 @@ let update (msg : Msg) oldModel =
     //-------------------------------------------------------------------------------//
 
     match testMsg with
+    // global message on any key press includimng control keys etc.
+    | AnyKeyPress key ->
+            match  model.CodeEditorState with
+            | Some _ -> Editor.updateEditorOnKeyPress key model
+            | None -> model, Cmd.none
+
     | RunAfterRender( withSpinner, fn) ->
         {model with RunAfterRenderWithSpinner = Some {FnToRun=fn; ButtonSpinnerOn = withSpinner}}, Cmd.none
 
@@ -412,6 +428,7 @@ let update (msg : Msg) oldModel =
         |> withNoMsg
 
     | ShowPopup popup ->
+        evilUIState <- EvilUIPopup
         model
         |> set popupViewFunc_ (Some popup)
         |> withNoMsg
@@ -423,8 +440,10 @@ let update (msg : Msg) oldModel =
         |> withNoMsg
 
     | ClosePopup ->
+        evilUIState <- EvilNoState
         { model with
             PopupViewFunc = None;
+            CodeEditorState = None
             PopupDialogData =
                     { model.PopupDialogData with
                         Text = None;
@@ -681,12 +700,15 @@ let update (msg : Msg) oldModel =
         WaveSimNavigation.updateScrollbar wsm dispatch cursor action
         model, Cmd.none
 
+    | CodeEditorMsg codeMsg ->
+        Editor.updateCodeEditor codeMsg model
+
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out
     | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 
     | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
     | ShowExitDialog -> model, Cmd.none
-    | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
+    | DoNothing -> //Acts as a placeholder to propagate the ExecutePendingMessages message in a Cmd
         model, cmd
 
     | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?

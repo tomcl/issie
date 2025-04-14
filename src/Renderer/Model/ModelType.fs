@@ -68,6 +68,43 @@ type MemoryEditorData = {
     NumberBase : NumberBase
 }
 
+//-----------------------Types for code editor-----------------------//
+
+
+
+/// a text position interval in the code editor.
+/// This is used to represent the start and end of a selection or an error.
+/// all characters in raster scan order are included.
+type Interval =
+    {
+        Start: XYPos
+        End: XYPos
+    }
+
+/// Elmish Model type for a rich text code editor
+type CodeEditorModel =
+    {
+        /// the characters in the code editor as a list of lines
+        Lines: string list
+        /// The errored code positions
+        Errors: Interval list
+        /// The current cursor position. Cursor displays between this character and the previous one.
+        /// Characters are inserted at this position.
+        CursorPos: XYPos
+    }
+
+
+let lines_ = Lens.create (fun a -> a.Lines) (fun s a -> {a with Lines = s})
+let errors_ = Lens.create (fun a -> a.Errors) (fun s a -> {a with Errors = s})
+let cursorPos_ = Lens.create (fun a -> a.CursorPos) (fun s a -> {a with CursorPos = s})
+
+/// Possible messages used by editor
+type EditorMsg =
+    | SetCursor of int * int
+    | UpdateCode of (string list -> string list)
+    | SetErrors of Interval list
+    | UpdateCodeEditorState of (CodeEditorModel -> CodeEditorModel)
+
 type ImportDecision =
     | Overwrite
     | Rename
@@ -431,6 +468,7 @@ type TTMsg =
 
 
 type Msg =
+    | AnyKeyPress of KeyPressInfo
     | WaveSimKeyPress of string
     | ShowExitDialog
     | Sheet of DrawModelType.SheetT.Msg
@@ -552,6 +590,7 @@ type Msg =
     | CheckMemory
     | ChangeWaveSimMultiplier of int
     | RunAfterRender of (bool * ((Msg -> unit) -> Model -> Model))
+    | CodeEditorMsg of EditorMsg
 
 
 //================================//
@@ -715,6 +754,7 @@ type Model = {
     UIState: UICommandType Option
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
+    CodeEditorState: CodeEditorModel option
 } 
 
     with member this.WaveSimOrCurrentSheet =
@@ -725,6 +765,7 @@ type Model = {
 
 let waveSimSheet_ = Lens.create (fun a -> a.WaveSimSheet) (fun s a -> {a with WaveSimSheet = s})
 let waveSim_ = Lens.create (fun a -> a.WaveSim) (fun s a -> {a with WaveSim = s})
+let codeEditorState_ = Lens.create (fun a -> a.CodeEditorState) (fun s a -> {a with CodeEditorState = s})
 
 let runAfterRender_ = Lens.create (fun a -> a.RunAfterRenderWithSpinner) (fun s a -> {a with RunAfterRenderWithSpinner = s})
 let rightPaneTabVisible_ = Lens.create (fun a -> a.RightPaneTabVisible) (fun s a -> {a with RightPaneTabVisible = s})

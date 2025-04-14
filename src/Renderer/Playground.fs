@@ -126,6 +126,8 @@ module TestFonts =
             (fun _ -> false)
             []
             dispatch
+
+
         
 module MiscTests =
 
@@ -276,10 +278,27 @@ module WebWorker =
             
 
 module Misc =
-    open ModelType
     open DrawModelType
     open ModelType
+    open Editor
+    open PopupHelpers
+    open Fable.React
+    open Fable.React.Props
 
+    let makeEditorPopup (dispatch: Msg -> Unit) =
+        let body = fun model ->
+                //div [ Style [] ]
+                    match model.CodeEditorState with
+                    | Some codeModel -> Editor.renderEditor  codeModel dispatch
+                    | None -> div [] [] // should not happen?
+        dispatch <| CodeEditorMsg (UpdateCodeEditorState (fun _ -> Editor.testEditorModel))
+        dynamicClosablePopup
+            "Editor Demo"
+            body
+            (fun _ -> div [] [])
+            [Height "auto" ; Width "auto"]
+            //[Height "calc(50vh + 175px)" ; Width "calc(50vw + 50px)"]
+            dispatch
 
 
     let highLightChangedConnections dispatch =

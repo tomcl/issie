@@ -72,8 +72,8 @@ let displaySvgWithZoom
     // Hacky way to get keypresses such as Ctrl+C to work since Electron does not pick them up.
     document.onkeydown <- (fun key ->
         //printf "%s" $"Down {key.key} ({model.CurrentKeyPresses})"
-        if key.which = 32.0 then// Check for spacebar
-            // key.preventDefault() // Disable scrolling with spacebar
+        if key.key = " " then// Check for spacebar
+            //key.preventDefault() // Disable scrolling with spacebar
             dispatch <| (ManualKeyDown key.key)
         else
             dispatch <| (ManualKeyDown key.key) )

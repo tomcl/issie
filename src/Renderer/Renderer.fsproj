@@ -97,6 +97,7 @@
     <Compile Include="DrawBlock\SheetDisplay.fs" />
 	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
+    <Compile Include="UI\Editor.fs" />
     <!-- UI -->
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI\Style.fs" />

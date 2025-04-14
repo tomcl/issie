@@ -52,6 +52,7 @@ let viewOnDiagramButtons model dispatch =
 
 
 
+
 let init() = {
     MousePointerIsOnRightSection = false
     RunAfterRenderWithSpinner = None
@@ -128,6 +129,7 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
+    CodeEditorState = None
 }
 
 

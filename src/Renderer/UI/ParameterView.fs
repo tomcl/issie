@@ -696,6 +696,14 @@ let paramInputField
     ]
 
 
+/// True if parameter input field for given slot has valid input
+let paramInputIsValid (slot: CompSlotName) (model: Model): bool =
+    model.PopupDialogData.DialogState
+    |> function
+       | Some specs -> Map.find slot specs |> Result.isOk
+       | None -> failwithf "Dialog state must exist for input box"
+
+
 /// Update the values of all parameterised components with a new set of bindings
 /// This can only be called after the validity and constraints of all
 /// expressions are checked
@@ -715,253 +723,139 @@ let updateComponents
     |> Option.defaultValue Map.empty
     |> Map.map (fun _ expr -> evalExpression expr.Expression)
     |> Map.iter (updateComponent dispatch model)
-    
-
-/// Updates the LCParameterSlots DefaultParams section.
-type UpdateInfoSheetChoise = 
-    | DefaultParams of string * int * bool
-    | ParamSlots of ParamSlot * ParameterTypes.ParamExpression * ParamConstraint list
 
 
-let updateInfoSheetDefaultParams (currentSheetInfo:option<ParameterTypes.ParameterDefs>) (paramName: string) (value: int) (delete:bool)=
-    if delete then
-        match currentSheetInfo with
-        | Some infoSheet -> 
-            let newDefaultParams = infoSheet.DefaultBindings |> Map.remove (ParamName paramName)
-            let currentSheetInfo = {infoSheet with DefaultBindings = newDefaultParams}
-            Some currentSheetInfo
-        | None -> None
-    else
-    match currentSheetInfo with
-    | Some infoSheet -> 
-        let newDefaultParams = infoSheet.DefaultBindings|> Map.add (ParamName paramName) (PInt value)
-        let currentSheetInfo = {infoSheet with DefaultBindings = newDefaultParams}
-        Some currentSheetInfo
-    | None -> 
-        let currentSheetInfo = {DefaultBindings= Map.ofList [(ParamName paramName, PInt value)]; ParamSlots= Map.empty}
-        Some currentSheetInfo
-
-
-let updateInfoSheetParamSlots (currentSheetInfo:option<ParameterTypes.ParameterDefs>) (paramSlot: ParameterTypes.ParamSlot) (expression: ParameterTypes.ParamExpression) (constraints: ParameterTypes.ParamConstraint list) =
-    match currentSheetInfo with
-    | Some infoSheet -> 
-        let newParamSlots = infoSheet.ParamSlots |> Map.add paramSlot {Expression = expression; Constraints = constraints}
-        let currentSheetInfo = {infoSheet with ParamSlots = newParamSlots}
-        Some currentSheetInfo
-    | None -> 
-        let currentSheetInfo = {DefaultBindings= Map.empty; ParamSlots = Map.ofList [paramSlot, {Expression = expression; Constraints = constraints}]}
-        Some currentSheetInfo
-
-
-let updateParameter (project: CommonTypes.Project) (model: Model) =
-    {model with CurrentProj = Some project}
-
-
-let getParamsSlot (currentSheet: CommonTypes.LoadedComponent) =
-    let getter = CommonTypes.lcParameterSlots_ >?> ParameterTypes.paramSlots_
-    match currentSheet.LCParameterSlots with
-    | Some _ -> currentSheet ^. getter
-    | None -> None
-
-
-/// This function can be used to update the DefaultParams or ParamSlots in the LCParameterSlots of a sheet based on the choise
-/// Use case will be either when we want to add, edit or delete the sheet parameter or when we want to add a new component to the sheet
-let modifyInfoSheet (project: CommonTypes.Project) (choise: UpdateInfoSheetChoise) dispatch=
-    
-    let currentSheet = project.LoadedComponents
-                                   |> List.find (fun lc -> lc.Name = project.OpenFileName)
-    let updatedSheet = {currentSheet with LCParameterSlots = 
-                                                        match choise with
-                                                            | DefaultParams (paramName, value, delete) -> updateInfoSheetDefaultParams currentSheet.LCParameterSlots paramName value delete
-                                                            | ParamSlots (paramSlot, expression, constraints) -> updateInfoSheetParamSlots currentSheet.LCParameterSlots paramSlot expression constraints}
-    let updatedComponents = project.LoadedComponents
-                            |> List.map (
-                                fun lc ->
-                                    if lc.Name = project.OpenFileName
-                                    then updatedSheet
-                                    else lc
-                                )
-    let newProject = {project with LoadedComponents = updatedComponents}
-    updateParameter newProject |> UpdateModel |> dispatch
-
-/// Creates a popup that allows a parameter integer value to be added.
+/// Create a popup that allows a parameter with an integer value to be added
 let addParameterBox model dispatch =
-    match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: testAddParameterBox called when no project is currently open"
-    | Some project ->
-        // Prepare dialog popup.
-        let title = "Set parameter value"
+    // Prepare dialog popup.
+    let title = "Set parameter value"
 
-        let textPrompt =
-            fun _ ->
-                div []
-                    [
-                        str "Specify the parameter name:"
-                        br []
-                        //str $"(current value is {model.ParameterValue})"
-                    ]
+    let textPrompt =
+        fun _ ->
+            div []
+                [
+                    str "Specify the parameter name:"
+                    br []
+                    //str $"(current value is {model.ParameterValue})"
+                ]
 
-        let intPrompt =
-            fun _ ->
-                div []
-                    [
-                        str "New value for the parameter:"
-                        br []
-                        //str $"(current value is {model.ParameterValue})"
-                    ]
+    let intPrompt =
+        fun _ ->
+            div []
+                [
+                    str "New value for the parameter:"
+                    br []
+                    //str $"(current value is {model.ParameterValue})"
+                ]
 
-        let defaultVal = 1
-        let body = dialogPopupBodyTextAndInt textPrompt "example: x" intPrompt defaultVal dispatch
-        let buttonText = "Set value"
+    let defaultVal = 1
+    let body = dialogPopupBodyTextAndInt textPrompt "example: x" intPrompt defaultVal dispatch
+    let buttonText = "Set value"
 
-        // Update the parameter value then close the popup
-        let buttonAction =
-            fun (model': Model) -> 
-                let newParamName = getText model'.PopupDialogData
-                let newValue = getInt model'.PopupDialogData
+    // Update the parameter value then close the popup
+    let buttonAction model' =
+        let newParamName = getText model'.PopupDialogData
+        let newValue = getInt model'.PopupDialogData
 
-                modifyInfoSheet (project) (DefaultParams (newParamName, newValue, false)) dispatch
-                // Close popup window
-                ClosePopup |> dispatch
+        // Update bindings
+        let newBindings =
+            model' 
+            |> getParamBindings
+            |> Map.add (ParamName newParamName) (PInt newValue)
+        dispatch <| UpdateModel (set defaultBindingsOfModel_ newBindings)
+        dispatch ClosePopup
 
-        // Parameter Names can only be made out of letters and numbers
-        let isDisabled = 
-            fun (model': Model) -> 
-                 let newParamName =  getText model'.PopupDialogData
-                 not (Regex.IsMatch(newParamName, "^[a-zA-Z0-9]+$"))
+    // Parameter Names can only be made out of letters and numbers
+    let isDisabled = 
+        fun (model': Model) -> 
+                let newParamName =  getText model'.PopupDialogData
+                not (Regex.IsMatch(newParamName, "^[a-zA-Z0-9]+$"))
 
-        dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
 
 /// Creates a popup that allows a parameter integer value to be edited.
 /// TODO: this should be a special cases of a more general popup for parameter expressions?
 let editParameterBox model paramName dispatch   = 
-    match model.CurrentProj with
-    // TODO-RYAN: Get rid of this macro match statement - not needed
-    | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
-    | Some project ->
-        // Prepare dialog popup.
-        let title = "Edit parameter value"
-        // TODO-RYAN: Make this safer using tryFind (and throw specific error)
-        let currentValue = getParamBindings model |> Map.find (ParamName paramName)
-        let intPrompt = 
-            fun _ ->
-                div []
-                    [
-                        str $"New value for the parameter {paramName}:"
-                        br []
-                        str $"(current value: {currentValue})"
-                    ]
+    // Prepare dialog popup.
+    // TODO-RYAN: Make this safer using tryFind (and throw specific error)
+    let currentValue = getParamBindings model |> Map.find (ParamName paramName)
 
-        let defaultVal =
-            match currentValue with
-            | PInt intVal -> intVal
-            | _ -> failwithf "Edit parameter box only supports integer bindings"
+    let defaultVal =
+        match currentValue with
+        | PInt intVal -> intVal
+        | _ -> failwithf "Edit parameter box only supports integer bindings"
+
+    let title = "Edit parameter value"
+    let prompt = $"New value for parameter {paramName}"
+    let buttonText = "Set value"
 
 
-        // TODO-RYAN: make this all nice and tidy (and bug free)
-        // paramInputField model title 
-
-    //             let paramInputField
-    // (model: Model)
-    // (prompt: string)
-    // (defaultValue: int)
-    // (currentValue: Option<int>)
-    // (constraints: ParamConstraint list)
-    // (comp: Component option)
-    // (compSlotName: CompSlotName)
-    // (dispatch: Msg -> unit)
-    // : ReactElement =
-
-        let prompt = $"New value for parameter {paramName}"
-
-        let constraints = 
-            model
-            |> get paramSlotsOfModel_
-            |> Option.defaultValue Map.empty
-            |> Map.toList
-            |> List.map snd
-            |> List.collect (function expr -> expr.Constraints)
-
-        // TODO-RYAN: Figure out how to have something other than buswidth here
-        //            - some changes are definitely needed to param input field to make it more generic
-        // TODO-RYAN: Need to make it so that this only takes integers
-        // let inputField = paramInputField model prompt defaultVal (Some defaultVal) constraints None Buswidth dispatch
-
-        // let body = dialogPopupBodyOnlyInt intPrompt defaultVal dispatch
-        let buttonText = "Set value"
-
-        let slot = SheetParam <| ParamName paramName
-
-        // Update the parameter value then close the popup
-        let buttonAction =
-            fun (model': Model) -> 
-                // let newParamName =  paramName 
-                // let newValue = getInt model'.PopupDialogData
-
-                // TODO-RYAN: Tidy this up
-                let inputFieldDialog = 
-                    match model'.PopupDialogData.DialogState with
-                    | Some inputSpec -> Map.find slot inputSpec
-                    | None -> failwithf "Param input field must set new param info"
-                let compParamSpec =
-                    match inputFieldDialog with
-                    | Ok paramSpec -> paramSpec
-                    | Error err -> failwithf $"Failed to extract expression due to error '{err}'"
-
-                // TODO-RYAN: There needs to be some error checking forcing this to an int
-                let newParamName = paramName
-                let newValue =
-                    match compParamSpec.Expression with
-                    | PInt value -> value
-                    | _ -> failwithf "Input field can only accept integers"
-
-                modifyInfoSheet project (DefaultParams (newParamName,newValue,false)) dispatch
-                let newBindings =
-                    model'
-                    |> getLCParamInfo
-                    |> (fun info -> info.DefaultBindings)
-                    |> Map.add (ParamName newParamName) (PInt newValue) 
-
-                // Value must meet constraints if able to click button
-                updateComponents newBindings model dispatch 
-                dispatch <| ClosePopup
-
-        // Disabled if any constraints are violated
-        let isDisabled = 
-            fun (model': Model) ->
-                // TODO-RYAN: This code is duplicated everywhere - definitely needs to be
-                //            wrapped into a function
-                let newParamName =  paramName 
-                let newValue = getInt model'.PopupDialogData
-                let newBindings =
-                    model'
-                    |> getLCParamInfo 
-                    |> (fun info -> info.DefaultBindings)
-                    |> Map.add (ParamName newParamName) (PInt newValue) 
-
-                let exprSpecs = 
-                    model'
-                    |> get paramSlotsOfModel_
-                    |> Option.defaultValue Map.empty
-                    |> Map.toList
-                    |> List.map snd
-
-                evaluateConstraints newBindings exprSpecs
-                |> Result.isError
-
-        let body model' =
-            paramInputField model' prompt defaultVal (Some defaultVal) constraints None slot dispatch
-
-        // TODO-RYAN: tidyup
-        // dialogPopup title body buttonText buttonAction isDisabled [] dispatch
-        dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+    // TODO-RYAN: Need to make it so that this only takes integers
 
 
-let deleteParameterBox model paramName dispatch  = 
-    match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: testDeleteParameterBox called when no project is currently open"
-    | Some project ->
-        modifyInfoSheet (project) (DefaultParams(paramName,0,true)) dispatch
+    let slot = SheetParam <| ParamName paramName
+
+    // Update the parameter value then close the popup
+    let buttonAction model' =
+        // TODO-RYAN: Tidy this up
+        let inputFieldDialog = 
+            match model'.PopupDialogData.DialogState with
+            | Some inputSpec -> Map.find slot inputSpec
+            | None -> failwithf "Param input field must set new param info"
+        let compParamSpec =
+            match inputFieldDialog with
+            | Ok paramSpec -> paramSpec
+            | Error err -> failwithf $"Failed to extract expression due to error '{err}'"
+
+        // TODO-RYAN: There needs to be some error checking forcing this to an int
+        let newParamName = paramName
+        let newValue =
+            match compParamSpec.Expression with
+            | PInt value -> value
+            | _ -> failwithf "Input field can only accept integers"
+
+        // Update bindings
+        let newBindings =
+            model'
+            |> getParamBindings
+            |> Map.add (ParamName newParamName) (PInt newValue) 
+        dispatch <| UpdateModel (set defaultBindingsOfModel_ newBindings)
+
+        // Update components
+        updateComponents newBindings model' dispatch 
+        dispatch <| ClosePopup
+
+
+    // Constraints from parameter bindings are checked in paramInputField
+    let inputField model' =
+        paramInputField model' prompt defaultVal (Some defaultVal) [] None slot dispatch
+
+    // Disabled if any constraints are violated
+    let isDisabled model' = not <| paramInputIsValid slot model'
+
+    // TODO-RYAN: Surely there's a way to not use this? Also surely currentVal and defaultVal
+    //            aren't both needed? Also address naming inconsistency of currentValue and defaultVal
+    let defaultParamSpec = {
+        CompSlot = slot
+        Expression = currentValue
+        Constraints = []
+        Value = defaultVal
+    }
+
+    // TODO-RYAN: tidyup
+    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
+    dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
+
+
+// TODO-RYAN: NEED TO DISABLE THIS IF THERE ARE ANY EXPRS USING GIVEN PARAM
+let deleteParameterBox model paramName dispatch = 
+    let newBindings =
+        model
+        |> getParamBindings
+        |> Map.remove (ParamName paramName)
+
+    dispatch <| UpdateModel (set defaultBindingsOfModel_ newBindings)
 
 
 /// UI to display and manage parameters for a design sheet.
@@ -1222,8 +1116,9 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
 
 /// Generate component slots view for design sheet properties panel
 /// This is read-only.
-let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispatch = 
-    let sheetParamsSlots = getParamsSlot comp
+let private makeSlotsField (model: ModelType.Model) : ReactElement =
+
+    let paramSlots = getParamSlots model
 
     // Define a function to display PConstraint<int>
     let constraintExpression (constraint': ParamConstraint) =
@@ -1294,13 +1189,13 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
                 ]
         ]
 
-    match sheetParamsSlots with
-        |None ->
-            div [] [
-                Label.label [] [ str "Parameterised Components" ]
-                p [] [str "This sheet does not contain any parameterised." ]    
-                ]
-        |Some sheetParamsSlots -> slotView sheetParamsSlots
+    match paramSlots.IsEmpty with
+    | true ->
+        div [] [
+            Label.label [] [ str "Parameterised Components" ]
+            p [] [str "This sheet does not contain any parameterised components." ]    
+            ]
+    | false-> slotView paramSlots
 
 /// UI interface for viewing the parameter expressions of a component
 let viewParameters (model: ModelType.Model) dispatch =
@@ -1310,12 +1205,7 @@ let viewParameters (model: ModelType.Model) dispatch =
         let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [p [] [str $"Currently no parameters added into {comp.Label} sheet." ]    ]    
     | _ -> 
-        match model.CurrentProj with
-        |Some proj ->
-            let sheetName = proj.OpenFileName
-            let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
-            div [] [
-            makeParamsField model dispatch
-            br []
-            makeSlotsField model sheetLdc dispatch]
-        |None -> null
+        div [] [
+        makeParamsField model dispatch
+        br []
+        makeSlotsField model]

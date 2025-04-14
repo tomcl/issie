@@ -332,6 +332,7 @@ let private createArithmeticPopup compType (model: Model) dispatch =
             dispatch <| ReloadSelectedComponent compParamSpec.Value
             dispatch ClosePopup
 
+    // TODO-RYAN: Refactor this using new paramFieldIsDisabled function
     let isDisabled =
         fun model' ->
             model'.PopupDialogData.DialogState

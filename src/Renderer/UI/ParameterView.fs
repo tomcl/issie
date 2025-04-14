@@ -559,11 +559,7 @@ let updateParamSlot
     (model: Model)
     : Model = 
 
-    let paramSlots = 
-        model
-        |> get paramSlotsOfModel_
-        |> Option.defaultValue Map.empty
-
+    let paramSlots = getParamSlots model
     let newParamSlots =
         match exprContainsParams exprSpec.Expression with
         | true  -> Map.add slot exprSpec paramSlots
@@ -738,6 +734,19 @@ let updateComponents
     |> Map.iter (updateComponent dispatch model)
 
 
+/// Get the component specification from a parameter input field
+/// Can only be called once it is known that the input expression meets constraints
+let getParamFieldSpec (slotName: CompSlotName) (model: Model): NewParamCompSpec =
+    let inputFieldDialog = 
+        match model.PopupDialogData.DialogState with
+        | Some inputSpec -> Map.find slotName inputSpec
+        | None -> failwithf "Param input field must set new param info"
+    
+    match inputFieldDialog with
+    | Ok paramSpec -> paramSpec
+    | Error err -> failwithf $"Failed to extract expression due to error '{err}'"
+
+
 /// Create a popup that allows a parameter with an integer value to be added
 let addParameterBox dispatch =
     // Dialog popup config
@@ -789,75 +798,54 @@ let addParameterBox dispatch =
 
 
 /// Creates a popup that allows a parameter integer value to be edited.
-/// TODO: this should be a special cases of a more general popup for parameter expressions?
 let editParameterBox model paramName dispatch   = 
-    // Prepare dialog popup.
-    // TODO-RYAN: Make this safer using tryFind (and throw specific error)
-    let currentValue = getParamBindings model |> Map.find (ParamName paramName)
+    // Get current value
+    let currentVal =
+        model
+        |> getParamBindings
+        |> Map.find (ParamName paramName)
+        |> function
+           | PInt intVal -> intVal
+           | _ -> failwithf "Edit parameter box only supports constants"
 
-    let defaultVal =
-        match currentValue with
-        | PInt intVal -> intVal
-        | _ -> failwithf "Edit parameter box only supports integer bindings"
-
+    // Dialog box config
     let title = "Edit parameter value"
     let prompt = $"New value for parameter {paramName}"
     let buttonText = "Set value"
-
-
-    // TODO-RYAN: Need to make it so that this only takes integers
-
-
     let slot = SheetParam <| ParamName paramName
 
-    // Update the parameter value then close the popup
+    // Update parameter bindings and components
     let buttonAction model' =
-        // TODO-RYAN: Tidy this up
-        let inputFieldDialog = 
-            match model'.PopupDialogData.DialogState with
-            | Some inputSpec -> Map.find slot inputSpec
-            | None -> failwithf "Param input field must set new param info"
-        let compParamSpec =
-            match inputFieldDialog with
-            | Ok paramSpec -> paramSpec
-            | Error err -> failwithf $"Failed to extract expression due to error '{err}'"
-
-        // TODO-RYAN: There needs to be some error checking forcing this to an int
-        let newParamName = paramName
-        let newValue =
-            match compParamSpec.Expression with
-            | PInt value -> value
-            | _ -> failwithf "Input field can only accept integers"
+        // Get new parameter value from input field
+        let compParamSpec = getParamFieldSpec slot model'
+        let newValue = compParamSpec.Value
 
         // Update bindings
         let newBindings =
             model'
             |> getParamBindings
-            |> Map.add (ParamName newParamName) (PInt newValue) 
+            |> Map.add (ParamName paramName) (PInt newValue) 
         dispatch <| UpdateModel (set defaultBindingsOfModel_ newBindings)
 
         // Update components
         updateComponents newBindings model' dispatch 
-        dispatch <| ClosePopup
-
+        dispatch ClosePopup
 
     // Constraints from parameter bindings are checked in paramInputField
     let inputField model' =
-        paramInputField model' prompt defaultVal (Some defaultVal) [] None slot dispatch
+        paramInputField model' prompt currentVal (Some currentVal) [] None slot dispatch
 
     // Disabled if any constraints are violated
     let isDisabled model' = not <| paramInputIsValid slot model'
 
-    // TODO-RYAN: Surely there's a way to not use this? Also surely currentVal and defaultVal
-    //            aren't both needed? Also address naming inconsistency of currentValue and defaultVal
     let defaultParamSpec = {
         CompSlot = slot
-        Expression = currentValue
+        Expression = PInt currentVal
         Constraints = []
-        Value = defaultVal
+        Value = currentVal
     }
 
-    // TODO-RYAN: tidyup
+    // Create parameter input field
     dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
     dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
@@ -986,7 +974,7 @@ let editParameterBindingPopup model paramName currValue (comp: Component) (custo
                 let inputFieldDialog = 
                     match model'.PopupDialogData.DialogState with
                     | Some inputSpec -> Map.find slot inputSpec
-                    | None -> failwithf "Param input field must set new param info"
+                    | None -> failwithf "EDITING BINDING: Param input field must set new param info"
                 let compParamSpec =
                     match inputFieldDialog with
                     | Ok paramSpec -> paramSpec
@@ -1036,7 +1024,7 @@ let editParameterBindingPopup model paramName currValue (comp: Component) (custo
                 printf $"{comp}"
                 let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
                 model.Sheet.DoBusWidthInference dispatchnew
-                dispatch <| ClosePopup
+                dispatch ClosePopup
 
         // if constraints are not met, disable the button
         let isDisabled =

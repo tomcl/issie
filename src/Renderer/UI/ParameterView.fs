@@ -383,14 +383,6 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
             | Error e -> Error e
 
 
-/// Get current loaded component parameter info
-/// Returns empty maps for ParamSlots and DefaultBindings if None
-let getLCParamInfo (model: Model) =
-    model
-    |> get lcParameterInfoOfModel_
-    |> Option.defaultValue {ParamSlots = Map.empty; DefaultBindings = Map.empty}
-
-
 /// Update a custom component with new I/O component widths.
 /// Used when these chnage as result of parameter changes.
 let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
@@ -512,27 +504,47 @@ let checkBindings
     (value: ParamInt)
     : Result<unit, ParamError> =
 
-    // TODO-RYAN: Should really consider making getting bindings and slots a function
-    let newBindings = 
+    let newBindings =
         model
-        |> get defaultBindingsOfModel_
-        |> Option.defaultValue Map.empty
+        |> getParamBindings
         |> Map.add paramName (PInt value)
+    let paramSlots = getParamSlots model
 
-    // TODO-RYAN: Should also really consider making this a function
-    let paramSlots =
-        model
-        |> get paramSlotsOfModel_
-        |> Option.defaultValue Map.empty
+
+    // TODO-RYAN: Tidy up this function and make the error message formatting much better
+    //            (shouldn't be directly printing types - this is not reliable)
+    let addDetailedErrorMsg (slot: ParamSlot) (expr: ConstrainedExpr): ConstrainedExpr =
+        let constraints = expr.Constraints
+        let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
+
+
+        let detailedConstraints = 
+            constraints
+            |> List.map (
+                function constr ->
+                            match constr with
+                            | MaxVal (paramExpr, err) -> MaxVal (paramExpr, $"Component {comp.Label} has {slot.CompSlot} of {renderParamExpression expr.Expression 0}. {err}.")
+                            | MinVal (paramExpr, err) -> MinVal (paramExpr, $"Component {comp.Label} has {slot.CompSlot} of {renderParamExpression expr.Expression 0}. {err}.")
+            )
+
+        {expr with Constraints = detailedConstraints}
+    (*
+    COMPA: <slotName> of <expr> <constraint>
+    *)
+
+    // TODO-RYAN: Add some more helpful info to the constraint error messages
+    let detailedSpecs =
+        paramSlots
+        |> Map.map addDetailedErrorMsg
+        |> Map.values
+        |> Array.toList
 
     let extractErrorMsg constr =
         match constr with
         | MinVal (_, err) | MaxVal (_, err) -> err
 
-    // TODO-RYAN: Add some more helpful info to the constraint error messages
-    let exprSpecs = paramSlots |> Map.values |> Array.toList
-
-    evaluateConstraints newBindings exprSpecs
+    detailedSpecs
+    |> evaluateConstraints newBindings
     |> Result.mapError (function lst -> List.head lst)
     |> Result.mapError extractErrorMsg
 
@@ -593,18 +605,15 @@ let paramInputField
     : ReactElement =
 
     let onChange inputExpr = 
-        let paramBindings =
-            model
-            |> get defaultBindingsOfModel_
-            |> Option.defaultValue Map.empty
+        let paramBindings = getParamBindings model
 
         // Only return first violated constraint
         let checkConstraints expr =
             let exprSpec = {Expression = expr; Constraints = constraints}
             match evaluateConstraints paramBindings [exprSpec] with
             | Ok () -> Ok ()
-                // Error (renderParamExpression expr)
             | Error (firstConstraint :: _) ->
+                // TODO-RYAN: There's a function for this now
                 match firstConstraint with
                 | MinVal (_, err) | MaxVal (_, err) -> Error err 
             | Error _ -> failwithf "Cannot have error list with no elements"
@@ -613,9 +622,15 @@ let paramInputField
         let newVal = Result.bind (evaluateParamExpression paramBindings) exprResult
         // TODO-RYAN: This line is getting a bit long
         // TODO-RYAN: Also add support for CustomCompSlot
+        // TODO-RYAN: This nested match is terrible, find a better way of writing the 
+        //            param-setting parts of this function
         let constraintCheck =
             match compSlotName with
-            | SheetParam paramName -> Result.bind (checkBindings model paramName) newVal
+            | SheetParam paramName ->
+                match exprResult with
+                | Ok (PInt value) -> checkBindings model paramName value
+                | Ok _ -> Error "Parameter value must be a constant"
+                | Error err -> Error err
             | _ -> Result.bind checkConstraints exprResult
 
         // Either update component or prepare creation of new component
@@ -719,57 +734,57 @@ let updateComponents
         | Error _ ->  failwithf "Component update cannot have invalid expression"
 
     model
-    |> get paramSlotsOfModel_
-    |> Option.defaultValue Map.empty
+    |> getParamSlots
     |> Map.map (fun _ expr -> evalExpression expr.Expression)
     |> Map.iter (updateComponent dispatch model)
 
 
 /// Create a popup that allows a parameter with an integer value to be added
-let addParameterBox model dispatch =
-    // Prepare dialog popup.
-    let title = "Set parameter value"
-
-    let textPrompt =
-        fun _ ->
-            div []
-                [
-                    str "Specify the parameter name:"
-                    br []
-                    //str $"(current value is {model.ParameterValue})"
-                ]
-
-    let intPrompt =
-        fun _ ->
-            div []
-                [
-                    str "New value for the parameter:"
-                    br []
-                    //str $"(current value is {model.ParameterValue})"
-                ]
-
+let addParameterBox dispatch =
+    // Dialog popup config
+    let textPrompt _ = Field.div [] [str "Parameter name"]
+    let hint = "Enter a name"
+    let intPrompt _ = Field.div [] [str "Parameter value"]
     let defaultVal = 1
-    let body = dialogPopupBodyTextAndInt textPrompt "example: x" intPrompt defaultVal dispatch
+    let title = "Add new parameter"
     let buttonText = "Set value"
 
+    let body = dialogPopupBodyTextAndInt textPrompt hint intPrompt defaultVal dispatch
+
+    // Create empty parameter info if currently None
+    let initParamInfo model =
+        let loadedComponent = 
+            model
+            |> get openLoadedComponentOfModel_
+            |> function
+               | Some lc -> lc
+               | None -> failwithf "Must have open sheet" 
+
+        let defaultInfo =  Some {DefaultBindings = Map.empty; ParamSlots = Map.empty}
+        let updatedLC = 
+            match loadedComponent.LCParameterSlots with
+            | Some _ -> loadedComponent
+            | None -> {loadedComponent with LCParameterSlots = defaultInfo}
+        dispatch <| UpdateModel (set openLoadedComponentOfModel_ updatedLC)
+
     // Update the parameter value then close the popup
-    let buttonAction model' =
-        let newParamName = getText model'.PopupDialogData
-        let newValue = getInt model'.PopupDialogData
+    let buttonAction model =
+        initParamInfo model // Needed before adding first parameter
+        let newParamName = getText model.PopupDialogData
+        let newValue = getInt model.PopupDialogData
 
         // Update bindings
         let newBindings =
-            model' 
+            model 
             |> getParamBindings
             |> Map.add (ParamName newParamName) (PInt newValue)
         dispatch <| UpdateModel (set defaultBindingsOfModel_ newBindings)
         dispatch ClosePopup
 
-    // Parameter Names can only be made out of letters and numbers
-    let isDisabled = 
-        fun (model': Model) -> 
-                let newParamName =  getText model'.PopupDialogData
-                not (Regex.IsMatch(newParamName, "^[a-zA-Z0-9]+$"))
+    // Parameter names can only contain letters and numbers
+    let isDisabled model = 
+        let newParamName = getText model.PopupDialogData
+        not (Regex.IsMatch(newParamName, "^[a-zA-Z][a-zA-Z0-9]*$"))
 
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
@@ -869,7 +884,7 @@ let private makeParamsField model dispatch =
             p [] [str "No parameters have been added to this sheet." ]   
             br [] 
             Button.button 
-                            [ Fulma.Button.OnClick(fun _ -> addParameterBox model dispatch)
+                            [ Fulma.Button.OnClick(fun _ -> addParameterBox dispatch)
                               Fulma.Button.Color IsInfo
                             ] 
                 [str "Add Parameter"]
@@ -921,7 +936,7 @@ let private makeParamsField model dispatch =
                     )
                 ]
             Button.button 
-                [ Fulma.Button.OnClick(fun _ -> addParameterBox model dispatch)
+                [ Fulma.Button.OnClick(fun _ -> addParameterBox dispatch)
                   Fulma.Button.Color IsInfo
                 ]
                 [str "Add Parameter"]

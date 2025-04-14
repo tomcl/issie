@@ -52,6 +52,7 @@
     <Compile Include="Simulator\FastSim\FastRun.fs" />
     <Compile Include="Simulator\FastSim\FastExtract.fs" />
     <Compile Include="Simulator\Simulator.fs" />
+    <Compile Include="VerilogComponent\Editor.fs" />
     <Compile Include="VerilogComponent\Verilog.fs" />
 
     <!-- Verilog Component -->

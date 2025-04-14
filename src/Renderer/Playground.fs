@@ -276,10 +276,11 @@ module WebWorker =
             
 
 module Misc =
-    open ModelType
     open DrawModelType
     open ModelType
-
+    open Editor
+    let displayEditor () =
+        renderEditor testEditorModel (fun _ -> ())
 
 
     let highLightChangedConnections dispatch =

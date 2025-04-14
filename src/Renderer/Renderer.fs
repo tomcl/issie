@@ -27,6 +27,7 @@ open ContextMenus
 
 
 importSideEffects "./scss/main.css"
+importSideEffects "./scss/extra.css"
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
@@ -399,8 +400,8 @@ let addDebug dispatch (msg:Msg) =
     //if str <> "" then printfn ">>Dispatch %s" str else ()
     dispatch msg
 
-let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
-
+//let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
+let view (model:Model) (dispatch: Msg -> unit) = Playground.Misc.displayEditor () 
 // -- Update Model
 
 let update msg model = Update.update msg model

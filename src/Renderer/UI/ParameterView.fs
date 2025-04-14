@@ -496,6 +496,12 @@ let rec exprContainsParams
         -> exprContainsParams left || exprContainsParams right
 
 
+/// Get the error message from a constraint
+let extractErrorMsg constr =
+    match constr with
+    | MinVal (_, err) | MaxVal (_, err) -> err
+
+
 /// Check the constraints on the parameter bindings of the current sheet
 /// given a new expression for a parameter
 let checkBindings
@@ -504,45 +510,41 @@ let checkBindings
     (value: ParamInt)
     : Result<unit, ParamError> =
 
+    // Get parameter info
     let newBindings =
         model
         |> getParamBindings
         |> Map.add paramName (PInt value)
     let paramSlots = getParamSlots model
 
-
-    // TODO-RYAN: Tidy up this function and make the error message formatting much better
-    //            (shouldn't be directly printing types - this is not reliable)
+    // Add information about component and expression to constraint error message
     let addDetailedErrorMsg (slot: ParamSlot) (expr: ConstrainedExpr): ConstrainedExpr =
-        let constraints = expr.Constraints
+        let renderedExpr = renderParamExpression expr.Expression 0
+        let slotText =
+            match slot.CompSlot with
+            | Buswidth | IO _ -> $"bus width of {renderedExpr}"
+            | NGateInputs -> $"{renderedExpr} inputs"
+            | _ -> failwithf $"Cannot not have constraints on slot {slot.CompSlot}"
+
         let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
+        let compInfo = $"Component {comp.Label} has {slotText}"
 
+        let addDetail constr =
+            match constr with
+            | MaxVal (paramExpr, err) -> MaxVal (paramExpr, $"{compInfo}. {err}.")
+            | MinVal (paramExpr, err) -> MinVal (paramExpr, $"{compInfo}. {err}.")
 
-        let detailedConstraints = 
-            constraints
-            |> List.map (
-                function constr ->
-                            match constr with
-                            | MaxVal (paramExpr, err) -> MaxVal (paramExpr, $"Component {comp.Label} has {slot.CompSlot} of {renderParamExpression expr.Expression 0}. {err}.")
-                            | MinVal (paramExpr, err) -> MinVal (paramExpr, $"Component {comp.Label} has {slot.CompSlot} of {renderParamExpression expr.Expression 0}. {err}.")
-            )
-
+        let detailedConstraints = expr.Constraints |> List.map addDetail
         {expr with Constraints = detailedConstraints}
-    (*
-    COMPA: <slotName> of <expr> <constraint>
-    *)
 
-    // TODO-RYAN: Add some more helpful info to the constraint error messages
+    // Add more useful error messages to all constraints
     let detailedSpecs =
         paramSlots
         |> Map.map addDetailedErrorMsg
         |> Map.values
         |> Array.toList
 
-    let extractErrorMsg constr =
-        match constr with
-        | MinVal (_, err) | MaxVal (_, err) -> err
-
+    // Evaluate constraints for given bindings and take first error
     detailedSpecs
     |> evaluateConstraints newBindings
     |> Result.mapError (function lst -> List.head lst)
@@ -612,10 +614,7 @@ let paramInputField
             let exprSpec = {Expression = expr; Constraints = constraints}
             match evaluateConstraints paramBindings [exprSpec] with
             | Ok () -> Ok ()
-            | Error (firstConstraint :: _) ->
-                // TODO-RYAN: There's a function for this now
-                match firstConstraint with
-                | MinVal (_, err) | MaxVal (_, err) -> Error err 
+            | Error (constr :: _) -> Error <| extractErrorMsg constr
             | Error _ -> failwithf "Cannot have error list with no elements"
 
         let exprResult = parseExpression inputExpr

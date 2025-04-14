@@ -101,6 +101,8 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                 | Input1 (busWidth, _) -> busWidth
                 | Output busWidth -> busWidth
                 | _ -> failwithf $"Invalid component {comp.Type} for IO"
+            // TODO-RYAN: Add support for lens access here
+            | _ -> failwithf $"Lens access not yet implemented for {compSlotName}"
         )
         (fun value comp->
                 let newType = 
@@ -141,6 +143,8 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
                         | Output _ -> Output value
                         | _ -> failwithf $"Invalid component {comp.Type} for IO"
+                    // TODO-RYAN: Add support for lens access here
+                    | _ -> failwithf $"Lens access not yet implemented for {compSlotName}"
                 { comp with Type = newType}
 )
 
@@ -161,52 +165,59 @@ let modelToSlot_ (slot: ParamSlot) : Optics.Lens<Model, int> =
     >-> compSlot_ slot.CompSlot
 
 
-/// returns the value of a parameter expression given a set of parameter bindings.
-/// The simplified value will be either a constant or a linear combination of a constant and a parameter.
-/// NB here 'PINT is not a polymorphic type but a type parameter that will be instantiated to int or bigint.
-let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpression) : Result<ParamInt, ParamError> =
-    // changed the function to be recursive
+/// Get parameter bindings of current loaded component
+let getParamBindings model = 
+    model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
+
+
+/// Get parameter slots of current loaded component
+let getParamSlots model =
+    model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
+
+
+/// Returns the value of a parameter expression given a set of parameter bindings.
+/// The expression must evaluate to an integer constant.
+let evaluateParamExpression
+    (paramBindings: ParamBindings)
+    (paramExpr: ParamExpression)
+    : Result<ParamInt, ParamError> =
+
+    // Expression needs to be evaluated recursively
     let rec recursiveEvaluation (expr: ParamExpression) : ParamExpression =
         match expr with
-        | PInt _ -> expr // constant, nothing needs to be changed
+        | PInt _ -> expr    // Constant, nothing needs to be changed
         | PParameter name -> 
             match Map.tryFind name paramBindings with
             | Some evaluated -> evaluated
             | None -> PParameter name
         | PAdd (left, right) ->
             match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l+r)
-            | newLeft, newRight -> PAdd (newLeft, newRight) // keep as PAdd type
+            | PInt l, PInt r -> PInt (l + r)
+            | newLeft, newRight -> PAdd (newLeft, newRight)
         | PSubtract (left, right) -> 
             match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l-r)
-            | newLeft, newRight -> PSubtract (newLeft, newRight) // keep as Psubtract type
+            | PInt l, PInt r -> PInt (l - r)
+            | newLeft, newRight -> PSubtract (newLeft, newRight)
         | PMultiply (left, right) ->
             match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l*r)
+            | PInt l, PInt r -> PInt (l * r)
             | newLeft, newRight -> PMultiply (newLeft, newRight)
         | PDivide (left, right) ->
             match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l/r)
+            | PInt l, PInt r -> PInt (l / r)
             | newLeft, newRight -> PDivide (newLeft, newRight)
         | PRemainder (left, right) ->
             match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l%r)
+            | PInt l, PInt r -> PInt (l % r)
             | newLeft, newRight -> PRemainder (newLeft, newRight)
-        
-    
-    let unwrapParamName (ParamName name) = name
     
     let rec collectUnresolved expr =
         match expr with
         | PInt _ -> []
-        | PParameter name -> [unwrapParamName name]  // Only collect unresolved parameters
-        | PAdd (left, right) 
-        | PSubtract (left, right) 
-        | PMultiply (left, right)
-        | PDivide (left, right) 
-        | PRemainder (left, right) ->
-            collectUnresolved left @ collectUnresolved right
+        | PParameter (ParamName name) -> [name] // Only collect unresolved parameters
+        | PAdd (left, right) | PSubtract (left, right)
+        | PMultiply (left, right) | PDivide (left, right) 
+        | PRemainder (left, right) -> collectUnresolved left @ collectUnresolved right
 
     match recursiveEvaluation paramExpr with
     | PInt evaluated -> Ok evaluated
@@ -256,23 +267,23 @@ let evaluateConstraints
     (exprSpecs: ConstrainedExpr list)
     : Result<Unit, ParamConstraint list> =
 
-    let failedConstraints konst expr =
+    let failedConstraints constraints expr =
         let resultExpression = evaluateParamExpression paramBindings expr
         match resultExpression with
             | Ok value ->        
-                konst
+                constraints
                 |> List.filter (fun constr ->
                     match constr with
-                    | MaxVal (expr, errorMsg) -> 
+                    | MaxVal (expr, _) -> 
                         match evaluateParamExpression paramBindings expr with
                         | Ok maxValue -> value > maxValue
-                        | Error err -> false    // Failed to evaluate constraint
+                        | Error _ -> false  // Failed to evaluate constraint
                     | MinVal (expr, _) -> 
                         match evaluateParamExpression paramBindings expr with
                         | Ok minValue -> value < minValue
-                        | Error err -> false    // Failed to evaluate constraint
+                        | Error _ -> false  // Failed to evaluate constraint
                     )
-            | Error err -> []
+            | Error _ -> []
     
     let result =
         exprSpecs
@@ -372,42 +383,13 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
             | Error e -> Error e
 
 
-/// Get LoadedComponent for currently open sheet
-/// This cannot fail, because LoadedComponent must be loaded for sheet to be open
-let getCurrentSheet model = 
-    let sheetName = 
-        match model.CurrentProj with
-        | Some proj -> proj.OpenFileName
-        | None -> failwithf "Cannot find sheet because no project is open"
-
-    model
-    |> ModelHelpers.tryGetLoadedComponents
-    |> List.tryFind (fun lc -> lc.Name = sheetName)
-    |> function
-       | Some lc -> lc
-       | None -> failwithf "No loaded component with same name as open sheet"
-
-
-/// Get default parameter bindings for LoadedComponent 
-let getDefaultParams loadedComponent =
-    match loadedComponent.LCParameterSlots with
-    | Some paramSlots -> paramSlots.DefaultBindings
-    | None -> Map.empty
-
-
-/// Get default parameter slots for LoadedComponent 
-let getParamSlots loadedComponent =
-    match loadedComponent.LCParameterSlots with
-    | Some sheetinfo -> sheetinfo.ParamSlots
-    | None -> Map.empty
-
-
 /// Get current loaded component parameter info
 /// Returns empty maps for ParamSlots and DefaultBindings if None
 let getLCParamInfo (model: Model) =
     model
     |> get lcParameterInfoOfModel_
     |> Option.defaultValue {ParamSlots = Map.empty; DefaultBindings = Map.empty}
+
 
 /// Update a custom component with new I/O component widths.
 /// Used when these chnage as result of parameter changes.
@@ -427,6 +409,7 @@ let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBin
                                     ParameterBindings = Some newBindings }
         { comp with Type = Custom updatedCustom }
     | _ -> comp
+
 
 /// Use sheet component update functions to perform updates
 let updateComponent dispatch model slot value =
@@ -495,7 +478,7 @@ let updateComponent dispatch model slot value =
         printf $"{comp}"
         let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
         model.Sheet.DoBusWidthInference dispatchnew
-
+    | SheetParam _ -> failwithf "Cannot update sheet parameter using updateComponent"
 
 
     // Update most recent bus width
@@ -660,7 +643,7 @@ let paramInputField
         | _, Error err, _ -> dispatch <| AddPopupDialogParamSpec (compSlotName, Error err)
         | _ -> failwithf "Value cannot exist with invalid expression"
 
-    let slots = model |> getCurrentSheet |> getParamSlots
+    let slots = getParamSlots model
     let inputString = 
         match comp with
         | Some c ->
@@ -853,13 +836,13 @@ let addParameterBox model dispatch =
 /// TODO: this should be a special cases of a more general popup for parameter expressions?
 let editParameterBox model paramName dispatch   = 
     match model.CurrentProj with
+    // TODO-RYAN: Get rid of this macro match statement - not needed
     | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
-        let currentSheet = project.LoadedComponents
-                                   |> List.find (fun lc -> lc.Name = project.OpenFileName)
         let title = "Edit parameter value"
-        let currentValue = getDefaultParams currentSheet |> Map.find (ParamName paramName)
+        // TODO-RYAN: Make this safer using tryFind (and throw specific error)
+        let currentValue = getParamBindings model |> Map.find (ParamName paramName)
         let intPrompt = 
             fun _ ->
                 div []
@@ -983,8 +966,8 @@ let deleteParameterBox model paramName dispatch  =
 
 /// UI to display and manage parameters for a design sheet.
 /// TODO: add structural abstraction.
-let private makeParamsField model (comp:LoadedComponent) dispatch =
-    let sheetDefaultParams = getDefaultParams comp
+let private makeParamsField model dispatch =
+    let sheetDefaultParams = getParamBindings model
     match sheetDefaultParams.IsEmpty with
     | true ->
         div [] [
@@ -1179,14 +1162,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
         | Some bindings -> bindings
         | None -> Map.empty
     
-    let lcDefaultParams =
-        match model.CurrentProj with
-        | Some proj -> 
-            let lcName = List.tryFind (fun c -> custom.Name = c.Name) proj.LoadedComponents
-            match lcName with
-            | Some lc -> getDefaultParams lc
-            | None -> Map.empty
-        | None -> Map.empty
+    let lcDefaultParams = getParamBindings model
 
     let mergedParamBindings : ParamBindings =
         lcDefaultParams
@@ -1271,6 +1247,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             | NGateInputs -> "Num inputs"
             | IO label -> $"Input/output {label}"
             | CustomCompParam param -> $"Parameter {param}"
+            | SheetParam _ -> failwithf "Sheet parameter does not belong to a component"
 
         let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
                         string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label
@@ -1338,7 +1315,7 @@ let viewParameters (model: ModelType.Model) dispatch =
             let sheetName = proj.OpenFileName
             let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
             div [] [
-            makeParamsField model sheetLdc dispatch
+            makeParamsField model dispatch
             br []
             makeSlotsField model sheetLdc dispatch]
         |None -> null

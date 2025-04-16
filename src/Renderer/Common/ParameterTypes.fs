@@ -46,7 +46,7 @@ type CompSlotName =
     | Buswidth
     | NGateInputs
     | IO of Label: string
-    | CustomCompParam of ParamName: string // TODO-RYAN: Should this have type ParamName??
+    | CustomCompParam of ParamName: ParamName   // Custom component parameter binding
     | SheetParam of ParamName: ParamName    // Used to update default sheet parameters
 
 /// A slot in a component instance that can be bound to a parameter expression

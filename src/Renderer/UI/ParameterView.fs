@@ -175,9 +175,9 @@ let getParamSlots model =
     model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
 
 
-/// Returns the value of a parameter expression given a set of parameter bindings.
-/// The expression must evaluate to an integer constant.
-let evaluateParamExpression
+/// Tries to evaluate a parameter expression given a set of parameter bindings
+/// Returns a ParamInt if successful, or ParamError if not
+let tryEvaluateExpression
     (paramBindings: ParamBindings)
     (paramExpr: ParamExpression)
     : Result<ParamInt, ParamError> =
@@ -228,6 +228,18 @@ let evaluateParamExpression
         | _ -> failwithf "List of unresolved parameters cannot be empty"
 
 
+/// Evaluates a parameter expression for given parameter bindings
+/// Can only be used when it is known that the expression is valid for these bindings
+let evaluateExpression
+    (paramBindings: ParamBindings)
+    (paramExpr: ParamExpression)
+    : ParamInt =
+
+    match tryEvaluateExpression paramBindings paramExpr with
+    | Ok value -> value
+    | Error err -> failwithf $"Known valid expression evaluation threw error '{err}'"
+
+
 let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string =
     // TODO refactor ParamExpression DU and this function to to elminate duplication
     // for multiple binary operators. Could use a local function here, but the better
@@ -273,18 +285,18 @@ let rec evaluateConstraints
     printf $"Evaluating constraints for bindings={paramBindings} and slots = {paramSlots}"
 
     let failedConstraints constraints expr =
-        let resultExpression = evaluateParamExpression paramBindings expr
+        let resultExpression = tryEvaluateExpression paramBindings expr
         match resultExpression with
             | Ok value ->        
                 constraints
                 |> List.filter (fun constr ->
                     match constr with
                     | MaxVal (expr, _) -> 
-                        match evaluateParamExpression paramBindings expr with
+                        match tryEvaluateExpression paramBindings expr with
                         | Ok maxValue -> value > maxValue
                         | Error _ -> false  // Failed to evaluate constraint
                     | MinVal (expr, _) -> 
-                        match evaluateParamExpression paramBindings expr with
+                        match tryEvaluateExpression paramBindings expr with
                         | Ok minValue -> value < minValue
                         | Error _ -> false  // Failed to evaluate constraint
                     )
@@ -314,7 +326,7 @@ let rec evaluateConstraints
     let evaluateSlot (slot: ParamSlot) (spec: ConstrainedExpr) = 
         match slot.CompSlot with
         | CustomCompParam param ->
-            let paramVal = evaluateParamExpression paramBindings spec.Expression
+            let paramVal = tryEvaluateExpression paramBindings spec.Expression
             let comp =
                 ComponentId slot.CompId
                 |> model.Sheet.GetComponentById
@@ -340,7 +352,7 @@ let rec evaluateConstraints
                 // Convert these to constants
                 // TODO-RYAN: This entire function is so messy. Fix it!
                 |> Map.map (fun name expr ->
-                    evaluateParamExpression paramBindings expr
+                    tryEvaluateExpression paramBindings expr
                     |> function
                        | Ok value -> PInt value
                        | Error err -> failwithf $"Parameter binding evaluation failed with error message {err}"
@@ -499,7 +511,7 @@ let updateComponent dispatch model paramBindings slot expr =
     // TODO-RYAN: These failwithf messages really need to be improved
     // TODO-RYAN: Maybe we can use evaluateExpression and tryEvaluateExpression
     let value =
-        match evaluateParamExpression paramBindings expr with
+        match tryEvaluateExpression paramBindings expr with
         | Ok  intVal -> intVal
         | Error err -> failwithf $"Encountered error '{err}' while evaluating expression"
 
@@ -540,7 +552,7 @@ let updateComponent dispatch model paramBindings slot expr =
             match custom.ParameterBindings with
             | Some bindings -> bindings
             | None -> Map.empty
-            |> Map.add (ParamName param) (PInt value)
+            |> Map.add param (PInt value)
         
         let toplevelBindings = paramBindings
 
@@ -549,7 +561,7 @@ let updateComponent dispatch model paramBindings slot expr =
         let constantBindings = 
             newBindings
             |> Map.map (fun key expr ->
-                match evaluateParamExpression toplevelBindings expr with
+                match tryEvaluateExpression toplevelBindings expr with
                 | Ok value -> PInt value
                 | Error _ -> failwithf "Must be able to evaluate expression for binding"
             )
@@ -581,7 +593,7 @@ let updateComponent dispatch model paramBindings slot expr =
                     | IO label -> 
                         printf $"label = {label}"
                         let evaluatedValue = 
-                            match evaluateParamExpression mergedBindings constrainedExpr.Expression with
+                            match tryEvaluateExpression mergedBindings constrainedExpr.Expression with
                             | Ok expr -> expr
                             | Error _ -> failwithf "Failed to evaluate parameterised IO"
                         printf $"evaluatedvalue = {evaluatedValue}"
@@ -763,7 +775,7 @@ let paramInputField
             | Error constr -> Error <| extractErrorMsg constr
 
         let exprResult = parseExpression inputExpr
-        let newVal = Result.bind (evaluateParamExpression paramBindings) exprResult
+        let newVal = Result.bind (tryEvaluateExpression paramBindings) exprResult
         // TODO-RYAN: This line is getting a bit long
         // TODO-RYAN: Also add support for CustomCompSlot
         // TODO-RYAN: This nested match is terrible, find a better way of writing the 
@@ -775,6 +787,8 @@ let paramInputField
                | Some lc -> lc.Name
                | None -> failwithf "Must have open sheet"
 
+        // TODO-RYAN: This needs to be revamped to support constraint checking
+        //            for parameter bindings with parameter inheritance
         let constraintCheck =
             match compSlotName with
             | SheetParam paramName ->
@@ -880,7 +894,7 @@ let updateComponents
     : Unit =
 
     let evalExpression expr =
-        match evaluateParamExpression newBindings expr with
+        match tryEvaluateExpression newBindings expr with
         | Ok value -> value
         | Error _ ->  failwithf "Component update cannot have invalid expression"
 
@@ -954,6 +968,7 @@ let addParameterBox dispatch =
 
 
 /// Creates a popup that allows a parameter integer value to be edited.
+/// TODO-RYAN: This should be a specific version of a more general parameter input box
 let editParameterBox model paramName dispatch   = 
     // Get current value
     let currentVal =
@@ -1088,152 +1103,117 @@ let private makeParamsField model dispatch =
 
 /// create a popup to edit in the model a custom component parameter binding
 /// TODO - maybe comp should be a ComponentId with actual component looked up from model for safety?
-let editParameterBindingPopup model paramName currValue (comp: Component) (custom: CustomComponentType) dispatch   = 
+/// TODO-RYAN: We could just have a slot as input here
+let editParameterBindingPopup
+    (model: Model)
+    (paramName: ParamName)
+    (currentVal: ParamInt)
+    (comp: Component)
+    (dispatch: Msg -> Unit)
+    : Unit = 
+
+    let custom =
+        match comp.Type with
+        | Custom c -> c
+        | other -> failwithf $"Custom component cannot have type '{other}'"
     
-    printf "Calling edit parameter binding popup function"
-    
-    match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
-    | Some project ->
-        // Prepare dialog popup.
-        let currentSheet = project.LoadedComponents
-                                   |> List.find (fun lc -> lc.Name = custom.Name)
-        let title = "Edit parameter value"
-        let intPrompt = 
-            fun _ ->
-                div []
-                    [
-                        str $"New value for the parameter {paramName}:"
-                        br []
-                        str $"(current value: {currValue})"
-                    ]
+    // Find corresponding loaded component for custom component
+    let customLC = 
+        match model.CurrentProj with
+        | None -> failwithf "Must have open project"
+        | Some proj ->
+            proj.LoadedComponents
+            |> List.find (fun lc -> lc.Name = custom.Name)
 
+    let lcParamInfo =
+        match customLC.LCParameterSlots with
+        | Some paramInfo -> paramInfo
+        | None -> failwithf "Parameterised custom component must have parameter info"
 
-        // TODO-RYAN: body should be a parameter input field
-        // TODO-RYAN: Find a way of adding in an expression evaluation box
-        // TODO-RYAN: Add proper constraints
+    // Popup dialog config
+    let title = "Edit parameter value"
+    let prompt = $"New value for parameter {paramName}"
+    let slot = CustomCompParam paramName
+    let buttonText = "Set value"
 
-        let prompt = $"New value for parameter {paramName}"
+    let inputField model' =
+        paramInputField model' prompt currentVal None [] None slot dispatch
 
-        let inputField model' =
-            // paramInputField model' prompt currValue (Some currValue) [] (Some comp) (CustomCompParam paramName) dispatch
-            paramInputField model' prompt currValue None [] None (CustomCompParam paramName) dispatch
+    // TODO-RYAN: Update this comment
+    // Update the parameter value then close the popup
+    let buttonAction model' =
+        // Get new parameter expression from input field
+        let paramSpec = getParamFieldSpec slot model'
+        
+        // Add new binding to param slots of current sheet
+        let compSlot = {CompId = comp.Id; CompSlot = paramSpec.CompSlot}
+        let exprSpec = {
+            Expression = paramSpec.Expression
+            Constraints = paramSpec.Constraints
+        }
+        dispatch <| UpdateModel (updateParamSlot compSlot exprSpec)
 
-        let body = dialogPopupBodyOnlyInt intPrompt currValue dispatch
-        let buttonText = "Set value"
+        let newBindings =
+            custom.ParameterBindings
+            |> Option.defaultValue Map.empty
+            |> Map.add paramName paramSpec.Expression
+        
+        let toplevelBindings = getDefaultBindings model
 
-        // Update the parameter value then close the popup
-        let buttonAction =
-            fun (model': Model) -> 
-                let newParamName =  paramName 
+        let constantBindings = 
+            newBindings
+            |> Map.map (fun _ expr -> PInt <| evaluateExpression toplevelBindings expr)
 
-                // TODO-RYAN: Implement the update function here
-                let slot = CustomCompParam paramName
+        let mergedBindings = 
+            lcParamInfo.DefaultBindings
+            |> Map.map (fun key value -> 
+                match Map.tryFind key constantBindings with
+                | Some ccValue -> ccValue // Overwrite if key exists in cc
+                | None -> value // use loaded component value if key does not exist in cc
+                )
 
-                let inputFieldDialog = 
-                    match model'.PopupDialogData.DialogState with
-                    | Some inputSpec -> Map.find slot inputSpec
-                    | None -> failwithf "EDITING BINDING: Param input field must set new param info"
-                let compParamSpec =
-                    match inputFieldDialog with
-                    | Ok paramSpec -> paramSpec
-                    | Error err ->
-                        failwithf $"Received error message '{err}' when editing parameter binding"
-                
-                dispatch <| UpdateModel (updateParamSlot {CompId = comp.Id; CompSlot = compParamSpec.CompSlot} {Expression = compParamSpec.Expression; Constraints = compParamSpec.Constraints})
+        let labelToEval = 
+            lcParamInfo.ParamSlots
+            |> Map.toList // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
+            |> List.choose (fun (paramSlot, constrainedExpr) -> 
+                match paramSlot.CompSlot with
+                | IO label -> 
+                    let evaluatedValue = 
+                        match tryEvaluateExpression mergedBindings constrainedExpr.Expression with
+                        | Ok expr -> expr
+                        | Error _ -> 0
+                    Some (label, evaluatedValue)
+                | _ -> None 
+            )
+            |> Map.ofList // Convert to map
 
-                // let newValue = compParamSpec.Value
+        let newestComponent = updateCustomComponent labelToEval newBindings comp
+        let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
+        let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
+        let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
+        updateModelSymbol newModel |> UpdateModel |> dispatch
 
-                // let newValue = getInt model'.PopupDialogData
-                let newBindings =
-                    match custom.ParameterBindings with
-                    | Some bindings -> bindings
-                    | None -> Map.empty
-                    |> Map.add (ParamName newParamName) compParamSpec.Expression
-                
-                let toplevelBindings = getDefaultBindings model
+        let dispatchnew (msg: SheetT.Msg) : unit = dispatch (Sheet msg)
+        model.Sheet.DoBusWidthInference dispatchnew
+        dispatch ClosePopup
 
-                let constantBindings = 
-                    newBindings
-                    |> Map.map (fun key expr ->
-                        match evaluateParamExpression toplevelBindings expr with
-                        | Ok value -> PInt value
-                        | Error _ -> failwithf "Must be able to evaluate expression for binding"
-                    )
+    // Constraints are checked by the parameter input field
+    let isDisabled model' = not <| paramInputIsValid slot model'
 
-                // TODO-RYAN: currentSheet is not the right name for this
-                let sheetBindings = 
-                    match currentSheet.LCParameterSlots with
-                    | Some slots -> slots.DefaultBindings
-                    | None -> failwithf "Parameterised custom component must have bindings"
+    // TODO-RYAN:
+    // 1. Huge amount of code reuse between this and edit parameter box
+    // 2. is this default param spec really necessary????
+    let defaultParamSpec = {
+        CompSlot = slot
+        Expression = PInt currentVal
+        Constraints = []
+        Value = currentVal
+    }
 
-                let mergedBindings = 
-                    sheetBindings
-                    |> Map.map (fun key value -> 
-                        match Map.tryFind key constantBindings with
-                        | Some ccValue -> ccValue // Overwrite if key exists in cc
-                        | None -> value // use loaded component value if key does not exist in cc
-                        )
+    // Create parameter input field
+    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
+    dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
-                let labelToEval = 
-                    printf $"Finding label to eval for current LC slots"
-                    match currentSheet.LCParameterSlots with
-                    | Some sheetInfo ->
-                        printf $"paramslots = {sheetInfo.ParamSlots}"
-                        sheetInfo.ParamSlots
-                        |> Map.toSeq // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
-                        |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
-                            match paramSlot.CompSlot with
-                            | IO label -> 
-                                printf $"label = {label}"
-                                printf $"mergedBindings is {mergedBindings}"
-                                printf $"expression is {constrainedExpr.Expression}"
-                                let evaluatedValue = 
-                                    match evaluateParamExpression mergedBindings constrainedExpr.Expression with
-                                    | Ok expr -> expr
-                                    | Error _ -> 0
-                                printf $"evaluatedvalue = {evaluatedValue}"
-                                Some (label, evaluatedValue)
-                            | _ -> None 
-                        )
-                        |> Map.ofSeq // Convert to map
-                    | None -> Map.empty
-
-                printf $"labeltoeval = {labelToEval}"
-
-                let newestComponent = updateCustomComponent labelToEval newBindings comp
-                let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
-                let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
-                let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
-                updateModelSymbol newModel |> UpdateModel |> dispatch
-
-                printf $"{comp}"
-                let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
-                model.Sheet.DoBusWidthInference dispatchnew
-                dispatch ClosePopup
-
-        // if constraints are not met, disable the button
-        let isDisabled =
-            fun (model': Model) ->
-                let newParamName =  paramName 
-                let newValue = getInt model'.PopupDialogData
-                let newBindings =
-                    match custom.ParameterBindings with
-                    | Some bindings -> bindings
-                    | None -> Map.empty
-                    |> Map.add (ParamName newParamName) (PInt newValue)
-                let exprSpecs = 
-                    match currentSheet.LCParameterSlots with
-                    | Some sheetInfo ->
-                        printf $"paramslots = {sheetInfo.ParamSlots}"
-                        sheetInfo.ParamSlots
-                    | None -> Map.empty
-
-                evaluateConstraints model' newBindings exprSpecs
-                |> Result.isError
-
-        // dialogPopup title body buttonText buttonAction isDisabled [] dispatch
-        dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
 /// UI component for custom component definition of parameter bindings
 let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentType) dispatch =
@@ -1302,7 +1282,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                             td [] [str paramVal]
                             td [] [
                                 Button.button // TODO-ELENA: this is sketchy
-                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model paramName (int paramVal) comp custom dispatch)
+                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model (ParamName paramName) (int paramVal) comp dispatch)
                                       Fulma.Button.Color IsInfo
                                     ] 
                                     [str "Edit"]

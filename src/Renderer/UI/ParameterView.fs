@@ -166,7 +166,7 @@ let modelToSlot_ (slot: ParamSlot) : Optics.Lens<Model, int> =
 
 
 /// Get parameter bindings of current loaded component
-let getParamBindings model = 
+let getDefaultBindings model = 
     model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
 
 
@@ -260,12 +260,17 @@ let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string 
         "(" + renderParamExpression left currentPrecedence + "%" + renderParamExpression right currentPrecedence + ")" 
 
 
-/// Evaluates a set of parameter bindings against a list of constraints
-/// and returns a list of violated constraints
-let evaluateConstraints
+/// Evaluates the parameter slots for the given parameter bindings
+/// and returns the first violated constraint
+/// Recursive evaluation needed for parameter inheritance
+/// TODO-RYAN: This function needs a MASSIVE tidy-up
+let rec evaluateConstraints
+    (model: Model)
     (paramBindings: ParamBindings)
-    (exprSpecs: ConstrainedExpr list)
-    : Result<Unit, ParamConstraint list> =
+    (paramSlots: ComponentSlotExpr)
+    : Result<Unit, ParamConstraint> =
+
+    printf $"Evaluating constraints for bindings={paramBindings} and slots = {paramSlots}"
 
     let failedConstraints constraints expr =
         let resultExpression = evaluateParamExpression paramBindings expr
@@ -284,14 +289,96 @@ let evaluateConstraints
                         | Error _ -> false  // Failed to evaluate constraint
                     )
             | Error _ -> []
-    
+        
+
+
+        // TODO-RYAN: remove these notes
+        (*
+            For each constraint:
+                If slot type is CustomCompParam
+                    1. Evaluate the param using current bindings
+                    2. Get corresponding custom component
+                    3. Get corresponding loaded component
+                    4. Form new merged bindings from new cc and lc
+                    5. Get param slots from lc
+                    6. Recursive call
+                Else:
+                    Normal evaluation
+        
+        
+        
+        *)
+
+
+    // TODO-RYAN: This function can definitely be improved using lenses/prisms
+    let evaluateSlot (slot: ParamSlot) (spec: ConstrainedExpr) = 
+        match slot.CompSlot with
+        | CustomCompParam param ->
+            let paramVal = evaluateParamExpression paramBindings spec.Expression
+            let comp =
+                ComponentId slot.CompId
+                |> model.Sheet.GetComponentById
+            let customComponent = 
+                match comp.Type with
+                | Custom c -> c
+                | _ -> failwithf "Custom component parameter can only belong to custom component"
+            let loadedComponent =
+                match model.CurrentProj with
+                | Some proj -> proj
+                | None -> failwithf "Must have open project"
+                // TODO-RYAN: Improve the formatting here
+                |> fun proj -> proj.LoadedComponents
+                |> List.find (fun lc -> lc.Name = customComponent.Name)
+            let lcBindings = 
+                match loadedComponent.LCParameterSlots with
+                | Some slots -> slots.DefaultBindings
+                | None -> Map.empty
+            let ccBindings = 
+                match customComponent.ParameterBindings with
+                | Some bindings -> bindings
+                | None -> Map.empty
+                // Convert these to constants
+                // TODO-RYAN: This entire function is so messy. Fix it!
+                |> Map.map (fun name expr ->
+                    evaluateParamExpression paramBindings expr
+                    |> function
+                       | Ok value -> PInt value
+                       | Error err -> failwithf $"Parameter binding evaluation failed with error message {err}"
+                )
+
+
+            let mergedBindings = 
+                lcBindings
+                |> Map.map (fun key value -> 
+                    match Map.tryFind key ccBindings with
+                    | Some ccValue -> ccValue // Overwrite if key exists in cc
+                    | None -> value // use loaded component value if key does not exist in cc
+                )
+
+            printf $"customComponent paramBindings are {customComponent.ParameterBindings}"
+            printf $"paramBindings are {paramBindings}"
+            printf $"lcBindings is {lcBindings}"
+            printf $"ccBindings is {ccBindings}"
+            printf $"Merged bindings is {mergedBindings}"
+
+            let lcSlots = 
+                match loadedComponent.LCParameterSlots with
+                | Some slots -> slots.ParamSlots
+                | None -> Map.empty
+            evaluateConstraints model mergedBindings lcSlots
+            |> function
+               | Ok () -> []
+               | Error failedConstraint -> [failedConstraint]
+        | SheetParam _ -> failwithf "Sheet parameter cannot be slot in a component"
+        | _ -> failedConstraints spec.Constraints spec.Expression
+
     let result =
-        exprSpecs
-        |> List.collect (fun slot ->
-            failedConstraints slot.Constraints slot.Expression)
-    
+        paramSlots
+        |> Map.toList
+        |> List.collect (fun (slot, spec) -> evaluateSlot slot spec)
+
     if List.isEmpty result then Ok()
-    else Error result
+    else Error <| List.head result
 
 
 /// Generates a ParameterExpression from input text
@@ -404,8 +491,17 @@ let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBin
 
 
 /// Use sheet component update functions to perform updates
-let updateComponent dispatch model slot value =
+/// TODO-RYAN: This needs to be updated with expr instead of value to support parameter inheritance!
+/// TODO-RYAN: Add some types and potentially rearrange the header for this function
+let updateComponent dispatch model paramBindings slot expr =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
+
+    // TODO-RYAN: These failwithf messages really need to be improved
+    // TODO-RYAN: Maybe we can use evaluateExpression and tryEvaluateExpression
+    let value =
+        match evaluateParamExpression paramBindings expr with
+        | Ok  intVal -> intVal
+        | Error err -> failwithf $"Encountered error '{err}' while evaluating expression"
 
     let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
     let compId = ComponentId comp.Id
@@ -433,12 +529,47 @@ let updateComponent dispatch model slot value =
 
         // TODO-RYAN: Use much better functional abstraction
         // let newValue = getInt model'.PopupDialogData
+        // let newBindings =
+        //     match custom.ParameterBindings with
+        //     | Some bindings -> bindings
+        //     | None -> Map.empty
+        //     |> Map.add (ParamName param) (PInt value)
+        
+        // let newValue = getInt model'.PopupDialogData
         let newBindings =
             match custom.ParameterBindings with
             | Some bindings -> bindings
             | None -> Map.empty
             |> Map.add (ParamName param) (PInt value)
         
+        let toplevelBindings = paramBindings
+
+        printf $"toplevel bindings are {toplevelBindings}"
+
+        let constantBindings = 
+            newBindings
+            |> Map.map (fun key expr ->
+                match evaluateParamExpression toplevelBindings expr with
+                | Ok value -> PInt value
+                | Error _ -> failwithf "Must be able to evaluate expression for binding"
+            )
+
+        // TODO-RYAN: currentSheet is not the right name for this
+        let sheetBindings = 
+            match currentSheet.LCParameterSlots with
+            | Some slots -> slots.DefaultBindings
+            | None -> failwithf "Parameterised custom component must have bindings"
+
+        let mergedBindings = 
+            sheetBindings
+            |> Map.map (fun key value -> 
+                match Map.tryFind key constantBindings with
+                | Some ccValue -> ccValue // Overwrite if key exists in cc
+                | None -> value // use loaded component value if key does not exist in cc
+                )
+
+        // TODO-RYAN: Make sure that all the failwithf's contain the error thrown if possible
+
         let labelToEval = 
             match currentSheet.LCParameterSlots with
             | Some sheetInfo ->
@@ -450,9 +581,9 @@ let updateComponent dispatch model slot value =
                     | IO label -> 
                         printf $"label = {label}"
                         let evaluatedValue = 
-                            match evaluateParamExpression newBindings constrainedExpr.Expression with
+                            match evaluateParamExpression mergedBindings constrainedExpr.Expression with
                             | Ok expr -> expr
-                            | Error _ -> 0
+                            | Error _ -> failwithf "Failed to evaluate parameterised IO"
                         printf $"evaluatedvalue = {evaluatedValue}"
                         Some (label, evaluatedValue)
                     | _ -> None 
@@ -461,7 +592,13 @@ let updateComponent dispatch model slot value =
             | None -> Map.empty
 
 
-        let newestComponent = updateCustomComponent labelToEval newBindings comp
+        // TODO-RYAN: See if using the old bindings here fixes parameter inheritance
+        let oldBindings =
+            match custom.ParameterBindings with
+            | Some bindings -> bindings
+            | None -> Map.empty
+        // let newestComponent = updateCustomComponent labelToEval newBindings comp
+        let newestComponent = updateCustomComponent labelToEval oldBindings comp
         let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
         let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
         let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
@@ -504,18 +641,31 @@ let extractErrorMsg constr =
 
 /// Check the constraints on the parameter bindings of the current sheet
 /// given a new expression for a parameter
-let checkBindings
+/// Need to check recursively for inherited parameters
+/// TODO-RYAN: This does not properly support parameter inheritance
+let rec checkBindings
     (model: Model)
+    (sheetName: string)
     (paramName: ParamName)
     (value: ParamInt)
     : Result<unit, ParamError> =
 
-    // Get parameter info
-    let newBindings =
-        model
-        |> getParamBindings
-        |> Map.add paramName (PInt value)
-    let paramSlots = getParamSlots model
+    // Need to extract parameter info using sheet name to support parameter inheritance
+    let project = 
+        match model.CurrentProj with
+        | Some proj -> proj
+        | None -> failwithf "Must have open project"
+
+    let paramInfo =
+        project.LoadedComponents
+        |> List.find (fun lc -> lc.Name = sheetName)
+        |> fun lc -> lc.LCParameterSlots
+        |> function
+           | Some slots -> slots
+           | None -> {DefaultBindings = Map.empty; ParamSlots = Map.empty}
+
+    // Add new binding
+    let newBindings = paramInfo.DefaultBindings |> Map.add paramName (PInt value)
 
     // Add information about component and expression to constraint error message
     let addDetailedErrorMsg (slot: ParamSlot) (expr: ConstrainedExpr): ConstrainedExpr =
@@ -524,6 +674,7 @@ let checkBindings
             match slot.CompSlot with
             | Buswidth | IO _ -> $"bus width of {renderedExpr}"
             | NGateInputs -> $"{renderedExpr} inputs"
+            | CustomCompParam param -> $"parameter binding to {param}"  // TODO-RYAN: This message needs more detail!
             | _ -> failwithf $"Cannot not have constraints on slot {slot.CompSlot}"
 
         let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
@@ -539,15 +690,13 @@ let checkBindings
 
     // Add more useful error messages to all constraints
     let detailedSpecs =
-        paramSlots
+        paramInfo.ParamSlots
         |> Map.map addDetailedErrorMsg
-        |> Map.values
-        |> Array.toList
 
     // Evaluate constraints for given bindings and take first error
+    // TODO-RYAN: This will need to be updated for parameter inheritance
     detailedSpecs
-    |> evaluateConstraints newBindings
-    |> Result.mapError (function lst -> List.head lst)
+    |> evaluateConstraints model newBindings
     |> Result.mapError extractErrorMsg
 
 
@@ -603,15 +752,15 @@ let paramInputField
     : ReactElement =
 
     let onChange inputExpr = 
-        let paramBindings = getParamBindings model
+        let paramBindings = getDefaultBindings model
+        let paramSlots = getParamSlots model
 
         // Only return first violated constraint
+        // TODO-RYAN: Can definitely tidy up some unused code here
         let checkConstraints expr =
-            let exprSpec = {Expression = expr; Constraints = constraints}
-            match evaluateConstraints paramBindings [exprSpec] with
+            match evaluateConstraints model paramBindings paramSlots with
             | Ok () -> Ok ()
-            | Error (constr :: _) -> Error <| extractErrorMsg constr
-            | Error _ -> failwithf "Cannot have error list with no elements"
+            | Error constr -> Error <| extractErrorMsg constr
 
         let exprResult = parseExpression inputExpr
         let newVal = Result.bind (evaluateParamExpression paramBindings) exprResult
@@ -619,11 +768,18 @@ let paramInputField
         // TODO-RYAN: Also add support for CustomCompSlot
         // TODO-RYAN: This nested match is terrible, find a better way of writing the 
         //            param-setting parts of this function
+        let sheetName = 
+            model
+            |> get openLoadedComponentOfModel_
+            |> function
+               | Some lc -> lc.Name
+               | None -> failwithf "Must have open sheet"
+
         let constraintCheck =
             match compSlotName with
             | SheetParam paramName ->
                 match exprResult with
-                | Ok (PInt value) -> checkBindings model paramName value
+                | Ok (PInt value) -> checkBindings model sheetName paramName value
                 | Ok _ -> Error "Parameter value must be a constant"
                 | Error err -> Error err
             | _ -> Result.bind checkConstraints exprResult
@@ -643,7 +799,7 @@ let paramInputField
                 // Update existing component
                 let exprSpec = {Expression = expr; Constraints = constraints}
                 let slot = {CompId = c.Id; CompSlot = compSlotName}
-                updateComponent dispatch model slot value
+                updateComponent dispatch model paramBindings slot expr
                 dispatch <| UpdateModel (updateParamSlot slot exprSpec)
             | None -> ()
 
@@ -730,8 +886,8 @@ let updateComponents
 
     model
     |> getParamSlots
-    |> Map.map (fun _ expr -> evalExpression expr.Expression)
-    |> Map.iter (updateComponent dispatch model)
+    |> Map.map (fun _ expr -> expr.Expression)
+    |> Map.iter (updateComponent dispatch model newBindings)
 
 
 /// Get the component specification from a parameter input field
@@ -750,11 +906,11 @@ let getParamFieldSpec (slotName: CompSlotName) (model: Model): NewParamCompSpec 
 /// Create a popup that allows a parameter with an integer value to be added
 let addParameterBox dispatch =
     // Dialog popup config
+    let title = "Add new parameter"
     let textPrompt _ = Field.div [] [str "Parameter name"]
     let hint = "Enter a name"
     let intPrompt _ = Field.div [] [str "Parameter value"]
     let defaultVal = 1
-    let title = "Add new parameter"
     let buttonText = "Set value"
 
     let body = dialogPopupBodyTextAndInt textPrompt hint intPrompt defaultVal dispatch
@@ -784,7 +940,7 @@ let addParameterBox dispatch =
         // Update bindings
         let newBindings =
             model 
-            |> getParamBindings
+            |> getDefaultBindings
             |> Map.add (ParamName newParamName) (PInt newValue)
         dispatch <| UpdateModel (set defaultBindingsOfModel_ newBindings)
         dispatch ClosePopup
@@ -802,7 +958,7 @@ let editParameterBox model paramName dispatch   =
     // Get current value
     let currentVal =
         model
-        |> getParamBindings
+        |> getDefaultBindings
         |> Map.find (ParamName paramName)
         |> function
            | PInt intVal -> intVal
@@ -823,7 +979,7 @@ let editParameterBox model paramName dispatch   =
         // Update bindings
         let newBindings =
             model'
-            |> getParamBindings
+            |> getDefaultBindings
             |> Map.add (ParamName paramName) (PInt newValue) 
         dispatch <| UpdateModel (set defaultBindingsOfModel_ newBindings)
 
@@ -854,7 +1010,7 @@ let editParameterBox model paramName dispatch   =
 let deleteParameterBox model paramName dispatch = 
     let newBindings =
         model
-        |> getParamBindings
+        |> getDefaultBindings
         |> Map.remove (ParamName paramName)
 
     dispatch <| UpdateModel (set defaultBindingsOfModel_ newBindings)
@@ -863,7 +1019,7 @@ let deleteParameterBox model paramName dispatch =
 /// UI to display and manage parameters for a design sheet.
 /// TODO: add structural abstraction.
 let private makeParamsField model dispatch =
-    let sheetDefaultParams = getParamBindings model
+    let sheetDefaultParams = getDefaultBindings model
     match sheetDefaultParams.IsEmpty with
     | true ->
         div [] [
@@ -933,6 +1089,9 @@ let private makeParamsField model dispatch =
 /// create a popup to edit in the model a custom component parameter binding
 /// TODO - maybe comp should be a ComponentId with actual component looked up from model for safety?
 let editParameterBindingPopup model paramName currValue (comp: Component) (custom: CustomComponentType) dispatch   = 
+    
+    printf "Calling edit parameter binding popup function"
+    
     match model.CurrentProj with
     | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
     | Some project ->
@@ -983,16 +1142,41 @@ let editParameterBindingPopup model paramName currValue (comp: Component) (custo
                 
                 dispatch <| UpdateModel (updateParamSlot {CompId = comp.Id; CompSlot = compParamSpec.CompSlot} {Expression = compParamSpec.Expression; Constraints = compParamSpec.Constraints})
 
-                let newValue = compParamSpec.Value
+                // let newValue = compParamSpec.Value
 
                 // let newValue = getInt model'.PopupDialogData
                 let newBindings =
                     match custom.ParameterBindings with
                     | Some bindings -> bindings
                     | None -> Map.empty
-                    |> Map.add (ParamName newParamName) (PInt newValue)
+                    |> Map.add (ParamName newParamName) compParamSpec.Expression
                 
+                let toplevelBindings = getDefaultBindings model
+
+                let constantBindings = 
+                    newBindings
+                    |> Map.map (fun key expr ->
+                        match evaluateParamExpression toplevelBindings expr with
+                        | Ok value -> PInt value
+                        | Error _ -> failwithf "Must be able to evaluate expression for binding"
+                    )
+
+                // TODO-RYAN: currentSheet is not the right name for this
+                let sheetBindings = 
+                    match currentSheet.LCParameterSlots with
+                    | Some slots -> slots.DefaultBindings
+                    | None -> failwithf "Parameterised custom component must have bindings"
+
+                let mergedBindings = 
+                    sheetBindings
+                    |> Map.map (fun key value -> 
+                        match Map.tryFind key constantBindings with
+                        | Some ccValue -> ccValue // Overwrite if key exists in cc
+                        | None -> value // use loaded component value if key does not exist in cc
+                        )
+
                 let labelToEval = 
+                    printf $"Finding label to eval for current LC slots"
                     match currentSheet.LCParameterSlots with
                     | Some sheetInfo ->
                         printf $"paramslots = {sheetInfo.ParamSlots}"
@@ -1002,8 +1186,10 @@ let editParameterBindingPopup model paramName currValue (comp: Component) (custo
                             match paramSlot.CompSlot with
                             | IO label -> 
                                 printf $"label = {label}"
+                                printf $"mergedBindings is {mergedBindings}"
+                                printf $"expression is {constrainedExpr.Expression}"
                                 let evaluatedValue = 
-                                    match evaluateParamExpression newBindings constrainedExpr.Expression with
+                                    match evaluateParamExpression mergedBindings constrainedExpr.Expression with
                                     | Ok expr -> expr
                                     | Error _ -> 0
                                 printf $"evaluatedvalue = {evaluatedValue}"
@@ -1041,11 +1227,9 @@ let editParameterBindingPopup model paramName currValue (comp: Component) (custo
                     | Some sheetInfo ->
                         printf $"paramslots = {sheetInfo.ParamSlots}"
                         sheetInfo.ParamSlots
-                        |> Map.toList
-                        |> List.map snd
-                    | None -> List.Empty
+                    | None -> Map.empty
 
-                evaluateConstraints newBindings exprSpecs
+                evaluateConstraints model' newBindings exprSpecs
                 |> Result.isError
 
         // dialogPopup title body buttonText buttonAction isDisabled [] dispatch
@@ -1057,8 +1241,21 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
         match custom.ParameterBindings with
         | Some bindings -> bindings
         | None -> Map.empty
+
+    // TODO-RYAN: Remove this debug statement
+    printf "ccParams is %A" ccParams
     
-    let lcDefaultParams = getParamBindings model
+    let lcDefaultParams =
+        match model.CurrentProj with
+        | Some proj -> 
+            let lcName = List.tryFind (fun c -> custom.Name = c.Name) proj.LoadedComponents
+            match lcName with
+            | Some lc ->
+                match lc.LCParameterSlots with
+                | Some paramInfo -> paramInfo.DefaultBindings
+                | None -> Map.empty
+            | None -> Map.empty
+        | None -> Map.empty
 
     let mergedParamBindings : ParamBindings =
         lcDefaultParams

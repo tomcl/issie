@@ -21,17 +21,18 @@ let intersects (other: Interval) (this: Interval) =
         match System.Math.Sign(this.Start.Y - other.Start.Y) with
         | 0 -> // same line
             { X= max this.Start.X other.Start.X; Y=this.Start.Y }
-        | -1 -> this.Start
-        | _ -> other.Start
+        | -1 -> other.Start
+        | _ -> this.Start
     let endPos =
         match System.Math.Sign(this.End.Y - other.End.Y) with
         | 0 -> // same line
             { X= min this.End.X other.End.X; Y=this.End.Y }
         | -1 -> this.End
         | _ -> other.End
-    if startPos >= endPos then
+    if startPos.Y > endPos.Y  || (startPos.Y  = endPos.Y && startPos.X > endPos.X) then
         None
     else
+        printfn $"Intersecting {this} with {other} gives {startPos} to {endPos}"
         Some { Start = startPos; End = endPos}
 
 
@@ -87,19 +88,19 @@ module Constants =
         |> Map.ofList
 
 let colorStyle (code: Code) = [ Color Constants.codeColors[code.Color] ]
-let errorStyle = [ TextDecoration "underline wavy red"]
+let errorStyle = [ TextDecoration "underline wavy red 5px" ]
 
 
 let renderCursor (posn: float) =
-        span [
+        div [
             Style [
-                Display DisplayOptions.Block
-                Float FloatOptions.Left
+                Position PositionOptions.Absolute
+                CSSProp.Left 0
+                CSSProp.Top 0
                 MarginLeft posn
-                ZIndex 10000
+                ZIndex 10002
                 Width "2px" // Adjust as needed for the thickness of the I-beam
                 Height "1em" // Adjust for desired height */
-                //BackgroundColor "black" // Or any color you want for the cursor
                 Animation "editorblink 1s steps(2, start) infinite" // Adjust blink duration and steps as needed
             ]   
         ] [str "\u2336"] // Unicode character for I-beam cursor
@@ -134,59 +135,98 @@ let renderEditor (model: CodeEditorModel) (dispatch: 'msg -> unit)  =
     model.HighlightedCode
     |> List.mapi (fun lineIndex line ->
         let text = line |> List.map (fun code -> code.CodeText)
-        model.Errors
-        |> List.collect (
-            intersects {Start={X = 0; Y = lineIndex}; End={X = float (line.Length - 1) ; Y = lineIndex}}
-            >> Option.map (fun interval -> int interval.Start.X, int interval.End.X)
-            >> Option.toList)
-        |> fun errs -> errs @ [line.Length, line.Length-1]
-        |> (fun errorsOnLine ->
-            ((0,[]), errorsOnLine )
-            ||> List.fold (fun (start,segsSoFar) (errStart, errEnd) ->
-                    let okSeg =  if errStart - 1 < start then None 
-                                 else Some <| (false, start, errStart-1)
-                    let errSeg = if errStart > errEnd then None
-                                 else Some <| (true, errStart, errEnd)
-                    errEnd + 1, List.concat [
-                                    Option.toList okSeg;
-                                    Option.toList errSeg;
-                                    segsSoFar ])
-            |> (fun x -> printfn $"Segments: %A{x}"; snd x))
-        |> List.map (fun (isError, startP, endP) ->
-            printfn "Line %d isError: %b, startP: %d, endP: %d" lineIndex isError startP endP
-            [startP..endP]    
-            |> List.map (fun charIndex ->
-                let code = line[charIndex]
+
+        let errorReact =
+            model.Errors
+            |> List.collect (
+                intersects {Start={X = 0; Y = lineIndex}; End={X = float (line.Length - 1) ; Y = lineIndex}}
+                >> Option.map (fun interval -> int interval.Start.X, int interval.End.X)
+                >> Option.toList)
+            |> List.sort
+            |> (fun ints -> printfn $"Line {lineIndex} error intervals: %A{ints}"; ints)
+            |> function
+                | [] -> []
+                | lineErrors ->                    
+                    ((0,[]), lineErrors )
+                    ||> List.fold (fun (start,segsSoFar) (errStart, errEnd) ->
+                            let okSeg =  if errStart - 1 < start then None 
+                                         else Some <| (false, errStart - start)
+                            let errSeg = if errStart > errEnd then None
+                                         else Some <| (true, errEnd - errStart)
+                            errEnd + 1, List.concat [
+                                            Option.toList errSeg;
+                                            Option.toList okSeg;
+                                            segsSoFar ])
+                    |> (fun (_endIndex, segL) ->
+                        //printfn $"Segments: %A{segL} lineIndex {lineIndex} lineErrors {lineErrors}"
+                        segL
+                        |> List.rev
+                        |> List.map (fun (isError, segLength) ->
+                            let spaceChars = str <| String.replicate segLength " "
+                            if isError then
+                                span [Style [
+                                        TextDecoration "underline wavy red";
+                                        CSSProp.Custom("textUnderlineOffset","15%")
+                                        WhiteSpace WhiteSpaceOptions.PreWrap
+                                        ZIndex 10001
+                                        Position PositionOptions.Relative
+                                        Background "transparent"]] [spaceChars]
+                            else
+                                span [ Style [
+                                        WhiteSpace WhiteSpaceOptions.PreWrap
+
+                                        Background "transparent"]] [ spaceChars ] )
+                        |> (fun lineReactL ->
+                            [ div [
+                                    Style [
+                                        Position PositionOptions.Absolute
+                                        CSSProp.Left 0
+                                        CSSProp.Top 0
+                                        ZIndex 10001
+                                        Width "2px" // Adjust as needed for the thickness of the I-beam
+                                        Height "1em" // Adjust for desired height */
+                                        //BackgroundColor "black" // Or any color you want for the cursor
+                                    ]
+                               ] lineReactL
+                            ]
+                           ))
+
+
+        let codeReact =
+            line
+            |> List.mapi (fun codeIndex code ->
+                //printfn "Line %d length %d charIndex: %d" lineIndex line.Length codeIndex
                 let styleProps = colorStyle code
                 span [ 
-                    Key (sprintf "char-%d-%d" lineIndex charIndex)
-                    Style styleProps
-                ] [ str (string code.CodeText) ])
-            |> span (if isError then [ Style errorStyle ] else []) )
-        |> (fun lineParts ->
-            span [
-                    Key (sprintf "line-%d" lineIndex)
-                    //Class "code-line"
-                    Style [
-                        //CSSProp.MinHeight "1.2em"
-                        //CSSProp.Position PositionOptions.Relative
+                        Key (sprintf "char-%d-%d" lineIndex codeIndex)
+                        Style (WhiteSpace WhiteSpaceOptions.PreWrap :: Background "transparent" :: styleProps)
                     ]
-                ] lineParts)
-        |> (fun lineReact -> 
+                    [ str (string code.CodeText) ] )
+            |> (fun reactElements ->
+                    [div [Id $"line-{lineIndex}"] reactElements])
+
+        let cursorReact =
                 if lineIndex = int model.CursorPos.Y then
-                    div [] [ lineReact; renderCursor (model.CursorPos.X * 10.) ]
-                else div [] [lineReact]))
+                    [ renderCursor (model.CursorPos.X * 18.03+ 2.) ]
+                else []
+        List.concat [
+            codeReact
+            errorReact
+            cursorReact
+        ]
+        |> div [Style [Position PositionOptions.Relative]])
+        
     |> (fun lines -> 
         div [        
             Class "code-editor-container"
             Style [
-                CSSProp.Width "100%"
-                CSSProp.Height "100%"
+                CSSProp.Width "70vw"
+                CSSProp.Height "70vh"
                 CSSProp.FontFamily "monospace"
                 CSSProp.FontSize "30px"
-                //CSSProp.Position PositionOptions.Relative
+                CSSProp.Position PositionOptions.Relative
                 ]
-            ]  lines)
+            ]  [div [Class "code-editor-lines"] [div [] lines]])
 
 
 
@@ -205,18 +245,19 @@ let testEditorModel =
 
     let errorPosns =
         [
-            { Start = { X = 0; Y = 0 }; End = { X = 4; Y = 0 } }
-            //{ Start = { X = 4; Y = 2 }; End = { X = 6; Y = 2 } }
+            { Start = { X = 3; Y = 1 }; End = { X = 4; Y = 1 } }
+            { Start = { X = 7; Y = 0 }; End = { X = 10; Y = 0 } }
+            { Start = { X = 4; Y = 2 }; End = { X = 6; Y = 2 } }
         ]
     let codeLines =
         [
-            (word "module" |> addColor Keyword)
-            (word " test" |> addColor Identifier)
-            (word ";")
-        ]
+            (word "module two or else" |> addColor Keyword)
+            (word "a  tyst 5 " |> addColor Identifier)
+            (word ";   ;")
+        ] @ List.replicate 2000 (word "a  test bbbbbbbbbbbbbbbb " |> addColor Identifier)
     {   HighlightedCode = codeLines
         Errors = errorPosns
-        CursorPos = { X = 3; Y = 0 }}
+        CursorPos = { X = 10; Y = 0 }}
         
 
 

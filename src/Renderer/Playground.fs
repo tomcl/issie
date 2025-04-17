@@ -126,6 +126,8 @@ module TestFonts =
             (fun _ -> false)
             []
             dispatch
+
+
         
 module MiscTests =
 
@@ -279,6 +281,20 @@ module Misc =
     open DrawModelType
     open ModelType
     open Editor
+    open PopupHelpers
+    open Fable.React
+    open Fable.React.Props
+
+    let makeEditorPopup (dispatch: Msg -> Unit) =
+        let body =
+                div [ Style [] ]
+                    [ Editor.renderEditor Editor.testEditorModel dispatch ]
+        closablePopup
+            "Editor Demo"
+            body
+            (div [] [])
+            [Height "90vh"; Width "90vw"]
+            dispatch
     let displayEditor () =
         renderEditor testEditorModel (fun _ -> ())
 

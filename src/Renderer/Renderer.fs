@@ -218,6 +218,8 @@ let fileMenu (dispatch) =
                     dispatch SaveModel)
             makeDebugItem "Test Fonts" None
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
+            makeDebugItem "Test Edior" None
+                (fun _ -> Playground.Misc.makeEditorPopup dispatch)
             makeWinDebugItem  "Run performance check" None
                 (fun _ -> Playground.MiscTests.testMaps())
             makeWinDebugItem  "Print names of static asset files" None 
@@ -226,10 +228,8 @@ let fileMenu (dispatch) =
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testBreadcrumbs,dispatch))
             makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
-
             makeDebugItem "Force Exception" None
                 (fun ev -> failwithf "User exception from menus")
-
             makeDebugItem "Web worker performance test" None
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
 
@@ -400,8 +400,8 @@ let addDebug dispatch (msg:Msg) =
     //if str <> "" then printfn ">>Dispatch %s" str else ()
     dispatch msg
 
-//let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
-let view (model:Model) (dispatch: Msg -> unit) = Playground.Misc.displayEditor () 
+let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
+//let view (model:Model) (dispatch: Msg -> unit) = Playground.Misc.displayEditor () 
 // -- Update Model
 
 let update msg model = Update.update msg model

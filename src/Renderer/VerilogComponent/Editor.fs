@@ -32,7 +32,7 @@ let intersects (other: Interval) (this: Interval) =
     if startPos.Y > endPos.Y  || (startPos.Y  = endPos.Y && startPos.X > endPos.X) then
         None
     else
-        printfn $"Intersecting {this} with {other} gives {startPos} to {endPos}"
+        //printfn $"Intersecting {this} with {other} gives {startPos} to {endPos}"
         Some { Start = startPos; End = endPos}
 
 
@@ -88,7 +88,6 @@ module Constants =
         |> Map.ofList
 
 let colorStyle (code: Code) = [ Color Constants.codeColors[code.Color] ]
-let errorStyle = [ TextDecoration "underline wavy red 5px" ]
 
 
 let renderCursor (posn: float) =
@@ -101,7 +100,7 @@ let renderCursor (posn: float) =
                 ZIndex 10002
                 Width "2px" // Adjust as needed for the thickness of the I-beam
                 Height "1em" // Adjust for desired height */
-                Animation "editorblink 1s steps(2, start) infinite" // Adjust blink duration and steps as needed
+                Animation "codeEditorBlink 1s steps(2, start) infinite" // Adjust blink duration and steps as needed
             ]   
         ] [str "\u2336"] // Unicode character for I-beam cursor
 
@@ -128,10 +127,23 @@ let makeSegments (line: ReactElement list) (errorPositions: Interval list) =
     |> List.sortBy fst
     |> List.map snd
    
-    
+let actionMouseEvent (evType:string) ((x,y): float * float) (dispatch: 'msg -> unit) =
+    let x = x
+    let y = y
+    printfn $"Mouse '{evType}' event  line:{int y} char:{x}"   
 
 /// Renders the code editor with syntax highlighting
-let renderEditor (model: CodeEditorModel) (dispatch: 'msg -> unit)  = 
+let renderEditor (model: CodeEditorModel) (dispatch: 'msg -> unit)  =
+
+    let mouseEventHandler evType (ev:Browser.Types.MouseEvent) =
+        let x = ev.clientX 
+        let y = ev.clientY
+        let el = Browser.Dom.document.getElementById("codeEditorContainer")
+        let sx = el.scrollLeft
+        let sy = el.scrollTop
+        let bb = el.getBoundingClientRect()
+        actionMouseEvent evType ((x + sx - bb.left) / 18.01, ((y + sy - bb.top) / 46.75)) dispatch
+
     model.HighlightedCode
     |> List.mapi (fun lineIndex line ->
         let text = line |> List.map (fun code -> code.CodeText)
@@ -143,7 +155,7 @@ let renderEditor (model: CodeEditorModel) (dispatch: 'msg -> unit)  =
                 >> Option.map (fun interval -> int interval.Start.X, int interval.End.X)
                 >> Option.toList)
             |> List.sort
-            |> (fun ints -> printfn $"Line {lineIndex} error intervals: %A{ints}"; ints)
+            |> (fun ints -> (*printfn $"Line {lineIndex} error intervals: %A{ints}";*) ints)
             |> function
                 | [] -> []
                 | lineErrors ->                    
@@ -167,14 +179,15 @@ let renderEditor (model: CodeEditorModel) (dispatch: 'msg -> unit)  =
                                 span [Style [
                                         TextDecoration "underline wavy red";
                                         CSSProp.Custom("textUnderlineOffset","15%")
-                                        WhiteSpace WhiteSpaceOptions.PreWrap
+                                        WhiteSpace WhiteSpaceOptions.Pre
                                         ZIndex 10001
                                         Position PositionOptions.Relative
                                         Background "transparent"]] [spaceChars]
                             else
                                 span [ Style [
-                                        WhiteSpace WhiteSpaceOptions.PreWrap
-
+                                        WhiteSpace WhiteSpaceOptions.Pre
+                                        ZIndex 10001
+                                        Position PositionOptions.Relative
                                         Background "transparent"]] [ spaceChars ] )
                         |> (fun lineReactL ->
                             [ div [
@@ -188,9 +201,7 @@ let renderEditor (model: CodeEditorModel) (dispatch: 'msg -> unit)  =
                                         //BackgroundColor "black" // Or any color you want for the cursor
                                     ]
                                ] lineReactL
-                            ]
-                           ))
-
+                            ] ))
 
         let codeReact =
             line
@@ -199,34 +210,45 @@ let renderEditor (model: CodeEditorModel) (dispatch: 'msg -> unit)  =
                 let styleProps = colorStyle code
                 span [ 
                         Key (sprintf "char-%d-%d" lineIndex codeIndex)
-                        Style (WhiteSpace WhiteSpaceOptions.PreWrap :: Background "transparent" :: styleProps)
+                        Style (VerticalAlign "middle" :: WhiteSpace WhiteSpaceOptions.Pre :: Background "transparent" :: styleProps)
                     ]
                     [ str (string code.CodeText) ] )
             |> (fun reactElements ->
-                    [div [Id $"line-{lineIndex}"] reactElements])
+                    [span [Id $"line-{lineIndex}" ] reactElements])
 
         let cursorReact =
                 if lineIndex = int model.CursorPos.Y then
-                    [ renderCursor (model.CursorPos.X * 18.03+ 2.) ]
+                    [ renderCursor (model.CursorPos.X * 18.03 + 2.) ]
                 else []
         List.concat [
             codeReact
             errorReact
             cursorReact
         ]
-        |> div [Style [Position PositionOptions.Relative]])
+        |> div [
+                Id  "codeEditorTop"
+                OnClick (mouseEventHandler "click")
+                OnMouseMove (mouseEventHandler "mousemove")           
+                Style [
+                    Position PositionOptions.Relative
+                    BorderTop "0px"
+                    BorderBottom "0px"
+                    ]
+               ])
         
     |> (fun lines -> 
         div [        
-            Class "code-editor-container"
+            Id "codeEditorContainer"
             Style [
-                CSSProp.Width "70vw"
-                CSSProp.Height "70vh"
                 CSSProp.FontFamily "monospace"
                 CSSProp.FontSize "30px"
+                CSSProp.Height 1.5
                 CSSProp.Position PositionOptions.Relative
+                CSSProp.Overflow OverflowOptions.Auto
+                CSSProp.Height "80vh"
+                CSSProp.Width "80vw"
                 ]
-            ]  [div [Class "code-editor-lines"] [div [] lines]])
+            ]   lines)
 
 
 
@@ -251,9 +273,9 @@ let testEditorModel =
         ]
     let codeLines =
         [
-            (word "module two or else" |> addColor Keyword)
+            (word "   module two or else" |> addColor Keyword)
             (word "a  tyst 5 " |> addColor Identifier)
-            (word ";   ;")
+            (word "     ;   ;")
         ] @ List.replicate 2000 (word "a  test bbbbbbbbbbbbbbbb " |> addColor Identifier)
     {   HighlightedCode = codeLines
         Errors = errorPosns

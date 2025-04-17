@@ -293,7 +293,7 @@ module Misc =
             "Editor Demo"
             body
             (div [] [])
-            [Height "90vh"; Width "90vw"]
+            [Height "100%"; Width "100%"]
             dispatch
     let displayEditor () =
         renderEditor testEditorModel (fun _ -> ())

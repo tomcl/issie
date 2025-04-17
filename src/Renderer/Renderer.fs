@@ -218,7 +218,7 @@ let fileMenu (dispatch) =
                     dispatch SaveModel)
             makeDebugItem "Test Fonts" None
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
-            makeDebugItem "Test Edior" None
+            makeDebugItem "Test Editor" (Some "CmdOrCtrl+Q")
                 (fun _ -> Playground.Misc.makeEditorPopup dispatch)
             makeWinDebugItem  "Run performance check" None
                 (fun _ -> Playground.MiscTests.testMaps())

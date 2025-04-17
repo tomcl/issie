@@ -893,11 +893,6 @@ let updateComponents
     (dispatch: Msg -> Unit)
     : Unit =
 
-    let evalExpression expr =
-        match tryEvaluateExpression newBindings expr with
-        | Ok value -> value
-        | Error _ ->  failwithf "Component update cannot have invalid expression"
-
     model
     |> getParamSlots
     |> Map.map (fun _ expr -> expr.Expression)
@@ -1153,48 +1148,50 @@ let editParameterBindingPopup
         }
         dispatch <| UpdateModel (updateParamSlot compSlot exprSpec)
 
+        // New bindings for custom component
         let newBindings =
             custom.ParameterBindings
             |> Option.defaultValue Map.empty
             |> Map.add paramName paramSpec.Expression
         
+        // Bindings of current sheet
         let toplevelBindings = getDefaultBindings model
 
+        // Evaluated bindings for custom component
         let constantBindings = 
             newBindings
             |> Map.map (fun _ expr -> PInt <| evaluateExpression toplevelBindings expr)
 
-        let mergedBindings = 
-            lcParamInfo.DefaultBindings
-            |> Map.map (fun key value -> 
-                match Map.tryFind key constantBindings with
-                | Some ccValue -> ccValue // Overwrite if key exists in cc
-                | None -> value // use loaded component value if key does not exist in cc
-                )
+        // Merge default bindings of custom component with modified binding values
+        let mergedBindings =
+            Helpers.mapUnion constantBindings lcParamInfo.DefaultBindings
 
-        let labelToEval = 
+        // Create a map of IO label names on the custom component to their widths
+        let ioLabelToWidth = 
             lcParamInfo.ParamSlots
-            |> Map.toList // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
-            |> List.choose (fun (paramSlot, constrainedExpr) -> 
+            |> Map.toList
+            |> List.choose (fun (paramSlot, expr) -> 
+                let value = evaluateExpression mergedBindings expr.Expression
+                // Only keep IO port slots
                 match paramSlot.CompSlot with
-                | IO label -> 
-                    let evaluatedValue = 
-                        match tryEvaluateExpression mergedBindings constrainedExpr.Expression with
-                        | Ok expr -> expr
-                        | Error _ -> 0
-                    Some (label, evaluatedValue)
+                | IO label -> Some (label, value)
                 | _ -> None 
             )
-            |> Map.ofList // Convert to map
+            |> Map.ofList
 
-        let newestComponent = updateCustomComponent labelToEval newBindings comp
-        let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
-        let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
-        let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
-        updateModelSymbol newModel |> UpdateModel |> dispatch
+        // Create updated custom component
+        let newComponent = updateCustomComponent ioLabelToWidth newBindings comp
 
-        let dispatchnew (msg: SheetT.Msg) : unit = dispatch (Sheet msg)
-        model.Sheet.DoBusWidthInference dispatchnew
+        // Update custom component symbol displayed on sheet
+        let msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newComponent.Type)
+        let newSymbolModel = fst <| SymbolUpdate.update msg model.Sheet.Wire.Symbol
+        let updateModelSymbol symbol model'' = {model'' with Sheet.Wire.Symbol = symbol}
+        updateModelSymbol newSymbolModel |> UpdateModel |> dispatch
+
+        // Do bus width inference
+        let dispatchMsg msg' = dispatch (Sheet msg')
+        model.Sheet.DoBusWidthInference dispatchMsg
+    
         dispatch ClosePopup
 
     // Constraints are checked by the parameter input field

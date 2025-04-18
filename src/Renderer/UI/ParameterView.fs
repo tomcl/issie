@@ -482,153 +482,6 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
             | Error e -> Error e
 
 
-/// Update a custom component with new I/O component widths.
-/// Used when these chnage as result of parameter changes.
-let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
-    let updateLabels labels =
-        labels |> List.map (fun (label, width) ->
-            match Map.tryFind label labelToEval with
-            | Some newWidth when newWidth <> width -> (label, newWidth) // Update width if changed
-            | _ -> (label, width) // Keep the same if unchanged
-        )
-    
-    match comp.Type with
-    | Custom customComponent ->
-        let updatedCustom = { customComponent with 
-                                    InputLabels = updateLabels customComponent.InputLabels
-                                    OutputLabels = updateLabels customComponent.OutputLabels
-                                    ParameterBindings = Some newBindings }
-        { comp with Type = Custom updatedCustom }
-    | _ -> comp
-
-
-/// Use sheet component update functions to perform updates
-/// TODO-RYAN: This needs to be updated with expr instead of value to support parameter inheritance!
-/// TODO-RYAN: Add some types and potentially rearrange the header for this function
-let updateComponent dispatch model paramBindings slot expr =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-
-    // TODO-RYAN: These failwithf messages really need to be improved
-    // TODO-RYAN: Maybe we can use evaluateExpression and tryEvaluateExpression
-    let value =
-        match tryEvaluateExpression paramBindings expr with
-        | Ok  intVal -> intVal
-        | Error err -> failwithf $"Encountered error '{err}' while evaluating expression"
-
-    let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
-    let compId = ComponentId comp.Id
-
-    // Update component slot value
-    match slot.CompSlot with
-    | Buswidth | IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value 
-    | NGateInputs -> 
-        match comp.Type with
-        | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
-        | _ -> failwithf $"Gate cannot have type {comp.Type}"
-    | CustomCompParam param -> 
-        let custom = 
-            match comp.Type with
-            | Custom c -> c
-            | _ -> failwithf "Custom component slot must be in custom component"
-
-        // TODO-RYAN: Should definitely be using a lens for this
-        let currentSheet = 
-            match model.CurrentProj with
-            | None -> failwithf "Warning: testEditParameterBox called when no project is currently open"
-            | Some project ->
-                // Prepare dialog popup.
-                project.LoadedComponents |> List.find (fun lc -> lc.Name = custom.Name)
-
-        // TODO-RYAN: Use much better functional abstraction
-        // let newValue = getInt model'.PopupDialogData
-        // let newBindings =
-        //     match custom.ParameterBindings with
-        //     | Some bindings -> bindings
-        //     | None -> Map.empty
-        //     |> Map.add (ParamName param) (PInt value)
-        
-        // let newValue = getInt model'.PopupDialogData
-        let newBindings =
-            match custom.ParameterBindings with
-            | Some bindings -> bindings
-            | None -> Map.empty
-            |> Map.add param (PInt value)
-        
-        let toplevelBindings = paramBindings
-
-        printf $"toplevel bindings are {toplevelBindings}"
-
-        let constantBindings = 
-            newBindings
-            |> Map.map (fun key expr ->
-                match tryEvaluateExpression toplevelBindings expr with
-                | Ok value -> PInt value
-                | Error _ -> failwithf "Must be able to evaluate expression for binding"
-            )
-
-        // TODO-RYAN: currentSheet is not the right name for this
-        let sheetBindings = 
-            match currentSheet.LCParameterSlots with
-            | Some slots -> slots.DefaultBindings
-            | None -> failwithf "Parameterised custom component must have bindings"
-
-        let mergedBindings = 
-            sheetBindings
-            |> Map.map (fun key value -> 
-                match Map.tryFind key constantBindings with
-                | Some ccValue -> ccValue // Overwrite if key exists in cc
-                | None -> value // use loaded component value if key does not exist in cc
-                )
-
-        // TODO-RYAN: Make sure that all the failwithf's contain the error thrown if possible
-
-        let labelToEval = 
-            match currentSheet.LCParameterSlots with
-            | Some sheetInfo ->
-                printf $"paramslots = {sheetInfo.ParamSlots}"
-                sheetInfo.ParamSlots
-                |> Map.toSeq // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
-                |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
-                    match paramSlot.CompSlot with
-                    | IO label -> 
-                        printf $"label = {label}"
-                        let evaluatedValue = 
-                            match tryEvaluateExpression mergedBindings constrainedExpr.Expression with
-                            | Ok expr -> expr
-                            | Error _ -> failwithf "Failed to evaluate parameterised IO"
-                        printf $"evaluatedvalue = {evaluatedValue}"
-                        Some (label, evaluatedValue)
-                    | _ -> None 
-                )
-                |> Map.ofSeq // Convert to map
-            | None -> Map.empty
-
-
-        // TODO-RYAN: See if using the old bindings here fixes parameter inheritance
-        let oldBindings =
-            match custom.ParameterBindings with
-            | Some bindings -> bindings
-            | None -> Map.empty
-        // let newestComponent = updateCustomComponent labelToEval newBindings comp
-        let newestComponent = updateCustomComponent labelToEval oldBindings comp
-        let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
-        let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
-        let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
-        updateModelSymbol newModel |> UpdateModel |> dispatch
-
-        printf $"{comp}"
-        let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
-        model.Sheet.DoBusWidthInference dispatchnew
-    | SheetParam _ -> failwithf "Cannot update sheet parameter using updateComponent"
-
-
-    // Update most recent bus width
-    match slot.CompSlot, comp.Type with
-    | Buswidth, SplitWire _ | Buswidth, BusSelection _ | Buswidth, Constant1 _ -> ()
-    | Buswidth, _ | IO _, _ -> dispatch <| ReloadSelectedComponent value
-    | _ -> ()
-
-
 /// Returns true if an expression contains parameters, and false if not
 let rec exprContainsParams 
     (expression: ParamExpression)
@@ -649,6 +502,184 @@ let rec exprContainsParams
 let extractErrorMsg constr =
     match constr with
     | MinVal (_, err) | MaxVal (_, err) -> err
+
+
+/// Adds or updates a parameter slot in loaded component param slots
+/// Removes the entry if the expression does not contain parameters
+let updateParamSlot
+    (slot: ParamSlot)
+    (exprSpec: ConstrainedExpr)
+    (model: Model)
+    : Model = 
+
+    let paramSlots = getParamSlots model
+    let newParamSlots =
+        match exprContainsParams exprSpec.Expression with
+        | true  -> Map.add slot exprSpec paramSlots
+        | false -> Map.remove slot paramSlots
+
+    set paramSlotsOfModel_ newParamSlots model
+
+
+/// Add the parameter information from a newly created component to paramSlots
+let addParamComponent
+    (newCompSpec: NewParamCompSpec)
+    (dispatch: Msg -> Unit)
+    (compId: CommonTypes.ComponentId)
+    : Unit =
+
+    let compIdStr =
+        match compId with
+        | ComponentId txt -> txt
+    
+    let slot = {CompId = compIdStr; CompSlot = newCompSpec.CompSlot}
+    let exprSpec = {
+        Expression = newCompSpec.Expression
+        Constraints = newCompSpec.Constraints
+    }
+
+    updateParamSlot slot exprSpec |> UpdateModel |> dispatch
+    
+
+/// Update a custom component with new I/O component widths.
+/// Used when these chnage as result of parameter changes.
+let createUpdatedComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
+    let updateLabels labels =
+        labels |> List.map (fun (label, width) ->
+            match Map.tryFind label labelToEval with
+            | Some newWidth when newWidth <> width -> (label, newWidth) // Update width if changed
+            | _ -> (label, width) // Keep the same if unchanged
+        )
+    
+    match comp.Type with
+    | Custom customComponent ->
+        let updatedCustom = { customComponent with 
+                                    InputLabels = updateLabels customComponent.InputLabels
+                                    OutputLabels = updateLabels customComponent.OutputLabels
+                                    ParameterBindings = Some newBindings }
+        { comp with Type = Custom updatedCustom }
+    | _ -> comp
+
+
+// TODO-RYAN: Add some documentation for this function
+// TODO-RYAN: This could probably be split into functions better
+let updateCustomComponent
+    (model: Model)
+    (toplevelBindings: ParamBindings)
+    (compId: string)
+    (slotSpec: NewParamCompSpec)
+    (dispatch: Msg -> Unit)
+    : Unit =
+
+    // Get custom component from component ID
+    let comp = model.Sheet.GetComponentById <| ComponentId compId
+    let custom =
+        match comp.Type with
+        | Custom c -> c
+        | other -> failwithf $"Custom component cannot have type '{other}'"
+    
+    // Find corresponding loaded component for custom component
+    let customLC = 
+        match model.CurrentProj with
+        | None -> failwithf "Must have open project"
+        | Some proj ->
+            proj.LoadedComponents
+            |> List.find (fun lc -> lc.Name = custom.Name)
+
+    let lcParamInfo =
+        match customLC.LCParameterSlots with
+        | Some paramInfo -> paramInfo
+        | None -> failwithf "Parameterised custom component must have parameter info"
+
+    // Add new binding to param slots of current sheet
+    let compSlot = {CompId = compId; CompSlot = slotSpec.CompSlot}
+    let exprSpec = {
+        Expression = slotSpec.Expression
+        Constraints = slotSpec.Constraints
+    }
+    dispatch <| UpdateModel (updateParamSlot compSlot exprSpec)
+
+    let paramName = 
+        match slotSpec.CompSlot with
+        | CustomCompParam param -> param
+        | _ -> failwithf "Custom component slot must have CustomCompParam type"
+
+    // New bindings for custom component
+    let newBindings =
+        custom.ParameterBindings
+        |> Option.defaultValue Map.empty
+        |> Map.add paramName slotSpec.Expression
+
+    // Evaluated bindings for custom component
+    let constantBindings = 
+        newBindings
+        |> Map.map (fun _ expr -> PInt <| evaluateExpression toplevelBindings expr)
+
+    // Merge default bindings of custom component with modified binding values
+    let mergedBindings =
+        Helpers.mapUnion constantBindings lcParamInfo.DefaultBindings
+
+    // Create a map of IO label names on the custom component to their widths
+    let ioLabelToWidth = 
+        lcParamInfo.ParamSlots
+        |> Map.toList
+        |> List.choose (fun (paramSlot, expr) -> 
+            let value = evaluateExpression mergedBindings expr.Expression
+            // Only keep IO port slots
+            match paramSlot.CompSlot with
+            | IO label -> Some (label, value)
+            | _ -> None 
+        )
+        |> Map.ofList
+
+    // Create updated custom component
+    let newComponent = createUpdatedComponent ioLabelToWidth newBindings comp
+
+    // Update custom component symbol displayed on sheet
+    let msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newComponent.Type)
+    let newSymbolModel = fst <| SymbolUpdate.update msg model.Sheet.Wire.Symbol
+    let updateModelSymbol symbol model' = {model' with Sheet.Wire.Symbol = symbol}
+    updateModelSymbol newSymbolModel |> UpdateModel |> dispatch
+
+    // Do bus width inference
+    let dispatchMsg msg' = dispatch (Sheet msg')
+    model.Sheet.DoBusWidthInference dispatchMsg
+
+
+/// Use sheet component update functions to perform updates
+/// TODO-RYAN: This needs to be updated with expr instead of value to support parameter inheritance!
+/// TODO-RYAN: Add some types and potentially rearrange the header for this function
+let updateComponent dispatch model paramBindings slot expr =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+
+    // Lookup component and get slot value
+    let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
+    let compId = ComponentId comp.Id
+    let value = evaluateExpression paramBindings expr
+
+    // Update component slot value
+    match slot.CompSlot with
+    | Buswidth | IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value 
+    | NGateInputs -> 
+        match comp.Type with
+        | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
+        | _ -> failwithf $"Gate cannot have type {comp.Type}"
+    | CustomCompParam param ->
+        // TODO-RYAN: See how necessary param comp spec really is
+        let paramSpec: NewParamCompSpec = {
+            CompSlot = slot.CompSlot
+            Constraints = []    // TODO-RYAN: This is true but dodgy
+            Expression = expr
+            Value = value
+        }
+        updateCustomComponent model paramBindings slot.CompId paramSpec dispatch
+    | SheetParam _ -> failwithf "Cannot update sheet parameter using updateComponent"
+
+    // Update most recent bus width
+    match slot.CompSlot, comp.Type with
+    | Buswidth, SplitWire _ | Buswidth, BusSelection _ | Buswidth, Constant1 _ -> ()
+    | Buswidth, _ | IO _, _ -> dispatch <| ReloadSelectedComponent value
+    | _ -> ()
 
 
 /// Check the constraints on the parameter bindings of the current sheet
@@ -710,43 +741,6 @@ let rec checkBindings
     detailedSpecs
     |> evaluateConstraints model newBindings
     |> Result.mapError extractErrorMsg
-
-
-/// Adds or updates a parameter slot in loaded component param slots
-/// Removes the entry if the expression does not contain parameters
-let updateParamSlot
-    (slot: ParamSlot)
-    (exprSpec: ConstrainedExpr)
-    (model: Model)
-    : Model = 
-
-    let paramSlots = getParamSlots model
-    let newParamSlots =
-        match exprContainsParams exprSpec.Expression with
-        | true  -> Map.add slot exprSpec paramSlots
-        | false -> Map.remove slot paramSlots
-
-    set paramSlotsOfModel_ newParamSlots model
-
-
-/// Add the parameter information from a newly created component to paramSlots
-let addParamComponent
-    (newCompSpec: NewParamCompSpec)
-    (dispatch: Msg -> Unit)
-    (compId: CommonTypes.ComponentId)
-    : Unit =
-
-    let compIdStr =
-        match compId with
-        | ComponentId txt -> txt
-    
-    let slot = {CompId = compIdStr; CompSlot = newCompSpec.CompSlot}
-    let exprSpec = {
-        Expression = newCompSpec.Expression
-        Constraints = newCompSpec.Constraints
-    }
-
-    updateParamSlot slot exprSpec |> UpdateModel |> dispatch
 
 
 /// Create a generic input field which accepts and parses parameter expressions
@@ -876,14 +870,6 @@ let paramInputField
     ]
 
 
-/// True if parameter input field for given slot has valid input
-let paramInputIsValid (slot: CompSlotName) (model: Model): bool =
-    model.PopupDialogData.DialogState
-    |> function
-       | Some specs -> Map.find slot specs |> Result.isOk
-       | None -> failwithf "Dialog state must exist for input box"
-
-
 /// Update the values of all parameterised components with a new set of bindings
 /// This can only be called after the validity and constraints of all
 /// expressions are checked
@@ -897,6 +883,14 @@ let updateComponents
     |> getParamSlots
     |> Map.map (fun _ expr -> expr.Expression)
     |> Map.iter (updateComponent dispatch model newBindings)
+
+
+/// True if parameter input field for given slot has valid input
+let paramInputIsValid (slot: CompSlotName) (model: Model): bool =
+    model.PopupDialogData.DialogState
+    |> function
+       | Some specs -> Map.find slot specs |> Result.isOk
+       | None -> failwithf "Dialog state must exist for input box"
 
 
 /// Get the component specification from a parameter input field
@@ -1107,24 +1101,6 @@ let editParameterBindingPopup
     (dispatch: Msg -> Unit)
     : Unit = 
 
-    let custom =
-        match comp.Type with
-        | Custom c -> c
-        | other -> failwithf $"Custom component cannot have type '{other}'"
-    
-    // Find corresponding loaded component for custom component
-    let customLC = 
-        match model.CurrentProj with
-        | None -> failwithf "Must have open project"
-        | Some proj ->
-            proj.LoadedComponents
-            |> List.find (fun lc -> lc.Name = custom.Name)
-
-    let lcParamInfo =
-        match customLC.LCParameterSlots with
-        | Some paramInfo -> paramInfo
-        | None -> failwithf "Parameterised custom component must have parameter info"
-
     // Popup dialog config
     let title = "Edit parameter value"
     let prompt = $"New value for parameter {paramName}"
@@ -1134,64 +1110,12 @@ let editParameterBindingPopup
     let inputField model' =
         paramInputField model' prompt currentVal None [] None slot dispatch
 
-    // TODO-RYAN: Update this comment
-    // Update the parameter value then close the popup
+    // Update custom component when button is clicked
     let buttonAction model' =
         // Get new parameter expression from input field
+        let paramBindings = getDefaultBindings model'
         let paramSpec = getParamFieldSpec slot model'
-        
-        // Add new binding to param slots of current sheet
-        let compSlot = {CompId = comp.Id; CompSlot = paramSpec.CompSlot}
-        let exprSpec = {
-            Expression = paramSpec.Expression
-            Constraints = paramSpec.Constraints
-        }
-        dispatch <| UpdateModel (updateParamSlot compSlot exprSpec)
-
-        // New bindings for custom component
-        let newBindings =
-            custom.ParameterBindings
-            |> Option.defaultValue Map.empty
-            |> Map.add paramName paramSpec.Expression
-        
-        // Bindings of current sheet
-        let toplevelBindings = getDefaultBindings model
-
-        // Evaluated bindings for custom component
-        let constantBindings = 
-            newBindings
-            |> Map.map (fun _ expr -> PInt <| evaluateExpression toplevelBindings expr)
-
-        // Merge default bindings of custom component with modified binding values
-        let mergedBindings =
-            Helpers.mapUnion constantBindings lcParamInfo.DefaultBindings
-
-        // Create a map of IO label names on the custom component to their widths
-        let ioLabelToWidth = 
-            lcParamInfo.ParamSlots
-            |> Map.toList
-            |> List.choose (fun (paramSlot, expr) -> 
-                let value = evaluateExpression mergedBindings expr.Expression
-                // Only keep IO port slots
-                match paramSlot.CompSlot with
-                | IO label -> Some (label, value)
-                | _ -> None 
-            )
-            |> Map.ofList
-
-        // Create updated custom component
-        let newComponent = updateCustomComponent ioLabelToWidth newBindings comp
-
-        // Update custom component symbol displayed on sheet
-        let msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newComponent.Type)
-        let newSymbolModel = fst <| SymbolUpdate.update msg model.Sheet.Wire.Symbol
-        let updateModelSymbol symbol model'' = {model'' with Sheet.Wire.Symbol = symbol}
-        updateModelSymbol newSymbolModel |> UpdateModel |> dispatch
-
-        // Do bus width inference
-        let dispatchMsg msg' = dispatch (Sheet msg')
-        model.Sheet.DoBusWidthInference dispatchMsg
-    
+        updateCustomComponent model' paramBindings comp.Id paramSpec dispatch
         dispatch ClosePopup
 
     // Constraints are checked by the parameter input field

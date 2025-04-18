@@ -68,6 +68,71 @@ type MemoryEditorData = {
     NumberBase : NumberBase
 }
 
+//-----------------------Types for code editor-----------------------//
+
+/// Possible highlighted code colours
+type CodeColor =
+    | Comment
+    | Keyword
+    | Identifier
+    | Literal
+
+/// Possible messages used by editor
+type EditorMsg =
+    | SetCursor of int * int
+   
+/// type represneting highlighted code characters
+type Code =
+    {
+        CodeText: char
+        Color: CodeColor
+    }
+
+/// a text position interval in the code editor.
+/// This is used to represent the start and end of a selection or an error.
+/// all characters in raster scan order are included.
+type Interval =
+    {
+        Start: XYPos
+        End: XYPos
+    }
+
+/// Elmish Model type for a rich text code editor
+type CodeEditorModel =
+    {
+        /// the characters in the code editor as a list of lines
+        HighlightedCode: Code list list
+        /// The errored code positions
+        Errors: Interval list
+        /// The current cursor position
+        CursorPos: XYPos
+    }
+
+            
+    with
+                /// <summary>Get the character at the given position in the code editor.</summary>
+                /// <param name="x">The x position of the character.</param>
+                /// <param name="y">The y position of the character.</param>
+                /// <returns>Some character if it exists, None otherwise.</returns>
+        member this.tryGetChar(x: int, y: int) =
+                    List.tryItem y this.HighlightedCode
+                    |> Option.map (fun line ->
+                        line |> List.tryItem x
+                        |> Option.map (fun code -> code.CodeText)
+                    )
+
+                /// <summary>Get the color of the character at the given position in the code editor.</summary>
+         member this.tryGetColor(x: int, y: int) =
+                    List.tryItem y this.HighlightedCode
+                    |> Option.map (fun line ->
+                        line |> List.tryItem x
+                        |> Option.map (fun code -> code.Color)
+                    )
+
+let highlightedCode_ = Lens.create (fun a -> a.HighlightedCode) (fun s a -> {a with HighlightedCode = s})
+let errors_ = Lens.create (fun a -> a.Errors) (fun s a -> {a with Errors = s})
+let cursorPos_ = Lens.create (fun a -> a.CursorPos) (fun s a -> {a with CursorPos = s})
+
 type ImportDecision =
     | Overwrite
     | Rename
@@ -552,6 +617,7 @@ type Msg =
     | CheckMemory
     | ChangeWaveSimMultiplier of int
     | RunAfterRender of (bool * ((Msg -> unit) -> Model -> Model))
+    | CodeEditorMsg of EditorMsg
 
 
 //================================//
@@ -715,6 +781,7 @@ type Model = {
     UIState: UICommandType Option
     /// if true the "build" tab appears on the RHS
     BuildVisible: bool
+    CodeEditorState: CodeEditorModel
 } 
 
     with member this.WaveSimOrCurrentSheet =
@@ -725,6 +792,7 @@ type Model = {
 
 let waveSimSheet_ = Lens.create (fun a -> a.WaveSimSheet) (fun s a -> {a with WaveSimSheet = s})
 let waveSim_ = Lens.create (fun a -> a.WaveSim) (fun s a -> {a with WaveSim = s})
+let codeEditorState_ = Lens.create (fun a -> a.CodeEditorState) (fun s a -> {a with CodeEditorState = s})
 
 let runAfterRender_ = Lens.create (fun a -> a.RunAfterRenderWithSpinner) (fun s a -> {a with RunAfterRenderWithSpinner = s})
 let rightPaneTabVisible_ = Lens.create (fun a -> a.RightPaneTabVisible) (fun s a -> {a with RightPaneTabVisible = s})

@@ -681,12 +681,15 @@ let update (msg : Msg) oldModel =
         WaveSimNavigation.updateScrollbar wsm dispatch cursor action
         model, Cmd.none
 
+    | CodeEditorMsg codeMsg ->
+        Editor.updateCodeEditor codeMsg model
+
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out
     | LockTabsToWaveSim | UnlockTabsFromWaveSim | SetExitDialog _ 
     | SetPropertiesExtraDialogText _ | SetRouterInteractive _ 
     | ShowExitDialog -> model, Cmd.none
-    | DoNothing -> //Acts as a placeholder to propergrate the ExecutePendingMessages message in a Cmd
+    | DoNothing -> //Acts as a placeholder to propagate the ExecutePendingMessages message in a Cmd
         model, cmd
 
     | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?

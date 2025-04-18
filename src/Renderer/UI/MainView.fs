@@ -128,6 +128,11 @@ let init() = {
     Pending = []
     UIState = None
     BuildVisible = false
+    CodeEditorState = {
+        HighlightedCode = []
+        Errors = []
+        CursorPos = {X = 0; Y = 0}
+    }
 }
 
 

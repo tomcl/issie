@@ -5,15 +5,9 @@ open Fulma
 open Fable.React
 open Fable.React.Props
 open CommonTypes
+open ModelType
 
-/// a text position interval in the code editor.
-/// This is used to represent the start and end of a selection or an error.
-/// all characters in raster scan order are included.
-type Interval =
-    {
-        Start: XYPos
-        End: XYPos
-    }
+
 
 /// Intersection of two intervals
 let intersects (other: Interval) (this: Interval) =
@@ -36,46 +30,7 @@ let intersects (other: Interval) (this: Interval) =
         Some { Start = startPos; End = endPos}
 
 
-type CodeColor =
-    | Comment
-    | Keyword
-    | Identifier
-    | Literal
 
-
-   
-
-type Code =
-    {
-        CodeText: char
-        Color: CodeColor
-    }
-
-/// Elmish Model type for a rich text code editor
-
-type CodeEditorModel =
-    {
-        /// the characters in the code editor as a list of lines
-        HighlightedCode: Code list list
-        /// The errored code positions
-        Errors: Interval list
-        /// The current cursor position
-        CursorPos: XYPos
-    }
-
-    with member this.tryGetChar(x: int, y: int) =
-                    List.tryItem y this.HighlightedCode
-                    |> Option.map (fun line ->
-                        line |> List.tryItem x
-                        |> Option.map (fun code -> code.CodeText)
-                    )
-
-         member this.tryGetColor(x: int, y: int) =
-                    List.tryItem y this.HighlightedCode
-                    |> Option.map (fun line ->
-                        line |> List.tryItem x
-                        |> Option.map (fun code -> code.Color)
-                    )
 
 module Constants =
     let codeColors = 
@@ -250,7 +205,8 @@ let renderEditor (model: CodeEditorModel) (dispatch: 'msg -> unit)  =
                 ]
             ]   lines)
 
-
+let updateCodeEditor codeMsg model =
+    failwithf "Not implemented yet: %A" codeMsg
 
 let testEditorModel =
     let word (txt:string) =

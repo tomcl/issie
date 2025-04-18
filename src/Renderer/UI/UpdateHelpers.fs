@@ -213,6 +213,7 @@ let shortDisplayMsg (msg:Msg) =
     | ExecFuncAsynch _ -> Some "ExecFuncAsync"
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
+    | CodeEditorMsg _ -> Some "CodeEditorMsg"
 
 
 

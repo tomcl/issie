@@ -52,7 +52,6 @@
     <Compile Include="Simulator\FastSim\FastRun.fs" />
     <Compile Include="Simulator\FastSim\FastExtract.fs" />
     <Compile Include="Simulator\Simulator.fs" />
-    <Compile Include="VerilogComponent\Editor.fs" />
     <Compile Include="VerilogComponent\Verilog.fs" />
 
     <!-- Verilog Component -->
@@ -98,6 +97,7 @@
     <Compile Include="DrawBlock\SheetDisplay.fs" />
 	<Compile Include="DrawBlock\SheetUpdateHelpers.fs" />
     <Compile Include="DrawBlock\SheetUpdate.fs" />
+    <Compile Include="UI\Editor.fs" />
     <!-- UI -->
     <Compile Include="UI\ModelHelpers.fs" />
     <Compile Include="UI\Style.fs" />

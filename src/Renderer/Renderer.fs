@@ -27,6 +27,7 @@ open ContextMenus
 
 
 importSideEffects "./scss/main.css"
+importSideEffects "./scss/extra.css"
 
 let isMac = Node.Api.``process``.platform = Node.Base.Darwin
 
@@ -217,6 +218,8 @@ let fileMenu (dispatch) =
                     dispatch SaveModel)
             makeDebugItem "Test Fonts" None
                 (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
+            makeDebugItem "Test Editor" (Some "CmdOrCtrl+Q")
+                (fun _ -> Playground.Misc.makeEditorPopup dispatch)
             makeWinDebugItem  "Run performance check" None
                 (fun _ -> Playground.MiscTests.testMaps())
             makeWinDebugItem  "Print names of static asset files" None 
@@ -225,10 +228,8 @@ let fileMenu (dispatch) =
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testBreadcrumbs,dispatch))
             makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
-
             makeDebugItem "Force Exception" None
                 (fun ev -> failwithf "User exception from menus")
-
             makeDebugItem "Web worker performance test" None
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
 
@@ -400,10 +401,18 @@ let addDebug dispatch (msg:Msg) =
     dispatch msg
 
 let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
-
+//let view (model:Model) (dispatch: Msg -> unit) = Playground.Misc.displayEditor () 
 // -- Update Model
 
-let update msg model = Update.update msg model
+let update msg model =
+    let model', cmd = Update.update msg model
+    if Option.isSome model'.CodeEditorState && Option.isSome model'.PopupViewFunc then
+        Update.evilUIState <- Update.EvilCodeEditor 
+    elif Option.isSome model'.PopupViewFunc then
+        Update.evilUIState <- Update.EvilUIPopup
+    else
+        Update.evilUIState <- Update.EvilNoState
+    model',cmd
 
 //printfn "Starting renderer..."
 
@@ -418,22 +427,42 @@ let view' model dispatch =
 
 let mutable firstPress = true
 
-///Used to listen for pressing down of Ctrl for selection toggle
+/// Used to listen for pressing down of Ctrl for selection toggle.
+/// Also for the code editor keys.
+/// TODO: use this for global key press info throughout Issie
 let keyPressListener initial =
     let subDown dispatch =
         Browser.Dom.document.addEventListener("keydown", fun e ->
-                                                let ke: KeyboardEvent = downcast e
-                                                if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
-                                                    firstPress <- false
-                                                    //printf "Ctrl-Meta Key down (old method)"
-                                                    dispatch <| Sheet(SheetT.PortMovementStart)
-                                                else
-                                                    ())
+            let ke: KeyboardEvent = downcast e
+            if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
+                firstPress <- false
+                //printf "Ctrl-Meta Key down (old method)"
+                dispatch <| Sheet(SheetT.PortMovementStart)
+            else
+                ()
+            dispatch <| AnyKeyPress {
+                                KeyString = ke?key
+                                AltKey = ke?altKey
+                                ControlKey = ke?ctrlKey
+                                MetaKey = ke?metaKey
+                                ShiftKey = ke?shiftKey
+                            }
+            // prevent unwanted default processing of " " key as scrolling
+            // NB - input boxes in popups require default processing to work
+            // it seems that input boxes in properties pane do not require " ".
+            // TODO: sort out key processing consistently allowing " " for input boxes
+            // TODO: See also OTHER hacks doing key processing ManualKeyUp etc. Unify these.
+            // NB - electron menus need to be able to process many control keys.
+            match Update.evilUIState with
+            | Update.EvilCodeEditor | Update.EvilNoState when ke?key = " "  ->
+                e.preventDefault()
+            | _ -> () //e.preventDefault()
+            )
     let subUp dispatch =
         Browser.Dom.document.addEventListener("keyup", fun e ->
-                                                    firstPress <- true
-                                                    //printf "Any Key up (old method)"
-                                                    dispatch <| Sheet(SheetT.PortMovementEnd))
+            firstPress <- true
+            //printf "Any Key up (old method)"
+            dispatch <| Sheet(SheetT.PortMovementEnd))
     /// unfinished code
     /// add hook in main function to display a context menu
     /// create menu as shown in main.fs

@@ -66,6 +66,7 @@ let shortDWSM (ws: WaveSimModel) =
 /// displayed using printf "%A".
 let shortDisplayMsg (msg:Msg) =
     match msg with
+    | AnyKeyPress code -> Some $"AnyKeyPress %A{code}"
     | WaveSimKeyPress _ -> None
     | ChangeWaveSimMultiplier n ->
         List.tryItem n Constants.multipliers
@@ -213,6 +214,7 @@ let shortDisplayMsg (msg:Msg) =
     | ExecFuncAsynch _ -> Some "ExecFuncAsync"
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
+    | CodeEditorMsg _ -> Some "CodeEditorMsg"
 
 
 

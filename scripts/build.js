@@ -2,8 +2,7 @@ const webpack = require('webpack');
 const configMain = require('../webpack.config.main');
 const configRenderer = require('../webpack.config.renderer');
 const path = require('path');
-const del = require('del');
-
+const fsextra = require('fs-extra');
 const compilerMain = webpack(configMain);
 const compilerRenderer = webpack(configRenderer);
 
@@ -11,8 +10,9 @@ const compilerRenderer = webpack(configRenderer);
    /**
      * Delete build and dist dirs
      */
-    await del([path.join(__dirname, '../build'), path.join(__dirname, '../dist')], { force: true });
-
+    //await del([path.join(__dirname, '../build'), path.join(__dirname, '../dist')], { force: true });
+     fsextra.remove(path.join(__dirname, '../build'))
+     fsextra.remove(path.join(__dirname, '../dist'))
     /**
      * Build main
      */

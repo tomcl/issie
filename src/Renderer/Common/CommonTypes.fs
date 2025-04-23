@@ -1043,3 +1043,19 @@ with
         | Grabbing -> "grabbing"
         | ResizeNESW -> "nesw-resize"   
         | ResizeNWSE -> "nwse-resize"
+
+/// Type capturing global key press information
+/// TODO: use this consistently, with global key listener,
+/// throughout Issie.
+type KeyPressInfo = {
+    /// true if shift key is down
+    ShiftKey: bool
+    /// true if control key is down
+    ControlKey: bool
+    /// true if alt key is down
+    AltKey: bool
+    /// true if meta key is down
+    MetaKey: bool
+    /// the string representing the key itself
+    KeyString: string
+}

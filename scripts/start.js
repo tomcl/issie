@@ -4,8 +4,11 @@ const configMain = require('../webpack.config.main');
 const configRenderer = require('../webpack.config.renderer');
 const { spawn } = require('child_process');
 const path = require('path');
-const del = require('del');
+//const del = require('del');
+const fsextra = require('fs-extra');
+
 const { shell } = require('electron');
+const { remove } = require('fs-extra');
 
 const compilerMain = webpack(configMain);
 const compilerRenderer = webpack(configRenderer);
@@ -17,8 +20,8 @@ let electronStarted = false;
     /**
      * Delete build dir
      */
-    await del([buildPath], { force: true });
-
+    //await del([buildPath], { force: true });
+    fsextra.remove(buildPath)
     /**
      * Start renderer dev server
      */

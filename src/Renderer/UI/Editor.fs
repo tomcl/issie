@@ -27,20 +27,20 @@ let initCodeEditorState =
 /// of a raster scan (ascending order X first then Y).
 let intersectionOpt (other: Interval) (this: Interval) =
     let startPos =
-        match System.Math.Sign(this.Start.Y - other.Start.Y) with
+        match System.Math.Sign(this.Start.YLine - other.Start.YLine) with
         | 0 -> // same line
-            { X = max this.Start.X other.Start.X; Y = this.Start.Y }
+            { XChar = max this.Start.XChar other.Start.XChar; YLine = this.Start.YLine }
         | -1 -> other.Start
         | _ -> this.Start
     let endPos =
-        match System.Math.Sign(this.End.Y - other.End.Y) with
+        match System.Math.Sign(this.End.YLine - other.End.YLine) with
         | 0 -> // same line
-            { X = min this.End.X other.End.X; Y = this.End.Y }
+            { XChar = min this.End.XChar other.End.XChar; YLine = this.End.YLine }
         | -1 -> this.End
         | _ -> other.End
     if
-        startPos.Y > endPos.Y
-        || (startPos.Y = endPos.Y && startPos.X > endPos.X)
+        startPos.YLine > endPos.YLine
+        || (startPos.YLine = endPos.YLine && startPos.XChar > endPos.XChar)
     then
         None
     else
@@ -369,9 +369,9 @@ let renderEditor (model: CodeEditorModel) (dispatch: Msg -> unit) =
             model.Errors
             |> List.collect (
                 intersectionOpt
-                    { Start = { X = 0; Y = lineIndex }
-                      End = { X = float (text.Length + 1); Y = lineIndex } }
-                >> Option.map (fun interval -> int interval.Start.X, int interval.End.X)
+                    { Start = { XChar = 0; YLine = lineIndex }
+                      End = { XChar = text.Length + 1; YLine = lineIndex } }
+                >> Option.map (fun interval -> int interval.Start.XChar, int interval.End.XChar)
                 >> Option.toList
             )
             |> List.sort
@@ -561,9 +561,9 @@ let updateCodeEditor codeMsg model =
 let testEditorModel =
 
     let errorPosns =
-        [ { Start = { X = 3; Y = 1 }; End = { X = 4; Y = 1 } }
-          { Start = { X = 0; Y = 0 }; End = { X = 4; Y = 0 } }
-          { Start = { X = 4; Y = 40 }; End = { X = 6; Y = 41 } } ]
+        [ { Start = { XChar = 3; YLine = 1 }; End = { XChar = 4; YLine = 1 } }
+          { Start = { XChar = 0; YLine = 0 }; End = { XChar = 4; YLine = 0 } }
+          { Start = { XChar = 4; YLine = 40 }; End = { XChar = 6; YLine = 41 } } ]
 
     let codeLines =
         [ "   if then else module 123 yellow Big!"; "a  test 5 "; "     ;   ;" ]

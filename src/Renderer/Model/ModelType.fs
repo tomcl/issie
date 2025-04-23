@@ -70,6 +70,15 @@ type MemoryEditorData = {
 
 //-----------------------Types for code editor-----------------------//
 
+/// A position in the code editor.
+/// Similar to XYPos but uses integers.
+/// YLine here starts from 0 and is one less than the displayed line number.
+type EditPos = {
+        /// The line index in the code editor, starting from 0
+        YLine: int
+        /// The character position in the line, starting from 0
+        XChar: int
+    }
 
 
 /// a text position interval in the code editor.
@@ -77,8 +86,8 @@ type MemoryEditorData = {
 /// all characters in raster scan order are included.
 type Interval =
     {
-        Start: XYPos
-        End: XYPos
+        Start: EditPos
+        End: EditPos
     }
 
 /// Elmish Model type for a rich text code editor

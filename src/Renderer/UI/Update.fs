@@ -81,7 +81,7 @@ let update (msg : Msg) oldModel =
     // global message on any key press includimng control keys etc.
     | AnyKeyPress key ->
             match  model.CodeEditorState with
-            | Some _ -> Editor.updateEditorOnKeyPress key model
+            | Some _ -> CodeEditor.updateEditorOnKeyPress key model
             | None -> model, Cmd.none
 
     | RunAfterRender( withSpinner, fn) ->
@@ -701,7 +701,7 @@ let update (msg : Msg) oldModel =
         model, Cmd.none
 
     | CodeEditorMsg codeMsg ->
-        Editor.updateCodeEditor codeMsg model
+        CodeEditor.updateCodeEditor codeMsg model
 
     // Various messages here that are not implemented as yet, or are no longer used
     // should be sorted out

@@ -72,9 +72,9 @@ type MemoryEditorData = {
 
 
 
-/// a text position interval in the code editor.
+/// A text position interval in the code editor.
 /// This is used to represent the start and end of a selection or an error.
-/// all characters in raster scan order are included.
+/// All characters in raster scan order are considered part of the interval.
 type Interval =
     {
         Start: XYPos

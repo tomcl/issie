@@ -23,8 +23,6 @@ open EEExtensions
 open Fulma
 open Fable.React
 open Fable.React.Props
-open Fable.React.HookBindings
-open Fable.Core.JsInterop
 open CommonTypes
 open ModelType
 open Elmish
@@ -81,7 +79,7 @@ let intersectionOpt (other: Interval) (this: Interval) =
 //--------------------------------------------------------------------------------//
 
 /// the type of the code editor's text string asociated with a given highlight color
-type ElementType =
+type HighlightT =
     | Normal
     | Keyword
     | Identifier
@@ -97,7 +95,7 @@ type ElementType =
 /// More generally Matchstream = StateT * char list where StateT is a discriminated union.
 type MatchStream = char list
 
-/// Returns true if the characters in str, interpreted as a string, start with prefix.
+/// Return true if the characters in str, interpreted as a string, start with prefix.
 let charsStartWith (prefix: string) (str: char list) : bool =
     prefix.Length <= str.Length
     && prefix
@@ -109,7 +107,7 @@ let charsStartWith (prefix: string) (str: char list) : bool =
 /// the first character and the string of characters matching inMatchP
 /// the list of chars from the first character that does not match inMatchP.
 /// or None if the first character does not match startP.
-/// NB - this cannot itself be an active pattern since startP and inMatchP are not lierals.
+/// NB - this cannot itself be an active pattern since startP and inMatchP are not literals.
 let makeAPMatch (startP: char -> bool) (inMatchP: char -> bool) (str: MatchStream) : (string * MatchStream) option =
     match str with
     | [] -> None
@@ -145,16 +143,22 @@ let (|StringLP|_|) (prefixL: string list) (str: MatchStream) : (string * MatchSt
 
 /// Active Pattern that matches if str starts with a given character.
 /// Returns the remaining string if it does.
-/// NB - prefix must be a literal for this to work
-let (|CharP|_|) (prefix: char) (str: MatchStream) : MatchStream option =
-    if str.Length > 0 && str[0] = prefix then
+/// NB - charToMatch must be a literal for this to work
+let (|CharP|_|) (charToMatch: char) (str: MatchStream) : MatchStream option =
+    if str.Length > 0 && str[0] = charToMatch then
         Some str.[1..]
     else
         None
 
 /// Active Pattern that matches if str starts with a string literal.
-/// Returns the string literal and the remaining string if it does.
+/// A string literal is a string starting with a quote and ending with a quote.
+/// Returns the non quote part of the string literal and the remainder of str if it does.
+/// The closing quote is not removed from str.
 let (|StringLiteralStart|_|) (str: MatchStream) : (string * MatchStream) option =
+    // TODO: this should be improved to handle escaped quotes.
+    // TODO: this should be improved to handle multi-line strings, that would require
+    // context-sensitive matching of each editor line - where tyhe context is a boolean
+    // indicating if the string is inside a multi-line string or not.
     let isStringStart c = c = '"'
     let isStringPart c = c <> '"'
     makeAPMatch isStringStart isStringPart str
@@ -163,29 +167,36 @@ let (|StringLiteralStart|_|) (str: MatchStream) : (string * MatchStream) option 
 /// Returns the identifier and the remaining string if it does.
 let (|IdentifierP|_|) (str: MatchStream) : (string * MatchStream) option =
     let isIdentifierStart c = System.Char.IsLetter c || c = '_'
-    let isIdentifierPart c =
+    let isInsideIdentifier c =
         System.Char.IsLetterOrDigit c || c = '_'
-    makeAPMatch isIdentifierStart isIdentifierPart str
+    makeAPMatch isIdentifierStart isInsideIdentifier str
 
 /// Active Pattern that matches if str starts with a number.
 /// Returns the number and the remaining string if it does.
 let (|NumberP|_|) (str: MatchStream) : (string * MatchStream) option =
     let isNumberStart c = System.Char.IsDigit c
-    let isNumberPart c = System.Char.IsDigit c
-    makeAPMatch isNumberStart isNumberPart str
+    let isInsideNumber c = System.Char.IsDigit c
+    makeAPMatch isNumberStart isInsideNumber str
 
-/// Return chars segmented as a list of tuples (string, ElementType).
-/// The string is the text to be highlighted and the ElementType is the type of highlighting.
-let rec highlight (chars: MatchStream) : (string * ElementType) list =
+/// Return chars segmented as a list of strings each paired with a HighlightT.
+/// The string is the text to be highlighted and the HighlightT determines the color.
+/// HighlightT to color mapping is done in the render function.
+let rec highlight (chars: MatchStream) : (string * HighlightT) list =
     match chars with
-    | [] -> []
-    | StringLP [ "let"; "if"; "then"; "else" ] (keyword, rest) -> (keyword, Keyword) :: highlight rest
-    | IdentifierP(identifier, rest) -> (identifier, Identifier) :: highlight rest
-    | NumberP(number, rest) -> (number, Number) :: highlight rest
-    | StringLiteralStart(quote, CharP '"' rest) -> (quote + "\"", String) :: highlight rest
-    | StringLiteralStart(quote, []) -> (quote, String) :: []
-    | NormalMatch(normalPart, rest) -> (normalPart, Normal) :: highlight rest
-    | c :: rest -> // this should not happen
+    | [] -> [] // finish
+    | StringLP [ "let"; "if"; "then"; "else" ] (keyword, rest) ->
+        (keyword, Keyword) :: highlight rest
+    | IdentifierP(identifier, rest) ->
+        (identifier, Identifier) :: highlight rest
+    | NumberP(number, rest) ->
+        (number, Number) :: highlight rest
+    | StringLiteralStart(quote, CharP '"' rest) ->
+        (quote + "\"", String) :: highlight rest
+    | StringLiteralStart(quote, []) -> // case where the string is not closed.
+        (quote, String) :: []
+    | NormalMatch(normalPart, rest) ->
+        (normalPart, Normal) :: highlight rest
+    | c :: rest -> // this should never happen, because NormalMatch will.
         printfn $"Warning: character '{c}' is not recognised by highlighter, default to Normal"
         (c.ToString(), Normal) :: highlight rest
 
@@ -193,11 +204,12 @@ let rec highlight (chars: MatchStream) : (string * ElementType) list =
 //----------------------------Mouse Event Handling & Cursor-------------------------------------//
 //----------------------------------------------------------------------------------------------//
 
-/// handles editor mouse events.
+/// Handles editor mouse events.
 /// evtype is the type of event (e.g., click, mousemove).
 /// dispatch is the function to call to update the model.
 /// ev is the mouse event from the browser.
-// NB - maybe use a union type for the event type instead of a string?
+// TODO: this should be improved to handle more mouse events: move, drag, up.
+// NB maybe we should use a union type for the event type instead of a string?
 let mouseEventHandler evType dispatch (ev: Browser.Types.MouseEvent) =
     let x = ev.clientX
     let y = ev.clientY
@@ -243,17 +255,12 @@ let updateEditorOnKeyPress (keyPress: KeyPressInfo) (model: Model) =
         |> Option.defaultValue initCodeEditorState
     let key = keyPress.KeyString
     let modifiers =
-        Set
-        <| seq {
-            if keyPress.ShiftKey then
-                yield "Shift"
-            if keyPress.ControlKey then
-                yield "Control"
-            if keyPress.AltKey then
-                yield "Alt"
-            if keyPress.MetaKey then
-                yield "Meta"
-        }
+        [
+            if keyPress.ShiftKey then [ "Shift"] else []
+            if keyPress.ControlKey then [ "Control"] else []
+            if keyPress.AltKey then [ "Alt"] else []
+            if keyPress.MetaKey then [ "Meta"] else []
+        ] |> List.concat
     /// insert point is on the line indexed by cursorY
     let cursorY =
         int state.CursorPos.Y
@@ -277,7 +284,7 @@ let updateEditorOnKeyPress (keyPress: KeyPressInfo) (model: Model) =
     let newCursorX, newCursorY, newLines =
         let insertIndex = min cursorX currentLine.Length
         let noChange = beforeLines @ [ currentLine ] @ afterLines
-        match modifiers = Set.empty, key with
+        match modifiers = [], key with
         | true, "Backspace" -> // backspace
             match currentLine with
             | _ when cursorX = 0 && cursorY = 0 -> cursorX, cursorY, noChange
@@ -304,14 +311,17 @@ let updateEditorOnKeyPress (keyPress: KeyPressInfo) (model: Model) =
             cursorY,
             beforeLines @ [ currentLine.Insert(insertIndex, key) ] @ afterLines
         | _, key ->
-            //printfn $"Key {key} with modifiers {modifiers} not handled"
+            // printfn $"Key {key} with modifiers {modifiers} not handled"
             cursorX, cursorY, noChange
-    //printfn $"Updating model with cursor = char:{newCursorX} line:{newCursorY}"
+    // printfn $"Updating model with cursor = char:{newCursorX} line:{newCursorY}"
     let state =
         model.CodeEditorState
         |> Option.defaultValue initCodeEditorState
     { model with
-        CodeEditorState = Some { state with Lines = newLines; CursorPos = { X = newCursorX; Y = newCursorY } } },
+        CodeEditorState = Some { state with
+                                    Lines = newLines;
+                                    CursorPos.X = newCursorX;
+                                    CursorPos.Y = newCursorY } },
     Cmd.none
 
 //------------------------------------------------------------------------------------//
@@ -348,12 +358,13 @@ let renderLineNumbers xPosition (model: CodeEditorModel) =
                 CSSProp.Left(xPosition)
                 CSSProp.Width(Constants.leftMargin - Constants.leftGutter)
                 CSSProp.Top 0
-                CSSProp.LineHeight 1.5
+                CSSProp.LineHeight 1.5 // We use absoluite positioning for lines, so maybe this is not needed?
+                                       // Removing it might alter the Y position of the line numbers
                 CSSProp.OverflowY OverflowOptions.Visible
                 CSSProp.OverflowX OverflowOptions.Visible
-                CSSProp.ZIndex 10000
+                CSSProp.ZIndex 10000 // make sure line numbers lie above the text
                 BackgroundColor "#f0f0f0" // light grey background for left margin
-                BorderRight "1px solid #ccc" ] ] // light grey border on right side of left margin
+        ] ] 
         ([ 1 .. max model.Lines.Length 1 ]
          |> List.map (fun i ->
              div
@@ -363,9 +374,8 @@ let renderLineNumbers xPosition (model: CodeEditorModel) =
                          CSSProp.Left 0
                          CSSProp.Top(float (i - 1) * 30.) // 30 is line height
                          CSSProp.Width(Constants.leftMargin - Constants.leftGutter)
-                         CSSProp.Height "30px" // line height
+                         CSSProp.Height "30px" // line height. Maybe not needed?
                          CSSProp.TextAlign TextAlignOptions.Right
-                         CSSProp.MarginRight "10px"
                          CSSProp.BackgroundColor "#f0f0f0" // light grey background for left margin
                          CSSProp.PaddingRight "5px" ] ]
                  [ str (sprintf "%d" i) ]))
@@ -386,11 +396,9 @@ type LineData =
     }
 
 /// Renders a single line of code in the editor, with optional cursor and error indication.
-let renderOneEditorLine
-    ({ LineIndex = lineIndex; LineText = text; CursorX = cursorX; Errors = errors }: LineData)
-    : ReactElement
-    =
-    //printfn $"Rendering line {lineIndex} cursor={cursorX}"
+let renderOneEditorLine (data: LineData) : ReactElement =
+    let { LineIndex = lineIndex; LineText = text; CursorX = cursorX; Errors = errors } = data
+    // printfn $"Rendering line {lineIndex} cursor={cursorX}"
     /// the line error indications as a list of react elements
     /// each comprising a string of invisible characters that is highlighted
     /// or not.
@@ -453,7 +461,9 @@ let renderOneEditorLine
                                       VerticalAlign "middle"
                                       Background "transparent"
                                       Color "transparent"
-                                      LineHeight 1.5 ] ]
+                                      LineHeight 1.5 // we use absolute positioning for lines, so maybe this is not needed?
+                                                     // removing it might alter the Y position of the text.
+                                    ] ]
                               errorLineReactL ]))
     /// the line text elements as highlighted by highlighter
     let codeLineReact =
@@ -476,7 +486,8 @@ let renderOneEditorLine
                     [ Position PositionOptions.Absolute // from codeEditorLine
                       VerticalAlign "middle"
                       CSSProp.Custom("scrollSnapAlign", "start")
-                      LineHeight 1.5
+                      LineHeight 1.5 // we use absolute positioning for lines, so maybe this is not needed?
+                                     // removing it might alter the Y position of the text.
                       CSSProp.Left 0
                       CSSProp.Top 0
                       WhiteSpace WhiteSpaceOptions.Pre
@@ -486,7 +497,7 @@ let renderOneEditorLine
     /// the line cursor element - if needed
     let cursorReact =
         /// Renders the cursor in react at the given position as a single character padded to the left with a margin.
-        /// The cursor is a vertical line that blinks to indicate the current insert position.
+        /// The cursor is a vertical I-beam that blinks to indicate the current insert position.
         /// The returned react element has a ZIndex chosen so it lies above the text.
         let renderCursor (charIndex: int) =
             let xPosition = (float charIndex) * 11. - 9.5 // Small adjustment to make cursor before character
@@ -496,13 +507,10 @@ let renderOneEditorLine
                       [ Position PositionOptions.Absolute // from codeEditorLine
                         CSSProp.Left xPosition
                         CSSProp.Top 0
-                        LineHeight 1.5 // line height is 1.5 X Font size.
+                        LineHeight 1.5 // This defines line height to be 1.5 X Font size.
+                                       // We use absolute positioning for lines, so maybe this is not needed?
+                                       // Removing it might alter the Y position of the cursor.
                         Background "transparent"
-                        //ZIndex 10002
-                        //Width "2px" // Adjust as needed for the thickness of the I-beam
-                        //Height "20px" // Adjust for desired height */
-                        // animation uses codeEditorBlink frame info defined in extra.css
-                        // TODO?: define this programmatically in the DOM. Is this possible?
                         Animation "codeEditorBlink 1s steps(2, start) infinite" ] ] // Adjust blink duration and steps as needed
                 [ str "\u2336" ] // Unicode character for I-beam cursor
         match cursorX with
@@ -527,9 +535,6 @@ let renderOneEditorLine
 /// CoceEditorModel is the model for the code editor, and includes info
 /// about the lines of code, the cursor position, and any errors.
 let renderEditor (model: CodeEditorModel) (dispatch: Msg -> unit) =
-    // for debug printout of editor Lines text.
-    let toText (code: string list) = code |> String.concat "\n"
-    //printfn $"-----Rendering-----\n%A{model.Lines |> toText}\n------------------\n"
     model.Lines
     |> List.mapi (fun lineIndex text ->
         let cursorX =
@@ -552,7 +557,7 @@ let renderEditor (model: CodeEditorModel) (dispatch: Msg -> unit) =
         // The editor will work (slower) with these two lines replaced by `|> renderOneEditorLine lineData`
         ($"codeEditorLine", Some(fun (props: LineData) -> $"{props.LineIndex}"), lineData) // magic
         |||> reactMemoize renderOneEditorLine) // magic
-    // |> renderOneEditorLine lineData // uncomment, an comment two above lines, to remove React memoisation
+    //  |> renderOneEditorLine lineData // uncomment, and comment two above lines, to remove React memoisation
     |> (fun lines ->
         let scrollContainer = Browser.Dom.document.getElementById "codeEditorContainer"
         let hasXScroll =

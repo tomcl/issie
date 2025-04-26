@@ -311,7 +311,7 @@ let private createArithmeticPopup compType (model: Model) dispatch =
     }
 
     let inputField model' =
-        ParameterView.paramInputField model' prompt intDefault None constraints None slot dispatch
+        ParameterView.paramInputField model' prompt intDefault constraints None slot dispatch
 
     let buttonAction =
         fun (model': Model) ->
@@ -531,7 +531,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
     }
 
     let inputField model' =
-        ParameterView.paramInputField model' prompt intDefault None constraints None slot dispatch
+        ParameterView.paramInputField model' prompt intDefault constraints None slot dispatch
 
     let buttonText = "Add"
     let buttonAction =

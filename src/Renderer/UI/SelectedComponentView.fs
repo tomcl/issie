@@ -487,7 +487,7 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
 
     let constraints = [MinVal (PInt 1, $"{title} must be positive")]
 
-    ParameterView.paramInputField model title 1 (Some width) constraints (Some comp) slot dispatch
+    ParameterView.paramInputField model title width constraints (Some comp) slot dispatch
 
 
 let private makeNumberOfInputsField model (comp: Component) dispatch =
@@ -501,7 +501,7 @@ let private makeNumberOfInputsField model (comp: Component) dispatch =
         MaxVal (PInt maxGateInputs, $"Cannot have more than {maxGateInputs} inputs")
     ]
 
-    ParameterView.paramInputField model prompt  1 (Some nInp) constraints (Some comp) NGateInputs dispatch
+    ParameterView.paramInputField model prompt nInp constraints (Some comp) NGateInputs dispatch
 
 
 let private changeMergeN model (comp:Component) dispatch =

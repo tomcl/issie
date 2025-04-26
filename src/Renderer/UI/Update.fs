@@ -561,6 +561,16 @@ let update (msg : Msg) oldModel =
         |> map selectedComponent_ (updateComponentMemory addr data)
         |> withNoMsg
 
+    | DeleteParamSlots compIds ->
+        let updateSlots (paramSlots: ParameterTypes.ComponentSlotExpr) =
+            paramSlots
+            |> Map.filter (
+                fun slot _ -> not <| List.contains (ComponentId slot.CompId) compIds
+            )
+        model
+        |> map ParameterView.paramSlotsOfModel_ updateSlots
+        |> withNoMsg
+
     | CloseDiagramNotification ->
         model
         |> set (notifications_ >-> fromDiagram_) None

@@ -306,7 +306,7 @@ let private createArithmeticPopup compType (model: Model) dispatch =
         MinVal (PInt 1, $"Number of bits in {compName} must be positive")
     ]
  
-    let paramSpec = {
+    let compSpec = {
         CompSlot = Buswidth
         Expression = PInt model.LastUsedDialogWidth
         Constraints = constraints
@@ -314,7 +314,7 @@ let private createArithmeticPopup compType (model: Model) dispatch =
     }
 
     let buttonAction model' =
-        let compSpec = getParamFieldSpec paramSpec.CompSlot model'
+        let compSpec = getParamFieldSpec compSpec.CompSlot model'
         let comp = toComp compSpec.Value
         let addParamCompFunction = Some <| addParamComponent compSpec dispatch
         
@@ -322,7 +322,7 @@ let private createArithmeticPopup compType (model: Model) dispatch =
         dispatch <| ReloadSelectedComponent compSpec.Value
         dispatch ClosePopup
 
-    paramPopupBox popupConfig paramSpec None buttonAction dispatch
+    paramPopupBox popupConfig compSpec None buttonAction dispatch
 
 
 let private createNbitSpreaderPopup (model:Model) dispatch =
@@ -502,7 +502,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
         Button = "Add"
     }
 
-    let paramSpec = {
+    let compSpec = {
         CompSlot = Buswidth
         Expression = PInt model.LastUsedDialogWidth
         Constraints = [MinVal (PInt 1, "Register width must be positive")]
@@ -510,7 +510,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
     }
 
     let buttonAction model' =
-        let compSpec = getParamFieldSpec paramSpec.CompSlot model'
+        let compSpec = getParamFieldSpec compSpec.CompSlot model'
         let comp = toComp compSpec.Value
         let addParamCompFunction = Some <| addParamComponent compSpec dispatch
 
@@ -518,7 +518,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
         dispatch <| ReloadSelectedComponent compSpec.Value
         dispatch ClosePopup
 
-    paramPopupBox popupConfig paramSpec None buttonAction dispatch
+    paramPopupBox popupConfig compSpec None buttonAction dispatch
 
 
 let private createMemoryPopup memType model (dispatch: Msg -> Unit) =

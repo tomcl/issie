@@ -26,6 +26,7 @@ open CatalogueView
 open TopMenuView
 open MenuHelpers
 open ParameterTypes
+open ParameterView
 
 open CatalogueView.Constants
 
@@ -469,7 +470,7 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
 
 
 let private makeNumberOfBitsField model (comp: Component) text dispatch =    
-    let title, width, slot =
+    let prompt, width, slot =
         match comp.Type with
         | Input1 (w, _) | Output w -> "Number of bits", w, IO comp.Label
         | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
@@ -485,9 +486,14 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
         | Constant1 (w, _, _) -> "Number of bits in the wire", w, Buswidth
         | c -> failwithf $"makeNumberOfBitsField called with invalid component: {c}"
 
-    let constraints = [MinVal (PInt 1, $"{title} must be positive")]
+    let compSpec = {
+        CompSlot = slot
+        Expression = PInt width
+        Constraints = [MinVal (PInt 1, $"{prompt} must be positive")]
+        Value = width
+    }
 
-    ParameterView.paramInputField model title width constraints (Some comp) slot dispatch
+    paramInputField model prompt compSpec (Some comp) dispatch
 
 
 let private makeNumberOfInputsField model (comp: Component) dispatch =
@@ -501,7 +507,14 @@ let private makeNumberOfInputsField model (comp: Component) dispatch =
         MaxVal (PInt maxGateInputs, $"Cannot have more than {maxGateInputs} inputs")
     ]
 
-    ParameterView.paramInputField model prompt nInp constraints (Some comp) NGateInputs dispatch
+    let compSpec = {
+        CompSlot = NGateInputs
+        Expression = PInt nInp
+        Constraints = constraints
+        Value = nInp
+    }
+
+    paramInputField model prompt compSpec (Some comp) dispatch
 
 
 let private changeMergeN model (comp:Component) dispatch =

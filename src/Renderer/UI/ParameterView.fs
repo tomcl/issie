@@ -699,93 +699,71 @@ let updateComponents
 /// Create a generic input field which accepts and parses parameter expressions
 /// Validity of inputs is checked by parser
 /// Specific constraints can be passed by callee
+/// TODO-RYAN: add in a flag which controls auto-update
 let paramInputField
     (model: Model)
     (prompt: string)
-    (defaultValue: int) // TODO-RYAN: Should this be renamed/removed?
-    (constraints: ParamConstraint list)
+    (compSpec: NewParamCompSpec)
     (comp: Component option)
-    (compSlotName: CompSlotName)
     (dispatch: Msg -> unit)
     : ReactElement =
 
     let onChange inputExpr = 
+        // Get parameter bindings and name of current sheet
         let paramBindings = getDefaultBindings model
-        let paramSlots = getParamSlots model
-
-        let exprResult = parseExpression inputExpr
-        let newVal = Result.bind (tryEvaluateExpression paramBindings) exprResult
-        // TODO-RYAN: This line is getting a bit long
-        // TODO-RYAN: Also add support for CustomCompSlot
-        // TODO-RYAN: This nested match is terrible, find a better way of writing the 
-        //            param-setting parts of this function
         let sheetName = 
-            model
-            |> get openLoadedComponentOfModel_
-            |> function
-               | Some lc -> lc.Name
-               | None -> failwithf "Must have open sheet"
+            model.CurrentProj
+            |> Option.get
+            |> fun proj -> proj.OpenFileName
 
-        // TODO-RYAN: This needs to be revamped to support constraint checking
-        //            for parameter bindings with parameter inheritance
-        // TODO-RYAN: Nested match is ugly
-        let constraintCheck =
-            match compSlotName with
-            | SheetParam paramName ->
-                match exprResult with
-                | Ok (PInt value) ->
-                    let editedBindings = Map.add paramName (PInt value) paramBindings
+        // Check that the expression satisfies all the required constraints
+        let applyConstraints expr value =
+            match compSpec.CompSlot with
+            | SheetParam param ->   // Check all slots on current sheet
+                match expr with
+                | PInt _ -> 
+                    let editedBindings = Map.add param (PInt value) paramBindings
                     checkAllCompSlots model sheetName editedBindings
-                | Ok _ -> Error "Parameter value must be a constant"
-                | Error err -> Error err
-            | CustomCompParam paramName -> 
-                match newVal with
-                | Ok value ->
-                    let editedBindings = Map.empty |> Map.add paramName (PInt value)
-                    let ccName =
-                        match comp with
-                        | Some c -> 
-                            match c.Type with
-                            | Custom cc -> cc.Name
-                            | _ -> failwithf "Only custom component can have bindings"
-                        | _ -> failwithf "Custom component must already exist to edit param bindings"
-                    let compName = 
-                        match comp with
-                        | Some c -> c.Label
-                        | _ -> failwithf "Comp must exist"
-                    checkAllCompSlots model ccName editedBindings
-                    |> Result.mapError (fun err -> $"{compName}.{err}")
-                | Error err -> Error err
-            | _ -> 
-                match exprResult with
-                | Ok expr -> 
-                    let exprSpec = {Expression = expr; Constraints = constraints}
-                    checkConstraints paramBindings exprSpec
-                | Error msg -> Error msg
+                | _ -> Error "Parameter value must be a constant"
+            | CustomCompParam param ->  // Check all slots in custom component
+                let editedBindings = Map.empty |> Map.add param (PInt value)
+                let paramComp = Option.get comp
+                let customComp = 
+                    match paramComp.Type with
+                    | Custom cc -> cc
+                    | _ -> failwithf "Only custom component can have bindings"
+                checkAllCompSlots model customComp.Name editedBindings
+                |> Result.mapError (fun err -> $"{paramComp.Label}.{err}")
+            | _ ->  // Only need to check slot of selected component
+                let exprSpec = {Expression = expr; Constraints = compSpec.Constraints}
+                checkConstraints paramBindings exprSpec
 
         // Either update component or prepare creation of new component
         let useExpr expr value =
             // Update PopupDialogInfo for new component creation and error messages
-            let newCompSpec = {
-                CompSlot = compSlotName;
-                Expression = expr;
-                Constraints = constraints;
-                Value = value;
-            }
-            dispatch <| AddPopupDialogParamSpec (compSlotName, Ok newCompSpec)
+            let newCompSpec = {compSpec with Expression = expr; Value = value}
+            dispatch <| AddPopupDialogParamSpec (compSpec.CompSlot, Ok newCompSpec)
             match comp with
             | Some c ->
                 // Update existing component
-                let exprSpec = {Expression = expr; Constraints = constraints}
-                let slot = {CompId = c.Id; CompSlot = compSlotName}
+                let exprSpec = {Expression = expr; Constraints = compSpec.Constraints}
+                let slot = {CompId = c.Id; CompSlot = compSpec.CompSlot}
                 updateComponent dispatch model paramBindings slot expr
                 dispatch <| UpdateModel (updateParamSlot slot exprSpec)
             | None -> ()
 
-        match newVal, constraintCheck, exprResult with
+        // Parse, evaluate, and check constraints of input expression
+        let parsedExpr = parseExpression inputExpr
+        let newVal = Result.bind (tryEvaluateExpression paramBindings) parsedExpr
+        let constraintCheck = 
+            match parsedExpr, newVal with
+            | Ok expr, Ok value -> applyConstraints expr value
+            | Error err, _ | _, Error err -> Error err 
+
+        match newVal, constraintCheck, parsedExpr with
         | Ok value, Ok (), Ok expr -> useExpr expr value
-        | Error err, _, _ 
-        | _, Error err, _ -> dispatch <| AddPopupDialogParamSpec (compSlotName, Error err)
+        | Error err, _, _ | _, Error err, _ ->
+            dispatch <| AddPopupDialogParamSpec (compSpec.CompSlot, Error err)
         | _ -> failwithf "Value cannot exist with invalid expression"
 
     // TODO-RYAN: The box on the side needs some serious fixing
@@ -793,17 +771,17 @@ let paramInputField
     let inputString = 
         match comp with
         | Some c ->
-            let key = {CompId = c.Id; CompSlot = compSlotName}
+            let key = {CompId = c.Id; CompSlot = compSpec.CompSlot}
             if Map.containsKey key slots then
                 renderParamExpression slots[key].Expression 0 // Or: Some (Map.find key slots)
             else
-                defaultValue |> string
-        | None -> defaultValue |> string
+                compSpec.Value |> string
+        | None -> compSpec.Value |> string
     
     let errText = 
         model.PopupDialogData.DialogState
         |> Option.defaultValue Map.empty
-        |> Map.tryFind compSlotName
+        |> Map.tryFind compSpec.CompSlot
         |> Option.map (
             function
             | Ok _ -> "" 
@@ -831,10 +809,10 @@ let paramInputField
                     Input.OnChange (getTextEventValue >> onChange)
                 ]
             ]
-            if string defaultValue <> inputString then
+            if string compSpec.Value <> inputString then
                 Control.p [] [
                     Button.a [Button.Option.IsStatic true] [
-                        str (string defaultValue)
+                        str (string compSpec.Value)
                     ]
                 ]
         ]
@@ -861,6 +839,25 @@ let getParamFieldSpec (slotName: CompSlotName) (model: Model): NewParamCompSpec 
     match inputFieldDialog with
     | Ok paramSpec -> paramSpec
     | Error err -> failwithf $"Failed to extract expression due to error '{err}'"
+
+
+/// Create a popup box with a parameter input field
+let paramPopupBox
+    (text: PopupConfig)
+    (compSpec: NewParamCompSpec)
+    (comp: Component option)
+    (buttonAction: Model -> Unit)
+    (dispatch: Msg -> Unit)
+    : Unit =
+
+    let inputField model' = paramInputField model' text.Prompt compSpec comp dispatch
+
+    // Disabled if any constraints are violated
+    let isDisabled model' = not <| paramInputIsValid compSpec.CompSlot model'
+
+    // Create parameter input field
+    dispatch <| AddPopupDialogParamSpec (compSpec.CompSlot, Ok compSpec)
+    dialogPopup text.Title inputField text.Button buttonAction isDisabled [] dispatch
 
 
 /// Create a popup that allows a parameter with an integer value to be added
@@ -911,28 +908,6 @@ let addParameterBox dispatch =
         not (Regex.IsMatch(newParamName, "^[a-zA-Z][a-zA-Z0-9]*$"))
 
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
-
-
-// TODO-RYAN: Documentation
-// TODO-RYAN: Rearrange the inputs?
-let paramPopupBox
-    (text: PopupConfig)
-    (paramSpec: NewParamCompSpec)
-    (comp: Component option)
-    (buttonAction: Model -> Unit)
-    (dispatch: Msg -> Unit)
-    : Unit =
-
-    // Constraints from parameter bindings are checked in paramInputField
-    let inputField model' =
-        paramInputField model' text.Prompt paramSpec.Value paramSpec.Constraints comp paramSpec.CompSlot dispatch
-
-    // Disabled if any constraints are violated
-    let isDisabled model' = not <| paramInputIsValid paramSpec.CompSlot model'
-
-    // Create parameter input field
-    dispatch <| AddPopupDialogParamSpec (paramSpec.CompSlot, Ok paramSpec)
-    dialogPopup text.Title inputField text.Button buttonAction isDisabled [] dispatch
 
 
 /// Creates a popup that allows a parameter integer value to be edited.

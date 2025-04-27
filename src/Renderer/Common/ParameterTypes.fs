@@ -91,6 +91,13 @@ type ParameterDefs = {
     ParamSlots: ComponentSlotExpr
 }
 
+/// Config for a parameter popup dialog box
+type PopupConfig = {
+    Title: string
+    Prompt: string
+    Button: string
+}
+
 /// Lenses for ParamDefs
 let defaultBindings_ = Optics.Lens.create (fun s -> s.DefaultBindings) (fun v s -> {s with DefaultBindings = v})
 let paramSlots_ = Optics.Lens.create (fun s -> s.ParamSlots) (fun v s -> {s with ParamSlots = v})

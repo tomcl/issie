@@ -30,6 +30,7 @@ open TopMenuView
 open MenuHelpers
 open SheetCreator
 open ParameterTypes
+open ParameterView
 
 NearleyBindings.importGrammar
 NearleyBindings.importFix
@@ -295,53 +296,33 @@ let private createArithmeticPopup compType (model: Model) dispatch =
         | NbitsNot _ -> "NOT", NbitsNot
         | _ -> failwithf $"Invalid component type {compType} for arithmetic popup"
 
-    let title = $"Add N bits {compName}"
-    let prompt = "How many bits should the input/output have?"
-    let buttonText = "Add"
-    let intDefault = model.LastUsedDialogWidth
-    let slot = Buswidth
+    let popupConfig = {
+        Title = $"Add N bits {compName}"
+        Prompt = "How many bits should the input/output have?"
+        Button = "Add"
+    }   
     
-    let constraints = [MinVal (PInt 1, $"Number of bits in {compName} must be positive")]
+    let constraints = [
+        MinVal (PInt 1, $"Number of bits in {compName} must be positive")
+    ]
  
-    let defaultParamSpec = {
-        CompSlot = slot
-        Expression = PInt intDefault
+    let paramSpec = {
+        CompSlot = Buswidth
+        Expression = PInt model.LastUsedDialogWidth
         Constraints = constraints
-        Value = intDefault
+        Value = model.LastUsedDialogWidth
     }
 
-    let inputField model' =
-        ParameterView.paramInputField model' prompt intDefault constraints None slot dispatch
+    let buttonAction model' =
+        let compSpec = getParamFieldSpec paramSpec.CompSlot model'
+        let comp = toComp compSpec.Value
+        let addParamCompFunction = Some <| addParamComponent compSpec dispatch
+        
+        createCompStdLabel comp addParamCompFunction model dispatch
+        dispatch <| ReloadSelectedComponent compSpec.Value
+        dispatch ClosePopup
 
-    let buttonAction =
-        fun (model': Model) ->
-            let inputFieldDialog = 
-                match model'.PopupDialogData.DialogState with
-                | Some inputSpec -> Map.find slot inputSpec
-                | None -> failwithf "Param input field must set new param info"
-            let compParamSpec =
-                match inputFieldDialog with
-                | Ok paramSpec -> paramSpec
-                | Error err ->
-                    failwithf $"Received error message '{err}' when creating N-bits {compName}"
-            let comp = toComp compParamSpec.Value
-            let addParamCompFunction = 
-                Some <| ParameterView.addParamComponent compParamSpec dispatch
-
-            createCompStdLabel comp addParamCompFunction model dispatch
-            dispatch <| ReloadSelectedComponent compParamSpec.Value
-            dispatch ClosePopup
-
-    // TODO-RYAN: Refactor this using new paramFieldIsDisabled function
-    let isDisabled =
-        fun model' ->
-            model'.PopupDialogData.DialogState
-            |> function
-               | Some specs -> Map.find slot specs |> Result.isError
-               | None -> failwithf "Dialog state must exist for input box"
-
-    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
-    dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
+    paramPopupBox popupConfig paramSpec None buttonAction dispatch
 
 
 let private createNbitSpreaderPopup (model:Model) dispatch =
@@ -506,65 +487,39 @@ let private createBusComparePopup (model:Model) dispatch =
     let isDisabled = parseBusCompDialog >> snd >> Option.isNone
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
+
 let private createRegisterPopup regType (model:Model) dispatch =
-    let title = match regType with
-                    | Register _ -> sprintf "Add Register" 
-                    | RegisterE _ -> sprintf "Add Register with Enable"
-                    | Counter _-> sprintf "Add Counter"
-                    | _ -> failwithf "Invalid register type"
+    let title, compType, toComp =
+        match regType with
+        | Register _ -> "Add Register", "register", Register
+        | RegisterE _ -> "Add Register with Enable", "register", RegisterE
+        | Counter _-> "Add Counter", "register", Counter
+        | _ -> failwithf "Invalid register type"
 
-    let prompt = match regType with
-                    | Register _ -> "How wide should the register be (in bits)?"
-                    | RegisterE _ -> "How wide should the register be (in bits)?"
-                    | Counter _ -> "How wide should the counter be (in bits)?"
-                    | _ -> failwithf "Invalid register type"
-    let intDefault = model.LastUsedDialogWidth
-    let slot = Buswidth
-
-    let constraints = [MinVal (PInt 1, "Register width must be positive")]
-
-    let defaultParamSpec = {
-        CompSlot = slot
-        Expression = PInt intDefault
-        Constraints = constraints
-        Value = intDefault
+    let popupConfig = {
+        Title = title
+        Prompt = $"How wide should the {compType} be (in bits)?"
+        Button = "Add"
     }
 
-    let inputField model' =
-        ParameterView.paramInputField model' prompt intDefault constraints None slot dispatch
+    let paramSpec = {
+        CompSlot = Buswidth
+        Expression = PInt model.LastUsedDialogWidth
+        Constraints = [MinVal (PInt 1, "Register width must be positive")]
+        Value = model.LastUsedDialogWidth
+    }
 
-    let buttonText = "Add"
-    let buttonAction =
-        fun model' ->
-            let inputFieldDialog = 
-                match model'.PopupDialogData.DialogState with
-                | Some inputSpec -> Map.find slot inputSpec
-                | None -> failwithf "Param input field must set new param info"
-            let compParamSpec =
-                match inputFieldDialog with
-                | Ok paramSpec -> paramSpec
-                | Error err -> failwithf $"Received error message {err} when creating N-bits XOR"
-            let addParamCompFunction = 
-                Some <| ParameterView.addParamComponent compParamSpec dispatch
+    let buttonAction model' =
+        let compSpec = getParamFieldSpec paramSpec.CompSlot model'
+        let comp = toComp compSpec.Value
+        let addParamCompFunction = Some <| addParamComponent compSpec dispatch
 
-            let regWidth = compParamSpec.Value;
+        createCompStdLabel comp addParamCompFunction model dispatch
+        dispatch <| ReloadSelectedComponent compSpec.Value
+        dispatch ClosePopup
 
-            match regType with
-            | Register _ -> createCompStdLabel (Register regWidth) addParamCompFunction model dispatch
-            | RegisterE _ -> createCompStdLabel (RegisterE regWidth) addParamCompFunction model dispatch
-            | Counter _ -> createCompStdLabel (Counter regWidth) addParamCompFunction model dispatch
-            | _ -> failwithf "Invalid register type"
-            dispatch ClosePopup
+    paramPopupBox popupConfig paramSpec None buttonAction dispatch
 
-    let isDisabled =
-        fun model' ->
-            model'.PopupDialogData.DialogState
-            |> function
-               | Some specs -> Map.find slot specs |> Result.isError
-               | None -> failwithf "Dialog state must exist for input box"
-
-    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
-    dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
 let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
     let title = "Create memory"

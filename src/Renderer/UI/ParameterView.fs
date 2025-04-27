@@ -913,6 +913,28 @@ let addParameterBox dispatch =
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
+// TODO-RYAN: Documentation
+// TODO-RYAN: Rearrange the inputs?
+let paramPopupBox
+    (text: PopupConfig)
+    (paramSpec: NewParamCompSpec)
+    (comp: Component option)
+    (buttonAction: Model -> Unit)
+    (dispatch: Msg -> Unit)
+    : Unit =
+
+    // Constraints from parameter bindings are checked in paramInputField
+    let inputField model' =
+        paramInputField model' text.Prompt paramSpec.Value paramSpec.Constraints comp paramSpec.CompSlot dispatch
+
+    // Disabled if any constraints are violated
+    let isDisabled model' = not <| paramInputIsValid paramSpec.CompSlot model'
+
+    // Create parameter input field
+    dispatch <| AddPopupDialogParamSpec (paramSpec.CompSlot, Ok paramSpec)
+    dialogPopup text.Title inputField text.Button buttonAction isDisabled [] dispatch
+
+
 /// Creates a popup that allows a parameter integer value to be edited.
 /// TODO-RYAN: This should be a specific version of a more general parameter input box
 let editParameterBox model paramName dispatch   = 
@@ -926,9 +948,6 @@ let editParameterBox model paramName dispatch   =
            | _ -> failwithf "Edit parameter box only supports constants"
 
     // Dialog box config
-    let title = "Edit parameter value"
-    let prompt = $"New value for parameter {paramName}"
-    let buttonText = "Set value"
     let slot = SheetParam <| ParamName paramName
 
     // Update parameter bindings and components
@@ -948,23 +967,20 @@ let editParameterBox model paramName dispatch   =
         updateComponents model' newBindings dispatch 
         dispatch ClosePopup
 
-    // Constraints from parameter bindings are checked in paramInputField
-    let inputField model' =
-        paramInputField model' prompt currentVal [] None slot dispatch
-
-    // Disabled if any constraints are violated
-    let isDisabled model' = not <| paramInputIsValid slot model'
-
-    let defaultParamSpec = {
+    let paramSpec = {
         CompSlot = slot
         Expression = PInt currentVal
         Constraints = []
         Value = currentVal
     }
 
-    // Create parameter input field
-    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
-    dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
+    let popupConfig = {
+        Title = "Edit parameter value"
+        Prompt = $"New value for parameter {paramName}"
+        Button = "Set value"
+    }
+
+    paramPopupBox popupConfig paramSpec None buttonAction dispatch
 
 
 // TODO-RYAN: NEED TO DISABLE THIS IF THERE ARE ANY EXPRS USING GIVEN PARAM
@@ -1053,7 +1069,6 @@ let private makeParamsField model dispatch =
 let editParameterBindingPopup
     (model: Model)
     (paramName: ParamName)
-    (currentVal: ParamInt)
     (comp: Component)
     (dispatch: Msg -> Unit)
     : Unit = 
@@ -1061,14 +1076,28 @@ let editParameterBindingPopup
     // TODO-RYAN: Need to do some playing around to get currentVal rendering properly
     //            for these input boxes with parameters as well
 
-    // Popup dialog config
-    let title = "Edit parameter value"
-    let prompt = $"New value for parameter {paramName}"
-    let slot = CustomCompParam paramName
-    let buttonText = "Set value"
+    let customComponent =
+        match comp.Type with
+        | Custom c -> c
+        | _ -> failwithf "Only custom components can have parameter bindings"
 
-    let inputField model' =
-        paramInputField model' prompt currentVal [] (Some comp) slot dispatch
+    let defaultVal =
+        model
+        |> getLoadedComponent (Some customComponent.Name)
+        |> getDefaultBindingsOfLC
+        |> Map.find paramName
+
+    let currentVal =
+        customComponent.ParameterBindings
+        |> Option.defaultValue Map.empty
+        |> Map.tryFind paramName
+        |> Option.defaultValue defaultVal
+        |> function
+           | PInt value -> value
+           | _ -> failwithf "Default bindings can only have constant value"
+
+    // Popup dialog config
+    let slot = CustomCompParam paramName
 
     // Update custom component when button is clicked
     let buttonAction model' =
@@ -1088,22 +1117,21 @@ let editParameterBindingPopup
         updateCustomCompParam model' paramBindings compSlot paramSpec.Expression dispatch
         dispatch ClosePopup
 
-    // Constraints are checked by the parameter input field
-    let isDisabled model' = not <| paramInputIsValid slot model'
-
-    // TODO-RYAN:
-    // 1. Huge amount of code reuse between this and edit parameter box
-    // 2. is this default param spec really necessary????
-    let defaultParamSpec = {
+    let paramSpec = {
         CompSlot = slot
         Expression = PInt currentVal
         Constraints = []
         Value = currentVal
     }
 
-    // Create parameter input field
-    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
-    dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
+    let popupConfig = {
+        Title = "Edit parameter value"
+        Prompt = $"New value for parameter {paramName}"
+        Button = "Set value"
+    }
+
+    paramPopupBox popupConfig paramSpec (Some comp) buttonAction dispatch
+
 
 
 /// UI component for custom component definition of parameter bindings
@@ -1171,7 +1199,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                             td [] [
                                 Button.button // TODO-ELENA: this is sketchy
                                     // TODO-RYAN: This whole thing needs to be refactored and merged with the default slots/spec layout
-                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model (ParamName paramName) 1 comp dispatch)
+                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model (ParamName paramName) comp dispatch)
                                       Fulma.Button.Color IsInfo
                                     ] 
                                     [str "Edit"]

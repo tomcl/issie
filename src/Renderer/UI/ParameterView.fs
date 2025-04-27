@@ -767,16 +767,17 @@ let paramInputField
         | _ -> failwithf "Value cannot exist with invalid expression"
 
     // Get the input expression and error message as strings
-    let inputString =
+    // TODO-RYAN: Tidy this up using result properly
+    let boxValue, exprString =
         model.PopupDialogData.DialogState
         |> Option.defaultValue Map.empty
         |> Map.tryFind compSpec.CompSlot
         |> Option.map (
             function
-            | Ok newCompSpec -> renderParamExpression newCompSpec.Expression 0
-            | Error _ -> string compSpec.Value
+            | Ok newCompSpec -> newCompSpec.Value, renderParamExpression newCompSpec.Expression 0
+            | Error _ -> compSpec.Value, string compSpec.Value
         )
-        |> Option.defaultValue (string compSpec.Value)
+        |> Option.defaultValue (compSpec.Value, string compSpec.Value)
 
     let errText = 
         model.PopupDialogData.DialogState
@@ -805,15 +806,15 @@ let paramInputField
                         AutoFocus true
                         Style [Width "200px"]
                     ]
-                    Input.DefaultValue <| inputString
+                    Input.DefaultValue <| exprString
                     Input.Type Input.Text
                     Input.OnChange (getTextEventValue >> onChange)
                 ]
             ]
-            if errText = "" && string compSpec.Value <> inputString then
+            if errText = "" && string boxValue <> exprString then
                 Control.p [] [
                     Button.a [Button.Option.IsStatic true] [
-                        str (string compSpec.Value)
+                        str (string boxValue)
                     ]
                 ]
         ]

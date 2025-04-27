@@ -31,7 +31,7 @@ open Fulma.Extensions.Wikiki
  * Parameter scope is currently defined to be all component instances on the parameter sheet.
  * Parameters are used in parameter expressions in the properties pane of components.
  *
- * See Common/parameterTypes.fs for the types used to represent parameters and parameter expressions.
+ * See Common/ParameterTypes.fs for the types used to represent parameters and parameter expressions.
  *)
 
 
@@ -294,33 +294,77 @@ let getComponentById (model: Model) (sheetName: string) (compId: string): Compon
         |> List.find (fun comp -> comp.Id = compId)
 
 
+/// Get the error message from a constraint
+let extractErrorMsg constr =
+    match constr with
+    | MinVal (_, err) | MaxVal (_, err) -> err
+
+
+/// Check that an expression passes its constraints for a given set of bindings
+let checkConstraints
+    (paramBindings: ParamBindings)
+    (exprSpec: ConstrainedExpr)
+    : Result<Unit, ParamError> =
+
+    let checkConstraint constr =
+        let comparator, constrExpr, errMsg = 
+            match constr with
+            | MaxVal (expr, err) -> (<=), expr, err
+            | MinVal (expr, err) -> (>=), expr, err
+
+        let evalExpr = tryEvaluateExpression paramBindings exprSpec.Expression
+        let evalConstr = tryEvaluateExpression paramBindings constrExpr
+
+        match evalExpr, evalConstr with
+        | Ok value, Ok limit when comparator value limit -> Ok ()
+        | Error valueErr, _ -> Error valueErr
+        | _ -> Error errMsg
+
+    exprSpec.Constraints
+    |> List.map checkConstraint
+    |> List.filter Result.isError
+    |> function
+       | [] -> Ok ()
+       | firstError :: _ -> firstError
+
+
 /// Evaluates the parameter slots for the given parameter bindings
 /// and returns the first violated constraint
 /// Recursive evaluation needed for parameter inheritance
 /// TODO-RYAN: This function needs a MASSIVE tidy-up
-let rec evaluateConstraints
+let rec checkAllCompSlots
     (model: Model)
     (sheetName: string)
     (paramBindings: ParamBindings)
-    : Result<Unit, ParamConstraint> =
+    : Result<Unit, ParamError> =
 
-    let failedConstraints constraints expr =
-        let resultExpression = tryEvaluateExpression paramBindings expr
-        match resultExpression with
-            | Ok value ->        
-                constraints
-                |> List.filter (fun constr ->
-                    match constr with
-                    | MaxVal (expr, _) -> 
-                        match tryEvaluateExpression paramBindings expr with
-                        | Ok maxValue -> value > maxValue
-                        | Error _ -> false  // Failed to evaluate constraint
-                    | MinVal (expr, _) -> 
-                        match tryEvaluateExpression paramBindings expr with
-                        | Ok minValue -> value < minValue
-                        | Error _ -> false  // Failed to evaluate constraint
-                    )
-            | Error _ -> []
+    let addDetailedErrorMsg (slot: ParamSlot) (spec: ConstrainedExpr): ConstrainedExpr =
+        let renderedExpr = renderParamExpression spec.Expression 0
+        let slotText =
+            match slot.CompSlot with
+            | Buswidth | IO _ -> $"bus width of {renderedExpr}"
+            | NGateInputs -> $"{renderedExpr} inputs"
+            | CustomCompParam param -> $"parameter binding to {param}"  // TODO-RYAN: This message needs more detail!
+            | _ -> failwithf $"Cannot not have constraints on slot {slot.CompSlot}"
+
+        // TODO-RYAN: Get rid of debug print statements
+        // printfn $"Finding component slot in sheet {sheetName}"
+        // printfn $"Component slot is {slot} and expr is {expr}"
+        // printfn $"Components are {loadedComponent.CanvasState |> fst}"
+
+        let comp = getComponentById model sheetName slot.CompId
+        let compInfo = $"{comp.Label} has {slotText}"
+
+        let addDetail constr =
+            match constr with
+            | MaxVal (paramExpr, err) -> MaxVal (paramExpr, $"{compInfo}. {err}.")
+            | MinVal (paramExpr, err) -> MinVal (paramExpr, $"{compInfo}. {err}.")
+
+        let detailedConstraints = spec.Constraints |> List.map addDetail
+        {spec with Constraints = detailedConstraints}
+
+    printf $"Checking constraints for all slots on {sheetName}"
+    printf $"Updated bindings are {paramBindings}"
 
     // TODO-RYAN: Model should be the last argument to this function
     let paramSlots =
@@ -328,43 +372,6 @@ let rec evaluateConstraints
         |> fun lc -> lc.LCParameterSlots
         |> Option.defaultValue {DefaultBindings = Map.empty; ParamSlots = Map.empty}
         |> fun slots -> slots.ParamSlots
-
-    printf $"Evaluating constraints for bindings={paramBindings} and slots = {paramSlots}"
-
-
-        // TODO-RYAN: Remove these notes as well
-        (*
-            Logic for input field....
-            If slot type is normal:
-            - just evaluate constraints belonging to that slot
-            If slot type is sheetParam:
-            - need to evaluate constraints for all paramslots on sheet (maybe recursively)
-            If slot type is customCompParam:
-            - need to update cc bindings then check all paramslots in cc (maybe recursively)  
-        
-        
-        
-        *)
-
-
-
-        // TODO-RYAN: remove these notes
-        (*
-            For each constraint:
-                If slot type is CustomCompParam
-                    1. Evaluate the param using current bindings
-                    2. Get corresponding custom component
-                    3. Get corresponding loaded component
-                    4. Form new merged bindings from new cc and lc
-                    5. Get param slots from lc
-                    6. Recursive call
-                Else:
-                    Normal evaluation
-        
-        
-        
-        *)
-
 
     // TODO-RYAN: This function can definitely be improved using lenses/prisms
     let evaluateSlot (slot: ParamSlot) (spec: ConstrainedExpr) = 
@@ -387,12 +394,15 @@ let rec evaluateConstraints
                 match toplevelLC.LCParameterSlots with
                 | Some slots -> slots.DefaultBindings
                 | None -> Map.empty
+                |> Helpers.mapUnion paramBindings
 
             let customBindings = 
                 customComponent.ParameterBindings
                 |> Option.defaultValue Map.empty
                 |> Map.map (fun _ expr -> evaluateExpression toplevelBindings expr)
                 |> Map.map (fun _ value -> PInt value)
+
+            printf $"Custom bindings are {customBindings}"
 
             let defaultBindings =
                 match customLC.LCParameterSlots with
@@ -401,26 +411,22 @@ let rec evaluateConstraints
 
             let mergedBindings = Helpers.mapUnion customBindings defaultBindings
 
-            // printf $"customComponent paramBindings are {customComponent.ParameterBindings}"
-            // printf $"paramBindings are {paramBindings}"
-            // printf $"lcBindings is {lcBindings}"
-            // printf $"ccBindings is {ccBindings}"
-            // printf $"Merged bindings is {mergedBindings}"
+            checkAllCompSlots model customComponent.Name mergedBindings
+            |> Result.mapError (fun err -> $"{comp.Label}.{err}")
 
-            evaluateConstraints model customComponent.Name mergedBindings
-            |> function
-               | Ok () -> []
-               | Error failedConstraint -> [failedConstraint]
         | SheetParam _ -> failwithf "Sheet parameter cannot be slot in a component"
-        | _ -> failedConstraints spec.Constraints spec.Expression
+        | _ -> checkConstraints paramBindings spec
 
     let result =
         paramSlots
-        |> Map.toList
-        |> List.collect (fun (slot, spec) -> evaluateSlot slot spec)
+        |> Map.map addDetailedErrorMsg
+        |> Map.map evaluateSlot
+        |> Map.values
+        |> List.ofArray
+        |> List.filter Result.isError
 
     if List.isEmpty result then Ok()
-    else Error <| List.head result
+    else List.head result
 
 
 /// Generates a ParameterExpression from input text
@@ -526,12 +532,6 @@ let rec exprContainsParams
     | PDivide (left, right)
     | PRemainder (left, right)
         -> exprContainsParams left || exprContainsParams right
-
-
-/// Get the error message from a constraint
-let extractErrorMsg constr =
-    match constr with
-    | MinVal (_, err) | MaxVal (_, err) -> err
 
 
 /// Adds or updates a parameter slot in loaded component param slots
@@ -742,80 +742,44 @@ let rec checkBindings
     let newBindings = Helpers.mapUnion editedBindings paramInfo.DefaultBindings
 
     // Add information about component and expression to constraint error message
-    let addDetailedErrorMsg (slot: ParamSlot) (expr: ConstrainedExpr): ConstrainedExpr =
-        let renderedExpr = renderParamExpression expr.Expression 0
-        let slotText =
-            match slot.CompSlot with
-            | Buswidth | IO _ -> $"bus width of {renderedExpr}"
-            | NGateInputs -> $"{renderedExpr} inputs"
-            | CustomCompParam param -> $"parameter binding to {param}"  // TODO-RYAN: This message needs more detail!
-            | _ -> failwithf $"Cannot not have constraints on slot {slot.CompSlot}"
+    // let addDetailedErrorMsg (slot: ParamSlot) (expr: ConstrainedExpr): ConstrainedExpr =
+    //     let renderedExpr = renderParamExpression expr.Expression 0
+    //     let slotText =
+    //         match slot.CompSlot with
+    //         | Buswidth | IO _ -> $"bus width of {renderedExpr}"
+    //         | NGateInputs -> $"{renderedExpr} inputs"
+    //         | CustomCompParam param -> $"parameter binding to {param}"  // TODO-RYAN: This message needs more detail!
+    //         | _ -> failwithf $"Cannot not have constraints on slot {slot.CompSlot}"
 
-        // TODO-RYAN: Get rid of debug print statements
-        printfn $"Finding component slot in sheet {sheetName}"
-        printfn $"Component slot is {slot} and expr is {expr}"
-        printfn $"Components are {loadedComponent.CanvasState |> fst}"
+    //     // TODO-RYAN: Get rid of debug print statements
+    //     printfn $"Finding component slot in sheet {sheetName}"
+    //     printfn $"Component slot is {slot} and expr is {expr}"
+    //     printfn $"Components are {loadedComponent.CanvasState |> fst}"
 
-        let comp = getComponentById model sheetName slot.CompId
-        let compInfo = $"Component {comp.Label} has {slotText}"
+    //     let comp = getComponentById model sheetName slot.CompId
+    //     let compInfo = $"Component {comp.Label} has {slotText}"
 
-        let addDetail constr =
-            match constr with
-            | MaxVal (paramExpr, err) -> MaxVal (paramExpr, $"{compInfo}. {err}.")
-            | MinVal (paramExpr, err) -> MinVal (paramExpr, $"{compInfo}. {err}.")
+    //     let addDetail constr =
+    //         match constr with
+    //         | MaxVal (paramExpr, err) -> MaxVal (paramExpr, $"{compInfo}. {err}.")
+    //         | MinVal (paramExpr, err) -> MinVal (paramExpr, $"{compInfo}. {err}.")
 
-        let detailedConstraints = expr.Constraints |> List.map addDetail
-        {expr with Constraints = detailedConstraints}
+    //     let detailedConstraints = expr.Constraints |> List.map addDetail
+    //     {expr with Constraints = detailedConstraints}
 
     // Add more useful error messages to all constraints
-    let detailedSpecs =
-        paramInfo.ParamSlots
-        |> Map.map addDetailedErrorMsg
+    // let detailedSpecs =
+    //     paramInfo.ParamSlots
+    //     |> Map.map addDetailedErrorMsg
 
     // Evaluate constraints for given bindings and take first error
     // TODO-RYAN: This will need to be updated for parameter inheritance
     // TODO-RYAN: Need to find a way of extracting detailed error messages from the results
     // detailedSpecs
-    evaluateConstraints model sheetName newBindings
-    |> Result.mapError extractErrorMsg
-
-
-// TODO-RYAN: Add documentation, and make this return an error message
-let passesConstraint
-    (paramBindings: ParamBindings)
-    (expr: ParamExpression)
-    (constr: ParamConstraint)
-    : bool =
-
-    let valuePassesConstraint (value: ParamInt) (constr': ParamConstraint): bool =
-        let comparator = 
-            match constr with
-            | MaxVal _ -> (<=)   // TODO-RYAN: CHeck that these are the right way around
-            | MinVal _ -> (>=)
-
-        match constr' with
-        | MaxVal (expr', err) | MinVal (expr', err) ->
-            match tryEvaluateExpression paramBindings expr' with
-            | Ok value' -> comparator value value'
-            | Error msg -> false
-
-    match tryEvaluateExpression paramBindings expr with
-    | Ok value -> valuePassesConstraint value constr
-    | Error _ -> false
+    checkAllCompSlots model sheetName newBindings
 
 
 
-// TODO-RYAN: Change the name of this function and add documentation
-let evaluateConstraintsNormally
-    (paramBindings: ParamBindings)
-    (exprSpec: ConstrainedExpr)
-    : Result<Unit, ParamError> =
-
-    exprSpec.Constraints
-    |> List.filter (fun c -> not <| passesConstraint paramBindings exprSpec.Expression c)
-    |> function
-       | [] -> Ok ()
-       | hd :: _ -> Error <| extractErrorMsg hd
 
 
 
@@ -880,13 +844,18 @@ let paramInputField
                             | Custom cc -> cc.Name
                             | _ -> failwithf "Only custom component can have bindings"
                         | _ -> failwithf "Custom component must already exist to edit param bindings"
+                    let compName = 
+                        match comp with
+                        | Some c -> c.Label
+                        | _ -> failwithf "Comp must exist"
                     checkBindings model ccName editedBindings
+                    |> Result.mapError (fun err -> $"{compName}.{err}")
                 | Error err -> Error err
             | _ -> 
                 match exprResult with
                 | Ok expr -> 
                     let exprSpec = {Expression = expr; Constraints = constraints}
-                    evaluateConstraintsNormally paramBindings exprSpec
+                    checkConstraints paramBindings exprSpec
                 | Error msg -> Error msg
 
         // Either update component or prepare creation of new component

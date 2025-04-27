@@ -38,7 +38,11 @@ open Fulma.Extensions.Wikiki
 
 // Lenses & Prisms for accessing sheet parameter information
 
+// Accessing param info from loaded component
+let defaultBindingsOfLC_ = lcParameterSlots_ >?> defaultBindings_
+let paramSlotsOfLC_ = lcParameterSlots_ >?> paramSlots_
 
+// Accessing param info of currently open sheet from model
 let lcParameterInfoOfModel_ = openLoadedComponentOfModel_ >?> lcParameterSlots_ 
 let paramSlotsOfModel_ = lcParameterInfoOfModel_ >?> paramSlots_
 let defaultBindingsOfModel_ = lcParameterInfoOfModel_ >?> defaultBindings_
@@ -175,6 +179,16 @@ let getParamSlots model =
     model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
 
 
+/// Get parameter bindings of a loaded component
+let getDefaultBindingsOfLC loadedComponent = 
+    loadedComponent |> get defaultBindingsOfLC_ |> Option.defaultValue Map.empty
+
+
+/// Get parameter slots of a loaded component
+let getParamSlotsOfLC loadedComponent =
+    loadedComponent |> get paramSlotsOfLC_ |> Option.defaultValue Map.empty
+
+
 /// Tries to evaluate a parameter expression given a set of parameter bindings
 /// Returns a ParamInt if successful, or ParamError if not
 let tryEvaluateExpression
@@ -274,7 +288,7 @@ let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string 
 
 /// Get a loaded component from its name
 /// Returns the currently open loaded component if no name is specified
-let getLoadedComponent (model: Model) (sheetName: string option): LoadedComponent =
+let getLoadedComponent (sheetName: string option) (model: Model): LoadedComponent =
     let project = Option.get model.CurrentProj
     let lcName = sheetName |> Option.defaultValue project.OpenFileName
     project.LoadedComponents |> List.find (fun lc -> lc.Name = lcName)
@@ -288,16 +302,10 @@ let getComponentById (model: Model) (sheetName: string) (compId: string): Compon
     if sheetName = project.OpenFileName
     then model.Sheet.GetComponentById <| ComponentId compId
     else
-        getLoadedComponent model (Some sheetName)
+        getLoadedComponent (Some sheetName) model
         |> fun lc -> lc.CanvasState
         |> fst
         |> List.find (fun comp -> comp.Id = compId)
-
-
-/// Get the error message from a constraint
-let extractErrorMsg constr =
-    match constr with
-    | MinVal (_, err) | MaxVal (_, err) -> err
 
 
 /// Check that an expression passes its constraints for a given set of bindings
@@ -328,105 +336,85 @@ let checkConstraints
        | firstError :: _ -> firstError
 
 
-/// Evaluates the parameter slots for the given parameter bindings
-/// and returns the first violated constraint
-/// Recursive evaluation needed for parameter inheritance
-/// TODO-RYAN: This function needs a MASSIVE tidy-up
+/// Checks whether all param slots on a sheet their constraints
+/// Edited bindings override default bindings on that sheet
+/// Returns the first broken constraint
 let rec checkAllCompSlots
     (model: Model)
     (sheetName: string)
-    (paramBindings: ParamBindings)
+    (editedBindings: ParamBindings)
     : Result<Unit, ParamError> =
 
+    // Get bindings of sheet that component is on
+    let toplevelLC = getLoadedComponent (Some sheetName) model
+    let toplevelBindings = getDefaultBindingsOfLC toplevelLC
+    let updatedBindings = Helpers.mapUnion editedBindings toplevelBindings
+
+    // Add detailed component information to constraint error messages
     let addDetailedErrorMsg (slot: ParamSlot) (spec: ConstrainedExpr): ConstrainedExpr =
         let renderedExpr = renderParamExpression spec.Expression 0
         let slotText =
             match slot.CompSlot with
             | Buswidth | IO _ -> $"bus width of {renderedExpr}"
             | NGateInputs -> $"{renderedExpr} inputs"
-            | CustomCompParam param -> $"parameter binding to {param}"  // TODO-RYAN: This message needs more detail!
+            | CustomCompParam param -> $"parameter binding of {param} = {renderedExpr}"
             | _ -> failwithf $"Cannot not have constraints on slot {slot.CompSlot}"
-
-        // TODO-RYAN: Get rid of debug print statements
-        // printfn $"Finding component slot in sheet {sheetName}"
-        // printfn $"Component slot is {slot} and expr is {expr}"
-        // printfn $"Components are {loadedComponent.CanvasState |> fst}"
 
         let comp = getComponentById model sheetName slot.CompId
         let compInfo = $"{comp.Label} has {slotText}"
 
         let addDetail constr =
             match constr with
-            | MaxVal (paramExpr, err) -> MaxVal (paramExpr, $"{compInfo}. {err}.")
-            | MinVal (paramExpr, err) -> MinVal (paramExpr, $"{compInfo}. {err}.")
+            | MaxVal (expr, err) -> MaxVal (expr, $"{compInfo}. {err}.")
+            | MinVal (expr, err) -> MinVal (expr, $"{compInfo}. {err}.")
 
         let detailedConstraints = spec.Constraints |> List.map addDetail
         {spec with Constraints = detailedConstraints}
 
-    printf $"Checking constraints for all slots on {sheetName}"
-    printf $"Updated bindings are {paramBindings}"
-
-    // TODO-RYAN: Model should be the last argument to this function
-    let paramSlots =
-        getLoadedComponent model (Some sheetName)
-        |> fun lc -> lc.LCParameterSlots
-        |> Option.defaultValue {DefaultBindings = Map.empty; ParamSlots = Map.empty}
-        |> fun slots -> slots.ParamSlots
-
-    // TODO-RYAN: This function can definitely be improved using lenses/prisms
-    let evaluateSlot (slot: ParamSlot) (spec: ConstrainedExpr) = 
+    // Check whether a param slot meets its constraints
+    let checkSlot (slot: ParamSlot) (spec: ConstrainedExpr) = 
         match slot.CompSlot with
-        | CustomCompParam param ->
+        | CustomCompParam _ ->
+            // Get custom component and corresponding loaded component
             let comp = getComponentById model sheetName slot.CompId
             let customComponent = 
                 match comp.Type with
                 | Custom c ->  c
                 | _ -> failwithf "Custom component must have custom component type"
-
-            // Get loaded components for toplevel sheet and custom component on it
-            let toplevelLC = getLoadedComponent model (Some sheetName)
-            let customLC = getLoadedComponent model (Some customComponent.Name)
+            let customLC = getLoadedComponent (Some customComponent.Name) model
             
-            // TODO-RYAN: Add some more functions to make the code for getting
-            //            the default bindings and param slots way cleaner
-            // TODO-RYAN: There's probably a lot of code overlap between here and cc update
-            let toplevelBindings = 
-                match toplevelLC.LCParameterSlots with
-                | Some slots -> slots.DefaultBindings
-                | None -> Map.empty
-                |> Helpers.mapUnion paramBindings
-
+            // Create updated set of integer constant bindings for custom component
             let customBindings = 
                 customComponent.ParameterBindings
                 |> Option.defaultValue Map.empty
-                |> Map.map (fun _ expr -> evaluateExpression toplevelBindings expr)
+                |> Map.map (fun _ expr -> evaluateExpression updatedBindings expr)
                 |> Map.map (fun _ value -> PInt value)
 
-            printf $"Custom bindings are {customBindings}"
-
-            let defaultBindings =
-                match customLC.LCParameterSlots with
-                | Some slots -> slots.DefaultBindings
-                | None -> failwithf "Parameterised component must have bindings"
-
+            let defaultBindings = getDefaultBindingsOfLC customLC
             let mergedBindings = Helpers.mapUnion customBindings defaultBindings
 
+            // Check all slots inside custom component
             checkAllCompSlots model customComponent.Name mergedBindings
             |> Result.mapError (fun err -> $"{comp.Label}.{err}")
 
         | SheetParam _ -> failwithf "Sheet parameter cannot be slot in a component"
-        | _ -> checkConstraints paramBindings spec
+        | _ -> checkConstraints updatedBindings spec
 
-    let result =
-        paramSlots
-        |> Map.map addDetailedErrorMsg
-        |> Map.map evaluateSlot
-        |> Map.values
-        |> List.ofArray
-        |> List.filter Result.isError
+    let paramSlots =
+        model
+        |> getLoadedComponent (Some sheetName)
+        |> getParamSlotsOfLC
 
-    if List.isEmpty result then Ok()
-    else List.head result
+    // Check all component slots for broken constraints, and return first error found
+    paramSlots
+    |> Map.map addDetailedErrorMsg
+    |> Map.map checkSlot
+    |> Map.values
+    |> List.ofArray
+    |> List.filter Result.isError
+    |> function
+        | [] -> Ok ()
+        | firstError :: _ -> firstError
 
 
 /// Generates a ParameterExpression from input text
@@ -519,10 +507,7 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
 
 
 /// Returns true if an expression contains parameters, and false if not
-let rec exprContainsParams 
-    (expression: ParamExpression)
-    : bool =
-
+let rec exprContainsParams (expression: ParamExpression): bool =
     match expression with
     | PInt _ -> false
     | PParameter _ -> true
@@ -711,79 +696,6 @@ let updateComponents
     |> Map.iter (updateComponent dispatch model newBindings)
 
 
-/// Check the constraints on the parameter bindings of the current sheet
-/// given a new expression for a parameter
-/// Need to check recursively for inherited parameters
-/// TODO-RYAN: This does not properly support parameter inheritance
-/// TODO-RYAN: This function probably needs to be renamed
-/// TODO-RYAN: Restructure and comment up this function
-let rec checkBindings
-    (model: Model)
-    (sheetName: string)
-    (editedBindings: ParamBindings)
-    : Result<unit, ParamError> =
-
-    // Need to extract parameter info using sheet name to support parameter inheritance
-    let project = 
-        match model.CurrentProj with
-        | Some proj -> proj
-        | None -> failwithf "Must have open project"
-
-    let loadedComponent = 
-        project.LoadedComponents
-        |> List.find (fun lc -> lc.Name = sheetName)
-
-    let paramInfo =
-        match loadedComponent.LCParameterSlots with
-        | Some slots -> slots
-        | None -> {DefaultBindings = Map.empty; ParamSlots = Map.empty}
-
-    // Update edited bindings
-    let newBindings = Helpers.mapUnion editedBindings paramInfo.DefaultBindings
-
-    // Add information about component and expression to constraint error message
-    // let addDetailedErrorMsg (slot: ParamSlot) (expr: ConstrainedExpr): ConstrainedExpr =
-    //     let renderedExpr = renderParamExpression expr.Expression 0
-    //     let slotText =
-    //         match slot.CompSlot with
-    //         | Buswidth | IO _ -> $"bus width of {renderedExpr}"
-    //         | NGateInputs -> $"{renderedExpr} inputs"
-    //         | CustomCompParam param -> $"parameter binding to {param}"  // TODO-RYAN: This message needs more detail!
-    //         | _ -> failwithf $"Cannot not have constraints on slot {slot.CompSlot}"
-
-    //     // TODO-RYAN: Get rid of debug print statements
-    //     printfn $"Finding component slot in sheet {sheetName}"
-    //     printfn $"Component slot is {slot} and expr is {expr}"
-    //     printfn $"Components are {loadedComponent.CanvasState |> fst}"
-
-    //     let comp = getComponentById model sheetName slot.CompId
-    //     let compInfo = $"Component {comp.Label} has {slotText}"
-
-    //     let addDetail constr =
-    //         match constr with
-    //         | MaxVal (paramExpr, err) -> MaxVal (paramExpr, $"{compInfo}. {err}.")
-    //         | MinVal (paramExpr, err) -> MinVal (paramExpr, $"{compInfo}. {err}.")
-
-    //     let detailedConstraints = expr.Constraints |> List.map addDetail
-    //     {expr with Constraints = detailedConstraints}
-
-    // Add more useful error messages to all constraints
-    // let detailedSpecs =
-    //     paramInfo.ParamSlots
-    //     |> Map.map addDetailedErrorMsg
-
-    // Evaluate constraints for given bindings and take first error
-    // TODO-RYAN: This will need to be updated for parameter inheritance
-    // TODO-RYAN: Need to find a way of extracting detailed error messages from the results
-    // detailedSpecs
-    checkAllCompSlots model sheetName newBindings
-
-
-
-
-
-
-
 /// Create a generic input field which accepts and parses parameter expressions
 /// Validity of inputs is checked by parser
 /// Specific constraints can be passed by callee
@@ -800,13 +712,6 @@ let paramInputField
     let onChange inputExpr = 
         let paramBindings = getDefaultBindings model
         let paramSlots = getParamSlots model
-
-        // Only return first violated constraint
-        // TODO-RYAN: Can definitely tidy up some unused code here
-        // let checkConstraints expr =
-        //     match evaluateConstraints model paramBindings paramSlots with
-        //     | Ok () -> Ok ()
-        //     | Error constr -> Error <| extractErrorMsg constr
 
         let exprResult = parseExpression inputExpr
         let newVal = Result.bind (tryEvaluateExpression paramBindings) exprResult
@@ -830,7 +735,7 @@ let paramInputField
                 match exprResult with
                 | Ok (PInt value) ->
                     let editedBindings = Map.add paramName (PInt value) paramBindings
-                    checkBindings model sheetName editedBindings
+                    checkAllCompSlots model sheetName editedBindings
                 | Ok _ -> Error "Parameter value must be a constant"
                 | Error err -> Error err
             | CustomCompParam paramName -> 
@@ -848,7 +753,7 @@ let paramInputField
                         match comp with
                         | Some c -> c.Label
                         | _ -> failwithf "Comp must exist"
-                    checkBindings model ccName editedBindings
+                    checkAllCompSlots model ccName editedBindings
                     |> Result.mapError (fun err -> $"{compName}.{err}")
                 | Error err -> Error err
             | _ -> 

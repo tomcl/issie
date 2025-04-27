@@ -514,6 +514,7 @@ let private makeNumberOfInputsField model (comp: Component) dispatch =
         Value = nInp
     }
 
+    dispatch <| ClearPopupDialogParamSpec compSpec.CompSlot
     paramInputField model prompt compSpec (Some comp) dispatch
 
 

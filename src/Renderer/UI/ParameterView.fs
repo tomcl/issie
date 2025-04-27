@@ -766,18 +766,18 @@ let paramInputField
             dispatch <| AddPopupDialogParamSpec (compSpec.CompSlot, Error err)
         | _ -> failwithf "Value cannot exist with invalid expression"
 
-    // TODO-RYAN: The box on the side needs some serious fixing
-    let slots = getParamSlots model
-    let inputString = 
-        match comp with
-        | Some c ->
-            let key = {CompId = c.Id; CompSlot = compSpec.CompSlot}
-            if Map.containsKey key slots then
-                renderParamExpression slots[key].Expression 0 // Or: Some (Map.find key slots)
-            else
-                compSpec.Value |> string
-        | None -> compSpec.Value |> string
-    
+    // Get the input expression and error message as strings
+    let inputString =
+        model.PopupDialogData.DialogState
+        |> Option.defaultValue Map.empty
+        |> Map.tryFind compSpec.CompSlot
+        |> Option.map (
+            function
+            | Ok newCompSpec -> renderParamExpression newCompSpec.Expression 0
+            | Error _ -> string compSpec.Value
+        )
+        |> Option.defaultValue (string compSpec.Value)
+
     let errText = 
         model.PopupDialogData.DialogState
         |> Option.defaultValue Map.empty
@@ -789,7 +789,7 @@ let paramInputField
         )
         |> Option.defaultValue ""
 
-    // Field name, input box, and potential error message
+    // Prompt, input field, potential error message, and result box
     Field.div [] [
         Label.label [] [str prompt]
         Field.div [Field.Option.HasAddons] [
@@ -798,6 +798,7 @@ let paramInputField
                     if errText <> "" then
                         Input.Option.CustomClass "is-danger"
                     Input.Props [
+                        OnFocus (getTextEventValue >> onChange)
                         OnPaste preventDefault
                         SpellCheck false
                         Name prompt
@@ -809,7 +810,7 @@ let paramInputField
                     Input.OnChange (getTextEventValue >> onChange)
                 ]
             ]
-            if string compSpec.Value <> inputString then
+            if errText = "" && string compSpec.Value <> inputString then
                 Control.p [] [
                     Button.a [Button.Option.IsStatic true] [
                         str (string compSpec.Value)

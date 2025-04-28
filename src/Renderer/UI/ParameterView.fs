@@ -407,8 +407,7 @@ let rec checkAllCompSlots
     paramSlots
     |> Map.map addDetailedErrorMsg
     |> Map.map checkSlot
-    |> Map.values
-    |> List.ofArray
+    |> Map.valuesL
     |> List.filter Result.isError
     |> function
         | [] -> Ok ()

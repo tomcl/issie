@@ -105,7 +105,6 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                 | Input1 (busWidth, _) -> busWidth
                 | Output busWidth -> busWidth
                 | _ -> failwithf $"Invalid component {comp.Type} for IO"
-            // TODO-RYAN: Add support for lens access here
             | _ -> failwithf $"Lens access not yet implemented for {compSlotName}"
         )
         (fun value comp->
@@ -147,7 +146,6 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
                         | Output _ -> Output value
                         | _ -> failwithf $"Invalid component {comp.Type} for IO"
-                    // TODO-RYAN: Add support for lens access here
                     | _ -> failwithf $"Lens access not yet implemented for {compSlotName}"
                 { comp with Type = newType}
 )
@@ -554,30 +552,9 @@ let addParamComponent
     }
 
     updateParamSlot slot exprSpec |> UpdateModel |> dispatch
-    
-
-/// Update a custom component with new I/O component widths.
-/// Used when these chnage as result of parameter changes.
-let createUpdatedComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
-    let updateLabels labels =
-        labels |> List.map (fun (label, width) ->
-            match Map.tryFind label labelToEval with
-            | Some newWidth when newWidth <> width -> (label, newWidth) // Update width if changed
-            | _ -> (label, width) // Keep the same if unchanged
-        )
-    
-    match comp.Type with
-    | Custom customComponent ->
-        let updatedCustom = { customComponent with 
-                                    InputLabels = updateLabels customComponent.InputLabels
-                                    OutputLabels = updateLabels customComponent.OutputLabels
-                                    ParameterBindings = Some newBindings }
-        { comp with Type = Custom updatedCustom }
-    | _ -> comp
 
 
-// TODO-RYAN: Add some documentation for this function
-// TODO-RYAN: This could probably be split into functions better
+/// Update a custom component parameter binding
 let updateCustomCompParam
     (model: Model)
     (toplevelBindings: ParamBindings)
@@ -585,6 +562,26 @@ let updateCustomCompParam
     (expr: ParamExpression)
     (dispatch: Msg -> Unit)
     : Unit =
+
+    /// Update a custom component with new bindings and I/O widths
+    let createUpdatedComp
+        (labelToWidth: Map<string, int>)
+        (newBindings: ParamBindings)
+        (custom: CustomComponentType)
+        (comp: Component)
+        : Component =
+
+        let updateLabel (label, width) =
+            let newWidth = Map.tryFind label labelToWidth |> Option.defaultValue width
+            label, newWidth
+
+        let updatedCustom = {
+            custom with 
+                InputLabels = List.map updateLabel custom.InputLabels
+                OutputLabels = List.map updateLabel custom.OutputLabels
+                ParameterBindings = Some newBindings
+        }
+        {comp with Type = Custom updatedCustom}
 
     // Get custom component from component ID
     let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
@@ -640,7 +637,7 @@ let updateCustomCompParam
         |> Map.ofList
 
     // Update custom component and its symbol displayed on sheet    
-    let newComponent = createUpdatedComponent ioLabelToWidth newBindings comp
+    let newComponent = createUpdatedComp ioLabelToWidth newBindings custom comp
     (ComponentId comp.Id, comp, newComponent.Type)
     |> SymbolT.ChangeCustom
     |> BusWireT.Symbol
@@ -699,7 +696,6 @@ let updateComponents
 /// Create a generic input field which accepts and parses parameter expressions
 /// Validity of inputs is checked by parser
 /// Specific constraints can be passed by callee
-/// TODO-RYAN: add in a flag which controls auto-update
 let paramInputField
     (model: Model)
     (prompt: string)
@@ -748,6 +744,7 @@ let paramInputField
                 // Update existing component
                 let exprSpec = {Expression = expr; Constraints = compSpec.Constraints}
                 let slot = {CompId = c.Id; CompSlot = compSpec.CompSlot}
+                // TODO: Use a flag to control whether the component auto-updates
                 updateComponent dispatch model paramBindings slot expr
                 dispatch <| UpdateModel (updateParamSlot slot exprSpec)
             | None -> ()
@@ -766,29 +763,17 @@ let paramInputField
             dispatch <| AddPopupDialogParamSpec (compSpec.CompSlot, Error err)
         | _ -> failwithf "Value cannot exist with invalid expression"
 
-    // Get the input expression and error message as strings
-    // TODO-RYAN: Tidy this up using result properly
-    let boxValue, exprString =
+    // Get the input expression and error message as strings    
+    let inputResult = 
         model.PopupDialogData.DialogState
         |> Option.defaultValue Map.empty
         |> Map.tryFind compSpec.CompSlot
-        |> Option.map (
-            function
-            | Ok newCompSpec -> newCompSpec.Value, renderParamExpression newCompSpec.Expression 0
-            | Error _ -> compSpec.Value, string compSpec.Value
-        )
-        |> Option.defaultValue (compSpec.Value, string compSpec.Value)
 
-    let errText = 
-        model.PopupDialogData.DialogState
-        |> Option.defaultValue Map.empty
-        |> Map.tryFind compSpec.CompSlot
-        |> Option.map (
-            function
-            | Ok _ -> "" 
-            | Error err -> err
-        )
-        |> Option.defaultValue ""
+    let boxValue, exprText, errText =
+        match inputResult with
+        | Some (Ok spec) -> spec.Value, renderParamExpression spec.Expression 0, ""
+        | Some (Error err) -> compSpec.Value, string compSpec.Value, err
+        | None -> compSpec.Value, string compSpec.Value, ""
 
     // Prompt, input field, potential error message, and result box
     Field.div [] [
@@ -806,12 +791,12 @@ let paramInputField
                         AutoFocus true
                         Style [Width "200px"]
                     ]
-                    Input.DefaultValue <| exprString
+                    Input.DefaultValue <| exprText
                     Input.Type Input.Text
                     Input.OnChange (getTextEventValue >> onChange)
                 ]
             ]
-            if errText = "" && string boxValue <> exprString then
+            if errText = "" && string boxValue <> exprText then
                 Control.p [] [
                     Button.a [Button.Option.IsStatic true] [
                         str (string boxValue)
@@ -913,7 +898,6 @@ let addParameterBox dispatch =
 
 
 /// Creates a popup that allows a parameter integer value to be edited.
-/// TODO-RYAN: This should be a specific version of a more general parameter input box
 let editParameterBox model paramName dispatch   = 
     // Get current value
     let currentVal =
@@ -924,7 +908,7 @@ let editParameterBox model paramName dispatch   =
            | PInt intVal -> intVal
            | _ -> failwithf "Edit parameter box only supports constants"
 
-    // Dialog box config
+    // Treat parameter binding as a slot to enable input error checking
     let slot = SheetParam <| ParamName paramName
 
     // Update parameter bindings and components
@@ -944,6 +928,12 @@ let editParameterBox model paramName dispatch   =
         updateComponents model' newBindings dispatch 
         dispatch ClosePopup
 
+    let popupConfig = {
+        Title = "Edit parameter value"
+        Prompt = $"New value for parameter {paramName}"
+        Button = "Set value"
+    }
+
     let paramSpec = {
         CompSlot = slot
         Expression = PInt currentVal
@@ -951,16 +941,12 @@ let editParameterBox model paramName dispatch   =
         Value = currentVal
     }
 
-    let popupConfig = {
-        Title = "Edit parameter value"
-        Prompt = $"New value for parameter {paramName}"
-        Button = "Set value"
-    }
-
     paramPopupBox popupConfig paramSpec None buttonAction dispatch
 
 
-// TODO-RYAN: NEED TO DISABLE THIS IF THERE ARE ANY EXPRS USING GIVEN PARAM
+// TODO: If the parameter is still used by some components this should
+//       either be disabled or warn the user then delete all references
+//       to the parameter
 let deleteParameterBox model paramName dispatch = 
     let newBindings =
         model
@@ -1042,16 +1028,12 @@ let private makeParamsField model dispatch =
 
 /// create a popup to edit in the model a custom component parameter binding
 /// TODO - maybe comp should be a ComponentId with actual component looked up from model for safety?
-/// TODO-RYAN: We could just have a slot as input here
 let editParameterBindingPopup
     (model: Model)
     (paramName: ParamName)
     (comp: Component)
     (dispatch: Msg -> Unit)
     : Unit = 
-
-    // TODO-RYAN: Need to do some playing around to get currentVal rendering properly
-    //            for these input boxes with parameters as well
 
     let customComponent =
         match comp.Type with
@@ -1063,15 +1045,15 @@ let editParameterBindingPopup
         |> getLoadedComponent (Some customComponent.Name)
         |> getDefaultBindingsOfLC
         |> Map.find paramName
+        |> function
+           | PInt value -> value
+           | _ -> failwithf "Default bindings must be constants"
 
-    let currentVal =
+    let currentExpr =
         customComponent.ParameterBindings
         |> Option.defaultValue Map.empty
         |> Map.tryFind paramName
-        |> Option.defaultValue defaultVal
-        |> function
-           | PInt value -> value
-           | _ -> failwithf "Default bindings can only have constant value"
+        |> Option.defaultValue (PInt defaultVal)
 
     // Popup dialog config
     let slot = CustomCompParam paramName
@@ -1080,26 +1062,19 @@ let editParameterBindingPopup
     let buttonAction model' =
         // Get new parameter expression from input field
         let paramBindings = getDefaultBindings model'
-        let paramSpec = getParamFieldSpec slot model'
+        let newSpec = getParamFieldSpec slot model'
 
         // Add new binding to param slots of current sheet
-        let compSlot = {CompId = comp.Id; CompSlot = paramSpec.CompSlot}
+        let compSlot = {CompId = comp.Id; CompSlot = newSpec.CompSlot}
         let exprSpec = {
-            Expression = paramSpec.Expression
-            Constraints = paramSpec.Constraints
+            Expression = newSpec.Expression
+            Constraints = newSpec.Constraints
         }
         dispatch <| UpdateModel (updateParamSlot compSlot exprSpec)
 
-        // TODO-RYAN: This line is too long and needs a better comment
-        updateCustomCompParam model' paramBindings compSlot paramSpec.Expression dispatch
+        // Update custom component with new parameter value
+        updateCustomCompParam model' paramBindings compSlot newSpec.Expression dispatch
         dispatch ClosePopup
-
-    let paramSpec = {
-        CompSlot = slot
-        Expression = PInt currentVal
-        Constraints = []
-        Value = currentVal
-    }
 
     let popupConfig = {
         Title = "Edit parameter value"
@@ -1107,8 +1082,14 @@ let editParameterBindingPopup
         Button = "Set value"
     }
 
-    paramPopupBox popupConfig paramSpec (Some comp) buttonAction dispatch
+    let currentSpec = {
+        CompSlot = slot
+        Expression = currentExpr
+        Constraints = []
+        Value = defaultVal
+    }
 
+    paramPopupBox popupConfig currentSpec (Some comp) buttonAction dispatch
 
 
 /// UI component for custom component definition of parameter bindings
@@ -1117,9 +1098,6 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
         match custom.ParameterBindings with
         | Some bindings -> bindings
         | None -> Map.empty
-
-    // TODO-RYAN: Remove this debug statement
-    printf "ccParams is %A" ccParams
     
     let lcDefaultParams =
         match model.CurrentProj with
@@ -1174,8 +1152,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                             td [] [str paramName]
                             td [] [str paramVal]
                             td [] [
-                                Button.button // TODO-ELENA: this is sketchy
-                                    // TODO-RYAN: This whole thing needs to be refactored and merged with the default slots/spec layout
+                                Button.button
                                     [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model (ParamName paramName) comp dispatch)
                                       Fulma.Button.Color IsInfo
                                     ] 
@@ -1186,6 +1163,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                 )
             ]
         ]
+
 
 /// Generate component slots view for design sheet properties panel
 /// This is read-only.

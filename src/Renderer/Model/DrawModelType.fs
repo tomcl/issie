@@ -407,6 +407,7 @@ module BusWireT =
         | UpdateConnectedWires of list<ComponentId> // rotate each symbol separately. TODO - rotate as group? Custom comps do not rotate
         | RerouteWire of string
         | ToggleSnapToNet
+        | DeleteParamSlots of list<ComponentId>
 
     let symbol_ = Lens.create (fun m -> m.Symbol) (fun w m -> {m with Symbol = w})
     let wires_ = Lens.create (fun m -> m.Wires) (fun w m -> {m with Wires = w})

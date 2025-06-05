@@ -634,30 +634,108 @@ let viewOutputHider table hidden dispatch =
             |> List.map (fun cell -> makeToggleRow cell.IO [])
         div [] (preamble::toggleRows)
 
-let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (cell: TruthTableCell) =
+let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) model (cell: TruthTableCell) =
     let addMoveArrows el = makeColumnMoveArrows cell.IO el dispatch
+    let isDragging = model.TTConfig.DraggedColumn = Some cell.IO
+    let isHovered = model.TTConfig.HoveredColumn = Some cell.IO
+    
+    // Add dragging styles
+    let dragStyle = 
+        if isDragging then
+            [Cursor "grabbing"; Opacity 0.5]
+        elif isHovered && model.TTConfig.DraggedColumn.IsSome then
+            [BorderLeft "3px solid #3273dc"]
+        else
+            [Cursor "grab"]
+    
     let cellStyle =
         match Map.tryFind cell.IO styleInfo with
         | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-        | Some s -> Style <| (FontWeight "bold")::(s @ [BorderBottom "3px solid black"])
+        | Some s -> Style <| (FontWeight "bold")::(s @ [BorderBottom "3px solid black"] @ dragStyle)
+    
     match cell.IO with
     | SimIO (_,label,_) ->
         let headingText = string label
-        div [cellStyle] 
-            [
-               makeElementLine [(str headingText)] //[makeColumnMoveArrows cell.IO (str headingText) dispatch] 
-                    [makeSortingArrows cell.IO sortInfo dispatch]
-               |> addMoveArrows
-            ] 
+        div [
+            cellStyle
+            Draggable true
+            OnDragStart (fun ev ->
+                ev.dataTransfer.effectAllowed <- "move"
+                ev.dataTransfer.dropEffect <- "move"
+                dispatch <| StartDraggingColumn cell.IO
+            )
+            OnDragEnd (fun _ ->
+                dispatch <| EndDraggingColumn
+            )
+            OnDragEnter (fun ev ->
+                ev.preventDefault()
+                ev.dataTransfer.dropEffect <- "move"
+                dispatch <| DragColumnEnter cell.IO
+            )
+            OnDragOver (fun ev ->
+                ev.preventDefault()
+                ev.dataTransfer.dropEffect <- "move"
+            )
+            OnDrop (fun ev ->
+                ev.preventDefault()
+                dispatch <| EndDraggingColumn
+            )
+            OnDragLeave (fun ev ->
+                // Check if we're leaving the table entirely
+                let tableEl = Browser.Dom.document.getElementById "ttGridContainer"
+                if tableEl <> null then
+                    let rect = tableEl.getBoundingClientRect()
+                    if ev.clientX < rect.left || ev.clientX > rect.right ||
+                       ev.clientY < rect.top || ev.clientY > rect.bottom then
+                        dispatch <| CancelDraggingColumn
+            )
+        ] [
+            makeElementLine [(str headingText)]
+                [makeSortingArrows cell.IO sortInfo dispatch]
+            |> addMoveArrows
+        ] 
     | Viewer ((label,fullName), width) ->
         let headingEl =
             label |> string |> str
             |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
-        div [cellStyle] [
-            makeElementLine [headingEl]  //[makeColumnMoveArrows cell.IO headingEl dispatch] 
+        div [
+            cellStyle
+            Draggable true
+            OnDragStart (fun ev ->
+                ev.dataTransfer.effectAllowed <- "move"
+                ev.dataTransfer.dropEffect <- "move"
+                dispatch <| StartDraggingColumn cell.IO
+            )
+            OnDragEnd (fun _ ->
+                dispatch <| EndDraggingColumn
+            )
+            OnDragEnter (fun ev ->
+                ev.preventDefault()
+                ev.dataTransfer.dropEffect <- "move"
+                dispatch <| DragColumnEnter cell.IO
+            )
+            OnDragOver (fun ev ->
+                ev.preventDefault()
+                ev.dataTransfer.dropEffect <- "move"
+            )
+            OnDrop (fun ev ->
+                ev.preventDefault()
+                dispatch <| EndDraggingColumn
+            )
+            OnDragLeave (fun ev ->
+                // Check if we're leaving the table entirely
+                let tableEl = Browser.Dom.document.getElementById "ttGridContainer"
+                if tableEl <> null then
+                    let rect = tableEl.getBoundingClientRect()
+                    if ev.clientX < rect.left || ev.clientX > rect.right ||
+                       ev.clientY < rect.top || ev.clientY > rect.bottom then
+                        dispatch <| CancelDraggingColumn
+            )
+        ] [
+            makeElementLine [headingEl]
                 [makeSortingArrows cell.IO sortInfo dispatch]
             |> addMoveArrows
-            ]
+        ]
 
 let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =
     let viewCellAsData (cell: TruthTableCell) =
@@ -730,14 +808,14 @@ let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
         else
             let headings =
                 tLst.Head
-                |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
+                |> List.map (viewCellAsHeading dispatch sortInfo styleInfo model) 
             let body =
                 tLst
                 |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
                 |> List.concat
 
             let all = headings @ body
-            let grid = div [(ttGridContainerStyle model)] all
+            let grid = div [Id "ttGridContainer"; (ttGridContainerStyle model)] all
             dispatch <| SetTTGridCache (Some grid)
             div [Style [ ]] [grid]
 

@@ -431,42 +431,81 @@ let truthTableUpdate (model: Model) (msg:TTMsg) : (Model * Cmd<Msg>)  =
             let draggedIdx = Array.findIndex ((=) draggedColumn) oldOrder
             let targetIdx = Array.findIndex ((=) targetColumn) oldOrder
             
-            // Only swap if the dragged column has moved more than one position
-            // This prevents jittering when hovering between adjacent columns
-            let shouldSwap = abs(targetIdx - draggedIdx) > 1 || 
-                             model.TTConfig.HoveredColumn <> Some targetColumn
+            // Check if both columns are of the same type (input or output)
+            let isColumnOutput io =
+                match model.CurrentTruthTable with
+                | Some (Ok table) ->
+                    let inputCount = table.TableSimData.Inputs.Length
+                    let ioOrder = Array.toList oldOrder
+                    let cellIndex = List.tryFindIndex ((=) io) ioOrder |> Option.defaultValue -1
+                    cellIndex >= inputCount && cellIndex < (inputCount + table.TableSimData.Outputs.Length)
+                | _ -> false
             
-            if shouldSwap then
-                // Calculate new order by removing dragged column and inserting at target position
-                let newOrder =
-                    oldOrder
-                    |> Array.toList
-                    |> List.except [draggedColumn]
-                    |> List.insertAt targetIdx draggedColumn
-                    |> Array.ofList
-                
-                // Update grid styles for new positions
-                let newStyles =
-                    newOrder
-                    |> Array.mapi (fun i io -> (io, ttGridColumnProps i))
-                    |> Map.ofArray
-                
+            let draggedIsOutput = isColumnOutput draggedColumn
+            let targetIsOutput = isColumnOutput targetColumn
+            
+            // Only allow swapping if both columns are of the same type
+            if draggedIsOutput <> targetIsOutput then
                 model
-                |> set (tTType_ >-> ioOrder_) newOrder
-                |> set (tTType_ >-> gridStyles_) newStyles
                 |> set (tTType_ >-> hoveredColumn_) (Some targetColumn)
-                |> set (tTType_ >-> gridCache_) None
                 |> withCmdNone
             else
-                model
-                |> set (tTType_ >-> hoveredColumn_) (Some targetColumn)
-                |> withCmdNone
+                // Determine if we should swap based on the current state
+                let shouldSwap = 
+                    match model.TTConfig.HoveredColumn with
+                    | Some hoveredCol when hoveredCol = targetColumn ->
+                        // Already hovering over this column, don't swap again
+                        false
+                    | _ ->
+                        // Allow swap in all other cases
+                        true
+                
+                if shouldSwap then
+                    // Calculate new order by moving dragged column to target position
+                    let newOrder =
+                        // First, create list without the dragged column
+                        let withoutDragged = 
+                            oldOrder 
+                            |> Array.toList 
+                            |> List.filter (fun x -> x <> draggedColumn)
+                        
+                        // Find where to insert the dragged column
+                        // We want to insert it at the target's position
+                        let insertIdx =
+                            if draggedIdx < targetIdx then
+                                // Dragging right: insert after the target
+                                min targetIdx (withoutDragged.Length)
+                            else
+                                // Dragging left: insert before the target
+                                targetIdx
+                        
+                        withoutDragged
+                        |> List.insertAt insertIdx draggedColumn
+                        |> Array.ofList
+                    
+                    // Update grid styles for new positions
+                    let newStyles =
+                        newOrder
+                        |> Array.mapi (fun i io -> (io, ttGridColumnProps i))
+                        |> Map.ofArray
+                    
+                    model
+                    |> set (tTType_ >-> ioOrder_) newOrder
+                    |> set (tTType_ >-> gridStyles_) newStyles
+                    |> set (tTType_ >-> hoveredColumn_) (Some targetColumn)
+                    |> set (tTType_ >-> gridCache_) None
+                    |> withCmdNone
+                else
+                    model
+                    |> set (tTType_ >-> hoveredColumn_) (Some targetColumn)
+                    |> withCmdNone
     
     | EndDraggingColumn ->
         model
         |> set (tTType_ >-> draggedColumn_) None
         |> set (tTType_ >-> hoveredColumn_) None
         |> set (tTType_ >-> prevIOOrder_) None
+        |> set (tTType_ >-> gridCache_) None  // Force re-render to clear visual state
         |> withCmdNone
     
     | CancelDraggingColumn ->

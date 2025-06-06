@@ -649,13 +649,39 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) mo
             cellIndex >= inputCount && cellIndex < (inputCount + table.TableSimData.Outputs.Length)
         | _ -> false
     
+    // Check if this column can accept the dragged column
+    let canAcceptDrop =
+        match model.TTConfig.DraggedColumn with
+        | None -> true
+        | Some draggedColumn ->
+            // Check if both columns are of the same type
+            let draggedIsOutput =
+                match model.CurrentTruthTable with
+                | Some (Ok table) ->
+                    let inputCount = table.TableSimData.Inputs.Length
+                    let ioOrder = Array.toList model.TTConfig.IOOrder
+                    let cellIndex = List.tryFindIndex ((=) draggedColumn) ioOrder |> Option.defaultValue -1
+                    cellIndex >= inputCount && cellIndex < (inputCount + table.TableSimData.Outputs.Length)
+                | _ -> false
+            draggedIsOutput = isOutputColumn
+    
     // Add dragging styles
     let dragStyle = 
-        if isDragging then
+        match model.TTConfig.DraggedColumn with
+        | Some draggedCol when draggedCol = cell.IO ->
+            // This is the column being dragged
             [Cursor "grabbing"; Opacity 0.5]
-        elif isHovered && model.TTConfig.DraggedColumn.IsSome then
-            [BorderLeft "3px solid #3273dc"]
-        else
+        | Some _ when isHovered ->
+            // This column is being hovered while another is being dragged
+            if canAcceptDrop then
+                [BorderLeft "3px solid #3273dc"]
+            else
+                [BorderLeft "3px solid #dc3545"; Cursor "not-allowed"]
+        | Some _ ->
+            // Another column is being dragged but this isn't hovered
+            [Cursor "grab"]
+        | None ->
+            // No dragging happening
             [Cursor "grab"]
     
     // Add output column styling
@@ -706,8 +732,9 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) mo
                        ev.clientY < rect.top || ev.clientY > rect.bottom then
                         dispatch <| CancelDraggingColumn
             )
-            OnMouseUp (fun _ ->
+            OnMouseUp (fun ev ->
                 // Reset drag state on mouse up to ensure clean state
+                ev.stopPropagation()
                 if model.TTConfig.DraggedColumn.IsSome then
                     dispatch <| EndDraggingColumn
             )
@@ -854,9 +881,23 @@ let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
                 |> List.concat
 
             let all = headings @ body
-            let grid = div [Id "ttGridContainer"; (ttGridContainerStyle model)] all
+            let grid = 
+                div [
+                    Id "ttGridContainer"
+                    (ttGridContainerStyle model)
+                    OnMouseUp (fun _ ->
+                        // Global mouse up handler to ensure drag state is cleared
+                        if model.TTConfig.DraggedColumn.IsSome then
+                            dispatch <| EndDraggingColumn
+                    )
+                    OnMouseLeave (fun _ ->
+                        // Also clear when mouse leaves the grid entirely
+                        if model.TTConfig.DraggedColumn.IsSome then
+                            dispatch <| EndDraggingColumn
+                    )
+                ] all
             dispatch <| SetTTGridCache (Some grid)
-            div [Style [ ]] [grid]
+            grid
 
 let restartTruthTable canvasState model dispatch = fun _ ->
     let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)

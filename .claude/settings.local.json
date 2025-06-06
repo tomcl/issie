@@ -4,7 +4,11 @@
       "Bash(rg:*)",
       "Bash(grep:*)",
       "Bash(npm run dev:*)",
-      "Bash(./build.sh)"
+      "Bash(./build.sh)",
+      "Bash(find:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(dotnet fable:*)"
     ],
     "deny": []
   }

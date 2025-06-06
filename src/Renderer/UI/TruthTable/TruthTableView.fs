@@ -639,6 +639,16 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) mo
     let isDragging = model.TTConfig.DraggedColumn = Some cell.IO
     let isHovered = model.TTConfig.HoveredColumn = Some cell.IO
     
+    // Determine if this is an output column
+    let isOutputColumn =
+        match model.CurrentTruthTable with
+        | Some (Ok table) ->
+            let inputCount = table.TableSimData.Inputs.Length
+            let ioOrder = Array.toList model.TTConfig.IOOrder
+            let cellIndex = List.tryFindIndex ((=) cell.IO) ioOrder |> Option.defaultValue -1
+            cellIndex >= inputCount && cellIndex < (inputCount + table.TableSimData.Outputs.Length)
+        | _ -> false
+    
     // Add dragging styles
     let dragStyle = 
         if isDragging then
@@ -648,10 +658,17 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) mo
         else
             [Cursor "grab"]
     
+    // Add output column styling
+    let outputStyle =
+        if isOutputColumn then
+            [BackgroundColor "#f0f8ff"; FontStyle "italic"]
+        else
+            []
+    
     let cellStyle =
         match Map.tryFind cell.IO styleInfo with
         | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-        | Some s -> Style <| (FontWeight "bold")::(s @ [BorderBottom "3px solid black"] @ dragStyle)
+        | Some s -> Style <| (FontWeight "bold")::(s @ [BorderBottom "3px solid black"] @ dragStyle @ outputStyle)
     
     match cell.IO with
     | SimIO (_,label,_) ->
@@ -688,6 +705,11 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) mo
                     if ev.clientX < rect.left || ev.clientX > rect.right ||
                        ev.clientY < rect.top || ev.clientY > rect.bottom then
                         dispatch <| CancelDraggingColumn
+            )
+            OnMouseUp (fun _ ->
+                // Reset drag state on mouse up to ensure clean state
+                if model.TTConfig.DraggedColumn.IsSome then
+                    dispatch <| EndDraggingColumn
             )
         ] [
             makeElementLine [(str headingText)]
@@ -737,13 +759,30 @@ let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) mo
             |> addMoveArrows
         ]
 
-let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =
+let viewRowAsData numBase styleInfo model i (row: TruthTableCell list) =
     let viewCellAsData (cell: TruthTableCell) =
+        // Determine if this is an output column
+        let isOutputColumn =
+            match model.CurrentTruthTable with
+            | Some (Ok table) ->
+                let inputCount = table.TableSimData.Inputs.Length
+                let ioOrder = Array.toList model.TTConfig.IOOrder
+                let cellIndex = List.tryFindIndex ((=) cell.IO) ioOrder |> Option.defaultValue -1
+                cellIndex >= inputCount && cellIndex < (inputCount + table.TableSimData.Outputs.Length)
+            | _ -> false
+        
+        // Add output column styling to data cells
+        let outputStyle =
+            if isOutputColumn then
+                [BackgroundColor (if i%2 = 1 then "#e8f4fd" else "#f0f8ff")]
+            else
+                []
+        
         let cellStyle =
             match Map.tryFind cell.IO styleInfo, i%2 with
             | None, _ -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-            | Some s, 1 -> Style <| (BackgroundColor "whitesmoke")::s
-            | Some s, _ -> Style s
+            | Some s, 1 when not isOutputColumn -> Style <| (BackgroundColor "whitesmoke")::s @ outputStyle
+            | Some s, _ -> Style <| s @ outputStyle
         match cell.Data with
         | Bits [] -> failwithf "what? Empty WireData in TruthTable"
         | Bits [bit] -> div [cellStyle] [str <| bitToString bit]
@@ -811,7 +850,7 @@ let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
                 |> List.map (viewCellAsHeading dispatch sortInfo styleInfo model) 
             let body =
                 tLst
-                |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
+                |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo model)
                 |> List.concat
 
             let all = headings @ body

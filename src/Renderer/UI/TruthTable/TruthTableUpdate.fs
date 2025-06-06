@@ -431,26 +431,36 @@ let truthTableUpdate (model: Model) (msg:TTMsg) : (Model * Cmd<Msg>)  =
             let draggedIdx = Array.findIndex ((=) draggedColumn) oldOrder
             let targetIdx = Array.findIndex ((=) targetColumn) oldOrder
             
-            // Calculate new order by removing dragged column and inserting at target position
-            let newOrder =
-                oldOrder
-                |> Array.toList
-                |> List.except [draggedColumn]
-                |> List.insertAt targetIdx draggedColumn
-                |> Array.ofList
+            // Only swap if the dragged column has moved more than one position
+            // This prevents jittering when hovering between adjacent columns
+            let shouldSwap = abs(targetIdx - draggedIdx) > 1 || 
+                             model.TTConfig.HoveredColumn <> Some targetColumn
             
-            // Update grid styles for new positions
-            let newStyles =
-                newOrder
-                |> Array.mapi (fun i io -> (io, ttGridColumnProps i))
-                |> Map.ofArray
-            
-            model
-            |> set (tTType_ >-> ioOrder_) newOrder
-            |> set (tTType_ >-> gridStyles_) newStyles
-            |> set (tTType_ >-> hoveredColumn_) (Some targetColumn)
-            |> set (tTType_ >-> gridCache_) None
-            |> withCmdNone
+            if shouldSwap then
+                // Calculate new order by removing dragged column and inserting at target position
+                let newOrder =
+                    oldOrder
+                    |> Array.toList
+                    |> List.except [draggedColumn]
+                    |> List.insertAt targetIdx draggedColumn
+                    |> Array.ofList
+                
+                // Update grid styles for new positions
+                let newStyles =
+                    newOrder
+                    |> Array.mapi (fun i io -> (io, ttGridColumnProps i))
+                    |> Map.ofArray
+                
+                model
+                |> set (tTType_ >-> ioOrder_) newOrder
+                |> set (tTType_ >-> gridStyles_) newStyles
+                |> set (tTType_ >-> hoveredColumn_) (Some targetColumn)
+                |> set (tTType_ >-> gridCache_) None
+                |> withCmdNone
+            else
+                model
+                |> set (tTType_ >-> hoveredColumn_) (Some targetColumn)
+                |> withCmdNone
     
     | EndDraggingColumn ->
         model

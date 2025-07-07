@@ -90,11 +90,17 @@ type Interval =
         End: EditPos
     }
 
+type WrappedLine = {
+    Txt: string
+    /// the charactr position in Txt of the first character in the wrapped line
+    LineBreaks: int list
+}
+
 /// Elmish Model type for a rich text code editor
 type CodeEditorModel =
     {
         /// the characters in the code editor as a list of lines
-        Lines: string list
+        Lines: WrappedLine list
         /// The errored code positions
         Errors: Interval list
         /// The current cursor position. Cursor displays between this character and the previous one.
@@ -110,7 +116,7 @@ let cursorPos_ = Lens.create (fun a -> a.CursorPos) (fun s a -> {a with CursorPo
 /// Possible messages used by editor
 type EditorMsg =
     | SetCursor of int * int
-    | UpdateCode of (string list -> string list)
+    | UpdateCode of (WrappedLine list -> WrappedLine list)
     | SetErrors of Interval list
     | UpdateCodeEditorState of (CodeEditorModel -> CodeEditorModel)
 

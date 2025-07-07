@@ -11,6 +11,42 @@ open ModelType
 open Elmish
 
 
+/// <summary>
+/// Extends the editor to support wrapped lines—logical lines of text that may span 
+/// multiple visual rows due to space or tab breaks.
+/// </summary>
+/// 
+/// <remarks>
+/// Introducing wrapped lines adds complexity because the mapping between logical text 
+/// line numbers and visual row numbers is no longer 1-to-1. This makes downstream processing 
+/// and rendering more difficult unless the problem is broken into simple steps.
+///
+/// The solution involves defining a new type:
+///
+/// - A new record type `WrappedLine` is added to `editor.fs`.
+/// - The editor model's text is changed from `string list` to `WrappedLine list`.
+///
+/// <para>
+/// Each `WrappedLine`:
+/// - Corresponds 1:1 with a logical line (`string`)
+/// - Contains metadata about how the line is wrapped into visual rows
+/// - Stores the starting row number it occupies on the screen, which allows independent
+///   rendering of lines even when wrapping occurs
+/// </para>
+///
+/// <para>
+/// The editor update process uses the following transformation steps:
+/// 1. `unwrap` – Converts `WrappedLine list` back to `string list`
+/// 2. Apply existing editor logic (insertions, deletions, etc.) on the `string list`
+/// 3. `wrap` – Reconstructs the `WrappedLine list` from the updated `string list`
+/// </para>
+///
+/// Additional changes include:
+/// - Modifying the `ClickHandler` to work with `WrappedLine`
+/// - Updating the rendering logic to operate on `WrappedLine` instead of `string`
+/// </remarks>
+
+
 /// constants used by code editor
 module Constants =
     let leftMargin = 100.0 // left margin for code editor text
@@ -18,7 +54,7 @@ module Constants =
 
 let initCodeEditorState =
     {
-        Lines = [""] // code must have at least one (possibly zero length) line.
+        Lines = [{Txt="";LineBreaks=[]}] // code must have at least one (possibly zero length) line.
         Errors = []
         CursorPos = {X = 0; Y = 0}
     }
@@ -47,11 +83,17 @@ let intersectionOpt (other: Interval) (this: Interval) =
         //printfn $"Intersecting {this} with {other} gives {startPos} to {endPos}"
         Some { Start = startPos; End = endPos }
 
+/// TODO: implement line breaks in lines that need wrapping
+let toWrappedLine (txt: string) = {
+    Txt = txt
+    LineBreaks = []
+}
+
 //--------------------------------------------------------------------------------//
 //---------------Types and Active Patterns for parsing and highlighting-----------//
 //--------------------------------------------------------------------------------//
 
-/// the type of a code editors text string asociated with a given highlight color
+/// the type of a code editors text string associated with a given highlight color
 type ElementType =
     | Normal
     | Keyword
@@ -65,10 +107,10 @@ type ElementType =
 /// TODO:
 /// MatchStream could have state added to make the highlighting context-sensitive.
 /// E.g. to remember if the string being highlighted starts in a comment or not: MatchStream = bool * char list.
-/// More generally Matchstream = StateT * char list where StateT is a discriminated union.
+/// More generally MatchStream = StateT * char list where StateT is a discriminated union.
 type MatchStream = char list
 
-/// Returns true if the characters in str, interpreted as a strig, start prefix.
+/// Returns true if the characters in str, interpreted as a string, start prefix.
 let charsStartWith (prefix: string) (str: char list) : bool =
     prefix.Length <= str.Length
     && prefix
@@ -80,7 +122,7 @@ let charsStartWith (prefix: string) (str: char list) : bool =
 /// the first character and the string of characters matching inMatchP
 /// the list of chars from the first character that does not match inMatchP.
 /// or None if the first character does not match startP.
-/// NB - this cannot itself be an active pattern since startP and inMatchP are not lierals.
+/// NB - this cannot itself be an active pattern since startP and inMatchP are not literals.
 let makeAPMatch (startP: char -> bool) (inMatchP: char -> bool) (str: MatchStream) : (string * MatchStream) option =
     match str with
     | [] -> None
@@ -192,7 +234,7 @@ let updateEditorCursor (xMouse: int) (yMouse: int) (model: Model) =
         |> max 0
     let x =
         xMouse
-        |> min (state.Lines[y].Length)
+        |> min (state.Lines[y].Txt.Length)
         |> max 0
     { model with CodeEditorState = Some {state with CursorPos ={ X = x; Y = y } } }
 
@@ -228,7 +270,7 @@ let updateEditorOnKeyPress (keyPress: KeyPressInfo) (model: Model) =
     // split up lines before doing processing
     let beforeLines, currentLine, afterLines =
         match state.Lines.Length with
-        | 0 -> [], "", [] // if there are no lines make one empty line.
+        | 0 -> [], toWrappedLine "", [] // if there are no lines make one empty line.
         | n ->
             List.splitAt (min cursorY n) state.Lines
             |> fun (before, after) -> before, after[0], after[1..]
@@ -236,14 +278,14 @@ let updateEditorOnKeyPress (keyPress: KeyPressInfo) (model: Model) =
     /// insert point is before the character at cursorX
     let cursorX =
         int state.CursorPos.X
-        |> min currentLine.Length
+        |> min currentLine.Txt.Length
     /// the output values here come from 5 separate items
     /// newLines is beforeLines, newLine, afterLines concatenated.
     /// The items all have default values.
     /// It would be better to use a record type to hold these values and update the fields
     /// of a default record value as needed. That would make the code clearer.
     let newCursorX, newCursorY, newLines =
-        let insertIndex = min cursorX currentLine.Length
+        let insertIndex = min cursorX currentLine.Txt.Length
         let noChange = beforeLines @ [ currentLine ] @ afterLines
         match modifiers = Set.empty, key with
         | true, "Backspace" -> // backspace
@@ -251,25 +293,26 @@ let updateEditorOnKeyPress (keyPress: KeyPressInfo) (model: Model) =
             | _ when cursorX = 0 && cursorY = 0 ->
                 cursorX, cursorY, noChange
             | line when cursorX = 0 ->
-                beforeLines[cursorY - 1].Length,
+                beforeLines[cursorY - 1].Txt.Length,
                 cursorY - 1,
                 beforeLines[.. cursorY - 2]
-                @ [ beforeLines[cursorY - 1] + line ]
+                @ [ toWrappedLine <| beforeLines[cursorY - 1].Txt + line.Txt ]
                 @ afterLines
             | line ->
                 cursorX - 1,
                 cursorY,
                 beforeLines
-                @ [ Seq.removeAt (cursorX - 1) line
-                    |> System.String.Concat ]
+                @ [ Seq.removeAt (cursorX - 1) line.Txt
+                    |> System.String.Concat 
+                    |> toWrappedLine ]
                 @ afterLines
         | true, "Enter" -> // enter
-            List.splitAt insertIndex (currentLine |> Seq.toList)
+            List.splitAt insertIndex (currentLine.Txt |> Seq.toList)
             |> fun (before, after) ->
                 0,
                 cursorY + 1,
                 beforeLines
-                @ [ before |> System.String.Concat; after |> System.String.Concat ]
+                @ [ before |> System.String.Concat |> toWrappedLine; after |> System.String.Concat |> toWrappedLine ]
                 @ afterLines
         | _, key when
                     key.Length = 1
@@ -281,7 +324,7 @@ let updateEditorOnKeyPress (keyPress: KeyPressInfo) (model: Model) =
             cursorX + 1,
             cursorY,
             beforeLines
-            @ [ currentLine.Insert(insertIndex, key) ]
+            @ [ currentLine.Txt.Insert(insertIndex, key) |> toWrappedLine ]
             @ afterLines
         | _, key ->
             //printfn $"Key {key} with modifiers {modifiers} not handled"
@@ -370,7 +413,7 @@ let renderEditor (model: CodeEditorModel) (dispatch: Msg -> unit) =
             |> List.collect (
                 intersectionOpt
                     { Start = { XChar = 0; YLine = lineIndex }
-                      End = { XChar = text.Length + 1; YLine = lineIndex } }
+                      End = { XChar = text.Txt.Length + 1; YLine = lineIndex } }
                 >> Option.map (fun interval -> int interval.Start.XChar, int interval.End.XChar)
                 >> Option.toList
             )
@@ -435,7 +478,7 @@ let renderEditor (model: CodeEditorModel) (dispatch: Msg -> unit) =
         /// the line text elements as highlighted by highlighter
         let codeLineReact =
             let reactOfText =
-                match text with
+                match text.Txt with
                 | "" -> [ br [] ]
                 | text ->
                     highlight (text |> Seq.toList) // use highlighter to get highlighted text
@@ -499,7 +542,7 @@ let renderEditor (model: CodeEditorModel) (dispatch: Msg -> unit) =
                     WhiteSpace WhiteSpaceOptions.Pre
                   ] ])
 
-    |> (fun lines ->
+    |> fun lines ->
         let scrollContainer = Browser.Dom.document.getElementById "codeEditorContainer"
         let hasXScroll = scrollContainer <> null && scrollContainer.scrollWidth > scrollContainer.clientWidth
         /// the vertical height taken up by a horizontal scrollbar
@@ -542,7 +585,7 @@ let renderEditor (model: CodeEditorModel) (dispatch: Msg -> unit) =
                     // TODO - change this as per height to make it exact?
                     // This might cause oscillation due to interation between heights widths?
                     CSSProp.Width "50vw" ] ]
-            (renderLineNumbers xScrollAmount model :: lines))
+            (renderLineNumbers xScrollAmount model :: lines)
 
 //---------------------------------------Top Level--------------------------------------------------//
 
@@ -569,4 +612,4 @@ let testEditorModel =
         [ "   if then else module 123 yellow Big!"; "a  test 5 "; "     ;   ;" ]
         @ List.replicate 1000 "test2 bbbb 1234 () \"abcdef\" 6754 (Ta123) "
 
-    { Lines = codeLines; Errors = errorPosns; CursorPos = { X = 10; Y = 0 } }
+    { Lines = codeLines |> List.map toWrappedLine; Errors = errorPosns; CursorPos = { X = 10; Y = 0 } }

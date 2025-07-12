@@ -206,6 +206,7 @@ let ttGridColumnProps index = [
     TextAlign TextAlignOptions.Left
     GridColumnStart <| string (index+1)
     GridColumnEnd <| string (index+2)
+    Transition "all 0.2s ease-in-out"
     //OverflowX OverflowOptions.Auto
     //OverflowWrap "break-word"
 ]

@@ -1,7 +1,0 @@
-{
-  "incremental": true,
-  "typedArrays": true,
-  "sourceMaps": true,
-  "optimize": false,
-  "watchDependencies": true
-}

@@ -1,8 +1,9 @@
 # F# AST Analyzer & Call Graph Visualizer
+# TODO: make this doc better, and fix some bugs
 
 A comprehensive tool for analyzing F# code structure and generating interactive call graph visualizations. This tool uses F# Compiler Services (FCS) to parse F# source code, Python for data analysis, and D3.js for interactive web-based visualization.
 
-## 🚀 Features
+## Features
 
 - **F# AST Parsing**: Uses F# Compiler Services to extract detailed AST information
 - **Call Graph Analysis**: Identifies function calls, dependencies, and relationships
@@ -13,7 +14,7 @@ A comprehensive tool for analyzing F# code structure and generating interactive 
 - **Comprehensive Metrics**: Analyze code complexity, coupling, and potential issues
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 fsharp-ast-analyzer/
@@ -37,7 +38,7 @@ fsharp-ast-analyzer/
 └── README.md
 ```
 
-## 🛠 Installation
+## Installation
 
 ### Prerequisites
 
@@ -79,7 +80,7 @@ cd fsharp-ast-analyzer
    pip install -r requirements.txt
    ```
 
-## 🎯 Usage
+## Usage
 
 ### Basic Usage
 
@@ -143,7 +144,7 @@ Analyze a directory of F# files:
    # Open http://localhost:8080 in browser
    ```
 
-## 📊 Understanding the Output
+## Understanding the Output
 
 ### Generated Files
 
@@ -237,7 +238,7 @@ Analyze a directory of F# files:
 - **Circular Dependencies**: Detect potential design issues
 - **Call Depth Analysis**: Understand call stack complexity
 
-## 🔧 Configuration
+## Configuration
 
 ### Python Analysis Options
 
@@ -264,18 +265,6 @@ Edit `src/WebVisualizer/app.js` to customize visualization:
 .force('collision', d3.forceCollide().radius(30))    // Node collision
 ```
 
-## 🤝 Contributing
-
-We welcome contributions! Here's how to get started:
-
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes**
-4. **Add tests** for new functionality
-5. **Commit your changes**: `git commit -m 'Add amazing feature'`
-6. **Push to the branch**: `git push origin feature/amazing-feature`
-7. **Open a Pull Request**
-
 ### Development Setup
 
 ```bash
@@ -291,7 +280,7 @@ cd src/FSharpParser && dotnet test
 cd src/PythonAnalyzer && python -m pytest
 ```
 
-## 📝 Examples
+## Examples
 
 ### Analyzing the Sample Code
 
@@ -324,7 +313,7 @@ The sample code includes:
 # (Edit the Python scripts to add module filters)
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -360,18 +349,7 @@ DEBUG=1 ./scripts/run.sh /path/to/project
 $env:DEBUG=1; .\scripts\run.ps1 /path/to/project
 ```
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- **F# Compiler Services** - For powerful F# AST parsing capabilities
-- **D3.js** - For beautiful and interactive data visualizations
-- **NetworkX** - For graph analysis algorithms
-- **The F# Community** - For inspiration and support
-
-## 📚 Further Reading
+## Further Reading
 
 - [F# Compiler Services Documentation](https://fsharp.github.io/FSharp.Compiler.Service/)
 - [D3.js Documentation](https://d3js.org/)
@@ -380,6 +358,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Happy analyzing!** 🚀
-
-For questions, issues, or contributions, please visit our [GitHub repository](https://github.com/your-username/fsharp-ast-analyzer).
+by LHandFPGA ~

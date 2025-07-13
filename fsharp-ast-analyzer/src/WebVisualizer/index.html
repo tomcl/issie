@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F# Call Graph Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>F# Call Graph Visualizer</h1>
+            <p>Interactive visualization of F# function call graphs</p>
+        </header>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="fileInput">Load Call Graph Data:</label>
+                <input type="file" id="fileInput" accept=".json">
+            </div>
+            
+            <div class="control-group">
+                <label for="searchInput">Search Functions:</label>
+                <input type="text" id="searchInput" placeholder="Type function name...">
+            </div>
+            
+            <div class="control-group">
+                <label for="moduleFilter">Filter by Module:</label>
+                <select id="moduleFilter">
+                    <option value="">All Modules</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="layoutSelect">Layout:</label>
+                <select id="layoutSelect">
+                    <option value="force">Force Directed</option>
+                    <option value="hierarchical">Hierarchical</option>
+                    <option value="circular">Circular</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <button id="resetZoom">Reset Zoom</button>
+                <button id="exportSvg">Export SVG</button>
+                <button id="exportPng">Export PNG</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="info-panel">
+                    <h3>Statistics</h3>
+                    <div id="statistics">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Functions:</span>
+                            <span class="stat-value" id="totalFunctions">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Calls:</span>
+                            <span class="stat-value" id="totalCalls">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Modules:</span>
+                            <span class="stat-value" id="totalModules">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Density:</span>
+                            <span class="stat-value" id="graphDensity">0.0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Is Acyclic:</span>
+                            <span class="stat-value" id="isAcyclic">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-panel">
+                    <h3>Node Details</h3>
+                    <div id="nodeDetails">
+                        <p>Click on a node to see details</p>
+                    </div>
+                </div>
+                
+                <div class="info-panel">
+                    <h3>Legend</h3>
+                    <div id="legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #1f77b4;"></div>
+                            <span>Functions</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-line"></div>
+                            <span>Function Calls</span>
+                        </div>
+                        <div class="legend-item">
+                            <span>Node size = Call frequency</span>
+                        </div>
+                        <div class="legend-item">
+                            <span>Color = Module</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="visualization">
+                <svg id="callGraphSvg"></svg>
+                <div id="tooltip"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p>Loading call graph data...</p>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

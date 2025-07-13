@@ -892,6 +892,85 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                 [str "Add Parameter"]
         ]
 
+/// Evaluate parameter expression using parameter bindings - exposed for external use
+let evaluateParameterExpression = evaluateParamExpression
+
+/// Helper function for simulation: resolve parameter expressions for a component
+/// Returns the component type with resolved parameter values
+let resolveParametersForComponent 
+    (paramBindings: ParamBindings) 
+    (paramSlots: Map<ParamSlot, ConstrainedExpr>) 
+    (comp: Component) 
+    : Result<Component, string> =
+    
+    try
+        let compIdStr = comp.Id
+        let relevantSlots = 
+            paramSlots 
+            |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
+
+        if Map.isEmpty relevantSlots then
+            Ok comp
+        else
+            let mutable updatedCompType = comp.Type
+            let mutable lastError = None
+            
+            for KeyValue(slot, constrainedExpr) in relevantSlots do
+                match evaluateParamExpression paramBindings constrainedExpr.Expression with
+                | Ok evaluatedValue -> 
+                    // Update component type based on slot
+                    match slot.CompSlot with
+                    | Buswidth ->
+                        updatedCompType <- 
+                            match updatedCompType with
+                            | Viewer _ -> Viewer evaluatedValue
+                            | BusCompare1 (_, compareValue, dialogText) -> BusCompare1 (evaluatedValue, compareValue, dialogText)
+                            | BusSelection (_, outputLSBit) -> BusSelection (evaluatedValue, outputLSBit)
+                            | Constant1 (_, constValue, dialogText) -> Constant1 (evaluatedValue, constValue, dialogText)
+                            | NbitsAdder _ -> NbitsAdder evaluatedValue
+                            | NbitsAdderNoCin _ -> NbitsAdderNoCin evaluatedValue
+                            | NbitsAdderNoCout _ -> NbitsAdderNoCout evaluatedValue
+                            | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout evaluatedValue
+                            | NbitsXor (_, arithmeticOp) -> NbitsXor (evaluatedValue, arithmeticOp)
+                            | NbitsAnd _ -> NbitsAnd evaluatedValue
+                            | NbitsNot _ -> NbitsNot evaluatedValue
+                            | NbitsOr _ -> NbitsOr evaluatedValue
+                            | NbitSpreader _ -> NbitSpreader evaluatedValue
+                            | SplitWire _ -> SplitWire evaluatedValue
+                            | Register _ -> Register evaluatedValue
+                            | RegisterE _ -> RegisterE evaluatedValue
+                            | Counter _ -> Counter evaluatedValue
+                            | CounterNoLoad _ -> CounterNoLoad evaluatedValue
+                            | CounterNoEnable _ -> CounterNoEnable evaluatedValue
+                            | CounterNoEnableLoad _ -> CounterNoEnableLoad evaluatedValue
+                            | Shift (_, shifterWidth, shiftType) -> Shift (evaluatedValue, shifterWidth, shiftType)
+                            | BusCompare (_, compareValue) -> BusCompare (evaluatedValue, compareValue)
+                            | Input _ -> Input evaluatedValue
+                            | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
+                            | Output _ -> Output evaluatedValue
+                            | Constant (_, constValue) -> Constant (evaluatedValue, constValue)
+                            | _ -> updatedCompType
+                    | NGateInputs ->
+                        updatedCompType <- 
+                            match updatedCompType with
+                            | GateN (gateType, _) -> GateN (gateType, evaluatedValue)
+                            | _ -> updatedCompType
+                    | IO _ ->
+                        updatedCompType <- 
+                            match updatedCompType with
+                            | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
+                            | Output _ -> Output evaluatedValue
+                            | _ -> updatedCompType
+                    | _ -> () // Other slot types not handled in simulation
+                | Error err -> 
+                    lastError <- Some err
+
+            match lastError with
+            | Some err -> Error err
+            | None -> Ok { comp with Type = updatedCompType }
+    with
+    | ex -> Error (sprintf "Error resolving parameters for component %s: %s" comp.Id ex.Message)
+
 /// Update a custom component with new I/O component widths.
 /// Used when these chnage as result of parameter changes.
 let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =

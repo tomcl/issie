@@ -257,7 +257,7 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
           OutputLabels = outputs
           Form = None
           Description = None
-          LCParameterSlots = None // TODO HLP25 check if parameterslots have changed
+          LCParameterSlots = None // Parameter slots will be set by the sheet's parameter system
           LoadedComponentIsOutOfDate = false
           }
 

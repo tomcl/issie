@@ -578,15 +578,42 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
         printfn $"Sheet OutputLabels: {sheet.OutputLabels}"
         printfn $"Sheet LCParameterSlots: {sheet.LCParameterSlots}"
         
-        let inputsMatch = compare sheet.InputLabels args.InputLabels
-        let outputsMatch = compare sheet.OutputLabels args.OutputLabels
+        // If the custom component has parameter bindings, we need to resolve the sheet's ports
+        // using those parameter bindings, not the default ones
+        let resolvedSheet = 
+            match args.ParameterBindings, sheet.LCParameterSlots with
+            | Some instanceParams, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+                printfn $"Resolving sheet ports with instance parameters: {instanceParams}"
+                // Use the instance parameter bindings instead of default ones
+                try
+                    let (comps, conns) = sheet.CanvasState
+                    let resolvedComps = 
+                        comps |> List.map (fun comp ->
+                            match ParameterView.resolveParametersForComponent instanceParams paramSlots.ParamSlots comp with
+                            | Ok resolvedComp -> resolvedComp
+                            | Error _ -> comp
+                        )
+                    let resolvedCanvas = (resolvedComps, conns)
+                    let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+                    let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+                    printfn $"Resolved sheet InputLabels: {newInputLabels}"
+                    printfn $"Resolved sheet OutputLabels: {newOutputLabels}"
+                    { sheet with InputLabels = newInputLabels; OutputLabels = newOutputLabels }
+                with
+                | ex -> 
+                    printfn $"Failed to resolve sheet parameters: {ex.Message}"
+                    sheet
+            | _ -> sheet
+        
+        let inputsMatch = compare resolvedSheet.InputLabels args.InputLabels
+        let outputsMatch = compare resolvedSheet.OutputLabels args.OutputLabels
         
         printfn $"Inputs match: {inputsMatch}"
         printfn $"Outputs match: {outputsMatch}"
-        printfn $"Input sets - Sheet: {sheet.InputLabels |> Set}, Instance: {args.InputLabels |> Set}"
-        printfn $"Output sets - Sheet: {sheet.OutputLabels |> Set}, Instance: {args.OutputLabels |> Set}"
+        printfn $"Input sets - Sheet: {resolvedSheet.InputLabels |> Set}, Instance: {args.InputLabels |> Set}"
+        printfn $"Output sets - Sheet: {resolvedSheet.OutputLabels |> Set}, Instance: {args.OutputLabels |> Set}"
         
-        sheet, inputsMatch, outputsMatch)
+        resolvedSheet, inputsMatch, outputsMatch)
     |> function
         | None -> 
             printfn $"ERROR: No sheet found with name {name}"

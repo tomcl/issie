@@ -11,6 +11,7 @@ open EEExtensions
 open CommonTypes
 open SimGraphTypes
 open BusWidthInferer
+open ParameterTypes
 
 // -- Checks performed
 //
@@ -587,11 +588,69 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
                 // Use the instance parameter bindings instead of default ones
                 try
                     let (comps, conns) = sheet.CanvasState
+                    // Local parameter resolution to avoid module dependencies
+                    let resolveComponentParameters (paramBindings: ParamBindings) (paramSlots: Map<ParamSlot, ConstrainedExpr>) (comp: Component) =
+                        let evaluateParamExpression expr =
+                            let rec recursiveEvaluation (expr: ParamExpression) : ParamExpression =
+                                match expr with
+                                | PInt _ -> expr 
+                                | PParameter name -> 
+                                    match Map.tryFind name paramBindings with
+                                    | Some evaluated -> evaluated
+                                    | None -> PParameter name
+                                | PAdd (left, right) ->
+                                    match recursiveEvaluation left, recursiveEvaluation right with
+                                    | PInt l, PInt r -> PInt (l+r)
+                                    | newLeft, newRight -> PAdd (newLeft, newRight)
+                                | PSubtract (left, right) -> 
+                                    match recursiveEvaluation left, recursiveEvaluation right with
+                                    | PInt l, PInt r -> PInt (l-r)
+                                    | newLeft, newRight -> PSubtract (newLeft, newRight)
+                                | PMultiply (left, right) ->
+                                    match recursiveEvaluation left, recursiveEvaluation right with
+                                    | PInt l, PInt r -> PInt (l*r)
+                                    | newLeft, newRight -> PMultiply (newLeft, newRight)
+                                | PDivide (left, right) ->
+                                    match recursiveEvaluation left, recursiveEvaluation right with
+                                    | PInt l, PInt r -> PInt (l/r)
+                                    | newLeft, newRight -> PDivide (newLeft, newRight)
+                                | PRemainder (left, right) ->
+                                    match recursiveEvaluation left, recursiveEvaluation right with
+                                    | PInt l, PInt r -> PInt (l%r)
+                                    | newLeft, newRight -> PRemainder (newLeft, newRight)
+                            
+                            match recursiveEvaluation expr with
+                            | PInt value -> Ok value
+                            | _ -> Error "Parameter expression could not be fully evaluated"
+
+                        let compIdStr = comp.Id
+                        let relevantSlots = 
+                            paramSlots 
+                            |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
+
+                        if Map.isEmpty relevantSlots then
+                            comp
+                        else
+                            let mutable updatedCompType = comp.Type
+                            
+                            for KeyValue(slot, constrainedExpr) in relevantSlots do
+                                match evaluateParamExpression constrainedExpr.Expression with
+                                | Ok evaluatedValue -> 
+                                    match slot.CompSlot with
+                                    | IO _ ->
+                                        updatedCompType <- 
+                                            match updatedCompType with
+                                            | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
+                                            | Output _ -> Output evaluatedValue
+                                            | _ -> updatedCompType
+                                    | _ -> () // Other slot types not handled here
+                                | Error _ -> ()
+
+                            { comp with Type = updatedCompType }
+
                     let resolvedComps = 
                         comps |> List.map (fun comp ->
-                            match ParameterView.resolveParametersForComponent instanceParams paramSlots.ParamSlots comp with
-                            | Ok resolvedComp -> resolvedComp
-                            | Error _ -> comp
+                            resolveComponentParameters instanceParams paramSlots.ParamSlots comp
                         )
                     let resolvedCanvas = (resolvedComps, conns)
                     let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas

@@ -101,6 +101,8 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                 | Input1 (busWidth, _) -> busWidth
                 | Output busWidth -> busWidth
                 | _ -> failwithf $"Invalid component {comp.Type} for IO"
+            | CustomCompParam _ ->
+                failwithf $"CustomCompParam not yet implemented for component {comp.Type}"
         )
         (fun value comp->
                 let newType = 
@@ -141,6 +143,8 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
                         | Output _ -> Output value
                         | _ -> failwithf $"Invalid component {comp.Type} for IO"
+                    | CustomCompParam _ ->
+                        failwithf $"CustomCompParam not yet implemented for component {comp.Type}"
                 { comp with Type = newType}
 )
 
@@ -434,6 +438,8 @@ let updateComponent dispatch model slot value =
         match comp.Type with
         | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
         | _ -> failwithf $"Gate cannot have type {comp.Type}"
+    | CustomCompParam _ ->
+        failwithf "CustomCompParam not yet implemented"
 
     // Update most recent bus width
     match slot.CompSlot, comp.Type with
@@ -1205,6 +1211,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             | Buswidth -> "Buswidth"
             | NGateInputs -> "Num inputs"
             | IO label -> $"Input/output {label}"
+            | CustomCompParam paramName -> $"Custom parameter {paramName}"
         
         let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
                         string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label

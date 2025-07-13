@@ -631,7 +631,12 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
             error c (MissingSheet cName)
         | Error(c, BadInputs(cName, instIns, compIns)) ->
             let instIns, compIns = disp instIns, disp compIns
-
+            printfn $"=== DETAILED PORT MISMATCH DEBUG ==="
+            printfn $"Component: {cName}, ID: {c.Id}"
+            printfn $"Instance InputLabels (formatted): {instIns}"
+            printfn $"Component InputLabels (formatted): {compIns}"
+            printfn $"Instance InputLabels (raw): {instIns}"
+            printfn $"Component InputLabels (raw): {compIns}"
             error c (InPortMismatch (cName, instIns, compIns))
         | Error(c, BadOutputs(cName, instOuts, compOuts)) ->
             let instOuts, compOuts = disp instOuts, disp compOuts

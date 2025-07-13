@@ -562,18 +562,44 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
     let inouts = args.InputLabels, args.OutputLabels
     let name = args.Name
     let compare labs1 labs2 = (labs1 |> Set) = (labs2 |> Set)
+    
+    // Debug output
+    printfn $"=== DEBUGGING PORT MISMATCH FOR {name} ==="
+    printfn $"Component ID: {c.Id}"
+    printfn $"Instance InputLabels: {args.InputLabels}"
+    printfn $"Instance OutputLabels: {args.OutputLabels}"
+    printfn $"Instance ParameterBindings: {args.ParameterBindings}"
 
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
     |> Option.map (fun sheet ->
-        sheet, compare sheet.InputLabels args.InputLabels, compare sheet.OutputLabels args.OutputLabels)
+        printfn $"Found sheet with name: {sheet.Name}"
+        printfn $"Sheet InputLabels: {sheet.InputLabels}"
+        printfn $"Sheet OutputLabels: {sheet.OutputLabels}"
+        printfn $"Sheet LCParameterSlots: {sheet.LCParameterSlots}"
+        
+        let inputsMatch = compare sheet.InputLabels args.InputLabels
+        let outputsMatch = compare sheet.OutputLabels args.OutputLabels
+        
+        printfn $"Inputs match: {inputsMatch}"
+        printfn $"Outputs match: {outputsMatch}"
+        printfn $"Input sets - Sheet: {sheet.InputLabels |> Set}, Instance: {args.InputLabels |> Set}"
+        printfn $"Output sets - Sheet: {sheet.OutputLabels |> Set}, Instance: {args.OutputLabels |> Set}"
+        
+        sheet, inputsMatch, outputsMatch)
     |> function
-        | None -> Error(c, NoSheet name)
-        | Some(_, true, true) -> Ok()
+        | None -> 
+            printfn $"ERROR: No sheet found with name {name}"
+            Error(c, NoSheet name)
+        | Some(_, true, true) -> 
+            printfn $"SUCCESS: All ports match for {name}"
+            Ok()
         | Some(sheet, false, _) ->
+            printfn $"ERROR: Input ports mismatch for {name}"
             Error
             <| (c, BadInputs(name, sheet.InputLabels, args.InputLabels))
         | Some(sheet, true, false) ->
+            printfn $"ERROR: Output ports mismatch for {name}"
             Error
             <| (c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
 

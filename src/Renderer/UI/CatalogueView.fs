@@ -69,8 +69,12 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
                 let (comps, conns) = canvas
                 let resolvedComps = 
                     comps |> List.map (fun comp ->
+                        printfn $"Resolving parameters for component {comp.Id} ({comp.Type})"
                         match ParameterView.resolveParametersForComponent defaultParameterBindings paramSlots.ParamSlots comp with
-                        | Ok resolvedComp -> resolvedComp
+                        | Ok resolvedComp -> 
+                            if comp.Type <> resolvedComp.Type then
+                                printfn $"Component {comp.Id} type changed from {comp.Type} to {resolvedComp.Type}"
+                            resolvedComp
                         | Error err -> 
                             printfn $"Warning: Failed to resolve parameters for component {comp.Id}: {err}"
                             comp // Keep original on error
@@ -78,10 +82,24 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
                 (resolvedComps, conns)
             | _ -> canvas
 
+        let inputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+        let outputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+        
+        // Debug output for custom component creation
+        printfn $"=== CREATING CUSTOM COMPONENT {loadedComponent.Name} ==="
+        printfn $"Original canvas components count: {(fst canvas).Length}"
+        printfn $"Resolved canvas components count: {(fst resolvedCanvas).Length}"
+        printfn $"Default parameter bindings: {defaultParameterBindings}"
+        printfn $"Has parameter slots: {loadedComponent.LCParameterSlots.IsSome}"
+        printfn $"Extracted InputLabels: {inputLabels}"
+        printfn $"Extracted OutputLabels: {outputLabels}"
+        printfn $"LoadedComponent InputLabels: {loadedComponent.InputLabels}"
+        printfn $"LoadedComponent OutputLabels: {loadedComponent.OutputLabels}"
+
         let custom = Custom {
             Name = loadedComponent.Name
-            InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
-            OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+            InputLabels = inputLabels
+            OutputLabels = outputLabels
             Form = loadedComponent.Form
             Description = loadedComponent.Description
             ParameterBindings = if Map.isEmpty defaultParameterBindings then None else Some defaultParameterBindings
@@ -122,8 +140,12 @@ let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)
                 let (comps, conns) = canvas
                 let resolvedComps = 
                     comps |> List.map (fun comp ->
+                        printfn $"Resolving parameters for component {comp.Id} ({comp.Type})"
                         match ParameterView.resolveParametersForComponent defaultParameterBindings paramSlots.ParamSlots comp with
-                        | Ok resolvedComp -> resolvedComp
+                        | Ok resolvedComp -> 
+                            if comp.Type <> resolvedComp.Type then
+                                printfn $"Component {comp.Id} type changed from {comp.Type} to {resolvedComp.Type}"
+                            resolvedComp
                         | Error err -> 
                             printfn $"Warning: Failed to resolve parameters for component {comp.Id}: {err}"
                             comp // Keep original on error

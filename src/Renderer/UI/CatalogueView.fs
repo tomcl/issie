@@ -55,13 +55,36 @@ let createCompStdLabel comp createParam model dispatch =
 let private makeCustom styles model dispatch (loadedComponent: LoadedComponent)  =
     let canvas = loadedComponent.CanvasState
     menuItem styles loadedComponent.Name (fun _ ->
+        // Get default parameter bindings from the sub sheet
+        let defaultParameterBindings = 
+            match loadedComponent.LCParameterSlots with
+            | Some paramSlots -> paramSlots.DefaultBindings
+            | None -> Map.empty
+
+        // Resolve parameters in the canvas state before extracting port labels
+        let resolvedCanvas = 
+            match loadedComponent.LCParameterSlots with
+            | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+                // Apply parameter resolution to the canvas components
+                let (comps, conns) = canvas
+                let resolvedComps = 
+                    comps |> List.map (fun comp ->
+                        match ParameterView.resolveParametersForComponent defaultParameterBindings paramSlots.ParamSlots comp with
+                        | Ok resolvedComp -> resolvedComp
+                        | Error err -> 
+                            printfn $"Warning: Failed to resolve parameters for component {comp.Id}: {err}"
+                            comp // Keep original on error
+                    )
+                (resolvedComps, conns)
+            | _ -> canvas
+
         let custom = Custom {
             Name = loadedComponent.Name
-            InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) canvas
-            OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) canvas
+            InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+            OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
             Form = loadedComponent.Form
             Description = loadedComponent.Description
-            ParameterBindings = None
+            ParameterBindings = if Map.isEmpty defaultParameterBindings then None else Some defaultParameterBindings
         }
         
         Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "", None)) |> dispatch
@@ -85,13 +108,36 @@ let private makeCustomList styles model dispatch =
 let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)  =
     let canvas = loadedComponent.CanvasState
     menuItem styles loadedComponent.Name (fun _ ->
+        // Get default parameter bindings from the sub sheet  
+        let defaultParameterBindings = 
+            match loadedComponent.LCParameterSlots with
+            | Some paramSlots -> paramSlots.DefaultBindings
+            | None -> Map.empty
+
+        // Resolve parameters in the canvas state before extracting port labels
+        let resolvedCanvas = 
+            match loadedComponent.LCParameterSlots with
+            | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+                // Apply parameter resolution to the canvas components
+                let (comps, conns) = canvas
+                let resolvedComps = 
+                    comps |> List.map (fun comp ->
+                        match ParameterView.resolveParametersForComponent defaultParameterBindings paramSlots.ParamSlots comp with
+                        | Ok resolvedComp -> resolvedComp
+                        | Error err -> 
+                            printfn $"Warning: Failed to resolve parameters for component {comp.Id}: {err}"
+                            comp // Keep original on error
+                    )
+                (resolvedComps, conns)
+            | _ -> canvas
+
         let verilog = Custom {
             Name = loadedComponent.Name
-            InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) canvas
-            OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) canvas
+            InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+            OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
             Form = loadedComponent.Form
             Description = loadedComponent.Description
-            ParameterBindings = None
+            ParameterBindings = if Map.isEmpty defaultParameterBindings then None else Some defaultParameterBindings
         }
         
         Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, verilog, "", None)) |> dispatch

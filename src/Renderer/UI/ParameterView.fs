@@ -971,6 +971,32 @@ let resolveParametersForComponent
     with
     | ex -> Error (sprintf "Error resolving parameters for component %s: %s" comp.Id ex.Message)
 
+/// Update LoadedComponent port labels after parameter resolution
+let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedComponent =
+    try
+        match loadedComponent.LCParameterSlots with
+        | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+            // Apply parameter resolution to get updated port labels
+            let (comps, conns) = loadedComponent.CanvasState
+            let resolvedComps = 
+                comps |> List.map (fun comp ->
+                    match resolveParametersForComponent paramSlots.DefaultBindings paramSlots.ParamSlots comp with
+                    | Ok resolvedComp -> resolvedComp
+                    | Error _ -> comp // Keep original on error
+                )
+            let resolvedCanvas = (resolvedComps, conns)
+            let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+            let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+            
+            { loadedComponent with 
+                InputLabels = newInputLabels
+                OutputLabels = newOutputLabels }
+        | _ -> loadedComponent
+    with
+    | ex -> 
+        printfn $"Warning: Failed to update LoadedComponent ports for {loadedComponent.Name}: {ex.Message}"
+        loadedComponent
+
 /// Update a custom component with new I/O component widths.
 /// Used when these chnage as result of parameter changes.
 let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =

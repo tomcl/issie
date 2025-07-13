@@ -256,24 +256,9 @@ let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMa
 
             let recursivelyMergedGraph = merger dependencyGraph dependencyMap loadedDependencies
             
-            // Apply instance-specific parameter resolution if the custom component has parameter bindings
-            let finalDependencyGraph =
-                match custom.ParameterBindings with
-                | Some instanceBindings when not (Map.isEmpty instanceBindings) ->
-                    // Find the LoadedComponent for this custom component
-                    let customComponentLdc = 
-                        loadedDependencies |> List.tryFind (fun ldc -> ldc.Name = custom.Name)
-                    
-                    match customComponentLdc with
-                    | Some ldc ->
-                        // Apply parameter resolution using instance bindings
-                        match resolveParametersInSimulationGraph instanceBindings custom.Name ldc.CanvasState loadedDependencies recursivelyMergedGraph with
-                        | Ok resolvedGraph -> resolvedGraph
-                        | Error _ -> recursivelyMergedGraph // Keep original on error
-                    | None -> recursivelyMergedGraph
-                | _ -> recursivelyMergedGraph
-
-            let newComp = { comp with CustomSimulationGraph = Some finalDependencyGraph }
+            // Store the parameter bindings in the component for later resolution
+            // We'll resolve parameters after all merging is complete to avoid forward reference issues
+            let newComp = { comp with CustomSimulationGraph = Some recursivelyMergedGraph }
 
             currGraph.Add(compId, newComp)
         | _ -> currGraph // Ignore non-custom components.
@@ -511,6 +496,47 @@ let rec resolveParametersInSimulationGraph
         }
         Error error
 
+/// Resolve parameters for all custom components in the simulation graph
+/// This is done after initial merging to avoid forward reference issues
+let rec private resolveCustomComponentParameters 
+    (graph: SimulationGraph) 
+    (loadedDependencies: LoadedComponent list)
+    : Result<SimulationGraph, SimulationError> =
+    try
+        let updatedGraph = 
+            (graph, graph)
+            ||> Map.fold (fun updatedGraph compId comp ->
+                match comp.Type with
+                | Custom custom ->
+                    match comp.CustomSimulationGraph, custom.ParameterBindings with
+                    | Some customGraph, Some instanceBindings when not (Map.isEmpty instanceBindings) ->
+                        // Find the LoadedComponent for this custom component
+                        let customComponentLdc = 
+                            loadedDependencies |> List.tryFind (fun ldc -> ldc.Name = custom.Name)
+                        
+                        match customComponentLdc with
+                        | Some ldc ->
+                            // Apply parameter resolution using instance bindings
+                            match resolveParametersInSimulationGraph instanceBindings custom.Name ldc.CanvasState loadedDependencies customGraph with
+                            | Ok resolvedGraph -> 
+                                let updatedComp = { comp with CustomSimulationGraph = Some resolvedGraph }
+                                updatedGraph.Add(compId, updatedComp)
+                            | Error _ -> updatedGraph // Keep original on error
+                        | None -> updatedGraph
+                    | _ -> updatedGraph
+                | _ -> updatedGraph
+            )
+        Ok updatedGraph
+    with
+    | ex -> 
+        let error = {
+            ErrType = InternalError ex
+            InDependency = None
+            ComponentsAffected = []
+            ConnectionsAffected = []
+        }
+        Error error
+
 /// Try to resolve all the dependencies in a graph, and replace the reducer
 /// of the custom components with a simulationgraph.
 /// Return an error if there are problems with the dependencies.
@@ -529,7 +555,10 @@ let mergeDependencies
         // Recursively replace the dependencies, in a top down fashion.
         Ok <| merger graph dependencyMap loadedDependencies
     |> Result.bind (fun graph ->
-        // Get parameter bindings for the current sheet
+        // First resolve instance-specific parameters for custom components
+        resolveCustomComponentParameters graph loadedDependencies)
+    |> Result.bind (fun graph ->
+        // Then resolve sheet-level parameters using default bindings
         let currentSheet = 
             loadedDependencies
             |> List.tryFind (fun lc -> lc.Name = currDiagramName)

@@ -634,38 +634,182 @@ let viewOutputHider table hidden dispatch =
             |> List.map (fun cell -> makeToggleRow cell.IO [])
         div [] (preamble::toggleRows)
 
-let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) (cell: TruthTableCell) =
+let viewCellAsHeading dispatch sortInfo (styleInfo: Map<CellIO,CSSProp list>) model (cell: TruthTableCell) =
     let addMoveArrows el = makeColumnMoveArrows cell.IO el dispatch
+    let isDragging = model.TTConfig.DraggedColumn = Some cell.IO
+    let isHovered = model.TTConfig.HoveredColumn = Some cell.IO
+    
+    // Determine if this is an output column
+    let isOutputColumn =
+        match model.CurrentTruthTable with
+        | Some (Ok table) ->
+            let inputCount = table.TableSimData.Inputs.Length
+            let ioOrder = Array.toList model.TTConfig.IOOrder
+            let cellIndex = List.tryFindIndex ((=) cell.IO) ioOrder |> Option.defaultValue -1
+            cellIndex >= inputCount && cellIndex < (inputCount + table.TableSimData.Outputs.Length)
+        | _ -> false
+    
+    // Check if this column can accept the dragged column
+    let canAcceptDrop =
+        match model.TTConfig.DraggedColumn with
+        | None -> true
+        | Some draggedColumn ->
+            // Check if both columns are of the same type
+            let draggedIsOutput =
+                match model.CurrentTruthTable with
+                | Some (Ok table) ->
+                    let inputCount = table.TableSimData.Inputs.Length
+                    let ioOrder = Array.toList model.TTConfig.IOOrder
+                    let cellIndex = List.tryFindIndex ((=) draggedColumn) ioOrder |> Option.defaultValue -1
+                    cellIndex >= inputCount && cellIndex < (inputCount + table.TableSimData.Outputs.Length)
+                | _ -> false
+            draggedIsOutput = isOutputColumn
+    
+    // Add dragging styles
+    let dragStyle = 
+        match model.TTConfig.DraggedColumn with
+        | Some draggedCol when draggedCol = cell.IO ->
+            // This is the column being dragged
+            [Cursor "grabbing"; Opacity 0.5]
+        | Some _ when isHovered ->
+            // This column is being hovered while another is being dragged
+            if canAcceptDrop then
+                [BorderLeft "3px solid #3273dc"]
+            else
+                [BorderLeft "3px solid #dc3545"; Cursor "not-allowed"]
+        | Some _ ->
+            // Another column is being dragged but this isn't hovered
+            [Cursor "grab"]
+        | None ->
+            // No dragging happening
+            [Cursor "grab"]
+    
+    // Add output column styling
+    let outputStyle =
+        if isOutputColumn then
+            [BackgroundColor "#f0f8ff"; FontStyle "italic"]
+        else
+            []
+    
     let cellStyle =
         match Map.tryFind cell.IO styleInfo with
         | None -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-        | Some s -> Style <| (FontWeight "bold")::(s @ [BorderBottom "3px solid black"])
+        | Some s -> Style <| (FontWeight "bold")::(s @ [BorderBottom "3px solid black"] @ dragStyle @ outputStyle)
+    
     match cell.IO with
     | SimIO (_,label,_) ->
         let headingText = string label
-        div [cellStyle] 
-            [
-               makeElementLine [(str headingText)] //[makeColumnMoveArrows cell.IO (str headingText) dispatch] 
-                    [makeSortingArrows cell.IO sortInfo dispatch]
-               |> addMoveArrows
-            ] 
+        div [
+            cellStyle
+            Draggable true
+            OnDragStart (fun ev ->
+                ev.dataTransfer.effectAllowed <- "move"
+                ev.dataTransfer.dropEffect <- "move"
+                dispatch <| StartDraggingColumn cell.IO
+            )
+            OnDragEnd (fun _ ->
+                dispatch <| EndDraggingColumn
+            )
+            OnDragEnter (fun ev ->
+                ev.preventDefault()
+                ev.dataTransfer.dropEffect <- "move"
+                dispatch <| DragColumnEnter cell.IO
+            )
+            OnDragOver (fun ev ->
+                ev.preventDefault()
+                ev.dataTransfer.dropEffect <- "move"
+            )
+            OnDrop (fun ev ->
+                ev.preventDefault()
+                dispatch <| EndDraggingColumn
+            )
+            OnDragLeave (fun ev ->
+                // Check if we're leaving the table entirely
+                let tableEl = Browser.Dom.document.getElementById "ttGridContainer"
+                if tableEl <> null then
+                    let rect = tableEl.getBoundingClientRect()
+                    if ev.clientX < rect.left || ev.clientX > rect.right ||
+                       ev.clientY < rect.top || ev.clientY > rect.bottom then
+                        dispatch <| CancelDraggingColumn
+            )
+            OnMouseUp (fun ev ->
+                // Reset drag state on mouse up to ensure clean state
+                ev.stopPropagation()
+                if model.TTConfig.DraggedColumn.IsSome then
+                    dispatch <| EndDraggingColumn
+            )
+        ] [
+            makeElementLine [(str headingText)]
+                [makeSortingArrows cell.IO sortInfo dispatch]
+            |> addMoveArrows
+        ] 
     | Viewer ((label,fullName), width) ->
         let headingEl =
             label |> string |> str
             |> (fun r -> if fullName <> "" then addToolTipTop fullName r else r)
-        div [cellStyle] [
-            makeElementLine [headingEl]  //[makeColumnMoveArrows cell.IO headingEl dispatch] 
+        div [
+            cellStyle
+            Draggable true
+            OnDragStart (fun ev ->
+                ev.dataTransfer.effectAllowed <- "move"
+                ev.dataTransfer.dropEffect <- "move"
+                dispatch <| StartDraggingColumn cell.IO
+            )
+            OnDragEnd (fun _ ->
+                dispatch <| EndDraggingColumn
+            )
+            OnDragEnter (fun ev ->
+                ev.preventDefault()
+                ev.dataTransfer.dropEffect <- "move"
+                dispatch <| DragColumnEnter cell.IO
+            )
+            OnDragOver (fun ev ->
+                ev.preventDefault()
+                ev.dataTransfer.dropEffect <- "move"
+            )
+            OnDrop (fun ev ->
+                ev.preventDefault()
+                dispatch <| EndDraggingColumn
+            )
+            OnDragLeave (fun ev ->
+                // Check if we're leaving the table entirely
+                let tableEl = Browser.Dom.document.getElementById "ttGridContainer"
+                if tableEl <> null then
+                    let rect = tableEl.getBoundingClientRect()
+                    if ev.clientX < rect.left || ev.clientX > rect.right ||
+                       ev.clientY < rect.top || ev.clientY > rect.bottom then
+                        dispatch <| CancelDraggingColumn
+            )
+        ] [
+            makeElementLine [headingEl]
                 [makeSortingArrows cell.IO sortInfo dispatch]
             |> addMoveArrows
-            ]
+        ]
 
-let viewRowAsData numBase styleInfo i (row: TruthTableCell list) =
+let viewRowAsData numBase styleInfo model i (row: TruthTableCell list) =
     let viewCellAsData (cell: TruthTableCell) =
+        // Determine if this is an output column
+        let isOutputColumn =
+            match model.CurrentTruthTable with
+            | Some (Ok table) ->
+                let inputCount = table.TableSimData.Inputs.Length
+                let ioOrder = Array.toList model.TTConfig.IOOrder
+                let cellIndex = List.tryFindIndex ((=) cell.IO) ioOrder |> Option.defaultValue -1
+                cellIndex >= inputCount && cellIndex < (inputCount + table.TableSimData.Outputs.Length)
+            | _ -> false
+        
+        // Add output column styling to data cells
+        let outputStyle =
+            if isOutputColumn then
+                [BackgroundColor (if i%2 = 1 then "#e8f4fd" else "#f0f8ff")]
+            else
+                []
+        
         let cellStyle =
             match Map.tryFind cell.IO styleInfo, i%2 with
             | None, _ -> failwithf "what? IO %A not found in Grid Styles" cell.IO
-            | Some s, 1 -> Style <| (BackgroundColor "whitesmoke")::s
-            | Some s, _ -> Style s
+            | Some s, 1 when not isOutputColumn -> Style <| (BackgroundColor "whitesmoke")::s @ outputStyle
+            | Some s, _ -> Style <| s @ outputStyle
         match cell.Data with
         | Bits [] -> failwithf "what? Empty WireData in TruthTable"
         | Bits [bit] -> div [cellStyle] [str <| bitToString bit]
@@ -730,16 +874,30 @@ let viewTruthTableData (table: TruthTable) (model:Model) dispatch =
         else
             let headings =
                 tLst.Head
-                |> List.map (viewCellAsHeading dispatch sortInfo styleInfo) 
+                |> List.map (viewCellAsHeading dispatch sortInfo styleInfo model) 
             let body =
                 tLst
-                |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo)
+                |> List.mapi (viewRowAsData table.TableSimData.NumberBase styleInfo model)
                 |> List.concat
 
             let all = headings @ body
-            let grid = div [(ttGridContainerStyle model)] all
+            let grid = 
+                div [
+                    Id "ttGridContainer"
+                    (ttGridContainerStyle model)
+                    OnMouseUp (fun _ ->
+                        // Global mouse up handler to ensure drag state is cleared
+                        if model.TTConfig.DraggedColumn.IsSome then
+                            dispatch <| EndDraggingColumn
+                    )
+                    OnMouseLeave (fun _ ->
+                        // Also clear when mouse leaves the grid entirely
+                        if model.TTConfig.DraggedColumn.IsSome then
+                            dispatch <| EndDraggingColumn
+                    )
+                ] all
             dispatch <| SetTTGridCache (Some grid)
-            div [Style [ ]] [grid]
+            grid
 
 let restartTruthTable canvasState model dispatch = fun _ ->
     let ttDispatch (ttMsg: TTMsg) : Unit = dispatch (TruthTableMsg ttMsg)

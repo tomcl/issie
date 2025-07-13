@@ -462,6 +462,10 @@ type TTMsg =
     | SetPopupConstraintIOSel of CellIO option
     | SetPopupConstraintErrorMsg of string option
     | SetPopupNewConstraint of Constraint option
+    | StartDraggingColumn of CellIO
+    | DragColumnEnter of CellIO
+    | EndDraggingColumn
+    | CancelDraggingColumn
     | SetPopupAlgebraInputs of SimulationIO list option
     | SetPopupAlgebraError of SimulationError option
 
@@ -656,12 +660,21 @@ type TTType = {
     GridCache: ReactElement option
     /// which of the Truth Table's inputs are currently algebra
     AlgebraIns: SimulationIO list
+    /// The column which the user is currently dragging
+    DraggedColumn: CellIO option
+    /// The column which a user is hovering over while dragging
+    HoveredColumn: CellIO option
+    /// The value of IOOrder when the user started dragging
+    PrevIOOrder: CellIO [] option
 }
 let gridStyles_ = Lens.create (fun a -> a.GridStyles) (fun s a -> {a with GridStyles = s})
 let ioOrder_ = Lens.create (fun a -> a.IOOrder) (fun s a -> {a with IOOrder = s})
 let inputConstraints_ = Lens.create (fun a -> a.InputConstraints) (fun s a -> {a with InputConstraints = s})
 let outputConstraints_ = Lens.create (fun a -> a.OutputConstraints) (fun s a -> {a with OutputConstraints = s})
 let hiddenColumns_ = Lens.create (fun a -> a.HiddenColumns) (fun s a -> {a with HiddenColumns = s})
+let draggedColumn_ = Lens.create (fun a -> a.DraggedColumn) (fun s a -> {a with DraggedColumn = s})
+let hoveredColumn_ = Lens.create (fun a -> a.HoveredColumn) (fun s a -> {a with HoveredColumn = s})
+let prevIOOrder_ = Lens.create (fun a -> a.PrevIOOrder) (fun s a -> {a with PrevIOOrder = s})
 let sortType_ = Lens.create (fun a -> a.SortType) (fun s a -> {a with SortType = s})
 let algebraIns_ = Lens.create (fun a -> a.AlgebraIns) (fun s a -> {a with AlgebraIns = s})
 let gridCache_ = Lens.create (fun a -> a.GridCache) (fun s a -> {a with GridCache = s})

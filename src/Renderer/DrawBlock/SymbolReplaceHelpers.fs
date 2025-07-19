@@ -301,9 +301,50 @@ let changeAdderComponent (symModel: Model) (compId: ComponentId) (oldComp:Compon
 
 let changeCustom (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
     let symbol = Map.find compId symModel.Symbols
+    
+    // Extract old and new custom component types
+    let oldInputs, oldOutputs = 
+        match oldComp.Type with
+        | Custom cct -> cct.InputLabels.Length, cct.OutputLabels.Length
+        | _ -> failwithf "changeCustom called on non-custom component"
+    
+    let newInputs, newOutputs, newHeight, newWidth = 
+        match newCompType with
+        | Custom cct -> 
+            // Calculate dimensions based on number of ports
+            // Use existing dimensions as base, or calculate new ones
+            let numIn = cct.InputLabels.Length
+            let numOut = cct.OutputLabels.Length
+            let maxPorts = max numIn numOut
+            let gridSize = Constants.gridSize
+            // Height calculation: base height plus extra for each port
+            let h = 
+                if oldComp.H > 0. then
+                    // Scale existing height based on port count change
+                    let oldMaxPorts = max oldInputs oldOutputs
+                    if oldMaxPorts > 0 then
+                        oldComp.H * (float maxPorts) / (float oldMaxPorts)
+                    else
+                        max (float gridSize * 2.) (float gridSize * float (maxPorts + 1))
+                else
+                    // Default height calculation
+                    max (float gridSize * 2.) (float gridSize * float (maxPorts + 1))
+            // Width calculation: keep existing or use default
+            let w = 
+                if oldComp.W > 0. then 
+                    oldComp.W 
+                else 
+                    float gridSize * 4. // Default width
+            numIn, numOut, h, w
+        | _ -> failwithf "changeCustom called with non-custom component type"
+    
+    // Update the symbol with new ports and dimensions
     symbol 
+    |> varyNumberOfPorts PortType.Input newInputs newOutputs
     |> map component_ (
-        set type_ newCompType
+        set type_ newCompType >>
+        set h_ newHeight >>
+        set w_ newWidth
     )
 
 let changeCounterComponent (symModel: Model) (compId: ComponentId) (oldComp:Component) (newCompType: ComponentType) =
@@ -373,5 +414,40 @@ let changeSplitNComponent (symModel: Model) (compId: ComponentId) (numOutputs: i
         set h_ (2.*(float Constants.gridSize) * (float numOutputsEdit)/2.)
         )
 
-
-
+/// Helper function to convert single-bit gates to N-bit gates when parameters are used
+let convertGateToNBits (symModel:Model) (compId:ComponentId) (bitWidth: int) =
+    let symbol = Map.find compId symModel.Symbols
+    
+    let newcompotype = 
+        match symbol.Component.Type with
+        | GateN (And, _) -> NbitsAnd bitWidth
+        | GateN (Or, _) -> NbitsOr bitWidth
+        | GateN (Xor, _) -> NbitsXor (bitWidth, None)
+        | GateN (Nand, _) -> 
+            printfn "Warning: NAND gate cannot be converted to N-bit version. Use AND followed by NOT."
+            symbol.Component.Type
+        | GateN (Nor, _) -> 
+            printfn "Warning: NOR gate cannot be converted to N-bit version. Use OR followed by NOT."
+            symbol.Component.Type
+        | GateN (Xnor, _) -> 
+            printfn "Warning: XNOR gate cannot be converted to N-bit version. Use XOR followed by NOT."
+            symbol.Component.Type
+        | Not -> NbitsNot bitWidth
+        | c -> c // Not a gate, return unchanged
+    
+    if newcompotype <> symbol.Component.Type then
+        printfn $"Converting {symbol.Component.Type} to {newcompotype} for component {symbol.Component.Label}"
+        // For N-bit gates, we need to ensure they have exactly 2 ports (input and output)
+        let updatedSymbol = 
+            match newcompotype with
+            | NbitsAnd _ | NbitsOr _ | NbitsXor _ ->
+                // These gates should have 2 inputs and 1 output
+                symbol |> varyNumberOfPorts PortType.Input 2 1
+            | NbitsNot _ ->
+                // NOT gate should have 1 input and 1 output
+                symbol |> varyNumberOfPorts PortType.Input 1 1
+            | _ -> symbol
+        
+        set (component_ >-> type_) newcompotype updatedSymbol
+    else
+        symbol

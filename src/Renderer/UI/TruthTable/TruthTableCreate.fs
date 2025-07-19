@@ -168,8 +168,21 @@ let truthTable
                 {simData with FastSim = fs}
             | _ -> 
                 failwithf "Error in building fast simulation for Truth Table evaluation"
+    // Debug print simData.Outputs before extraction
+    printfn "DEBUG: simData.Outputs before extraction:"
+    simData.Outputs |> List.iter (fun (cid, label, width) ->
+        let (ComponentLabel labelStr) = label
+        printfn $"  Output in simData: {labelStr}, Width: {width}")
+    
     let inputs = List.map fst (FastExtract.extractFastSimulationIOsFData simData.Inputs tableSimData)
     let outputs = List.map fst (FastExtract.extractFastSimulationIOsFData simData.Outputs tableSimData)
+    
+    // Debug prints to understand output widths
+    printfn "DEBUG: Truth Table Creation - Outputs after extraction:"
+    outputs |> List.iter (fun (cid, label, width) ->
+        let (ComponentLabel labelStr) = label
+        printfn $"  Output: {labelStr}, Width: {width}")
+    
     let viewers = FastExtract.extractViewers simData
     let lhs,tCRC = tableLHS inputs ttType
     let rhs = List.map (fun i -> simulateInputCombination i outputs tableSimData) lhs

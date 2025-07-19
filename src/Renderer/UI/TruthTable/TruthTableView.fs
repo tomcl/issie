@@ -539,6 +539,13 @@ let makeSimDataSelected (model:Model) : (Result<SimulationData,SimulationError> 
                 match CanvasStateAnalyser.analyseState (correctComps,correctConns) selLoadedComponents with
                 | Some e, _ -> Some(Error e, (correctComps, correctConns))
                 | None, _ ->
+                    printfn "DEBUG: makeSimDataSelected - correct components:"
+                    correctComps |> List.iter (fun comp ->
+                        match comp.Type with
+                        | Output w -> printfn $"  Output component '{comp.Label}' has width {w}"
+                        | Input1(w, _) -> printfn $"  Input component '{comp.Label}' has width {w}"
+                        | _ -> ())
+                    
                     let sim =
                         startCircuitSimulationFData
                             2
@@ -1017,7 +1024,7 @@ let viewTruthTable canvasState model dispatch =
                     ] [
                         str "You can use input constraints, or algebraic variables, to reduce the number of rows."
                     ]
-                div [Style[
+                div [Style [
                         MaxWidth <| rightSectionWidth model;
                         MaxHeight "calc(100vh - 300px)";
                         OverflowX OverflowOptions.Auto;

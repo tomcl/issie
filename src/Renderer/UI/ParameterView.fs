@@ -934,6 +934,11 @@ let applyParameterToComponentType (compType: ComponentType) (slot: CompSlotName)
         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
         | Output _ -> Output value
         | Constant (_, constValue) -> Constant (value, constValue)
+        // Convert single-bit gates to N-bit gates when bit width > 1
+        | GateN (And, _) when value > 1 -> NbitsAnd value
+        | GateN (Or, _) when value > 1 -> NbitsOr value
+        | GateN (Xor, _) when value > 1 -> NbitsXor (value, None)
+        | Not when value > 1 -> NbitsNot value
         | _ -> compType
     | NGateInputs ->
         match compType with

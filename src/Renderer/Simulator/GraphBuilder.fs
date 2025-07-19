@@ -378,10 +378,12 @@ let getSimulationIOs (components: Component list) : SimulationIO list * Simulati
     ||> List.fold (fun (inputs, outputs) comp ->
         match comp.Type with
         | Input1(w, _) ->
+            printfn $"DEBUG: Found Input component '{comp.Label}' with width {w}"
             ((ComponentId comp.Id, ComponentLabel comp.Label, w)
              :: inputs,
              outputs)
         | Output w ->
+            printfn $"DEBUG: Found Output component '{comp.Label}' with width {w}"
             (inputs,
              (ComponentId comp.Id, ComponentLabel comp.Label, w)
              :: outputs)

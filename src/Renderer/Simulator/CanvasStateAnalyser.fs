@@ -799,6 +799,112 @@ let private checkConnectionsWidths (canvasState: CanvasState) : SimulationError 
                   ComponentsAffected = [] },
             None
 
+/// Resolve custom component parameters before width inference
+let private resolveCustomComponentParameters (ldComps: LoadedComponent list) ((comps, conns): CanvasState) : CanvasState =
+    // Local parameter evaluation function
+    let evaluateParamExpression (paramBindings: ParamBindings) expr =
+        let rec recursiveEvaluation (expr: ParamExpression) : ParamExpression =
+            match expr with
+            | PInt _ -> expr 
+            | PParameter name -> 
+                match Map.tryFind name paramBindings with
+                | Some evaluated -> evaluated
+                | None -> PParameter name
+            | PAdd (left, right) ->
+                match recursiveEvaluation left, recursiveEvaluation right with
+                | PInt l, PInt r -> PInt (l+r)
+                | newLeft, newRight -> PAdd (newLeft, newRight)
+            | PSubtract (left, right) -> 
+                match recursiveEvaluation left, recursiveEvaluation right with
+                | PInt l, PInt r -> PInt (l-r)
+                | newLeft, newRight -> PSubtract (newLeft, newRight)
+            | PMultiply (left, right) ->
+                match recursiveEvaluation left, recursiveEvaluation right with
+                | PInt l, PInt r -> PInt (l*r)
+                | newLeft, newRight -> PMultiply (newLeft, newRight)
+            | PDivide (left, right) ->
+                match recursiveEvaluation left, recursiveEvaluation right with
+                | PInt l, PInt r -> PInt (l/r)
+                | newLeft, newRight -> PDivide (newLeft, newRight)
+            | PRemainder (left, right) ->
+                match recursiveEvaluation left, recursiveEvaluation right with
+                | PInt l, PInt r -> PInt (l%r)
+                | newLeft, newRight -> PRemainder (newLeft, newRight)
+        
+        match recursiveEvaluation expr with
+        | PInt value -> Ok value
+        | _ -> Error "Parameter expression could not be fully evaluated"
+    
+    let resolveComponent (comp: Component) : Component =
+        match comp.Type with
+        | Custom custom ->
+            match custom.ParameterBindings with
+            | Some bindings ->
+                printfn $"DEBUG: Resolving custom component '{comp.Label}' (type: {custom.Name}) with bindings: {bindings}"
+                // Find the sheet for this custom component
+                match List.tryFind (fun lc -> lc.Name = custom.Name) ldComps with
+                | Some sheet ->
+                    match sheet.LCParameterSlots with
+                    | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+                        // Apply parameter bindings to resolve output labels
+                        let resolvedOutputLabels =
+                            custom.OutputLabels
+                            |> List.mapi (fun idx (label, defaultWidth) ->
+                                // Check if this output's width is parameterized
+                                let relevantSlots = 
+                                    paramSlots.ParamSlots
+                                    |> Map.filter (fun slot _ -> 
+                                        slot.CompSlot = IO label && 
+                                        slot.CompId <> comp.Id // Sheet-level slots, not instance slots
+                                    )
+                                if Map.isEmpty relevantSlots then
+                                    (label, defaultWidth) // No parameter slot for this output
+                                else
+                                    // Get the first matching slot (should only be one)
+                                    let (_, constrainedExpr) = Map.toList relevantSlots |> List.head
+                                    // Evaluate the parameter expression with the instance bindings
+                                    match evaluateParamExpression bindings constrainedExpr.Expression with
+                                    | Ok value -> 
+                                        printfn $"    Output '{label}' width changed from {defaultWidth} to {value}"
+                                        (label, value)
+                                    | Error err -> 
+                                        printfn $"    Output '{label}' evaluation error: {err}"
+                                        (label, defaultWidth) // Keep default on error
+                            )
+                        let resolvedInputLabels =
+                            custom.InputLabels
+                            |> List.mapi (fun idx (label, defaultWidth) ->
+                                // Check if this input's width is parameterized
+                                let relevantSlots = 
+                                    paramSlots.ParamSlots
+                                    |> Map.filter (fun slot _ -> 
+                                        slot.CompSlot = IO label && 
+                                        slot.CompId <> comp.Id // Sheet-level slots, not instance slots
+                                    )
+                                if Map.isEmpty relevantSlots then
+                                    (label, defaultWidth) // No parameter slot for this input
+                                else
+                                    // Get the first matching slot (should only be one)
+                                    let (_, constrainedExpr) = Map.toList relevantSlots |> List.head
+                                    // Evaluate the parameter expression with the instance bindings
+                                    match evaluateParamExpression bindings constrainedExpr.Expression with
+                                    | Ok value -> 
+                                        printfn $"    Output '{label}' width changed from {defaultWidth} to {value}"
+                                        (label, value)
+                                    | Error err -> 
+                                        printfn $"    Output '{label}' evaluation error: {err}"
+                                        (label, defaultWidth) // Keep default on error
+                            )
+                        let updatedCustom = { custom with OutputLabels = resolvedOutputLabels; InputLabels = resolvedInputLabels }
+                        { comp with Type = Custom updatedCustom }
+                    | _ -> comp // No parameter slots
+                | None -> comp // Sheet not found
+            | None -> comp // No parameter bindings
+        | _ -> comp // Not a custom component
+    
+    let resolvedComps = List.map resolveComponent comps
+    (resolvedComps, conns)
+
 /// check component labels are all unique and do not include protected values (CLK)
 let checkComponentNamesAreOk ((comps, conns): CanvasState) =
     let badNameErrors =
@@ -850,20 +956,91 @@ let checkComponentNamesAreOk ((comps, conns): CanvasState) =
             comps
             |> List.map (fun comp -> ComponentId comp.Id) })
 
+/// Check for single-bit gates that might need to be N-bit gates
+let private checkGatesForParameterizedWidths ((comps, conns): CanvasState) : SimulationError option =
+    // Find components that are single-bit gates
+    let singleBitGates = 
+        comps 
+        |> List.filter (fun comp ->
+            match comp.Type with
+            | GateN _ | Not -> true
+            | _ -> false)
+    
+    // Check if any of these gates have connections that suggest they should be N-bit gates
+    let warnings = 
+        singleBitGates
+        |> List.choose (fun gate ->
+            // Check if this gate is connected to components with parameterized widths
+            let connectedToParameterized = 
+                conns 
+                |> List.exists (fun conn ->
+                    // Check if this gate is connected to a custom component with parameters
+                    let isConnectedToParameterized = 
+                        comps |> List.exists (fun comp ->
+                            match comp.Type with
+                            | Custom cct when Option.isSome cct.ParameterBindings ->
+                                // Check if the connection involves this gate and the custom component
+                                (conn.Source.HostId = gate.Id && conn.Target.HostId = comp.Id) ||
+                                (conn.Target.HostId = gate.Id && conn.Source.HostId = comp.Id)
+                            | _ -> false)
+                    isConnectedToParameterized)
+            
+            if connectedToParameterized then
+                let gateTypeStr = 
+                    match gate.Type with
+                    | GateN (gType, _) -> 
+                        match gType with
+                        | And -> "AND"
+                        | Or -> "OR"
+                        | Xor -> "XOR"
+                        | Nand -> "NAND"
+                        | Nor -> "NOR"
+                        | Xnor -> "XNOR"
+                    | Not -> "NOT"
+                    | _ -> "Unknown"
+                Some (gate, $"Single-bit {gateTypeStr} gate '{gate.Label}' is connected to components with parameters. Consider using N-bit {gateTypeStr} gate instead.")
+            else
+                None)
+    
+    match warnings with
+    | [] -> None
+    | (comp, msg) :: _ -> 
+        Some {
+            ErrType = GenericSimError msg
+            InDependency = None
+            ComponentsAffected = [ComponentId comp.Id]
+            ConnectionsAffected = []
+        }
+
 /// Analyse a CanvasState and return any error (or None).
 let analyseState
     (state: CanvasState)
     (ldComps: LoadedComponent list)
     : SimulationError option * ConnectionsWidth option
     =
-    let widthErr, connectionsWidth = checkConnectionsWidths state
+    // Resolve custom component parameters before width inference
+    let resolvedState = resolveCustomComponentParameters ldComps state
+    
+    // Debug: Print resolved state
+    printfn "DEBUG: analyseState - Components after parameter resolution:"
+    let (resolvedComps, _) = resolvedState
+    resolvedComps |> List.iter (fun comp ->
+        match comp.Type with
+        | Output w -> printfn $"  Output '{comp.Label}' has width {w}"
+        | Custom cct -> 
+            printfn $"  Custom '{comp.Label}' (type: {cct.Name}):"
+            printfn $"    Output labels after resolution: {cct.OutputLabels}"
+        | _ -> ())
+    
+    let widthErr, connectionsWidth = checkConnectionsWidths resolvedState
     [ checkPortTypesAreConsistent state
       checkPortsAreConnectedProperly state
       checkIOLabels state
       checkCustomComponentsOk state ldComps
       widthErr
       checkComponentNamesAreOk state
-      checkAdderUnnecessaryNC state ]
+      checkAdderUnnecessaryNC state
+      checkGatesForParameterizedWidths resolvedState ]
     |> List.tryFind Option.isSome
     |> Option.flatten,
     connectionsWidth

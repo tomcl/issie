@@ -265,3 +265,5 @@ tmp/
 
 # macOS compilation
 *.provisionprofile
+
+CLAUDE.md

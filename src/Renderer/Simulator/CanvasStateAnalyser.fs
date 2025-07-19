@@ -565,31 +565,30 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
     let compare labs1 labs2 = (labs1 |> Set) = (labs2 |> Set)
     
     // Debug output
-    printfn $"=== DEBUGGING PORT MISMATCH FOR {name} ==="
-    printfn $"Component ID: {c.Id}"
-    printfn $"Instance InputLabels: {args.InputLabels}"
-    printfn $"Instance OutputLabels: {args.OutputLabels}"
-    printfn $"Instance ParameterBindings: {args.ParameterBindings}"
+    // printfn $"=== DEBUGGING PORT MISMATCH FOR {name} ==="
+    // printfn $"Component ID: {c.Id}"
+    // printfn $"Instance InputLabels: {args.InputLabels}"
+    // printfn $"Instance OutputLabels: {args.OutputLabels}"
+    // printfn $"Instance ParameterBindings: {args.ParameterBindings}"
 
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
     |> Option.map (fun sheet ->
-        printfn $"Found sheet with name: {sheet.Name}"
-        printfn $"Sheet InputLabels: {sheet.InputLabels}"
-        printfn $"Sheet OutputLabels: {sheet.OutputLabels}"
-        printfn $"Sheet LCParameterSlots: {sheet.LCParameterSlots}"
+        // printfn $"Found sheet with name: {sheet.Name}"
+        // printfn $"Sheet InputLabels: {sheet.InputLabels}"
+        // printfn $"Sheet OutputLabels: {sheet.OutputLabels}"
+        // printfn $"Sheet LCParameterSlots: {sheet.LCParameterSlots}"
         
         // If the custom component has parameter bindings, we need to resolve the sheet's ports
         // using those parameter bindings, not the default ones
         let resolvedSheet = 
             match args.ParameterBindings, sheet.LCParameterSlots with
             | Some instanceParams, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
-                printfn $"Resolving sheet ports with instance parameters: {instanceParams}"
+                // printfn $"Resolving sheet ports with instance parameters: {instanceParams}"
                 // Use the instance parameter bindings instead of default ones
-                try
-                    let (comps, conns) = sheet.CanvasState
-                    // Local parameter resolution to avoid module dependencies
-                    let resolveComponentParameters (paramBindings: ParamBindings) (paramSlots: Map<ParamSlot, ConstrainedExpr>) (comp: Component) =
+                let (comps, conns) = sheet.CanvasState
+                // Local parameter resolution to avoid module dependencies
+                let resolveComponentParameters (paramBindings: ParamBindings) (paramSlots: Map<ParamSlot, ConstrainedExpr>) (comp: Component) =
                         let evaluateParamExpression expr =
                             let rec recursiveEvaluation (expr: ParamExpression) : ParamExpression =
                                 match expr with
@@ -631,61 +630,56 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
                         if Map.isEmpty relevantSlots then
                             comp
                         else
-                            let mutable updatedCompType = comp.Type
-                            
-                            for KeyValue(slot, constrainedExpr) in relevantSlots do
+                            relevantSlots
+                            |> Map.fold (fun compAcc slot constrainedExpr ->
                                 match evaluateParamExpression constrainedExpr.Expression with
                                 | Ok evaluatedValue -> 
                                     match slot.CompSlot with
                                     | IO _ ->
-                                        updatedCompType <- 
-                                            match updatedCompType with
+                                        let newType = 
+                                            match compAcc.Type with
                                             | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
                                             | Output _ -> Output evaluatedValue
-                                            | _ -> updatedCompType
-                                    | _ -> () // Other slot types not handled here
-                                | Error _ -> ()
+                                            | _ -> compAcc.Type
+                                        { compAcc with Type = newType }
+                                    | _ -> compAcc // Other slot types not handled here
+                                | Error _ -> compAcc
+                            ) comp
 
-                            { comp with Type = updatedCompType }
-
-                    let resolvedComps = 
-                        comps |> List.map (fun comp ->
-                            resolveComponentParameters instanceParams paramSlots.ParamSlots comp
-                        )
-                    let resolvedCanvas = (resolvedComps, conns)
-                    let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
-                    let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
-                    printfn $"Resolved sheet InputLabels: {newInputLabels}"
-                    printfn $"Resolved sheet OutputLabels: {newOutputLabels}"
-                    { sheet with InputLabels = newInputLabels; OutputLabels = newOutputLabels }
-                with
-                | ex -> 
-                    printfn $"Failed to resolve sheet parameters: {ex.Message}"
-                    sheet
+                let resolvedComps = 
+                    comps |> List.map (fun comp ->
+                        resolveComponentParameters instanceParams paramSlots.ParamSlots comp
+                    )
+                let resolvedCanvas = (resolvedComps, conns)
+                let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+                let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+                // printfn $"Resolved sheet InputLabels: {newInputLabels}"
+                // printfn $"Resolved sheet OutputLabels: {newOutputLabels}"
+                { sheet with InputLabels = newInputLabels; OutputLabels = newOutputLabels }
             | _ -> sheet
         
         let inputsMatch = compare resolvedSheet.InputLabels args.InputLabels
         let outputsMatch = compare resolvedSheet.OutputLabels args.OutputLabels
         
-        printfn $"Inputs match: {inputsMatch}"
-        printfn $"Outputs match: {outputsMatch}"
-        printfn $"Input sets - Sheet: {resolvedSheet.InputLabels |> Set}, Instance: {args.InputLabels |> Set}"
-        printfn $"Output sets - Sheet: {resolvedSheet.OutputLabels |> Set}, Instance: {args.OutputLabels |> Set}"
+        // printfn $"Inputs match: {inputsMatch}"
+        // printfn $"Outputs match: {outputsMatch}"
+        // printfn $"Input sets - Sheet: {resolvedSheet.InputLabels |> Set}, Instance: {args.InputLabels |> Set}"
+        // printfn $"Output sets - Sheet: {resolvedSheet.OutputLabels |> Set}, Instance: {args.OutputLabels |> Set}"
         
         resolvedSheet, inputsMatch, outputsMatch)
     |> function
         | None -> 
-            printfn $"ERROR: No sheet found with name {name}"
+            // printfn $"ERROR: No sheet found with name {name}"
             Error(c, NoSheet name)
         | Some(_, true, true) -> 
-            printfn $"SUCCESS: All ports match for {name}"
+            // printfn $"SUCCESS: All ports match for {name}"
             Ok()
         | Some(sheet, false, _) ->
-            printfn $"ERROR: Input ports mismatch for {name}"
+            // printfn $"ERROR: Input ports mismatch for {name}"
             Error
             <| (c, BadInputs(name, sheet.InputLabels, args.InputLabels))
         | Some(sheet, true, false) ->
-            printfn $"ERROR: Output ports mismatch for {name}"
+            // printfn $"ERROR: Output ports mismatch for {name}"
             Error
             <| (c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
 
@@ -717,12 +711,12 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
             error c (MissingSheet cName)
         | Error(c, BadInputs(cName, instIns, compIns)) ->
             let instIns, compIns = disp instIns, disp compIns
-            printfn $"=== DETAILED PORT MISMATCH DEBUG ==="
-            printfn $"Component: {cName}, ID: {c.Id}"
-            printfn $"Instance InputLabels (formatted): {instIns}"
-            printfn $"Component InputLabels (formatted): {compIns}"
-            printfn $"Instance InputLabels (raw): {instIns}"
-            printfn $"Component InputLabels (raw): {compIns}"
+            // printfn $"=== DETAILED PORT MISMATCH DEBUG ==="
+            // printfn $"Component: {cName}, ID: {c.Id}"
+            // printfn $"Instance InputLabels (formatted): {instIns}"
+            // printfn $"Component InputLabels (formatted): {compIns}"
+            // printfn $"Instance InputLabels (raw): {instIns}"
+            // printfn $"Component InputLabels (raw): {compIns}"
             error c (InPortMismatch (cName, instIns, compIns))
         | Error(c, BadOutputs(cName, instOuts, compOuts)) ->
             let instOuts, compOuts = disp instOuts, disp compOuts

@@ -294,34 +294,39 @@ let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedCompon
         |> Option.map (fun ldc' -> ldcIsEq ldc' ldc)
         |> Option.defaultValue false
 
-/// add given name,state to loadedcomponent list as a loaded component (overwriting existing if needed)
-let addStateToLoadedComponents openFileName canvasState loadedComponents =
+/// Create a new LoadedComponent from existing one (or default) by adding canvas state
+let createLoadedComponentWithCanvas openFileName canvasState (existingLdc: LoadedComponent option) =
     let ins, outs = parseDiagramSignature canvasState
-
-    // Preserve existing parameter slots if component already exists
-    let existingLdc = loadedComponents |> List.tryFind (fun ldc -> ldc.Name = openFileName)
-    let preservedParameterSlots = 
-        match existingLdc with
-        | Some existing -> existing.LCParameterSlots
-        | None -> None
-
-    let ldc: LoadedComponent =
+    
+    match existingLdc with
+    | Some existing ->
+        { existing with
+            LoadedComponentIsOutOfDate = false
+            InputLabels = ins
+            OutputLabels = outs
+            CanvasState = canvasState
+            TimeStamp = System.DateTime.Now }
+    | None ->
         { Name = openFileName
           LoadedComponentIsOutOfDate = false
           InputLabels = ins
           OutputLabels = outs
           CanvasState = canvasState
-          Form = existingLdc |> Option.bind (fun e -> e.Form)
-          Description = existingLdc |> Option.bind (fun e -> e.Description)
-          WaveInfo = existingLdc |> Option.bind (fun e -> e.WaveInfo)
-          FilePath = existingLdc |> Option.map (fun e -> e.FilePath) |> Option.defaultValue ""
+          Form = None
+          Description = None
+          WaveInfo = None
+          FilePath = ""
           TimeStamp = System.DateTime.Now
-          LCParameterSlots = preservedParameterSlots // Preserve parameter slots
-         }
+          LCParameterSlots = None }
 
+/// add given name,state to loadedcomponent list as a loaded component (overwriting existing if needed)
+let addStateToLoadedComponents openFileName canvasState loadedComponents =
+    let existingLdc = loadedComponents |> List.tryFind (fun ldc -> ldc.Name = openFileName)
+    let newLdc = createLoadedComponentWithCanvas openFileName canvasState existingLdc
+    
     loadedComponents
     |> List.filter (fun ldc -> ldc.Name <> openFileName)
-    |> (fun ldcs -> ldc :: ldcs)
+    |> (fun ldcs -> newLdc :: ldcs)
 
 /// the inverse of addStateToLoadedConponents
 /// The loadedComponent list does NOT include diagramName

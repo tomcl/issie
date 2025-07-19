@@ -903,105 +903,97 @@ let evaluateParameterExpression = evaluateParamExpression
 
 /// Helper function for simulation: resolve parameter expressions for a component
 /// Returns the component type with resolved parameter values
+/// Apply parameter value to component type based on slot type
+let applyParameterToComponentType (compType: ComponentType) (slot: CompSlotName) (value: int) : ComponentType =
+    match slot with
+    | Buswidth ->
+        match compType with
+        | Viewer _ -> Viewer value
+        | BusCompare1 (_, compareValue, dialogText) -> BusCompare1 (value, compareValue, dialogText)
+        | BusSelection (_, outputLSBit) -> BusSelection (value, outputLSBit)
+        | Constant1 (_, constValue, dialogText) -> Constant1 (value, constValue, dialogText)
+        | NbitsAdder _ -> NbitsAdder value
+        | NbitsAdderNoCin _ -> NbitsAdderNoCin value
+        | NbitsAdderNoCout _ -> NbitsAdderNoCout value
+        | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout value
+        | NbitsXor (_, arithmeticOp) -> NbitsXor (value, arithmeticOp)
+        | NbitsAnd _ -> NbitsAnd value
+        | NbitsNot _ -> NbitsNot value
+        | NbitsOr _ -> NbitsOr value
+        | NbitSpreader _ -> NbitSpreader value
+        | SplitWire _ -> SplitWire value
+        | Register _ -> Register value
+        | RegisterE _ -> RegisterE value
+        | Counter _ -> Counter value
+        | CounterNoLoad _ -> CounterNoLoad value
+        | CounterNoEnable _ -> CounterNoEnable value
+        | CounterNoEnableLoad _ -> CounterNoEnableLoad value
+        | Shift (_, shifterWidth, shiftType) -> Shift (value, shifterWidth, shiftType)
+        | BusCompare (_, compareValue) -> BusCompare (value, compareValue)
+        | Input _ -> Input value
+        | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
+        | Output _ -> Output value
+        | Constant (_, constValue) -> Constant (value, constValue)
+        | _ -> compType
+    | NGateInputs ->
+        match compType with
+        | GateN (gateType, _) -> GateN (gateType, value)
+        | _ -> compType
+    | IO _ ->
+        match compType with
+        | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
+        | Output _ -> Output value
+        | _ -> compType
+    | _ -> compType // Other slot types not handled in simulation
+
 let resolveParametersForComponent 
     (paramBindings: ParamBindings) 
     (paramSlots: Map<ParamSlot, ConstrainedExpr>) 
     (comp: Component) 
     : Result<Component, string> =
     
-    try
-        let compIdStr = comp.Id
-        let relevantSlots = 
-            paramSlots 
-            |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
+    let compIdStr = comp.Id
+    let relevantSlots = 
+        paramSlots 
+        |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
 
-        if Map.isEmpty relevantSlots then
-            Ok comp
-        else
-            let mutable updatedCompType = comp.Type
-            let mutable lastError = None
-            
-            for KeyValue(slot, constrainedExpr) in relevantSlots do
+    if Map.isEmpty relevantSlots then
+        Ok comp
+    else
+        relevantSlots
+        |> Map.toList
+        |> List.fold (fun accResult (slot, constrainedExpr) ->
+            match accResult with
+            | Error _ -> accResult // Propagate error
+            | Ok compSoFar ->
                 match evaluateParamExpression paramBindings constrainedExpr.Expression with
                 | Ok evaluatedValue -> 
-                    // Update component type based on slot
-                    match slot.CompSlot with
-                    | Buswidth ->
-                        updatedCompType <- 
-                            match updatedCompType with
-                            | Viewer _ -> Viewer evaluatedValue
-                            | BusCompare1 (_, compareValue, dialogText) -> BusCompare1 (evaluatedValue, compareValue, dialogText)
-                            | BusSelection (_, outputLSBit) -> BusSelection (evaluatedValue, outputLSBit)
-                            | Constant1 (_, constValue, dialogText) -> Constant1 (evaluatedValue, constValue, dialogText)
-                            | NbitsAdder _ -> NbitsAdder evaluatedValue
-                            | NbitsAdderNoCin _ -> NbitsAdderNoCin evaluatedValue
-                            | NbitsAdderNoCout _ -> NbitsAdderNoCout evaluatedValue
-                            | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout evaluatedValue
-                            | NbitsXor (_, arithmeticOp) -> NbitsXor (evaluatedValue, arithmeticOp)
-                            | NbitsAnd _ -> NbitsAnd evaluatedValue
-                            | NbitsNot _ -> NbitsNot evaluatedValue
-                            | NbitsOr _ -> NbitsOr evaluatedValue
-                            | NbitSpreader _ -> NbitSpreader evaluatedValue
-                            | SplitWire _ -> SplitWire evaluatedValue
-                            | Register _ -> Register evaluatedValue
-                            | RegisterE _ -> RegisterE evaluatedValue
-                            | Counter _ -> Counter evaluatedValue
-                            | CounterNoLoad _ -> CounterNoLoad evaluatedValue
-                            | CounterNoEnable _ -> CounterNoEnable evaluatedValue
-                            | CounterNoEnableLoad _ -> CounterNoEnableLoad evaluatedValue
-                            | Shift (_, shifterWidth, shiftType) -> Shift (evaluatedValue, shifterWidth, shiftType)
-                            | BusCompare (_, compareValue) -> BusCompare (evaluatedValue, compareValue)
-                            | Input _ -> Input evaluatedValue
-                            | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
-                            | Output _ -> Output evaluatedValue
-                            | Constant (_, constValue) -> Constant (evaluatedValue, constValue)
-                            | _ -> updatedCompType
-                    | NGateInputs ->
-                        updatedCompType <- 
-                            match updatedCompType with
-                            | GateN (gateType, _) -> GateN (gateType, evaluatedValue)
-                            | _ -> updatedCompType
-                    | IO _ ->
-                        updatedCompType <- 
-                            match updatedCompType with
-                            | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
-                            | Output _ -> Output evaluatedValue
-                            | _ -> updatedCompType
-                    | _ -> () // Other slot types not handled in simulation
+                    let newType = applyParameterToComponentType compSoFar.Type slot.CompSlot evaluatedValue
+                    Ok { compSoFar with Type = newType }
                 | Error err -> 
-                    lastError <- Some err
-
-            match lastError with
-            | Some err -> Error err
-            | None -> Ok { comp with Type = updatedCompType }
-    with
-    | ex -> Error (sprintf "Error resolving parameters for component %s: %s" comp.Id ex.Message)
+                    Error err
+        ) (Ok comp)
 
 /// Update LoadedComponent port labels after parameter resolution
 let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedComponent =
-    try
-        match loadedComponent.LCParameterSlots with
-        | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
-            // Apply parameter resolution to get updated port labels
-            let (comps, conns) = loadedComponent.CanvasState
-            let resolvedComps = 
-                comps |> List.map (fun comp ->
-                    match resolveParametersForComponent paramSlots.DefaultBindings paramSlots.ParamSlots comp with
-                    | Ok resolvedComp -> resolvedComp
-                    | Error _ -> comp // Keep original on error
-                )
-            let resolvedCanvas = (resolvedComps, conns)
-            let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
-            let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
-            
-            { loadedComponent with 
-                InputLabels = newInputLabels
-                OutputLabels = newOutputLabels }
-        | _ -> loadedComponent
-    with
-    | ex -> 
-        printfn $"Warning: Failed to update LoadedComponent ports for {loadedComponent.Name}: {ex.Message}"
-        loadedComponent
+    match loadedComponent.LCParameterSlots with
+    | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+        // Apply parameter resolution to get updated port labels
+        let (comps, conns) = loadedComponent.CanvasState
+        let resolvedComps = 
+            comps |> List.map (fun comp ->
+                match resolveParametersForComponent paramSlots.DefaultBindings paramSlots.ParamSlots comp with
+                | Ok resolvedComp -> resolvedComp
+                | Error _ -> comp // Keep original on error
+            )
+        let resolvedCanvas = (resolvedComps, conns)
+        let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+        let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+        
+        { loadedComponent with 
+            InputLabels = newInputLabels
+            OutputLabels = newOutputLabels }
+    | _ -> loadedComponent
 
 /// Update a custom component with new I/O component widths.
 /// Used when these chnage as result of parameter changes.
@@ -1058,25 +1050,25 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let labelToEval = 
                     match currentSheet.LCParameterSlots with
                     | Some sheetInfo ->
-                        printf $"paramslots = {sheetInfo.ParamSlots}"
+                        // printf $"paramslots = {sheetInfo.ParamSlots}"
                         sheetInfo.ParamSlots
                         |> Map.toSeq // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
                         |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
                             match paramSlot.CompSlot with
                             | IO label -> 
-                                printf $"label = {label}"
+                                // printf $"label = {label}"
                                 let evaluatedValue = 
                                     match evaluateParamExpression newBindings constrainedExpr.Expression with
                                     | Ok expr -> expr
                                     | Error _ -> 0
-                                printf $"evaluatedvalue = {evaluatedValue}"
+                                // printf $"evaluatedvalue = {evaluatedValue}"
                                 Some (label, evaluatedValue)
                             | _ -> None 
                         )
                         |> Map.ofSeq // Convert to map
                     | None -> Map.empty
 
-                printf $"labeltoeval = {labelToEval}"
+                // printf $"labeltoeval = {labelToEval}"
 
                 let newestComponent = updateCustomComponent labelToEval newBindings comp
                 let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
@@ -1084,7 +1076,7 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
                 updateModelSymbol newModel |> UpdateModel |> dispatch
 
-                printf $"{comp}"
+                // printf $"{comp}"
                 let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
                 model.Sheet.DoBusWidthInference dispatchnew
                 dispatch <| ClosePopup
@@ -1102,7 +1094,7 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let exprSpecs = 
                     match currentSheet.LCParameterSlots with
                     | Some sheetInfo ->
-                        printf $"paramslots = {sheetInfo.ParamSlots}"
+                        // printf $"paramslots = {sheetInfo.ParamSlots}"
                         sheetInfo.ParamSlots
                         |> Map.toList
                         |> List.map snd

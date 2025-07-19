@@ -127,6 +127,10 @@ let errMsg (errType: SimulationErrorType) =
     | MissingSheet compName ->
         sprintf "Can't find a design sheet named %s for the custom component of this name" compName
     | InPortMismatch (compName, instIns, compIns) ->
+        printfn $"=== ERROR MESSAGE GENERATION ==="
+        printfn $"InPortMismatch for: {compName}"
+        printfn $"Instance ports: {instIns}"
+        printfn $"Component ports: {compIns}"
         sprintf
             "Sheet %s is used as a custom component. Instance In ports: %A are different from Component In ports: %A."
             compName

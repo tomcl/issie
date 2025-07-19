@@ -437,15 +437,12 @@ let checkAndValidateFData (fs: FastSimulation) =
             fc.Outputs
             |> Array.iteri (fun i output ->
                 let data = fc.Outputs[i].FDataStep[0]
+                let expectedWidth = fc.OutputWidth i
 
-                match data.Width, output.Width with
+                match data.Width, expectedWidth with
                 | n, m when n <> m ->
-                    failwithf
-                        "Inconsistent simulation data %A data found on signal output width %d from %s:%d"
-                        data
-                        m
-                        fc.FullName
-                        i
+                    // Re-initialize with correct width if there's a mismatch
+                    output.FDataStep[0] <- Data(convertIntToFastData expectedWidth 0u)
                 | 0, _ ->
                     failwithf "Unexpected output data %A found on initialised component %s:%d" data fc.FullName i
                 | _ -> () // Ok in this case

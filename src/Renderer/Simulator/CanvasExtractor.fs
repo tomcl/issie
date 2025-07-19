@@ -225,16 +225,24 @@ let loadedComponentIsEqualExInputDefault (ldc1: LoadedComponent) (ldc2: LoadedCo
 
 /// get sheet I/O labels in correct order based on position of components
 let getOrderedCompLabels compType ((comps, _): CanvasState) =
-    comps
-    |> List.collect (fun comp ->
-        let sortKey = comp.Y, comp.X
+    let result = 
+        comps
+        |> List.collect (fun comp ->
+            let sortKey = comp.Y, comp.X
 
-        match comp.Type, compType with
-        | Input1(n, defaultVal), Input1 _ -> [ sortKey, (comp.Label, n) ]
-        | Output n, Output _ -> [ sortKey, (comp.Label, n) ]
-        | _ -> [])
-    |> List.sortBy fst
-    |> List.map snd
+            match comp.Type, compType with
+            | Input1(n, defaultVal), Input1 _ -> 
+                printfn $"Found Input1 component: Label={comp.Label}, Width={n}, DefaultVal={defaultVal}"
+                [ sortKey, (comp.Label, n) ]
+            | Output n, Output _ -> 
+                printfn $"Found Output component: Label={comp.Label}, Width={n}"
+                [ sortKey, (comp.Label, n) ]
+            | _ -> [])
+        |> List.sortBy fst
+        |> List.map snd
+    
+    printfn $"getOrderedCompLabels result for {compType}: {result}"
+    result
 
 /// Extract the labels and bus widths of the inputs and outputs nodes as a signature.
 /// Form is inputs,outputs
@@ -257,7 +265,7 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
           OutputLabels = outputs
           Form = None
           Description = None
-          LCParameterSlots = None // TODO HLP25 check if parameterslots have changed
+          LCParameterSlots = None // Parameter slots will be set by the sheet's parameter system
           LoadedComponentIsOutOfDate = false
           }
 
@@ -290,18 +298,25 @@ let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedCompon
 let addStateToLoadedComponents openFileName canvasState loadedComponents =
     let ins, outs = parseDiagramSignature canvasState
 
+    // Preserve existing parameter slots if component already exists
+    let existingLdc = loadedComponents |> List.tryFind (fun ldc -> ldc.Name = openFileName)
+    let preservedParameterSlots = 
+        match existingLdc with
+        | Some existing -> existing.LCParameterSlots
+        | None -> None
+
     let ldc: LoadedComponent =
         { Name = openFileName
           LoadedComponentIsOutOfDate = false
           InputLabels = ins
           OutputLabels = outs
           CanvasState = canvasState
-          Form = None
-          Description = None
-          WaveInfo = None
-          FilePath = ""
+          Form = existingLdc |> Option.bind (fun e -> e.Form)
+          Description = existingLdc |> Option.bind (fun e -> e.Description)
+          WaveInfo = existingLdc |> Option.bind (fun e -> e.WaveInfo)
+          FilePath = existingLdc |> Option.map (fun e -> e.FilePath) |> Option.defaultValue ""
           TimeStamp = System.DateTime.Now
-          LCParameterSlots = None // TODO:HLP25 check if parameterslots need to be preserved from previous LDC
+          LCParameterSlots = preservedParameterSlots // Preserve parameter slots
          }
 
     loadedComponents

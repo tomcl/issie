@@ -902,70 +902,61 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
 
 /// Helper function for simulation: resolve parameter expressions for a component
 /// Returns the component type with resolved parameter values
-// Simple lens implementation for component type updates
-type Lens<'a, 'b> = {
-    Get: 'a -> 'b option
-    Set: 'b -> 'a -> 'a
-}
+// Create prisms for component type parameter updates using the existing Optics library
+let buswidthPrism : Prism<ComponentType, int> =
+    Prism.create
+        (function
+            | Viewer w | Input w | Output w 
+            | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
+            | NbitsAnd w | NbitsNot w | NbitsOr w | NbitSpreader w | SplitWire w
+            | Register w | RegisterE w | Counter w | CounterNoLoad w 
+            | CounterNoEnable w | CounterNoEnableLoad w -> Some w
+            | BusCompare1 (w, _, _) | Constant1 (w, _, _) | BusSelection (w, _) 
+            | NbitsXor (w, _) | Shift (w, _, _) | BusCompare (w, _) 
+            | Input1 (w, _) | Constant (w, _) -> Some w
+            | _ -> None)
+        (fun w compType ->
+            match compType with
+            | Viewer _ -> Viewer w
+            | BusCompare1 (_, cv, dt) -> BusCompare1 (w, cv, dt)
+            | BusSelection (_, lsb) -> BusSelection (w, lsb)
+            | Constant1 (_, cv, dt) -> Constant1 (w, cv, dt)
+            | NbitsAdder _ -> NbitsAdder w
+            | NbitsAdderNoCin _ -> NbitsAdderNoCin w
+            | NbitsAdderNoCout _ -> NbitsAdderNoCout w
+            | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout w
+            | NbitsXor (_, op) -> NbitsXor (w, op)
+            | NbitsAnd _ -> NbitsAnd w
+            | NbitsNot _ -> NbitsNot w
+            | NbitsOr _ -> NbitsOr w
+            | NbitSpreader _ -> NbitSpreader w
+            | SplitWire _ -> SplitWire w
+            | Register _ -> Register w
+            | RegisterE _ -> RegisterE w
+            | Counter _ -> Counter w
+            | CounterNoLoad _ -> CounterNoLoad w
+            | CounterNoEnable _ -> CounterNoEnable w
+            | CounterNoEnableLoad _ -> CounterNoEnableLoad w
+            | Shift (_, sw, st) -> Shift (w, sw, st)
+            | BusCompare (_, cv) -> BusCompare (w, cv)
+            | Input _ -> Input w
+            | Input1 (_, dv) -> Input1 (w, dv)
+            | Output _ -> Output w
+            | Constant (_, cv) -> Constant (w, cv)
+            | _ -> compType)
 
-// Create a lens for buswidth components
-let buswidthLens : Lens<ComponentType, int> = {
-    Get = function
-        | Viewer w | Input w | Output w 
-        | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
-        | NbitsAnd w | NbitsNot w | NbitsOr w | NbitSpreader w | SplitWire w
-        | Register w | RegisterE w | Counter w | CounterNoLoad w 
-        | CounterNoEnable w | CounterNoEnableLoad w -> Some w
-        | BusCompare1 (w, _, _) | Constant1 (w, _, _) | BusSelection (w, _) 
-        | NbitsXor (w, _) | Shift (w, _, _) | BusCompare (w, _) 
-        | Input1 (w, _) | Constant (w, _) -> Some w
-        | _ -> None
-    Set = fun w compType ->
-        match compType with
-        | Viewer _ -> Viewer w
-        | BusCompare1 (_, cv, dt) -> BusCompare1 (w, cv, dt)
-        | BusSelection (_, lsb) -> BusSelection (w, lsb)
-        | Constant1 (_, cv, dt) -> Constant1 (w, cv, dt)
-        | NbitsAdder _ -> NbitsAdder w
-        | NbitsAdderNoCin _ -> NbitsAdderNoCin w
-        | NbitsAdderNoCout _ -> NbitsAdderNoCout w
-        | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout w
-        | NbitsXor (_, op) -> NbitsXor (w, op)
-        | NbitsAnd _ -> NbitsAnd w
-        | NbitsNot _ -> NbitsNot w
-        | NbitsOr _ -> NbitsOr w
-        | NbitSpreader _ -> NbitSpreader w
-        | SplitWire _ -> SplitWire w
-        | Register _ -> Register w
-        | RegisterE _ -> RegisterE w
-        | Counter _ -> Counter w
-        | CounterNoLoad _ -> CounterNoLoad w
-        | CounterNoEnable _ -> CounterNoEnable w
-        | CounterNoEnableLoad _ -> CounterNoEnableLoad w
-        | Shift (_, sw, st) -> Shift (w, sw, st)
-        | BusCompare (_, cv) -> BusCompare (w, cv)
-        | Input _ -> Input w
-        | Input1 (_, dv) -> Input1 (w, dv)
-        | Output _ -> Output w
-        | Constant (_, cv) -> Constant (w, cv)
-        | _ -> compType
-}
+let ngateInputsPrism : Prism<ComponentType, int> =
+    Prism.create
+        (function GateN (_, n) -> Some n | _ -> None)
+        (fun n -> function GateN (gt, _) -> GateN (gt, n) | t -> t)
 
-let ngateInputsLens : Lens<ComponentType, int> = {
-    Get = function GateN (_, n) -> Some n | _ -> None
-    Set = fun n -> function GateN (gt, _) -> GateN (gt, n) | t -> t
-}
-
-let ioLens : Lens<ComponentType, int> = {
-    Get = function Input1 (w, _) | Output w -> Some w | _ -> None
-    Set = fun w -> function 
-        | Input1 (_, dv) -> Input1 (w, dv) 
-        | Output _ -> Output w 
-        | t -> t
-}
-
-let applyLens (lens: Lens<'a, 'b>) (value: 'b) (target: 'a) : 'a =
-    lens.Set value target
+let ioPortPrism : Prism<ComponentType, int> =
+    Prism.create
+        (function Input1 (w, _) | Output w -> Some w | _ -> None)
+        (fun w -> function 
+            | Input1 (_, dv) -> Input1 (w, dv) 
+            | Output _ -> Output w 
+            | t -> t)
 
 let resolveParametersForComponent 
     (paramBindings: ParamBindings) 
@@ -992,9 +983,9 @@ let resolveParametersForComponent
                     | Ok evaluatedValue -> 
                         let newType =
                             match slot.CompSlot with
-                            | Buswidth -> applyLens buswidthLens evaluatedValue currentType
-                            | NGateInputs -> applyLens ngateInputsLens evaluatedValue currentType
-                            | IO _ -> applyLens ioLens evaluatedValue currentType
+                            | Buswidth -> currentType |> (evaluatedValue ^= buswidthPrism)
+                            | NGateInputs -> currentType |> (evaluatedValue ^= ngateInputsPrism)
+                            | IO _ -> currentType |> (evaluatedValue ^= ioPortPrism)
                             | _ -> currentType
                         (newType, None)
                     | Error err -> (currentType, Some err)
@@ -1006,28 +997,24 @@ let resolveParametersForComponent
 
 /// Update LoadedComponent port labels after parameter resolution
 let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedComponent =
-    try
-        match loadedComponent.LCParameterSlots with
-        | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
-            // Apply parameter resolution to get updated port labels
-            let (comps, conns) = loadedComponent.CanvasState
-            let resolvedComps = 
-                comps |> List.map (fun comp ->
-                    match resolveParametersForComponent paramSlots.DefaultBindings paramSlots.ParamSlots comp with
-                    | Ok resolvedComp -> resolvedComp
-                    | Error _ -> comp // Keep original on error
-                )
-            let resolvedCanvas = (resolvedComps, conns)
-            let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
-            let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
-            
-            { loadedComponent with 
-                InputLabels = newInputLabels
-                OutputLabels = newOutputLabels }
-        | _ -> loadedComponent
-    with
-    | ex -> 
-        loadedComponent
+    match loadedComponent.LCParameterSlots with
+    | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+        // Apply parameter resolution to get updated port labels
+        let (comps, conns) = loadedComponent.CanvasState
+        let resolvedComps = 
+            comps |> List.map (fun comp ->
+                match resolveParametersForComponent paramSlots.DefaultBindings paramSlots.ParamSlots comp with
+                | Ok resolvedComp -> resolvedComp
+                | Error _ -> comp // Keep original on error
+            )
+        let resolvedCanvas = (resolvedComps, conns)
+        let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+        let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+        
+        { loadedComponent with 
+            InputLabels = newInputLabels
+            OutputLabels = newOutputLabels }
+    | _ -> loadedComponent
 
 /// Update a custom component with new I/O component widths.
 /// Used when these chnage as result of parameter changes.

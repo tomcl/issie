@@ -631,22 +631,23 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
                         if Map.isEmpty relevantSlots then
                             comp
                         else
-                            let mutable updatedCompType = comp.Type
-                            
-                            for KeyValue(slot, constrainedExpr) in relevantSlots do
-                                match evaluateParamExpression constrainedExpr.Expression with
-                                | Ok evaluatedValue -> 
-                                    match slot.CompSlot with
-                                    | IO _ ->
-                                        updatedCompType <- 
-                                            match updatedCompType with
+                            relevantSlots
+                            |> Map.toList
+                            |> List.fold 
+                                (fun currentType (slot, constrainedExpr) ->
+                                    match evaluateParamExpression constrainedExpr.Expression with
+                                    | Ok evaluatedValue -> 
+                                        match slot.CompSlot with
+                                        | IO _ ->
+                                            match currentType with
                                             | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
                                             | Output _ -> Output evaluatedValue
-                                            | _ -> updatedCompType
-                                    | _ -> () // Other slot types not handled here
-                                | Error _ -> ()
-
-                            { comp with Type = updatedCompType }
+                                            | _ -> currentType
+                                        | _ -> currentType // Other slot types not handled here
+                                    | Error _ -> currentType
+                                )
+                                comp.Type
+                            |> fun updatedType -> { comp with Type = updatedType }
 
                     let resolvedComps = 
                         comps |> List.map (fun comp ->

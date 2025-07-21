@@ -899,7 +899,6 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
         ]
 
 /// Evaluate parameter expression using parameter bindings - exposed for external use
-let evaluateParameterExpression = evaluateParamExpression
 
 /// Helper function for simulation: resolve parameter expressions for a component
 /// Returns the component type with resolved parameter values
@@ -918,62 +917,63 @@ let resolveParametersForComponent
         if Map.isEmpty relevantSlots then
             Ok comp
         else
-            let mutable updatedCompType = comp.Type
-            let mutable lastError = None
-            
-            for KeyValue(slot, constrainedExpr) in relevantSlots do
-                match evaluateParamExpression paramBindings constrainedExpr.Expression with
-                | Ok evaluatedValue -> 
-                    // Update component type based on slot
-                    match slot.CompSlot with
-                    | Buswidth ->
-                        updatedCompType <- 
-                            match updatedCompType with
-                            | Viewer _ -> Viewer evaluatedValue
-                            | BusCompare1 (_, compareValue, dialogText) -> BusCompare1 (evaluatedValue, compareValue, dialogText)
-                            | BusSelection (_, outputLSBit) -> BusSelection (evaluatedValue, outputLSBit)
-                            | Constant1 (_, constValue, dialogText) -> Constant1 (evaluatedValue, constValue, dialogText)
-                            | NbitsAdder _ -> NbitsAdder evaluatedValue
-                            | NbitsAdderNoCin _ -> NbitsAdderNoCin evaluatedValue
-                            | NbitsAdderNoCout _ -> NbitsAdderNoCout evaluatedValue
-                            | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout evaluatedValue
-                            | NbitsXor (_, arithmeticOp) -> NbitsXor (evaluatedValue, arithmeticOp)
-                            | NbitsAnd _ -> NbitsAnd evaluatedValue
-                            | NbitsNot _ -> NbitsNot evaluatedValue
-                            | NbitsOr _ -> NbitsOr evaluatedValue
-                            | NbitSpreader _ -> NbitSpreader evaluatedValue
-                            | SplitWire _ -> SplitWire evaluatedValue
-                            | Register _ -> Register evaluatedValue
-                            | RegisterE _ -> RegisterE evaluatedValue
-                            | Counter _ -> Counter evaluatedValue
-                            | CounterNoLoad _ -> CounterNoLoad evaluatedValue
-                            | CounterNoEnable _ -> CounterNoEnable evaluatedValue
-                            | CounterNoEnableLoad _ -> CounterNoEnableLoad evaluatedValue
-                            | Shift (_, shifterWidth, shiftType) -> Shift (evaluatedValue, shifterWidth, shiftType)
-                            | BusCompare (_, compareValue) -> BusCompare (evaluatedValue, compareValue)
-                            | Input _ -> Input evaluatedValue
-                            | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
-                            | Output _ -> Output evaluatedValue
-                            | Constant (_, constValue) -> Constant (evaluatedValue, constValue)
-                            | _ -> updatedCompType
-                    | NGateInputs ->
-                        updatedCompType <- 
-                            match updatedCompType with
-                            | GateN (gateType, _) -> GateN (gateType, evaluatedValue)
-                            | _ -> updatedCompType
-                    | IO _ ->
-                        updatedCompType <- 
-                            match updatedCompType with
-                            | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
-                            | Output _ -> Output evaluatedValue
-                            | _ -> updatedCompType
-                    | _ -> () // Other slot types not handled in simulation
-                | Error err -> 
-                    lastError <- Some err
-
-            match lastError with
-            | Some err -> Error err
-            | None -> Ok { comp with Type = updatedCompType }
+            relevantSlots
+            |> Map.toList
+            |> List.fold 
+                (fun (currentType, errorOpt) (slot, constrainedExpr) ->
+                    match errorOpt with
+                    | Some _ -> (currentType, errorOpt) // Stop on first error
+                    | None ->
+                        match evaluateParamExpression paramBindings constrainedExpr.Expression with
+                        | Ok evaluatedValue -> 
+                            let newType =
+                                match slot.CompSlot with
+                                | Buswidth ->
+                                    match currentType with
+                                    | Viewer _ -> Viewer evaluatedValue
+                                    | BusCompare1 (_, compareValue, dialogText) -> BusCompare1 (evaluatedValue, compareValue, dialogText)
+                                    | BusSelection (_, outputLSBit) -> BusSelection (evaluatedValue, outputLSBit)
+                                    | Constant1 (_, constValue, dialogText) -> Constant1 (evaluatedValue, constValue, dialogText)
+                                    | NbitsAdder _ -> NbitsAdder evaluatedValue
+                                    | NbitsAdderNoCin _ -> NbitsAdderNoCin evaluatedValue
+                                    | NbitsAdderNoCout _ -> NbitsAdderNoCout evaluatedValue
+                                    | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout evaluatedValue
+                                    | NbitsXor (_, arithmeticOp) -> NbitsXor (evaluatedValue, arithmeticOp)
+                                    | NbitsAnd _ -> NbitsAnd evaluatedValue
+                                    | NbitsNot _ -> NbitsNot evaluatedValue
+                                    | NbitsOr _ -> NbitsOr evaluatedValue
+                                    | NbitSpreader _ -> NbitSpreader evaluatedValue
+                                    | SplitWire _ -> SplitWire evaluatedValue
+                                    | Register _ -> Register evaluatedValue
+                                    | RegisterE _ -> RegisterE evaluatedValue
+                                    | Counter _ -> Counter evaluatedValue
+                                    | CounterNoLoad _ -> CounterNoLoad evaluatedValue
+                                    | CounterNoEnable _ -> CounterNoEnable evaluatedValue
+                                    | CounterNoEnableLoad _ -> CounterNoEnableLoad evaluatedValue
+                                    | Shift (_, shifterWidth, shiftType) -> Shift (evaluatedValue, shifterWidth, shiftType)
+                                    | BusCompare (_, compareValue) -> BusCompare (evaluatedValue, compareValue)
+                                    | Input _ -> Input evaluatedValue
+                                    | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
+                                    | Output _ -> Output evaluatedValue
+                                    | Constant (_, constValue) -> Constant (evaluatedValue, constValue)
+                                    | _ -> currentType
+                                | NGateInputs ->
+                                    match currentType with
+                                    | GateN (gateType, _) -> GateN (gateType, evaluatedValue)
+                                    | _ -> currentType
+                                | IO _ ->
+                                    match currentType with
+                                    | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
+                                    | Output _ -> Output evaluatedValue
+                                    | _ -> currentType
+                                | _ -> currentType // Other slot types not handled in simulation
+                            (newType, None)
+                        | Error err -> (currentType, Some err)
+                )
+                (comp.Type, None)
+            |> function
+                | (_, Some err) -> Error err
+                | (updatedType, None) -> Ok { comp with Type = updatedType }
     with
     | ex -> Error (sprintf "Error resolving parameters for component %s: %s" comp.Id ex.Message)
 

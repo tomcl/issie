@@ -1000,7 +1000,6 @@ let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedCompon
         | _ -> loadedComponent
     with
     | ex -> 
-        printfn $"Warning: Failed to update LoadedComponent ports for {loadedComponent.Name}: {ex.Message}"
         loadedComponent
 
 /// Update a custom component with new I/O component widths.
@@ -1058,25 +1057,21 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let labelToEval = 
                     match currentSheet.LCParameterSlots with
                     | Some sheetInfo ->
-                        printf $"paramslots = {sheetInfo.ParamSlots}"
                         sheetInfo.ParamSlots
                         |> Map.toSeq // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
                         |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
                             match paramSlot.CompSlot with
                             | IO label -> 
-                                printf $"label = {label}"
                                 let evaluatedValue = 
                                     match evaluateParamExpression newBindings constrainedExpr.Expression with
                                     | Ok expr -> expr
                                     | Error _ -> 0
-                                printf $"evaluatedvalue = {evaluatedValue}"
                                 Some (label, evaluatedValue)
                             | _ -> None 
                         )
                         |> Map.ofSeq // Convert to map
                     | None -> Map.empty
 
-                printf $"labeltoeval = {labelToEval}"
 
                 let newestComponent = updateCustomComponent labelToEval newBindings comp
                 let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
@@ -1084,7 +1079,6 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
                 updateModelSymbol newModel |> UpdateModel |> dispatch
 
-                printf $"{comp}"
                 let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
                 model.Sheet.DoBusWidthInference dispatchnew
                 dispatch <| ClosePopup
@@ -1102,7 +1096,6 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let exprSpecs = 
                     match currentSheet.LCParameterSlots with
                     | Some sheetInfo ->
-                        printf $"paramslots = {sheetInfo.ParamSlots}"
                         sheetInfo.ParamSlots
                         |> Map.toList
                         |> List.map snd

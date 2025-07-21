@@ -295,38 +295,26 @@ let rec resolveParametersInSimulationGraph
             | None -> Map.empty
 
         // Helper function to evaluate a parameter expression
-        let evaluateExpression expr paramBindings =
-            let rec recursiveEvaluation (expr: ParamExpression) : ParamExpression =
-                match expr with
-                | PInt _ -> expr 
-                | PParameter name -> 
-                    match Map.tryFind name paramBindings with
-                    | Some evaluated -> evaluated
-                    | None -> PParameter name
-                | PAdd (left, right) ->
-                    match recursiveEvaluation left, recursiveEvaluation right with
-                    | PInt l, PInt r -> PInt (l+r)
-                    | newLeft, newRight -> PAdd (newLeft, newRight)
-                | PSubtract (left, right) -> 
-                    match recursiveEvaluation left, recursiveEvaluation right with
-                    | PInt l, PInt r -> PInt (l-r)
-                    | newLeft, newRight -> PSubtract (newLeft, newRight)
-                | PMultiply (left, right) ->
-                    match recursiveEvaluation left, recursiveEvaluation right with
-                    | PInt l, PInt r -> PInt (l*r)
-                    | newLeft, newRight -> PMultiply (newLeft, newRight)
-                | PDivide (left, right) ->
-                    match recursiveEvaluation left, recursiveEvaluation right with
-                    | PInt l, PInt r -> PInt (l/r)
-                    | newLeft, newRight -> PDivide (newLeft, newRight)
-                | PRemainder (left, right) ->
-                    match recursiveEvaluation left, recursiveEvaluation right with
-                    | PInt l, PInt r -> PInt (l%r)
-                    | newLeft, newRight -> PRemainder (newLeft, newRight)
-            
-            match recursiveEvaluation expr with
-            | PInt value -> Ok value
-            | _ -> 
+        let rec evalExpr expr =
+            match expr with
+            | PInt n -> Some n
+            | PParameter name -> 
+                Map.tryFind name bindings |> Option.bind evalExpr
+            | PAdd (l, r) -> 
+                Option.map2 (+) (evalExpr l) (evalExpr r)
+            | PSubtract (l, r) -> 
+                Option.map2 (-) (evalExpr l) (evalExpr r)
+            | PMultiply (l, r) -> 
+                Option.map2 (*) (evalExpr l) (evalExpr r)
+            | PDivide (l, r) -> 
+                Option.map2 (/) (evalExpr l) (evalExpr r)
+            | PRemainder (l, r) -> 
+                Option.map2 (%) (evalExpr l) (evalExpr r)
+        
+        let evaluateExpression expr =
+            match evalExpr expr with
+            | Some value -> Ok value
+            | None -> 
                 let error = { 
                     ErrType = GenericSimError "Parameter expression could not be fully evaluated"
                     InDependency = Some currDiagramName
@@ -396,7 +384,7 @@ let rec resolveParametersInSimulationGraph
                     let mutable lastError = None
                     
                     for KeyValue(slot, constrainedExpr) in relevantSlots do
-                        match evaluateExpression constrainedExpr.Expression bindings with
+                        match evaluateExpression constrainedExpr.Expression with
                         | Ok evaluatedValue -> 
                             updatedCompType <- updateComponentType updatedCompType slot.CompSlot evaluatedValue
                         | Error err -> 

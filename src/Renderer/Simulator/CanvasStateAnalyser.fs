@@ -564,131 +564,70 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
     let name = args.Name
     let compare labs1 labs2 = (labs1 |> Set) = (labs2 |> Set)
     
-    // Debug output
-    printfn $"=== DEBUGGING PORT MISMATCH FOR {name} ==="
-    printfn $"Component ID: {c.Id}"
-    printfn $"Instance InputLabels: {args.InputLabels}"
-    printfn $"Instance OutputLabels: {args.OutputLabels}"
-    printfn $"Instance ParameterBindings: {args.ParameterBindings}"
 
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
     |> Option.map (fun sheet ->
-        printfn $"Found sheet with name: {sheet.Name}"
-        printfn $"Sheet InputLabels: {sheet.InputLabels}"
-        printfn $"Sheet OutputLabels: {sheet.OutputLabels}"
-        printfn $"Sheet LCParameterSlots: {sheet.LCParameterSlots}"
-        
         // If the custom component has parameter bindings, we need to resolve the sheet's ports
         // using those parameter bindings, not the default ones
         let resolvedSheet = 
             match args.ParameterBindings, sheet.LCParameterSlots with
             | Some instanceParams, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
-                printfn $"Resolving sheet ports with instance parameters: {instanceParams}"
-                // Use the instance parameter bindings instead of default ones
-                try
-                    let (comps, conns) = sheet.CanvasState
-                    // Local parameter resolution to avoid module dependencies
-                    let resolveComponentParameters (paramBindings: ParamBindings) (paramSlots: Map<ParamSlot, ConstrainedExpr>) (comp: Component) =
-                        let evaluateParamExpression expr =
-                            let rec recursiveEvaluation (expr: ParamExpression) : ParamExpression =
-                                match expr with
-                                | PInt _ -> expr 
-                                | PParameter name -> 
-                                    match Map.tryFind name paramBindings with
-                                    | Some evaluated -> evaluated
-                                    | None -> PParameter name
-                                | PAdd (left, right) ->
-                                    match recursiveEvaluation left, recursiveEvaluation right with
-                                    | PInt l, PInt r -> PInt (l+r)
-                                    | newLeft, newRight -> PAdd (newLeft, newRight)
-                                | PSubtract (left, right) -> 
-                                    match recursiveEvaluation left, recursiveEvaluation right with
-                                    | PInt l, PInt r -> PInt (l-r)
-                                    | newLeft, newRight -> PSubtract (newLeft, newRight)
-                                | PMultiply (left, right) ->
-                                    match recursiveEvaluation left, recursiveEvaluation right with
-                                    | PInt l, PInt r -> PInt (l*r)
-                                    | newLeft, newRight -> PMultiply (newLeft, newRight)
-                                | PDivide (left, right) ->
-                                    match recursiveEvaluation left, recursiveEvaluation right with
-                                    | PInt l, PInt r -> PInt (l/r)
-                                    | newLeft, newRight -> PDivide (newLeft, newRight)
-                                | PRemainder (left, right) ->
-                                    match recursiveEvaluation left, recursiveEvaluation right with
-                                    | PInt l, PInt r -> PInt (l%r)
-                                    | newLeft, newRight -> PRemainder (newLeft, newRight)
-                            
-                            match recursiveEvaluation expr with
-                            | PInt value -> Ok value
-                            | _ -> Error "Parameter expression could not be fully evaluated"
-
+                let (comps, conns) = sheet.CanvasState
+                let resolvedComps = 
+                    comps |> List.map (fun comp ->
+                        // Simple parameter resolution for IO components only
                         let compIdStr = comp.Id
                         let relevantSlots = 
-                            paramSlots 
+                            paramSlots.ParamSlots 
                             |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
-
+                        
                         if Map.isEmpty relevantSlots then
                             comp
                         else
                             relevantSlots
                             |> Map.toList
                             |> List.fold 
-                                (fun currentType (slot, constrainedExpr) ->
-                                    match evaluateParamExpression constrainedExpr.Expression with
-                                    | Ok evaluatedValue -> 
-                                        match slot.CompSlot with
-                                        | IO _ ->
-                                            match currentType with
-                                            | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
-                                            | Output _ -> Output evaluatedValue
-                                            | _ -> currentType
-                                        | _ -> currentType // Other slot types not handled here
-                                    | Error _ -> currentType
+                                (fun currentComp (slot, constrainedExpr) ->
+                                    match slot.CompSlot with
+                                    | IO _ ->
+                                        // Simple evaluation for IO width parameters
+                                        let rec evalExpr expr =
+                                            match expr with
+                                            | PInt n -> Some n
+                                            | PParameter name -> 
+                                                Map.tryFind name instanceParams
+                                                |> Option.bind evalExpr
+                                            | _ -> None
+                                        
+                                        match evalExpr constrainedExpr.Expression with
+                                        | Some value ->
+                                            let newType = 
+                                                match currentComp.Type with
+                                                | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
+                                                | Output _ -> Output value
+                                                | _ -> currentComp.Type
+                                            { currentComp with Type = newType }
+                                        | None -> currentComp
+                                    | _ -> currentComp
                                 )
-                                comp.Type
-                            |> fun updatedType -> { comp with Type = updatedType }
-
-                    let resolvedComps = 
-                        comps |> List.map (fun comp ->
-                            resolveComponentParameters instanceParams paramSlots.ParamSlots comp
-                        )
-                    let resolvedCanvas = (resolvedComps, conns)
-                    let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
-                    let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
-                    printfn $"Resolved sheet InputLabels: {newInputLabels}"
-                    printfn $"Resolved sheet OutputLabels: {newOutputLabels}"
-                    { sheet with InputLabels = newInputLabels; OutputLabels = newOutputLabels }
-                with
-                | ex -> 
-                    printfn $"Failed to resolve sheet parameters: {ex.Message}"
-                    sheet
+                                comp
+                    )
+                let resolvedCanvas = (resolvedComps, conns)
+                let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+                let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+                { sheet with InputLabels = newInputLabels; OutputLabels = newOutputLabels }
             | _ -> sheet
         
         let inputsMatch = compare resolvedSheet.InputLabels args.InputLabels
         let outputsMatch = compare resolvedSheet.OutputLabels args.OutputLabels
         
-        printfn $"Inputs match: {inputsMatch}"
-        printfn $"Outputs match: {outputsMatch}"
-        printfn $"Input sets - Sheet: {resolvedSheet.InputLabels |> Set}, Instance: {args.InputLabels |> Set}"
-        printfn $"Output sets - Sheet: {resolvedSheet.OutputLabels |> Set}, Instance: {args.OutputLabels |> Set}"
-        
         resolvedSheet, inputsMatch, outputsMatch)
     |> function
-        | None -> 
-            printfn $"ERROR: No sheet found with name {name}"
-            Error(c, NoSheet name)
-        | Some(_, true, true) -> 
-            printfn $"SUCCESS: All ports match for {name}"
-            Ok()
-        | Some(sheet, false, _) ->
-            printfn $"ERROR: Input ports mismatch for {name}"
-            Error
-            <| (c, BadInputs(name, sheet.InputLabels, args.InputLabels))
-        | Some(sheet, true, false) ->
-            printfn $"ERROR: Output ports mismatch for {name}"
-            Error
-            <| (c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
+        | None -> Error(c, NoSheet name)
+        | Some(_, true, true) -> Ok()
+        | Some(sheet, false, _) -> Error(c, BadInputs(name, sheet.InputLabels, args.InputLabels))
+        | Some(sheet, true, false) -> Error(c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
 
 /// Custom components have I/Os which are the same (names) as the I/Os in the corresponding sheet
 /// This can change if a sheet made into a custom component is edited
@@ -718,12 +657,6 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
             error c (MissingSheet cName)
         | Error(c, BadInputs(cName, instIns, compIns)) ->
             let instIns, compIns = disp instIns, disp compIns
-            printfn $"=== DETAILED PORT MISMATCH DEBUG ==="
-            printfn $"Component: {cName}, ID: {c.Id}"
-            printfn $"Instance InputLabels (formatted): {instIns}"
-            printfn $"Component InputLabels (formatted): {compIns}"
-            printfn $"Instance InputLabels (raw): {instIns}"
-            printfn $"Component InputLabels (raw): {compIns}"
             error c (InPortMismatch (cName, instIns, compIns))
         | Error(c, BadOutputs(cName, instOuts, compOuts)) ->
             let instOuts, compOuts = disp instOuts, disp compOuts

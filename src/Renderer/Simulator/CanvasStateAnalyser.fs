@@ -568,61 +568,42 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
     |> Option.map (fun sheet ->
-        // If the custom component has parameter bindings, we need to resolve the sheet's ports
-        // using those parameter bindings, not the default ones
-        let resolvedSheet = 
+        // Check if we need to resolve parameters for port labels
+        let resolvedInputs, resolvedOutputs = 
             match args.ParameterBindings, sheet.LCParameterSlots with
-            | Some instanceParams, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+            | Some paramBindings, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+                // Simple inline parameter resolution for IO ports only
+                let rec eval expr =
+                    match expr with
+                    | PInt n -> Some n
+                    | PParameter name -> Map.tryFind name paramBindings |> Option.bind eval
+                    | _ -> None
+                
                 let (comps, conns) = sheet.CanvasState
                 let resolvedComps = 
                     comps |> List.map (fun comp ->
-                        // Simple parameter resolution for IO components only
-                        let compIdStr = comp.Id
-                        let relevantSlots = 
-                            paramSlots.ParamSlots 
-                            |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
-                        
-                        if Map.isEmpty relevantSlots then
-                            comp
-                        else
-                            relevantSlots
-                            |> Map.toList
-                            |> List.fold 
-                                (fun currentComp (slot, constrainedExpr) ->
-                                    match slot.CompSlot with
-                                    | IO _ ->
-                                        // Simple evaluation for IO width parameters
-                                        let rec evalExpr expr =
-                                            match expr with
-                                            | PInt n -> Some n
-                                            | PParameter name -> 
-                                                Map.tryFind name instanceParams
-                                                |> Option.bind evalExpr
-                                            | _ -> None
-                                        
-                                        match evalExpr constrainedExpr.Expression with
-                                        | Some value ->
-                                            let newType = 
-                                                match currentComp.Type with
-                                                | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
-                                                | Output _ -> Output value
-                                                | _ -> currentComp.Type
-                                            { currentComp with Type = newType }
-                                        | None -> currentComp
-                                    | _ -> currentComp
-                                )
-                                comp
+                        paramSlots.ParamSlots
+                        |> Map.toList
+                        |> List.tryPick (fun (slot, expr) ->
+                            if slot.CompId = comp.Id then
+                                match slot.CompSlot, comp.Type with
+                                | IO label, Input1 (_, d) when label = comp.Label ->
+                                    eval expr.Expression |> Option.map (fun w -> { comp with Type = Input1 (w, d) })
+                                | IO label, Output _ when label = comp.Label ->
+                                    eval expr.Expression |> Option.map (fun w -> { comp with Type = Output w })
+                                | _ -> None
+                            else None
+                        )
+                        |> Option.defaultValue comp
                     )
                 let resolvedCanvas = (resolvedComps, conns)
-                let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
-                let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
-                { sheet with InputLabels = newInputLabels; OutputLabels = newOutputLabels }
-            | _ -> sheet
+                CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas,
+                CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+            | _ -> sheet.InputLabels, sheet.OutputLabels
         
-        let inputsMatch = compare resolvedSheet.InputLabels args.InputLabels
-        let outputsMatch = compare resolvedSheet.OutputLabels args.OutputLabels
-        
-        resolvedSheet, inputsMatch, outputsMatch)
+        let inputsMatch = compare resolvedInputs args.InputLabels
+        let outputsMatch = compare resolvedOutputs args.OutputLabels
+        sheet, inputsMatch, outputsMatch)
     |> function
         | None -> Error(c, NoSheet name)
         | Some(_, true, true) -> Ok()

@@ -902,6 +902,71 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
 
 /// Helper function for simulation: resolve parameter expressions for a component
 /// Returns the component type with resolved parameter values
+// Simple lens implementation for component type updates
+type Lens<'a, 'b> = {
+    Get: 'a -> 'b option
+    Set: 'b -> 'a -> 'a
+}
+
+// Create a lens for buswidth components
+let buswidthLens : Lens<ComponentType, int> = {
+    Get = function
+        | Viewer w | Input w | Output w 
+        | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
+        | NbitsAnd w | NbitsNot w | NbitsOr w | NbitSpreader w | SplitWire w
+        | Register w | RegisterE w | Counter w | CounterNoLoad w 
+        | CounterNoEnable w | CounterNoEnableLoad w -> Some w
+        | BusCompare1 (w, _, _) | Constant1 (w, _, _) | BusSelection (w, _) 
+        | NbitsXor (w, _) | Shift (w, _, _) | BusCompare (w, _) 
+        | Input1 (w, _) | Constant (w, _) -> Some w
+        | _ -> None
+    Set = fun w compType ->
+        match compType with
+        | Viewer _ -> Viewer w
+        | BusCompare1 (_, cv, dt) -> BusCompare1 (w, cv, dt)
+        | BusSelection (_, lsb) -> BusSelection (w, lsb)
+        | Constant1 (_, cv, dt) -> Constant1 (w, cv, dt)
+        | NbitsAdder _ -> NbitsAdder w
+        | NbitsAdderNoCin _ -> NbitsAdderNoCin w
+        | NbitsAdderNoCout _ -> NbitsAdderNoCout w
+        | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout w
+        | NbitsXor (_, op) -> NbitsXor (w, op)
+        | NbitsAnd _ -> NbitsAnd w
+        | NbitsNot _ -> NbitsNot w
+        | NbitsOr _ -> NbitsOr w
+        | NbitSpreader _ -> NbitSpreader w
+        | SplitWire _ -> SplitWire w
+        | Register _ -> Register w
+        | RegisterE _ -> RegisterE w
+        | Counter _ -> Counter w
+        | CounterNoLoad _ -> CounterNoLoad w
+        | CounterNoEnable _ -> CounterNoEnable w
+        | CounterNoEnableLoad _ -> CounterNoEnableLoad w
+        | Shift (_, sw, st) -> Shift (w, sw, st)
+        | BusCompare (_, cv) -> BusCompare (w, cv)
+        | Input _ -> Input w
+        | Input1 (_, dv) -> Input1 (w, dv)
+        | Output _ -> Output w
+        | Constant (_, cv) -> Constant (w, cv)
+        | _ -> compType
+}
+
+let ngateInputsLens : Lens<ComponentType, int> = {
+    Get = function GateN (_, n) -> Some n | _ -> None
+    Set = fun n -> function GateN (gt, _) -> GateN (gt, n) | t -> t
+}
+
+let ioLens : Lens<ComponentType, int> = {
+    Get = function Input1 (w, _) | Output w -> Some w | _ -> None
+    Set = fun w -> function 
+        | Input1 (_, dv) -> Input1 (w, dv) 
+        | Output _ -> Output w 
+        | t -> t
+}
+
+let applyLens (lens: Lens<'a, 'b>) (value: 'b) (target: 'a) : 'a =
+    lens.Set value target
+
 let resolveParametersForComponent 
     (paramBindings: ParamBindings) 
     (paramSlots: Map<ParamSlot, ConstrainedExpr>) 
@@ -921,51 +986,16 @@ let resolveParametersForComponent
         |> List.fold 
             (fun (currentType, errorOpt) (slot, constrainedExpr) ->
                 match errorOpt with
-                | Some _ -> (currentType, errorOpt) // Stop on first error
+                | Some _ -> (currentType, errorOpt)
                 | None ->
                     match evaluateParamExpression paramBindings constrainedExpr.Expression with
                     | Ok evaluatedValue -> 
                         let newType =
                             match slot.CompSlot with
-                            | Buswidth ->
-                                match currentType with
-                                | Viewer _ -> Viewer evaluatedValue
-                                | BusCompare1 (_, compareValue, dialogText) -> BusCompare1 (evaluatedValue, compareValue, dialogText)
-                                | BusSelection (_, outputLSBit) -> BusSelection (evaluatedValue, outputLSBit)
-                                | Constant1 (_, constValue, dialogText) -> Constant1 (evaluatedValue, constValue, dialogText)
-                                | NbitsAdder _ -> NbitsAdder evaluatedValue
-                                | NbitsAdderNoCin _ -> NbitsAdderNoCin evaluatedValue
-                                | NbitsAdderNoCout _ -> NbitsAdderNoCout evaluatedValue
-                                | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout evaluatedValue
-                                | NbitsXor (_, arithmeticOp) -> NbitsXor (evaluatedValue, arithmeticOp)
-                                | NbitsAnd _ -> NbitsAnd evaluatedValue
-                                | NbitsNot _ -> NbitsNot evaluatedValue
-                                | NbitsOr _ -> NbitsOr evaluatedValue
-                                | NbitSpreader _ -> NbitSpreader evaluatedValue
-                                | SplitWire _ -> SplitWire evaluatedValue
-                                | Register _ -> Register evaluatedValue
-                                | RegisterE _ -> RegisterE evaluatedValue
-                                | Counter _ -> Counter evaluatedValue
-                                | CounterNoLoad _ -> CounterNoLoad evaluatedValue
-                                | CounterNoEnable _ -> CounterNoEnable evaluatedValue
-                                | CounterNoEnableLoad _ -> CounterNoEnableLoad evaluatedValue
-                                | Shift (_, shifterWidth, shiftType) -> Shift (evaluatedValue, shifterWidth, shiftType)
-                                | BusCompare (_, compareValue) -> BusCompare (evaluatedValue, compareValue)
-                                | Input _ -> Input evaluatedValue
-                                | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
-                                | Output _ -> Output evaluatedValue
-                                | Constant (_, constValue) -> Constant (evaluatedValue, constValue)
-                                | _ -> currentType
-                            | NGateInputs ->
-                                match currentType with
-                                | GateN (gateType, _) -> GateN (gateType, evaluatedValue)
-                                | _ -> currentType
-                            | IO _ ->
-                                match currentType with
-                                | Input1 (_, defaultValue) -> Input1 (evaluatedValue, defaultValue)
-                                | Output _ -> Output evaluatedValue
-                                | _ -> currentType
-                            | _ -> currentType // Other slot types not handled in simulation
+                            | Buswidth -> applyLens buswidthLens evaluatedValue currentType
+                            | NGateInputs -> applyLens ngateInputsLens evaluatedValue currentType
+                            | IO _ -> applyLens ioLens evaluatedValue currentType
+                            | _ -> currentType
                         (newType, None)
                     | Error err -> (currentType, Some err)
             )

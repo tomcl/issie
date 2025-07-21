@@ -101,6 +101,8 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                 | Input1 (busWidth, _) -> busWidth
                 | Output busWidth -> busWidth
                 | _ -> failwithf $"Invalid component {comp.Type} for IO"
+            | CustomCompParam _ ->
+                failwithf $"CustomCompParam not yet implemented for component {comp.Type}"
         )
         (fun value comp->
                 let newType = 
@@ -141,6 +143,8 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
                         | Output _ -> Output value
                         | _ -> failwithf $"Invalid component {comp.Type} for IO"
+                    | CustomCompParam _ ->
+                        failwithf $"CustomCompParam not yet implemented for component {comp.Type}"
                 { comp with Type = newType}
 )
 
@@ -434,6 +438,8 @@ let updateComponent dispatch model slot value =
         match comp.Type with
         | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
         | _ -> failwithf $"Gate cannot have type {comp.Type}"
+    | CustomCompParam _ ->
+        failwithf "CustomCompParam not yet implemented"
 
     // Update most recent bus width
     match slot.CompSlot, comp.Type with
@@ -892,6 +898,124 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                 [str "Add Parameter"]
         ]
 
+/// Evaluate parameter expression using parameter bindings - exposed for external use
+
+/// Helper function for simulation: resolve parameter expressions for a component
+/// Returns the component type with resolved parameter values
+// Create prisms for component type parameter updates using the existing Optics library
+let buswidthPrism : Prism<ComponentType, int> =
+    Prism.create
+        (function
+            | Viewer w | Input w | Output w 
+            | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
+            | NbitsAnd w | NbitsNot w | NbitsOr w | NbitSpreader w | SplitWire w
+            | Register w | RegisterE w | Counter w | CounterNoLoad w 
+            | CounterNoEnable w | CounterNoEnableLoad w -> Some w
+            | BusCompare1 (w, _, _) | Constant1 (w, _, _) | BusSelection (w, _) 
+            | NbitsXor (w, _) | Shift (w, _, _) | BusCompare (w, _) 
+            | Input1 (w, _) | Constant (w, _) -> Some w
+            | _ -> None)
+        (fun w compType ->
+            match compType with
+            | Viewer _ -> Viewer w
+            | BusCompare1 (_, cv, dt) -> BusCompare1 (w, cv, dt)
+            | BusSelection (_, lsb) -> BusSelection (w, lsb)
+            | Constant1 (_, cv, dt) -> Constant1 (w, cv, dt)
+            | NbitsAdder _ -> NbitsAdder w
+            | NbitsAdderNoCin _ -> NbitsAdderNoCin w
+            | NbitsAdderNoCout _ -> NbitsAdderNoCout w
+            | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout w
+            | NbitsXor (_, op) -> NbitsXor (w, op)
+            | NbitsAnd _ -> NbitsAnd w
+            | NbitsNot _ -> NbitsNot w
+            | NbitsOr _ -> NbitsOr w
+            | NbitSpreader _ -> NbitSpreader w
+            | SplitWire _ -> SplitWire w
+            | Register _ -> Register w
+            | RegisterE _ -> RegisterE w
+            | Counter _ -> Counter w
+            | CounterNoLoad _ -> CounterNoLoad w
+            | CounterNoEnable _ -> CounterNoEnable w
+            | CounterNoEnableLoad _ -> CounterNoEnableLoad w
+            | Shift (_, sw, st) -> Shift (w, sw, st)
+            | BusCompare (_, cv) -> BusCompare (w, cv)
+            | Input _ -> Input w
+            | Input1 (_, dv) -> Input1 (w, dv)
+            | Output _ -> Output w
+            | Constant (_, cv) -> Constant (w, cv)
+            | _ -> compType)
+
+let ngateInputsPrism : Prism<ComponentType, int> =
+    Prism.create
+        (function GateN (_, n) -> Some n | _ -> None)
+        (fun n -> function GateN (gt, _) -> GateN (gt, n) | t -> t)
+
+let ioPortPrism : Prism<ComponentType, int> =
+    Prism.create
+        (function Input1 (w, _) | Output w -> Some w | _ -> None)
+        (fun w -> function 
+            | Input1 (_, dv) -> Input1 (w, dv) 
+            | Output _ -> Output w 
+            | t -> t)
+
+let resolveParametersForComponent 
+    (paramBindings: ParamBindings) 
+    (paramSlots: Map<ParamSlot, ConstrainedExpr>) 
+    (comp: Component) 
+    : Result<Component, string> =
+    
+    let compIdStr = comp.Id
+    let relevantSlots = 
+        paramSlots 
+        |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
+
+    if Map.isEmpty relevantSlots then
+        Ok comp
+    else
+        relevantSlots
+        |> Map.toList
+        |> List.fold 
+            (fun (currentType, errorOpt) (slot, constrainedExpr) ->
+                match errorOpt with
+                | Some _ -> (currentType, errorOpt)
+                | None ->
+                    match evaluateParamExpression paramBindings constrainedExpr.Expression with
+                    | Ok evaluatedValue -> 
+                        let newType =
+                            match slot.CompSlot with
+                            | Buswidth -> currentType |> (evaluatedValue ^= buswidthPrism)
+                            | NGateInputs -> currentType |> (evaluatedValue ^= ngateInputsPrism)
+                            | IO _ -> currentType |> (evaluatedValue ^= ioPortPrism)
+                            | _ -> currentType
+                        (newType, None)
+                    | Error err -> (currentType, Some err)
+            )
+            (comp.Type, None)
+        |> function
+            | (_, Some err) -> Error err
+            | (updatedType, None) -> Ok { comp with Type = updatedType }
+
+/// Update LoadedComponent port labels after parameter resolution
+let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedComponent =
+    match loadedComponent.LCParameterSlots with
+    | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+        // Apply parameter resolution to get updated port labels
+        let (comps, conns) = loadedComponent.CanvasState
+        let resolvedComps = 
+            comps |> List.map (fun comp ->
+                match resolveParametersForComponent paramSlots.DefaultBindings paramSlots.ParamSlots comp with
+                | Ok resolvedComp -> resolvedComp
+                | Error _ -> comp // Keep original on error
+            )
+        let resolvedCanvas = (resolvedComps, conns)
+        let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
+        let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+        
+        { loadedComponent with 
+            InputLabels = newInputLabels
+            OutputLabels = newOutputLabels }
+    | _ -> loadedComponent
+
 /// Update a custom component with new I/O component widths.
 /// Used when these chnage as result of parameter changes.
 let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
@@ -947,25 +1071,21 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let labelToEval = 
                     match currentSheet.LCParameterSlots with
                     | Some sheetInfo ->
-                        printf $"paramslots = {sheetInfo.ParamSlots}"
                         sheetInfo.ParamSlots
                         |> Map.toSeq // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
                         |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
                             match paramSlot.CompSlot with
                             | IO label -> 
-                                printf $"label = {label}"
                                 let evaluatedValue = 
                                     match evaluateParamExpression newBindings constrainedExpr.Expression with
                                     | Ok expr -> expr
                                     | Error _ -> 0
-                                printf $"evaluatedvalue = {evaluatedValue}"
                                 Some (label, evaluatedValue)
                             | _ -> None 
                         )
                         |> Map.ofSeq // Convert to map
                     | None -> Map.empty
 
-                printf $"labeltoeval = {labelToEval}"
 
                 let newestComponent = updateCustomComponent labelToEval newBindings comp
                 let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
@@ -973,7 +1093,6 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
                 updateModelSymbol newModel |> UpdateModel |> dispatch
 
-                printf $"{comp}"
                 let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
                 model.Sheet.DoBusWidthInference dispatchnew
                 dispatch <| ClosePopup
@@ -991,7 +1110,6 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 let exprSpecs = 
                     match currentSheet.LCParameterSlots with
                     | Some sheetInfo ->
-                        printf $"paramslots = {sheetInfo.ParamSlots}"
                         sheetInfo.ParamSlots
                         |> Map.toList
                         |> List.map snd
@@ -1100,6 +1218,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             | Buswidth -> "Buswidth"
             | NGateInputs -> "Num inputs"
             | IO label -> $"Input/output {label}"
+            | CustomCompParam paramName -> $"Custom parameter {paramName}"
         
         let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
                         string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label

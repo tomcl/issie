@@ -11,6 +11,7 @@ open EEExtensions
 open CommonTypes
 open SimGraphTypes
 open BusWidthInferer
+open ParameterTypes
 
 // -- Checks performed
 //
@@ -562,20 +563,52 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
     let inouts = args.InputLabels, args.OutputLabels
     let name = args.Name
     let compare labs1 labs2 = (labs1 |> Set) = (labs2 |> Set)
+    
 
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
     |> Option.map (fun sheet ->
-        sheet, compare sheet.InputLabels args.InputLabels, compare sheet.OutputLabels args.OutputLabels)
+        // Check if we need to resolve parameters for port labels
+        let resolvedInputs, resolvedOutputs = 
+            match args.ParameterBindings, sheet.LCParameterSlots with
+            | Some paramBindings, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+                // Simple inline parameter resolution for IO ports only
+                let rec eval expr =
+                    match expr with
+                    | PInt n -> Some n
+                    | PParameter name -> Map.tryFind name paramBindings |> Option.bind eval
+                    | _ -> None
+                
+                let (comps, conns) = sheet.CanvasState
+                let resolvedComps = 
+                    comps |> List.map (fun comp ->
+                        paramSlots.ParamSlots
+                        |> Map.toList
+                        |> List.tryPick (fun (slot, expr) ->
+                            if slot.CompId = comp.Id then
+                                match slot.CompSlot, comp.Type with
+                                | IO label, Input1 (_, d) when label = comp.Label ->
+                                    eval expr.Expression |> Option.map (fun w -> { comp with Type = Input1 (w, d) })
+                                | IO label, Output _ when label = comp.Label ->
+                                    eval expr.Expression |> Option.map (fun w -> { comp with Type = Output w })
+                                | _ -> None
+                            else None
+                        )
+                        |> Option.defaultValue comp
+                    )
+                let resolvedCanvas = (resolvedComps, conns)
+                CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas,
+                CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+            | _ -> sheet.InputLabels, sheet.OutputLabels
+        
+        let inputsMatch = compare resolvedInputs args.InputLabels
+        let outputsMatch = compare resolvedOutputs args.OutputLabels
+        sheet, inputsMatch, outputsMatch)
     |> function
         | None -> Error(c, NoSheet name)
         | Some(_, true, true) -> Ok()
-        | Some(sheet, false, _) ->
-            Error
-            <| (c, BadInputs(name, sheet.InputLabels, args.InputLabels))
-        | Some(sheet, true, false) ->
-            Error
-            <| (c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
+        | Some(sheet, false, _) -> Error(c, BadInputs(name, sheet.InputLabels, args.InputLabels))
+        | Some(sheet, true, false) -> Error(c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
 
 /// Custom components have I/Os which are the same (names) as the I/Os in the corresponding sheet
 /// This can change if a sheet made into a custom component is edited
@@ -605,7 +638,6 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
             error c (MissingSheet cName)
         | Error(c, BadInputs(cName, instIns, compIns)) ->
             let instIns, compIns = disp instIns, disp compIns
-
             error c (InPortMismatch (cName, instIns, compIns))
         | Error(c, BadOutputs(cName, instOuts, compOuts)) ->
             let instOuts, compOuts = disp instOuts, disp compOuts

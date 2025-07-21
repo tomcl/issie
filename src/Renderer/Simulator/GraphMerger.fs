@@ -280,247 +280,140 @@ let rec resolveParametersInSimulationGraph
     (graph: SimulationGraph)
     : Result<SimulationGraph, SimulationError>
     =
-    try
-        // Find current sheet's parameter information
-        let currentSheetOpt = 
-            loadedDependencies
-            |> List.tryFind (fun lc -> lc.Name = currDiagramName)
+    let paramSlots = 
+        loadedDependencies
+        |> List.tryFind (fun lc -> lc.Name = currDiagramName)
+        |> Option.bind (fun sheet -> sheet.LCParameterSlots)
+        |> Option.map (fun ps -> ps.ParamSlots)
+        |> Option.defaultValue Map.empty
 
-        let paramSlots = 
-            match currentSheetOpt with
-            | Some sheet -> 
-                match sheet.LCParameterSlots with
-                | Some paramInfo -> paramInfo.ParamSlots
-                | None -> Map.empty
-            | None -> Map.empty
+    // Simplified expression evaluation
+    let rec evalExpr expr =
+        match expr with
+        | PInt n -> Some n
+        | PParameter name -> Map.tryFind name bindings |> Option.bind evalExpr
+        | PAdd (l, r) -> Option.map2 (+) (evalExpr l) (evalExpr r)
+        | PSubtract (l, r) -> Option.map2 (-) (evalExpr l) (evalExpr r)
+        | PMultiply (l, r) -> Option.map2 (*) (evalExpr l) (evalExpr r)
+        | PDivide (l, r) -> Option.map2 (/) (evalExpr l) (evalExpr r)
+        | PRemainder (l, r) -> Option.map2 (%) (evalExpr l) (evalExpr r)
 
-        // Helper function to evaluate a parameter expression
-        let rec evalExpr expr =
-            match expr with
-            | PInt n -> Some n
-            | PParameter name -> 
-                Map.tryFind name bindings |> Option.bind evalExpr
-            | PAdd (l, r) -> 
-                Option.map2 (+) (evalExpr l) (evalExpr r)
-            | PSubtract (l, r) -> 
-                Option.map2 (-) (evalExpr l) (evalExpr r)
-            | PMultiply (l, r) -> 
-                Option.map2 (*) (evalExpr l) (evalExpr r)
-            | PDivide (l, r) -> 
-                Option.map2 (/) (evalExpr l) (evalExpr r)
-            | PRemainder (l, r) -> 
-                Option.map2 (%) (evalExpr l) (evalExpr r)
+    // Update component type with new parameter value
+    let applySlotValue compType (slot: CompSlotName) value =
+        match slot, compType with
+        // Buswidth updates
+        | Buswidth, Viewer _ -> Viewer value
+        | Buswidth, BusCompare1 (_, cv, dt) -> BusCompare1 (value, cv, dt)
+        | Buswidth, BusSelection (_, lsb) -> BusSelection (value, lsb)
+        | Buswidth, Constant1 (_, cv, dt) -> Constant1 (value, cv, dt)
+        | Buswidth, NbitsAdder _ -> NbitsAdder value
+        | Buswidth, NbitsAdderNoCin _ -> NbitsAdderNoCin value
+        | Buswidth, NbitsAdderNoCout _ -> NbitsAdderNoCout value
+        | Buswidth, NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout value
+        | Buswidth, NbitsXor (_, op) -> NbitsXor (value, op)
+        | Buswidth, NbitsAnd _ -> NbitsAnd value
+        | Buswidth, NbitsNot _ -> NbitsNot value
+        | Buswidth, NbitsOr _ -> NbitsOr value
+        | Buswidth, NbitSpreader _ -> NbitSpreader value
+        | Buswidth, SplitWire _ -> SplitWire value
+        | Buswidth, Register _ -> Register value
+        | Buswidth, RegisterE _ -> RegisterE value
+        | Buswidth, Counter _ -> Counter value
+        | Buswidth, CounterNoLoad _ -> CounterNoLoad value
+        | Buswidth, CounterNoEnable _ -> CounterNoEnable value
+        | Buswidth, CounterNoEnableLoad _ -> CounterNoEnableLoad value
+        | Buswidth, Shift (_, sw, st) -> Shift (value, sw, st)
+        | Buswidth, BusCompare (_, cv) -> BusCompare (value, cv)
+        | Buswidth, Input _ -> Input value
+        | Buswidth, Input1 (_, dv) -> Input1 (value, dv)
+        | Buswidth, Output _ -> Output value
+        | Buswidth, Constant (_, cv) -> Constant (value, cv)
+        // Gate inputs
+        | NGateInputs, GateN (gt, _) -> GateN (gt, value)
+        // IO ports
+        | IO _, Input1 (_, dv) -> Input1 (value, dv)
+        | IO _, Output _ -> Output value
+        | _ -> compType
+
+    // Process a single component
+    let processComponent (ComponentId compIdStr as compId) comp =
+        let relevantSlots = paramSlots |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
         
-        let evaluateExpression expr =
-            match evalExpr expr with
-            | Some value -> Ok value
-            | None -> 
-                let error = { 
-                    ErrType = GenericSimError "Parameter expression could not be fully evaluated"
-                    InDependency = Some currDiagramName
-                    ComponentsAffected = []
-                    ConnectionsAffected = [] 
-                }
-                Error error
+        relevantSlots
+        |> Map.toList
+        |> List.fold (fun compRes (slot, expr) ->
+            compRes |> Result.bind (fun c ->
+                match evalExpr expr.Expression with
+                | Some value -> 
+                    Ok { c with Type = applySlotValue c.Type slot.CompSlot value }
+                | None ->
+                    Error ({ 
+                        ErrType = GenericSimError "Parameter expression could not be fully evaluated"
+                        InDependency = Some currDiagramName
+                        ComponentsAffected = [compId]
+                        ConnectionsAffected = [] 
+                    }: SimulationError)
+            )
+        ) (Ok comp)
 
-        // Helper function to update component type based on parameter slot
-        let updateComponentType compType slot newValue =
-            match slot with
-            | Buswidth ->
-                match compType with
-                | Viewer _ -> Viewer newValue
-                | BusCompare1 (_, compareValue, dialogText) -> BusCompare1 (newValue, compareValue, dialogText)
-                | BusSelection (_, outputLSBit) -> BusSelection (newValue, outputLSBit)
-                | Constant1 (_, constValue, dialogText) -> Constant1 (newValue, constValue, dialogText)
-                | NbitsAdder _ -> NbitsAdder newValue
-                | NbitsAdderNoCin _ -> NbitsAdderNoCin newValue
-                | NbitsAdderNoCout _ -> NbitsAdderNoCout newValue
-                | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout newValue
-                | NbitsXor (_, arithmeticOp) -> NbitsXor (newValue, arithmeticOp)
-                | NbitsAnd _ -> NbitsAnd newValue
-                | NbitsNot _ -> NbitsNot newValue
-                | NbitsOr _ -> NbitsOr newValue
-                | NbitSpreader _ -> NbitSpreader newValue
-                | SplitWire _ -> SplitWire newValue
-                | Register _ -> Register newValue
-                | RegisterE _ -> RegisterE newValue
-                | Counter _ -> Counter newValue
-                | CounterNoLoad _ -> CounterNoLoad newValue
-                | CounterNoEnable _ -> CounterNoEnable newValue
-                | CounterNoEnableLoad _ -> CounterNoEnableLoad newValue
-                | Shift (_, shifterWidth, shiftType) -> Shift (newValue, shifterWidth, shiftType)
-                | BusCompare (_, compareValue) -> BusCompare (newValue, compareValue)
-                | Input _ -> Input newValue
-                | Input1 (_, defaultValue) -> Input1 (newValue, defaultValue)
-                | Output _ -> Output newValue
-                | Constant (_, constValue) -> Constant (newValue, constValue)
-                | _ -> compType
-            | NGateInputs ->
-                match compType with
-                | GateN (gateType, _) -> GateN (gateType, newValue)
-                | _ -> compType
-            | IO _ ->
-                match compType with
-                | Input1 (_, defaultValue) -> Input1 (newValue, defaultValue)
-                | Output _ -> Output newValue
-                | _ -> compType
-            | CustomCompParam _ -> compType // Custom component parameters handled separately
-
-        // Process each component in the graph
-        let processComponent (compId: ComponentId) (comp: SimulationComponent) =
-            try
-                // Check if this component has parameter slots
-                let (ComponentId compIdStr) = compId
-                let relevantSlots = 
-                    paramSlots 
-                    |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
-
-                if Map.isEmpty relevantSlots then
-                    Ok comp
-                else
-                    relevantSlots
-                    |> Map.toList
-                    |> List.fold 
-                        (fun result (slot, constrainedExpr) ->
-                            match result with
-                            | Error _ -> result
-                            | Ok currentType ->
-                                match evaluateExpression constrainedExpr.Expression with
-                                | Ok evaluatedValue -> 
-                                    Ok (updateComponentType currentType slot.CompSlot evaluatedValue)
-                                | Error err -> Error err
-                        )
-                        (Ok comp.Type)
-                    |> Result.map (fun updatedType ->
-                        let finalCompType = 
-                            match updatedType with
-                            | Custom customComp ->
-                                let defaultBindings = 
-                                    loadedDependencies
-                                    |> List.tryFind (fun lc -> lc.Name = customComp.Name)
-                                    |> Option.bind (fun lc -> lc.LCParameterSlots)
-                                    |> Option.map (fun ps -> ps.DefaultBindings)
-                                    |> Option.defaultValue Map.empty
-
-                                let mergedBindings = 
-                                    customComp.ParameterBindings
-                                    |> Option.map (Map.fold (fun acc k v -> Map.add k v acc) defaultBindings)
-                                    |> Option.defaultValue defaultBindings
-
-                                Custom { customComp with ParameterBindings = Some mergedBindings }
-                            | _ -> updatedType
-
-                        { comp with Type = finalCompType }
+    // Process all components and handle custom component bindings
+    graph
+    |> Map.map (fun compId comp -> 
+        processComponent compId comp
+        |> Result.map (fun c ->
+            match c.Type, c.CustomSimulationGraph with
+            | Custom cc, Some cGraph ->
+                let bindings = 
+                    cc.ParameterBindings 
+                    |> Option.defaultValue (
+                        loadedDependencies
+                        |> List.tryFind (fun lc -> lc.Name = cc.Name)
+                        |> Option.bind (fun lc -> lc.LCParameterSlots)
+                        |> Option.map (fun ps -> ps.DefaultBindings)
+                        |> Option.defaultValue Map.empty
                     )
-            with
-            | ex -> 
-                let error = {
-                    ErrType = InternalError ex
-                    InDependency = Some currDiagramName
-                    ComponentsAffected = [compId]
-                    ConnectionsAffected = []
-                }
-                Error error
-
-        // Apply parameter resolution to all components
-        let processedGraphResult = 
-            graph
-            |> Map.toList
-            |> List.map (fun (compId, comp) -> 
-                match processComponent compId comp with
-                | Ok updatedComp -> Ok (compId, updatedComp)
-                | Error err -> Error err)
-            |> List.fold (fun acc item ->
-                match acc, item with
-                | Ok components, Ok comp -> Ok (comp :: components)
-                | Error err, _ | _, Error err -> Error err) (Ok [])
-
-        match processedGraphResult with
-        | Ok components -> 
-            let updatedGraph = Map.ofList components
-            
-            // Recursively process custom component simulation graphs
-            let processCustomGraphs (graph: SimulationGraph) =
-                graph
-                |> Map.map (fun _ comp ->
-                    match comp.CustomSimulationGraph with
-                    | Some customGraph ->
-                        // Get parameter bindings for this custom component
-                        let customBindings = 
-                            match comp.Type with
-                            | Custom customComp -> 
-                                customComp.ParameterBindings |> Option.defaultValue Map.empty
-                            | _ -> Map.empty
-                        
-                        // Find the dependency for this custom component
-                        let customDep = 
-                            loadedDependencies
-                            |> List.tryFind (fun lc -> 
-                                match comp.Type with
-                                | Custom customComp -> lc.Name = customComp.Name
-                                | _ -> false)
-                        
-                        match customDep with
-                        | Some dep ->
-                            match resolveParametersInSimulationGraph customBindings dep.Name dep.CanvasState loadedDependencies customGraph with
-                            | Ok resolvedGraph -> { comp with CustomSimulationGraph = Some resolvedGraph }
-                            | Error _ -> comp // Keep original on error
-                        | None -> comp
-                    | None -> comp)
-            
-            Ok (processCustomGraphs updatedGraph)
-        | Error err -> Error err
-
-    with
-    | ex -> 
-        let error = {
-            ErrType = InternalError ex
-            InDependency = Some currDiagramName
-            ComponentsAffected = []
-            ConnectionsAffected = []
-        }
-        Error error
+                let resolvedGraph = 
+                    loadedDependencies
+                    |> List.tryFind (fun lc -> lc.Name = cc.Name)
+                    |> Option.bind (fun dep ->
+                        match resolveParametersInSimulationGraph bindings cc.Name dep.CanvasState loadedDependencies cGraph with
+                        | Ok resolved -> Some resolved
+                        | Error _ -> None
+                    )
+                    |> Option.defaultValue cGraph
+                { c with Type = Custom { cc with ParameterBindings = Some bindings }
+                         CustomSimulationGraph = Some resolvedGraph }
+            | _ -> c
+        )
+    )
+    |> Map.toList
+    |> List.fold (fun res (id, compRes) ->
+        match res, compRes with
+        | Ok m, Ok c -> Ok (Map.add id c m)
+        | Error e, _ | _, Error e -> Error e
+    ) (Ok Map.empty)
 
 /// Resolve parameters for all custom components in the simulation graph
-/// This is done after initial merging to avoid forward reference issues
 let rec private resolveCustomComponentParameters 
     (graph: SimulationGraph) 
     (loadedDependencies: LoadedComponent list)
     : Result<SimulationGraph, SimulationError> =
-    try
-        let updatedGraph = 
-            (graph, graph)
-            ||> Map.fold (fun updatedGraph compId comp ->
-                match comp.Type with
-                | Custom custom ->
-                    match comp.CustomSimulationGraph, custom.ParameterBindings with
-                    | Some customGraph, Some instanceBindings when not (Map.isEmpty instanceBindings) ->
-                        // Find the LoadedComponent for this custom component
-                        let customComponentLdc = 
-                            loadedDependencies |> List.tryFind (fun ldc -> ldc.Name = custom.Name)
-                        
-                        match customComponentLdc with
-                        | Some ldc ->
-                            // Apply parameter resolution using instance bindings
-                            match resolveParametersInSimulationGraph instanceBindings custom.Name ldc.CanvasState loadedDependencies customGraph with
-                            | Ok resolvedGraph -> 
-                                let updatedComp = { comp with CustomSimulationGraph = Some resolvedGraph }
-                                updatedGraph.Add(compId, updatedComp)
-                            | Error _ -> updatedGraph // Keep original on error
-                        | None -> updatedGraph
-                    | _ -> updatedGraph
-                | _ -> updatedGraph
+    graph
+    |> Map.map (fun _ comp ->
+        match comp.Type, comp.CustomSimulationGraph with
+        | Custom custom, Some customGraph when custom.ParameterBindings |> Option.exists (Map.isEmpty >> not) ->
+            loadedDependencies
+            |> List.tryFind (fun ldc -> ldc.Name = custom.Name)
+            |> Option.bind (fun ldc ->
+                let bindings = custom.ParameterBindings |> Option.defaultValue Map.empty
+                match resolveParametersInSimulationGraph bindings custom.Name ldc.CanvasState loadedDependencies customGraph with
+                | Ok resolved -> Some { comp with CustomSimulationGraph = Some resolved }
+                | Error _ -> None
             )
-        Ok updatedGraph
-    with
-    | ex -> 
-        let error = {
-            ErrType = InternalError ex
-            InDependency = None
-            ComponentsAffected = []
-            ConnectionsAffected = []
-        }
-        Error error
+            |> Option.defaultValue comp
+        | _ -> comp
+    )
+    |> Ok
 
 /// Try to resolve all the dependencies in a graph, and replace the reducer
 /// of the custom components with a simulationgraph.

@@ -376,28 +376,25 @@ let rec resolveParametersInSimulationGraph
                     |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
 
                 if Map.isEmpty relevantSlots then
-                    // No parameters to resolve for this component
                     Ok comp
                 else
-                    // Resolve parameters for this component
-                    let mutable updatedCompType = comp.Type
-                    let mutable lastError = None
-                    
-                    for KeyValue(slot, constrainedExpr) in relevantSlots do
-                        match evaluateExpression constrainedExpr.Expression with
-                        | Ok evaluatedValue -> 
-                            updatedCompType <- updateComponentType updatedCompType slot.CompSlot evaluatedValue
-                        | Error err -> 
-                            lastError <- Some err
-
-                    match lastError with
-                    | Some err -> Error err
-                    | None ->
-                        // Handle custom components with parameter bindings
+                    relevantSlots
+                    |> Map.toList
+                    |> List.fold 
+                        (fun result (slot, constrainedExpr) ->
+                            match result with
+                            | Error _ -> result
+                            | Ok currentType ->
+                                match evaluateExpression constrainedExpr.Expression with
+                                | Ok evaluatedValue -> 
+                                    Ok (updateComponentType currentType slot.CompSlot evaluatedValue)
+                                | Error err -> Error err
+                        )
+                        (Ok comp.Type)
+                    |> Result.map (fun updatedType ->
                         let finalCompType = 
-                            match updatedCompType with
+                            match updatedType with
                             | Custom customComp ->
-                                // Merge default bindings with instance-specific bindings
                                 let defaultBindings = 
                                     loadedDependencies
                                     |> List.tryFind (fun lc -> lc.Name = customComp.Name)
@@ -406,15 +403,15 @@ let rec resolveParametersInSimulationGraph
                                     |> Option.defaultValue Map.empty
 
                                 let mergedBindings = 
-                                    match customComp.ParameterBindings with
-                                    | Some instanceBindings -> 
-                                        Map.fold (fun acc key value -> Map.add key value acc) defaultBindings instanceBindings
-                                    | None -> defaultBindings
+                                    customComp.ParameterBindings
+                                    |> Option.map (Map.fold (fun acc k v -> Map.add k v acc) defaultBindings)
+                                    |> Option.defaultValue defaultBindings
 
                                 Custom { customComp with ParameterBindings = Some mergedBindings }
-                            | _ -> updatedCompType
+                            | _ -> updatedType
 
-                        Ok { comp with Type = finalCompType }
+                        { comp with Type = finalCompType }
+                    )
             with
             | ex -> 
                 let error = {

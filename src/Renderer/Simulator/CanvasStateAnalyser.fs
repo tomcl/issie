@@ -558,7 +558,31 @@ type CustomComponentError =
     | BadInputs of ComponentSheet: string * InstLists: ((string * int) list) * CompLists: ((string * int) list)
     | BadOutputs of ComponentSheet: string * InstLists: ((string * int) list) * CompLists: ((string * int) list)
 
-/// Check a single custom component for correct I/Os
+/// <summary>
+/// Check a single custom component for correct I/Os, resolving parameters if necessary.
+/// </summary>
+/// <param name="c">The custom component instance to check</param>
+/// <param name="args">The custom component type containing parameter bindings and expected I/O labels</param>
+/// <param name="sheets">List of loaded component sheets to check against</param>
+/// <returns>
+/// Ok() if the component's I/Os match the sheet definition
+/// Error with details if there's a mismatch or missing sheet
+/// </returns>
+/// <remarks>
+/// Parameter Resolution Process:
+/// 1. If the component has parameter bindings AND the sheet has parameter slots:
+///    - Iterate through all components in the sheet
+///    - For each component, check if it has a parameter slot definition
+///    - If it's an Input1 or Output component with a matching IO label slot:
+///      * Evaluate the parameter expression using a simple recursive evaluator
+///      * The evaluator only handles PInt (constants) and PParameter (lookups)
+///      * Update the component's width with the resolved value
+/// 2. Use the resolved components to extract the actual I/O labels
+/// 3. Compare against expected labels from the custom component instance
+/// 
+/// This simplified parameter resolution is sufficient for validation purposes,
+/// as it only needs to resolve I/O port widths to determine port labels.
+/// </remarks>
 let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (sheets: LoadedComponent list) =
     let inouts = args.InputLabels, args.OutputLabels
     let name = args.Name
@@ -573,11 +597,12 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
             match args.ParameterBindings, sheet.LCParameterSlots with
             | Some paramBindings, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
                 // Simple inline parameter resolution for IO ports only
+                // This evaluator handles only the subset of expressions needed for I/O validation
                 let rec eval expr =
                     match expr with
-                    | PInt n -> Some n
-                    | PParameter name -> Map.tryFind name paramBindings |> Option.bind eval
-                    | _ -> None
+                    | PInt n -> Some n  // Integer constant - return its value
+                    | PParameter name -> Map.tryFind name paramBindings |> Option.bind eval  // Look up parameter and recursively evaluate
+                    | _ -> None  // Complex expressions not supported in this context
                 
                 let (comps, conns) = sheet.CanvasState
                 let resolvedComps = 

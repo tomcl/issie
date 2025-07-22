@@ -267,11 +267,46 @@ let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMa
 /// Parameter names, and slots using parameters, can be picked up from loadedDependencies
 /// Parameters can be resolved by looking at the parameter bindings of the custom components.
 /// bindings: parameter bindings for the current sheet.
-/// currDiagramName: the name of the current sheet.
-/// state: the current CanvasState.
-/// loadedDependencies: the loaded dependencies.
-/// graph: the fully merged SimulationGraph to update.
-/// NB SimulationGraph components include the widths of all input and output busses.
+/// <summary>
+/// Recursively resolves parameter expressions in a simulation graph.
+/// </summary>
+/// <param name="bindings">Map of parameter names to their bound expressions</param>
+/// <param name="currDiagramName">The name of the current sheet</param>
+/// <param name="state">The current CanvasState</param>
+/// <param name="loadedDependencies">List of loaded component sheets</param>
+/// <param name="graph">The fully merged SimulationGraph to update</param>
+/// <returns>
+/// Success: Updated graph with all parameters resolved to concrete values
+/// Error: Details of any parameter evaluation failures
+/// </returns>
+/// <remarks>
+/// Parameter Resolution Details:
+/// 
+/// 1. Expression Evaluation (evalExpr):
+///    - PInt: Direct integer values
+///    - PParameter: Lookup in bindings, then recursive evaluation
+///    - Arithmetic: Evaluates both operands, applies operation
+///    - Returns None if any parameter cannot be resolved
+/// 
+/// 2. Slot Application (applySlotValue):
+///    - Buswidth: Updates width for viewers, buses, gates, registers, etc.
+///    - NGateInputs: Updates number of inputs for variable-input gates
+///    - IO: Updates Input/Output component configurations
+/// 
+/// 3. Component Processing:
+///    - Finds all parameter slots for current component
+///    - Evaluates each slot's expression
+///    - Updates component type with resolved values
+///    - Preserves other component properties (Id, Label, etc.)
+/// 
+/// 4. Recursive Resolution:
+///    - Processes custom components' internal graphs
+///    - Uses component-specific parameter bindings
+///    - Ensures nested parameterized components work correctly
+/// 
+/// Note: SimulationGraph components include the widths of all input and output busses,
+/// which are crucial for simulation and must be concrete values (not expressions).
+/// </remarks>
 let rec resolveParametersInSimulationGraph
     (bindings: Map<ParameterTypes.ParamName, ParameterTypes.ParamExpression>)
     (currDiagramName: string)
@@ -287,7 +322,7 @@ let rec resolveParametersInSimulationGraph
         |> Option.map (fun ps -> ps.ParamSlots)
         |> Option.defaultValue Map.empty
 
-    // Simplified expression evaluation
+    // Evaluate parameter expressions recursively, substituting parameter values from bindings
     let rec evalExpr expr =
         match expr with
         | PInt n -> Some n
@@ -298,7 +333,7 @@ let rec resolveParametersInSimulationGraph
         | PDivide (l, r) -> Option.map2 (/) (evalExpr l) (evalExpr r)
         | PRemainder (l, r) -> Option.map2 (%) (evalExpr l) (evalExpr r)
 
-    // Update component type with new parameter value
+    // Apply a resolved parameter value to the appropriate slot in a component type
     let applySlotValue compType (slot: CompSlotName) value =
         match slot, compType with
         // Buswidth updates
@@ -417,9 +452,41 @@ let rec private resolveCustomComponentParameters
 
 /// Try to resolve all the dependencies in a graph, and replace the reducer
 /// of the custom components with a simulationgraph.
-/// Return an error if there are problems with the dependencies.
-/// For example, if the graph of an ALU refers to custom component such as
-/// adders, replace them with the actual simulation graph for the adders.
+/// <summary>
+/// Merges dependencies into the simulation graph and resolves all parameters.
+/// </summary>
+/// <param name="currDiagramName">The name of the current sheet being processed</param>
+/// <param name="graph">The initial simulation graph to merge dependencies into</param>
+/// <param name="state">The current canvas state</param>
+/// <param name="loadedDependencies">List of all loaded component sheets</param>
+/// <returns>
+/// Success: A fully merged and parameterized simulation graph
+/// Error: Details of any dependency or parameter resolution failures
+/// </returns>
+/// <remarks>
+/// Parameter Resolution Process (Two-Stage):
+/// 
+/// Stage 1 - Merging (via merger function):
+/// - Custom components are replaced with their internal graphs
+/// - Parameter resolution is DEFERRED to avoid forward reference issues
+/// - Each custom component's graph is stored in CustomSimulationGraph field
+/// 
+/// Stage 2 - Parameter Resolution (happens after all merging):
+/// 2a. Instance-specific parameters (resolveCustomComponentParameters):
+///     - Each custom component instance may have specific parameter bindings
+///     - These override any default values from the component definition
+///     - Resolved recursively for nested custom components
+/// 
+/// 2b. Sheet-level parameters (resolveParametersInSimulationGraph):
+///     - Uses default parameter bindings from the sheet definition
+///     - Applies to all parameterized slots in the current sheet
+///     - Evaluates expressions and updates component configurations
+/// 
+/// This two-stage approach ensures:
+/// - No forward reference problems (all graphs merged before parameters resolved)
+/// - Proper parameter precedence (instance bindings override defaults)
+/// - Support for nested parameterized custom components
+/// </remarks>
 let mergeDependencies
     (currDiagramName: string)
     (graph: SimulationGraph)

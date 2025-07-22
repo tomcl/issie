@@ -165,94 +165,8 @@ let modelToSlot_ (slot: ParamSlot) : Optics.Lens<Model, int> =
     >-> compSlot_ slot.CompSlot
 
 
-/// returns the value of a parameter expression given a set of parameter bindings.
-/// The simplified value will be either a constant or a linear combination of a constant and a parameter.
-/// NB here 'PINT is not a polymorphic type but a type parameter that will be instantiated to int or bigint.
-let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpression) : Result<ParamInt, ParamError> =
-    // changed the function to be recursive
-    let rec recursiveEvaluation (expr: ParamExpression) : ParamExpression =
-        match expr with
-        | PInt _ -> expr // constant, nothing needs to be changed
-        | PParameter name -> 
-            match Map.tryFind name paramBindings with
-            | Some evaluated -> evaluated
-            | None -> PParameter name
-        | PAdd (left, right) ->
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l+r)
-            | newLeft, newRight -> PAdd (newLeft, newRight) // keep as PAdd type
-        | PSubtract (left, right) -> 
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l-r)
-            | newLeft, newRight -> PSubtract (newLeft, newRight) // keep as Psubtract type
-        | PMultiply (left, right) ->
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l*r)
-            | newLeft, newRight -> PMultiply (newLeft, newRight)
-        | PDivide (left, right) ->
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l/r)
-            | newLeft, newRight -> PDivide (newLeft, newRight)
-        | PRemainder (left, right) ->
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l%r)
-            | newLeft, newRight -> PRemainder (newLeft, newRight)
-        
-    
-    let unwrapParamName (ParamName name) = name
-    
-    let rec collectUnresolved expr =
-        match expr with
-        | PInt _ -> []
-        | PParameter name -> [unwrapParamName name]  // Only collect unresolved parameters
-        | PAdd (left, right) 
-        | PSubtract (left, right) 
-        | PMultiply (left, right)
-        | PDivide (left, right) 
-        | PRemainder (left, right) ->
-            collectUnresolved left @ collectUnresolved right
-
-    match recursiveEvaluation paramExpr with
-    | PInt evaluated -> Ok evaluated
-    | unresolvedExpr ->
-        let unresolvedParams = collectUnresolved unresolvedExpr |> List.distinct
-        match unresolvedParams with
-        | [] -> Error "Unexpected error: no unresolved parameters found"
-        | [singleParam] -> Error $"Parameter {singleParam} could not be resolved"
-        | multipleParams -> 
-            let paramList = String.concat ", " multipleParams
-            Error $"Parameters {paramList} could not be resolved"
-
-let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string =
-    // TODO refactor ParamExpression DU and this function to to elminate duplication
-    // for multiple binary operators. Could use a local function here, but the better
-    // solution would be refactoring the DU.
-    match expr with
-    | PInt value -> string value
-    | PParameter (ParamName name) -> name
-    | PAdd (left, right) -> 
-        let currentPrecedence = 1;
-        if (precedence > currentPrecedence) then
-            "(" + (renderParamExpression left currentPrecedence )+ "+" + renderParamExpression right currentPrecedence + ")"
-        else renderParamExpression left currentPrecedence + "+" + renderParamExpression right currentPrecedence
-    | PSubtract (left, right) -> 
-        let currentPrecedence = 1;
-        if (precedence > currentPrecedence) then
-            "(" + (renderParamExpression left currentPrecedence )+ "-" + renderParamExpression right currentPrecedence + ")"
-        else renderParamExpression left currentPrecedence + "-" + renderParamExpression right currentPrecedence
-    | PMultiply (left, right) -> 
-        let currentPrecedence = 2;
-        if (precedence > currentPrecedence) then
-            "(" + (renderParamExpression left currentPrecedence )+ "*" + renderParamExpression right currentPrecedence + ")"
-        else renderParamExpression left currentPrecedence + "*" + renderParamExpression right currentPrecedence
-    | PDivide (left, right) -> 
-        let currentPrecedence = 2;
-        if (precedence > currentPrecedence) then
-            "(" + (renderParamExpression left currentPrecedence )+ "/" + renderParamExpression right currentPrecedence + ")"
-        else renderParamExpression left currentPrecedence + "/" + renderParamExpression right currentPrecedence
-    | PRemainder (left, right) -> 
-        let currentPrecedence = 3;
-        "(" + renderParamExpression left currentPrecedence + "%" + renderParamExpression right currentPrecedence + ")" 
+// evaluateParamExpression, renderParamExpression, parseExpression, and exprContainsParams
+// have been moved to ParameterTypes module 
 
 
 /// Evaluates a list of constraints got from slots against a set of parameter bindings to
@@ -266,21 +180,21 @@ let evaluateConstraints
 
 
     let failedConstraints konst expr =
-        let resultExpression = evaluateParamExpression paramBindings expr
+        let resultExpression = ParameterTypes.evaluateParamExpression paramBindings expr
         match resultExpression with
             | Ok value ->        
                 konst
                 |> List.filter (fun constr ->
                     match constr with
                     | MaxVal (expr, errorMsg) -> 
-                        match evaluateParamExpression paramBindings expr with
+                        match ParameterTypes.evaluateParamExpression paramBindings expr with
                         | Ok maxValue -> value > maxValue
                         | Error err -> // evaluation of constraint failed
                             let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
                             dispatch <| SetPopupDialogText (Some (string errMsg))
                             false
                     | MinVal (expr, _) -> 
-                        match evaluateParamExpression paramBindings expr with
+                        match ParameterTypes.evaluateParamExpression paramBindings expr with
                         | Ok minValue -> value < minValue
                         | Error err -> // evaluation of constraint failed
                             let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
@@ -303,87 +217,7 @@ let evaluateConstraints
 
 /// Generates a ParameterExpression from input text
 /// Operators are left-associative
-/// (*), (/), and (%) have higher precedence than (+), (-)
-/// Brackets should have highest precedence
-let parseExpression (text: string) : Result<ParamExpression, ParamError> =
-    let toOperand (operand: string) =
-        match System.Int32.TryParse operand with
-        | true, intVal -> PInt intVal
-        | false, _ -> PParameter <| ParamName operand
-
-    // Parses primary expressions: numbers, variables, and parentheses
-    let rec parsePrimary (tokens: string list) : Result<ParamExpression * string list, ParamError> =
-        match tokens with
-        | [] -> Error "Unfinished expression"
-        | "(" :: rest ->
-            match parseExpressionTokens rest with  // Using parseExpressionTokens (defined below)
-            | Ok (expr, ")" :: remainingTokens) -> Ok (expr, remainingTokens)  // Ensure closing bracket
-            | Ok _ -> Error "Mismatched parentheses"
-            | Error e -> Error e
-        | ")" :: _ -> Error "Unexpected closing parenthesis"
-        | operand :: rest -> Ok (toOperand operand, rest)
-
-    // Parses multiplication, division, and modulo (higher precedence)
-    and parseFactors (tokens: string list) : Result<ParamExpression * string list, ParamError> =
-        match parsePrimary tokens with
-        | Ok (firstOperand, rest) ->
-            let rec loop expr remainingTokens =
-                match remainingTokens with
-                | "*" :: rest ->
-                    match parsePrimary rest with
-                    | Ok (nextOperand, moreTokens) -> loop (PMultiply (expr, nextOperand)) moreTokens
-                    | Error e -> Error e
-                | "/" :: rest ->
-                    match parsePrimary rest with
-                    | Ok (nextOperand, moreTokens) -> loop (PDivide (expr, nextOperand)) moreTokens
-                    | Error e -> Error e
-                | "%" :: rest ->
-                    match parsePrimary rest with
-                    | Ok (nextOperand, moreTokens) -> loop (PRemainder (expr, nextOperand)) moreTokens
-                    | Error e -> Error e
-                | _ -> Ok (expr, remainingTokens)
-            loop firstOperand rest
-        | Error e -> Error e
-
-    /// Parses addition and subtraction (lower precedence)
-    and parseExpressionTokens (tokens: string list) : Result<ParamExpression * string list, ParamError> =
-        match parseFactors tokens with
-        | Ok (firstOperand, rest) ->
-            let rec loop expr remainingTokens =
-                match remainingTokens with
-                | "+" :: rest ->
-                    match parseFactors rest with
-                    | Ok (nextOperand, moreTokens) -> loop (PAdd (expr, nextOperand)) moreTokens
-                    | Error e -> Error e
-                | "-" :: rest ->
-                    match parseFactors rest with
-                    | Ok (nextOperand, moreTokens) -> loop (PSubtract (expr, nextOperand)) moreTokens
-                    | Error e -> Error e
-                | _ -> Ok (expr, remainingTokens)
-            loop firstOperand rest
-        | Error e -> Error e
-
-    // Tokenizer: Splits input into numbers, variables, and operators
-    let tokenize (input: string) =
-        let pattern = @"\d+[a-zA-Z]*|[a-zA-Z]+\d*|[()+\-*/%]"
-        Regex.Matches(input, pattern)
-        |> Seq.cast<Match>
-        |> Seq.map (fun m -> m.Value)
-        |> Seq.toList
-    
-    let validPattern = @"^[0-9a-zA-Z()+\-*/%\s]+$"  // Allow only numbers, letters, operators, spaces, and parentheses
-    if text = "" then Error "Input Empty"
-    elif not (Regex.IsMatch(text, validPattern)) then
-        let invalidChars = text |> Seq.filter (fun c -> not (Regex.IsMatch(c.ToString(), validPattern))) |> Seq.distinct |> Seq.toArray
-        Error (sprintf "Contains unsupported characters: %A" invalidChars)
-    else
-        match tokenize text with
-        | [] -> Error "Input Empty"
-        | tokens ->
-            match parseExpressionTokens tokens with
-            | Ok (expr, []) -> Ok expr  // Ensure no leftover tokens
-            | Ok (_, leftover) -> Error (sprintf "Unexpected characters at end of expression: %s" (String.concat "" leftover))
-            | Error e -> Error e
+// parseExpression has been moved to ParameterTypes module
 
 
 /// Get LoadedComponent for currently open sheet
@@ -448,20 +282,7 @@ let updateComponent dispatch model slot value =
     | _ -> ()
 
 
-/// Returns true if an expression contains parameters, and false if not
-let rec exprContainsParams 
-    (expression: ParamExpression)
-    : bool =
-
-    match expression with
-    | PInt _ -> false
-    | PParameter _ -> true
-    | PAdd (left, right)
-    | PSubtract (left, right) 
-    | PMultiply (left, right)
-    | PDivide (left, right)
-    | PRemainder (left, right)
-        -> exprContainsParams left || exprContainsParams right
+// exprContainsParams has been moved to ParameterTypes module
 
 
 /// Adds or updates a parameter slot in loaded component param slots
@@ -478,7 +299,7 @@ let updateParamSlot
         |> Option.defaultValue Map.empty
 
     let newParamSlots =
-        match exprContainsParams exprSpec.Expression with
+        match ParameterTypes.exprContainsParams exprSpec.Expression with
         | true  -> Map.add slot exprSpec paramSlots
         | false -> Map.remove slot paramSlots
 
@@ -530,14 +351,14 @@ let paramInputField
             let exprSpec = {Expression = expr; Constraints = constraints}
             match evaluateConstraints paramBindings [exprSpec] dispatch with
             | Ok () -> Ok ()
-                // Error (renderParamExpression expr)
+                // Error (ParameterTypes.renderParamExpression expr)
             | Error (firstConstraint :: _) ->
                 match firstConstraint with
                 | MinVal (_, err) | MaxVal (_, err) -> Error err 
             | Error _ -> failwithf "Cannot have error list with no elements"
 
-        let exprResult = parseExpression inputExpr
-        let newVal = Result.bind (evaluateParamExpression paramBindings) exprResult
+        let exprResult = ParameterTypes.parseExpression inputExpr
+        let newVal = Result.bind (ParameterTypes.evaluateParamExpression paramBindings) exprResult
         let constraintCheck = Result.bind checkConstraints exprResult
 
         // Either update component or prepare creation of new component
@@ -571,7 +392,7 @@ let paramInputField
         | Some c ->
             let key = {CompId = c.Id; CompSlot = compSlotName}
             if Map.containsKey key slots then
-                renderParamExpression slots[key].Expression 0 // Or: Some (Map.find key slots)
+                ParameterTypes.renderParamExpression slots[key].Expression 0 // Or: Some (Map.find key slots)
             else
                 currentValue |> Option.defaultValue defaultValue |> string
         | None -> currentValue |> Option.defaultValue defaultValue |> string
@@ -628,7 +449,7 @@ let updateComponents
     : Unit =
 
     let evalExpression expr =
-        match evaluateParamExpression newBindings expr with
+        match ParameterTypes.evaluateParamExpression newBindings expr with
         | Ok value -> value
         | Error _ ->  failwithf "Component update cannot have invalid expression"
 
@@ -979,7 +800,7 @@ let resolveParametersForComponent
                 match errorOpt with
                 | Some _ -> (currentType, errorOpt)
                 | None ->
-                    match evaluateParamExpression paramBindings constrainedExpr.Expression with
+                    match ParameterTypes.evaluateParamExpression paramBindings constrainedExpr.Expression with
                     | Ok evaluatedValue -> 
                         let newType =
                             match slot.CompSlot with
@@ -1077,7 +898,7 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                             match paramSlot.CompSlot with
                             | IO label -> 
                                 let evaluatedValue = 
-                                    match evaluateParamExpression newBindings constrainedExpr.Expression with
+                                    match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
                                     | Ok expr -> expr
                                     | Error _ -> 0
                                 Some (label, evaluatedValue)
@@ -1201,9 +1022,9 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
     let constraintExpression (constraint': ParamConstraint) =
         match constraint' with
         | MaxVal (expr, err) ->
-            div [] [str ("Max: " + renderParamExpression expr 0)]
+            div [] [str ("Max: " + ParameterTypes.renderParamExpression expr 0)]
         | MinVal (expr, err) ->
-            div [] [str ("Min: " + renderParamExpression expr 0)]
+            div [] [str ("Min: " + ParameterTypes.renderParamExpression expr 0)]
     
     let constraintMessage (constraint': ParamConstraint) =
         match constraint' with
@@ -1230,7 +1051,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
                 br [] 
                 str slotNameStr
             ]
-            td [] [str (renderParamExpression expr.Expression 0)]
+            td [] [str (ParameterTypes.renderParamExpression expr.Expression 0)]
             td [
                 Class (Tooltip.ClassName + " " + Tooltip.IsTooltipLeft)
                 Tooltip.dataTooltip (List.map constraintMessage expr.Constraints |> String.concat "\n")

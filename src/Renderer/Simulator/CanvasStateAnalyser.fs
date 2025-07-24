@@ -11,6 +11,7 @@ open EEExtensions
 open CommonTypes
 open SimGraphTypes
 open BusWidthInferer
+open ParameterTypes
 
 // -- Checks performed
 //
@@ -557,25 +558,115 @@ type CustomComponentError =
     | BadInputs of ComponentSheet: string * InstLists: ((string * int) list) * CompLists: ((string * int) list)
     | BadOutputs of ComponentSheet: string * InstLists: ((string * int) list) * CompLists: ((string * int) list)
 
-/// Check a single custom component for correct I/Os
+/// <summary>
+/// Check a single custom component for correct I/Os, resolving parameters if necessary.
+/// </summary>
+/// <param name="c">The custom component instance to check</param>
+/// <param name="args">The custom component type containing parameter bindings and expected I/O labels</param>
+/// <param name="sheets">List of loaded component sheets to check against</param>
+/// <returns>
+/// Ok() if the component's I/Os match the sheet definition
+/// Error with details if there's a mismatch or missing sheet
+/// </returns>
+/// <remarks>
+/// Parameter Resolution Process:
+/// 1. If the component has parameter bindings AND the sheet has parameter slots:
+///    - Iterate through all components in the sheet
+///    - For each component, check if it has a parameter slot definition
+///    - If it's an Input1 or Output component with a matching IO label slot:
+///      * Evaluate the parameter expression using a simple recursive evaluator
+///      * The evaluator only handles PInt (constants) and PParameter (lookups)
+///      * Update the component's width with the resolved value
+/// 2. Use the resolved components to extract the actual I/O labels
+/// 3. Compare against expected labels from the custom component instance
+/// 
+/// This simplified parameter resolution is sufficient for validation purposes,
+/// as it only needs to resolve I/O port widths to determine port labels.
+/// 
+/// PARAMETER RESOLUTION ARCHITECTURE:
+/// The codebase implements parameter resolution at three different levels:
+/// 
+/// 1. Full Resolution (ParameterTypes.evaluateParamExpression):
+///    - Supports all arithmetic operations (+, -, *, /, %)
+///    - Returns Result with detailed error messages
+///    - Used in UI for user feedback when editing parameters
+/// 
+/// 2. Graph Resolution (GraphMerger.resolveParametersInSimulationGraph):
+///    - Uses internal evalExpr that returns Option
+///    - Supports all arithmetic operations
+///    - Applies resolved values via applySlotValue
+///    - Used during simulation graph construction
+/// 
+/// 3. Validation Resolution (this function):
+///    - Minimal evaluator supporting only PInt and PParameter
+///    - Only resolves I/O port widths for label extraction
+///    - Optimized for fast validation checks
+/// 
+/// This three-tier approach ensures efficient processing while maintaining
+/// full parameter functionality where needed.
+/// </remarks>
 let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (sheets: LoadedComponent list) =
     let inouts = args.InputLabels, args.OutputLabels
     let name = args.Name
     let compare labs1 labs2 = (labs1 |> Set) = (labs2 |> Set)
+    
 
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
     |> Option.map (fun sheet ->
-        sheet, compare sheet.InputLabels args.InputLabels, compare sheet.OutputLabels args.OutputLabels)
+        // Check if we need to resolve parameters for port labels
+        let resolvedInputs, resolvedOutputs = 
+            match args.ParameterBindings, sheet.LCParameterSlots with
+            | Some paramBindings, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
+                // Simple inline parameter resolution for IO ports only
+                // This evaluator handles only the subset of expressions needed for I/O validation
+                //
+                // IMPORTANT: This is a simplified evaluator compared to the full evaluateParamExpression
+                // in ParameterTypes or evalExpr in GraphMerger. Key differences:
+                // - Only supports PInt and PParameter (no arithmetic operations)
+                // - Returns Option instead of Result (no error messages needed)
+                // - Specifically designed for resolving I/O port widths during validation
+                //
+                // The limitation to PInt and PParameter is intentional because:
+                // 1. I/O validation only needs to determine port bit widths
+                // 2. Complex expressions are resolved later during full graph merging
+                // 3. This keeps the validation phase fast and simple
+                let rec eval expr =
+                    match expr with
+                    | PInt n -> Some n  // Integer constant - return its value
+                    | PParameter name -> Map.tryFind name paramBindings |> Option.bind eval  // Look up parameter and recursively evaluate
+                    | _ -> None  // Complex expressions not supported in this context
+                
+                let (comps, conns) = sheet.CanvasState
+                let resolvedComps = 
+                    comps |> List.map (fun comp ->
+                        paramSlots.ParamSlots
+                        |> Map.toList
+                        |> List.tryPick (fun (slot, expr) ->
+                            if slot.CompId = comp.Id then
+                                match slot.CompSlot, comp.Type with
+                                | IO label, Input1 (_, d) when label = comp.Label ->
+                                    eval expr.Expression |> Option.map (fun w -> { comp with Type = Input1 (w, d) })
+                                | IO label, Output _ when label = comp.Label ->
+                                    eval expr.Expression |> Option.map (fun w -> { comp with Type = Output w })
+                                | _ -> None
+                            else None
+                        )
+                        |> Option.defaultValue comp
+                    )
+                let resolvedCanvas = (resolvedComps, conns)
+                CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas,
+                CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+            | _ -> sheet.InputLabels, sheet.OutputLabels
+        
+        let inputsMatch = compare resolvedInputs args.InputLabels
+        let outputsMatch = compare resolvedOutputs args.OutputLabels
+        sheet, inputsMatch, outputsMatch)
     |> function
         | None -> Error(c, NoSheet name)
         | Some(_, true, true) -> Ok()
-        | Some(sheet, false, _) ->
-            Error
-            <| (c, BadInputs(name, sheet.InputLabels, args.InputLabels))
-        | Some(sheet, true, false) ->
-            Error
-            <| (c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
+        | Some(sheet, false, _) -> Error(c, BadInputs(name, sheet.InputLabels, args.InputLabels))
+        | Some(sheet, true, false) -> Error(c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
 
 /// Custom components have I/Os which are the same (names) as the I/Os in the corresponding sheet
 /// This can change if a sheet made into a custom component is edited
@@ -605,7 +696,6 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
             error c (MissingSheet cName)
         | Error(c, BadInputs(cName, instIns, compIns)) ->
             let instIns, compIns = disp instIns, disp compIns
-
             error c (InPortMismatch (cName, instIns, compIns))
         | Error(c, BadOutputs(cName, instOuts, compOuts)) ->
             let instOuts, compOuts = disp instOuts, disp compOuts

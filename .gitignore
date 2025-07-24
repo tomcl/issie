@@ -265,3 +265,6 @@ tmp/
 
 # macOS compilation
 *.provisionprofile
+
+# AI Files
+CLAUDE.md

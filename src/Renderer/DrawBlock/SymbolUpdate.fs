@@ -148,6 +148,7 @@ let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT
             model.CopiedSymbols
             |> Map.toList
             |> List.map snd
+            |> List.sortBy (fun sym -> sym.Pos.Y)
     
     let addNewSymbol (basePos: XYPos) ((currSymbolModel, pastedIdsList) : Model * ComponentId List) (oldSymbol: Symbol): Model * ComponentId List =
         

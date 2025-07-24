@@ -5,14 +5,13 @@
     <TargetFramework>net8.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-  
   <ItemGroup>
     <Compile Include="Parser.fs" />
   </ItemGroup>
-  
   <ItemGroup>
     <PackageReference Include="FSharp.Core" Version="8.0.400" />
     <PackageReference Include="FSharp.Compiler.Service" Version="43.8.400" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

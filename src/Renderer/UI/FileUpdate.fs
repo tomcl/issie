@@ -17,6 +17,7 @@ open MenuHelpers
 open Optics
 open Optics.Optic
 open Optics.Operators
+open JSHelpers
 
 /// force either save of current file before action, or abort (closeProject is special case of this)
 /// In addition, if not aborting, save current lockstate of all files.
@@ -57,7 +58,7 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
         dispatch nextAction
 
 /// Create a new project.
-let private newProject model dispatch  =
+let rec private newProject model dispatch  =
     warnAppWidth dispatch (fun _ ->
     match askForNewProjectPath model.UserData.LastUsedDirectory with
     | None -> () // User gave no path.
@@ -65,7 +66,9 @@ let private newProject model dispatch  =
         match tryCreateFolder path with
         | Error err ->
             JSHelpers.log err
-            displayFileErrorNotification err dispatch
+            // Show error in a dialog box and then re-open the project creation dialog
+            electronRemote.dialog.showErrorBox("Invalid Project Name", err)
+            newProject model dispatch
         | Ok _ ->
             dispatch EndSimulation // End any running simulation.
             dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.

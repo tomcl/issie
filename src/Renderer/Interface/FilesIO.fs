@@ -389,7 +389,7 @@ let rec askForNewProjectPath (defaultPath:string option) : string option =
     
 let tryCreateFolder (path : string) =
     if Seq.exists (Char.IsLetterOrDigitOrUnderscore >> not) (baseName path) then 
-        Result.Error <| "File or project names must contain only letters, digits, or underscores"
+        Result.Error <| "Project names must contain only letters, digits, or underscores. Spaces and hyphens are not allowed."
     else
         try
             Result.Ok <| mkdir path

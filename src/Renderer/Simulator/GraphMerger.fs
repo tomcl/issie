@@ -224,13 +224,29 @@ let private checkDependenciesAndBuildMap
 // Merge dependencies //
 //====================//
 
-
-
-
-/// Recursively merge the simulationGraph with its dependencies (a dependecy can
+/// <summary>
+/// Recursively merge the simulationGraph with its dependencies (a dependency can
 /// have its own dependencies).
-/// This function assumes there are no circular dependencies, otherwise it will
-/// never terminate.
+/// </summary>
+/// <param name="currGraph">The current simulation graph to process</param>
+/// <param name="dependencyMap">Map from custom component names to their simulation graphs</param>
+/// <param name="loadedDependencies">List of all loaded component sheets</param>
+/// <returns>A merged simulation graph with custom components replaced by their internal graphs</returns>
+/// <remarks>
+/// PARAMETER RESOLUTION ARCHITECTURE:
+/// This function is part of Stage 1 (Merging) of the two-stage parameter resolution process.
+/// It ONLY merges graphs - parameter resolution is intentionally DEFERRED to Stage 2.
+/// 
+/// Why defer parameter resolution?
+/// 1. Avoids forward reference problems when components reference each other
+/// 2. Ensures all graphs are fully merged before any parameters are resolved
+/// 3. Allows proper parameter precedence (instance bindings override defaults)
+/// 
+/// The merged graphs are stored in CustomSimulationGraph field and will be
+/// processed by resolveParametersInSimulationGraph in Stage 2.
+/// 
+/// This function assumes there are no circular dependencies, otherwise it will never terminate.
+/// </remarks>
 let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMap) (loadedDependencies: LoadedComponent list) : SimulationGraph =
     // For each custom component, replace the Reducer with one that:
     // - when receiving an (InputPortNumber * Bit) entry (i.e. a new input),
@@ -322,7 +338,26 @@ let rec resolveParametersInSimulationGraph
         |> Option.map (fun ps -> ps.ParamSlots)
         |> Option.defaultValue Map.empty
 
-    // Evaluate parameter expressions recursively, substituting parameter values from bindings
+    /// <summary>
+    /// Recursively evaluates a parameter expression by substituting parameter values from bindings.
+    /// </summary>
+    /// <param name="expr">The parameter expression to evaluate</param>
+    /// <returns>
+    /// Some(value) if the expression can be fully evaluated to a constant integer
+    /// None if any parameters remain unresolved
+    /// </returns>
+    /// <remarks>
+    /// This function implements a simple expression evaluator that:
+    /// - Returns constants (PInt) directly
+    /// - Looks up parameters (PParameter) in the bindings map and recursively evaluates them
+    /// - Evaluates arithmetic operations only if both operands can be resolved
+    /// - Uses Option.map2 to ensure both operands are available before applying operations
+    /// 
+    /// The evaluator differs from evaluateParamExpression in ParameterTypes:
+    /// - Returns Option instead of Result (simpler for internal use)
+    /// - Does not provide detailed error messages for unresolved parameters
+    /// - Optimized for the specific use case of component slot resolution
+    /// </remarks>
     let rec evalExpr expr =
         match expr with
         | PInt n -> Some n
@@ -333,7 +368,32 @@ let rec resolveParametersInSimulationGraph
         | PDivide (l, r) -> Option.map2 (/) (evalExpr l) (evalExpr r)
         | PRemainder (l, r) -> Option.map2 (%) (evalExpr l) (evalExpr r)
 
-    // Apply a resolved parameter value to the appropriate slot in a component type
+    /// <summary>
+    /// Applies a resolved parameter value to the appropriate slot in a component type.
+    /// </summary>
+    /// <param name="compType">The component type to update</param>
+    /// <param name="slot">The slot identifier specifying which parameter to update</param>
+    /// <param name="value">The resolved integer value to apply</param>
+    /// <returns>A new component type with the parameter value applied</returns>
+    /// <remarks>
+    /// This function handles three main categories of parameter slots:
+    /// 
+    /// 1. Buswidth: Updates the width parameter for components that have configurable bus widths
+    ///    - Viewer, BusCompare, BusSelection, Constant components
+    ///    - Arithmetic components (Adders, XOR, AND, OR, NOT)
+    ///    - Memory components (Registers, Counters)
+    ///    - Wire manipulation (Splitter, Spreader)
+    ///    - I/O components (Input, Output)
+    /// 
+    /// 2. NGateInputs: Updates the number of inputs for variable-input gates
+    ///    - GateN components with configurable input counts
+    /// 
+    /// 3. IO: Updates the bit width for Input/Output components with specific labels
+    ///    - Input1 and Output components matching the IO label
+    /// 
+    /// For unmatched slot/component combinations, returns the original component type unchanged.
+    /// This ensures backward compatibility and graceful handling of new component types.
+    /// </remarks>
     let applySlotValue compType (slot: CompSlotName) value =
         match slot, compType with
         // Buswidth updates
@@ -428,7 +488,25 @@ let rec resolveParametersInSimulationGraph
         | Error e, _ | _, Error e -> Error e
     ) (Ok Map.empty)
 
-/// Resolve parameters for all custom components in the simulation graph
+/// <summary>
+/// Resolve parameters for all custom component instances in the simulation graph.
+/// </summary>
+/// <param name="graph">The merged simulation graph with custom components</param>
+/// <param name="loadedDependencies">List of all loaded component sheets</param>
+/// <returns>
+/// Success: Graph with instance-specific parameters resolved
+/// Error: Details of any parameter resolution failures
+/// </returns>
+/// <remarks>
+/// This is Stage 2a of the parameter resolution process:
+/// - Processes each custom component instance in the graph
+/// - Applies instance-specific parameter bindings if present
+/// - These bindings override any default values from the component definition
+/// - Recursively resolves parameters for nested custom components
+/// 
+/// This step happens AFTER merging but BEFORE sheet-level parameter resolution
+/// to ensure proper parameter precedence.
+/// </remarks>
 let rec private resolveCustomComponentParameters 
     (graph: SimulationGraph) 
     (loadedDependencies: LoadedComponent list)

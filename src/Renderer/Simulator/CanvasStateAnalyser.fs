@@ -582,6 +582,28 @@ type CustomComponentError =
 /// 
 /// This simplified parameter resolution is sufficient for validation purposes,
 /// as it only needs to resolve I/O port widths to determine port labels.
+/// 
+/// PARAMETER RESOLUTION ARCHITECTURE:
+/// The codebase implements parameter resolution at three different levels:
+/// 
+/// 1. Full Resolution (ParameterTypes.evaluateParamExpression):
+///    - Supports all arithmetic operations (+, -, *, /, %)
+///    - Returns Result with detailed error messages
+///    - Used in UI for user feedback when editing parameters
+/// 
+/// 2. Graph Resolution (GraphMerger.resolveParametersInSimulationGraph):
+///    - Uses internal evalExpr that returns Option
+///    - Supports all arithmetic operations
+///    - Applies resolved values via applySlotValue
+///    - Used during simulation graph construction
+/// 
+/// 3. Validation Resolution (this function):
+///    - Minimal evaluator supporting only PInt and PParameter
+///    - Only resolves I/O port widths for label extraction
+///    - Optimized for fast validation checks
+/// 
+/// This three-tier approach ensures efficient processing while maintaining
+/// full parameter functionality where needed.
 /// </remarks>
 let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (sheets: LoadedComponent list) =
     let inouts = args.InputLabels, args.OutputLabels
@@ -598,6 +620,17 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
             | Some paramBindings, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
                 // Simple inline parameter resolution for IO ports only
                 // This evaluator handles only the subset of expressions needed for I/O validation
+                //
+                // IMPORTANT: This is a simplified evaluator compared to the full evaluateParamExpression
+                // in ParameterTypes or evalExpr in GraphMerger. Key differences:
+                // - Only supports PInt and PParameter (no arithmetic operations)
+                // - Returns Option instead of Result (no error messages needed)
+                // - Specifically designed for resolving I/O port widths during validation
+                //
+                // The limitation to PInt and PParameter is intentional because:
+                // 1. I/O validation only needs to determine port bit widths
+                // 2. Complex expressions are resolved later during full graph merging
+                // 3. This keeps the validation phase fast and simple
                 let rec eval expr =
                     match expr with
                     | PInt n -> Some n  // Integer constant - return its value

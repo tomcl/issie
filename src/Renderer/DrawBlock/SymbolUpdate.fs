@@ -698,14 +698,15 @@ let ChangeSplitN (compId, numInputs, widths, lsbs) model =
 
 
 /// Update function which displays symbols
-let update (msg : Msg) (model : Model): Model*Cmd<'a>  =     
+let update (msg : Msg) (model : Model): Model*Cmd<BusWireT.Msg> =     
     match msg with
     | UpdateBoundingBoxes ->
         // message used to update symbol bounding boxes in sheet.
         failwithf "What? This message is intercepted by Sheet update function and never found here"
     | DeleteSymbols compIds ->
         // printfn "update msg: DeleteSymbol"
-        (deleteSymbols model compIds), Cmd.none
+        let cmd = Cmd.ofMsg <| BusWireT.Msg.DeleteParamSlots compIds
+        (deleteSymbols model compIds), cmd
 
     | AddSymbol (ldcs, pos,compType, lbl) ->
         // printfn "update msg: AddSymbol"

@@ -547,6 +547,7 @@ type Msg =
     | UpdatePopupProgress of (PopupProgress -> PopupProgress)
     | SimulateWithProgressBar of SimulationProgress
     | SetSelectedComponentMemoryLocation of bigint * bigint
+    | DeleteParamSlots of ComponentId list
     | CloseDiagramNotification
     | SetSimulationNotification of ((Msg -> unit) -> ReactElement)
     | CloseSimulationNotification

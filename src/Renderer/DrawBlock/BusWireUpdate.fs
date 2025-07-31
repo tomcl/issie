@@ -458,6 +458,9 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
     | ToggleSnapToNet ->
         {issieModel with Sheet={ issieModel.Sheet with Wire={model with SnapToNet = not model.SnapToNet}}} |> withNoMsg
     
+    | DeleteParamSlots compIds ->
+        withIssieMsg (ModelType.DeleteParamSlots compIds) issieModel
+
 
 //---------------------------------------------------------------------------------//        
 //---------------------------Other interface functions-----------------------------//

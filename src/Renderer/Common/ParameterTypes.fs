@@ -40,13 +40,14 @@ type ParamConstraint =
     | MaxVal of ParamExpression * ParamError
 
 /// A string marking a specific integer value in a case of ComponentType.
-/// The values here are arbitrary and ComponentType-case specific and all that matters is that each value is unique
-/// within the case.
+/// The values here are arbitrary and ComponentType-case specific and all
+/// that matters is that each value is unique within the case.
 type CompSlotName =
     | Buswidth
     | NGateInputs
     | IO of Label: string
-    | CustomCompParam of ParamName: string // TODO: implement this case
+    | CustomCompParam of ParamName: ParamName   // Custom component parameter binding
+    | SheetParam of ParamName: ParamName    // Used to update default sheet parameters
 
 /// A slot in a component instance that can be bound to a parameter expression
 /// CompId should be a ComponentId but then we would need these types to be defined after CommonTypes.
@@ -78,9 +79,6 @@ type ParamBoxDialogState = Map<CompSlotName, Result<NewParamCompSpec, ParamError
 /// Map from name to expression for each parameter
 type ParamBindings = Map<ParamName, ParamExpression>
 
-
-/// For Part A: alternatively you could store slot information in the component record
-/// as an extra field.
 /// This field should store all the Component's slot information where slots are bound to parameters.
 type ComponentSlotExpr = Map<ParamSlot, ConstrainedExpr>
 
@@ -93,9 +91,13 @@ type ParameterDefs = {
     ParamSlots: ComponentSlotExpr
 }
 
+/// Config for a parameter popup dialog box
+type PopupConfig = {
+    Title: string
+    Prompt: string
+    Button: string
+}
+
 /// Lenses for ParamDefs
 let defaultBindings_ = Optics.Lens.create (fun s -> s.DefaultBindings) (fun v s -> {s with DefaultBindings = v})
 let paramSlots_ = Optics.Lens.create (fun s -> s.ParamSlots) (fun v s -> {s with ParamSlots = v})
-
-
-

@@ -175,6 +175,7 @@ let shortDisplayMsg (msg:Msg) =
     | UpdatePopupProgress _ 
     | SimulateWithProgressBar _ -> None
     | SetSelectedComponentMemoryLocation _ -> Some "SetSelectedComponentMemoryLocation"
+    | DeleteParamSlots _
     | CloseDiagramNotification
     | SetSimulationNotification _ 
     | CloseSimulationNotification

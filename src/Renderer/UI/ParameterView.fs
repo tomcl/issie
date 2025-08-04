@@ -101,8 +101,17 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                 | Input1 (busWidth, _) -> busWidth
                 | Output busWidth -> busWidth
                 | _ -> failwithf $"Invalid component {comp.Type} for IO"
-            | CustomCompParam _ ->
-                failwithf $"CustomCompParam not yet implemented for component {comp.Type}"
+            | CustomCompParam paramName ->
+                match comp.Type with
+                | Custom customComp ->
+                    // Look up the parameter value from the custom component's parameter bindings
+                    match customComp.ParameterBindings with
+                    | Some bindings ->
+                        match Map.tryFind (ParamName paramName) bindings with
+                        | Some (PInt value) -> value
+                        | _ -> failwithf $"Parameter {paramName} not found in custom component {customComp.Name} bindings"
+                    | None -> failwithf $"No parameter bindings found for custom component {customComp.Name}"
+                | _ -> failwithf $"CustomCompParam can only be used with Custom components, not {comp.Type}"
         )
         (fun value comp->
                 let newType = 
@@ -143,8 +152,16 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
                         | Output _ -> Output value
                         | _ -> failwithf $"Invalid component {comp.Type} for IO"
-                    | CustomCompParam _ ->
-                        failwithf $"CustomCompParam not yet implemented for component {comp.Type}"
+                    | CustomCompParam paramName ->
+                        match comp.Type with
+                        | Custom customComp ->
+                            // Update the parameter value in the custom component's bindings
+                            let newBindings = 
+                                match customComp.ParameterBindings with
+                                | Some bindings -> Map.add (ParamName paramName) (PInt value) bindings
+                                | None -> Map.ofList [(ParamName paramName, PInt value)]
+                            Custom { customComp with ParameterBindings = Some newBindings }
+                        | _ -> failwithf $"CustomCompParam can only be used with Custom components, not {comp.Type}"
                 { comp with Type = newType}
 )
 
@@ -272,8 +289,18 @@ let updateComponent dispatch model slot value =
         match comp.Type with
         | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
         | _ -> failwithf $"Gate cannot have type {comp.Type}"
-    | CustomCompParam _ ->
-        failwithf "CustomCompParam not yet implemented"
+    | CustomCompParam paramName ->
+        // For custom component parameters, we need to update the parameter bindings
+        match comp.Type with
+        | Custom customComp ->
+            let newBindings = 
+                match customComp.ParameterBindings with
+                | Some bindings -> Map.add (ParamName paramName) (PInt value) bindings
+                | None -> Map.ofList [(ParamName paramName, PInt value)]
+            let newCustomComp = { customComp with ParameterBindings = Some newBindings }
+            // Update component via Symbol message to change custom component
+            dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, Custom newCustomComp))))
+        | _ -> failwithf $"CustomCompParam can only be used with Custom components"
 
     // Update most recent bus width
     match slot.CompSlot, comp.Type with
@@ -875,69 +902,127 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                         str $"(current value: {currValue})"
                     ]
 
-        let body = dialogPopupBodyOnlyInt intPrompt currValue dispatch
+        // Initialize the text input with current value
+        string currValue |> Some |> SetPopupDialogText |> dispatch
+        
+        let body = fun (model: Model) ->
+            let dialogData = model.PopupDialogData
+            let inputText = getText dialogData
+            let paramBindings = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
+            
+            // Check for parsing/evaluation errors to show appropriate error message
+            let errorMessage = 
+                match ParameterTypes.parseExpression inputText with
+                | Ok expr ->
+                    match ParameterTypes.evaluateParamExpression paramBindings expr with
+                    | Ok _ -> None
+                    | Error err -> Some $"Invalid parameter value: {err}"
+                | Error err -> Some $"Invalid parameter expression: {err}"
+            
+            div [] [
+                intPrompt dialogData
+                br []
+                Input.text [
+                    Input.Props [OnPaste preventDefault; Style [Width "120px"]; AutoFocus true; SpellCheck false]
+                    Input.Value inputText
+                    Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+                ]
+                br []
+                span [Style [FontStyle "Italic"; Color "Red"]; Hidden (errorMessage = None)] [
+                    str <| Option.defaultValue "" errorMessage
+                ]
+            ]
         let buttonText = "Set value"
 
         // Update the parameter value then close the popup
         let buttonAction =
             fun (model': Model) -> 
-                let newParamName =  parameterName 
-                let newValue = getInt model'.PopupDialogData
-                let newBindings =
-                    match custom.ParameterBindings with
-                    | Some bindings -> bindings
-                    | None -> Map.empty
-                    |> Map.add (ParamName newParamName) (PInt newValue)
+                let newParamName = parameterName 
+                let inputText = getText model'.PopupDialogData
                 
-                let labelToEval = 
-                    match currentSheet.LCParameterSlots with
-                    | Some sheetInfo ->
-                        sheetInfo.ParamSlots
-                        |> Map.toSeq // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
-                        |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
-                            match paramSlot.CompSlot with
-                            | IO label -> 
-                                let evaluatedValue = 
-                                    match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
-                                    | Ok expr -> expr
-                                    | Error _ -> 0
-                                Some (label, evaluatedValue)
-                            | _ -> None 
-                        )
-                        |> Map.ofSeq // Convert to map
-                    | None -> Map.empty
+                // Get current sheet's parameter bindings for expression evaluation
+                let paramBindings =
+                    model'
+                    |> get defaultBindingsOfModel_
+                    |> Option.defaultValue Map.empty
+                
+                // Parse and evaluate the parameter expression
+                match ParameterTypes.parseExpression inputText with
+                | Ok expr ->
+                    match ParameterTypes.evaluateParamExpression paramBindings expr with
+                    | Ok newValue ->
+                        let newBindings =
+                            match custom.ParameterBindings with
+                            | Some bindings -> bindings
+                            | None -> Map.empty
+                            |> Map.add (ParamName newParamName) (PInt newValue)
+                        
+                        let labelToEval = 
+                            match currentSheet.LCParameterSlots with
+                            | Some sheetInfo ->
+                                sheetInfo.ParamSlots
+                                |> Map.toSeq // Convert map to sequence of (ParamSlot, ConstrainedExpr<int>) pairs
+                                |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
+                                    match paramSlot.CompSlot with
+                                    | IO label -> 
+                                        let evaluatedValue = 
+                                            match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
+                                            | Ok expr -> expr
+                                            | Error _ -> 0
+                                        Some (label, evaluatedValue)
+                                    | _ -> None 
+                                )
+                                |> Map.ofSeq // Convert to map
+                            | None -> Map.empty
 
+                        let newestComponent = updateCustomComponent labelToEval newBindings comp
+                        let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
+                        let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
+                        let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
+                        updateModelSymbol newModel |> UpdateModel |> dispatch
 
-                let newestComponent = updateCustomComponent labelToEval newBindings comp
-                let updateMsg: SymbolT.Msg = SymbolT.ChangeCustom (ComponentId comp.Id, comp, newestComponent.Type)
-                let newModel, output = SymbolUpdate.update updateMsg model.Sheet.Wire.Symbol
-                let updateModelSymbol (newMod: SymbolT.Model) (model: Model) = {model with Sheet.Wire.Symbol = newMod}
-                updateModelSymbol newModel |> UpdateModel |> dispatch
+                        let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
+                        model.Sheet.DoBusWidthInference dispatchnew
+                        dispatch <| ClosePopup
+                    | Error err ->
+                        // Expression evaluation failed - error will be shown in UI, don't close popup
+                        ()
+                | Error err ->
+                    // Expression parsing failed - error will be shown in UI, don't close popup
+                    ()
 
-                let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
-                model.Sheet.DoBusWidthInference dispatchnew
-                dispatch <| ClosePopup
-
-        // if constraints are not met, disable the button
+        // if constraints are not met or expression is invalid, disable the button
         let isDisabled =
             fun (model': Model) ->
-                let newParamName =  parameterName 
-                let newValue = getInt model'.PopupDialogData
-                let newBindings =
-                    match custom.ParameterBindings with
-                    | Some bindings -> bindings
-                    | None -> Map.empty
-                    |> Map.add (ParamName newParamName) (PInt newValue)
-                let exprSpecs = 
-                    match currentSheet.LCParameterSlots with
-                    | Some sheetInfo ->
-                        sheetInfo.ParamSlots
-                        |> Map.toList
-                        |> List.map snd
-                    | None -> List.Empty
+                let inputText = getText model'.PopupDialogData
+                let paramBindings =
+                    model'
+                    |> get defaultBindingsOfModel_
+                    |> Option.defaultValue Map.empty
+                
+                // Check if expression is valid
+                match ParameterTypes.parseExpression inputText with
+                | Ok expr ->
+                    match ParameterTypes.evaluateParamExpression paramBindings expr with
+                    | Ok newValue ->
+                        let newBindings =
+                            match custom.ParameterBindings with
+                            | Some bindings -> bindings
+                            | None -> Map.empty
+                            |> Map.add (ParamName parameterName) (PInt newValue)
+                        
+                        let exprSpecs = 
+                            match currentSheet.LCParameterSlots with
+                            | Some sheetInfo ->
+                                sheetInfo.ParamSlots
+                                |> Map.toList
+                                |> List.map snd
+                            | None -> List.Empty
 
-                evaluateConstraints newBindings exprSpecs dispatch
-                |> Result.isError
+                        evaluateConstraints newBindings exprSpecs dispatch
+                        |> Result.isError
+                    | Error _ -> true // Expression evaluation failed
+                | Error _ -> true // Expression parsing failed
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 

@@ -521,20 +521,17 @@ let private changeMergeN model (comp:Component) dispatch =
         | MergeN n -> "Number of inputs", n
         | c -> failwithf "changeMergeN called with invalid component: %A" c
 
+    let constraints = [
+        MinVal (PInt 2, "Must have at least 2 inputs")
+        MaxVal (PInt Constants.maxSplitMergeBranches, $"Cannot have more than {Constants.maxSplitMergeBranches} inputs")
+    ]
+
     div [] [
         span
             [Style [Color Red]]
             [str errText]
 
-        intFormField title "60px" (bigint nInp) 2 (
-            fun newInpNum ->
-                let newInpNum = int newInpNum
-                if newInpNum >= 2 && newInpNum <= Constants.maxSplitMergeBranches then
-                    model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newInpNum
-                    dispatch <| SetPopupDialogInt (Some newInpNum)
-                else
-                    dispatch <| SetPopupDialogInt (Some newInpNum)
-        )
+        ParameterView.paramInputField model title 2 (Some nInp) constraints (Some comp) NGateInputs dispatch
     ]
 
 
@@ -577,17 +574,12 @@ let private changeSplitN model (comp:Component) dispatch =
             [Style [Color Red]]
             [str errText]
 
-        intFormField title "60px" (bigint nInp) 2 (
-            fun newInpNum ->
-                let newInpNum = int newInpNum
-                if newInpNum >= 2 && newInpNum <= Constants.maxSplitMergeBranches then
-                    let newWidths = changeWidths widths newInpNum 1
-                    let newLsbs = changeLsbs lsbs widths newInpNum
-                    model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) newInpNum newWidths newLsbs
-                    dispatch <| SetPopupDialogInt (Some newInpNum)
-                else
-                    dispatch <| SetPopupDialogInt (Some newInpNum)
-        )
+        let constraints = [
+            MinVal (PInt 2, "Must have at least 2 outputs")
+            MaxVal (PInt Constants.maxSplitMergeBranches, $"Cannot have more than {Constants.maxSplitMergeBranches} outputs")
+        ]
+        
+        ParameterView.paramInputField model title 2 (Some nInp) constraints (Some comp) NGateInputs dispatch
         div [Style [Display DisplayOptions.Flex; MarginLeft "180px"]] [
         // Add headers for the "Width" and "LSB" columns
             Label.label [Label.Props [Style [TextAlign TextAlignOptions.Center; MarginRight "20px"]]] [str "Width"]
@@ -635,20 +627,12 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
             | None -> w, 0I
         | _ -> failwithf "Other component types should not call this function."
     
-    intFormField title "60px" defValue 0 (
-        fun newValue ->
-            // Check if value is within bit range
-            match NumberHelpers.checkWidth width newValue with
-            | Some msg ->
-                let props = errorPropsNotification msg
-                dispatch <| SetPropertiesNotification props
-            | None ->
-                model.Sheet.ChangeInputValue sheetDispatch (ComponentId comp.Id) newValue
-                // reload the new component
-                dispatch (ReloadSelectedComponent (model.LastUsedDialogWidth))
-                dispatch <| SetPopupDialogInt (Some (int newValue))
-                dispatch ClosePropertiesNotification
-    )
+    let constraints = [
+        MinVal (PInt 0, "Default value must be non-negative")
+        MaxVal (PInt ((1 <<< width) - 1), $"Default value must fit in {width} bits")
+    ]
+    
+    ParameterView.paramInputField model title 0 (Some (int defValue)) constraints (Some comp) (IO comp.Label) dispatch
 
 let mockDispatchS msgFun msg =
     match msg with
@@ -740,29 +724,16 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
 
     match comp.Type with
     | BusCompare(width, _) -> 
-        intFormField infoText "120px"  lsbPos 1  (
-            fun (cVal: bigint)->
-                if cVal < 0I || cVal > (1I <<< width) - 1I
-                then
-                    let note = errorPropsNotification <| sprintf "Invalid Comparison Value for bus of width %d" width
-                    dispatch <| SetPropertiesNotification note
-                else
-                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) cVal
-                    dispatch (ReloadSelectedComponent (width)) // reload the new component
-                    dispatch ClosePropertiesNotification
-        )
+        let constraints = [
+            MinVal (PInt 0, "Comparison value must be non-negative")
+            MaxVal (PInt ((1 <<< width) - 1), $"Comparison value must fit in {width} bits")
+        ]
+        ParameterView.paramInputField model infoText 0 (Some (int lsbPos)) constraints (Some comp) (IO comp.Label) dispatch
     | BusSelection(width, _) -> 
-        intFormField infoText "60px" lsbPos 1 (
-            fun newLsb ->
-                if newLsb < 0I
-                then
-                    let note = errorPropsNotification "Invalid LSB bit position"
-                    dispatch <| SetPropertiesNotification note
-                else
-                    model.Sheet.ChangeLSB sheetDispatch (ComponentId comp.Id) (newLsb)
-                    dispatch (ReloadSelectedComponent (width)) // reload the new component
-                    dispatch ClosePropertiesNotification
-        )
+        let constraints = [
+            MinVal (PInt 0, "LSB position must be non-negative")
+        ]
+        ParameterView.paramInputField model infoText 0 (Some (int lsbPos)) constraints (Some comp) (IO comp.Label) dispatch
     | _ -> failwithf "What? invalid component for lsbpos in properties"
 
 

@@ -274,6 +274,23 @@ let getLCParamInfo (model: Model) =
     |> get lcParameterInfoOfModel_
     |> Option.defaultValue {ParamSlots = Map.empty; DefaultBindings = Map.empty}
 
+/// Update a custom component's input/output label widths based on parameter evaluations
+let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
+    let updateLabels labels =
+        labels |> List.map (fun (label, width) ->
+            match Map.tryFind label labelToEval with
+            | Some newWidth when newWidth <> width -> (label, newWidth) // Update width if changed
+            | _ -> (label, width) // Keep the same if unchanged
+        )
+    
+    match comp.Type with
+    | Custom customComponent ->
+        let updatedCustom = { customComponent with 
+                                    InputLabels = updateLabels customComponent.InputLabels
+                                    OutputLabels = updateLabels customComponent.OutputLabels
+                                    ParameterBindings = Some newBindings }
+        { comp with Type = Custom updatedCustom }
+    | _ -> comp
 
 /// Use sheet component update functions to perform updates
 let updateComponent dispatch model slot value =
@@ -297,9 +314,43 @@ let updateComponent dispatch model slot value =
                 match customComp.ParameterBindings with
                 | Some bindings -> Map.add (ParamName paramName) (PInt value) bindings
                 | None -> Map.ofList [(ParamName paramName, PInt value)]
-            let newCustomComp = { customComp with ParameterBindings = Some newBindings }
-            // Update component via Symbol message to change custom component
-            dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, Custom newCustomComp))))
+            
+            // Get the custom component's loaded component to find parameter slot definitions
+            match model.CurrentProj with
+            | Some project ->
+                let currentSheet = 
+                    project.LoadedComponents
+                    |> List.tryFind (fun lc -> lc.Name = customComp.Name)
+                
+                // Calculate updated label widths based on parameter evaluations
+                let labelToEval = 
+                    match currentSheet with
+                    | Some sheet ->
+                        match sheet.LCParameterSlots with
+                        | Some sheetInfo ->
+                            sheetInfo.ParamSlots
+                            |> Map.toSeq
+                            |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
+                                match paramSlot.CompSlot with
+                                | IO label -> 
+                                    let evaluatedValue = 
+                                        match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
+                                        | Ok expr -> expr
+                                        | Error _ -> 0
+                                    Some (label, evaluatedValue)
+                                | _ -> None 
+                            )
+                            |> Map.ofSeq
+                        | None -> Map.empty
+                    | None -> Map.empty
+                
+                // Update the custom component with new parameter bindings and updated port widths
+                let updatedCustom = updateCustomComponent labelToEval newBindings comp
+                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, updatedCustom.Type))))
+            | None ->
+                // Fallback to just updating bindings if no project context
+                let newCustomComp = { customComp with ParameterBindings = Some newBindings }
+                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, Custom newCustomComp))))
         | _ -> failwithf $"CustomCompParam can only be used with Custom components"
 
     // Update most recent bus width
@@ -866,22 +917,6 @@ let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedCompon
 
 /// Update a custom component with new I/O component widths.
 /// Used when these chnage as result of parameter changes.
-let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
-    let updateLabels labels =
-        labels |> List.map (fun (label, width) ->
-            match Map.tryFind label labelToEval with
-            | Some newWidth when newWidth <> width -> (label, newWidth) // Update width if changed
-            | _ -> (label, width) // Keep the same if unchanged
-        )
-    
-    match comp.Type with
-    | Custom customComponent ->
-        let updatedCustom = { customComponent with 
-                                    InputLabels = updateLabels customComponent.InputLabels
-                                    OutputLabels = updateLabels customComponent.OutputLabels
-                                    ParameterBindings = Some newBindings }
-        { comp with Type = Custom updatedCustom }
-    | _ -> comp
 
 /// create a popup to edit in the model a custom component parameter binding
 /// TODO - maybe comp should be a ComponentId with actual component looked up from model for safety?
@@ -925,9 +960,36 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                             | None -> Map.empty
                             |> Map.add (ParamName parameterName) (PInt newValue)
                         
-                        // Update the custom component with new parameter bindings
-                        let newCustomComp = { custom with ParameterBindings = Some newBindings }
-                        dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (ComponentId comp.Id, comp, Custom newCustomComp))))
+                        // Get the custom component's loaded component to find parameter slot definitions
+                        let currentSheet = 
+                            project.LoadedComponents
+                            |> List.tryFind (fun lc -> lc.Name = custom.Name)
+                        
+                        // Calculate updated label widths based on parameter evaluations
+                        let labelToEval = 
+                            match currentSheet with
+                            | Some sheet ->
+                                match sheet.LCParameterSlots with
+                                | Some sheetInfo ->
+                                    sheetInfo.ParamSlots
+                                    |> Map.toSeq
+                                    |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
+                                        match paramSlot.CompSlot with
+                                        | IO label -> 
+                                            let evaluatedValue = 
+                                                match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
+                                                | Ok expr -> expr
+                                                | Error _ -> 0
+                                            Some (label, evaluatedValue)
+                                        | _ -> None 
+                                    )
+                                    |> Map.ofSeq
+                                | None -> Map.empty
+                            | None -> Map.empty
+                        
+                        // Update the custom component with new parameter bindings and updated port widths
+                        let updatedCustom = updateCustomComponent labelToEval newBindings comp
+                        dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (ComponentId comp.Id, comp, updatedCustom.Type))))
                         
                         let dispatchnew (msg: DrawModelType.SheetT.Msg) : unit = dispatch (Sheet msg)
                         model.Sheet.DoBusWidthInference dispatchnew

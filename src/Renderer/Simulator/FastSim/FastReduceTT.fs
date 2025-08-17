@@ -801,15 +801,12 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | _ -> failwithf $"Can't happen"
 
             put 0 <| Data outDat
-        | _ ->
-            let err =
-                { ErrType = AlgInpNotAllowed "The chosen set of Algebraic inputs results in algebra being passed to the
-                    input port of a Bit-Spreader. Only values can be passed to this port."
-                  InDependency = Some(comp.FullName)
-                  ComponentsAffected = [ comp.cId ]
-                  ConnectionsAffected = [] }
-            // Algebra at bit spreader is not supported
-            raise (AlgebraNotImplemented err)
+        | Alg exp ->
+            // Handle algebraic input: N-bit spreader spreads a 1-bit input to N bits
+            // If input is 0, output is 0; if input is 1, output is all 1s
+            // We create this by appending the input bit to itself N times
+            let expList = List.replicate numberOfBits exp
+            put 0 <| Alg(AppendExp expList)
     | Custom c ->
         // Custom components are removed
         failwithf "what? Custom components are removed before the fast simulation: %A" c

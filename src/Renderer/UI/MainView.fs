@@ -31,20 +31,20 @@ let viewOnDiagramButtons model dispatch =
     let dispatch = SheetT.KeyPress >> sheetDispatch
 
     div [ canvasSmallMenuStyle ] [
-        let canvasBut func label = 
-            Button.button [ 
-                Button.Props [ canvasSmallButtonStyle; OnClick func ] 
+        let canvasBut func label =
+            Button.button [
+                Button.Props [ canvasSmallButtonStyle; OnClick func ]
                 Button.Modifiers [
                     //Modifier.TextWeight TextWeight.Bold
                     Modifier.TextColor IsLight
                     Modifier.BackgroundColor IsSuccess
                     ]
-                ] 
+                ]
                 [ str label ]
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlZ ) "< undo" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlY ) "redo >" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlC ) "copy" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlV ) "paste" 
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlZ ) "< undo"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlY ) "redo >"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlC ) "copy"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlV ) "paste"
 
     ]
 
@@ -139,17 +139,19 @@ let init() = {
 
 let viewSimSubTab canvasState model dispatch =
     match model.SimSubTabVisible with
-    | StepSim -> 
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Step Simulation" ]
-            StepSimulationTop.viewSimulation canvasState model dispatch
+    | StepSim ->
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px"; Height "calc(100vh - 150px)"; Display DisplayOptions.Flex; FlexDirection "column" ] ] [
+            Heading.h4 [Heading.Props [Style [FlexShrink "0"; MarginBottom "5px"]]] [ str "Step Simulation" ]
+            div [Style [FlexGrow "1"; MinHeight "0"; Display DisplayOptions.Flex; FlexDirection "column"; OverflowY OverflowOptions.Hidden]] [
+                StepSimulationTop.viewSimulation canvasState model dispatch
+            ]
         ]
     | TruthTable ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             //Heading.h4 [] [ str "Truth Tables" ]
             TruthTableView.viewTruthTable canvasState model dispatch
         ]
-    | WaveSim -> 
+    | WaveSim ->
         div [ Style [Width "100%"; MarginTop "15px" ;Height "calc(100% - 72px)"; ] ]
             [ viewWaveSim canvasState model dispatch ]
 
@@ -158,14 +160,14 @@ let private  viewRightTab canvasState model dispatch =
     let pane = model.RightPaneTabVisible
     match pane with
     | Catalogue | Transition ->
-        
+
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
             Heading.h4 [] [ str "Catalogue" ]
-            div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ] 
+            div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ]
                 [ str "Click on a component to add it to the diagram. Hover on components for details." ]
             CatalogueView.viewCatalogue model dispatch
         ]
-        
+
     | Properties ->
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str "Component properties" ]
@@ -173,13 +175,13 @@ let private  viewRightTab canvasState model dispatch =
         ]
 
     | Simulation ->
-        let subtabs = 
+        let subtabs =
             Tabs.tabs [ Tabs.IsFullWidth; Tabs.IsBoxed; Tabs.CustomClass "rightSectionTabs";
-                        Tabs.Props [Style [Margin 0] ] ]  
-                    [                 
+                        Tabs.Props [Style [Margin 0] ] ]
+                    [
                     Tabs.tab // step simulation subtab
                         [ Tabs.Tab.IsActive (model.SimSubTabVisible = StepSim) ]
-                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ]  
+                        [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab StepSim ) ] [str "Step Simulation"] ]
 
                     (Tabs.tab // truth table tab to display truth table for combinational logic
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
@@ -189,7 +191,7 @@ let private  viewRightTab canvasState model dispatch =
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]
                     [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab WaveSim) ] [str "Wave Simulation"] ])
                     ]
-        div [ HTMLAttr.Id "RightSelection2"; Style [Height "100%"]] 
+        div [ HTMLAttr.Id "RightSelection2"; Style [Height "100%"]]
             [
                 //br [] // Should there be a gap between tabs and subtabs for clarity?
                 subtabs
@@ -204,31 +206,31 @@ let private  viewRightTab canvasState model dispatch =
 
 /// determine whether moving the mouse drags the bar or not
 let inline setDragMode (modeIsOn:bool) (dividerDragMode: DragMode) dispatch =
-    fun (ev: Browser.Types.MouseEvent) ->        
+    fun (ev: Browser.Types.MouseEvent) ->
         dispatch SelectionHasChanged
         //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match modeIsOn, dividerDragMode with
-        | true, DragModeOff ->  
+        | true, DragModeOff ->
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
-        | false, DragModeOn _ -> 
+        | false, DragModeOn _ ->
             dispatch <| SetDragMode DragModeOff
         | _ -> ()
 
 /// Draggable vertivcal bar used to divide Wavesim window from Diagram window
 let dividerbar (model:Model) dispatch =
     let dragMode = model.DividerDragMode
-    let isDraggable = 
-        model.RightPaneTabVisible = Simulation 
-        && (model.SimSubTabVisible = WaveSim 
+    let isDraggable =
+        model.RightPaneTabVisible = Simulation
+        && (model.SimSubTabVisible = WaveSim
         || model.SimSubTabVisible = TruthTable)
-    let heightAttr = 
+    let heightAttr =
         let rightSection = document.getElementById "RightSection"
         if (isNull rightSection) then Height "100%"
         else Height "100%" //rightSection.scrollHeight
-    let variableStyle = 
+    let variableStyle =
         if isDraggable then [
             BackgroundColor "grey"
-            Cursor "ew-resize" 
+            Cursor "ew-resize"
             Width Constants.dividerBarWidth
 
         ] else [
@@ -243,54 +245,54 @@ let dividerbar (model:Model) dispatch =
         ]
     div [
             Style <| commonStyle @ variableStyle
-            OnMouseDown (setDragMode true dragMode dispatch)       
+            OnMouseDown (setDragMode true dragMode dispatch)
         ] []
 
 let viewRightTabs canvasState model dispatch =
 
     let rightPanelVisible = model.RightPaneTabVisible
     /// Hack to avoid scrollbar artifact changing from Simulation to Catalog
-    /// The problem is that the HTML is bistable - with Y scrollbar on the catalog <aside> 
-    /// moves below the tab body div due to reduced available width, keeping scrollbar on. 
+    /// The problem is that the HTML is bistable - with Y scrollbar on the catalog <aside>
+    /// moves below the tab body div due to reduced available width, keeping scrollbar on.
     /// Not fully understood.
     /// This code temporarily switches the scrollbar off during the transition.
-    let scrollType = 
-        if model.RightPaneTabVisible = Transition then 
+    let scrollType =
+        if model.RightPaneTabVisible = Transition then
             dispatch <| ChangeRightTab Catalogue // after one view in transition it is OK to go to Catalogue
             OverflowOptions.Clip // ensure no scrollbar temporarily after the transition
-        else 
+        else
             OverflowOptions.Auto
-    
+
     let buildTab =
         if model.BuildVisible then
             Tabs.tab
                 [ Tabs.Tab.IsActive (rightPanelVisible = Build)]
-                [ a [  OnClick (fun _ -> 
-                        if rightPanelVisible <> Simulation 
+                [ a [  OnClick (fun _ ->
+                        if rightPanelVisible <> Simulation
                         then
-                            dispatch <| ChangeRightTab Build ) 
+                            dispatch <| ChangeRightTab Build )
                     ] [str "Build"] ]
         else
             null
-    
+
     div [HTMLAttr.Id "RightSelection";Style [ Height "100%"; OverflowY OverflowOptions.Visible]] [
-        Tabs.tabs [ 
-            Tabs.IsFullWidth; 
-            Tabs.IsBoxed; 
+        Tabs.tabs [
+            Tabs.IsFullWidth;
+            Tabs.IsBoxed;
             Tabs.CustomClass "rightSectionTabs"
-            Tabs.Props [Style [Margin 0]] ; 
-            
+            Tabs.Props [Style [Margin 0]] ;
+
         ] [
             Tabs.tab // catalogue tab to add components
                 [ Tabs.Tab.IsActive (rightPanelVisible = Catalogue) ]
-                [ a [ OnClick (fun _ -> 
-                        let target = 
+                [ a [ OnClick (fun _ ->
+                        let target =
                             if model.RightPaneTabVisible = Simulation then
                                 Transition else
                                 Catalogue
                         dispatch <| ChangeRightTab target ) ] [str "Catalogue" ] ]
             Tabs.tab // Properties tab to view/change component properties
-                [ Tabs.Tab.IsActive (rightPanelVisible = Properties) ]                                   
+                [ Tabs.Tab.IsActive (rightPanelVisible = Properties) ]
                 [ a [ OnClick (fun _ -> dispatch <| ChangeRightTab Properties )] [str "Properties"  ] ]
             Tabs.tab // simulation tab to view all simulators
                 [ Tabs.Tab.IsActive (rightPanelVisible = Simulation) ]
@@ -328,17 +330,17 @@ let displayView model dispatch =
         dispatch <| SetViewerWidth (int (screenWidth()) - 10)
     let inline processMouseMove (keyUp: bool) (ev: Browser.Types.MouseEvent) =
         //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
-        if ev.buttons = 1. then 
+        if ev.buttons = 1. then
             dispatch SelectionHasChanged
         match dividerDragMode, ev.buttons, keyUp with
-        | DragModeOn pos , 1., false-> 
+        | DragModeOn pos , 1., false->
             let newWidth = wsViewerWidth - int ev.clientX + pos
-            let w = 
+            let w =
                 newWidth
                 |> max minViewerWidth
                 |> min (windowX - minEditorWidth())
             dispatch <| SetDragMode (DragModeOn (int ev.clientX - w + newWidth))
-            dispatch <| SetViewerWidth w 
+            dispatch <| SetViewerWidth w
         | DragModeOn pos, _, true ->
             let newWidth = wsViewerWidth - int ev.clientX + pos
             let w =
@@ -347,7 +349,7 @@ let displayView model dispatch =
                 |> min (windowX - minEditorWidth())
             WaveSimNavigation.setViewerWidthInWaveSim w dispatch
             dispatch <| SetDragMode DragModeOff
-            dispatch <| SetViewerWidth w 
+            dispatch <| SetViewerWidth w
         | _ -> ()
         if ev.buttons = 0 then
             dispatch <| UpdateModel (fun model -> {model with MousePointerIsOnRightSection = ev.clientX > float (windowX - wsViewerWidth)})
@@ -374,7 +376,7 @@ let displayView model dispatch =
         if inDrag && not leftButtonIsdown then
             // cancel the scroll operation
             ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
-        elif inDrag then 
+        elif inDrag then
             ScrollbarMouseMsg (event.clientX, InScrollbarDrag, dispatch) |> dispatch
 
 
@@ -392,7 +394,7 @@ let displayView model dispatch =
         | None -> []
 
     match model.Spinner with
-    | Some fn -> 
+    | Some fn ->
         dispatch <| UpdateModel fn
     | None -> ()
     if model.CurrentProj = None  (* (((purgeTime - lastPurgeTime) > 10000.) && (JSHelpers.Memory.getProcessMemory() > 500))*) then
@@ -408,7 +410,7 @@ let displayView model dispatch =
                 OnMouseMove (processMouseMove false)
                 OnClick (processAppClick model.TopMenuOpenState dispatch)
                 OnMouseUp (processMouseMove true)
-                Style [ 
+                Style [
                     Cursor cursorText
                     UserSelect UserSelectOptions.None
                     BorderTop "2px solid lightgray"
@@ -418,10 +420,10 @@ let displayView model dispatch =
                     ]
                 ]) [
             // transient popups
-            UIPopups.viewPopup model dispatch  
+            UIPopups.viewPopup model dispatch
 
             if model.PopupDialogData.Progress = None then
-                div [ 
+                div [
                     OnWheel (fun (e: Browser.Types.WheelEvent) ->
                         if e.ctrlKey || e.metaKey then
                             e.preventDefault()

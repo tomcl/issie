@@ -1034,6 +1034,9 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
             | Some ccValue -> ccValue // Overwrite if key exists in cc
             | None -> value // use loaded component value if key does not exist in cc
             )
+    
+    // Get the parameter slots from the current sheet to find expressions
+    let slots = model |> getCurrentSheet |> getParamSlots
 
     match mergedParamBindings.IsEmpty with
     | true ->
@@ -1063,16 +1066,31 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                         let paramName =
                             match key with 
                             | ParameterTypes.ParamName s -> s
-                        let paramVal = 
+                        
+                        // Look for the expression in the parameter slots
+                        let paramValStr = 
+                            let slotKey = {CompId = comp.Id; CompSlot = CustomCompParam paramName}
+                            match Map.tryFind slotKey slots with
+                            | Some constrainedExpr ->
+                                // If there's an expression, render it as a string
+                                ParameterTypes.renderParamExpression constrainedExpr.Expression 0
+                            | None ->
+                                // Otherwise show the evaluated value
+                                match value with
+                                | ParameterTypes.PInt i -> string i
+                                | x -> string x
+                        
+                        let paramValInt = 
                             match value with
-                            |ParameterTypes.PInt i -> string i
-                            | x -> string x
+                            | ParameterTypes.PInt i -> i
+                            | _ -> 0
+                        
                         tr [] [
                             td [] [str paramName]
-                            td [] [str paramVal]
+                            td [] [str paramValStr]
                             td [] [
-                                Button.button // TODO-ELENA: this is sketchy
-                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model paramName (int paramVal) comp custom dispatch)
+                                Button.button
+                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model paramName paramValInt comp custom dispatch)
                                       Fulma.Button.Color IsInfo
                                     ] 
                                     [str "Edit"]

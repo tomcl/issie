@@ -124,11 +124,15 @@ let truthTableUpdate (model: Model) (msg:TTMsg) : (Model * Cmd<Msg>)  =
         | Some (Ok sd,_) ->
             // delete any old simulations
             let model = ModelHelpers.removeAllSimulationsFromModel model
+            // Set all inputs as algebraic by default
+            let modelWithAlgebra = 
+                model
+                |> set (tTType_ >-> algebraIns_) sd.Inputs
             // Generate the Truth Table
             let tt = 
                 truthTable 
                     sd 
-                    model.TTConfig
+                    modelWithAlgebra.TTConfig
                     false
             // Styles for the grid
             let colStyles = 
@@ -143,15 +147,15 @@ let truthTableUpdate (model: Model) (msg:TTMsg) : (Model * Cmd<Msg>)  =
                     |> List.toArray 
                     |> SetIOOrder
                     |> TruthTableMsg
-                    // Set the popup Algebra inputs to empty list
-                    (TruthTableMsg <| SetPopupAlgebraInputs (Some []))
+                    // Set the popup Algebra inputs to default to all inputs
+                    (TruthTableMsg <| SetPopupAlgebraInputs (Some sd.Inputs))
                     // Truncation warning
                     if tt.IsTruncated then
                         Notifications.warningPropsNotification (truncationWarning tt)
                         |> SetPropertiesNotification
                 ]
                 |> List.map Cmd.ofMsg
-            model
+            modelWithAlgebra
             |> set currentTruthTable_ (Some (Ok tt))
             |> set (tTType_ >-> gridStyles_) colStyles
             |> withCommands commands

@@ -14,6 +14,9 @@
     <Compile Include="SimulatorTests.fs" />
     <Compile Include="SimulatorSyncTests.fs" />
     <Compile Include="SimulatorMemoriesTests.fs" />
+    <Compile Include="CommonTests.fs" />
+    <Compile Include="DrawBlockTests.fs" />
+    <Compile Include="VerilogTests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <!-- Dependencies -->

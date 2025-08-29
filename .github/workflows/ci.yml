@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - master
+      - samuelpswang/dev-cd
   workflow_dispatch:
 
 jobs:
@@ -21,7 +22,7 @@ jobs:
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v4
       with:
-        github_token: ${{ secrets.ISSIE_DOCS_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./output
 
 

@@ -93,6 +93,15 @@
   </a>
 </li>             
 <li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-header ">
   Blog Updates
 </li>             
 <li class="nav-item ">
@@ -212,6 +221,15 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/Updating the documentation.html">
     Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
   </a>
 </li>             
 <li class="nav-header ">
@@ -383,16 +401,46 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:GraphMerger.mergeDependencies\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L286-286" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L568-568" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
-                  <p class="fsdocs-summary">
-                     Try to resolve all the dependencies in a graph, and replace the reducer
+                  <pre> Try to resolve all the dependencies in a graph, and replace the reducer
  of the custom components with a simulationgraph.
- Return an error if there are problems with the dependencies.
- For example, if the graph of an ALU refers to custom component such as
- adders, replace them with the actual simulation graph for the adders.
-                  </p>
+ <summary>
+ Merges dependencies into the simulation graph and resolves all parameters.
+ </summary>
+ <param name="currDiagramName">The name of the current sheet being processed</param>
+ <param name="graph">The initial simulation graph to merge dependencies into</param>
+ <param name="state">The current canvas state</param>
+ <param name="loadedDependencies">List of all loaded component sheets</param>
+ <returns>
+ Success: A fully merged and parameterized simulation graph
+ Error: Details of any dependency or parameter resolution failures
+ </returns>
+ <remarks>
+ Parameter Resolution Process (Two-Stage):
+ 
+ Stage 1 - Merging (via merger function):
+ - Custom components are replaced with their internal graphs
+ - Parameter resolution is DEFERRED to avoid forward reference issues
+ - Each custom component's graph is stored in CustomSimulationGraph field
+ 
+ Stage 2 - Parameter Resolution (happens after all merging):
+ 2a. Instance-specific parameters (resolveCustomComponentParameters):
+     - Each custom component instance may have specific parameter bindings
+     - These override any default values from the component definition
+     - Resolved recursively for nested custom components
+ 
+ 2b. Sheet-level parameters (resolveParametersInSimulationGraph):
+     - Uses default parameter bindings from the sheet definition
+     - Applies to all parameterized slots in the current sheet
+     - Evaluates expressions and updates component configurations
+ 
+ This two-stage approach ensures:
+ - No forward reference problems (all graphs merged before parameters resolved)
+ - Proper parameter precedence (instance bindings override defaults)
+ - Support for nested parameterized custom components
+ </remarks></pre>
                 </div>
               </summary>
               <dl class="fsdocs-params">
@@ -538,20 +586,53 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:GraphMerger.resolveParametersInSimulationGraph\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L272-272" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L326-326" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
-                  <p class="fsdocs-summary">
-                     Recursively update the SimulationGraph replacing integers with the correct parameter values.
+                  <pre> Recursively update the SimulationGraph replacing integers with the correct parameter values.
  Parameter names, and slots using parameters, can be picked up from loadedDependencies
  Parameters can be resolved by looking at the parameter bindings of the custom components.
  bindings: parameter bindings for the current sheet.
- currDiagramName: the name of the current sheet.
- state: the current CanvasState.
- loadedDependencies: the loaded dependencies.
- graph: the fully merged SimulationGraph to update.
- NB SimulationGraph components include the widths of all input and output busses.
-                  </p>
+ <summary>
+ Recursively resolves parameter expressions in a simulation graph.
+ </summary>
+ <param name="bindings">Map of parameter names to their bound expressions</param>
+ <param name="currDiagramName">The name of the current sheet</param>
+ <param name="state">The current CanvasState</param>
+ <param name="loadedDependencies">List of loaded component sheets</param>
+ <param name="graph">The fully merged SimulationGraph to update</param>
+ <returns>
+ Success: Updated graph with all parameters resolved to concrete values
+ Error: Details of any parameter evaluation failures
+ </returns>
+ <remarks>
+ Parameter Resolution Details:
+ 
+ 1. Expression Evaluation (evalExpr):
+    - PInt: Direct integer values
+    - PParameter: Lookup in bindings, then recursive evaluation
+    - Arithmetic: Evaluates both operands, applies operation
+    - Returns None if any parameter cannot be resolved
+ 
+ 2. Slot Application (applySlotValue):
+    - Buswidth: Updates width for viewers, buses, gates, registers, etc.
+    - NGateInputs: Updates number of inputs for variable-input gates
+    - IO: Updates Input/Output component configurations
+ 
+ 3. Component Processing:
+    - Finds all parameter slots for current component
+    - Evaluates each slot's expression
+    - Updates component type with resolved values
+    - Preserves other component properties (Id, Label, etc.)
+ 
+ 4. Recursive Resolution:
+    - Processes custom components' internal graphs
+    - Uses component-specific parameter bindings
+    - Ensures nested parameterized components work correctly
+ 
+ Note: SimulationGraph components include the widths of all input and output busses,
+ which are crucial for simulation and must be concrete values (not expressions).
+ </remarks></pre>
                 </div>
               </summary>
               <dl class="fsdocs-params">

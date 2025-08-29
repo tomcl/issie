@@ -93,6 +93,15 @@
   </a>
 </li>             
 <li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-header ">
   Blog Updates
 </li>             
 <li class="nav-item ">
@@ -215,6 +224,15 @@
   </a>
 </li>             
 <li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-header ">
   Blog Updates
 </li>             
 <li class="nav-item ">
@@ -320,7 +338,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:CanvasStateAnalyser.CustomComponentError\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L555-555" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L556-556" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -347,7 +365,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:CanvasStateAnalyser.MapData\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L35-35" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L36-36" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -441,7 +459,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasStateAnalyser.analyseState\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L743-743" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L833-833" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -544,7 +562,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasStateAnalyser.checkAdderUnnecessaryNC\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L617-617" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L707-707" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -640,7 +658,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasStateAnalyser.checkComponentNamesAreOk\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L692-692" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L782-782" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -704,6 +722,8 @@
                       </b>
                       :
                       <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
+                       - 
+                      The custom component instance to check
                     </span>
                     <br/>
                     <span>
@@ -712,6 +732,8 @@
                       </b>
                       :
                       <code><a href="/issie/reference/commontypes-customcomponenttype.html">CustomComponentType</a></code>
+                       - 
+                      The custom component type containing parameter bindings and expected I/O labels
                     </span>
                     <br/>
                     <span>
@@ -720,6 +742,8 @@
                       </b>
                       :
                       <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                       - 
+                      List of loaded component sheets to check against
                     </span>
                     <br/>
                   </ul>
@@ -728,6 +752,10 @@
                     Returns: 
                     <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>unit,&#32;<span>(<span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;*&#32;<a href="/issie/reference/canvasstateanalyser-customcomponenterror.html">CustomComponentError</a></span>)</span></span>&gt;</span></code>
                   </span>
+                  
+ Ok() if the component's I/Os match the sheet definition
+ Error with details if there's a mismatch or missing sheet
+ 
                   <br/>
                 </div>
               </div>
@@ -743,14 +771,55 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasStateAnalyser.checkCustomComponentForOkIOs\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L561-561" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L608-608" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Check a single custom component for correct I/Os
+                    
+ Check a single custom component for correct I/Os, resolving parameters if necessary.
+ 
                   </p>
                 </div>
               </summary>
+              <p class="fsdocs-remarks">
+                
+ Parameter Resolution Process:
+ 1. If the component has parameter bindings AND the sheet has parameter slots:
+    - Iterate through all components in the sheet
+    - For each component, check if it has a parameter slot definition
+    - If it's an Input1 or Output component with a matching IO label slot:
+      * Evaluate the parameter expression using a simple recursive evaluator
+      * The evaluator only handles PInt (constants) and PParameter (lookups)
+      * Update the component's width with the resolved value
+ 2. Use the resolved components to extract the actual I/O labels
+ 3. Compare against expected labels from the custom component instance
+ 
+ This simplified parameter resolution is sufficient for validation purposes,
+ as it only needs to resolve I/O port widths to determine port labels.
+ 
+ PARAMETER RESOLUTION ARCHITECTURE:
+ The codebase implements parameter resolution at three different levels:
+ 
+ 1. Full Resolution (ParameterTypes.evaluateParamExpression):
+    - Supports all arithmetic operations (+, -, *, /, %)
+    - Returns Result with detailed error messages
+    - Used in UI for user feedback when editing parameters
+ 
+ 2. Graph Resolution (GraphMerger.resolveParametersInSimulationGraph):
+    - Uses internal evalExpr that returns Option
+    - Supports all arithmetic operations
+    - Applies resolved values via applySlotValue
+    - Used during simulation graph construction
+ 
+ 3. Validation Resolution (this function):
+    - Minimal evaluator supporting only PInt and PParameter
+    - Only resolves I/O port widths for label extraction
+    - Optimized for fast validation checks
+ 
+ This three-tier approach ensures efficient processing while maintaining
+ full parameter functionality where needed.
+ 
+              </p>
               <dl class="fsdocs-params">
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
@@ -759,7 +828,11 @@
                   :
                   <code><a href="/issie/reference/commontypes-component.html">Component</a></code>
                 </dt>
-                <dd class="fsdocs-param-docs"></dd>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    The custom component instance to check
+                  </p>
+                </dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
                     args
@@ -767,7 +840,11 @@
                   :
                   <code><a href="/issie/reference/commontypes-customcomponenttype.html">CustomComponentType</a></code>
                 </dt>
-                <dd class="fsdocs-param-docs"></dd>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    The custom component type containing parameter bindings and expected I/O labels
+                  </p>
+                </dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
                     sheets
@@ -775,7 +852,11 @@
                   :
                   <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
                 </dt>
-                <dd class="fsdocs-param-docs"></dd>
+                <dd class="fsdocs-param-docs">
+                  <p>
+                    List of loaded component sheets to check against
+                  </p>
+                </dd>
               </dl>
               <dl class="fsdocs-returns">
                 <dt>
@@ -784,7 +865,14 @@
                   </span>
                   <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>unit,&#32;<span>(<span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;*&#32;<a href="/issie/reference/canvasstateanalyser-customcomponenterror.html">CustomComponentError</a></span>)</span></span>&gt;</span></code>
                 </dt>
-                <dd class="fsdocs-return-docs"></dd>
+                <dd class="fsdocs-return-docs">
+                  <p>
+                    
+ Ok() if the component's I/Os match the sheet definition
+ Error with details if there's a mismatch or missing sheet
+ 
+                  </p>
+                </dd>
               </dl>
             </details>
           </td>
@@ -854,7 +942,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasStateAnalyser.checkCustomComponentsOk\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L583-583" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L674-674" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1275,7 +1363,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasStateAnalyser.portNames\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L53-53" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasStateAnalyser.fs#L54-54" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

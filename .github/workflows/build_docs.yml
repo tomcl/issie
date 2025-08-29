@@ -1,0 +1,31 @@
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build_docs:
+    runs-on: buntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v3
+    - name: Restore tools
+      run: dotnet tool restore
+    - name: Paket install
+      run: dotnet paket install
+    - name: Run build_docs.sh
+      run: ./build_docs.sh
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./output
+
+    # FIX: This is no longer true, likely due to update of "peaceiris/actions-gh-pages@v4"
+    # A new personal access token must be generated to allow the GitHub Actions workflow to push to the repository.
+    # The token must have the 'repo' scope.
+    # Generate here https://github.com/settings/tokens/new
+    # Add the token to the repository secrets as ISSIE_DOCS_TOKEN
+    # https://docs.github.com/en/actions/reference/encrypted-secrets#creating-encrypted-secrets-for-a-repository

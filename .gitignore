@@ -263,8 +263,5 @@ docsrc/tools/FSharp.Formatting.svclog
 output/
 tmp/
 
-# macOS compilation
-*.provisionprofile
-
 # AI Files
 # CLAUDE.md

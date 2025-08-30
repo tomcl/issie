@@ -9,8 +9,7 @@ mkdir dist_tmp
 
 # 2. Build for each os/arch combinations
 # 3. Replace name for each os/arch combinations
-# for target in "mac,x64,dmg" "mac,arm64,dmg" "linux,x64,zip" "linux,arm64,zip" "win,x64,zip"
-for target in "mac,x64,dmg" "mac,arm64,dmg" "linux,arm64,zip" "win,x64,zip"
+for target in "linux,x64,zip"
 do
   os=$(cut -d',' -f1 <<< "$target")
   arch=$(cut -d',' -f2 <<< "$target")

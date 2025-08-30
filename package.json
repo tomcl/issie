@@ -66,20 +66,10 @@
       "entitlements": "public/entitlements.mac.plist",
       "entitlementsInherit": "./public/entitlements.mac.plist",
       "icon": "public/icon.icns",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": "x64"
-        },
-        {
-          "target": "dmg",
-          "arch": "arm64"
-        }
-      ],
       "hardenedRuntime": true,
       "identity": "4ADD6B8606BC9F3C2124FEF100B9C828B58EF06E",
       "provisioningProfile": "issie.provisionprofile",
-      "notarize": true
+      "notarize": false
     },
     "dmg": {
       "icon": false

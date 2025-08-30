@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# 0. Log current working directory
+# 0. Prep
+set -euo pipefail
+sudo apt update
+sudo apt install libudev-dev
 echo "[INFO] Building from: $PWD"
 
 # 1. Create temp directory to store publish files
@@ -15,7 +18,7 @@ do
   arch=$(cut -d',' -f2 <<< "$target")
   filetype=$(cut -d',' -f3 <<< "$target")
   echo "[INFO] Building binary for $os,$arch..."
-  npm run dist -- --$os --$arch # FIX: hack, relies on `electron-builder` pos
+  npm run dist -- --$os --$arch -p never # FIX: hack, relies on `electron-builder` pos
   pathname_old=$(find ./dist/ -name "*.$filetype")
   pathname_new=$(sed 's/dist/dist_tmp/g' <<< "$pathname_old")
   pathname_new=$(sed "s/.$filetype//g" <<< "$pathname_new")

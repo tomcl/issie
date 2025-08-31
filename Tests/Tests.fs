@@ -79,6 +79,29 @@ let displayPerformance m n = Helpers.checkPerformance m n startTimer stopTimer
 
 [<EntryPoint>]
 let main argv =
-    displayPerformance 100 1000000
-    //TestLib.runTests ()
-    0
+    // Run all tests when invoked
+    let testConfig = 
+        { defaultConfig with 
+            verbosity = Logging.Info
+            parallel = true
+            parallelWorkers = System.Environment.ProcessorCount }
+    
+    let allTests = 
+        testList "All Issie Tests" [
+            simulatorTests
+            simulatorSyncTests
+            simulatorMemoriesTests
+            widthInfererTests
+            CommonTests.helpersTests
+            CommonTests.eeExtensionsTests
+            CommonTests.opticsTests
+            CommonTests.positionTests
+            DrawBlockTests.symbolTests
+            DrawBlockTests.busWireTests
+            DrawBlockTests.sheetTests
+            VerilogTests.verilogParsingTests
+            VerilogTests.verilogErrorCheckTests
+            VerilogTests.verilogConversionTests
+        ]
+    
+    runTestsWithCLIArgs [] argv allTests

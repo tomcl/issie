@@ -183,8 +183,8 @@ let viewSimulation canvasState model dispatch =
             | true, Error _ -> createRefreshButtonError
             | _ -> emptyRefreshSVG
     
-        div [Style [Height "100%"]] [
-            div [Style [Height "40px"]] [
+        div [Style [Height "100%"; Display DisplayOptions.Flex; FlexDirection "column"]] [
+            div [Style [MinHeight "40px"; FlexShrink "0"]] [
             Button.button
                 [
                     Button.Color IsDanger;
@@ -196,12 +196,14 @@ let viewSimulation canvasState model dispatch =
             refreshButton
             setDefaultButton
             ]
-            br []; 
-            div [Style [Display DisplayOptions.Block;]] []
-            str "The simulation uses the diagram as it was at the moment of
-                 pressing the \"Start simulation\" or \"Refresh\" button using default input values."
-            hr []
-            body
+            div [Style [FlexShrink "0"; Padding "10px 0"]] [
+                str "The simulation uses the diagram as it was at the moment of
+                     pressing the \"Start simulation\" or \"Refresh\" button using default input values."
+            ]
+            hr [Style [FlexShrink "0"; Margin "5px 0"]]
+            div [Style [FlexGrow "1"; OverflowY OverflowOptions.Auto; PaddingRight "15px"; MinHeight "0"; PaddingBottom "20px"]] [
+                body
+            ]
         ]
 
 let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =

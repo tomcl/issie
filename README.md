@@ -1,7 +1,7 @@
 # Issie - an Interactive Schematic Simulator with Integrated Editor
 
-![Release](https://img.shields.io/github/v/release/tomcl/issie?logo=github&label=Release)
-![GitHub Release Date](https://img.shields.io/github/release-date/tomcl/issie?display_date=created_at&logo=github&label=Release%20Date)
+![Release Version](https://img.shields.io/github/v/release/tomcl/issie?logo=github&label=Release%20Version)
+![Release Date](https://img.shields.io/github/release-date/tomcl/issie?display_date=created_at&logo=github&label=Release%20Date)
 ![Documentation Status](https://github.com/tomcl/issie/actions/workflows/build_docs.yml/badge.svg)
 ![Build Status](https://github.com/tomcl/issie/actions/workflows/build_dist.yml/badge.svg)
 ![Test Suite Status](https://github.com/tomcl/issie/actions/workflows/test.yml/badge.svg)

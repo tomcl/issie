@@ -1,5 +1,13 @@
 # Issie - an Interactive Schematic Simulator with Integrated Editor
 
+![Release](https://img.shields.io/github/v/release/tomcl/issie?logo=github&label=Release)
+![GitHub Release Date](https://img.shields.io/github/release-date/tomcl/issie?display_date=created_at&logo=github&label=Release%20Date)
+![Documentation Status](https://github.com/tomcl/issie/actions/workflows/build_docs.yml/badge.svg)
+![Build Status](https://github.com/tomcl/issie/actions/workflows/build_dist.yml/badge.svg)
+![Test Suite Status](https://github.com/tomcl/issie/actions/workflows/test.yml/badge.svg)
+![Downloads](https://img.shields.io/github/downloads/tomcl/issie/total?label=Downloads)
+![Contributors](https://img.shields.io/github/contributors-anon/tomcl/issie?label=Contributors)
+
 Issie (Interactive Schematic Simulator with Integrated Editor) is an application for digital circuit design and simulation. It is targeted at students and hobbyists that want to get a grasp of Digital Electronics concepts in a simple and fun way. Issie is designed to be beginner-friendly and guide the users toward their goals via clear error messages and visual clues. Issie is developed and actively used in teaching at Imperial College London.
 
 * If you are just interested in using the application, jump to the [Getting Started](#getting-started) section. 

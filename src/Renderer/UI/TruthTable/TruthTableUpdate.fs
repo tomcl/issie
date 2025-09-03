@@ -250,7 +250,12 @@ let truthTableUpdate (model: Model) (msg:TTMsg) : (Model * Cmd<Msg>)  =
         /// Recursive function to hide columns and adjust the positions of the remaining
         /// visible columns.
         let rec correctProps (index: int) (acc: list<CellIO*list<CSSProp>>) (lst: CellIO list):  list<CellIO*list<CSSProp>>=
-            let hiddenProps = ttGridHiddenColumnProps model.TTConfig.IOOrder.Length
+            // Number of visible columns is total minus hidden
+            let visibleCount =
+                (Array.toList model.TTConfig.IOOrder
+                 |> List.except model.TTConfig.HiddenColumns
+                 |> List.length)
+            let hiddenProps = ttGridHiddenColumnProps visibleCount
             match lst with
             | [] -> acc
             | io::tl ->

@@ -220,10 +220,17 @@ let ttGridHiddenColumnProps gridWidth= [
 ]
 
 let ttGridContainerStyle model = 
-    let widthRightSec = rightSectionWidth model
+    // Compute number of visible columns (total IOs minus hidden columns)
+    let totalCols = model.TTConfig.IOOrder.Length
+    let hiddenCols = model.TTConfig.HiddenColumns.Length
+    // Ensure at least 1 to avoid invalid CSS when table is empty
+    let visibleCols = max 1 (totalCols - hiddenCols)
     Style [
         Display DisplayOptions.Grid
         GridAutoFlow "column"
+        // Make grid span the container width and distribute columns evenly
+        Width "100%"
+        GridTemplateColumns (sprintf "repeat(%d, minmax(0, 1fr))" visibleCols)
     ]
 
 

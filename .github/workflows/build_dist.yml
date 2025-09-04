@@ -19,7 +19,7 @@ jobs:
       id: latest_release
       uses: KevinRohn/github-full-release-data@v2
       with:
-        repository: samuelpswang/issie-dev-workflow
+        repository: ${{ github.repository }}
         token: ${{ secrets.GITHUB_TOKEN }}
         version: latest
     - name: Check if this tag is a patch

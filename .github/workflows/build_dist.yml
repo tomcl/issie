@@ -51,8 +51,15 @@ jobs:
         body: ${{ steps.latest_release.outputs.body }}
       with:
         script: |
-          const body = process.env.body;
-          return body.slice(1,-1);
+          let body = process.env.body;
+          console.log("Received Release Text:")
+          console.log(body)
+          body = body.slice(1,-1);
+          body = body.replaceAll("\\r", "\r");
+          body = body.replaceAll("\\n", "\n");
+          console.log("Output Release Text:")
+          console.log(body)
+          return body;
         result-encoding: string
     - name: Re-create current release with new tag
       if: ${{ steps.is_patch.outputs.result == 'true' }}

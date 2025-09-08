@@ -428,6 +428,13 @@ let rec resolveParametersInSimulationGraph
         // IO ports
         | IO _, Input1 (_, dv) -> Input1 (value, dv)
         | IO _, Output _ -> Output value
+        // SplitN output slots
+        | SplitNWidth idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length widths ->
+            let newWidths = widths |> List.mapi (fun i w -> if i = idx then value else w)
+            SplitN (n, newWidths, lsbs)
+        | SplitNLSB idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length lsbs ->
+            let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then value else l)
+            SplitN (n, widths, newLsbs)
         | _ -> compType
 
     // Process a single component
@@ -442,12 +449,13 @@ let rec resolveParametersInSimulationGraph
                 | Some value -> 
                     Ok { c with Type = applySlotValue c.Type slot.CompSlot value }
                 | None ->
-                    Error ({ 
+                    let err: SimGraphTypes.SimulationError = {
                         ErrType = GenericSimError "Parameter expression could not be fully evaluated"
                         InDependency = Some currDiagramName
                         ComponentsAffected = [compId]
-                        ConnectionsAffected = [] 
-                    }: SimulationError)
+                        ConnectionsAffected = []
+                    }
+                    Error err
             )
         ) (Ok comp)
 

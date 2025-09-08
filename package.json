@@ -1,6 +1,6 @@
 {
   "name": "issie",
-  "version": "5.10.2",
+  "version": "5.10.3",
   "description": "Schematic editor and Simulator",
   "homepage": "https://github.com/tomcl/issie",
   "bugs": {
@@ -67,9 +67,9 @@
       "entitlementsInherit": "./public/entitlements.mac.plist",
       "icon": "public/icon.icns",
       "hardenedRuntime": true,
-      "identity": "4ADD6B8606BC9F3C2124FEF100B9C828B58EF06E",
       "provisioningProfile": "issie.provisionprofile",
-      "notarize": false
+      "identity": "37DDC058086BDD9802403E2845A091DBE6F4D3DB",
+      "notarize": true
     },
     "dmg": {
       "icon": false

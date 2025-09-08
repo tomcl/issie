@@ -1,48 +1,143 @@
+name: Build
+
 on:
   workflow_dispatch:
     inputs:
-      release:
-        description: 'Upload binaries to Releases page?'
+      tag:
+        description: 'Which tag to manually rebuild? (string)'
+        type: string
         required: true
-        type: boolean
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  build_dist:
-    runs-on: macos-latest
-    steps:
-    - name: Checkout the repo
-      uses: actions/checkout@v5
-    - name: Set up .NET Core
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '8.0.x'
-    - name: Restore .NET tools and node packages - build.sh
-      run: ./build.sh -t Build
-    - name: Build app - build_dist.sh
-      run: ./build_dist.sh
-    - name: Deploy to releases page
-      uses: softprops/action-gh-release@v2
-      if: ${{ github.event_name == 'push' || inputs.release }}
-      with:
-        files: dist/issie-[0-9]+.[0-9]+.[0-9]+-*-*.*
-  build_dist_linux_x64:
+  update-current-release:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout the repo
-      uses: actions/checkout@v5
+    - name: Get current release data
+      id: latest_release
+      uses: KevinRohn/github-full-release-data@v2
+      with:
+        repository: ${{ github.repository }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        version: latest
+    - name: Check if this tag is a patch
+      id: is_patch
+      uses: actions/github-script@v7
+      env:
+        prev_tag: ${{ steps.latest_release.outputs.tag_name }}
+        curr_tag: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+      with:
+        script: |
+          const prev_tag = process.env.prev_tag;
+          const curr_tag = process.env.curr_tag;
+          const [prev_major, prev_minor] = prev_tag.split('.');
+          const [curr_major, curr_minor] = curr_tag.split('.');
+          return (prev_major === curr_major) && (prev_minor === curr_minor);
+        result-encoding: string
+    - name: Delete current release
+      if: ${{ steps.is_patch.outputs.result == 'true' }}
+      uses: liudonghua123/delete-release-action@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        release_id: ${{ steps.latest_release.outputs.id }}
+    - name: Format current release body (hack)
+      if: ${{ steps.is_patch.outputs.result == 'true' }}
+      id: body_format
+      uses: actions/github-script@v7
+      env:
+        body: ${{ steps.latest_release.outputs.body }}
+      with:
+        script: |
+          let body = process.env.body;
+          console.log("Received Release Text:")
+          console.log(body)
+          body = body.slice(1,-1);
+          body = body.replaceAll("\\r", "\r");
+          body = body.replaceAll("\\n", "\n");
+          console.log("Output Release Text:")
+          console.log(body)
+          return body;
+        result-encoding: string
+    - name: Re-create current release with new tag
+      if: ${{ steps.is_patch.outputs.result == 'true' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+        name: ${{ steps.latest_release.outputs.name }}
+        body: ${{ steps.body_format.outputs.result }}
+    - name: Create draft release for new major/minor version
+      if: ${{ steps.is_patch.outputs.result == 'false'}}
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        body: New major or minor version pushed, release text work in progress.
+
+  build-distributions-all:
+    runs-on: macos-latest
+    needs: update-current-release
+    steps:
+    - name: Install Apple Developer ID Application certificate
+      env:
+        APPLE_DEV_CERT_P12_B64: ${{ secrets.APPLE_DEV_CERT_P12_B64 }}
+        APPLE_DEV_CERT_PWD: ${{ secrets.APPLE_DEV_CERT_PWD }}
+        APPLE_KEYCHAIN_TMP_PWD: ${{ secrets.APPLE_KEYCHAIN_TMP_PWD }}
+      run: |
+        KEYCHAIN_PATH=$RUNNER_TEMP/tmp.keychain-db
+        CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+        echo -n "$APPLE_DEV_CERT_P12_B64" | base64 --decode -o $CERTIFICATE_PATH
+        security create-keychain -p "$APPLE_KEYCHAIN_TMP_PWD" $KEYCHAIN_PATH
+        security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+        security unlock-keychain -p "$APPLE_KEYCHAIN_TMP_PWD" $KEYCHAIN_PATH
+        security import $CERTIFICATE_PATH -P "$APPLE_DEV_CERT_PWD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+        security set-key-partition-list -S apple-tool:,apple: -k "$APPLE_KEYCHAIN_TMP_PWD" $KEYCHAIN_PATH
+        security list-keychain -d user -s $KEYCHAIN_PATH
     - name: Set up .NET Core
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
-    - name: Restore .NET tools and node packages - build.sh
+    - name: Checkout the repo
+      uses: actions/checkout@v5
+      with:
+        ref: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+    - name: Restore .NET tools and node packages, via build.sh
       run: ./build.sh -t Build
-    - name: Build app - build_dist_linux_x64.sh
-      run: ./build_dist_linux_x64.sh
+    - name: Build app, via build_dist.sh
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: ./build_dist.sh --default --remove=linux:x64:zip
     - name: Deploy to releases page
       uses: softprops/action-gh-release@v2
-      if: ${{ github.event_name == 'push' || inputs.release }}
       with:
-        files: dist/issie-[0-9]+.[0-9]+.[0-9]+-*-*.*
+        tag_name: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+        files: dist/*
+
+  build-distribution-linux-x64:
+    runs-on: ubuntu-latest
+    needs: update-current-release
+    steps:
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - name: Set up required Ubuntu packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install libudev-dev
+    - name: Checkout the repo
+      uses: actions/checkout@v5
+      with:
+        ref: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+    - name: Restore .NET tools and node packages, via build.sh
+      run: ./build.sh -t Build
+    - name: Build app, via build_dist.sh
+      run: ./build_dist.sh --add=linux:x64:zip
+    - name: Deploy to releases page
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+        files: dist/*

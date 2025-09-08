@@ -206,6 +206,12 @@ The parser uses recursive descent with separate functions for each precedence le
 - `parseFactors`: Processes multiplication, division, modulo
 - `parseExpressionTokens`: Handles addition and subtraction
 
+Notes and caveats:
+- Tokenizer restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
+- Division and modulo are evaluated during constant-folding; add a MinVal constraint to prevent zero divisors where needed.
+  
+Code: `src/Renderer/Common/ParameterTypes.fs` (`parseExpression`, tokenizer regex, and helpers)
+
 ## Parameter Scoping & Precedence
 
 ### Scope Levels
@@ -473,6 +479,41 @@ resolveParametersForComponent: ParamBindings -> Map<ParamSlot, ConstrainedExpr> 
 ```fsharp
 evaluateConstraints: ParamBindings -> ConstrainedExpr list -> (Msg -> unit) -> Result<Unit, ParamConstraint list>
 ```
+
+## Resolution Mechanics Deep-Dive
+
+- UI evaluation: `ParameterTypes.evaluateParamExpression` performs recursive substitution and constant-folding with detailed errors. Used by `ParameterView` for validation and preview.
+- Graph evaluation: `GraphMerger.resolveParametersInSimulationGraph` uses internal `evalExpr` (returns `Option<int>`) and `applySlotValue` to write concrete values into `SimulationGraph` component types after merge.
+- Validation evaluation: `CanvasStateAnalyser.checkCustomComponentForOkIOs` embeds a minimal evaluator supporting only `PInt` and `PParameter` to resolve port widths quickly for label checking.
+- Slot access: Lenses `ParameterView.compSlot_` and `ParameterView.modelToSlot_` provide strongly typed access into `Component.Type` for `Buswidth`, `NGateInputs`, and `IO label`.
+
+## Developer Notes (Files & Responsibilities)
+
+- `src/Renderer/Common/ParameterTypes.fs`: Types (`ParamExpression`, `ParamConstraint`, `ParamSlot`, `ParameterDefs`), parser (`parseExpression`), evaluator (`evaluateParamExpression`), renderer (`renderParamExpression`).
+- `src/Renderer/UI/ParameterView.fs`: Sheet defaults and slot bindings CRUD, constraint checking, component updates, and parameter UI fields/popups.
+- `src/Renderer/UI/CatalogueView.fs`: Merges parent sheet defaults with sub-sheet defaults, resolves canvas before extracting `InputLabels`/`OutputLabels`, sets `ParameterBindings` on instances.
+- `src/Renderer/Simulator/GraphMerger.fs`: Two-stage resolution during merge; instance bindings first, then sheet defaults; recursion into nested custom components.
+- `src/Renderer/Simulator/CanvasStateAnalyser.fs`: Lightweight parameter resolution for port label validation.
+
+## Development History
+
+Key commits that shaped the current system (from `git log`):
+- a67fa72f Fix parameter resolution in simulation graph creation
+  - Passes `loadedDependencies` into merger; applies instance-specific `ParameterBindings` for custom components.
+- 83bb0b0b Fix forward reference issue in parameter resolution
+  - Introduces two-stage resolution: resolve custom component instance bindings first, then sheet-level defaults.
+- b510fe4b Parameter System Redo
+  - Reworks UI binding flow and simulation integration; clearer separation of concerns.
+- edf61e87 Parameter System Support
+  - Integrates `ParameterTypes.fs`, updates merger/validation, and adds comprehensive documentation.
+
+For a side-by-side comparison with an earlier streamlined approach, see `PARAMETER_SYSTEM_COMPARISON.md`.
+
+## Known Limitations
+
+- Integer-only parameters today (`ParamInt = int`); very large constants may require future `bigint`.
+- No explicit guard on divide/modulo by zero during constant-folding; enforce with constraints.
+- Parameter names are unqualified; deeper inheritance across sheet hierarchies may require qualification if extended.
 
 ## Best Practices
 

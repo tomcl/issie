@@ -574,41 +574,48 @@ let private changeSplitN model (comp:Component) dispatch =
             [Style [Color Red]]
             [str errText]
 
-        let constraints = [
-            MinVal (PInt 2, "Must have at least 2 outputs")
-            MaxVal (PInt Constants.maxSplitMergeBranches, $"Cannot have more than {Constants.maxSplitMergeBranches} outputs")
+        // Plain numeric input for number of outputs (no parameter box)
+        Field.div [] [
+            Label.label [] [ str title ]
+            Input.number [
+                Input.Props [ Style [ Width "80px" ]; Min 2; Max Constants.maxSplitMergeBranches ]
+                Input.DefaultValue (string nInp)
+                Input.OnChange (getIntEventValue >> fun newNum ->
+                    let newWidths = changeWidths widths newNum 1
+                    let newLsbs = changeLsbs lsbs newWidths newNum
+                    model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) newNum newWidths newLsbs)
+            ]
         ]
-        
-        ParameterView.paramInputField model title 2 (Some nInp) constraints (Some comp) NGateInputs dispatch
-        div [Style [Display DisplayOptions.Flex; MarginLeft "180px"]] [
-        // Add headers for the "Width" and "LSB" columns
-            Label.label [Label.Props [Style [TextAlign TextAlignOptions.Center; MarginRight "20px"]]] [str "Width"]
-            Label.label [Label.Props [Style [TextAlign TextAlignOptions.Center; MarginLeft "20px"]]] [str "LSB"]
-        ]
-        List.mapi2 (fun index defaultWidth defaultLsb ->
-            let portTitle = 
-                match defaultWidth with
-                | n when n > 1 -> sprintf "Output Port %d" index
-                | _ -> sprintf "Output Port %d" index
-            let bits = 
-                match defaultWidth with
-                | n when n > 1 -> sprintf "(%d:%d)" (n+defaultLsb-1) defaultLsb
-                | _ -> sprintf "(%d)" defaultLsb
-            intFormField2 portTitle bits "60px" defaultWidth defaultLsb 1 0 
-                (fun newWidth -> 
-                    let neWidths = 
-                        widths
-                        |> List.mapi (fun i x -> if i = index then newWidth else x)
-                    model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) nInp neWidths lsbs
-                    )
-                (fun lsb -> 
-                    let newLsbs = 
-                        lsbs
-                        |> List.mapi (fun i x -> if i = index then lsb else x)
-                    model.Sheet.ChangeSplitN sheetDispatch (ComponentId comp.Id) nInp widths newLsbs
-                    )
-        ) widths lsbs
-        |> div [Style [MarginBottom "20px"]] 
+
+        // Parameter boxes for each output's Width and LSB
+        widths
+        |> List.mapi (fun index defaultWidth ->
+            let defaultLsb = lsbs.[index]
+            div [ Style [ MarginLeft "10px"; MarginBottom "10px" ] ] [
+                Label.label [] [ str (sprintf "Output Port %d" index) ]
+                // Width parameter
+                ParameterView.paramInputField 
+                    model 
+                    "Width" 
+                    1 
+                    (Some defaultWidth) 
+                    [ MinVal (PInt 1, "Width must be at least 1") ]
+                    (Some comp) 
+                    (SplitNWidth index) 
+                    dispatch
+                // LSB parameter
+                ParameterView.paramInputField 
+                    model 
+                    "LSB" 
+                    0 
+                    (Some defaultLsb) 
+                    [ MinVal (PInt 0, "LSB must be non-negative") ]
+                    (Some comp) 
+                    (SplitNLSB index) 
+                    dispatch
+            ]
+        )
+        |> div [Style [MarginBottom "20px"]]
     ]
 
 

@@ -101,6 +101,20 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                 | Input1 (busWidth, _) -> busWidth
                 | Output busWidth -> busWidth
                 | _ -> failwithf $"Invalid component {comp.Type} for IO"
+            | SplitNWidth idx ->
+                match comp.Type with
+                | SplitN (_, widths, _) ->
+                    if idx >= 0 && idx < List.length widths then
+                        widths[idx]
+                    else failwithf $"SplitNWidth index %d{idx} out of range"
+                | _ -> failwithf $"Invalid component {comp.Type} for SplitNWidth"
+            | SplitNLSB idx ->
+                match comp.Type with
+                | SplitN (_, _, lsbs) ->
+                    if idx >= 0 && idx < List.length lsbs then
+                        lsbs[idx]
+                    else failwithf $"SplitNLSB index %d{idx} out of range"
+                | _ -> failwithf $"Invalid component {comp.Type} for SplitNLSB"
             | CustomCompParam paramName ->
                 match comp.Type with
                 | Custom customComp ->
@@ -152,6 +166,20 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
                         | Output _ -> Output value
                         | _ -> failwithf $"Invalid component {comp.Type} for IO"
+                    | SplitNWidth idx ->
+                        match comp.Type with
+                        | SplitN (n, widths, lsbs) ->
+                            if idx < 0 || idx >= List.length widths then failwithf $"SplitNWidth index %d{idx} out of range"
+                            let newWidths = widths |> List.mapi (fun i w -> if i = idx then value else w)
+                            SplitN (n, newWidths, lsbs)
+                        | _ -> failwithf $"Invalid component {comp.Type} for SplitNWidth"
+                    | SplitNLSB idx ->
+                        match comp.Type with
+                        | SplitN (n, widths, lsbs) ->
+                            if idx < 0 || idx >= List.length lsbs then failwithf $"SplitNLSB index %d{idx} out of range"
+                            let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then value else l)
+                            SplitN (n, widths, newLsbs)
+                        | _ -> failwithf $"Invalid component {comp.Type} for SplitNLSB"
                     | CustomCompParam paramName ->
                         match comp.Type with
                         | Custom customComp ->
@@ -232,8 +260,8 @@ let evaluateConstraints
     else Error result
 
 
-/// Generates a ParameterExpression from input text
-/// Operators are left-associative
+// Generates a ParameterExpression from input text
+// Operators are left-associative
 // parseExpression has been moved to ParameterTypes module
 
 
@@ -306,6 +334,20 @@ let updateComponent dispatch model slot value =
         match comp.Type with
         | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
         | _ -> failwithf $"Gate cannot have type {comp.Type}"
+    | SplitNWidth idx ->
+        match comp.Type with
+        | SplitN (n, widths, lsbs) ->
+            if idx < 0 || idx >= List.length widths then failwithf $"SplitNWidth index %d{idx} out of range"
+            let newWidths = widths |> List.mapi (fun i w -> if i = idx then value else w)
+            model.Sheet.ChangeSplitN sheetDispatch compId n newWidths lsbs
+        | _ -> failwithf $"SplitNWidth cannot be applied to {comp.Type}"
+    | SplitNLSB idx ->
+        match comp.Type with
+        | SplitN (n, widths, lsbs) ->
+            if idx < 0 || idx >= List.length lsbs then failwithf $"SplitNLSB index %d{idx} out of range"
+            let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then value else l)
+            model.Sheet.ChangeSplitN sheetDispatch compId n widths newLsbs
+        | _ -> failwithf $"SplitNLSB cannot be applied to {comp.Type}"
     | CustomCompParam paramName ->
         // For custom component parameters, we need to update the parameter bindings
         match comp.Type with
@@ -885,7 +927,19 @@ let resolveParametersForComponent
                             | Buswidth -> currentType |> (evaluatedValue ^= buswidthPrism)
                             | NGateInputs -> currentType |> (evaluatedValue ^= ngateInputsPrism)
                             | IO _ -> currentType |> (evaluatedValue ^= ioPortPrism)
-                            | _ -> currentType
+                            | SplitNWidth idx ->
+                                match currentType with
+                                | SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length widths ->
+                                    let newWidths = widths |> List.mapi (fun i w -> if i = idx then evaluatedValue else w)
+                                    SplitN (n, newWidths, lsbs)
+                                | _ -> currentType
+                            | SplitNLSB idx ->
+                                match currentType with
+                                | SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length lsbs ->
+                                    let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then evaluatedValue else l)
+                                    SplitN (n, widths, newLsbs)
+                                | _ -> currentType
+                            | CustomCompParam _ -> currentType
                         (newType, None)
                     | Error err -> (currentType, Some err)
             )
@@ -1127,6 +1181,8 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             | Buswidth -> "Buswidth"
             | NGateInputs -> "Num inputs"
             | IO label -> $"Input/output {label}"
+            | SplitNWidth idx -> $"SplitN output {idx} width"
+            | SplitNLSB idx -> $"SplitN output {idx} LSB"
             | CustomCompParam paramName -> $"Custom parameter {paramName}"
         
         let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then

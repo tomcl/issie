@@ -11,6 +11,8 @@ See [Getting Started](gettingStarted.html) for how to put Issie on your laptop o
 
 See [User Tutorial](userGuide.html) for a useful introduction to Issie on one page which you can follow or read.
 
+See [Parameter System](parameterSystem.html) for a detailed explanation of symbolic parameters, expressions, constraints, and simulation integration.
+
 <br>
 
 ## What is ISSIE?

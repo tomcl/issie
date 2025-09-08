@@ -474,6 +474,10 @@
 - <code>parsePrimary</code>: Handles numbers, variables, and parentheses
 - <code>parseFactors</code>: Processes multiplication, division, modulo
 - <code>parseExpressionTokens</code>: Handles addition and subtraction</p>
+<p>Notes and caveats:
+- Tokenizer restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
+- Division and modulo are evaluated during constant-folding; add a MinVal constraint to prevent zero divisors where needed.</p>
+<p>Code: <code>src/Renderer/Common/ParameterTypes.fs</code> (<code>parseExpression</code>, tokenizer regex, and helpers)</p>
 <h2><a name="Parameter-Scoping-amp-Precedence" class="anchor" href="#Parameter-Scoping-amp-Precedence">Parameter Scoping &amp; Precedence</a></h2>
 <h3><a name="Scope-Levels" class="anchor" href="#Scope-Levels">Scope Levels</a></h3>
 <ol>
@@ -731,6 +735,38 @@
 <h4><a name="Constraint-Checking" class="anchor" href="#Constraint-Checking">Constraint Checking</a></h4>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateConstraints</span><span class="pn">:</span> <span class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs17', 46)" onmouseover="showTip(event, 'fs17', 46)" class="id">list</span> <span class="k">-&gt;</span> <span class="pn">(</span><span class="id">Msg</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs18', 47)" onmouseover="showTip(event, 'fs18', 47)" class="id">unit</span><span class="pn">)</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 48)" onmouseover="showTip(event, 'fs6', 48)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Unit</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs2', 49)" onmouseover="showTip(event, 'fs2', 49)" class="id">ParamConstraint</span> <span onmouseout="hideTip(event, 'fs17', 50)" onmouseover="showTip(event, 'fs17', 50)" class="id">list</span><span class="pn">&gt;</span>
 </code></pre>
+<h2><a name="Resolution-Mechanics-Deep-Dive" class="anchor" href="#Resolution-Mechanics-Deep-Dive">Resolution Mechanics Deep-Dive</a></h2>
+<ul>
+<li>UI evaluation: <code>ParameterTypes.evaluateParamExpression</code> performs recursive substitution and constant-folding with detailed errors. Used by <code>ParameterView</code> for validation and preview.</li>
+<li>Graph evaluation: <code>GraphMerger.resolveParametersInSimulationGraph</code> uses internal <code>evalExpr</code> (returns <code>Option&lt;int&gt;</code>) and <code>applySlotValue</code> to write concrete values into <code>SimulationGraph</code> component types after merge.</li>
+<li>Validation evaluation: <code>CanvasStateAnalyser.checkCustomComponentForOkIOs</code> embeds a minimal evaluator supporting only <code>PInt</code> and <code>PParameter</code> to resolve port widths quickly for label checking.</li>
+<li>Slot access: Lenses <code>ParameterView.compSlot_</code> and <code>ParameterView.modelToSlot_</code> provide strongly typed access into <code>Component.Type</code> for <code>Buswidth</code>, <code>NGateInputs</code>, and <code>IO label</code>.</li>
+</ul>
+<h2><a name="Developer-Notes-Files-amp-Responsibilities" class="anchor" href="#Developer-Notes-Files-amp-Responsibilities">Developer Notes (Files &amp; Responsibilities)</a></h2>
+<ul>
+<li><code>src/Renderer/Common/ParameterTypes.fs</code>: Types (<code>ParamExpression</code>, <code>ParamConstraint</code>, <code>ParamSlot</code>, <code>ParameterDefs</code>), parser (<code>parseExpression</code>), evaluator (<code>evaluateParamExpression</code>), renderer (<code>renderParamExpression</code>).</li>
+<li><code>src/Renderer/UI/ParameterView.fs</code>: Sheet defaults and slot bindings CRUD, constraint checking, component updates, and parameter UI fields/popups.</li>
+<li><code>src/Renderer/UI/CatalogueView.fs</code>: Merges parent sheet defaults with sub-sheet defaults, resolves canvas before extracting <code>InputLabels</code>/<code>OutputLabels</code>, sets <code>ParameterBindings</code> on instances.</li>
+<li><code>src/Renderer/Simulator/GraphMerger.fs</code>: Two-stage resolution during merge; instance bindings first, then sheet defaults; recursion into nested custom components.</li>
+<li><code>src/Renderer/Simulator/CanvasStateAnalyser.fs</code>: Lightweight parameter resolution for port label validation.</li>
+</ul>
+<h2><a name="Development-History" class="anchor" href="#Development-History">Development History</a></h2>
+<p>Key commits that shaped the current system (from <code>git log</code>):
+- a67fa72f Fix parameter resolution in simulation graph creation
+- Passes <code>loadedDependencies</code> into merger; applies instance-specific <code>ParameterBindings</code> for custom components.
+- 83bb0b0b Fix forward reference issue in parameter resolution
+- Introduces two-stage resolution: resolve custom component instance bindings first, then sheet-level defaults.
+- b510fe4b Parameter System Redo
+- Reworks UI binding flow and simulation integration; clearer separation of concerns.
+- edf61e87 Parameter System Support
+- Integrates <code>ParameterTypes.fs</code>, updates merger/validation, and adds comprehensive documentation.</p>
+<p>For a side-by-side comparison with an earlier streamlined approach, see <code>PARAMETER_SYSTEM_COMPARISON.md</code>.</p>
+<h2><a name="Known-Limitations" class="anchor" href="#Known-Limitations">Known Limitations</a></h2>
+<ul>
+<li>Integer-only parameters today (<code>ParamInt = int</code>); very large constants may require future <code>bigint</code>.</li>
+<li>No explicit guard on divide/modulo by zero during constant-folding; enforce with constraints.</li>
+<li>Parameter names are unqualified; deeper inheritance across sheet hierarchies may require qualification if extended.</li>
+</ul>
 <h2><a name="Best-Practices" class="anchor" href="#Best-Practices">Best Practices</a></h2>
 <ol>
 <li><strong>Use descriptive parameter names</strong>: <code>DATA_WIDTH</code> instead of <code>W</code></li>
@@ -1188,6 +1224,26 @@ from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&
   <li class="level-4">
     <a href="#Constraint-Checking">
       Constraint Checking
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Resolution-Mechanics-Deep-Dive">
+      Resolution Mechanics Deep-Dive
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Developer-Notes-Files-amp-Responsibilities">
+      Developer Notes (Files &amp; Responsibilities)
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Development-History">
+      Development History
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Known-Limitations">
+      Known Limitations
     </a>
   </li>
   <li class="level-2">

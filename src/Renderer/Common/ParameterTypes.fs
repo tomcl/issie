@@ -49,6 +49,9 @@ type CompSlotName =
     | NGateInputs
     | IO of Label: string
     | CustomCompParam of ParamName: string // TODO: implement this case
+    // SplitN-specific parameterised slots
+    | SplitNWidth of Index: int
+    | SplitNLSB of Index: int
 
 /// A slot in a component instance that can be bound to a parameter expression
 /// CompId should be a ComponentId but then we would need these types to be defined after CommonTypes.

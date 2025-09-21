@@ -1,4 +1,4 @@
-﻿module Update
+module Update
 
 open Elmish
 open Fable.React
@@ -413,7 +413,7 @@ let update (msg : Msg) oldModel =
         |> withNoMsg
 
     | SetProject project ->
-        printf $"Setting project with component: '{project.OpenFileName}'"
+        // printf $"Setting project with component: '{project.OpenFileName}'"
         model
         |> set currentProj_ (Some project) 
         |> set (popupDialogData_ >-> projectPath_) project.ProjectPath

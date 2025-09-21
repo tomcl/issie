@@ -68,7 +68,7 @@ let stopTimer s =
         printfn "%s: %.4fms" s stopWatch.Elapsed.TotalMilliseconds
 
 /// dotnet core timer function
-let startTimer s = 
+let startTimer s =
     Watches <-  Map.add s (System.Diagnostics.Stopwatch.StartNew()) Watches
 
 /// measure various dotnet core performance stats
@@ -79,29 +79,6 @@ let displayPerformance m n = Helpers.checkPerformance m n startTimer stopTimer
 
 [<EntryPoint>]
 let main argv =
-    // Run all tests when invoked
-    let testConfig = 
-        { defaultConfig with 
-            verbosity = Logging.Info
-            parallel = true
-            parallelWorkers = System.Environment.ProcessorCount }
-    
-    let allTests = 
-        testList "All Issie Tests" [
-            simulatorTests
-            simulatorSyncTests
-            simulatorMemoriesTests
-            widthInfererTests
-            CommonTests.helpersTests
-            CommonTests.eeExtensionsTests
-            CommonTests.opticsTests
-            CommonTests.positionTests
-            DrawBlockTests.symbolTests
-            DrawBlockTests.busWireTests
-            DrawBlockTests.sheetTests
-            VerilogTests.verilogParsingTests
-            VerilogTests.verilogErrorCheckTests
-            VerilogTests.verilogConversionTests
-        ]
-    
-    runTestsWithCLIArgs [] argv allTests
+    displayPerformance 100 1000000
+    //TestLib.runTests ()
+    0

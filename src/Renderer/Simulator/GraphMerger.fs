@@ -438,13 +438,13 @@ let rec resolveParametersInSimulationGraph
         | _ -> compType
 
     // Process a single component
-    let processComponent (ComponentId compIdStr as compId) comp =
+    let processComponent (ComponentId compIdStr as compId) (comp: SimulationComponent) =
         let relevantSlots = paramSlots |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
         
         relevantSlots
         |> Map.toList
         |> List.fold (fun compRes (slot, expr) ->
-            compRes |> Result.bind (fun c ->
+            compRes |> Result.bind (fun (c: SimulationComponent) ->
                 match evalExpr expr.Expression with
                 | Some value -> 
                     Ok { c with Type = applySlotValue c.Type slot.CompSlot value }

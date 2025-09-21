@@ -232,16 +232,16 @@ let getOrderedCompLabels compType ((comps, _): CanvasState) =
 
             match comp.Type, compType with
             | Input1(n, defaultVal), Input1 _ -> 
-                printfn $"Found Input1 component: Label={comp.Label}, Width={n}, DefaultVal={defaultVal}"
+                // printfn $"Found Input1 component: Label={comp.Label}, Width={n}, DefaultVal={defaultVal}"
                 [ sortKey, (comp.Label, n) ]
             | Output n, Output _ -> 
-                printfn $"Found Output component: Label={comp.Label}, Width={n}"
+                // printfn $"Found Output component: Label={comp.Label}, Width={n}"
                 [ sortKey, (comp.Label, n) ]
             | _ -> [])
         |> List.sortBy fst
         |> List.map snd
     
-    printfn $"getOrderedCompLabels result for {compType}: {result}"
+    // printfn $"getOrderedCompLabels result for {compType}: {result}"
     result
 
 /// Extract the labels and bus widths of the inputs and outputs nodes as a signature.

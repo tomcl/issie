@@ -168,7 +168,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
-        files: dist/*.zip
+        files: dist/*
 
   build-windows:
     runs-on: windows-latest
@@ -183,16 +183,14 @@ jobs:
       with:
         ref: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
     - name: Restore .NET tools and node packages, via build.sh
-      run: ./build.cmd -t Build
-      shell: cmd
-    - name: Build app, via npm
-      run: npm run dist
-      shell: cmd
+      run: .\build.ps1 -t Build
+    - name: Build app, via build_dist.ps1
+      run: .\build_dist.ps1 -Add "win:x64:zip","win:arm64:zip"
     - name: Deploy to releases page
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
-        files: dist/*.zip
+        files: dist/*
 
   update-badge-macos:
     runs-on: ubuntu-latest

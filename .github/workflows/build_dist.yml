@@ -1,4 +1,4 @@
-name: Build
+name: Build Dist
 
 on:
   workflow_dispatch:

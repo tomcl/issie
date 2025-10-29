@@ -263,5 +263,8 @@ docsrc/tools/FSharp.Formatting.svclog
 output/
 tmp/
 
+# GitHub Actions
+report.xml
+
 # AI Files
 # CLAUDE.md

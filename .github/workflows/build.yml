@@ -1,4 +1,4 @@
-name: Build Dist
+name: Build
 
 on:
   workflow_dispatch:
@@ -182,7 +182,7 @@ jobs:
       uses: actions/checkout@v5
       with:
         ref: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
-    - name: Restore .NET tools and node packages, via build.sh
+    - name: Restore .NET tools and node packages, via build.ps1
       run: .\build.ps1 -t Build
     - name: Build app, via build_dist.ps1
       run: .\build_dist.ps1 -Add "win:x64:zip","win:arm64:zip"

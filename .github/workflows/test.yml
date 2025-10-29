@@ -1,4 +1,4 @@
-name: Testsuite
+name: Tests
 
 on:
   push:

@@ -41,7 +41,7 @@ let initCodeEditorState: CodeEditorModel =
 /// Memoizes the function as a react component so that it is not called unless the props change.
 /// In addition, if the function is not called, the React DOM from the function result is not updated.
 /// This is important for performance when the react DOM is large.
-let reactMemoize (functionToMemoize: 'Props -> ReactElement) (name: string) (key: ('Props -> string) option) (props: 'Props) =
+let inline reactMemoize (functionToMemoize: 'Props -> ReactElement) (name: string) (key: ('Props -> string) option) (props: 'Props) =
     match key with
     | None ->
         FunctionComponent.Of (functionToMemoize, displayName = name, memoizeWith = Fable.React.Helpers.equalsButFunctions) props

@@ -361,9 +361,9 @@ let editMenu dispatch' =
             |> Some
 
 
-let attachMenusAndKeyShortcuts dispatch =
+let attachMenusAndKeyShortcuts (dispatch: Model) : Sub<Msg> =
     //setupExitInterlock dispatch
-    let sub dispatch =
+    let sub (dispatch: Msg->unit) : System.IDisposable =
         let menu:Menu =
             [|
 
@@ -381,9 +381,10 @@ let attachMenusAndKeyShortcuts dispatch =
         attachExitHandler dispatch
         let userAppDir = getUserAppDir()
         dispatch <| ReadUserData userAppDir
+        {new System.IDisposable with member _.Dispose() = ()}
 
+    [ ["attachMenusAndKeyShortcuts"], sub ]
 
-    Cmd.ofSub sub
 
 // This setup is useful to add other pages, in case they are needed.
 
@@ -430,8 +431,8 @@ let mutable firstPress = true
 /// Used to listen for pressing down of Ctrl for selection toggle.
 /// Also for the code editor keys.
 /// TODO: use this for global key press info throughout Issie
-let keyPressListener initial =
-    let subDown dispatch =
+let keyPressListener (initial: Model) : Sub<Msg> =
+    let subDown (dispatch: Msg -> Unit) : System.IDisposable =
         Browser.Dom.document.addEventListener("keydown", fun e ->
             let ke: KeyboardEvent = downcast e
             if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
@@ -458,22 +459,27 @@ let keyPressListener initial =
                 e.preventDefault()
             | _ -> () //e.preventDefault()
             )
-    let subUp dispatch =
+        {new System.IDisposable with member _.Dispose() = ()}
+
+    let subUp (dispatch: Msg -> Unit) : System.IDisposable =
         Browser.Dom.document.addEventListener("keyup", fun e ->
             firstPress <- true
             //printf "Any Key up (old method)"
             dispatch <| Sheet(SheetT.PortMovementEnd))
+        {new System.IDisposable with member _.Dispose() = ()}
+
     /// unfinished code
     /// add hook in main function to display a context menu
     /// create menu as shown in main.fs
-    let subRightClick dispatch =
+    let subRightClick (dispatch: Msg -> Unit) : System.IDisposable =
         Browser.Dom.document.addEventListener("contextmenu", unbox (fun (e:Browser.Types.MouseEvent) ->
             e.preventDefault()
             //printfn "Context Menu listener sending to main..."
             dispatch (ContextMenuAction e)))
+        {new System.IDisposable with member _.Dispose() = ()}
             
 
-    let subContextMenuCommand dispatch =
+    let subContextMenuCommand (dispatch: Msg -> Unit) : System.IDisposable =
         renderer.ipcRenderer.on("context-menu-command", fun ev args ->
             let arg:string = unbox args |> Array.map string |> String.concat ""
             match arg.Split [|','|] |> Array.toList with
@@ -481,28 +487,22 @@ let keyPressListener initial =
                 //printfn "%A" $"Renderer context menu callback: {menuType} --> {item}"
                 dispatch <| ContextMenuItemClick(menuType,item,dispatch)
             | _ -> printfn "Unexpected callback argument sent from main.") |> ignore
+        {new System.IDisposable with member _.Dispose() = ()}
 
     /// Why does this not work in production?
-    let periodicMemoryCheckCommand dispatch =
+    let periodicMemoryCheckCommand (dispatch: Msg -> Unit) : System.IDisposable =
         JSHelpers.periodicDispatch dispatch UpdateHelpers.Constants.memoryUpdateCheckTime CheckMemory |> ignore
+        {new System.IDisposable with member _.Dispose() = ()}
 
 
-    Cmd.batch [
-        Cmd.ofSub subDown
-        Cmd.ofSub subUp
-        Cmd.ofSub subRightClick
-        Cmd.ofSub subContextMenuCommand
-        //Cmd.ofSub periodicMemoryCheckCommand 
-        ]
+    [
+        ["subDown"], subDown;
+        ["subUp"], subUp;
+        ["subRightClick"], subRightClick;
+        ["subContextMenuCommand"], subContextMenuCommand;
+        // ["periodicMemoryCheckCommand"], periodicMemoryCheckComman
+    ]
 
-
-
-
-    
-
-
-
-    
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"

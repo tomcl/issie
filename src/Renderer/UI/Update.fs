@@ -280,7 +280,7 @@ let update (msg : Msg) oldModel =
 
               Async.StartImmediate delayedDispatch
 
-          model, Cmd.ofSub delayedCmd
+          model, Cmd.ofEffect delayedCmd
 
     | UpdateImportDecisions importDecisions' ->
         let updatedModel = 
@@ -622,24 +622,30 @@ let update (msg : Msg) oldModel =
         model, cmd
 
     | ExecFuncAsynch func ->
-             let cmd' = 
-                Elmish.Cmd.OfAsyncImmediate.result (async { 
-                //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
-                //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
+        let cmd' = 
+            Cmd.OfAsyncImmediate.perform
+                (fun arg -> async { 
+                    //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
+                    //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
                     do! (Async.Sleep 100) 
-                    if Set.contains "update" JSHelpers.debugTraceUI then
-                        printfn "Starting ExecFuncAsynch payload"
-                    let cmd = func ()                    
-                    return (ExecCmd cmd)})
-             model, cmd'
+                    if Set.contains "update" JSHelpers.debugTraceUI
+                    then printfn "Starting ExecFuncAsynch payload"
+                    let cmd = func ()
+                    return (ExecCmd cmd) })
+                ()
+                (fun msg -> msg)
+        model, cmd'
 
     | ExecCmdAsynch cmd ->
         let cmd' = 
-            Elmish.Cmd.OfAsyncImmediate.result (async { 
-            //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
-            //this number only seems to affect the wavesim spinner cursor.
-                do! (Async.Sleep 300)
-                return (ExecCmd cmd)})
+            Cmd.OfAsyncImmediate.perform 
+                (fun arg -> async { 
+                    //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
+                    //this number only seems to affect the wavesim spinner cursor.
+                    do! (Async.Sleep 300)
+                    return (ExecCmd cmd) })
+                ()
+                (fun msg -> msg)
         model, cmd'
 
     | SendSeqMsgAsynch msgs ->

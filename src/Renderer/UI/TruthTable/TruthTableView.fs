@@ -1017,7 +1017,7 @@ let viewTruthTable canvasState model dispatch =
                     ] [
                         str "You can use input constraints, or algebraic variables, to reduce the number of rows."
                     ]
-                div [Style[
+                div [Style [
                         MaxWidth <| rightSectionWidth model;
                         MaxHeight "calc(100vh - 300px)";
                         OverflowX OverflowOptions.Auto;

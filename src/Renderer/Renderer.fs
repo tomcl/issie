@@ -503,9 +503,13 @@ let keyPressListener (initial: Model) : Sub<Msg> =
         // ["periodicMemoryCheckCommand"], periodicMemoryCheckComman
     ]
 
+let batchedSubscription (model: Model) =
+    Sub.batch [
+        Sub.map "attachMenusAndKeyShortcuts" (fun msg -> msg) (attachMenusAndKeyShortcuts model)
+        Sub.map "keyPressListener" (fun msg -> msg) (keyPressListener model)
+    ]
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"
-|> Program.withSubscription attachMenusAndKeyShortcuts
-|> Program.withSubscription keyPressListener
+|> Program.withSubscription batchedSubscription
 |> Program.run

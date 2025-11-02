@@ -83,12 +83,12 @@
     "core-js": "^3",
     "cross-zip": "^4",
     "font-awesome": "^4",
-    "katex": "^0.16.21",
+    "katex": "^0.16.25",
     "nearley-unparse": "^1.0.1",
     "npm": "^11",
     "react-tooltip": "^5",
     "source-map-support": "^0.5",
-    "usb": "^2.15",
+    "usb": "^2.16",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

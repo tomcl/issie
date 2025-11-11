@@ -736,7 +736,7 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
             MaxVal (PInt ((1 <<< width) - 1), $"Comparison value must fit in {width} bits")
         ]
         ParameterView.paramInputField model infoText 0 (Some (int lsbPos)) constraints (Some comp) (IO comp.Label) dispatch
-    | BusSelection(width, _) -> 
+    | BusSelection(width, lsb) ->
         let constraints = [
             MinVal (PInt 0, "LSB position must be non-negative")
         ]

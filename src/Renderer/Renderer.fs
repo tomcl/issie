@@ -167,13 +167,17 @@ let reRouteWires dispatch =
 //-----------------------------------------------------------------------------------------------------------//
 
 let fileMenu (dispatch) =
+    let newSheetKeyOp = Some (if isMac then "Cmd+n" else "CmdOrCtrl+n")
+    let saveSheetKeyOp = Some (if isMac then "Cmd+s" else "CmdOrCtrl+s")
+    let saveProjectKeyOp = if isMac then Some "Cmd+Shift+s" else None
+    let exitIssieKeyOp = if isMac then Some "Cmd+q" else None
     makeMenu false "Sheet" [
-        makeItem "New Sheet" (Some "CmdOrCtrl+N") (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
-        makeItem "Save Sheet" (Some "CmdOrCtrl+S") (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
-        makeItem "Save Project in New Format" None (fun ev -> dispatch (MenuAction(MenuSaveProjectInNewFormat,dispatch)))
+        makeItem "New Sheet" newSheetKeyOp (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
+        makeItem "Save Sheet" saveSheetKeyOp (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
+        makeItem "Save Project in New Format" saveProjectKeyOp (fun ev -> dispatch (MenuAction(MenuSaveProjectInNewFormat,dispatch)))
         //makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
         makeItem "Write design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
-        makeItem "Exit Issie" None (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
+        makeItem "Exit Issie" exitIssieKeyOp (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
         makeWinDebugItem "Trace all" None (fun _ ->
@@ -262,23 +266,27 @@ let viewMenu dispatch =
     let dispatch = SheetT.KeyPress >> sheetDispatch
     let wireTypeDispatch = SheetT.WireType >> sheetDispatch
     let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
-    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
-    
-    
-    
+    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)    
     let symbolDispatch msg = busWireDispatch (BusWireT.Msg.Symbol msg)
 
-    let devToolsKey = if isMac then "Alt+Command+I" else "Ctrl+Shift+I"
+    let fullscreenKeyOp = Some (if isMac then "Cmd+Ctrl+F" else "F11")
+    let webZoomInKeyOp = Some (if isMac then "Cmd+Plus" else "CmdOrCtrl+Plus")
+    let webZoomOutKeyOp = Some (if isMac then "Cmd+-" else "CmdOrCtrl+-")
+    let webZoomResetKeyOp = Some (if isMac then "Cmd+0" else "CmdOrCtrl+0")
+    let diagramZoomInKeyOp = Some (if isMac then "Cmd+Option+Plus" else "Alt+Up")
+    let diagramZoomOutKeyOp = Some (if isMac then "Cmd+Option+-" else "Alt+Down")
+    let diagramZoomResetKeyOp = Some (if isMac then "Cmd+Option+0" else "CmdOrCtrl+W")
+    let devtoolsKeyOp = Some (if isMac then "Cmd+Option+I" else "Ctrl+Shift+I")
     makeMenu false "View" [
-        makeRoleItem "Toggle Fullscreen" (Some "F11") MenuItemRole.Togglefullscreen
+        makeRoleItem "Toggle Fullscreen" fullscreenKeyOp MenuItemRole.Togglefullscreen
         menuSeparator
-        makeRoleItem "Zoom In" (Some "CmdOrCtrl+Shift+Plus") MenuItemRole.ZoomIn
-        makeRoleItem "Zoom Out" (Some "CmdOrCtrl+Shift+-") MenuItemRole.ZoomOut
-        makeRoleItem "Reset Zoom" (Some "CmdOrCtrl+0") MenuItemRole.ResetZoom
+        makeRoleItem "Zoom In" webZoomInKeyOp MenuItemRole.ZoomIn
+        makeRoleItem "Zoom Out" webZoomOutKeyOp MenuItemRole.ZoomOut
+        makeRoleItem "Reset Zoom" webZoomResetKeyOp MenuItemRole.ResetZoom
         menuSeparator
-        makeItem "Diagram Zoom In" (Some "Alt+Up") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomIn)
-        makeItem "Diagram Zoom Out" (Some "Alt+Down") (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
-        makeItem "Diagram Zoom to Fit" (Some "CmdOrCtrl+W") (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
+        makeItem "Diagram Zoom In" diagramZoomInKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.ZoomIn)
+        makeItem "Diagram Zoom Out" diagramZoomOutKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
+        makeItem "Diagram Zoom to Fit" diagramZoomResetKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
         makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
         makeMenu false "Theme" [
@@ -309,7 +317,7 @@ let viewMenu dispatch =
         //makeItem "Benchmark" (Some "Ctrl+Shift+B") (fun ev -> maindispatch Benchmark) // does this work?
         makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
         menuSeparator
-        makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" (Some devToolsKey) (fun _ ->
+        makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" devtoolsKeyOp (fun _ ->
             renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
     ]
 
@@ -327,34 +335,49 @@ let editMenu dispatch' =
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
 
+    let copyKey= if isMac then "Cmd+C" else "CmdOrCtrl+C"
+    let pasteKey = if isMac then "Cmd+V" else "CmdOrCtrl+V"
+    let rotAnticlockKey = if isMac then "Cmd+Option+Left" else "CmdOrCtrl+Left"
+    let rotClockKey = if isMac then "Cmd+Option+Right" else "CmdOrCtrl+Right"
+    let flipVertKey = if isMac then "Cmd+Option+Up" else "CmdOrCtrl+Up"
+    let flipHoriKey = if isMac then "Cmd+Option+Down" else "CmdOrCtrl+Down"
+    let alignKey = if isMac then "Cmd+Shift+A" else "CmdOrCtrl+Shift+A"
+    let distKey = if isMac then "Cmd+Shift+D" else "CmdOrCtrl+Shift+D"
+    let rotLabelClockKey = if isMac then "Cmd+Shift+R" else "CmdOrCtrl+Shift+Right"
+    let selectAllKey = if isMac then "Cmd+A" else "CmdOrCtrl+A"
+    let delteKey = if isMac then "Backspace" else "Delete"
+    let undoKey = if isMac then "Cmd+Z" else "CmdOrCtrl+Z"
+    let redoKey = if isMac then "Cmd+Shift+Z" else "CmdOrCtrl+Y"
+    let cancelKey = if isMac then "Esc" else "Esc"
     jsOptions<MenuItemConstructorOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- Some MenuItemType.Submenu
         invisibleMenu.label <- Some "Edit"
         invisibleMenu.visible <- Some true
         invisibleMenu.submenu <-
-            [| // makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> ())
-               makeElmItem "Copy" "CmdOrCtrl+C" (fun () -> dispatch SheetT.KeyboardMsg.CtrlC)
-               makeElmItem "Paste" "CmdOrCtrl+V" (fun () -> dispatch SheetT.KeyboardMsg.CtrlV)
-               menuSeparator
-               makeElmItem "Rotate Anticlockwise" "CmdOrCtrl+Left" (fun () -> rotateDispatch CommonTypes.Degree270)
-               makeElmItem "Rotate Clockwise" "CmdOrCtrl+Right" (fun () -> rotateDispatch CommonTypes.Degree90)
-               makeElmItem "Flip Vertically" "CmdOrCtrl+Up" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
-               makeElmItem "Flip Horizontally" "CmdOrCtrl+Down" (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
-               makeItem "Move Component Ports" None (fun _ -> 
+            [| 
+                // makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> ())
+                makeElmItem "Copy" copyKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlC)
+                makeElmItem "Paste" pasteKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlV)
+                menuSeparator
+                makeElmItem "Rotate Anticlockwise" rotAnticlockKey (fun () -> rotateDispatch CommonTypes.Degree270)
+                makeElmItem "Rotate Clockwise" rotClockKey (fun () -> rotateDispatch CommonTypes.Degree90)
+                makeElmItem "Flip Vertically" flipVertKey (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
+                makeElmItem "Flip Horizontally" flipHoriKey (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
+                makeItem "Move Component Ports" None (fun _ -> 
                     dispatch' <| ShowStaticInfoPopup("How to move component ports", SymbolPortHelpers.moveCustomPortsPopup(), dispatch'))
-               menuSeparator
-               makeElmItem "Align" "CmdOrCtrl+Shift+A"  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
-               makeElmItem "Distribute" "CmdOrCtrl+Shift+D" (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
-               makeElmItem "Rotate Label Clockwise" "CmdOrCtrl+Shift+Right" (fun ev-> sheetDispatch <| SheetT.RotateLabels)
-               menuSeparator
-               makeElmItem "Select All" "CmdOrCtrl+A" (fun () -> dispatch SheetT.KeyboardMsg.CtrlA)
-               makeElmItem "Delete"  (if isMac then "Backspace" else "delete") (fun () -> dispatch SheetT.KeyboardMsg.DEL)
-               makeElmItem "Undo" "CmdOrCtrl+Z" (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
-               makeElmItem "Redo" "CmdOrCtrl+Y" (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
-               makeElmItem "Cancel" "ESC" (fun () -> dispatch SheetT.KeyboardMsg.ESC)
-               menuSeparator
-               makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
-               makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
+                menuSeparator
+                makeElmItem "Align" alignKey  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
+                makeElmItem "Distribute" distKey (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
+                makeElmItem "Rotate Label Clockwise" rotLabelClockKey (fun ev-> sheetDispatch <| SheetT.RotateLabels)
+                menuSeparator
+                makeElmItem "Select All" selectAllKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlA)
+                makeElmItem "Delete" delteKey (fun () -> dispatch SheetT.KeyboardMsg.DEL)
+                makeElmItem "Undo" undoKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
+                makeElmItem "Redo" redoKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
+                makeElmItem "Cancel" cancelKey (fun () -> dispatch SheetT.KeyboardMsg.ESC)
+                menuSeparator
+                makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
+                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
             |]
             |> ResizeArray
             |> U2.Case1

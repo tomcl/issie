@@ -321,34 +321,35 @@ let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBin
     | _ -> comp
 
 /// Use sheet component update functions to perform updates
-let updateComponent dispatch model slot value =
+let updateComponent dispatch model slot (value:int) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
     let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
     let compId = ComponentId comp.Id
 
     // Update component slot value
-    match slot.CompSlot with
-    | Buswidth | IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value 
-    | NGateInputs -> 
+    match comp.Type, slot.CompSlot with
+    | BusSelection _, IO _ -> model.Sheet.ChangeLSB sheetDispatch compId (bigint value)
+    | _, Buswidth | _, IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value 
+    | _, NGateInputs -> 
         match comp.Type with
         | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
         | _ -> failwithf $"Gate cannot have type {comp.Type}"
-    | SplitNWidth idx ->
+    | _, SplitNWidth idx ->
         match comp.Type with
         | SplitN (n, widths, lsbs) ->
             if idx < 0 || idx >= List.length widths then failwithf $"SplitNWidth index %d{idx} out of range"
             let newWidths = widths |> List.mapi (fun i w -> if i = idx then value else w)
             model.Sheet.ChangeSplitN sheetDispatch compId n newWidths lsbs
         | _ -> failwithf $"SplitNWidth cannot be applied to {comp.Type}"
-    | SplitNLSB idx ->
+    | _, SplitNLSB idx ->
         match comp.Type with
         | SplitN (n, widths, lsbs) ->
             if idx < 0 || idx >= List.length lsbs then failwithf $"SplitNLSB index %d{idx} out of range"
             let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then value else l)
             model.Sheet.ChangeSplitN sheetDispatch compId n widths newLsbs
         | _ -> failwithf $"SplitNLSB cannot be applied to {comp.Type}"
-    | CustomCompParam paramName ->
+    | _, CustomCompParam paramName ->
         // For custom component parameters, we need to update the parameter bindings
         match comp.Type with
         | Custom customComp ->
@@ -893,10 +894,14 @@ let ngateInputsPrism : Prism<ComponentType, int> =
 
 let ioPortPrism : Prism<ComponentType, int> =
     Prism.create
-        (function Input1 (w, _) | Output w -> Some w | _ -> None)
-        (fun w -> function 
-            | Input1 (_, dv) -> Input1 (w, dv) 
-            | Output _ -> Output w 
+        (function | Input1 (w, _)
+                  | Output w -> Some w
+                  | BusSelection(_w,lsb) -> Some lsb
+                  | _ -> None)
+        (fun iow -> function 
+            | Input1 (_, dv) -> Input1 (iow, dv) 
+            | Output _ -> Output iow
+            | BusSelection(w, _lsb) -> BusSelection (w, iow)
             | t -> t)
 
 let resolveParametersForComponent 

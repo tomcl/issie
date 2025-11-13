@@ -7,7 +7,7 @@
 ![](https://byob.yarr.is/tomcl/issie/build-windows)
 ![](https://byob.yarr.is/tomcl/issie/build-macos)
 ![](https://byob.yarr.is/tomcl/issie/build-linux)
-![Test](https://github.com/tomcl/issie/actions/workflows/tests.yml/badge.svg)
+![Tests](https://github.com/tomcl/issie/actions/workflows/tests.yml/badge.svg)
 ![Downloads](https://img.shields.io/github/downloads/tomcl/issie/total?label=Downloads)
 ![Contributors](https://img.shields.io/github/contributors-anon/tomcl/issie?label=Contributors)
 

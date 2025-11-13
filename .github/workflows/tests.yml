@@ -1,0 +1,269 @@
+name: Tests
+
+on:
+  push:
+
+jobs:
+  report-prep:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Write report template
+      run: |
+        printf "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" > report.xml
+    - name: Upload report
+      uses: actions/upload-artifact@v4
+      with:
+        name: report
+        path: report.xml
+        overwrite: true
+
+  test-integration-windwos:
+    runs-on: windows-latest
+    needs: report-prep
+    steps:
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    - name: Checkout the repo
+      uses: actions/checkout@v5
+    - name: Download report
+      uses: actions/download-artifact@v4
+      with:
+        name: report
+    - name: Restore .NET tools and node packages, attempt build, and report
+      run: |
+          $Start = Get-Date
+          $TestOut = & .\build.ps1 -t Build 3>&1 2>&1
+          $TestExitCode = $lastExitCode
+          $End = Get-Date
+          $TestTime = New-Timespan -Start $Start -End $End | Select-Object -ExpandProperty TotalSeconds
+          Write-Output "<testsuites time=""$TestTime"">" >> report.xml
+          Write-Output "`t<testsuite name=""Tests.Integration"" time=""$TestTime"">" >> report.xml
+          Write-Output "`t`t<testcase name=""testWindows"" classname=""Tests.Integration"" time=""$TestTime"" />" >> report.xml
+          if ($TestExitCode -ne 0) {
+              Write-Output "`t`t`t<failure message=""Failed to build on Windows"">" >> report.xml
+              Write-Output $TestOut >> report.xml
+              Write-Output "`t`t`t</failure>" >> report.xml
+          }
+          Write-Output "`t</testsuite>" >> report.xml
+          Write-Output "</testsuites>" >> report.xml
+      continue-on-error: true
+    - name: Upload report
+      uses: actions/upload-artifact@v4
+      with:
+        name: report
+        path: report.xml
+        overwrite: true
+
+  report-wrap-up:
+    runs-on: ubuntu-latest
+    needs: test-integration-windwos
+    steps:
+    - name: Checkout the repo
+      uses: actions/checkout@v5
+    - name: Download report
+      uses: actions/download-artifact@v4
+      with:
+        name: report
+    - name: Upload test results
+      uses: dorny/test-reporter@v1
+      with:
+        name: Results (${{ github.sha }})
+        path: report.xml
+        reporter: java-junit
+        fail-on-error: false
+
+# on:
+#   push:
+#     branches: [ master, main, develop, 'test*' ]
+#   pull_request:
+#     branches: [ master, main ]
+#   workflow_dispatch:
+
+# jobs:
+#   test:
+#     strategy:
+#       matrix:
+#         os: [ubuntu-latest, windows-latest, macos-latest]
+#         dotnet: ['6.0.x', '7.0.x', '8.0.x']
+#         node: ['18.x', '20.x']
+    
+#     runs-on: ${{ matrix.os }}
+    
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+#       with:
+#         fetch-depth: 0
+    
+#     - name: Setup .NET
+#       uses: actions/setup-dotnet@v4
+#       with:
+#         dotnet-version: ${{ matrix.dotnet }}
+    
+#     - name: Setup Node.js
+#       uses: actions/setup-node@v4
+#       with:
+#         node-version: ${{ matrix.node }}
+#         cache: 'npm'
+    
+#     - name: Restore .NET tools
+#       run: dotnet tool restore
+    
+#     - name: Install Paket
+#       run: |
+#         dotnet tool install Paket --version 8.1.0-alpha004 --add-source https://api.nuget.org/v3/index.json || true
+#         dotnet tool restore
+    
+#     - name: Restore Paket dependencies
+#       run: dotnet paket restore
+    
+#     - name: Install npm dependencies
+#       run: npm ci
+    
+#     - name: Build Fable projects
+#       run: |
+#         dotnet fable src/Main --noCache
+#         dotnet fable src/Renderer --noCache
+    
+#     - name: Run F# unit tests
+#       run: dotnet run --project Tests/Tests.fsproj
+#       continue-on-error: true
+    
+#     - name: Build test project
+#       run: dotnet build Tests/Tests.fsproj --configuration Release
+    
+#     - name: Run tests with coverage
+#       run: |
+#         dotnet test Tests/Tests.fsproj --configuration Release --logger "console;verbosity=detailed" --collect:"XPlat Code Coverage" --results-directory ./TestResults
+#       continue-on-error: true
+    
+#     - name: Upload test results
+#       if: always()
+#       uses: actions/upload-artifact@v4
+#       with:
+#         name: test-results-${{ matrix.os }}-dotnet${{ matrix.dotnet }}-node${{ matrix.node }}
+#         path: TestResults/
+    
+#     - name: Type check
+#       run: dotnet build src/Renderer/Renderer.fsproj --no-restore
+#       continue-on-error: true
+    
+#     - name: Compile TypeScript/JavaScript
+#       run: npm run compile:parallel
+#       continue-on-error: true
+
+#   lint:
+#     runs-on: ubuntu-latest
+    
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+    
+#     - name: Setup .NET
+#       uses: actions/setup-dotnet@v4
+#       with:
+#         dotnet-version: '8.0.x'
+    
+#     - name: Restore .NET tools
+#       run: dotnet tool restore
+    
+#     - name: Install Fantomas (F# formatter)
+#       run: dotnet tool install fantomas --version 6.3.16 || true
+    
+#     - name: Check F# code formatting
+#       run: dotnet fantomas --check src/ Tests/
+#       continue-on-error: true
+    
+#     - name: Setup Node.js
+#       uses: actions/setup-node@v4
+#       with:
+#         node-version: '20.x'
+    
+#     - name: Install npm dependencies
+#       run: npm ci
+    
+#     - name: Run ESLint
+#       run: npx eslint src/**/*.js --max-warnings 0
+#       continue-on-error: true
+
+#   integration:
+#     runs-on: ubuntu-latest
+#     needs: test
+    
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+    
+#     - name: Setup .NET
+#       uses: actions/setup-dotnet@v4
+#       with:
+#         dotnet-version: '8.0.x'
+    
+#     - name: Setup Node.js
+#       uses: actions/setup-node@v4
+#       with:
+#         node-version: '20.x'
+    
+#     - name: Restore dependencies
+#       run: |
+#         dotnet tool restore
+#         dotnet paket restore
+#         npm ci
+    
+#     - name: Run simulator tests
+#       run: |
+#         cd simulator_tests/js
+#         npm install
+#         npm test
+#       continue-on-error: true
+    
+#     - name: Build production bundle
+#       run: |
+#         npm run compile:parallel
+#         npm run build
+    
+#     - name: Test Electron app build
+#       run: npm run pack
+#       continue-on-error: true
+    
+#     - name: Upload build artifacts
+#       if: success()
+#       uses: actions/upload-artifact@v4
+#       with:
+#         name: build-artifacts
+#         path: dist/
+
+#   report:
+#     runs-on: ubuntu-latest
+#     needs: [test, lint, integration]
+#     if: always()
+    
+#     steps:
+#     - name: Checkout code
+#       uses: actions/checkout@v4
+    
+#     - name: Download all test results
+#       uses: actions/download-artifact@v4
+#       with:
+#         pattern: test-results-*
+#         merge-multiple: true
+#         path: all-test-results/
+    
+#     - name: Generate test report
+#       run: |
+#         echo "# Test Report Summary" >> $GITHUB_STEP_SUMMARY
+#         echo "" >> $GITHUB_STEP_SUMMARY
+#         echo "## Test Matrix Results" >> $GITHUB_STEP_SUMMARY
+#         echo "| OS | .NET Version | Node Version | Status |" >> $GITHUB_STEP_SUMMARY
+#         echo "|---|---|---|---|" >> $GITHUB_STEP_SUMMARY
+#         for dir in all-test-results/*/; do
+#           if [ -d "$dir" ]; then
+#             echo "| ${dir} | ✅ |" >> $GITHUB_STEP_SUMMARY
+#           fi
+#         done
+#         echo "" >> $GITHUB_STEP_SUMMARY
+#         echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+#         echo "Coverage reports available in artifacts" >> $GITHUB_STEP_SUMMARY
+#       continue-on-error: true

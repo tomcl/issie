@@ -2,12 +2,12 @@
 
 ![Release Version](https://img.shields.io/github/v/release/tomcl/issie?logo=github&label=Release%20Version)
 ![Release Date](https://img.shields.io/github/release-date/tomcl/issie?display_date=created_at&logo=github&label=Release%20Date)
-![Documentation](https://github.com/tomcl/issie/actions/workflows/build_docs.yml/badge.svg)
-![Build](https://github.com/tomcl/issie/actions/workflows/build_dist.yml/badge.svg)
+![Documentation](https://github.com/tomcl/issie/actions/workflows/docs.yml/badge.svg)
+![Build](https://github.com/tomcl/issie/actions/workflows/build.yml/badge.svg)
 ![](https://byob.yarr.is/tomcl/issie/build-windows)
 ![](https://byob.yarr.is/tomcl/issie/build-macos)
 ![](https://byob.yarr.is/tomcl/issie/build-linux)
-![Test](https://github.com/tomcl/issie/actions/workflows/test.yml/badge.svg)
+![Tests](https://github.com/tomcl/issie/actions/workflows/tests.yml/badge.svg)
 ![Downloads](https://img.shields.io/github/downloads/tomcl/issie/total?label=Downloads)
 ![Contributors](https://img.shields.io/github/contributors-anon/tomcl/issie?label=Contributors)
 

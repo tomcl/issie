@@ -1,1 +1,1 @@
-{"build-macos":{"label":"Build (macOS)","status":"failing","color":"FF0000"},"build-windows":{"label":"Build (Windows)","status":"failing","color":"FF0000"}}
+{"build-macos":{"label":"Build (macOS)","status":"failing","color":"FF0000"},"build-windows":{"label":"Build (Windows)","status":"failing","color":"FF0000"},"build-linux":{"label":"Build (Linux)","status":"failing","color":"FF0000"}}

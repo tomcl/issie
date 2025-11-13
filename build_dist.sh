@@ -1,11 +1,33 @@
 #!/bin/bash
-#
-# Build ISSIE distributions for multiple operating system and architectures.
-#
-# Author  : Samuel Wang (@samuelpswang)
-# Year    : 2025
+
+# File Name   : build_dist.sh
+# Description : Builds ISSIE distributions for multiple operating systems
+#               and architectures using Electron Builder.
+# Author      : Samuel Wang (@samuelpswang)
+# Date        : 2025/10/26
 
 set -euo pipefail
+
+help() {
+cat << EOF
+Build ISSIE distributions for multiple operating systems and architectures.
+Usage:
+  $(basename "$0") [OPTIONS]
+
+Options:
+  --default           Build for all default targets:
+                      mac:x64:dmg mac:arm64:dmg linux:x64:zip linux:arm64:zip
+                      win:x64:zip win:arm64:zip
+  --add=<target>      Add a specific target to the build list
+  --remove=<target>   Remove a specific target from the build list
+  --help              Show this help message and exit
+  
+Examples:
+  $(basename "$0") --default
+  $(basename "$0") --add=linux:arm64:zip
+  $(basename "$0") --default --remove=win:x64:zip
+EOF
+}
 
 # Create temp directory for files to publish
 rm -rf dist_tmp
@@ -13,10 +35,14 @@ mkdir dist_tmp
 
 # Parse target list
 default_targets="mac:x64:dmg mac:arm64:dmg linux:x64:zip linux:arm64:zip \
-win:x64:zip"
+win:x64:zip win:arm64:zip"
 build_targets=
 for option in "$@"; do
   case "${option}" in
+    --help)
+      help
+      exit 0
+      ;;
     --default)
       build_targets="${default_targets} ${build_targets}"
       shift

@@ -170,90 +170,90 @@ let fileMenu (dispatch) =
     let newSheetKeyOp = Some (if isMac then "Cmd+n" else "CmdOrCtrl+n")
     let saveSheetKeyOp = Some (if isMac then "Cmd+s" else "CmdOrCtrl+s")
     let saveProjectKeyOp = if isMac then Some "Cmd+Shift+s" else None
-    let exitIssieKeyOp = if isMac then Some "Cmd+q" else None
+    let quitIssieKeyOp = if isMac then Some "Cmd+q" else None
+    let testEditorKeyOp = Some (if isMac then "Cmd+e" else "CmdOrCtrl+q")
     makeMenu false "Sheet" [
-        makeItem "New Sheet" newSheetKeyOp (fun ev -> dispatch (MenuAction(MenuNewFile,dispatch)))
-        makeItem "Save Sheet" saveSheetKeyOp (fun ev -> dispatch (MenuAction(MenuSaveFile,dispatch)))
-        makeItem "Save Project in New Format" saveProjectKeyOp (fun ev -> dispatch (MenuAction(MenuSaveProjectInNewFormat,dispatch)))
-        //makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint,dispatch)))
-        makeItem "Write design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput,dispatch)))
-        makeItem "Exit Issie" exitIssieKeyOp (fun ev -> dispatch (MenuAction(MenuExit,dispatch)))
+        makeItem "New Sheet" newSheetKeyOp (fun ev -> dispatch (MenuAction(MenuNewFile, dispatch)))
+        makeItem "Save Sheet" saveSheetKeyOp (fun ev -> dispatch (MenuAction(MenuSaveFile, dispatch)))
+        makeItem "Save Project in New Format" saveProjectKeyOp 
+            (fun ev -> dispatch (MenuAction(MenuSaveProjectInNewFormat, dispatch)))
+        //makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint, dispatch)))
+        menuSeparator
+        makeItem "Write Design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput, dispatch)))
+        menuSeparator
         makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
-        makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart app" None MenuItemRole.ForceReload
-        makeWinDebugItem "Trace all" None (fun _ ->
-            debugTraceUI <- Set.ofList ["update";"view"])
-        makeWinDebugItem "Trace View function" None (fun _ ->
-            debugTraceUI <- Set.ofList ["view"])
-        makeWinDebugItem "Trace Update function" None (fun _ ->
-            debugTraceUI <- Set.ofList ["update"])
-        makeWinDebugItem "Trace Mouse Messages" None (fun _ ->
-            debugTraceUI <- debugTraceUI + Set.ofList ["mouse"])
-        makeWinDebugItem "Trace off" None (fun _ ->
-            debugTraceUI <- Set.ofList [])
+        makeItem "Quit Issie" quitIssieKeyOp (fun ev -> dispatch (MenuAction(MenuExit, dispatch)))
+        menuSeparator
+        makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart Issie" None MenuItemRole.ForceReload
+        makeWinDebugItem "Trace All" None (fun _ -> debugTraceUI <- Set.ofList ["update"; "view"])
+        makeWinDebugItem "Trace View Function" None (fun _ -> debugTraceUI <- Set.ofList ["view"])
+        makeWinDebugItem "Trace Update Function" None (fun _ -> debugTraceUI <- Set.ofList ["update"])
+        makeWinDebugItem "Trace Mouse Messages" None (fun _ -> debugTraceUI <- debugTraceUI + Set.ofList ["mouse"])
+        makeWinDebugItem "Trace Off" None (fun _ -> debugTraceUI <- Set.ofList [])
         makeMenuGen (debugLevel > 0) false "Play" [
-            makeDebugItem "HEAP" None
+            makeDebugItem "Heap" None
                 (fun _ ->
-                    printfn $"\n******* USED heap size:{float(usedHeap()) / 1000000.} MB MAX: {float(maxHeap()) / 1000000.} MB********\n")
-            makeDebugItem "INIT" None
+                    let usedHeapSize = () |> usedHeap |> float |> (fun v -> v / 1000000.)
+                    let maxHeapSize = () |> maxHeap |> float |> (fun v -> v / 1000000.)
+                    let heapUsage = usedHeapSize / maxHeapSize * 100.
+                    printfn $"Used Heap:%.2f{usedHeapSize}MB; Max Heap:%.2f{maxHeapSize}MB; Usage:%.2f{heapUsage}%%\n")
+            makeDebugItem "Initialise" None
+                (fun _ -> dispatch <| ExecFuncInMessage(softInitialise, dispatch))
+            makeDebugItem "Screen Reset" None
                 (fun _ ->
-                    dispatch <| ExecFuncInMessage(softInitialise, dispatch))
-            makeDebugItem "SCREEN RESET" None
-                (fun _ ->
-                    printfn $"USED heap\n size before screen reset:{float(usedHeap()) / 1000000.} MB\n"
+                    let usedHeapSize = () |> usedHeap |> float |> (fun v -> v / 1000000.)
+                    printfn $"Used Heap; Heap size before screen reset:%.2f{usedHeapSize}MB\n"
                     dispatch (SetTopMenu TransientClosed))
             makeDebugItem "Set Scroll" None
-                (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.;Y=1000.} |> ignore)
-            makeDebugItem "Trace all times" None
-                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint( 0.1, 0.1)
-                          if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
-            makeDebugItem "Trace short, medium & long times" None
-                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint( 1.5, 1.5)
-                          if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
-            makeDebugItem "Trace medium & long times" None
-                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(3.,3.)
-                          if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
-            makeDebugItem "Trace long times" None
-                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(20.,20.)
-                          if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update";"view"])
+                (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.; Y=1000.} |> ignore)
+            makeDebugItem "Trace All Times" None
+                (fun _ ->
+                    TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(0.1, 0.1)
+                    if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update"; "view"])
+            makeDebugItem "Trace Short, Medium & Long Times" None
+                (fun _ ->
+                    TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(1.5, 1.5)
+                    if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update"; "view"])
+            makeDebugItem "Trace Medium & Long Times" None
+                (fun _ ->
+                    TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(3.0, 3.0)
+                    if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update"; "view"])
+            makeDebugItem "Trace Long Times" None
+                (fun _ ->
+                    TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(20.0, 20.0)
+                    if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update"; "view"])
             makeDebugItem "Print Misc Performance Info" None
                 (fun _ ->
                     Playground.Memory.printListeners()
                     Playground.Memory.printProcessMemory()
                     dispatch SaveModel)
-            makeDebugItem "Test Fonts" None
-                (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
-            makeDebugItem "Test Editor" (Some "CmdOrCtrl+Q")
-                (fun _ -> Playground.Misc.makeEditorPopup dispatch)
-            makeWinDebugItem  "Run performance check" None
-                (fun _ -> Playground.MiscTests.testMaps())
-            makeWinDebugItem  "Print names of static asset files" None 
-                (fun _ -> Playground.MiscTests.testAssets())
-            makeWinDebugItem  "Test Breadcrumbs" None 
+            makeDebugItem "Test Fonts" None (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
+            makeDebugItem "Test Editor" testEditorKeyOp (fun _ -> Playground.Misc.makeEditorPopup dispatch)
+            makeWinDebugItem "Run Performance Check" None (fun _ -> Playground.MiscTests.testMaps())
+            makeWinDebugItem "Print Names of Static Asset Files" None (fun _ -> Playground.MiscTests.testAssets())
+            makeWinDebugItem "Test Breadcrumbs" None
                 (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testBreadcrumbs,dispatch))
             makeWinDebugItem  "Test All Hierarchies Breadcrumbs" None 
-                (fun _ -> dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
+                (fun _ ->
+                    dispatch <| Msg.ExecFuncInMessage(Playground.Breadcrumbs.testAllHierarchiesBreadcrumbs,dispatch))
             makeDebugItem "Force Exception" None
                 (fun ev -> failwithf "User exception from menus")
-            makeDebugItem "Web worker performance test" None
+            makeDebugItem "Test Web Sorker Performance" None
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
 
         ]
-
         makeMenu false "Verilog" [
-            makeDebugItem "Run Verilog tests" None  (fun _ ->
+            makeDebugItem "Run Verilog Tests" None (fun _ ->
                 runCompilerTests ()
                 printfn "Compiler tests done")
-            makeDebugItem "Run Verilog performance tests" None  (fun _ ->
+            makeDebugItem "Run Verilog Performance Tests" None (fun _ ->
                 runPerformanceTests ()
                 printfn "Performance tests done")
-            makeDebugItem "Generate driver modules" None  (fun _ ->
-                genDriverFiles ())
-            makeDebugItem "Icarus compile testcases" None  (fun _ ->
-                icarusCompileTestCases ())
-            makeDebugItem "Icarus run testcases" None  (fun _ ->
-                icarusRunTestCases ())
+            makeDebugItem "Generate Driver Modules" None (fun _ -> genDriverFiles ())
+            makeDebugItem "Icarus Compile Testcases" None (fun _ -> icarusCompileTestCases ())
+            makeDebugItem "Icarus Run testcases" None (fun _ -> icarusRunTestCases ())
         ]
-     ]
+    ]
 
 //-----------------------------------------------------------------------------------------------------------//
 //-----------------------------------------------VIEW MENU---------------------------------------------------//
@@ -275,49 +275,48 @@ let viewMenu dispatch =
     let webZoomResetKeyOp = Some (if isMac then "Cmd+0" else "CmdOrCtrl+0")
     let diagramZoomInKeyOp = Some (if isMac then "Cmd+Option+Plus" else "Alt+Up")
     let diagramZoomOutKeyOp = Some (if isMac then "Cmd+Option+-" else "Alt+Down")
-    let diagramZoomResetKeyOp = Some (if isMac then "Cmd+Option+0" else "CmdOrCtrl+W")
-    let devtoolsKeyOp = Some (if isMac then "Cmd+Option+I" else "Ctrl+Shift+I")
+    let diagramZoomResetKeyOp = Some (if isMac then "Cmd+Option+0" else "CmdOrCtrl+w")
+    let toggleGridKeyOp = if isMac then Some "Cmd+Option+g" else None
+    let toggleWireKeyOp = if isMac then Some "Cmd+Option+w" else None
+    let devtoolsKeyOp = Some (if isMac then "Cmd+Option+i" else "Ctrl+Shift+i")
     makeMenu false "View" [
-        makeRoleItem "Toggle Fullscreen" fullscreenKeyOp MenuItemRole.Togglefullscreen
+        makeRoleItem "Enter/Exit Fullscreen" fullscreenKeyOp MenuItemRole.Togglefullscreen
         menuSeparator
         makeRoleItem "Zoom In" webZoomInKeyOp MenuItemRole.ZoomIn
         makeRoleItem "Zoom Out" webZoomOutKeyOp MenuItemRole.ZoomOut
-        makeRoleItem "Reset Zoom" webZoomResetKeyOp MenuItemRole.ResetZoom
+        makeRoleItem "Zoom Reset" webZoomResetKeyOp MenuItemRole.ResetZoom
         menuSeparator
         makeItem "Diagram Zoom In" diagramZoomInKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.ZoomIn)
         makeItem "Diagram Zoom Out" diagramZoomOutKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
         makeItem "Diagram Zoom to Fit" diagramZoomResetKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
         menuSeparator
-        makeItem "Toggle Grid" None (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
+        makeItem "Show/Hide Grid" toggleGridKeyOp (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
+        makeItem "Show/Hide Wire Arrows" toggleWireKeyOp (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
+        makeMenu false "Wire Type" [
+            makeItem "Jump Wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
+            makeItem "Radiussed Wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
+            makeItem "Modern Wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
+        ]
         makeMenu false "Theme" [
-            makeItem "Grayscale" None (fun ev -> 
-                maindispatch <| SetThemeUserData SymbolT.ThemeType.White
-                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.White)
-            )
+            makeItem "Default" None (fun ev -> 
+                maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful))
             makeItem "Light" None (fun ev -> 
                 maindispatch <| SetThemeUserData SymbolT.ThemeType.Light
-                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Light)
-            )
-            makeItem "Colourful" None (fun ev -> 
-                maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
-                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful)
-            )
-        ]
-        makeItem "Toggle Wire Arrows" None (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
-        makeMenu false "Wire Type" [
-            makeItem "Jump wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
-            makeItem "Radiussed wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
-            makeItem "Modern wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Light))
+            makeItem "Grayscale" None (fun ev -> 
+                maindispatch <| SetThemeUserData SymbolT.ThemeType.White
+                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.White))
         ]
         menuSeparator
-        makeItem "Toggle app memory display" None (fun ev ->
+        makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
+        makeItem "Show/Hide App Memory display" None (fun ev ->
                     JSHelpers.loggingMemory <- not JSHelpers.loggingMemory
                     let state = if loggingMemory then "on" else "off"
                     printfn $"Memory display is now {state}.")
         //makeItem "Benchmark" (Some "Ctrl+Shift+B") (fun ev -> maindispatch Benchmark) // does this work?
-        makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
         menuSeparator
-        makeCondItem (JSHelpers.debugLevel <> 0) "Toggle Dev Tools" devtoolsKeyOp (fun _ ->
+        makeCondItem (JSHelpers.debugLevel <> 0) "Show/Hide Developer Tools" devtoolsKeyOp (fun _ ->
             renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
     ]
 
@@ -335,45 +334,45 @@ let editMenu dispatch' =
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
 
-    let copyKey= if isMac then "Cmd+C" else "CmdOrCtrl+C"
-    let pasteKey = if isMac then "Cmd+V" else "CmdOrCtrl+V"
+    let copyKey = if isMac then "Cmd+c" else "CmdOrCtrl+c"
+    let pasteKey = if isMac then "Cmd+v" else "CmdOrCtrl+v"
+    let selectAllKey = if isMac then "Cmd+a" else "CmdOrCtrl+a"
+    let delteKey = if isMac then "Backspace" else "Delete"
     let rotAnticlockKey = if isMac then "Cmd+Option+Left" else "CmdOrCtrl+Left"
     let rotClockKey = if isMac then "Cmd+Option+Right" else "CmdOrCtrl+Right"
     let flipVertKey = if isMac then "Cmd+Option+Up" else "CmdOrCtrl+Up"
     let flipHoriKey = if isMac then "Cmd+Option+Down" else "CmdOrCtrl+Down"
-    let alignKey = if isMac then "Cmd+Shift+A" else "CmdOrCtrl+Shift+A"
-    let distKey = if isMac then "Cmd+Shift+D" else "CmdOrCtrl+Shift+D"
-    let rotLabelClockKey = if isMac then "Cmd+Shift+R" else "CmdOrCtrl+Shift+Right"
-    let selectAllKey = if isMac then "Cmd+A" else "CmdOrCtrl+A"
-    let delteKey = if isMac then "Backspace" else "Delete"
-    let undoKey = if isMac then "Cmd+Z" else "CmdOrCtrl+Z"
-    let redoKey = if isMac then "Cmd+Shift+Z" else "CmdOrCtrl+Y"
+    let alignKey = if isMac then "Cmd+Option+a" else "CmdOrCtrl+Shift+a"
+    let distKey = if isMac then "Cmd+Option+d" else "CmdOrCtrl+Shift+d"
+    let rotLabelClockKey = if isMac then "Cmd+Option+r" else "CmdOrCtrl+Shift+Right"
+    let undoKey = if isMac then "Cmd+z" else "CmdOrCtrl+z"
+    let redoKey = if isMac then "Cmd+Shift+z" else "CmdOrCtrl+y"
     let cancelKey = if isMac then "Esc" else "Esc"
     jsOptions<MenuItemConstructorOptions> <| fun invisibleMenu ->
         invisibleMenu.``type`` <- Some MenuItemType.Submenu
         invisibleMenu.label <- Some "Edit"
         invisibleMenu.visible <- Some true
         invisibleMenu.submenu <-
-            [| 
-                // makeElmItem "Save Sheet" "CmdOrCtrl+S" (fun () -> ())
+            [|
                 makeElmItem "Copy" copyKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlC)
                 makeElmItem "Paste" pasteKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlV)
+                makeElmItem "Select All" selectAllKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlA)
+                makeElmItem "Delete" delteKey (fun () -> dispatch SheetT.KeyboardMsg.DEL)
                 menuSeparator
                 makeElmItem "Rotate Anticlockwise" rotAnticlockKey (fun () -> rotateDispatch CommonTypes.Degree270)
                 makeElmItem "Rotate Clockwise" rotClockKey (fun () -> rotateDispatch CommonTypes.Degree90)
                 makeElmItem "Flip Vertically" flipVertKey (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
                 makeElmItem "Flip Horizontally" flipHoriKey (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
-                makeItem "Move Component Ports" None (fun _ -> 
-                    dispatch' <| ShowStaticInfoPopup("How to move component ports", SymbolPortHelpers.moveCustomPortsPopup(), dispatch'))
+                makeElmItem "Align Components" alignKey (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
+                makeElmItem "Distribute Components" distKey (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
                 menuSeparator
-                makeElmItem "Align" alignKey  (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
-                makeElmItem "Distribute" distKey (fun ev-> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
-                makeElmItem "Rotate Label Clockwise" rotLabelClockKey (fun ev-> sheetDispatch <| SheetT.RotateLabels)
+                makeElmItem "Rotate Label Clockwise" rotLabelClockKey (fun ev -> sheetDispatch <| SheetT.RotateLabels)
+                makeItem "Move Component Ports" None
+                    (fun _ -> dispatch' <| ShowStaticInfoPopup("How to move component ports", 
+                                                               SymbolPortHelpers.moveCustomPortsPopup(), dispatch'))
                 menuSeparator
-                makeElmItem "Select All" selectAllKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlA)
-                makeElmItem "Delete" delteKey (fun () -> dispatch SheetT.KeyboardMsg.DEL)
-                makeElmItem "Undo" undoKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
-                makeElmItem "Redo" redoKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
+                makeElmItem "Undo Action" undoKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
+                makeElmItem "Redo Action" redoKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
                 makeElmItem "Cancel" cancelKey (fun () -> dispatch SheetT.KeyboardMsg.ESC)
                 menuSeparator
                 makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')

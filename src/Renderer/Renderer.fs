@@ -170,6 +170,7 @@ let fileMenu (dispatch) =
     let newSheetKeyOp = Some (if isMac then "Cmd+n" else "CmdOrCtrl+n")
     let saveSheetKeyOp = Some (if isMac then "Cmd+s" else "CmdOrCtrl+s")
     let saveProjectKeyOp = if isMac then Some "Cmd+Shift+s" else None
+    let aboutIssieKeyOp = if isMac then Some "Cmd+h" else None
     let quitIssieKeyOp = if isMac then Some "Cmd+q" else None
     let testEditorKeyOp = Some (if isMac then "Cmd+e" else "CmdOrCtrl+q")
     makeMenu false "Sheet" [
@@ -181,7 +182,7 @@ let fileMenu (dispatch) =
         menuSeparator
         makeItem "Write Design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput, dispatch)))
         menuSeparator
-        makeItem ("About Issie " + Version.VersionString) None (fun ev -> UIPopups.viewInfoPopup dispatch)
+        makeItem ("About Issie "+Version.VersionString) aboutIssieKeyOp (fun ev -> UIPopups.viewInfoPopup dispatch)
         makeItem "Quit Issie" quitIssieKeyOp (fun ev -> dispatch (MenuAction(MenuExit, dispatch)))
         menuSeparator
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart Issie" None MenuItemRole.ForceReload

@@ -247,34 +247,115 @@ let viewInfoPopup dispatch =
                     "What precise actions (if you know them) led to the bug after loading this project"
                 ]
             ]
-    let keyOf2 s1 s2 = span [] [bSpan s1; tSpan " + "; bSpan s2]
-    let keyOf3 s1 s2 s3 = span [] [bSpan s1; tSpan " + "; bSpan s2 ; tSpan " + "; bSpan s3]
-    let rule = hr [Style [MarginTop "0.5em"; MarginBottom "0.5em"]]
-    let keys = div [] [
-        makeH "Keyboard & mouse gesture shortcuts - also available on top menus and right-click context menus"
-        span [Style [FontStyle "Italic"]] [str "On Mac use Cmd instead of Ctrl."]
-        ul [] [
-            li [] [rule; tSpan "Save: "; keyOf2 "Ctrl" "S"; rule]
-            li [] [tSpan "Select all: " ; keyOf2  "Ctrl" "A"]
-            li [] [tSpan "Copy selected diagram items: " ; keyOf2  "Ctrl" "C"]
-            li [] [tSpan "Paste diagram items: " ; keyOf2  "Ctrl" "V"; rule]
-            li [] [tSpan "Undo last diagram action: " ; keyOf2  "Ctrl" "Z"]
-            li [] [tSpan "Redo last diagram action: " ; keyOf2  "Ctrl" "Y"; rule]
-            li [] [tSpan "Zoom application in: " ; keyOf3  "Ctrl" "Shift" "+"]
-            li [] [tSpan "Zoom application out: " ; keyOf3  "Ctrl" "Shift" "-"; rule]
-            li [] [tSpan "Zoom canvas in/out: " ; keyOf2  "Ctrl" "MouseWheel"]
-            li [] [tSpan "Zoom canvas in: " ; keyOf2  "Alt" "Up"]
-            li [] [tSpan "Zoom canvas out: " ; keyOf2  "Alt" "Down"; rule]
-            li [] [tSpan "Zoom circuit to fit screen: " ; keyOf2  "Ctrl" "W"]
-            li [] [tSpan "Scroll (mouse): " ; keyOf2 "Shift" "Left-Click"; bSpan " on canvas and drag"]
-            li [] [tSpan "Scroll (touch-pad): " ; bSpan "Two-finger scrolling on touchpad"]
-            li [] [tSpan "Scroll (touch-screen): " ; bSpan "One-finger drag on screen"; rule]
-            li [] [tSpan "Rotate symbol (clockwise/anticlockwise): "; keyOf2 "Ctrl" "Right/Left Arrow"]
-            li [] [tSpan "Flip symbol (vertical/horizontal): "; keyOf2 "Ctrl" "Up/Down Arrow";rule]
-            li [] [tSpan "Align symbols: "; keyOf3 "Ctrl" "Shift" "A"]
-            li [] [tSpan "Distribute symbols: "; keyOf3 "Ctrl" "Shift" "D"]
-            li [] [tSpan "Rotate label: "; keyOf3 "Ctrl" "Shift" "Right arrow"]
-         ] ]
+
+
+    let keys =
+        let keyTable: ReactElement =
+            let makeKeyStrSpan (keyList: List<String>) (keyPaddingChar: String): ReactElement = 
+                match keyList with
+                | [] ->
+                    span [] [str "(none)"]
+                | _ ->
+                    keyList 
+                    |> List.mapFold (fun i e -> if i <> keyList.Length-1 then [e; keyPaddingChar], i+1 else [e], i+1) 0
+                    |> fst |> List.concat |> List.fold (fun s e -> s+e) "" |> fun s -> span [] [str s]
+
+            let makeKeyTableRow (action: String) (windowsKeyList: List<String>) (macosKeyList: List<String>)
+                : ReactElement =
+                tr [] [
+                    th [Scope "Row"] [str action]
+                    td [] [makeKeyStrSpan windowsKeyList " + "]
+                    td [] [makeKeyStrSpan macosKeyList "-"]
+                ]
+
+            let keyData: List<String*List<String>*List<String>> = 
+                [
+                    "Create new sheet", ["Control"; "N"], ["Command"; "N"];
+                    "Save current sheet", ["Control"; "S"], ["Command"; "S"];
+                    "Save project in new format", [], ["Command"; "Shift"; "S"];
+                    "Open about/help window", [], ["Command"; "H"];
+                    "Quit application", [], ["Command"; "Q"];
+
+                    "Enter/Exit fullscreen", ["F11"], ["Command"; "Control"; "F"];
+                    "Zoom application in", ["Control"; "Plus (+)"], ["Command"; "Plus sign (+)"];
+                    "Zoom application out", ["Control"; "Minus (-)"], ["Command"; "Minus sign (-)"];
+                    "Zoom application reset", ["Control"; "0"], ["Command"; "0"];
+                    "Zoom diagram in", ["Alt"; "Up arrow"], ["Command"; "Option"; "Plus sign (+)"];
+                    "Zoom diagram out", ["Alt"; "Down arrow"], ["Command"; "Option"; "Minus sign (-)"];
+                    "Zoom circuit to fit in screen", ["Control"; "W"], ["Command"; "Option"; "0"];
+                    "Show/Hide grid lines", [], ["Command"; "Option"; "G"];
+                    "Show/Hide wire arrows", [], ["Command"; "Option"; "W"];
+                    "Show/Hide browser developer tools", ["Control"; "Shift"; "I"], ["Command"; "Option"; "I"];
+
+                    "Copy selected items", ["Control"; "C"], ["Command"; "C"];
+                    "Paste items", ["Control"; "V"], ["Command"; "V"];
+                    "Select all items", ["Control"; "A"], ["Command"; "A"];
+                    "Delete items", ["Delete"], ["Backspace"];
+                    "Rotate items clockwise/anticlockwise",
+                        ["Control"; "Left/Right arrows"],
+                        ["Command"; "Option"; "Left/Right arrow"];
+                    "Flip items horizontally/vertically",
+                        ["Control"; "Up/Down arrows"],
+                        ["Command"; "Option"; "Up/Down arrow"];
+                    "Align items", ["Control"; "Shift"; "A"], ["Command"; "Option"; "A"];
+                    "Distribute items", ["Control"; "Shift"; "D"], ["Command"; "Option"; "D"];
+                    "Rotate label of item", ["Control"; "Shift"; "Right arrow"], ["Command"; "Option"; "R"];
+                    "Undo diagram action", ["Control"; "Z"], ["Command"; "Z"];
+                    "Redo diagram action", ["Control"; "Y"], ["Command"; "Shift"; "Z"];
+                    "Cancel action", ["Escape"], ["Escape"];
+                ]
+
+            let head =
+                ["Action"; "Windows/Linux"; "macOS"]
+                |> List.map (fun s -> th [Scope "Col"] [str s])
+                |> (fun l -> [tr [] l])
+            let body = keyData |> List.map (fun (a, wkl, mkl) -> makeKeyTableRow a wkl mkl)
+            
+            Table.table [] [
+                thead [] head
+                tbody [] body
+            ]
+
+
+        let otherInputTable: ReactElement =
+            let makeOtherInputTableRow (action: String) (mouse: String) (touchpad: String) (touchscreen: String) =
+                tr [] [
+                    th [Scope "Row"] [str action]
+                    td [] [str mouse]
+                    td [] [str touchpad]
+                    td [] [str touchscreen]
+                ]
+            
+            let otherInputData: List<String*String*String*String> =
+                [
+                    "Scroll", "Shift + Left click on canvas + Drag", "Two-finger scrolling", "One-finger drag";
+                ]
+            
+            let head =
+                ["Action"; "Mouse"; "Touchpad"; "Touchscreen"]
+                |> List.map (fun s -> th [Scope "Col"] [str s])
+                |> (fun l -> [tr [] l])
+            let body = otherInputData |> List.map (fun (a, m, tp, ts) -> makeOtherInputTableRow a m tp ts)
+
+            Table.table [] [
+                thead [] head
+                tbody [] body
+            ]
+    
+        div [] [
+            makeH "Mouse and Other Input Gestures:"
+            otherInputTable
+            makeH "Keyboard Shortcuts:"
+            div
+                [Style [FontStyle "Italic"]]
+                [str "Note: keyboard shortcuts available on top menus and right-click context menus too."]
+            div
+                [Style [FontStyle "Italic"]]
+                [str "Note: keyboard shortcuts are limited by operating system and Chromium/Electron."]
+            keyTable
+        ]
+
+
     let body model =
         let dialogData = model.PopupDialogData
         let tab = dialogData.Int

@@ -310,7 +310,7 @@ let viewMenu dispatch =
         ]
         menuSeparator
         makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
-        makeItem "Show/Hide App Memory display" None (fun ev ->
+        makeItem "Show/Hide App Memory Display" None (fun ev ->
                     JSHelpers.loggingMemory <- not JSHelpers.loggingMemory
                     let state = if loggingMemory then "on" else "off"
                     printfn $"Memory display is now {state}.")

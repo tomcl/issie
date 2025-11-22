@@ -123,9 +123,9 @@ jobs:
         security set-key-partition-list -S apple-tool:,apple: -k "$APPLE_KEYCHAIN_TMP_PWD" $KEYCHAIN_PATH
         security list-keychain -d user -s $KEYCHAIN_PATH
     - name: Set up .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '8.0.319'
     - name: Checkout the repo
       uses: actions/checkout@v5
       with:
@@ -149,9 +149,9 @@ jobs:
     needs: update-current-release
     steps:
     - name: Set up .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '8.0.319'
     - name: Set up required Ubuntu packages
       run: |
         sudo apt-get update
@@ -175,9 +175,9 @@ jobs:
     needs: update-current-release
     steps:
     - name: Set up .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v2
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '8.0.319'
     - name: Checkout the repo
       uses: actions/checkout@v5
       with:

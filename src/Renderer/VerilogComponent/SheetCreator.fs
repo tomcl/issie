@@ -1151,17 +1151,15 @@ let compileModule' node varToCompMap ioToCompMap varSizeMap=
                                     Map.add var (addAssignment newMapping currSlices varToCompMap) c'
                                 )
 
-                            | _ -> c
-                        )    
-                    )
-                res
-                // if the if and else circuits were stored in a sorted array based on starting index, i can go through them in parallel
-            | StatementDU.ForStatement forStmt ->
-                let forStmts = unrollForLoops forStmt
-                compileModule (Statement forStmts) varToCompMap currCircuits
-                // failwithf "Reaching compile module, Forstatements: %A" forStmts
-            | StatementDU.Case case ->
-                compileModule (Case case) varToCompMap currCircuits
+                        | _ -> c
+                    )    
+                )
+            res
+            // if the if and else circuits were stored in a sorted array based on starting index, i can go through them in parallel
+        | ForStatement forStmt ->
+            let forStmts = unrollForLoops forStmt
+            compileModule (SeqBlock forStmts) varToCompMap currCircuits
+            // failwithf "Reaching compile module, Forstatements: %A" forStmts
         | _ -> currCircuits
     let res = compileModule node varToCompMap Map.empty
     res
@@ -1289,44 +1287,42 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
         | AlwaysConstruct always ->
             compileModule (Statement always.Statement) varToCompMap currCircuits
         | Statement statement ->
-            match statement with
-            | StatementDU.NonBlockingAssign assign ->
-                compileModule (Assignment assign) varToCompMap currCircuits
-            | StatementDU.BlockingAssign assign ->
-                compileModule (Assignment assign) varToCompMap currCircuits // TO DO: get += etc. operators working too! currently this is just =
-            | StatementDU.SeqBlock (seq, _) ->
-                (currCircuits, seq)
-                ||> Array.fold (fun circuits stmt ->
-                    compileModule (Statement stmt) varToCompMap circuits) 
-            | StatementDU.Conditional (ifStmt, elseStmt) ->
-                let ifCircuits = compileModule (Statement ifStmt.Statement) varToCompMap currCircuits
-                let elseCircuits =
-                    match elseStmt with
-                    | Some stmt -> compileModule (Statement stmt) varToCompMap currCircuits
-                    | _ -> currCircuits
-                let condCircuit = mainExpressionCircuitBuilder ifStmt.Condition varToCompMap varSizeMap 0// need to reduce it to 1 bit
-                let comp = createComponent (BusCompare (condCircuit.OutWidth, 0I)) "CMP"
-                let topCircuit = {Comps=[comp];Conns=[];Out=comp.OutputPorts[0];OutWidth=1}
-                let condCircuitN = joinCircuits [condCircuit] [comp.InputPorts[0]] topCircuit
-                (currCircuits, ifCircuits)
-                ||> Map.fold (fun circuits var ifCircuit ->
-                    let elseCircuit = 
-                        match Map.tryFind var elseCircuits with
-                        | Some c -> c
-                        | _ -> failwithf "This should not happen variable doesn't have a circuit in else branch!"
-                    if ifCircuit = elseCircuit then circuits
-                    else
-                        let mux = createComponent Mux2 "Mux2"
-                        let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifCircuit.OutWidth}
-                        let newCircuit = joinCircuits [ifCircuit;elseCircuit;condCircuitN] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
-                        Map.add var newCircuit circuits
-                )
-            | StatementDU.ForStatement forStmt ->
-                let forStmts = unrollForLoops forStmt
-                compileModule (Statement forStmts) varToCompMap currCircuits
-                // failwithf "Reaching compile module, Forstatements seq block: %A, number of statements: %d" forStmts forStmts.Statements.Length
-            | StatementDU.Case case ->
-                compileModule (Case case) varToCompMap currCircuits
+            compileModule (getAlwaysStatement statement |> statementToNode) varToCompMap currCircuits
+        | NonBlockingAssign assign ->
+            compileModule (Assignment assign.Assignment) varToCompMap currCircuits
+        | BlockingAssign assign ->
+            compileModule (Assignment assign.Assignment) varToCompMap currCircuits // TO DO: get += etc. operators working too! currently this is just =
+        | SeqBlock seq ->
+            (currCircuits, seq.Statements)
+            ||> Array.fold (fun circuits stmt ->
+                compileModule (Statement stmt) varToCompMap circuits) 
+        | Conditional cond ->
+            let ifCircuits = compileModule (Statement cond.IfStatement.Statement) varToCompMap currCircuits
+            let elseCircuits =
+                match cond.ElseStatement with
+                | Some stmt -> compileModule (Statement stmt) varToCompMap currCircuits
+                | _ -> currCircuits
+            let condCircuit = mainExpressionCircuitBuilder cond.IfStatement.Condition varToCompMap varSizeMap 0// need to reduce it to 1 bit
+            let comp = createComponent (BusCompare (condCircuit.OutWidth, 0I)) "CMP"
+            let topCircuit = {Comps=[comp];Conns=[];Out=comp.OutputPorts[0];OutWidth=1}
+            let condCircuitN = joinCircuits [condCircuit] [comp.InputPorts[0]] topCircuit
+            (currCircuits, ifCircuits)
+            ||> Map.fold (fun circuits var ifCircuit ->
+                let elseCircuit = 
+                    match Map.tryFind var elseCircuits with
+                    | Some c -> c
+                    | _ -> failwithf "This should not happen variable doesn't have a circuit in else branch!"
+                if ifCircuit = elseCircuit then circuits
+                else
+                    let mux = createComponent Mux2 "Mux2"
+                    let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifCircuit.OutWidth}
+                    let newCircuit = joinCircuits [ifCircuit;elseCircuit;condCircuitN] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
+                    Map.add var newCircuit circuits
+            )
+        | ForStatement forStmt ->
+            let forStmts = unrollForLoops forStmt
+            compileModule (SeqBlock forStmts) varToCompMap currCircuits
+            // failwithf "Reaching compile module, Forstatements seq block: %A, number of statements: %d" forStmts forStmts.Statements.Length
         | Case case ->
             let caseItemMap: Map<bigint, StatementDU> =
                 (Map.empty, case.CaseItems)

@@ -100,15 +100,13 @@ export function parseFromFile(source) {
         return JSON.stringify({Result: JSON.stringify(ast), Error: null, NewLinesIndex: linesIndex});
     }
     catch(e) {
-        console.log(e.message)
+        // console.log(e.message)
         const sourceTrimmed = source.replace(/\s+$/g, '');
         const sourceTrimmedComments = sourceTrimmed.replace(/\/\/.*$/gm,' ');
         let token = e.token;
-        let message = e.message || "Unknown parse error";
-        let lineCol = message.match(/[0-9]+/g) || [0, 0];
-        let expectedMatch = message.match(/(?<=A ).*(?= based on:)/g);
-        let expected = expectedMatch ? expectedMatch.map(s => s.replace(/\s+token/i,'')) : [];
-        // let expected = message.match(/(?<=A ).*(?= based on:)/g).map(s => s.replace(/\s+token/i,'')); // this sometimes throws an exception, when there is an extra char at the end
+        let message = e.message;
+        let lineCol = message.match(/[0-9]+/g)
+        let expected = message.match(/(?<=A ).*(?= based on:)/g).map(s => s.replace(/\s+token/i,'')); // this sometimes throws an exception, when there is an extra char at the end
         // console.log(message);
         // console.log(expected);
         let table = message.substring(message.indexOf(".") + 1);
@@ -116,6 +114,29 @@ export function parseFromFile(source) {
         //let unique = expectedKeywords.filter((v, i, a) => a.indexOf(v) === i);
         for (let i = 0; i < expected.length; i++) {
             expected[i] = getTokenValue(expected[i]);
+            console.log(expected[i]);
+        }
+
+        if (token && typeof token.offset === 'number') {
+            const off = token.offset;
+            // compute line & column (1-based)
+            const before = source.substring(0, off);
+            // previous character (if any)
+            const prevChar = source.charAt(off - 1);
+            // a little context showing the char before and after
+            const ctxStart = Math.max(0, off - 40);
+            const ctxEnd = Math.min(source.length, off + 40);
+            const context = source.substring(234, source.length).replace(/\n/g, "\\n");
+            console.log(token)
+            console.log("Error offset:", off);
+            console.log("Line:", lineCol[0], "Col:", lineCol[1]);
+            // console.log(source);
+            // console.log(source.charAt(off));
+            // console.log("Previous char (offset-1):", prevChar === null ? "<none>" : JSON.stringify(prevChar));
+            console.log(sourceTrimmedComments.substring(230, 235));
+            // console.log(getTokenValue())
+            // console.log(source.substring(0, source.length))
+            // console.log("Source context (±40 chars):\n" + context);
             console.log(expected[i]);
         }
 

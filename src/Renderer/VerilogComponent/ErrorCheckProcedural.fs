@@ -262,6 +262,21 @@ let checkVariablesAlwaysAssigned
                 |> Array.map (fun item -> getVariablesAlwaysAssigned (Item item))
             (Set.empty, itemsCompleteVariables)
             ||> Array.fold Set.union
+        | Conditional ifstmt ->
+            if Option.isNone ifstmt.ElseStatement then
+                Set.empty
+            else
+            let ifVariables = 
+                getVariablesAlwaysAssigned (Statement ifstmt.IfStatement.Statement)
+    
+            let elseVariables =
+                getVariablesAlwaysAssigned (Statement (Option.get ifstmt.ElseStatement))
+            Set.intersect ifVariables elseVariables
+        | ForStatement forstmt ->
+            getVariablesAlwaysAssigned (Statement forstmt.Statement)
+        | BlockingAssign blocking -> (getLHSBitsAssignedCertainly portSizeMap blocking.Assignment) |> Set.ofList // fix getLHSBits
+        | NonBlockingAssign nonBlocking -> (getLHSBitsAssignedCertainly portSizeMap nonBlocking.Assignment) |> Set.ofList // fix getLHSBits
+        | Item item -> getVariablesAlwaysAssigned (getItem item)
         | AlwaysConstruct always -> 
             getVariablesAlwaysAssigned (Statement always.Statement)
         | Statement statement ->

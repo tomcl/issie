@@ -916,7 +916,6 @@ let rec mergeIfElse (lst1: List<BitMapping>) (lst2:List<BitMapping>) varToCompMa
     | _ -> []
 
 
-
 let addAssignment (assignment: BitMapping) (bits: List<BitMapping>) varToCompMap =
     // assuming bits is sorted by slices
     let overlapping =
@@ -1088,6 +1087,10 @@ let compileModule' node varToCompMap ioToCompMap varSizeMap=
                 )
             res
             // if the if and else circuits were stored in a sorted array based on starting index, i can go through them in parallel
+        | ForStatement forStmt ->
+            let forStmts = unrollForLoops forStmt
+            compileModule (SeqBlock forStmts) varToCompMap currCircuits
+            // failwithf "Reaching compile module, Forstatements: %A" forStmts
         | _ -> currCircuits
     let res = compileModule node varToCompMap Map.empty
     res
@@ -1247,6 +1250,10 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                     let newCircuit = joinCircuits [ifCircuit;elseCircuit;condCircuitN] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
                     Map.add var newCircuit circuits
             )
+        | ForStatement forStmt ->
+            let forStmts = unrollForLoops forStmt
+            compileModule (SeqBlock forStmts) varToCompMap currCircuits
+            // failwithf "Reaching compile module, Forstatements seq block: %A, number of statements: %d" forStmts forStmts.Statements.Length
         | Case case ->
             let caseItemMap: Map<bigint, StatementT> =
                 (Map.empty, case.CaseItems)
@@ -1382,6 +1389,7 @@ let createSheet input (project:Project)=
                 if Option.isNone decl.Range then Map.add variable.Name 1 map'
                 else Map.add variable.Name ((Option.get(decl.Range).Start |> int)-(Option.get(decl.Range).End |> int)+1) map'
             )
+            // add paramemter evaluation here?
         )
     let varSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
     let combVars = getCombinationalVars input project
@@ -1466,6 +1474,7 @@ let createSheet input (project:Project)=
     let finalCanvasState = 
         (components, snd finalCanvasState)
         |> fixCanvasState
+    // failwithf "Final Canvas State: %A" finalCanvasState
     finalCanvasState
 
 

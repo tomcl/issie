@@ -20,6 +20,7 @@ type StatementDU =
     | SeqBlock of SeqBlockT
     | Case of CaseStatementT
     | Conditional of ConditionalT
+    | ForStatement of ForStatementT
 
 // should I add everything in here?
 type ASTNode =
@@ -36,6 +37,7 @@ type ASTNode =
     | CaseItem of CaseItemT
     | Conditional of ConditionalT
     | IfStatement of IfStatementT
+    | ForStatement of ForStatementT
     | Assignment of AssignmentT
     | AssignmentLHS of AssignmentLHST
     | Expression of ExpressionT
@@ -56,12 +58,13 @@ type Module = {AST: ASTNode;}
 
 /// converts StatementT into StatementDU
 let getAlwaysStatement (s: StatementT) : StatementDU =
-    match s.BlockingAssign, s.NonBlockingAssign, s.CaseStatement, s.Conditional, s.SeqBlock with
-    | Some blocking, None, None, None, None -> StatementDU.BlockingAssign(blocking)
-    | None, Some nonblocking, None, None, None -> StatementDU.NonBlockingAssign(nonblocking)
-    | None, None, Some case, None, None -> StatementDU.Case(case)
-    | None, None, None, Some cond, None -> StatementDU.Conditional(cond)
-    | None, None, None, None, Some seqBlock -> StatementDU.SeqBlock(seqBlock)
+    match s.BlockingAssign, s.NonBlockingAssign, s.CaseStatement, s.Conditional, s.SeqBlock, s.ForStatement with
+    | Some blocking, None, None, None, None, None -> StatementDU.BlockingAssign(blocking)
+    | None, Some nonblocking, None, None, None, None -> StatementDU.NonBlockingAssign(nonblocking)
+    | None, None, Some case, None, None, None -> StatementDU.Case(case)
+    | None, None, None, Some cond, None, None -> StatementDU.Conditional(cond)
+    | None, None, None, None, Some seqBlock, None -> StatementDU.SeqBlock(seqBlock)
+    | None, None, None, None, None, Some forStmt -> StatementDU.ForStatement(forStmt)
     | _ -> failwithf "Should not happen!"
 //maybe we can combine these two, or do smth smarter
 let statementToNode (statement:StatementDU) : ASTNode =
@@ -71,7 +74,7 @@ let statementToNode (statement:StatementDU) : ASTNode =
     | StatementDU.Case case -> Case(case)
     | StatementDU.Conditional cond -> Conditional(cond)
     | StatementDU.SeqBlock seqBlock -> SeqBlock(seqBlock)
-
+    | StatementDU.ForStatement forStmt -> ForStatement(forStmt)
 
 let getItem (item: ItemT)  =
     //printfn $"{item}"
@@ -85,6 +88,199 @@ let getItem (item: ItemT)  =
     | anything -> 
         printfn $"{anything}" 
         failwithf "Should not happen"
+
+// Helper to evaluate integer expressions (simple constants only)
+let tryEvalConst (number:NumberT) =
+    let width = (Option.get number.Bits) |> int
+    let _base = Option.get number.Base
+    let no = (Option.get number.AllNumber)
+    let text = 
+        match _base with
+        |"'b" -> "0b"+no
+        |"'h" -> "0x"+no
+        |_ -> no
+    let constValue: int =
+        match NumberHelpers.strToIntCheckWidth width text with
+        |Ok n -> int n
+        |Error _ -> failwithf "Shouldn't happen!" // TODO: better error handling - indicate that the value and size do not match
+    constValue
+let rec evalIntExpression (expr0: ExpressionT) : int =
+    let rec strip (e: ExpressionT) =
+        match e.Unary with
+        | Some u when Option.isSome u.Expression -> strip (Option.get u.Expression)
+        | _ -> e
+
+    let expr = strip expr0
+
+    match expr.Operator, expr.Head, expr.Tail, expr.Unary with
+    // plain literal e.g. 4'd3  (ExpressionT with Unary.Number)
+    | None, None, None, Some unary ->
+        match unary.Number with
+        | Some num -> tryEvalConst num
+        | None -> failwith "Unsupported expression in loop: expected numeric literal"
+
+    // allowed binary-like node where RHS is numeric literal (e.g. i < 3'd3 or i + 1)
+    | Some _, Some _, Some tail, None ->
+        let tail = strip tail
+        match tail.Unary with
+        | Some u ->
+            match u.Number with
+            | Some num -> tryEvalConst num
+            | None -> failwith "Tail must be a numeric literal"
+        | None -> failwith "Tail must be a unary numeric literal"
+    | _ -> failwith "Unsupported expression in loop"
+
+
+let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:StatementT) : StatementT =
+    let rec substLoopExpr (loopVarName:string) (value:int) (width:int) (expr:ExpressionT) : ExpressionT =
+        let substUnary (unary:UnaryT) : UnaryT =
+            match unary.Primary with
+            | Some prim when prim.Primary.Name = loopVarName ->
+                { unary with
+                    Type = "number"
+                    Primary = None
+                    Number = Some ({
+                        Type = "number"
+                        NumberType = "all"
+                        Bits = Some (string width)
+                        Base = Some "'d"
+                        AllNumber = Some (string value)
+                        UnsignedNumber = None
+                        Location = prim.Primary.Location
+                    })
+                }
+            | _ -> 
+                let expr' = unary.Expression |> Option.map (substLoopExpr loopVarName value width)
+                { unary with Expression = expr' }
+            
+        match expr.Operator, expr.Head, expr.Tail, expr.Unary with
+        | None, None, None, Some unary ->
+            let unary' = substUnary unary
+            { expr with Unary = Some unary' }
+        | Some op, Some head, Some tail, None ->
+            { expr with 
+                Head = Some (substLoopExpr loopVarName value width head)
+                Tail = Some (substLoopExpr loopVarName value width tail) }
+        | _ -> expr 
+    
+    // Drops any assignment whose LHS is the loop variable itself
+    let isAssignToLoopVar (lhs: AssignmentLHST) =
+        lhs.Primary.Name = loopVarName
+
+    let substLhs (lhs: AssignmentLHST) =
+        let vbs = lhs.VariableBitSelect |> Option.map (substLoopExpr loopVarName value width)
+        // If variable bit-select reduces to a constant, write it into Primary.BitsStart/BitsEnd
+        let lhs' =
+            match vbs with
+            | Some expr ->
+                try
+                    let idx = evalIntExpression expr
+                    let idxStr = string idx
+                    { lhs with VariableBitSelect = None; BitsStart = Some idxStr; BitsEnd = Some idxStr }
+                with _ -> { lhs with VariableBitSelect = vbs }
+            | None -> lhs
+        lhs'
+
+    // If loop variable appears on RHS, substitute it with the given value
+    let substAssign (a: AssignmentT) =
+        { a with
+            LHS = substLhs a.LHS
+            RHS = substLoopExpr loopVarName value width a.RHS }
+
+    match stmt.BlockingAssign, stmt.NonBlockingAssign, stmt.SeqBlock, stmt.Conditional, stmt.CaseStatement, stmt.ForStatement with
+    | Some b, None, None, None, None, None ->
+        if isAssignToLoopVar b.Assignment.LHS then
+            failwithf "Assignments to loop variable inside loop body are not supported"
+        else { stmt with BlockingAssign = Some { b with Assignment = substAssign b.Assignment } }
+    | None, Some nb, None, None, None, None ->
+        if isAssignToLoopVar nb.Assignment.LHS then
+            failwithf "Assignments to loop variable inside loop body are not supported"
+        else { stmt with NonBlockingAssign = Some { nb with Assignment = substAssign nb.Assignment } }
+    | None, None, Some sb, None, None, None ->
+        let stmts' = sb.Statements |> Array.map (substLoopVar loopVarName value width)
+        { stmt with SeqBlock = Some { sb with Statements = stmts' } }
+    | None, None, None, Some cond, None, None ->
+        let ifStmt' = substLoopVar loopVarName value width cond.IfStatement.Statement
+        let elseStmt' = cond.ElseStatement |> Option.map (substLoopVar loopVarName value width)
+        let condStmt' = substLoopExpr loopVarName value width cond.IfStatement.Condition
+        { stmt with Conditional = Some { cond with IfStatement = { cond.IfStatement with 
+                                                                    Condition = condStmt'; 
+                                                                    Statement = ifStmt' }; 
+                                                ElseStatement = elseStmt' } }
+    | None, None, None, None, Some caseStmt, None ->
+        let caseExpr' = substLoopExpr loopVarName value width caseStmt.Expression
+        let caseItems' =
+            caseStmt.CaseItems
+            |> Array.map (fun ci -> 
+                let stmt' = substLoopVar loopVarName value width ci.Statement
+                { ci with Statement = stmt' }
+            )
+        let defaultStmt' = caseStmt.Default |> Option.map (substLoopVar loopVarName value width)
+        { stmt with CaseStatement = Some { caseStmt with 
+                                                Expression = caseExpr'; 
+                                                CaseItems = caseItems'; 
+                                                Default = defaultStmt' } }
+    | None, None, None, None, None, Some forStmt ->
+        // Substitute occurrences of the current loop variable into the inner for-loop
+        let initRHS' = substLoopExpr loopVarName value width forStmt.Initialisation.RHS
+        let cond' = substLoopExpr loopVarName value width forStmt.Condition
+        let stepRHS' = substLoopExpr loopVarName value width forStmt.Step.RHS
+        let stmt' = substLoopVar loopVarName value width forStmt.Statement
+        let forStmt' = { forStmt with Initialisation = { forStmt.Initialisation with RHS = initRHS' }; Condition = cond'; Step = { forStmt.Step with RHS = stepRHS' }; Statement = stmt' }
+        { stmt with ForStatement = Some forStmt' }
+        
+    // TODO: add nested for loop handling
+    | _ -> stmt // other cases not handled for now
+let rec unrollForLoops (forstmt:ForStatementT) : SeqBlockT =
+    let computeIterations startV op endV step =
+        match op with
+        | "<"  -> endV - startV
+        | "<=" -> endV - startV + 1
+        | ">"  -> startV - endV
+        | ">=" -> startV - endV + 1
+        | _ -> failwith "Unsupported operator"
+
+    let startValue = evalIntExpression forstmt.Initialisation.RHS
+    let endValue   = evalIntExpression forstmt.Condition
+    let stepValue  = evalIntExpression forstmt.Step.RHS
+    let iterations = 
+        match forstmt.Condition.Operator with
+        | Some op -> computeIterations startValue op endValue stepValue
+        | None -> failwith "Unsupported operator in for loop condition"
+
+    if iterations < 0 || iterations > 10 then
+        failwithf "Refusing to unroll loop with %d iterations" iterations
+
+    let bodyStatements =
+        match forstmt.Statement.SeqBlock with
+        | Some seqBlock -> seqBlock.Statements
+        | None -> [| forstmt.Statement |]
+
+    let loopVarName = forstmt.Initialisation.LHS.Primary.Name
+    let loopVarWidth =
+        match forstmt.Initialisation.LHS.Width with
+        | Some w -> int w
+        | None -> 32
+
+    let repeatedStmts =
+        Array.init iterations (fun k -> 
+            let value = startValue + k * stepValue
+            bodyStatements
+            |> Array.map (substLoopVar loopVarName value loopVarWidth)
+            |> Array.collect (fun s ->
+                match s.ForStatement with
+                | Some innerFor ->
+                    // recursively unroll inner for after it has been substituted
+                    (unrollForLoops innerFor).Statements
+                | None -> [| s |]
+            )
+        )
+        |> Array.concat
+    let unrolled_seq_block: SeqBlockT =
+        { Type = "seq_block"; Statements = repeatedStmts; Location = forstmt.Location }
+    // failwithf "STATEMENT UNROLLED: iterations = %d, full block = %A" iterations unrolled_seq_block
+
+    unrolled_seq_block
 
 /// Recursively folds over an ASTNode, calling folder at every level. Only explores parts where there are multiple possibilities within a Node
 let rec foldAST folder state (node:ASTNode) =
@@ -148,6 +344,10 @@ let rec foldAST folder state (node:ASTNode) =
     | IfStatement ifstmt ->
         (foldAST folder state' (Expression(ifstmt.Condition)), (Statement(ifstmt.Statement)))
         ||> foldAST folder
+    | ForStatement forstmt ->
+        let tmpState = 
+            unrollForLoops forstmt
+        foldAST folder state' (SeqBlock(tmpState))
     | AssignmentLHS lhs ->
         match lhs.VariableBitSelect with
         | Some expr -> 

@@ -249,6 +249,8 @@ let checkVariablesAlwaysAssigned
             let elseVariables =
                 getVariablesAlwaysAssigned (Statement (Option.get ifstmt.ElseStatement))
             Set.intersect ifVariables elseVariables
+        | ForStatement forstmt ->
+            getVariablesAlwaysAssigned (Statement forstmt.Statement)
         | BlockingAssign blocking -> (getLHSBitsAssignedCertainly portSizeMap blocking.Assignment) |> Set.ofList // fix getLHSBits
         | NonBlockingAssign nonBlocking -> (getLHSBitsAssignedCertainly portSizeMap nonBlocking.Assignment) |> Set.ofList // fix getLHSBits
         | Item item -> getVariablesAlwaysAssigned (getItem item)

@@ -59,7 +59,7 @@ type BlockingAssignT = {Operator: string; Assignment: AssignmentT}
 
 type SeqBlockT = {Type: string; Statements: StatementT array; Location: int}
 
-and StatementT = {Type: string; StatementType: string; NonBlockingAssign: NonBlockingAssignT option; BlockingAssign: BlockingAssignT option; SeqBlock: SeqBlockT option; Conditional: ConditionalT option; CaseStatement: CaseStatementT option; Location: int}
+and StatementT = {Type: string; StatementType: string; NonBlockingAssign: NonBlockingAssignT option; BlockingAssign: BlockingAssignT option; SeqBlock: SeqBlockT option; Conditional: ConditionalT option; CaseStatement: CaseStatementT option; ForStatement: ForStatementT option; Location: int}
 
 and IfStatementT = {Type: string; Condition: ExpressionT; Statement: StatementT; Location: int}
 
@@ -68,6 +68,8 @@ and ConditionalT = {Type: string; IfStatement: IfStatementT; ElseStatement: Stat
 and CaseItemT = {Type: string; Expressions: NumberT array; Statement: StatementT}
 
 and CaseStatementT = {Type: string; Expression: ExpressionT; CaseItems: CaseItemT array; Default: StatementT option; Location: int}
+
+and ForStatementT = {Type: string; Initialisation: AssignmentT; Condition: ExpressionT; Step: AssignmentT; Statement: StatementT; Location: int}
 
 type AlwaysConstructT = {Type: string; AlwaysType: string; Statement: StatementT; ClkLoc: int; Location: int}
 

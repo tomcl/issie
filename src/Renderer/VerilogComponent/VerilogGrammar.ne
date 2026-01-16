@@ -65,7 +65,8 @@ const lexer = moo.compile({
         t_else: 'else',
         t_case: 'case',
         t_endcase: 'endcase',
-        t_default: 'default'
+        t_default: 'default',
+        t_for: 'for'
       })},
     ws: {match: /[\s]/, lineBreaks: true},
 
@@ -216,7 +217,7 @@ COMPLETE_STATEMENT
             //const name = 'a'.repeat(len);
             let assignment = d[0].Assignment;
             assignment.Assignment.Type = "<=";
-            return {Type: "statement", StatementType: "nonblocking_assignment", NonBlockingAssign: assignment, BlockingAssign: null, SeqBlock: null, Conditional: null, CaseStatement: null, Location: d[0].Location};
+            return {Type: "statement", StatementType: "nonblocking_assignment", NonBlockingAssign: assignment, BlockingAssign: null, SeqBlock: null, Conditional: null, CaseStatement: null, ForStatement: null, Location: d[0].Location};
         } %}
     | BLOCKING_ASSIGNMENT _ %semicolon _ 
         {%function(d,l,reject){
@@ -224,28 +225,36 @@ COMPLETE_STATEMENT
             //const name = 'a'.repeat(len);
             let assignment = d[0].Assignment;
             assignment.Assignment.Type = "=";
-            return {Type: "statement", StatementType: "blocking_assignment", NonBlockingAssign: null, BlockingAssign: assignment, SeqBlock: null, Conditional: null,  CaseStatement: null, Location: d[0].Location};
+            return {Type: "statement", StatementType: "blocking_assignment", NonBlockingAssign: null, BlockingAssign: assignment, SeqBlock: null, Conditional: null,  CaseStatement: null, ForStatement: null, Location: d[0].Location};
         } %}
-    | SEQ_BLOCK {%function(d,l,reject) {return {Type: "statement", StatementType: "seq_block", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: d[0], Conditional: null,  CaseStatement: null, Location: d[0].Location};} %} #change to statements?
-    | CASE_STATEMENT {%function(d,l,reject) {return {Type: "statement", StatementType: "case_stmt", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: null,  CaseStatement: d[0], Location: d[0].Location};}%}
+    | SEQ_BLOCK {%function(d,l,reject) {return {Type: "statement", StatementType: "seq_block", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: d[0], Conditional: null,  CaseStatement: null, ForStatement: null, Location: d[0].Location};} %} #change to statements?
+    | CASE_STATEMENT {%function(d,l,reject) {return {Type: "statement", StatementType: "case_stmt", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: null,  CaseStatement: d[0], ForStatement: null, Location: d[0].Location};}%}
+    | FOR_STATEMENT {%function(d,l,reject) {return {Type: "statement", StatementType: "for_stmt", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: null, CaseStatement: null, ForStatement: d[0], Location: d[0].Location};}%}
+
+FOR_STATEMENT
+    -> %t_for _ %lparen _ ASSIGNMENT _ %semicolon _ EXPRESSION _ %semicolon _ ASSIGNMENT _ %rparen _ COMPLETE_STATEMENT {% function(d) {
+    // -> %t_for _ %lparen _ BLOCKING_ASSIGNMENT _ %semicolon _ EXPRESSION _ %semicolon _ BLOCKING_ASSIGNMENT _ %rparen _ STATEMENT {% function(d) {
+    // -> %t_for _ %lparen _ (ASSIGNMENT | BLOCKING_ASSIGNMENT | NONBLOCKING_ASSIGNMENT) _ %semicolon _ EXPRESSION _ %semicolon _ (ASSIGNMENT | BLOCKING_ASSIGNMENT | NONBLOCKING_ASSIGNMENT) _ %rparen _ STATEMENT {% function(d) {
+        return {Type: "for_stmt", Initialisation: d[4], Condition: d[8], Step: d[12], Statement: d[16], Location: d[0].offset};
+        } %}
 
 COMPLETE_CONDITIONAL_STATEMENT 
     -> %t_if _ %lparen _ EXPRESSION _ %rparen _ COMPLETE_STATEMENT  %t_else __ COMPLETE_STATEMENT {% function(d) {
         let ifStmt = {Type: "ifstmt", Condition: d[4], Statement: d[8], Location: d[0].offset};
         let conditional = {Type: "cond_stmt", IfStatement: ifStmt, ElseStatement: d[11], Location: d[0].offset};
-        return {Type: "statement", StatementType: "conditional", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: conditional,  CaseStatement: null, Location: d[0].offset}
+        return {Type: "statement", StatementType: "conditional", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: conditional,  CaseStatement: null, ForStatement: null, Location: d[0].offset}
         } %}
 
 INCOMPLETE_CONDITIONAL_STATEMENT 
     -> %t_if _ %lparen _ EXPRESSION _ %rparen _ STATEMENT {% function(d) {
         let ifStmt = {Type: "ifstmt", Condition: d[4], Statement: d[8], Location: d[0].offset};
         let conditional = {Type: "cond_stmt", IfStatement: ifStmt, ElseStatement: null, Location: d[0].offset};
-        return {Type: "statement", StatementType: "conditional", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: conditional,  CaseStatement: null, Location: d[0].offset}
+        return {Type: "statement", StatementType: "conditional", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: conditional,  CaseStatement: null, ForStatement: null, Location: d[0].offset}
         } %}
     | %t_if _ %lparen _ EXPRESSION _ %rparen _ COMPLETE_STATEMENT  %t_else __ INCOMPLETE_CONDITIONAL_STATEMENT {% function(d) {
         let ifStmt = {Type: "ifstmt", Condition: d[4], Statement: d[8], Location: d[0].offset};
         let conditional = {Type: "cond_stmt", IfStatement: ifStmt, ElseStatement: d[11], Location: d[0].offset};
-        return {Type: "statement", StatementType: "conditional", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: conditional,  CaseStatement: null, Location: d[0].offset}
+        return {Type: "statement", StatementType: "conditional", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: conditional,  CaseStatement: null, ForStatement: null, Location: d[0].offset}
     } %}
 
 # this might be ambiguous grammar? I want to have it this way because code gen should be easier maybe
@@ -260,7 +269,7 @@ STATEMENT2
             //const name = 'a'.repeat(len);
             let assignment = d[0].Assignment;
             assignment.Assignment.Type = "<=";
-            return {Type: "statement", StatementType: "nonblocking_assignment", NonBlockingAssign: assignment, BlockingAssign: null, SeqBlock: null, Conditional: null, CaseStatement: null, Location: d[0].Location};
+            return {Type: "statement", StatementType: "nonblocking_assignment", NonBlockingAssign: assignment, BlockingAssign: null, SeqBlock: null, Conditional: null, CaseStatement: null, ForStatement: null, Location: d[0].Location};
         } %}
     | BLOCKING_ASSIGNMENT _ %semicolon _ 
         {%function(d,l,reject){
@@ -268,10 +277,10 @@ STATEMENT2
             //const name = 'a'.repeat(len);
             let assignment = d[0].Assignment;
             assignment.Assignment.Type = "=";
-            return {Type: "statement", StatementType: "blocking_assignment", NonBlockingAssign: null, BlockingAssign: assignment, SeqBlock: null, Conditional: null,  CaseStatement: null, Location: d[0].Location};
+            return {Type: "statement", StatementType: "blocking_assignment", NonBlockingAssign: null, BlockingAssign: assignment, SeqBlock: null, Conditional: null,  CaseStatement: null, ForStatement: null, Location: d[0].Location};
         } %}
-    | SEQ_BLOCK {%function(d,l,reject) {return {Type: "statement", StatementType: "seq_block", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: d[0], Conditional: null,  CaseStatement: null, Location: d[0].Location};} %} #change to statements?
-    | CONDITIONAL_STATEMENT {%function(d,l,reject) {return {Type: "statement", StatementType: "conditional", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: d[0],  CaseStatement: null, Location: d[0].Location};}%}
+    | SEQ_BLOCK {%function(d,l,reject) {return {Type: "statement", StatementType: "seq_block", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: d[0], Conditional: null,  CaseStatement: null, ForStatement: null, Location: d[0].Location};} %} #change to statements?
+    | CONDITIONAL_STATEMENT {%function(d,l,reject) {return {Type: "statement", StatementType: "conditional", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: d[0],  CaseStatement: null, ForStatement: null, Location: d[0].Location};}%}
     | CASE_STATEMENT {%function(d,l,reject) {return {Type: "statement", StatementType: "case_stmt", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: null,  CaseStatement: d[0], Location: d[0].Location};}%}
 
 ################# CASE STATEMENTS ###################

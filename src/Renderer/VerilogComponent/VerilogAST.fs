@@ -181,6 +181,9 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
             | None -> lhs
         lhs'
 
+    // TODO: force loop variable to be initialised outside the loop (think about implemnting int?)
+    // TODO: currently in always_ff does not require initialisation (error previously?)
+
     // If loop variable appears on RHS, substitute it with the given value
     let substAssign (a: AssignmentT) =
         { a with

@@ -100,13 +100,15 @@ export function parseFromFile(source) {
         return JSON.stringify({Result: JSON.stringify(ast), Error: null, NewLinesIndex: linesIndex});
     }
     catch(e) {
-        // console.log(e.message)
+        console.log(e.message)
         const sourceTrimmed = source.replace(/\s+$/g, '');
         const sourceTrimmedComments = sourceTrimmed.replace(/\/\/.*$/gm,' ');
         let token = e.token;
-        let message = e.message;
-        let lineCol = message.match(/[0-9]+/g)
-        let expected = message.match(/(?<=A ).*(?= based on:)/g).map(s => s.replace(/\s+token/i,'')); // this sometimes throws an exception, when there is an extra char at the end
+        let message = e.message || "Unknown parse error";
+        let lineCol = message.match(/[0-9]+/g) || [0, 0];
+        let expectedMatch = message.match(/(?<=A ).*(?= based on:)/g);
+        let expected = expectedMatch ? expectedMatch.map(s => s.replace(/\s+token/i,'')) : [];
+        // let expected = message.match(/(?<=A ).*(?= based on:)/g).map(s => s.replace(/\s+token/i,'')); // this sometimes throws an exception, when there is an extra char at the end
         // console.log(message);
         // console.log(expected);
         let table = message.substring(message.indexOf(".") + 1);
@@ -140,6 +142,11 @@ export function parseFromFile(source) {
         }
 
         //console.log(expected);
+
+        if (!token) {
+            let jsonobj = {Line: parseInt(lineCol[0] || 0), Col: parseInt(lineCol[1] || 0), Length: 2, Message: message};
+            return JSON.stringify({Result: null, NewLinesIndex: null, Error: JSON.stringify(jsonobj)});
+        }
 
         if (token.value == '\n'){
             token.value = '\''+'newline'+'\'';
@@ -242,6 +249,35 @@ export function fix(json_data) {
     // CASE: new-grammar
     else {
 
+        ////////  fix Parameter Port List  ////////
+
+        var param_items = [];
+        
+        try {
+            if (obj.Module.ParameterPortList) {
+                var params = obj.Module.ParameterPortList.Parameters;
+                // Create a ParameterItemT wrapped in ItemT for each parameter
+                var paramItem = {
+                    Type: "item",
+                    ItemType: "parameter_decl",
+                    IODecl: null,
+                    Decl: null,
+                    ParamDecl: {
+                        Type: "parameter_item",
+                        DeclarationType: "parameter",
+                        Parameters: params
+                    },
+                    Statement: null,
+                    AlwaysConstruct: null,
+                    ModuleInstantiation: null,
+                    Location: obj.Module.ParameterPortList.Location
+                };
+                param_items.push(paramItem);
+            }
+        } catch (e) {
+            console.log("Error processing parameter port list:", e.message);
+        }
+
         ////////  fix IO Declaration list  ////////
 
         var io_list = obj.Module.IOItems;
@@ -282,7 +318,7 @@ export function fix(json_data) {
 
         var statement_list = obj.Module.ModuleItems.ItemList;
 
-        obj.Module.ModuleItems.ItemList = io_list.concat(statement_list);
+        obj.Module.ModuleItems.ItemList = param_items.concat(io_list).concat(statement_list);
 
         ////////  create a "fake" PortList element  ////////
 
@@ -303,8 +339,9 @@ export function fix(json_data) {
         obj.Module.PortList = ports
         obj.Module.Locations = loc
 
-        // delete IOItems element from JSON obj as it doesn't exist in the old-grammar case
+        // delete IOItems and ParameterPortList elements from JSON obj as they don't exist in the old-grammar case
         delete obj.Module["IOItems"];
+        delete obj.Module["ParameterPortList"];
         //console.log(JSON.stringify(obj));
         return JSON.stringify(obj);
     }

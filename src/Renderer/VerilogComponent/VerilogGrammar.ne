@@ -53,9 +53,10 @@ const lexer = moo.compile({
         endmodule: "endmodule",
         input: 'input',
         output: 'output',
-        //parameter: 'parameter',
+        parameter: 'parameter',
         assign: 'assign',
         bit: 'bit',
+        wire: 'wire',
         always_comb: 'always_comb',
         always_ff: 'always_ff',
         posedge: 'posedge',
@@ -82,7 +83,7 @@ PROGRAM -> MODULE {%function(d) {return {Type: "program", Module: d[0]};} %}
 # _ for optional whitespace, __ for obligatory whitespace
 MODULE 
     -> _ %module __ NAME_OF_MODULE _ %lparen _ LIST_OF_PORTS _ %rparen _ %semicolon _ MODULE_ITEMS %endmodule _ {%function(d) { return {Type: "module_old", ModuleName: d[3], PortList: d[7], ModuleItems: d[13], EndLocation: d[14].offset}; } %}
-    | _ %module __ NAME_OF_MODULE _ %lparen _ (IO_ITEMS _ {%function(d){return d[0];}%}):? %rparen _ %semicolon _ NON_PORT_MODULE_ITEMS %endmodule _ {%function(d) {return {Type: "module_new", ModuleName: d[3], IOItems: d[7], ModuleItems: d[12], EndLocation: d[13].offset};} %}
+    | _ %module __ NAME_OF_MODULE (_ %hash %lparen _ PARAMETER_PORT_LIST _ %rparen {%function(d){return d[4];}%}):? _ %lparen _ (IO_ITEMS _ {%function(d){return d[0];}%}):? %rparen _ %semicolon _ NON_PORT_MODULE_ITEMS %endmodule _ {%function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[4], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};} %}
 
 NAME_OF_MODULE -> IDENTIFIER {% id %}
  
@@ -92,17 +93,41 @@ LIST_OF_PORTS
 
 PORT -> IDENTIFIER {%function(d) {return {Type: "port", Port: d[0], Location: d[0].Location};} %}
 
+# WIDTH = _
+PARAMETER_ASSIGNMENT -> IDENTIFIER _ %op_assign _ EXPRESSION {%function(d) {return {Type: "parameter", Identifier: d[1], RHS: d[5], Location: d[0] ? d[0].Location : d[1].Location};} %}
+
+# WIDTH = _, WIDTH2 = _
+PARAMETER_LIST
+    -> PARAMETER_ASSIGNMENT _ %comma _ PARAMETER_LIST {%function(d) {return [d[0]].concat(d[4]);} %}
+    | PARAMETER_ASSIGNMENT {%function(d) {return [d[0]];}  %}
+
+# parameter WIDTH = _, WIDTH2 = _
+# OR just parameter WIDTH = _
+PARAMETER_ITEM -> %parameter __ (%bit __):? _ PARAMETER_LIST {%function(d) {return {Type: "item", ItemType: "parameter_decl", ParamDecl: {Type: "parameter_item", DeclarationType: "parameter", Parameters: d[2]}, Location: d[0].offset};} %}
+
+PARAMETER_PORT_LIST 
+    -> %hash %lparen _ PARAMETER_LIST _ %comma _ PARAMETER_PORT_ITEM _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3].concat([d[7].ParamDecl.Parameters]), Location: d[0].offset};} %}
+    | %hash %lparen _ PARAMETER_PORT_ITEM _ %comma _ PARAMETER_PORT_ITEM _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: [d[3].ParamDecl.Parameters, d[7].ParamDecl.Parameters], Location: d[0].offset};} %}
+    | %hash %lparen _ PARAMETER_LIST _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3], Location: d[0].offset};} %}
+    | %hash %lparen _ PARAMETER_PORT_ITEM _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: [d[3].ParamDecl.Parameters], Location: d[0].offset};} %}
+
+PARAMETER_PORT_ITEM
+    -> PARAMETER_ITEM {%function(d) {return d[0];} %}
+    | %bit __ PARAMETER_LIST {%function(d) {return {Type: "item", ItemType: "parameter_decl", ParamDecl: {Type: "parameter_item", DeclarationType: "parameter", Parameters: d[2]}, Location: d[0].offset};} %}
+
 MODULE_ITEMS -> MODULE_ITEM:* {%function(d) {return {Type: "module_items", ItemList: d[0]};} %}
 
 NON_PORT_MODULE_ITEMS -> NON_PORT_MODULE_ITEM:* {%function(d) {return {Type: "module_items", ItemList: d[0]};} %}
 
 MODULE_ITEM
-    -> INPUT_DECL _ %semicolon _  {%function(d,l, reject) {return {Type: "item", ItemType: "input_decl", IODecl: d[0], Decl: null, Statement: null, Location: d[0].Location};} %}
+    -> PARAMETER_ITEM _ %semicolon _ {% id %}
+    | INPUT_DECL _ %semicolon _  {%function(d,l, reject) {return {Type: "item", ItemType: "input_decl", IODecl: d[0], Decl: null, Statement: null, Location: d[0].Location};} %}
     | OUTPUT_DECL _ %semicolon _ {%function(d,l, reject) {return {Type: "item", ItemType: "output_decl", IODecl: d[0], Decl: null, Statement: null, Location: d[0].Location};} %}
     | NON_PORT_MODULE_ITEM {% id %} #?
 
 NON_PORT_MODULE_ITEM
-   -> CONTINUOUS_ASSIGNMENT _ {%function(d,l, reject) {return {Type: "item", ItemType: "statement", IODecl: null, Decl: null, Statement: d[0], AlwaysConstruct: null, Location: d[0].Location};} %}
+    -> PARAMETER_ITEM {% id %}
+    | CONTINUOUS_ASSIGNMENT _ {%function(d,l, reject) {return {Type: "item", ItemType: "statement", IODecl: null, Decl: null, Statement: d[0], AlwaysConstruct: null, Location: d[0].Location};} %}
     | ALWAYS_CONSTRUCT {%function(d,l, reject) {return {Type: "item", ItemType: "always_construct", IODecl: null, Decl: null, Statement: null, AlwaysConstruct: d[0], Location: d[0].Location};} %}
     | REG_DECLARATION _ {%function(d,l, reject) {return {Type: "item", ItemType: "logic_decl", IODecl: null, Decl: d[0], Statement: null, AlwaysConstruct: null,Location: d[0].Location};} %}
     | MODULE_INSTANTIATION_STATEMENT _ {%function(d,l, reject) { return {Type: "item", ItemType: "module_instantiation", IODecl: null, Decl: null, Statement: null, AlwaysConstruct: null, ModuleInstantiation: d[0], Location: d[0].Module.Location};} %}
@@ -138,19 +163,30 @@ LIST_OF_VARIABLES
     -> NAME_OF_VARIABLE _ %comma _ LIST_OF_VARIABLES {%function(d) {return {Type: "variable_list", Head: d[0], Tail: d[4]};} %}
     | NAME_OF_VARIABLE {% function(d) {return {Type: "variable_list", Head: d[0], Tail: null};}  %}
 
-
 LIST_OF_VARIABLES2
     -> IDENTIFIER _ %comma _ LIST_OF_VARIABLES2 {%function(d) {return [d[0]].concat(d[4]) ;} %}
     | IDENTIFIER {% function(d) {return [d[0]];}  %}
 
 NAME_OF_VARIABLE -> IDENTIFIER {%function(d) {return {Type: "variable", Name: d[0], Location: d[0].Location};} %}
 
-RANGE -> %lbracket _ UNSIGNED_NUMBER _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d,l,reject) {return {Type: "range", Start: d[2], End: d[6], Location: d[0].offset};} %}
+RANGE 
+    -> %lbracket _ EXPRESSION _ %colon _ EXPRESSION _ %rbracket {%function(d,l,reject) {return {Type: "range", Start: d[2], End: d[6], Location: d[0].offset};} %}
+
+ARRAY_RANGE 
+    -> %lbracket _ RANGE _ %rbracket _ ARRAY_RANGE {%function(d,l,reject) {return [d[2]].concat(d[6]);} %}
+    | %lbracket _ RANGE _ %rbracket {%function(d,l,reject) {return [d[2]];} %}
+
+DATATYPE
+    -> %bit {%function(d) {return {type: "bit", offset: d[0].offset};} %}
+    | %wire {%function(d) {return {type: "wire", offset: d[0].offset};} %}
 
 #### reg declaration #####
 REG_DECLARATION 
-    -> %bit __  (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ %semicolon {% (d,l,r) => {
-        return {Type: "declaration", DeclarationType: "logic", Range: d[2], Variables: d[3], Location: d[0].offset};} %}
+    -> DATATYPE __  (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ %semicolon {% (d,l,r) => {
+        return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], Location: d[0].offset};} %}
+    ## arrays must be declared one at a time
+    | DATATYPE __ (RANGE _ {%(d,l,r) => {return d[0]}%}):? IDENTIFIER _ (ARRAY_RANGE _ {%(d,l,r) => {return d[0]}%}):? _ %semicolon {% (d,l,r) => {
+        return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: [{Type: "variable", Name: d[3], Location: d[3].Location}], ArrayRanges: d[5], Location: d[0].offset};} %}
 ######################################     BEHAVIORAL STATEMENTS    #############################################
 
 ### PROCEDURAL BLOCKS AND ASSIGNMENTS
@@ -360,8 +396,10 @@ L_VALUE
 
 VARIABLE_BITSELECT_L_VALUE
     -> IDENTIFIER _ %lbracket EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: 1};} %}
-    #| IDENTIFIER _ %lbracket EXPRESSION _ %minus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value)};} %} 
-
+    | IDENTIFIER _ %lbracket EXPRESSION %colon EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
+    | IDENTIFIER _ %lbracket EXPRESSION _ %minus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "minus"};} %} 
+    | IDENTIFIER _ %lbracket EXPRESSION _ %plus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "plus"};} %}
+    | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[4], BitsEnd: d[4], Primary: d[0], Expression: d[4], ArraySelect: d[8]};} %}
 
 EXPRESSION -> CONDITIONAL {% id %}
 
@@ -422,6 +460,7 @@ REDUCTION_OR_NEGATION
 UNARY 
     -> PRIMARY {%function(d) {return {Type: "primary", Primary: d[0], Number: null, Expression: d[0].Expression};} %}
     | NUMBER {%function(d) {return {Type: "number", Primary: null, Number: d[0], Expression: null};} %}
+    | UNSIGNED_NUMBER2 {%function(d) {return {Type: "number", Primary: null, Number: d[0], Expression: null};} %}
     | %lparen _ BITWISE_OR _ %rparen {%function(d) {return {Type: "parenthesis", Primary: null, Number: null, Expression: d[2]};} %}
     | %lbrace _ LIST_OF_UNARIES _ %rbrace {%function(d) {return {Type: "concat", Primary: null, Number: null, Expression: d[2]};} %}
 
@@ -456,14 +495,19 @@ UNARY_OPERATOR -> %lnot {%(d)=>{return d[0].value}%}  | %and {%(d)=>{return d[0]
 
 MULTIPLICATION_OPERATOR -> %mult {%(d)=>{return d[0].value}%} 
 
+ARRAY_SELECT
+    -> %lbracket EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d,l,reject) {return [d[1]].concat(d[5]);} %}
+    | %lbracket EXPRESSION _ %rbracket {%function(d,l,reject) {return [d[1]];} %}
 
 PRIMARY
     -> IDENTIFIER {%function(d) {return {Type: "primary", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};} %}
-    | IDENTIFIER _ %lbracket _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bit", BitsStart: d[4], BitsEnd: d[4], Primary: d[0]};} %}
-    | IDENTIFIER _ %lbracket _ UNSIGNED_NUMBER _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits", BitsStart: d[4], BitsEnd: d[8], Primary: d[0]};} %}
-    | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bit2", BitsStart: null, BitsEnd: null, Primary: d[0], Expression: d[4], Width:1};} %}
-    #| IDENTIFIER _ %lbracket _ EXPRESSION _ %minus _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bit2", BitsStart: null, BitsEnd: null, Primary: d[0], Expression: d[4], Width:parseInt(d[10].value)};} %}
-
+    # | IDENTIFIER _ %lbracket _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bit", BitsStart: d[4], BitsEnd: d[4], Primary: d[0]};} %}
+    # | IDENTIFIER _ %lbracket _ UNSIGNED_NUMBER _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits", BitsStart: d[4], BitsEnd: d[8], Primary: d[0]};} %}
+    | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bit2", BitsStart: d[4], BitsEnd: d[4], Primary: d[0]};} %}
+    | IDENTIFIER _ %lbracket _ EXPRESSION _ %colon _ EXPRESSION _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits", BitsStart: d[4], BitsEnd: d[8], Primary: d[0]};} %}
+    | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[4], BitsEnd: d[4], Primary: d[0], Expression: d[4], ArraySelect: d[8]};} %}
+    | IDENTIFIER _ %lbracket _ EXPRESSION _ %minus _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits_select", BitsStart: d[4], BitsEnd: null, Primary: d[0], Expression: d[4], Width:parseInt(d[10].value), SelectType: "minus"};} %}
+    | IDENTIFIER _ %lbracket _ EXPRESSION _ %plus _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits_select", BitsStart: d[4], BitsEnd: null, Primary: d[0], Expression: d[4], Width:parseInt(d[10].value), SelectType: "plus"};} %}
 
 NUMBER
     -> %unsigned_number ALL_NUMERIC {%function(d,l,reject) {
@@ -472,10 +516,11 @@ NUMBER
         } %}
     | %unsigned_number BINARY_NUMBER {%function(d,l,reject) {
         let num = d[1].slice(2);
-        return {Type: "number", NumberType: "all", Bits: d[0].value, Base: "'b", UnsignedNumber: null, AllNumber: num, Location: d[0].offset};
+        return {Type: "number", NumberType: "all", Bits: d[0].value, Base: "'b", UnsignedNumber: null, AllNumber: num, Location: d[0].offset}
         } %}
     | %unsigned_number %decimalBase UNSIGNED_NUMBER {%function(d,l,reject) {return {Type: "number", NumberType: "all", Bits: d[0].value, Base: "'d", UnsignedNumber: null, AllNumber: d[2], Location: d[0].offset};} %}
     
+UNSIGNED_NUMBER2 -> %unsigned_number {%function(d,l,reject) {return {Type: "number", NumberType: "unsigned", Bits: null, Base: null, UnsignedNumber: d[0].value, AllNumber: null, Location: d[0].offset};} %}
 
 UNSIGNED_NUMBER -> %unsigned_number {%(d)=>{return d[0].value}%}
 

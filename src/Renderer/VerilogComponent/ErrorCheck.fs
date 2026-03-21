@@ -35,7 +35,7 @@ let createErrorMessage
 
 /// Checks whether all ports given in the beginning of the module are defined as input/output
 /// Also if all ports have distinct names
-let portCheck ast linesLocations errorList  = 
+let portCheck (ast: VerilogInput) linesLocations errorList  = 
     let portList = ast.Module.PortList |> Array.toList
     let distinctPortList = portList |> Seq.distinct |> List.ofSeq
 
@@ -43,7 +43,7 @@ let portCheck ast linesLocations errorList  =
     let locationMap =
         (portList, locationList) ||> List.map2 (fun p i -> (p,int i)) |> Map.ofList
     match ast.Module.Type with
-    |"module_new" -> errorList //if new-style there is no port list
+    | "module_new" -> errorList //if new-style there is no port list
     |_ ->
         match List.length portList = List.length distinctPortList with
         | false ->  //CASE 1: ports with same name
@@ -94,6 +94,9 @@ let portCheck ast linesLocations errorList  =
             | true -> //CASE 3: no errors 
                 errorList
 
+
+
+
 /// Checks whether all ports defined as input/output are declared as ports in the module header
 /// Also checks for double definitions and for input ports not used in the assignments
 let checkIODeclarations 
@@ -109,16 +112,24 @@ let checkIODeclarations
     
     let portList = ast.Module.PortList |> Array.toList
 
+    // let getPrimaryName (p: PrimaryDU) =
+    //     match p with
+    //     | Identifier id
+    //     | IdentifierBit (id, _)
+    //     | IdentifierBits (id, _, _)
+    //     | IdentifierBitsSelect (id, _, _, _)
+    //     | IdentifierArray (id, _) -> id.Name
+
     let moduleInstantiationsPrimaries = 
         ([], (VerilogInput ast)) ||> foldAST getModuleInstantiationStatements
         |> List.collect (fun modInst -> getModuleInstantiationInputPrimaries modInst project)
-        |> List.map (fun primary -> primary.Primary.Name)
+        |> List.map getPrimaryName
     // get variables from other expressions too
     let PrimariesUsedExpr =
         foldAST getAllExpressions' [] (VerilogInput(ast))
         |> List.map (fun expr -> primariesUsedInAssignment [] expr)
         |> List.concat
-        |> List.map (fun primary -> primary.Primary.Name)
+        |> List.map getPrimaryName
         |> List.append moduleInstantiationsPrimaries
     portWidthDeclarationMap
     |> Map.toList
@@ -127,7 +138,7 @@ let checkIODeclarations
         match ((List.contains port PrimariesUsedExpr),(Map.tryFind port portMap)) with
         | false, Some "input" -> // CASE 1: port is not used in the assignments
             // if port is clk we check if there are clocked always blocks
-            let alwaysFFs = foldAST getAlwaysBlocks [] (VerilogInput(ast)) |> List.filter (fun always -> always.AlwaysType="always_ff")
+            let alwaysFFs = foldAST getAlwaysBlocks [] (VerilogInput(ast)) |> List.filter (fun always -> always.AlwaysType=AlwaysFF)
             if port = "clk" && alwaysFFs <> [] then errorList
             else
                 let currLocation = Map.find port portLocationMap
@@ -175,21 +186,22 @@ let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
         | false -> 
             let range = Option.get ioDecl.Range
             // CASE 1: Wrong width format
-            if (range.End <> "0" || (int range.Start) <= (int range.End)) then
+            let bStart = evalExpr range.Start
+            let bEnd = evalExpr range.End
+            if (bEnd <> 0 || bStart <= bEnd) then
                 let message = "Wrong width declaration"
-                let temp = if (int range.Start) <= (int range.End) then "\nBig-Endian format is not allowed yet by ISSIE" else ""
+                let temp = if bStart <= bEnd then "\nBig-Endian format is not allowed yet by ISSIE" else ""
                 let extraMessages = 
                     [|
-                        {Text=(sprintf "A port's width can't be '[%s:%s]'\nCorrect form: [X:0]" range.Start range.End)+temp;Copy=false;Replace=NoReplace}
+                        {Text=(sprintf "A port's width can't be '[%i:%i]'\nCorrect form: [X:0]" bStart bEnd)+temp;Copy=false;Replace=NoReplace}
                     |]
-                createErrorMessage linesLocations range.Location message extraMessages (range.Start+"[:0]")
+                createErrorMessage linesLocations range.Location message extraMessages (string bStart + "[:0]")
             else [] //CASE 2: No Errors
     )
     |> List.append errorList
 
-
 /// Checks if the name of the module is valid (i.e. this sheet doesn't exist)
-let nameCheck ast linesLocations (origin:CodeEditorOpen) (project:Project)  errorList = 
+let nameCheck (ast:VerilogInput) linesLocations (origin:CodeEditorOpen) (project:Project)  errorList = 
     let moduleName =  ast.Module.ModuleName.Name
     let exists, initialFileName = 
         match origin with
@@ -243,28 +255,33 @@ let checkAllOutputsAssigned
         )
     let outputPortList = List.map fst outputPortListMap
 
-
     let getVariablesAssigned vars node =
         match node with
-        | ContinuousAssign contAssign when isNullOrUndefined contAssign.Assignment.LHS.BitsStart ->
-            vars@[(contAssign.Assignment.LHS.Primary.Name,-1,-1)]
-        | ContinuousAssign contAssign -> 
-            [(contAssign.Assignment.LHS.Primary.Name,
-            (int (Option.get contAssign.Assignment.LHS.BitsStart)),
-            (int (Option.get contAssign.Assignment.LHS.BitsEnd)))]
-            |> List.append vars
-        | BlockingAssign blocking -> vars@[blocking.Assignment.LHS.Primary.Name,-1,-1]
-        | NonBlockingAssign nonblocking -> vars@[nonblocking.Assignment.LHS.Primary.Name,-1,-1]
+        | ContinuousAssign contAssign ->
+            match getPrimaryRange contAssign.Assignment.LHS.PrimaryType with
+            | None ->
+                vars @ [(getPrimaryName contAssign.Assignment.LHS.PrimaryType, -1, -1)]
+            | Some (bStart, bEnd) ->
+                [(getPrimaryName contAssign.Assignment.LHS.PrimaryType, bStart, bEnd)]
+                |> List.append vars
+        | Statement stmt ->
+            match stmt with
+            | BlockingAssign blocking ->
+                vars @ [(getPrimaryName blocking.LHS.PrimaryType, -1, -1)]
+            | NonBlockingAssign nonblocking ->
+                vars @ [(getPrimaryName nonblocking.LHS.PrimaryType, -1, -1)]
+            | _ -> vars
         | ModuleInstantiation modInst -> 
             modInst.Connections
             |> Array.toList
             |> List.map (fun connection ->
-                match connection.Primary with
-                | a when isNullOrUndefined a.BitsStart -> (a.Primary.Name,-1,-1)
-                | a -> (a.Primary.Name,(int (Option.get a.BitsStart)),(int (Option.get a.BitsEnd)))
-                )
+                match getPrimaryRange connection.Primary with
+                | None -> (getPrimaryName connection.Primary, -1, -1)
+                | Some (bStart, bEnd) -> (getPrimaryName connection.Primary, bStart, bEnd)
+            )
             |> List.append vars
         | _ -> vars
+
     let variablesAssigned = foldAST getVariablesAssigned [] (VerilogInput ast)
     // List of assigned ports, bit by bit
     let assignmentPortList =
@@ -330,6 +347,111 @@ let checkAllOutputsAssigned
 
     List.append errorList localErrors
 
+
+/// Checks estimated program size after loop unrolling.
+let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (errorList: ErrorInfo list) : ErrorInfo list =
+    let maxUnrollCost = 100 // TODO: instrument size and adjust this accordingly
+    let tryEval expr =
+        try Ok (evalIntExpression expr) with _ -> Error "For loop bounds must be constant."
+
+    let tryGetIterations (f: ForStatement) =
+        let startRes = tryEval f.Initialisation.RHS
+        let stepRes = tryEval f.Step.RHS
+        let condRes =
+            match f.Condition with
+            | Comparison (op, _, rhs) -> Ok (op, rhs)
+            | _ -> Error "For loop condition must be a comparison."
+        match startRes, stepRes, condRes with
+        | Ok startV, Ok stepV, Ok (op, rhs) ->
+            match tryEval rhs with
+            | Ok endV ->
+                match op with
+                | Lt -> Ok (stepV, endV - startV)
+                | Lte -> Ok (stepV, endV - startV + 1)
+                | Gt -> Ok (stepV, startV - endV)
+                | Gte -> Ok (stepV, startV - endV + 1)
+                | _ -> Error "Unsupported for loop comparison operator."
+            | Error msg -> Error msg
+        | Error msg, _, _ -> Error msg
+        | _, Error msg, _ -> Error msg
+        | _, _, Error msg -> Error msg
+
+    let mkError loc name message detail =
+        let extraMessages = [| {Text=detail;Copy=false;Replace=NoReplace} |]
+        createErrorMessage linesLocations loc message extraMessages name
+
+    let rec estimateUnrolledStatementCost (stmt: StatementDU) : ErrorInfo list * int =
+        match stmt with
+        | BlockingAssign a ->
+            [], estimateAssignmentCost a
+        | NonBlockingAssign a ->
+            [], estimateAssignmentCost a
+        | SeqBlock (stmts, _) ->
+            (([], 0), stmts)
+            ||> Array.fold (fun (errs, cost) s ->
+                let errs', cost' = estimateUnrolledStatementCost s
+                (errs @ errs', cost + cost'))
+        | StatementDU.Case c ->
+            let caseErrors, caseCost =
+                (([], 0), c.CaseItems)
+                ||> Array.fold (fun (errs, cost) item ->
+                    let errs', cost' = estimateUnrolledStatementCost item.Statement
+                    (errs @ errs', cost + cost'))
+            let defaultErrors, defaultCost =
+                c.Default
+                |> Option.map estimateUnrolledStatementCost
+                |> Option.defaultValue ([], 0)
+            let errors = caseErrors @ defaultErrors
+            let cost = 1 + estimateExprCost c.Expression + caseCost + defaultCost
+            errors, cost
+        | Conditional (ifStmt, elseStmt) ->
+            let ifErrors, ifCost = estimateUnrolledStatementCost ifStmt.Statement
+            let elseErrors, elseCost =
+                elseStmt
+                |> Option.map estimateUnrolledStatementCost
+                |> Option.defaultValue ([], 0)
+            let errors = ifErrors @ elseErrors
+            let cost = 1 + estimateExprCost ifStmt.Condition + ifCost + elseCost
+            errors, cost
+        | StatementDU.ForStatement f ->
+            let loopVarName = primaryIdName f.Initialisation.LHS.PrimaryType
+            match tryGetIterations f with
+            | Error msg ->
+                mkError f.Location loopVarName "Invalid for loop bounds" msg, 0
+            | Ok (stepV, iterations) ->
+                if stepV = 0 then
+                    mkError f.Location loopVarName "Invalid for loop step" "For loop step must be a non-zero constant.", 0
+                elif iterations < 0 then
+                    mkError f.Location loopVarName "Invalid for loop bounds" "For loop bounds must produce a non-negative iteration count.", 0
+                else
+                    let bodyErrors, bodyCost = estimateUnrolledStatementCost f.Statement
+                    let totalCost = iterations * bodyCost
+                    bodyErrors, totalCost
+
+    let estimateProgramCost (items: ItemT list) =
+        (([], 0), items)
+        ||> List.fold (fun (errs, cost) (item: ItemT) ->
+            let itemErrors, itemCost =
+                match item.Statement, item.AlwaysConstruct with
+                | Some contAssign, _ ->
+                    let assign = convertAssignment contAssign.Assignment Blocking
+                    [], estimateAssignmentCost assign
+                | None, Some always ->
+                    estimateUnrolledStatementCost (convertStatement always.Statement)
+                | _ ->
+                    [], 0
+            (errs @ itemErrors, cost + itemCost))
+
+    let items = ast.Module.ModuleItems.ItemList |> Array.toList
+    let loopErrors, totalCost = estimateProgramCost items
+    let totalError =
+        if totalCost > maxUnrollCost then
+            let name = ast.Module.ModuleName.Name
+            let loc = ast.Module.ModuleName.Location
+            let detail = sprintf "Estimated unrolled program cost (%d) exceeds the limit (%d)." totalCost maxUnrollCost
+            mkError loc name "Program too large after unrolling" detail
+        else []
+    List.append errorList (loopErrors @ totalError)
 
 /// Helper recursive function to transform the produced OneUnary-type tree
 /// by RHSUnaryAnalysis to a string which can be used for ErrorInfo
@@ -436,36 +558,35 @@ let checkWiresAndAssignments
         )
         |> List.append inputNameList
         |> List.append outputNameList
-
     
     /// Checks the name and width of a wire assignment
     /// Name : if the variable is free
     /// Width : correct definition of width (i.e. Little-endian)
     let checkWireNameAndWidth wire notUniqueNames (localErrors:ErrorInfo list) =     
-        let lhs = wire.LHS
-        match Map.tryFind lhs.Primary.Name portMap with
+        let lhs = wire.LHS.PrimaryType
+        let lhsName = getPrimaryName lhs
+        let lhsLoc = getPrimaryLocation lhs
+        match Map.tryFind lhsName portMap with
         | Some portType  ->  //CASE 1: Invalid Name (already used variable by port)
-            let message = sprintf "Variable '%s' is already used by a port" lhs.Primary.Name
+            let message = sprintf "Variable '%s' is already used by a port" lhsName
             let extraMessages = 
                 [|
-                    {Text=(sprintf "Variable '%s' is declared as an %s port\nPlease use a different name for this wire" lhs.Primary.Name portType);Copy=false;Replace=NoReplace}
+                    {Text=(sprintf "Variable '%s' is declared as an %s port\nPlease use a different name for this wire" lhsName portType);Copy=false;Replace=NoReplace}
                 |]
-            createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
+            createErrorMessage linesLocations lhsLoc message extraMessages lhsName
         | _ -> 
-            match List.tryFind (fun x -> x=lhs.Primary.Name) notUniqueNames with
+            match List.tryFind (fun x -> x=lhsName) notUniqueNames with
             | Some found  -> //CASE 2: Invalid Name (already used variable by another wire)
-                let message = sprintf "Identifier '%s' is already used by another variable" lhs.Primary.Name
+                let message = sprintf "Identifier '%s' is already used by another variable" lhsName
                 let extraMessages = 
                     [|
-                        {Text=(sprintf "Identifier '%s' is already used by another variable\nPlease use a different name for this wire" lhs.Primary.Name);Copy=false;Replace=NoReplace}
+                        {Text=(sprintf "Identifier '%s' is already used by another variable\nPlease use a different name for this wire" lhsName);Copy=false;Replace=NoReplace}
                     |]
-                createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
+                createErrorMessage linesLocations lhsLoc message extraMessages lhsName
             | _ ->
-                match isNullOrUndefined lhs.BitsStart with
-                |true -> localErrors // No errors
-                |false -> 
-                    let bStart = int <| Option.get lhs.BitsStart
-                    let bEnd = int <| Option.get lhs.BitsEnd
+                match getPrimaryRange lhs with
+                | None -> localErrors // No errors
+                | Some (bStart, bEnd) -> 
                     // CASE 3: Wrong Width declaration
                     if (bEnd <> 0 || bStart <= bEnd) then
                         let message = "Wrong width declaration"
@@ -473,10 +594,10 @@ let checkWiresAndAssignments
                             [|
                                 {Text=(sprintf "A port's width can't be '[%i:%i]'\nCorrect form: [X:0]" bStart bEnd);Copy=false;Replace=NoReplace}
                             |]
-                        createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name
+                        createErrorMessage linesLocations lhsLoc message extraMessages lhsName
                     else localErrors // No errors
 
-    let checkLogicName (decl: DeclarationT) notUniqueNames (localErrors:ErrorInfo list) =
+    let checkLogicName (decl: Declaration) notUniqueNames (localErrors:ErrorInfo list) =
         let variables = decl.Variables
         (localErrors, variables)
         ||> Array.fold (fun errorList lhs ->
@@ -501,8 +622,8 @@ let checkWiresAndAssignments
                     match isNullOrUndefined decl.Range with
                     |true -> localErrors // No errors
                     |false -> 
-                        let bStart = int <| (Option.get decl.Range).Start
-                        let bEnd = int <| (Option.get decl.Range).End
+                        let bStart = evalIntExpression (Option.get decl.Range).Start
+                        let bEnd = evalIntExpression (Option.get decl.Range).End
                         // CASE 3: Wrong Width declaration
                         if (bEnd <> 0 || bStart <= bEnd) then
                             let message = "Wrong width declaration"
@@ -518,67 +639,70 @@ let checkWiresAndAssignments
     /// Name : if the variable is indeed an output port
     /// Width : width is within the declared width range
     let checkAssignmentNameAndWidth assignment localErrors = 
-        let lhs = assignment.LHS
-        match Map.tryFind lhs.Primary.Name portMap with
+        let lhs = assignment.LHS.PrimaryType
+        let lhsName = getPrimaryName lhs
+        let lhsLoc = getPrimaryLocation lhs
+        match Map.tryFind lhsName portMap with
         | Some found when found = "output" -> 
-            match Map.tryFind lhs.Primary.Name portWidthDeclarationMap with
+            match Map.tryFind lhsName portWidthDeclarationMap with
             | Some (bStart,bEnd) -> 
-                match isNullOrUndefined lhs.BitsStart with
-                | false ->
-                    if (bStart >= (int (Option.get lhs.BitsStart))) && (bEnd <= (int (Option.get lhs.BitsEnd))) then
+                match getPrimaryRange lhs with
+                | Some (lhsStart, lhsEnd) ->
+                    if (bStart >= lhsStart) && (bEnd <= lhsEnd) then
                         localErrors
                     else 
-                        let name = lhs.Primary.Name
                         let definition =
                             match bStart=bEnd with
                             |true -> " a single bit "
-                            |false -> sprintf " %s[%i:0] " name (bStart)
+                            |false -> sprintf " %s[%i:0] " lhsName (bStart)
                         let usedWidth, message =
-                            match lhs.BitsStart=lhs.BitsEnd with
+                            match lhsStart = lhsEnd with
                             |true -> 
-                                sprintf " %s[%s] " name (Option.get lhs.BitsStart), sprintf "Out of bounds index for variable '%s'" name
+                                sprintf " %s[%i] " lhsName lhsStart, sprintf "Out of bounds index for variable '%s'" lhsName
                             |false -> 
-                                sprintf " %s[%s:%s] " name (Option.get lhs.BitsStart) (Option.get lhs.BitsEnd), sprintf "Out of bounds range for variable '%s'" name
+                                sprintf " %s[%i:%i] " lhsName lhsStart lhsEnd, sprintf "Out of bounds range for variable '%s'" lhsName
                         //let message = sprintf "Wrong width of variable: '%s'" name
                         let extraMessages = 
                             [|
-                                {Text=(sprintf "Variable: '%s' is defined as" name)+definition+"\nTherefore,"+usedWidth+"is invalid" ; Copy=false;Replace=NoReplace}
-                                {Text=sprintf "assign %s = 0;"name; Copy=true;Replace=ReplaceType.Assignment}
+                                {Text=(sprintf "Variable: '%s' is defined as" lhsName)+definition+"\nTherefore,"+usedWidth+"is invalid" ; Copy=false;Replace=NoReplace}
+                                {Text=sprintf "assign %s = 0;"lhsName; Copy=true;Replace=ReplaceType.Assignment}
                             |]
                         List.append 
                             localErrors 
-                            (createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name)
-                | true -> localErrors
+                            (createErrorMessage linesLocations lhsLoc message extraMessages lhsName)
+                | None -> localErrors
             | None -> failwithf "Can't happen! PortMap and PortSizeMap should have the same keys"
         | _ -> 
             // check if a logic with this name has been declared
-            let wiresDeclared = getCurrentInputWireList lhs.Primary.Location
-            match List.tryFind (fun wire -> wire = lhs.Primary.Name) wiresDeclared  with
+            let wiresDeclared = getCurrentInputWireList lhsLoc
+            match List.tryFind (fun wire -> wire = lhsName) wiresDeclared  with
             | Some _ -> errorList
             | _ ->
-                let message = sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name
+                let message = sprintf "Variable '%s' is not declared as an output port" lhsName
                 let extraMessagesMain = 
                     [|
-                        {Text=(sprintf "Variable '%s' is not declared as an output port" lhs.Primary.Name);Copy=false;Replace=NoReplace}
+                        {Text=(sprintf "Variable '%s' is not declared as an output port" lhsName);Copy=false;Replace=NoReplace}
                     |]
 
                 let possibleAddition =
                     match ast.Module.Type with
                     |"module_new" -> [||]
-                    |_ -> [|{Text=(sprintf "output bit %s;" lhs.Primary.Name);Copy=true;Replace=IODeclaration}|]
+                    |_ -> [|{Text=(sprintf "output bit %s;" lhsName);Copy=true;Replace=IODeclaration}|]
 
                 let extraMessages = Array.append extraMessagesMain possibleAddition
 
                 List.append 
                     localErrors 
-                    (createErrorMessage linesLocations lhs.Primary.Location message extraMessages lhs.Primary.Name)
+                    (createErrorMessage linesLocations lhsLoc message extraMessages lhsName)
 
     /// Checks if the variables used in the RHS of on assignment
     /// (either output port or wire) have been declared as input or wire
-    let checkNamesInPrimaries (primariesRHS: PrimaryT list) currentInputWireList localErrors = 
+    let checkNamesInPrimaries (primariesRHS: PrimaryDU list) currentInputWireList localErrors = 
         //let PrimariesRHS = primariesUsedInAssignment [] expression
         
-        let namesWithLocRHS = primariesRHS |> List.map (fun x -> (x.Primary.Name, x.Primary.Location))
+        let namesWithLocRHS =
+            primariesRHS
+            |> List.map (fun x -> (getPrimaryName x, getPrimaryLocation x))
         let namesRHS = namesWithLocRHS |> List.map fst
         let namesToLocMap = namesWithLocRHS |> Map.ofList
 
@@ -625,15 +749,15 @@ let checkWiresAndAssignments
                             |]
                         createErrorMessage linesLocations currLocation message extraMessages name
             )
-    let checkNamesOnRHSOfAssignment (expression: ExpressionT) currentInputWireList localErrors =
+    let checkNamesOnRHSOfAssignment (expression: ExpressionDU) currentInputWireList localErrors =
         let primariesRHS = primariesUsedInAssignment [] expression
         checkNamesInPrimaries primariesRHS currentInputWireList localErrors
             
     /// Check if the width of each wire/input used
     /// is within the correct range (defined range)
-    let checkSizesOnRHSOfAssignment (assignment: AssignmentT) currentInputWireSizeMap localErrors =
+    let checkSizesOnRHSOfAssignment (assignment: Assignment) currentInputWireSizeMap localErrors =
         checkExpr linesLocations currentInputWireSizeMap localErrors assignment.RHS
-    
+
     /// Helper function to extract all inputs + wires declared 
     /// prior to the assignment being checked
     let getCurrentInputWireSizeMap location = 
@@ -667,10 +791,10 @@ let checkWiresAndAssignments
     let moduleInstantiationErrors =
         moduleInstantiationPrimaries
         |> List.collect (fun primary ->
-            let currentInputWireList = getCurrentInputWireList primary.Primary.Location
-            let currentInputWireSizeMap = getCurrentInputWireSizeMap primary.Primary.Location
+            let currentInputWireList = getCurrentInputWireList (getPrimaryLocation primary)
+            let currentInputWireSizeMap = getCurrentInputWireSizeMap (getPrimaryLocation primary)
             checkNamesInPrimaries [primary] currentInputWireList []
-            |> List.append (checkPrimariesWidths linesLocations currentInputWireSizeMap [] [primary])
+            |> List.append (checkPrimariesWidths linesLocations currentInputWireSizeMap [] [primary] [])
         )
         
     let localErrors =
@@ -680,7 +804,7 @@ let checkWiresAndAssignments
             let currentInputWireSizeMap = getCurrentInputWireSizeMap location
 
             match assignment.Type with
-                |"bit" -> checkWireNameAndWidth assignment notUniqeWireNames []
+                | WireAssign -> checkWireNameAndWidth assignment notUniqeWireNames []
                 |_ -> checkAssignmentNameAndWidth assignment []
             |> checkNamesOnRHSOfAssignment assignment.RHS currentInputWireList
             |> (fun errlst -> 
@@ -694,6 +818,7 @@ let checkWiresAndAssignments
                 | _ -> errlst)
             //|> checkWidthOfAssignment assignment currentInputWireSizeMap location 
         )
+        |> List.append moduleInstantiationErrors
         |> List.append moduleInstantiationErrors
     // checking other expressions (conditional, case expression)
     let expressions = foldAST getCondAndCaseExpressions [] (VerilogInput ast)
@@ -734,6 +859,25 @@ let checkUnsupportedKeywords
 
     List.append errorList localErrors
 
+/// Helper functions to extract the name and location of the LHS of an assignment
+let lhsName (lhs: AssignmentLHS) =
+    match lhs.PrimaryType with
+    | Identifier id
+    | IdentifierBit (id, _)
+    | IdentifierBits (id, _, _)
+    | VariableBitSelect id
+    | IdentifierBitsSelect (id, _, _, _)
+    | IdentifierArray (id, _) -> id.Name
+
+let lhsLocation (lhs: AssignmentLHS) =
+    match lhs.PrimaryType with
+    | Identifier id
+    | IdentifierBit (id, _)
+    | IdentifierBits (id, _, _)
+    | VariableBitSelect id -> id.Location
+    | IdentifierBitsSelect (id, _, _, _) -> id.Location
+    | IdentifierArray (id, _) -> id.Location
+
 /// Checks if the RHS expression is wider than the LHS of an assignment.
 /// Checks every assignment: continuous and combinational
 let checkAssignmentWidths
@@ -755,7 +899,7 @@ let checkAssignmentWidths
                 let message = sprintf "The RHS expression (%A bits wide) doesn't fit in the variable on the LHS (%A bits wide)" rhsW lhsW
                 let extraMessages = 
                     [|{Text=message; Copy=false;Replace=NoReplace}|]
-                createErrorMessage linesLocations loc message extraMessages assign.Type
+                createErrorMessage linesLocations loc message extraMessages (lhsName assign.LHS)
             else []
         )
     errorList @ localErrors
@@ -764,12 +908,12 @@ let checkInputsAssigned ast linesLocations portMap errorInfoList =
     let assignments = foldAST getAssignments' [] (VerilogInput ast)
     assignments
     |> List.collect (fun assign ->
-        match Map.tryFind assign.LHS.Primary.Name portMap with
+        match Map.tryFind (lhsName assign.LHS) portMap with
         | Some "input" -> 
-            let message = sprintf "Cannot assign to input port '%s'" assign.LHS.Primary.Name
+            let message = sprintf "Cannot assign to input port '%s'" (lhsName assign.LHS)
             let extraMessages = 
                 [|{Text=message; Copy=false;Replace=NoReplace}|]
-            createErrorMessage linesLocations assign.LHS.Primary.Location message extraMessages assign.LHS.Primary.Name
+            createErrorMessage linesLocations (lhsLocation assign.LHS) message extraMessages (lhsName assign.LHS)
         | _ -> []
     )
     |> List.append errorInfoList
@@ -804,7 +948,7 @@ let getPortSizeAndLocationMap items =
                     let size = 
                         match isNullOrUndefined d.Range with
                         | true -> 1
-                        | false -> ((Option.get d.Range).Start |> int) - ((Option.get d.Range).End |> int) + 1
+                        | false -> (evalExpr (Option.get d.Range).Start) - (evalExpr (Option.get d.Range).End) + 1
                     let location = x.Location
                     d.Variables 
                     |> Array.toList 
@@ -830,7 +974,7 @@ let getPortWidthDeclarationMap items =
                 let size = 
                     match isNullOrUndefined d.Range with
                     | true -> (0,0)
-                    | false -> ((Option.get d.Range).Start |> int),((Option.get d.Range).End |> int)
+                    | false -> (evalExpr (Option.get d.Range).Start),(evalExpr (Option.get d.Range).End)
                 d.Variables 
                 |> Array.toList 
                 |> List.collect (fun x -> [(x.Name,size)]) 
@@ -866,7 +1010,7 @@ let getInputNames portMap =
 
 
 /// Returns the names of the declared WIRES
-let getWireSizeMap items = 
+let getWireSizeMap (items: ItemT list) = 
     items 
     |> List.collect (fun x -> 
         match (x.Statement |> isNullOrUndefined) with
@@ -877,14 +1021,16 @@ let getWireSizeMap items =
                 match isNullOrUndefined lhs.BitsStart with
                 |true  -> [lhs.Primary.Name,1]
                 |false -> 
-                    let size = ((Option.get lhs.BitsStart) |> int) - ((Option.get lhs.BitsEnd) |> int) + 1
+                    let bStart = evalExpr (Option.get lhs.BitsStart)
+                    let bEnd = evalExpr (Option.get lhs.BitsEnd)
+                    let size = bStart - bEnd + 1
                     [lhs.Primary.Name,size]
             | _ -> []
         | true -> [])
     |> Map.ofList
 
 
-let getWireNames items =
+let getWireNames (items: ItemT list) =
     items 
     |> List.collect (fun x -> 
         match (x.Statement |> isNullOrUndefined) with
@@ -896,7 +1042,7 @@ let getWireNames items =
             | _ -> []
         | true -> [])
 
-let getWireLocationMap items = 
+let getWireLocationMap (items: ItemT list) = 
     items 
     |> List.collect (fun x -> 
         match (x.Statement |> isNullOrUndefined) with
@@ -911,9 +1057,10 @@ let getWireLocationMap items =
     |> Map.ofList
 
 
+
 /// Main error-finder function
 /// Returns a list of errors (type ErrorInfo)
-let getSemanticErrors ast linesLocations (origin:CodeEditorOpen) (project:Project) =
+let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:CodeEditorOpen) (project:Project) =
     let (items: ItemT list) = ast.Module.ModuleItems.ItemList |> Array.toList
     ///////// STATIC MAPS, LISTS NEEDED  ////////////////
     let portMap  = getPortMap items
@@ -932,14 +1079,17 @@ let getSemanticErrors ast linesLocations (origin:CodeEditorOpen) (project:Projec
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
                 if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
-                else Map.add variable.Name ((Option.get(decl.Range).Start |> int)-(Option.get(decl.Range).End |> int)+1) map'
+                else
+                    let bStart = evalIntExpression (Option.get decl.Range).Start
+                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
     let wireNameList = getWireNames items
     let wireLocationMap = getWireLocationMap items //need to add declarations
     let wireLocationMap = 
         (wireLocationMap, declarations)
-        ||> List.fold (fun (wireLocMap: Map<string, int>) (decl: DeclarationT) -> 
+        ||> List.fold (fun (wireLocMap: Map<string, int>) (decl: Declaration) -> 
                 (wireLocMap, decl.Variables)
                 ||> Array.fold (fun map var -> Map.add var.Name var.Location map))
     //////////////////////////////////////////////
@@ -954,6 +1104,7 @@ let getSemanticErrors ast linesLocations (origin:CodeEditorOpen) (project:Projec
         |> checkAllOutputsAssigned ast portMap portSizeMap linesLocations //checks whether all output ports have been assined a value
         |> checkUnsupportedKeywords ast linesLocations
         |> checkProceduralAssignments ast linesLocations
+        |> checkForLoopUnrollCost ast linesLocations
         |> checkVariablesDrivenSimultaneously ast linesLocations
         |> checkVariablesAlwaysAssigned ast linesLocations portSizeMap wireSizeMap
         |> checkCasesStatements ast linesLocations portSizeMap wireSizeMap

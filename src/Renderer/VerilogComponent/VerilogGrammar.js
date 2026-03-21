@@ -126,13 +126,13 @@ var grammar = {
     {"name": "INPUT_DECL$ebnf$1", "symbols": ["INPUT_DECL$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "INPUT_DECL$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "INPUT_DECL", "symbols": ["input", "__", "INPUT_DECL$subexpression$1", "INPUT_DECL$ebnf$1", "LIST_OF_VARIABLES"], "postprocess": function(d) {
-        return {Type: "declaration", DeclarationType: "input", Range: d[3], Variables: d[4], Location: d[0].Location};} },
+        return {Type: "declaration", DeclarationType: "input", DataType: d[2][0].type, Range: d[3], Variables: d[4], Location: d[0].Location};} },
     {"name": "OUTPUT_DECL$subexpression$1", "symbols": [(lexer.has("bit") ? {type: "bit"} : bit), "_"]},
     {"name": "OUTPUT_DECL$ebnf$1$subexpression$1", "symbols": ["RANGE", "_"], "postprocess": (d) => {return d[0]}},
     {"name": "OUTPUT_DECL$ebnf$1", "symbols": ["OUTPUT_DECL$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "OUTPUT_DECL$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "OUTPUT_DECL", "symbols": ["output", "__", "OUTPUT_DECL$subexpression$1", "OUTPUT_DECL$ebnf$1", "LIST_OF_VARIABLES"], "postprocess": function(d) {
-        return {Type: "declaration", DeclarationType: "output", Range: d[3], Variables: d[4], Location: d[0].Location};} },
+        return {Type: "declaration", DeclarationType: "output", DataType: d[2][0].type, Range: d[3], Variables: d[4], Location: d[0].Location};} },
     {"name": "LIST_OF_VARIABLES", "symbols": ["NAME_OF_VARIABLE", "_", (lexer.has("comma") ? {type: "comma"} : comma), "_", "LIST_OF_VARIABLES"], "postprocess": function(d) {return {Type: "variable_list", Head: d[0], Tail: d[4]};}},
     {"name": "LIST_OF_VARIABLES", "symbols": ["NAME_OF_VARIABLE"], "postprocess": function(d) {return {Type: "variable_list", Head: d[0], Tail: null};}},
     {"name": "LIST_OF_VARIABLES2", "symbols": ["IDENTIFIER", "_", (lexer.has("comma") ? {type: "comma"} : comma), "_", "LIST_OF_VARIABLES2"], "postprocess": function(d) {return [d[0]].concat(d[4]) ;}},
@@ -148,14 +148,6 @@ var grammar = {
     {"name": "REG_DECLARATION$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "REG_DECLARATION", "symbols": ["DATATYPE", "__", "REG_DECLARATION$ebnf$1", "LIST_OF_VARIABLES2", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon)], "postprocess":  (d,l,r) => {
         return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], Location: d[0].offset};} },
-    {"name": "REG_DECLARATION$ebnf$2$subexpression$1", "symbols": ["RANGE", "_"], "postprocess": (d,l,r) => {return d[0]}},
-    {"name": "REG_DECLARATION$ebnf$2", "symbols": ["REG_DECLARATION$ebnf$2$subexpression$1"], "postprocess": id},
-    {"name": "REG_DECLARATION$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "REG_DECLARATION$ebnf$3$subexpression$1", "symbols": ["ARRAY_RANGE", "_"], "postprocess": (d,l,r) => {return d[0]}},
-    {"name": "REG_DECLARATION$ebnf$3", "symbols": ["REG_DECLARATION$ebnf$3$subexpression$1"], "postprocess": id},
-    {"name": "REG_DECLARATION$ebnf$3", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "REG_DECLARATION", "symbols": ["DATATYPE", "__", "REG_DECLARATION$ebnf$2", "IDENTIFIER", "_", "REG_DECLARATION$ebnf$3", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon)], "postprocess":  (d,l,r) => {
-        return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: [{Type: "variable", Name: d[3], Location: d[3].Location}], ArrayRanges: d[5], Location: d[0].offset};} },
     {"name": "ALWAYS_CONSTRUCT", "symbols": [(lexer.has("always_comb") ? {type: "always_comb"} : always_comb), "__", "STATEMENT"], "postprocess": function(d) {
         return {Type: "always_construct", AlwaysType: d[0].value, Statement: d[2], ClkLoc: 0, Location: d[0].offset};} },
     {"name": "ALWAYS_CONSTRUCT", "symbols": [(lexer.has("always_ff") ? {type: "always_ff"} : always_ff), "_", (lexer.has("at") ? {type: "at"} : at), "_", (lexer.has("lparen") ? {type: "lparen"} : lparen), "_", (lexer.has("posedge") ? {type: "posedge"} : posedge), "__", {"literal":"clk"}, "_", (lexer.has("rparen") ? {type: "rparen"} : rparen), "_", "STATEMENT"], "postprocess": function(d) {
@@ -264,11 +256,7 @@ var grammar = {
     {"name": "L_VALUE", "symbols": ["IDENTIFIER"], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};}},
     {"name": "L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bit", BitsStart: d[3], BitsEnd: d[3], Primary: d[0]};}},
     {"name": "L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("colon") ? {type: "colon"} : colon), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};}},
-    {"name": "VARIABLE_BITSELECT_L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "EXPRESSION", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: 1};}},
-    {"name": "VARIABLE_BITSELECT_L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "EXPRESSION", (lexer.has("colon") ? {type: "colon"} : colon), "EXPRESSION", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};}},
-    {"name": "VARIABLE_BITSELECT_L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "EXPRESSION", "_", (lexer.has("minus") ? {type: "minus"} : minus), "_", (lexer.has("colon") ? {type: "colon"} : colon), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "minus"};}},
-    {"name": "VARIABLE_BITSELECT_L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "EXPRESSION", "_", (lexer.has("plus") ? {type: "plus"} : plus), "_", (lexer.has("colon") ? {type: "colon"} : colon), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "plus"};}},
-    {"name": "VARIABLE_BITSELECT_L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "_", "EXPRESSION", "_", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket), "_", "ARRAY_SELECT"], "postprocess": function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[4], BitsEnd: d[4], Primary: d[0], Expression: d[4], ArraySelect: d[8]};}},
+    {"name": "VARIABLE_BITSELECT_L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "EXPRESSION", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bit2", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: 1};}},
     {"name": "EXPRESSION", "symbols": ["CONDITIONAL"], "postprocess": id},
     {"name": "CONDITIONAL", "symbols": ["LOGICAL_OR", "_", (lexer.has("question") ? {type: "question"} : question), "_", "CONDITIONAL_RESULT"], "postprocess": function(d) {return {Type: "conditional_cond", Operator:d[2].value, Head: d[0], Tail: d[4]};}},
     {"name": "CONDITIONAL", "symbols": ["LOGICAL_OR"], "postprocess": id},

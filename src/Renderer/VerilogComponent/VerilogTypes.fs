@@ -26,6 +26,7 @@ type CodeEditorProps =
 type CodeEditorOpen =
     |NewVerilogFile
     |UpdateVerilogFile of string
+
     
 //////////////////////// Verilog Input Record   ///////////////////////////
 // type VerilogDataType =
@@ -39,9 +40,7 @@ type ModuleNameT = {Type : string; Name : IdentifierT}
 
 type NumberT = {Type: string; NumberType: string; Bits: string option; Base: string option; UnsignedNumber: string option; AllNumber: string option; Location: int }
 
-// type PrimaryT = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; Width: int option}
 type PrimaryT = {Type: string; PrimaryType: string; BitsStart: ExpressionT option; BitsEnd: ExpressionT option; Primary: IdentifierT; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
-// changed this to a mutually recursive type, TODO: check if this breaks anything
     and ExpressionT = {Type: string; Operator: string option; Head: ExpressionT option; Tail: ExpressionT option; Unary: UnaryT option}
     and UnaryT = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionT option}
 
@@ -59,39 +58,6 @@ type ParameterItemT = {Type: string; DeclarationType: string; Parameters : Param
 // type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; VariableBitSelect: ExpressionT option; Width: int option}
 type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: ExpressionT option; BitsEnd: ExpressionT option; Primary: IdentifierT; VariableBitSelect: ExpressionT option; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
 type AssignmentT = {Type: string; LHS: AssignmentLHST; RHS: ExpressionT}
-
-// type StatementType = 
-//     | NonBlockingAssign
-//     | BlockingAssign
-//     // | Assign // in cont assign - fix parser?
-//     | SeqBlock
-//     | Conditional
-//     | CaseStatement
-//     | ForStatement
-//     // | Wire // ?????? idk why this is a statement 
-
-// type ItemType = // this should be exhaustive i think
-//     | IODecl
-//     | ParameterDecl
-//     | Decl // logicdecl???? bro idk
-//     | ContinuousAssign
-//     | Statement
-//     | AlwaysConstruct
-//     | ModuleInstantiation
-
-// type Type = 
-//     | Program
-//     | Module // theres both module_old and module_new in the parser, idk what to do here 
-//     | PortList
-//     | Port
-//     | Parameter
-//     | Item // there are item types
-//     | IOItems // ??
-//     | VariableList
-//     | Variable
-//     | Range
-//     | Bit
-//     | Wire
 
 type ContinuousAssignT = {Type: string; StatementType: string; Assignment : AssignmentT; Location: int} // need to add seq block, option statement array
 

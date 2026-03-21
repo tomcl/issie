@@ -21,8 +21,8 @@ let checkProceduralAssignments
     (errorList: ErrorInfo list)
         : ErrorInfo list =
     let alwaysBlocks = foldAST getAlwaysBlocks [] (VerilogInput(ast))
-    let clockedAlwaysBlocks = alwaysBlocks |> List.filter (fun always -> always.AlwaysType="always_ff")
-    let combAlwaysBlocks = alwaysBlocks |> List.filter (fun always -> always.AlwaysType="always_comb")
+    let clockedAlwaysBlocks = alwaysBlocks |> List.filter (fun always -> always.AlwaysType=AlwaysFF)
+    let combAlwaysBlocks = alwaysBlocks |> List.filter (fun always -> always.AlwaysType=AlwaysComb)
     
 
     let checkClockedAlwaysBlock alwaysBlock =
@@ -30,14 +30,14 @@ let checkProceduralAssignments
         let localErrors =
             ([], blockingAssigns) 
             ||> List.fold 
-                (fun errors blocking -> 
+                (fun errors (assign, loc) ->
                     let message = sprintf "Blocking assignment in always_ff block"
                     let extraMessages =
                         [|
                             {Text=sprintf "Blocking assignment in a clocked always block is not supported.\nPlease use nonblocking assignments in clocked always blocks";Copy=false;Replace=NoReplace}
                             {Text=(sprintf "<=" );Copy=true;Replace=Variable "="}
                         |]
-                    let currError = createErrorMessage linesLocations (snd blocking) message extraMessages (fst blocking).Assignment.Type
+                    let currError = createErrorMessage linesLocations loc message extraMessages (string assign.Type)
                     errors @ currError
                 )
         localErrors
@@ -55,7 +55,7 @@ let checkProceduralAssignments
                             {Text=sprintf "Nonblocking assignment in a combinational always block is not supported.\nPlease use blocking assignments in combinational always blocks";Copy=false;Replace=NoReplace}
                             {Text=(sprintf "=" );Copy=true;Replace=Variable "<="}
                         |]
-                    let currError = createErrorMessage linesLocations (snd nonblocking) message extraMessages (fst nonblocking).Assignment.Type
+                    let currError = createErrorMessage linesLocations (snd nonblocking) message extraMessages (string (fst nonblocking).Type)
                     errors @ currError
                 )
         localErrors
@@ -74,11 +74,11 @@ let checkVariablesDrivenSimultaneously
     let alwaysBlocks = foldAST getAlwaysBlocks [] (VerilogInput(ast)) 
     let continuousAssignBits = 
         foldAST getContAssignments [] (VerilogInput ast)
-        |> List.map (fun assign -> Set.singleton assign.LHS.Primary.Name)
+        |> List.map (fun assign -> Set.singleton (getPrimaryName assign.LHS.PrimaryType))
 
-    let getAlwaysAssignmentBits (alwaysBlock: AlwaysConstructT) = 
+    let getAlwaysAssignmentBits (alwaysBlock: AlwaysConstruct) = 
         let assignments = foldAST getAssignments' [] (AlwaysConstruct(alwaysBlock))
-        List.map (fun assign -> assign.LHS.Primary.Name ) assignments
+        List.map (fun assign -> getPrimaryName assign.LHS.PrimaryType) assignments
         |> List.distinct
         |> Set.ofList
 
@@ -106,7 +106,6 @@ let checkVariablesDrivenSimultaneously
         |]
     let message = "Some ports or variables are driven by multiple always blocks or continuous assignments."
     errorList @ createErrorMessage linesLocations currLocation message extraMessages "endmodule"
-        
 
 /// Checks the case items of the case statements:
 /// - Repeated cases
@@ -127,7 +126,10 @@ let checkCasesStatements
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
                 if isNullOrUndefined decl.Range then Map.add variable.Name 0 map'
-                else Map.add variable.Name ((Option.get(decl.Range).Start |> int)-(Option.get(decl.Range).End |> int)+1) map'
+                else
+                    let bStart = evalIntExpression (Option.get decl.Range).Start
+                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
     let portSizeMap = Map.fold (fun acc key value -> Map.add key value acc) portSizeMap wireSizeMap
@@ -142,36 +144,47 @@ let checkCasesStatements
         let caseNumbers = caseStmt.CaseItems |> Array.collect (fun caseItem -> caseItem.Expressions)
         let _, repeatedErrors =
             ((Map.empty, []), caseNumbers)
-            ||> Array.fold (fun (casesCovered, errors) (caseNumber: NumberT) ->
-                let numBase, width, num = Option.get caseNumber.Base, Option.get caseNumber.Bits, Option.get caseNumber.AllNumber
-                let caseNumberDec = toDecimal (Option.get caseNumber.AllNumber) (Option.get caseNumber.Base) (Option.get caseNumber.Bits)
-                let repeated = Map.containsKey caseNumberDec casesCovered
+            ||> Array.fold (fun (casesCovered, errors) caseNumber ->
+                let widthOpt, baseText, numStr, loc, decVal, displayText =
+                    match caseNumber with
+                    | Unsigned (n, loc) ->
+                        None, "'d", string n, loc, bigint n, string n
+                    | All (bits, numBase, allNumber, loc) ->
+                        let baseText =
+                            match numBase with
+                            | Binary -> "'b"
+                            | Hex -> "'h"
+                            | Decimal -> "'d"
+                        let numStr = string allNumber
+                        let decVal = toDecimal numStr baseText (string bits)
+                        Some bits, baseText, numStr, loc, decVal, (string bits + baseText + numStr)
+
+                let repeated = Map.containsKey decVal casesCovered
                 let repeatedError =
                     if repeated then 
-                        let firstLine = getLineNumber linesLocations (Map.find caseNumberDec casesCovered)
+                        let firstLine = getLineNumber linesLocations (Map.find decVal casesCovered)
                         let extraMessages=                    
                             [|
-                                {Text=sprintf "The following case value is duplicated: %A, see line %A. Please make sure there are no repeated case values." (width+numBase+num) firstLine;
+                                {Text=sprintf "The following case value is duplicated: %A, see line %A. Please make sure there are no repeated case values." displayText firstLine;
                                 Copy=false;
                                 Replace=NoReplace};
                             |]
                         let message = "Duplicate case value"
-                        createErrorMessage linesLocations caseNumber.Location message extraMessages (width+numBase+num)
+                        createErrorMessage linesLocations loc message extraMessages displayText
                     else 
                         []
                 let widthError =
-                    if width|>int <> condWidth then 
+                    match widthOpt with
+                    | Some width when width <> condWidth ->
                         let extraMessages=                    
                             [|
                                 {Text=sprintf "Width of case expression (%A bits wide) does not match width of this case item (%A bits wide)." condWidth width;Copy=false;Replace=NoReplace};
-                                {Text=(string condWidth)+numBase+num; Copy=true; Replace=Variable (width+numBase+num)}
+                                {Text=(string condWidth)+baseText+numStr; Copy=true; Replace=Variable (string width + baseText + numStr)}
                             |]
                         let message = "Width of case value does not match \n the given case expression"
-                        createErrorMessage linesLocations caseNumber.Location message extraMessages (width+numBase+num)
-                    else
-                        []
-
-                Map.add caseNumberDec caseNumber.Location casesCovered, errors @ repeatedError @ widthError
+                        createErrorMessage linesLocations loc message extraMessages (string width + baseText + numStr)
+                    | _ -> []
+                Map.add decVal loc casesCovered, errors @ repeatedError @ widthError
                 )
         match caseStmt.Default with
         | Some _ -> repeatedErrors // no missing cases
@@ -201,14 +214,21 @@ let allCasesCovered
         let caseNumbers = caseStmt.CaseItems |> Array.collect (fun caseItem -> caseItem.Expressions)
         let caseNumsUnique = 
             (Set.empty, caseNumbers) ||> Array.fold (fun casesCovered caseNumber ->
-                let numBase, width, num = Option.get caseNumber.Base, Option.get caseNumber.Bits, Option.get caseNumber.AllNumber
-                let caseNumberDec = toDecimal num numBase width
-                Set.add caseNumberDec casesCovered
+                let decVal =
+                    match caseNumber with
+                    | Unsigned (n, _) -> bigint n
+                    | All (bits, numBase, allNumber, _) ->
+                        let baseText =
+                            match numBase with
+                            | Binary -> "'b"
+                            | Hex -> "'h"
+                            | Decimal -> "'d"
+                        toDecimal (string allNumber) baseText (string bits)
+                Set.add decVal casesCovered
             )
         let expCaseVals = [0I..expNrOfCases-1I] |> Set.ofList
         let missingVars = Set.difference expCaseVals (caseNumsUnique)
         Set.count missingVars = 0
-
 
 let checkVariablesAlwaysAssigned
     (ast:VerilogInput) 
@@ -226,7 +246,10 @@ let checkVariablesAlwaysAssigned
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
                 if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
-                else Map.add variable.Name ((Option.get(decl.Range).Start |> int)-(Option.get(decl.Range).End |> int)+1) map'
+                else
+                    let bStart = evalIntExpression (Option.get decl.Range).Start
+                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
     let portSizeMap = Map.fold (fun acc key value -> Map.add key value acc) portSizeMap wireSizeMap
@@ -235,56 +258,53 @@ let checkVariablesAlwaysAssigned
         match node with 
         | VerilogInput verilogInput -> 
             let itemsCompleteVariables = 
-                verilogInput.Module.ModuleItems.ItemList
+                (convertModule verilogInput.Module).ModuleItems.ItemList
                 |> Array.map (fun item -> getVariablesAlwaysAssigned (Item item))
             (Set.empty, itemsCompleteVariables)
             ||> Array.fold Set.union
-        | Conditional ifstmt ->
-            if Option.isNone ifstmt.ElseStatement then
-                Set.empty
-            else
-            let ifVariables = 
-                getVariablesAlwaysAssigned (Statement ifstmt.IfStatement.Statement)
-    
-            let elseVariables =
-                getVariablesAlwaysAssigned (Statement (Option.get ifstmt.ElseStatement))
-            Set.intersect ifVariables elseVariables
-        | ForStatement forstmt ->
-            getVariablesAlwaysAssigned (Statement forstmt.Statement)
-        | BlockingAssign blocking -> (getLHSBitsAssignedCertainly portSizeMap blocking.Assignment) |> Set.ofList // fix getLHSBits
-        | NonBlockingAssign nonBlocking -> (getLHSBitsAssignedCertainly portSizeMap nonBlocking.Assignment) |> Set.ofList // fix getLHSBits
-        | Item item -> getVariablesAlwaysAssigned (getItem item)
         | AlwaysConstruct always -> 
             getVariablesAlwaysAssigned (Statement always.Statement)
         | Statement statement ->
-            statement
-            |> getAlwaysStatement
-            |> statementToNode
-            |> getVariablesAlwaysAssigned
-        | SeqBlock seqBlock ->
-            let completeVariables =
-                seqBlock.Statements
-                |> Array.map (fun s -> getVariablesAlwaysAssigned (Statement s))
-            (Set.empty, completeVariables)
-            ||> Array.fold Set.union
+            match statement with
+            | BlockingAssign blocking ->
+                (getLHSBitsAssignedCertainly portSizeMap blocking) |> Set.ofList
+            | NonBlockingAssign nonBlocking ->
+                (getLHSBitsAssignedCertainly portSizeMap nonBlocking) |> Set.ofList
+            | SeqBlock (stmts, _) ->
+                let completeVariables =
+                    stmts
+                    |> Array.map (fun s -> getVariablesAlwaysAssigned (Statement s))
+                (Set.empty, completeVariables)
+                ||> Array.fold Set.union
+            | StatementDU.Case case ->
+                getVariablesAlwaysAssigned (Case case)
+            | Conditional (ifStmt, elseStmt) ->
+                let ifVariables = getVariablesAlwaysAssigned (Statement ifStmt.Statement)
+                let elseVariables =
+                    match elseStmt with
+                    | Some stmt -> getVariablesAlwaysAssigned (Statement stmt)
+                    | None -> Set.empty
+                if Option.isNone elseStmt then Set.empty else Set.intersect ifVariables elseVariables
+            | StatementDU.ForStatement forstmt ->
+                getVariablesAlwaysAssigned (Statement forstmt.Statement)
         | Case case ->
-                if allCasesCovered case portSizeMap wireSizeMap then
-                    let complCaseVars =
-                        case.CaseItems
-                        |> Array.map (fun caseItem -> getVariablesAlwaysAssigned (Statement caseItem.Statement))
-                    let caseItemVars =
-                        (complCaseVars[0], complCaseVars) //there is be at least one assignment in a case item, so at least one var
-                        ||> Array.fold Set.intersect
-                    match case.Default with
-                        | Some dflt -> 
-                            Set.intersect (getVariablesAlwaysAssigned (Statement dflt)) caseItemVars
-                        | None -> caseItemVars
-                else Set.empty            
+            if allCasesCovered case portSizeMap wireSizeMap then
+                let complCaseVars =
+                    case.CaseItems
+                    |> Array.map (fun caseItem -> getVariablesAlwaysAssigned (Statement caseItem.Statement))
+                let caseItemVars =
+                    (complCaseVars[0], complCaseVars) //there is be at least one assignment in a case item, so at least one var
+                    ||> Array.fold Set.intersect
+                match case.Default with
+                    | Some dflt -> 
+                        Set.intersect (getVariablesAlwaysAssigned (Statement dflt)) caseItemVars
+                    | None -> caseItemVars
+            else Set.empty            
         | _ -> Set.empty
 
     let alwaysCombBlocksWithLoc = 
         foldAST getAlwaysBlocksWithLocations [] (VerilogInput(ast))
-        |> List.filter (fun (alwaysBlock, _) -> alwaysBlock.AlwaysType="always_comb")
+        |> List.filter (fun (alwaysBlock, _) -> alwaysBlock.AlwaysType = AlwaysComb)
     
     let variablesNotAssigned = 
         alwaysCombBlocksWithLoc
@@ -315,6 +335,7 @@ let checkVariablesAlwaysAssigned
         errors @ createErrorMessage linesLocations currLocation message extraMessages "always_comb"
 
     )
+    
 /// Check if expressions are correct
 /// - Indexes within range
 /// - Numbers are correctly formatted
@@ -332,13 +353,47 @@ let checkExpressions
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
                 if isNullOrUndefined decl.Range then Map.add variable.Name 0 map'
-                else Map.add variable.Name ((Option.get(decl.Range).Start |> int)-(Option.get(decl.Range).End |> int)+1) map'
+                else
+                    let bStart = evalIntExpression (Option.get decl.Range).Start
+                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
     let expressions = foldAST getAllExpressions' [] (VerilogInput ast)
     let caseItemNums = foldAST getCaseItemNums [] (VerilogInput ast)
+
+    let checkNumberDU linesLocations (num: Number) =
+        match num with
+        | Unsigned _ -> []
+        | All (bits, numBase, allNum, loc) ->
+            if bits = 0 then
+                let message = "Number can't be 0 bits wide"
+                let extraMessages = 
+                    [|
+                        {Text="Number can't be 0 bits wide"; Copy=false;Replace=NoReplace}
+                        {Text=("The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111");Copy=false;Replace=NoReplace}
+                    |]
+                (createErrorMessage linesLocations loc message extraMessages "0'b")
+            else 
+                let baseText =
+                    match numBase with
+                    | Binary -> "'b"
+                    | Hex -> "'h"
+                    | Decimal -> "'d"
+                let no = toDecimal (string allNum) baseText "64"
+                match NumberHelpers.strToIntCheckWidth bits (string no) with
+                | Ok _ -> []
+                | Error _ -> 
+                    let message = sprintf "Number can't fit in %A bits" bits
+                    let extraMessages = 
+                        [|
+                            {Text=sprintf "Number can't fit in %A bits" bits; Copy=false;Replace=NoReplace}
+                            {Text=("The integer before 'h/'b represents the width of the number\n e.g. 12'hc7 -> 000011000111");Copy=false;Replace=NoReplace}
+                        |]
+                    createErrorMessage linesLocations loc message extraMessages "0'b"
+
     let localErrors = List.collect (checkExpr linesLocations wireSizeMap []) expressions
-    let caseItemErrors = List.collect (checkNumber linesLocations) caseItemNums
+    let caseItemErrors = List.collect (checkNumberDU linesLocations) caseItemNums
     errorList @ localErrors @ caseItemErrors
 
 /// Checks that clk is an input port when there are always_ff blocks
@@ -350,7 +405,7 @@ let checkClk
 
     let alwaysFFsWithLoc = 
         foldAST getAlwaysBlocks [] (VerilogInput ast)
-        |> List.filter (fun always -> always.AlwaysType = "always_ff")
+        |> List.filter (fun always -> always.AlwaysType = AlwaysFF)
     match Map.tryFind "clk" portMap with
     | None | Some "output" ->
         (errorList, alwaysFFsWithLoc)
@@ -388,8 +443,7 @@ let checkClkNames
     let contAssigns = 
         foldAST getContAssignments [] (VerilogInput ast)
         |> List.toArray
-        |> Array.map (fun assign -> assign.LHS.Primary)
-
+        |> Array.map (fun assign -> assign.LHS.PrimaryType)
 
     let portErrors =
         match Map.tryFind "clk" portMap, Map.tryFind "clk" portLocationMap with
@@ -402,15 +456,26 @@ let checkClkNames
             createErrorMessage linesLocations location message extraMessages "clk"
         | _ -> [] // clk can be input port, duplicates/redundant ports handled elsewhere
     let logicErrors =
-        match (Array.append declarations  contAssigns) |> Array.tryFind (fun id -> id.Name = "clk")  with
-        | Some primary ->
+        let declarationNames =
+            declarations |> Array.map (fun id -> id.Name)
+
+        let contAssignNames =
+            contAssigns |> Array.map getPrimaryName
+        match Array.append declarationNames contAssignNames |> Array.tryFind ((=) "clk") with
+        | Some _ ->
             let extraMessages=                    
                 [|
                     {Text=sprintf "'clk' is reserved for the clock signal, please rename the variable" ;Copy=false;Replace=NoReplace};
                 |]
             let message = "Variable cannot be called 'clk'"
-            createErrorMessage linesLocations primary.Location message extraMessages "clk"
-        | _ -> []
+            let loc =
+                declarations
+                |> Array.tryFind (fun id -> id.Name = "clk")
+                |> Option.map (fun id -> id.Location)
+                |> Option.orElse (contAssigns |> Array.tryFind (fun p -> getPrimaryName p = "clk") |> Option.map getPrimaryLocation)
+                |> Option.defaultValue ast.Module.EndLocation
+            createErrorMessage linesLocations loc message extraMessages "clk"
+        | None -> []
 
     let clkWidthErrors =
         match Map.tryFind "clk" portSizeMap, Map.tryFind "clk" portLocationMap with
@@ -427,7 +492,7 @@ let checkClkNames
     let clkPrimaries = 
         foldAST getAllExpressions' [] (VerilogInput ast)
         |> List.fold primariesUsedInAssignment []
-        |> List.filter (fun prim -> prim.Primary.Name = "clk")
+        |> List.filter (fun prim -> getPrimaryName prim = "clk")
     let expressionErrors =
         ([], clkPrimaries)
         ||> List.fold (fun errors primary ->
@@ -436,12 +501,10 @@ let checkClkNames
                     {Text=sprintf "'clk' represents the clock signal, make sure to only use it as 'always_ff @(posedge clk)'";Copy=false;Replace=NoReplace};
                 |]
             let message = "Illegal use of 'clk'"
-            let localErrors = createErrorMessage linesLocations primary.Primary.Location message extraMessages primary.Primary.Name
+            let localErrors = createErrorMessage linesLocations (getPrimaryLocation primary) message extraMessages (getPrimaryName primary)
             errors @ localErrors
             )
     errorList @ portErrors @ logicErrors @ clkWidthErrors @ expressionErrors
-
-
 
 type Graph = Map<string, string list>
 /// Looks for cycles in the general dependency graph using depth first search
@@ -481,7 +544,7 @@ let findCycleDFS (graph: Graph) : string list option =
 let private getDependencies ast variableSizeMap =
     let rec getDependencyFold graph astNode cond =
         match astNode with
-        | VerilogInput verilogInput -> getDependencyFold graph (ModuleItems verilogInput.Module.ModuleItems) cond
+        | VerilogInput verilogInput -> getDependencyFold graph (ModuleItems (convertModule verilogInput.Module).ModuleItems) cond
         | ModuleItems items ->
             (graph, items.ItemList)
             ||> Array.fold (fun acc item -> 
@@ -490,29 +553,38 @@ let private getDependencies ast variableSizeMap =
         | ContinuousAssign contAssign -> getDependencyFold graph (Assignment contAssign.Assignment) cond
         | Assignment assign -> 
             let lhsBits = getLHSBits' variableSizeMap assign
-            let rhsBits = 
+            let rhsBits =
+                let rhs = getRHSBits variableSizeMap assign.RHS
                 match assign.LHS.VariableBitSelect with
-                | Some expr -> Set.union (getRHSBits variableSizeMap assign.RHS)  (getRHSBits variableSizeMap expr)
-                | _ -> getRHSBits variableSizeMap assign.RHS
+                | Some expr -> Set.union rhs (getRHSBits variableSizeMap expr)
+                | None -> rhs
             (graph, lhsBits)
             ||> List.fold (fun graph' lhs -> 
                 graph' |> Map.add lhs (Set.union rhsBits cond)
             )
         | AlwaysConstruct always -> // we ignore always_ff in the dependencies
-            if always.AlwaysType = "always_comb" then
+            if always.AlwaysType = AlwaysComb then
                 getDependencyFold graph (Statement always.Statement) cond
             else graph
         | Statement statement ->
-            let statement' = getAlwaysStatement statement |> statementToNode
-            getDependencyFold graph statement' cond
-        | NonBlockingAssign nonblocking ->
-            getDependencyFold graph (Assignment nonblocking.Assignment) cond
-        | BlockingAssign blocking ->
-            getDependencyFold graph (Assignment blocking.Assignment) cond
-        | SeqBlock seq ->
-            (graph, seq.Statements)
-            ||> Array.fold (fun acc statement -> 
-                getDependencyFold acc (Statement statement) cond )
+            match statement with
+            | BlockingAssign blocking ->
+                getDependencyFold graph (Assignment blocking) cond
+            | NonBlockingAssign nonblocking ->
+                getDependencyFold graph (Assignment nonblocking) cond
+            | SeqBlock (seq, _) ->
+                (graph, seq)
+                ||> Array.fold (fun acc st -> getDependencyFold acc (Statement st) cond)
+            | StatementDU.Case case ->
+                getDependencyFold graph (Case case) cond
+            | Conditional (ifStmt, elseStmt) ->
+                getDependencyFold graph (IfStatement ifStmt) cond
+                |> fun g ->
+                    match elseStmt with
+                    | Some stmt -> getDependencyFold g (Statement stmt) cond
+                    | None -> g
+            | StatementDU.ForStatement forstmt ->
+                getDependencyFold graph (ForStatement forstmt) cond
         | Case case ->
             // need to add case.Expression to dependencies
             let condDependencies = getRHSBits variableSizeMap case.Expression
@@ -532,17 +604,11 @@ let private getDependencies ast variableSizeMap =
 
         | CaseItem item -> 
             getDependencyFold graph (Statement item.Statement) cond
-        | Conditional conditional ->
-            let condDep = getRHSBits variableSizeMap conditional.IfStatement.Condition
-            let ifDep = getDependencyFold  graph (Statement conditional.IfStatement.Statement) (Set.union cond condDep)
-            let elseDep = 
-                match conditional.ElseStatement with
-                | Some stmt -> getDependencyFold graph (Statement stmt) (Set.union cond condDep)
-                | _ -> Map.empty
-            Map.fold (fun acc' key value -> 
-                match Map.tryFind key acc' with
-                | Some dep -> Map.add key (Set.union dep value) acc'
-                | None -> Map.add key value acc' ) ifDep elseDep
+        | IfStatement ifstmt ->
+            let condDep = getRHSBits variableSizeMap ifstmt.Condition
+            getDependencyFold  graph (Statement ifstmt.Statement) (Set.union cond condDep)
+        | ForStatement forstmt ->
+            getDependencyFold graph (Statement forstmt.Statement) cond
         | _ ->  graph
     getDependencyFold Map.empty ast Set.empty
     |> Map.map (fun _ value -> value |> Set.toList )
@@ -600,7 +666,9 @@ let checkVariablesUsed
                 let res = decl.Variables |> Array.map (fun var -> var.Name + "[0]") |> Array.toList
                 res
             | Some range -> 
-                let bits = [|int range.End .. int range.Start|]
+                let bStart = evalIntExpression range.Start
+                let bEnd = evalIntExpression range.End
+                let bits = [|bEnd .. bStart|]
                 let res =
                     decl.Variables
                     |> Array.collect (fun var -> 
@@ -639,7 +707,7 @@ let rec getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars,
             (rhsVars', errors)
         else
             // variable read after assigned
-            let location = assign.LHS.Primary.Location
+            let location = getPrimaryLocation assign.LHS.PrimaryType
             let variables = 
                 assignedAfterRHS
                 |> Set.map (fun var -> (var.Split [|'['|])[0])
@@ -649,16 +717,8 @@ let rec getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars,
                     {Text=sprintf "The following variables are read and then updated: %A This creates undefined behaviour in an always_comb block, please make sure to not update a variable after it is read." (convert variables ""); Copy=false;Replace=NoReplace};
                 |]
             let message = sprintf "Variable written to after it is read"
-            let errors' = errors @ createErrorMessage linesLocations location message extraMessages assign.LHS.Primary.Name
+            let errors' = errors @ createErrorMessage linesLocations location message extraMessages (getPrimaryName assign.LHS.PrimaryType)
             (rhsVars', errors')
-    | Conditional cond ->  
-        let ifVars, ifErrors = 
-            getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, List.empty) (IfStatement cond.IfStatement)
-        let elseVars, elseErrors =
-            match cond.ElseStatement with
-            | Some stmt -> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, List.empty) (Statement stmt)
-            | _ -> Set.empty, []
-        (Set.union ifVars elseVars), errors @ ifErrors @ elseErrors
     | IfStatement ifstmt ->
         let rhsVars' = 
             getRHSBits wireAndPortSizeMap ifstmt.Condition
@@ -667,7 +727,7 @@ let rec getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars,
     | Case case ->
         let caseVars, caseErrors=
             case.CaseItems
-            |> Array.map (fun (item: CaseItemT) -> 
+            |> Array.map (fun item -> 
                 getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, List.empty) (Statement item.Statement))
             |> Array.toList
             |> List.unzip
@@ -678,25 +738,40 @@ let rec getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars,
         let rhsVars' = List.fold Set.union Set.empty (caseVars @ [defaultVars])
         let errors' = List.fold List.append [] caseErrors @ defaultErrors
         rhsVars', errors'
-    | SeqBlock seq -> 
-        seq.Statements
-        |> Array.map (fun stmt -> Statement stmt)
-        |> Array.fold (getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations) (rhsVars, errors)
+    // | SeqBlock seq -> 
+    //     seq.Statements
+    //     |> Array.map (fun stmt -> Statement stmt)
+    //     |> Array.fold (getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations) (rhsVars, errors)
     | Statement stmt ->
-        getAlwaysStatement stmt
-        |> statementToNode
-        |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
-    | BlockingAssign blocking -> 
-        Assignment blocking.Assignment
-        |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
-    | NonBlockingAssign nonblocking ->
-        Assignment nonblocking.Assignment
-        |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
+        match stmt with
+        | BlockingAssign blocking ->
+            Assignment blocking
+            |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
+        | NonBlockingAssign nonblocking ->
+            Assignment nonblocking
+            |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
+        | SeqBlock (stmts, _) ->
+            stmts
+            |> Array.map (fun s -> Statement s)
+            |> Array.fold (getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations) (rhsVars, errors)
+        | StatementDU.Case case ->
+            Case case
+            |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
+        | Conditional (ifStmt, elseStmt) ->
+            let ifVars, ifErrors =
+                getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, List.empty) (IfStatement ifStmt)
+            let elseVars, elseErrors =
+                match elseStmt with
+                | Some stmt -> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, List.empty) (Statement stmt)
+                | None -> Set.empty, []
+            (Set.union ifVars elseVars), errors @ ifErrors @ elseErrors
+        | StatementDU.ForStatement forstmt ->
+            ForStatement forstmt
+            |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
     | AlwaysConstruct always -> 
         Statement always.Statement
         |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
     | _ -> rhsVars, errors
-
 
 /// check that if an always block writes to and reads from the same variable, variable is assigned first and written later
 /// a=1; b=a; a=0; -> this shouldn't be allowed
@@ -710,9 +785,9 @@ let checkAlwaysCombRHS
     let wireAndPortSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
     let alwaysCombs = 
         foldAST getAlwaysBlocks [] (VerilogInput ast)
-        |> List.filter (fun always -> always.AlwaysType="always_comb")
+        |> List.filter (fun always -> always.AlwaysType = AlwaysComb)
     
-    let checkAlwaysComb (always: AlwaysConstructT) =
+    let checkAlwaysComb (always: AlwaysConstruct) =
         getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (Set.empty, []) (AlwaysConstruct always)
         |> snd
     
@@ -721,13 +796,19 @@ let checkAlwaysCombRHS
         |> List.collect checkAlwaysComb
     errorList @ localErrors
 
-let getPrimaryWidth portSizeMap (primary: PrimaryT) =
-    match primary.BitsStart, primary.BitsEnd with
-    | Some s, Some e -> (int s)-(int e)+1;
-    | _ ->
-        match Map.tryFind primary.Primary.Name portSizeMap with
+let getPrimaryWidth portSizeMap (primary: PrimaryDU) =
+    match primary with
+    | Identifier id
+    | IdentifierArray (id, _) ->
+        match Map.tryFind id.Name portSizeMap with
         | Some w -> w
         | _ -> 1
+    | IdentifierBit _ -> 1
+    | IdentifierBits (_, start, endOpt) ->
+        let bStart = evalIntExpression start
+        let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
+        bStart - bEnd + 1
+    | IdentifierBitsSelect (_, _, width, _) -> width
 
 /// Checks if module instantiation statements are correct:
 /// - Does a loaded component exist with the given name?
@@ -822,7 +903,7 @@ let checkModuleInstantiations
         |> Map.keysL
     let lhsVariables = 
         foldAST getAssignments' [] (VerilogInput ast)
-        |> List.map (fun assign -> assign.LHS.Primary.Name)
+        |> List.map (fun assign -> getPrimaryName assign.LHS.PrimaryType)
         |> List.append inputPorts
         |> Set.ofList
 
@@ -840,15 +921,15 @@ let checkModuleInstantiations
         |> List.collect (fun conn ->
             match (Set.contains (conn.PortId.Name.ToUpper()) inputPorts), 
                 (Set.contains (conn.PortId.Name.ToUpper()) outputPorts),
-                (Set.contains conn.Primary.Primary.Name lhsVariables) with
+                (Set.contains (getPrimaryName conn.Primary) lhsVariables) with
             | true, _, false -> []
             | _, true, true ->
                 let extraMessages=                    
                     [|
-                        {Text=sprintf "Output port %A in module %A is already driven by continuous or procedural assignments" conn.Primary.Primary.Name modInst.Module.Name; Copy=false;Replace=NoReplace};
+                        {Text=sprintf "Output port %A in module %A is already driven by continuous or procedural assignments" (getPrimaryName conn.Primary) modInst.Module.Name; Copy=false;Replace=NoReplace};
                     |]
                 let message = sprintf "Output port already driven"
-                createErrorMessage linesLocations conn.Primary.Primary.Location message extraMessages conn.Primary.Primary.Name
+                createErrorMessage linesLocations (getPrimaryLocation conn.Primary) message extraMessages (getPrimaryName conn.Primary)
             | _ -> []
         )
         // all inputPorts have to be on lhs
@@ -861,7 +942,7 @@ let checkModuleInstantiations
             | [comp] ->
                 modInst.Connections
                 |> Array.toList
-                |> List.collect (fun (conn: NamedPortConnectionT) ->
+                |> List.collect (fun conn ->
                     match List.tryFind (fun port' -> fst port' = conn.PortId.Name.ToUpper()) (comp.InputLabels@comp.OutputLabels) with
                     | Some port -> 
                         let w = getPrimaryWidth wireAndPortSizeMap conn.Primary
@@ -871,7 +952,7 @@ let checkModuleInstantiations
                                     {Text=sprintf "Wrong port width for port %A in module %A: %A bits wide but expected %A bits" conn.PortId.Name modInst.Module.Name w (snd port); Copy=false;Replace=NoReplace};
                                 |]
                             let message = sprintf "Wrong port width"
-                            createErrorMessage linesLocations conn.Primary.Primary.Location message extraMessages conn.Primary.Primary.Name
+                            createErrorMessage linesLocations (getPrimaryLocation conn.Primary) message extraMessages (getPrimaryName conn.Primary)
                         else []
                     | _ ->
                         []
@@ -880,7 +961,6 @@ let checkModuleInstantiations
                 |> List.append (getInputOutputPortErrors modInst comp)
             | _ -> failwithf "There are multiple custom components with this name!"
         )
-
 
     let duplicatePortErrors =
         moduleInstantiations

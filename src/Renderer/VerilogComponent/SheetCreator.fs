@@ -39,7 +39,7 @@ let getWidthFromRange (range:RangeT option) =
     match range with
     |None -> 1
     |Some r ->
-        let start = r.Start |> int
+        let start = evalExpr r.Start
         start+1
 
 /// Create a component (type: Component) based on the parameters given
@@ -168,27 +168,24 @@ let rec joinWithMerge (lst:(Circuit*string*Slice*LHSType) list) =
 
 /// Extract MSB,LSB from assignment and return as a Slice
 /// type Slice = {MSB:int, LSB:int}
-let sliceFromBits (lhs:AssignmentLHST) (ioAndWireToCompMap: Map<string,Component>) varSizeMap = 
-    match (Option.isSome lhs.BitsStart) with
-    |true -> 
-        let bStart = (Option.get lhs.BitsStart)
-        let bEnd = (Option.get lhs.BitsEnd)
-        {MSB = (int bStart); LSB =(int bEnd) }
-    |false ->
-        let width = Map.find lhs.Primary.Name varSizeMap // TO DO: make it TryFind
+let sliceFromBits (lhs:AssignmentLHS) (ioAndWireToCompMap: Map<string,Component>) varSizeMap = 
+    // Assumption: bit-select ranges are constants when evaluated here.
+    match getPrimaryRange lhs.PrimaryType with
+    | Some (bStart, bEnd) -> {MSB = bStart; LSB = bEnd}
+    | None ->
+        let width = Map.find (getPrimaryName lhs.PrimaryType) varSizeMap // TO DO: make it TryFind
         //let width = extractWidth comp.Type
         {MSB = (width-1); LSB=0}
 
-let sliceFromBitsPrimary (primary: PrimaryT) (ioAndWireToCompMap: Map<string,Component>) varSizeMap = 
-    match (Option.isSome primary.BitsStart) with
-    |true -> 
-        let bStart = (Option.get primary.BitsStart)
-        let bEnd = (Option.get primary.BitsEnd)
-        {MSB = (int bStart); LSB =(int bEnd) }
-    |false ->
-        let width = Map.find primary.Primary.Name varSizeMap // TO DO: make it TryFind
+let sliceFromBitsPrimary (primary: PrimaryDU) (ioAndWireToCompMap: Map<string,Component>) varSizeMap = 
+    // Assumption: bit-select ranges are constants when evaluated here.
+    match getPrimaryRange primary with
+    | Some (bStart, bEnd) -> {MSB = bStart; LSB = bEnd}
+    | None ->
+        let width = Map.find (getPrimaryName primary) varSizeMap // TO DO: make it TryFind
         //let width = extractWidth comp.Type
         {MSB = (width-1); LSB=0}
+
 /// Attach the merged circuits to the correct output port 
 let attachToOutput' (ioAndWireToCompMap: Map<string,Component>) (ioToCompMap: Map<string, Component>) (circuit:Circuit,portName:string,slice:Slice,lhsType:LHSType) : CanvasState =
     let outputOrWire = Map.find portName ioAndWireToCompMap // always a wirelabel
@@ -361,8 +358,33 @@ let collectInputAndWireComps (ioAndWireToCompMap:Map<string,Component>) =
 /////// COMPONENT CREATION ////////
 /// 
 /// stores the expression along with the self determined width (MinWidth) and the contect determined Width
-type ExpressionCompilable ={Type: string; Operator: string option; Head: ExpressionCompilable option; Tail: ExpressionCompilable option; Unary: UnaryCompilable option; Width: int}
-    and UnaryCompilable = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionCompilable option; Width: int }
+type ExprKind =
+    | EUnary
+    | ENegation
+    | EConditionalCond
+    | EConditionalResult
+    | EShift
+    | EReduction
+    | ELogicalAnd
+    | ELogicalOr
+    | EEquality
+    | EComparison
+    | EUnaryUnsigned
+    | EBitwiseAnd
+    | EBitwiseOr
+    | EBitwiseXor
+    | EBitwiseXnor
+    | EAdditive
+    | EMultiplicative
+
+type UnaryKind =
+    | UPrimary
+    | UNumber
+    | UParenthesis
+    | UConcat
+
+type ExpressionCompilable = {Type: ExprKind; Operator: OperatorDU option; Head: ExpressionCompilable option; Tail: ExpressionCompilable option; Unary: UnaryCompilable option; Width: int}
+    and UnaryCompilable = {Type: UnaryKind; Primary: PrimaryDU option; Number: Number option; Expression: ExpressionCompilable option; Width: int }
 
 /// Extract component type and name from expression (type ExpressionT)
 /// Create the component using the createComponent function
@@ -370,28 +392,30 @@ let buildExpressionComponent (rhs:ExpressionCompilable) width =
     
     let compType =
         match rhs.Type with
-        | "negation" -> (NbitsNot width)  
-        | "bitwise_OR" -> (NbitsOr width)
-        | "bitwise_XOR" -> (NbitsXor (width, None))
-        | "bitwise_AND" -> (NbitsAnd width)
-        | "additive" -> (NbitsAdder width)
-        | "conditional_cond" -> (Mux2)
-        | "logical_AND" -> (GateN (And, 2)) 
-        | "logical_OR" -> (GateN (Or, 2))
-        | "multiplicative" -> (NbitsXor (width, Some Multiply))
+        | ENegation -> (NbitsNot width)  
+        | EBitwiseOr -> (NbitsOr width)
+        | EBitwiseXor -> (NbitsXor (width, None))
+        | EBitwiseXnor -> (NbitsXor (width, None))
+        | EBitwiseAnd -> (NbitsAnd width)
+        | EAdditive -> (NbitsAdder width)
+        | EConditionalCond -> (Mux2)
+        | ELogicalAnd -> (GateN (And, 2)) 
+        | ELogicalOr -> (GateN (Or, 2))
+        | EMultiplicative -> (NbitsXor (width, Some Multiply))
         |_ -> failwithf "Missing component(?) in buildExpressionComponent" 
     
     let baseName = 
         match rhs.Type with
-        |"bitwise_OR" -> "OR"
-        |"bitwise_XOR" -> "NXOR"
-        | "additive" -> "ADD"
-        | "bitwise_AND" -> "AND"
-        | "negation" -> "NOT"
-        | "conditional_cond" -> "MUX"
-        | "logical_AND" -> "G"
-        | "logical_OR" -> "G"
-        | "multiplicative" -> "MULT"
+        | EBitwiseOr -> "OR"
+        | EBitwiseXor -> "NXOR"
+        | EBitwiseXnor -> "NXOR"
+        | EAdditive -> "ADD"
+        | EBitwiseAnd -> "AND"
+        | ENegation -> "NOT"
+        | EConditionalCond -> "MUX"
+        | ELogicalAnd -> "G"
+        | ELogicalOr -> "G"
+        | EMultiplicative -> "MULT"
         |_ -> failwithf "Missing component(?) in buildExpressionComponent" 
 
         
@@ -399,21 +423,19 @@ let buildExpressionComponent (rhs:ExpressionCompilable) width =
 
 
 /////// CIRCUIT CREATION ////////
-
+/// 
 /// Finds the correct component based on the name of input/wire
 /// creates a circuit with that component (and if required a busSel component
 /// connected to it to return the correct slice) and returns that circuit
-let createPrimaryCircuit (primary:PrimaryT) (ioAndWireToCompMap:Map<string,Component>) varSizeMap =
-        let name = primary.Primary.Name
+let createPrimaryCircuit (primary:PrimaryDU) (ioAndWireToCompMap:Map<string,Component>) varSizeMap =
+        let name = getPrimaryName primary
         let inputComp = Map.find name ioAndWireToCompMap
-        match Option.isNone primary.BitsStart with
-        |true -> 
+        match getPrimaryRange primary with
+        | None -> 
             //let width = extractWidth inputComp.Type
             let width = Map.find name varSizeMap
             {Comps=[];Conns=[];Out=inputComp.OutputPorts[0];OutWidth=width}
-        |false ->
-            let bStart,bEnd = (int (Option.get primary.BitsStart)),(int (Option.get primary.BitsEnd))
-            
+        | Some (bStart, bEnd) ->
             let lsb,outWidth = bEnd,(bStart-bEnd+1)
             
             let busSelComp = createComponent (BusSelection (outWidth,lsb)) ""
@@ -422,15 +444,18 @@ let createPrimaryCircuit (primary:PrimaryT) (ioAndWireToCompMap:Map<string,Compo
             {Comps=[busSelComp];Conns=[conn];Out=busSelComp.OutputPorts[0];OutWidth=outWidth}
 
 /// Creates the correct component based on the number and returns a circuit with that component
-let createNumberCircuit (number:NumberT) =
-    let width = (Option.get number.Bits) |> int
-    let _base = Option.get number.Base
-    let no = (Option.get number.AllNumber)
-    let text = 
-        match _base with
-        |"'b" -> "0b"+no
-        |"'h" -> "0x"+no
-        |_ -> no
+let createNumberCircuit (number:Number) =
+    let width, text =
+        match number with
+        | Unsigned (n, _) -> 32, string n
+        | All (bits, numBase, allNumber, _) ->
+            let digits = string allNumber
+            let text = 
+                match numBase with
+                | Binary -> "0b"+digits
+                | Hex -> "0x"+digits
+                | Decimal -> digits
+            bits, text
     let constValue =
         match NumberHelpers.strToIntCheckWidth width text with
         |Ok n -> n
@@ -438,81 +463,124 @@ let createNumberCircuit (number:NumberT) =
     
     let constComp = createComponent (Constant1 (width, constValue,text)) "C"
     {Comps=[constComp];Conns=[];Out=constComp.OutputPorts[0];OutWidth=width}
-
 // handling size extension / 0 padding
 // new expression type that stores width at each node (later signedness) "self determined"
 // pass through this and update all context determined expression widths (passing in a parameter context)
 
 
 
-let getExprWidths (varSizeMap: Map<string, int>)(expr': ExpressionT) : (ExpressionCompilable)=
-    let rec getMinWidthsExpr (expr:ExpressionT) =
+let getExprWidths (varSizeMap: Map<string, int>)(expr': ExpressionDU) : (ExpressionCompilable)=
+    let numberWidth number =
+        match number with
+        | Unsigned _ -> 32
+        | All (bits, _, _, _) -> bits
+
+    let rec getMinWidthsExpr (expr:ExpressionDU) =
         // first check for self determined 
-        match expr.Type with
-        | "unary" ->    
-            let unary = getMinWidthsUnary (Option.get expr.Unary)
-            {Type=expr.Type; Operator=expr.Operator; Head=None; Tail=None; Unary=(Some unary); Width= unary.Width}// what is the width?
-        | "negation" ->
-            let unary = getMinWidthsUnary (Option.get expr.Unary)
-            {Type=expr.Type; Operator=expr.Operator; Head=None; Tail=None; Unary=(Some unary); Width= unary.Width} // what is the width?
-        | "conditional_cond" -> // context determined
-            let cond = getMinWidthsExpr (Option.get expr.Head)
-            let res = getMinWidthsExpr (Option.get expr.Tail) 
-            {Type=expr.Type; Operator=expr.Operator; Head=Some cond; Tail=Some res; Unary=None; Width= res.Width}
-        | "conditional_result" -> // context determined
-            let lhs = getMinWidthsExpr (Option.get expr.Head)
-            let rhs = getMinWidthsExpr (Option.get expr.Tail)
-            {Type=expr.Type; Operator=expr.Operator; Head=Some lhs; Tail=Some rhs; Unary=None; Width= (max lhs.Width rhs.Width)}
-        | "SHIFT" ->
-            let lhs = getMinWidthsExpr (Option.get expr.Head)
-            let rhs = getMinWidthsExpr (Option.get expr.Tail)
-            {Type=expr.Type; Operator=expr.Operator; Head=Some lhs; Tail=Some rhs; Unary=None; Width=lhs.Width}
-        | "reduction" ->
-            let unary = getMinWidthsUnary (Option.get expr.Unary)
-            {Type=expr.Type; Operator=expr.Operator; Head=None; Tail=None; Unary=Some unary; Width=1}
-        | "logical_AND" | "logical_OR" | "comparison" | "equality" ->
-            let lhs = getMinWidthsExpr (Option.get expr.Head)
-            let rhs = getMinWidthsExpr (Option.get expr.Tail)
-            {Type=expr.Type; Operator=expr.Operator; Head=Some lhs; Tail=Some rhs; Unary=None; Width=1}
-        | "unary_unsigned" ->
-            let unary = getMinWidthsUnary (Option.get expr.Unary)
-            {Type=expr.Type; Operator=expr.Operator; Head=None; Tail=None; Unary=Some unary; Width=unary.Width}
+        match expr with
+        | ExpressionDU.Unary u ->    
+            let unary = getMinWidthsUnary u
+            {Type=EUnary; Operator=None; Head=None; Tail=None; Unary=(Some unary); Width= unary.Width}// what is the width?
+        | Negation u ->
+            let unary = getMinWidthsUnary u
+            {Type=ENegation; Operator=None; Head=None; Tail=None; Unary=(Some unary); Width= unary.Width} // what is the width?
+        | ConditionalOp (condExpr, ifTrue, ifFalse) -> // context determined
+            let cond = getMinWidthsExpr condExpr
+            let lhs = getMinWidthsExpr ifTrue
+            let rhs = getMinWidthsExpr ifFalse
+            let res = {Type=EConditionalResult; Operator=None; Head=Some lhs; Tail=Some rhs; Unary=None; Width= (max lhs.Width rhs.Width)}
+            {Type=EConditionalCond; Operator=None; Head=Some cond; Tail=Some res; Unary=None; Width= res.Width}
+        | ShiftExpr (op, lhsExpr, rhsExpr) ->
+            let lhs = getMinWidthsExpr lhsExpr
+            let rhs = getMinWidthsExpr rhsExpr
+            {Type=EShift; Operator=Some op; Head=Some lhs; Tail=Some rhs; Unary=None; Width=lhs.Width}
+        | Reduction (op, e) ->
+            let elem = getMinWidthsExpr e
+            let unary = {Type=UParenthesis; Primary=None; Number=None; Expression=Some elem; Width=elem.Width}
+            {Type=EReduction; Operator=Some op; Head=None; Tail=None; Unary=Some unary; Width=1}
+        | LogicalAnd (a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=ELogicalAnd; Operator=None; Head=Some lhs; Tail=Some rhs; Unary=None; Width=1}
+        | LogicalOr (a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=ELogicalOr; Operator=None; Head=Some lhs; Tail=Some rhs; Unary=None; Width=1}
+        | Equality (op, a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=EEquality; Operator=Some op; Head=Some lhs; Tail=Some rhs; Unary=None; Width=1}
+        | Comparison (op, a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=EComparison; Operator=Some op; Head=Some lhs; Tail=Some rhs; Unary=None; Width=1}
+        | UnaryUnsigned n ->
+            let unary = {Type=UNumber; Primary=None; Number=Some n; Expression=None; Width=numberWidth n}
+            {Type=EUnaryUnsigned; Operator=None; Head=None; Tail=None; Unary=Some unary; Width=unary.Width}
+        | BitwiseAnd (a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=EBitwiseAnd; Operator=None; Head=Some lhs; Tail=Some rhs; Unary=None; Width=max lhs.Width rhs.Width}
+        | BitwiseOr (a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=EBitwiseOr; Operator=None; Head=Some lhs; Tail=Some rhs; Unary=None; Width=max lhs.Width rhs.Width}
+        | BitwiseXor (a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=EBitwiseXor; Operator=None; Head=Some lhs; Tail=Some rhs; Unary=None; Width=max lhs.Width rhs.Width}
+        | BitwiseXnor (a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=EBitwiseXnor; Operator=None; Head=Some lhs; Tail=Some rhs; Unary=None; Width=max lhs.Width rhs.Width}
+        | Additive (op, a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=EAdditive; Operator=Some op; Head=Some lhs; Tail=Some rhs; Unary=None; Width=max lhs.Width rhs.Width}
+        | Multiplicative (op, a, b) ->
+            let lhs = getMinWidthsExpr a
+            let rhs = getMinWidthsExpr b
+            {Type=EMultiplicative; Operator=Some op; Head=Some lhs; Tail=Some rhs; Unary=None; Width=max lhs.Width rhs.Width}
 
-        | _ ->
-            let lhs = getMinWidthsExpr (Option.get expr.Head)
-            let rhs = getMinWidthsExpr (Option.get expr.Tail)
-            {Type=expr.Type; Operator=expr.Operator; Head=Some lhs; Tail=Some rhs; Unary=None; Width=max lhs.Width rhs.Width}
-
-    and getMinWidthsUnary (unary: UnaryT): (UnaryCompilable) =
-        match unary.Type with
-            |"primary" ->
-                let primary = Option.get unary.Primary
+    and getMinWidthsUnary (unary: UnaryDU): (UnaryCompilable) =
+        match unary with
+            | UnaryDU.Primary primary ->
                 let width, expr = 
-                    match primary.BitsStart, primary.BitsEnd, unary.Expression, primary.Width with
-                    | None, None, None, _ -> Map.find (Option.get unary.Primary).Primary.Name varSizeMap, None
-                    | Some s, Some e, _, _ -> (int s)-(int e)+1, None //if they are not constants, return 1
-                    | None, None, Some expr, Some w -> w, Some (getMinWidthsExpr expr)
-                    | _ -> failwithf "Not possible: primary bitsstart and bitsend are wrong!"
-                {Type=unary.Type; Primary= unary.Primary; Number=None; Expression=expr; Width=width}
-            |"number" ->
-                let number = Option.get unary.Number
-                let width = (Option.defaultValue "32" number.Bits) |> int
-                {Type=unary.Type; Primary=unary.Primary; Number=unary.Number; Expression=None; Width=width}
-            |"parenthesis" ->
-                let expr = getMinWidthsExpr (Option.get unary.Expression)
-                {Type=unary.Type; Primary=unary.Primary; Number=unary.Number; Expression=Some expr; Width=expr.Width}
-            | "concat" ->
-                let lst = getWidthsUnaryList (Option.get unary.Expression)
-                {Type=unary.Type; Primary=unary.Primary; Number=unary.Number; Expression=Some lst; Width=lst.Width}
+                    match primary with
+                    | Identifier id
+                    | IdentifierArray (id, _) ->
+                        Map.find id.Name varSizeMap, None
+                    | IdentifierBit _ ->
+                        1, None
+                    | IdentifierBits (_, start, endOpt) ->
+                        let bStart = evalIntExpression start
+                        let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
+                        (bStart - bEnd + 1), None // Assumption: bit-select range is constant here.
+                    | IdentifierBitsSelect (_, start, width, _) ->
+                        width, Some (getMinWidthsExpr start)
+                {Type=UPrimary; Primary= Some primary; Number=None; Expression=expr; Width=width}
+            | UnaryDU.Number number ->
+                let width = numberWidth number
+                {Type=UNumber; Primary=None; Number=Some number; Expression=None; Width=width}
+            | UnaryDU.Parenthesis expr ->
+                let expr = getMinWidthsExpr expr
+                {Type=UParenthesis; Primary=None; Number=None; Expression=Some expr; Width=expr.Width}
+            | UnaryDU.Concat elems ->
+                let lst = getWidthsUnaryList elems
+                {Type=UConcat; Primary=None; Number=None; Expression=Some lst; Width=lst.Width}
             |_ -> failwithf "Can't happen"
-    and getWidthsUnaryList (lst: ExpressionT) : (ExpressionCompilable) =
-        let headExpr = getMinWidthsExpr (Option.get lst.Head)
-        match lst.Tail with
-            | Some tail -> 
-                let tail'= getWidthsUnaryList tail
-                {Type=lst.Type; Operator=lst.Operator; Head=Some headExpr; Tail=Some tail'; Unary=None; Width=headExpr.Width+tail'.Width}  
+    and getWidthsUnaryList (lst: ExpressionDU array) : (ExpressionCompilable) =
+        match lst with
+        | [||] ->
+            {Type=EUnary; Operator=None; Head=None; Tail=None; Unary=None; Width=0}
+        | _ ->
+            let headExpr = getMinWidthsExpr lst[0]
+            match lst |> Array.tryItem 1 with
+            | Some _ -> 
+                let tail'= getWidthsUnaryList (lst |> Array.tail)
+                {Type=EUnary; Operator=None; Head=Some headExpr; Tail=Some tail'; Unary=None; Width=headExpr.Width+tail'.Width}  
             | None ->
-                {Type=lst.Type; Operator=lst.Operator; Head=Some headExpr; Tail=None; Unary=None; Width=headExpr.Width}  
+                {Type=EUnary; Operator=None; Head=Some headExpr; Tail=None; Unary=None; Width=headExpr.Width}  
 
     getMinWidthsExpr expr'
 
@@ -537,20 +605,20 @@ let sliceCircuit (circuit:Circuit) width lsb =
 /// Contains 6 recursive functions which eventually build the whole RHS expression
 /// The starting point is the buildExpressionCircuit rec function
 /// target is 0 if there is no lhs
-let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMap target=
+let mainExpressionCircuitBuilder (expr:ExpressionDU) ioAndWireToCompMap varSizeMap target=
     
     /// builds the appropriate circuit of an expression based on expr.Type
     let rec buildExpressionCircuit (expr:ExpressionCompilable) (targetWidth: int)= 
         match expr.Type with
-        | "unary" -> 
+        | EUnary -> 
             buildUnaryCircuit (Option.get expr.Unary) targetWidth
             |> extendCircuit targetWidth
-        | "negation" ->
+        | ENegation ->
             let (c1:Circuit) = buildUnaryCircuit (Option.get expr.Unary) targetWidth |> extendCircuit targetWidth
             let topComp = buildExpressionComponent expr c1.OutWidth
             let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
             joinCircuits [c1] [topComp.InputPorts[0]] topCircuit
-        | "conditional_cond" -> 
+        | EConditionalCond -> 
             let (c3:Circuit) = buildExpressionCircuit (Option.get expr.Head)  (Option.get expr.Head).Width
             // c1 is the (case=TRUE) circuit which goes to 1 of MUX, c2 goes to 0
             //that's why they are given in reverse order in the joinCircuits function 
@@ -558,36 +626,36 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
             let topComp = buildExpressionComponent expr c1.OutWidth
             let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
             joinCircuits [c2;c1;c3] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
-        | "SHIFT" when (Option.get expr.Tail).Type = "unary_unsigned" ->
+        | EShift when (Option.get expr.Tail).Type = EUnaryUnsigned ->
             buildShiftCircuit expr targetWidth
-        | "SHIFT" ->
+        | EShift ->
             buildVariableShiftCircuit expr targetWidth
-        | "reduction" ->
+        | EReduction ->
             buildReductionAndLogicalCircuit expr "reduction" targetWidth
-        | "logical_AND" | "logical_OR" ->
+        | ELogicalAnd | ELogicalOr ->
             let (c1:Circuit) = buildReductionAndLogicalCircuit (Option.get expr.Head) "logical" (max (Option.get expr.Head).Width (Option.get expr.Tail).Width) //max
             let (c2:Circuit) = buildReductionAndLogicalCircuit (Option.get expr.Tail) "logical" (max (Option.get expr.Head).Width (Option.get expr.Tail).Width) //max 
             let topComp = buildExpressionComponent expr c1.OutWidth // this should always be 1
             let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
             joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
-        | "equality" ->
+        | EEquality ->
             buildEqualityCircuit expr
-        | "comparison" -> 
+        | EComparison -> 
             buildComparisonCircuit expr
         | _ ->  //everything else: bitwise gates and additive     
             let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) targetWidth |> extendCircuit targetWidth
             let (c2:Circuit) = buildExpressionCircuit (Option.get expr.Tail) targetWidth |> extendCircuit targetWidth
             let topComp = buildExpressionComponent expr c1.OutWidth
             match expr.Type with
-            |"additive" ->
+            | EAdditive ->
                 let inputB,cin =
                     match expr.Operator with
-                    |Some "+" ->
-                        let (tempNumber:NumberT) = {Type="";NumberType="";Bits=(Some "1");Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+                    |Some Plus ->
+                        let tempNumber = All (1, Binary, 0, 100) //location is Don't Care
                         c2,(createNumberCircuit tempNumber)
 
-                    |Some "-" ->
-                        let (tempNumber:NumberT) = {Type="";NumberType="";Bits=(Some "1");Base=(Some "'b");AllNumber=(Some "1");UnsignedNumber=None;Location=100} //location is Don't Care
+                    |Some Minus ->
+                        let tempNumber = All (1, Binary, 1, 100) //location is Don't Care
                         let cinCircuit = createNumberCircuit tempNumber
 
                         let nBitsNotComp = createComponent (NbitsNot c2.OutWidth) "NOT"
@@ -601,24 +669,24 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
                 let topCircuit = {Comps=[topComp;ioLabelComp];Conns=[conn];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
                 joinCircuits [cin;c1;inputB] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
 
-            |_-> //bitwise gates and multiplication      
+            |_ -> //bitwise gates and multiplication      
                 let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
                 joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
 
 
     and buildUnaryCircuit (unary:UnaryCompilable) (targetWidth:int)=
         match unary.Type with
-        |"primary" ->
+        | UPrimary ->
             //handle variable bitselect:
-            match unary.Expression, (Option.get unary.Primary).Width with
-            | Some expr, Some w -> 
+            match unary.Primary, unary.Expression with
+            | Some (IdentifierBitsSelect (id, _, width, _)), Some expr -> 
                 let index = buildExpressionCircuit expr expr.Width
-                let (primaryComp: Component) = Map.find (Option.get unary.Primary).Primary.Name ioAndWireToCompMap
+                let (primaryComp: Component) = Map.find id.Name ioAndWireToCompMap
                 //let primaryWidth = extractWidth primaryComp.Type
-                let primaryWidth = Map.find (Option.get unary.Primary).Primary.Name varSizeMap
+                let primaryWidth = Map.find id.Name varSizeMap
                 let shiftLeft = createComponent (Shift (primaryWidth, expr.Width, LSL)) "sll" 
                 let topCircuit = {Comps=[shiftLeft]; Conns=[]; Out=shiftLeft.OutputPorts[0]; OutWidth=primaryWidth}
-                let const1 = createComponent (Constant1 (primaryWidth, (1I <<< w) - 1I, "")) "const1"
+                let const1 = createComponent (Constant1 (primaryWidth, (1I <<< width) - 1I, "")) "const1"
                 let const1Circuit = {Comps=[const1]; Conns=[]; Out=const1.OutputPorts[0]; OutWidth=primaryWidth}  
                 let shiftLeftIthCircuit = joinCircuits [const1Circuit; index] [shiftLeft.InputPorts[0]; shiftLeft.InputPorts[1]] topCircuit
                 let primaryCircuit = {Comps=[];Conns=[];Out=primaryComp.OutputPorts[0];OutWidth=primaryWidth}
@@ -628,14 +696,14 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
                 let shiftRight = createComponent (Shift (primaryWidth, expr.Width, LSR)) "srl"
                 let sllCircuit = {Comps=[shiftRight]; Conns=[]; Out=shiftRight.OutputPorts[0]; OutWidth=primaryWidth}
                 let sllCircuit' = joinCircuits [andCircuit; index] [shiftRight.InputPorts[0]; shiftRight.InputPorts[1]] sllCircuit
-                sliceCircuit sllCircuit' w 0
+                sliceCircuit sllCircuit' width 0
                 // get primary component
             | _ -> createPrimaryCircuit (Option.get unary.Primary) ioAndWireToCompMap varSizeMap
-        |"number" ->
+        | UNumber ->
             createNumberCircuit (Option.get unary.Number)
-        |"parenthesis" ->
+        | UParenthesis ->
             buildExpressionCircuit (Option.get unary.Expression) targetWidth |> extendCircuit targetWidth
-        |"concat" ->
+        | UConcat ->
             buildUnaryListCircuit (Option.get unary.Expression)
         |_ -> failwithf "Can't happen"
 
@@ -666,8 +734,8 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         
         let shiftType = 
             match (Option.get expr.Operator) with
-            | "<<" -> LSL
-            | ">>>" -> ASR
+            | Sll -> LSL
+            | Sra -> ASR
             | _ -> LSR
 
         let topComp = createComponent (Shift (c1.OutWidth,c2.OutWidth,shiftType)) "SHIFT"
@@ -679,8 +747,10 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         let tail = Option.get expr.Tail
         let unary = Option.get tail.Unary
         let number = Option.get unary.Number
-        let shift = number.UnsignedNumber
-        let shiftNo = int <| Option.get (shift)
+        let shiftNo =
+            match number with
+            | Unsigned (n, _) -> n
+            | All (_, _, n, _) -> n
         let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) targetWidth |> extendCircuit targetWidth
     
         // check that shiftNo is smaller than the width of the unary being shifted
@@ -688,7 +758,7 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         if shiftNo < c1.OutWidth then  
             let busSelComp = //keep the bits which will remain in the circuit after the shift
                 match operator with
-                |"<<" -> createComponent (BusSelection ((c1.OutWidth-shiftNo), 0)) ""
+                | Sll -> createComponent (BusSelection ((c1.OutWidth-shiftNo), 0)) ""
                 |_ -> createComponent (BusSelection ((c1.OutWidth-shiftNo), shiftNo)) ""
     
             let busSelCircuit = {Comps=[busSelComp];Conns=[];Out=busSelComp.OutputPorts[0];OutWidth=(c1.OutWidth-shiftNo)}
@@ -696,8 +766,8 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
 
             let constantCircuit =
                 match operator with
-                |">>" | "<<" -> //if logical shift, connect a constant of width=shift to the other side of MergeWires
-                    let (tempNumber:NumberT) = {Type="";NumberType="";Bits=shift;Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+                | Srl | Sll -> //if logical shift, connect a constant of width=shift to the other side of MergeWires
+                    let tempNumber = All (shiftNo, Binary, 0, 100) //location is Don't Care
                     createNumberCircuit tempNumber
                 |_ -> //CASE: ">>>" if arithmetic shift, use a bit-spreader with input the MSB and output width = shiftNo and connect that to MergeWires
                     let msbSelComp = createComponent (BusSelection (1,(c1.OutWidth-1))) "" 
@@ -711,7 +781,7 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
 
             let inOrder =
                 match operator with
-                |"<<" -> [constantCircuit;selectedCircuit]
+                | Sll -> [constantCircuit;selectedCircuit]
                 |_ -> [selectedCircuit;constantCircuit]
 
             inOrder
@@ -719,7 +789,7 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
             //|> extractCircuit
         
         else // if shiftNo >= c1.OutWidth return a c1.OutWidth-width constant with value 0
-            let (tempNumber:NumberT) = {Type="";NumberType="";Bits=(Some (string c1.OutWidth));Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+            let tempNumber = All (c1.OutWidth, Binary, 0, 100) //location is Don't Care
             createNumberCircuit tempNumber
 
 
@@ -736,8 +806,8 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         // Same with a not gate at the end for (~&,~|)
         let busCompareComp = 
             match circType,expr.Operator with
-                |"reduction",Some "&" 
-                |"reduction",Some "~&" 
+                |"reduction",Some AndOp 
+                |"reduction",Some Nand 
                     -> createComponent (BusCompare (c1.OutWidth, (((1I <<< c1.OutWidth) - 1I)))) "COMP"      
                 |_,_ -> //Some "|" or Some "!" or Some "~|"
                     createComponent (BusCompare (c1.OutWidth,0I)) "COMP"
@@ -745,9 +815,8 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         let busCompareCircuit = {Comps=[busCompareComp];Conns=[];Out=busCompareComp.OutputPorts[0];OutWidth=1}
 
         match circType,expr.Operator with
-        |"reduction",Some "&" 
-        |"reduction",Some "~|" 
-        |"reduction",Some "!" 
+        |"reduction",Some AndOp 
+        |"reduction",Some NotOp 
             -> joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
         |_,_ ->
             let comparedCircuit = joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
@@ -767,11 +836,11 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         let compCircuit = {Comps=[busCompare]; Conns=[]; Out=busCompare.OutputPorts[0]; OutWidth=1}
         let comparedCircuit = joinCircuits [xorCircuit'] [busCompare.InputPorts[0]] compCircuit
         match expr.Operator with
-        | Some "!=" ->
+        | Some Neq ->
             let notGateComp = createComponent Not "NOT"
             let notGateCircuit = {Comps=[notGateComp];Conns=[];Out=notGateComp.OutputPorts[0];OutWidth=1}
             joinCircuits [comparedCircuit] [notGateComp.InputPorts[0]] notGateCircuit
-        | Some "==" -> comparedCircuit
+        | Some Eq -> comparedCircuit
         | _ -> failwithf "Invalid operator in equality expression"
 
     and buildComparisonCircuit (expr: ExpressionCompilable) =
@@ -781,7 +850,7 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         let addComp = createComponent (NbitsAdder (targetWidth+1)) "Add"
         let subCircuit =
             let inputB,cin =
-                let (tempNumber:NumberT) = {Type="";NumberType="";Bits=(Some "1");Base=(Some "'b");AllNumber=(Some "1");UnsignedNumber=None;Location=100} //location is Don't Care
+                let tempNumber = All (1, Binary, 1, 100) //location is Don't Care
                 let cinCircuit = createNumberCircuit tempNumber
 
                 let nBitsNotComp = createComponent (NbitsNot c2.OutWidth) "NOT"
@@ -797,15 +866,15 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
         // need to check top bit to see which one is bigger
         let busCompare =
             match expr.Operator with 
-            | Some "<=" | Some ">" -> // compare msb to 1
+            | Some Lte | Some Gt -> // compare msb to 1
                 createComponent (BusCompare (1, 0I)) "COMP"
-            | Some ">=" | Some "<" -> // compare msb to 0
+            | Some Gte | Some Lt -> // compare msb to 0
                 createComponent (BusCompare (1, 1I)) "COMP"
             | _ -> failwithf "Invalid comparison operator!"
         let busCompareCircuit = {Comps=[busCompare]; Conns=[]; Out=busCompare.OutputPorts[0]; OutWidth=1}
         let compareCircuit = joinCircuits [MSB] [busCompare.InputPorts[0]] busCompareCircuit
         match expr.Operator with
-        | Some "<=" | Some ">=" ->
+        | Some Lte | Some Gte ->
             let notGateComp = createComponent Not "NOT"
             let notGateCircuit = {Comps=[notGateComp];Conns=[];Out=notGateComp.OutputPorts[0];OutWidth=1}
             joinCircuits [compareCircuit] [notGateComp.InputPorts[0]] notGateCircuit
@@ -820,21 +889,21 @@ let mainExpressionCircuitBuilder (expr:ExpressionT) ioAndWireToCompMap varSizeMa
 let getCombinationalVars (ast:VerilogInput) (project: Project) =
     let contAssignVars = 
         ([], VerilogInput ast) ||> foldAST getContAssignments
-        |> List.map (fun assign -> assign.LHS.Primary.Name)
+        |> List.map (fun assign -> getPrimaryName assign.LHS.PrimaryType)
     let alwaysCombVars = 
         ([], VerilogInput ast) ||> foldAST getBlockingAssignments
-        |> List.map (fun assign -> assign.Assignment.LHS.Primary.Name)
+        |> List.map (fun assign -> getPrimaryName assign.LHS.PrimaryType)
     let modInst = 
         foldAST getModuleInstantiationStatements [] (VerilogInput ast)
         |> List.collect (fun modInst -> getModuleInstantiationOutputPrimaries modInst project)
-        |> List.map (fun primary -> primary.Primary.Name)
+        |> List.map getPrimaryName
     contAssignVars @ alwaysCombVars @ modInst
     |> List.distinct
 
 let getClockedVars (ast:VerilogInput) =
     let alwaysCombVars = 
         ([], VerilogInput ast) ||> foldAST getNonBlockingAssignmentsWithLocation
-        |> List.map (fun (assign, _) -> assign.Assignment.LHS.Primary.Name)
+        |> List.map (fun (assign, _) -> getPrimaryName assign.LHS.PrimaryType)
         |> List.distinct
     alwaysCombVars
 
@@ -985,7 +1054,7 @@ let compileModule' node varToCompMap ioToCompMap varSizeMap=
     let rec compileModule (node: ASTNode) varToCompMap (currCircuits: Map<string, List<BitMapping>>) =
         match node with
         | VerilogInput input ->
-            compileModule (Module input.Module) varToCompMap currCircuits
+            compileModule (Module (convertModule input.Module)) varToCompMap currCircuits
         | Module m ->
             compileModule (ModuleItems m.ModuleItems) varToCompMap currCircuits
         | ModuleItems items ->
@@ -996,7 +1065,7 @@ let compileModule' node varToCompMap ioToCompMap varSizeMap=
         | ContinuousAssign contAssign ->
             compileModule (Assignment contAssign.Assignment) varToCompMap currCircuits
         | Assignment assign -> 
-            let outPort = assign.LHS.Primary.Name
+            let outPort = getPrimaryName assign.LHS.PrimaryType
             let bits = sliceFromBits assign.LHS varToCompMap varSizeMap
             let circuit = mainExpressionCircuitBuilder assign.RHS varToCompMap varSizeMap (bits.MSB-bits.LSB+1)
             let lhstype = 
@@ -1015,82 +1084,84 @@ let compileModule' node varToCompMap ioToCompMap varSizeMap=
         | AlwaysConstruct always ->
             compileModule (Statement always.Statement) varToCompMap currCircuits
         | Statement statement ->
-            compileModule (getAlwaysStatement statement |> statementToNode) varToCompMap currCircuits
-        | NonBlockingAssign assign ->
-            compileModule (Assignment assign.Assignment) varToCompMap currCircuits
-        | BlockingAssign assign ->
-            compileModule (Assignment assign.Assignment) varToCompMap currCircuits // TO DO: get += etc. operators working too! currently this is just =
-        | SeqBlock seq ->
-            (currCircuits, seq.Statements)
-            ||> Array.fold (fun circuits stmt ->
-                compileModule (Statement stmt) varToCompMap circuits) 
-        | Conditional cond ->
-            let ifCircuits = compileModule (Statement cond.IfStatement.Statement) varToCompMap Map.empty
+            match statement with
+            | StatementDU.NonBlockingAssign assign ->
+                compileModule (Assignment assign) varToCompMap currCircuits
+            | StatementDU.BlockingAssign assign ->
+                compileModule (Assignment assign) varToCompMap currCircuits // TO DO: get += etc. operators working too! currently this is just =
+            | StatementDU.SeqBlock (seq, _) ->
+                (currCircuits, seq)
+                ||> Array.fold (fun circuits stmt ->
+                    compileModule (Statement stmt) varToCompMap circuits) 
+            | StatementDU.Conditional (ifStmt, elseStmt) ->
+                let ifCircuits = compileModule (Statement ifStmt.Statement) varToCompMap Map.empty
 
-            let elseCircuits =
-                match cond.ElseStatement with
-                | Some stmt -> compileModule (Statement stmt) varToCompMap Map.empty
-                | _ -> Map.empty
-            let condCircuit = mainExpressionCircuitBuilder cond.IfStatement.Condition varToCompMap varSizeMap 0
-            let res =
-                (currCircuits, Set.union (ifCircuits.Keys |> Set.ofSeq) (elseCircuits.Keys |> Set.ofSeq))
-                ||> Set.fold (fun circuits var ->
-                    let c1,c2 = Option.defaultValue [] (Map.tryFind var ifCircuits), Option.defaultValue [] (Map.tryFind var elseCircuits)
-                    let merged = mergeIfElse c1 c2 varToCompMap
-                    (circuits, merged)
-                    ||> List.fold (fun c intervals ->
-                        match intervals with
-                        | Some ifMapping, Some elseMapping -> 
-                            // make mux connect to stuff add to map 
-                            let mux = createComponent Mux2 var
-                            let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifMapping.Circuit.OutWidth}
-                            let newCircuit = joinCircuits [elseMapping.Circuit;ifMapping.Circuit;condCircuit] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
-                            let newMapping = {Slice=ifMapping.Slice; Circuit=newCircuit; LHSType=ifMapping.LHSType}
-                            let currSlices = Option.defaultValue [] (Map.tryFind var c)
-                            Map.add var (addAssignment newMapping currSlices varToCompMap) c
-                        | Some ifMapping, None ->
-                            // find overlapping slices
-                            let currSlices = Option.defaultValue [] (Map.tryFind var c)
-                            let overlappingSlices =
-                                mergeIfElse [ifMapping] currSlices varToCompMap
-                                |> List.filter (fun pair -> Option.isSome (snd pair) && Option.isSome (fst pair))
-                            (c, overlappingSlices)
-                            ||> List.fold (fun c' ifElse->
-                                let ifM, elseM = Option.get (fst ifElse), Option.get (snd ifElse)
+                let elseCircuits =
+                    match elseStmt with
+                    | Some stmt -> compileModule (Statement stmt) varToCompMap Map.empty
+                    | _ -> Map.empty
+                let condCircuit = mainExpressionCircuitBuilder ifStmt.Condition varToCompMap varSizeMap 0
+                let res =
+                    (currCircuits, Set.union (ifCircuits.Keys |> Set.ofSeq) (elseCircuits.Keys |> Set.ofSeq))
+                    ||> Set.fold (fun circuits var ->
+                        let c1,c2 = Option.defaultValue [] (Map.tryFind var ifCircuits), Option.defaultValue [] (Map.tryFind var elseCircuits)
+                        let merged = mergeIfElse c1 c2 varToCompMap
+                        (circuits, merged)
+                        ||> List.fold (fun c intervals ->
+                            match intervals with
+                            | Some ifMapping, Some elseMapping -> 
+                                // make mux connect to stuff add to map 
                                 let mux = createComponent Mux2 var
-                                let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifM.Circuit.OutWidth}
-                                let newCircuit = joinCircuits [elseM.Circuit;ifM.Circuit;condCircuit] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
-                                let newMapping = {Slice=ifM.Slice; Circuit=newCircuit; LHSType=ifM.LHSType}
-                                let currSlices = Option.defaultValue [] (Map.tryFind var c')
-                                Map.add var (addAssignment newMapping currSlices varToCompMap) c'
-                            )
-                        | None, Some elseMapping ->
-                            // find overlapping slices
-                            let currSlices = Option.defaultValue [] (Map.tryFind var c)
-                            let overlappingSlices =
-                                mergeIfElse currSlices [elseMapping] varToCompMap
-                                |> List.filter (fun pair -> Option.isSome (snd pair) && Option.isSome (fst pair))
-                            
-                            (c, overlappingSlices)
-                            ||> List.fold (fun c' ifElse->
-                                let ifM, elseM = Option.get (fst ifElse), Option.get (snd ifElse)
-                                let mux = createComponent Mux2 var
-                                let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifM.Circuit.OutWidth}
-                                let newCircuit = joinCircuits [elseM.Circuit;ifM.Circuit;condCircuit] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
-                                let newMapping = {Slice=ifM.Slice; Circuit=newCircuit; LHSType=ifM.LHSType}
-                                let currSlices = Option.defaultValue [] (Map.tryFind var c')
-                                Map.add var (addAssignment newMapping currSlices varToCompMap) c'
-                            )
+                                let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifMapping.Circuit.OutWidth}
+                                let newCircuit = joinCircuits [elseMapping.Circuit;ifMapping.Circuit;condCircuit] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
+                                let newMapping = {Slice=ifMapping.Slice; Circuit=newCircuit; LHSType=ifMapping.LHSType}
+                                let currSlices = Option.defaultValue [] (Map.tryFind var c)
+                                Map.add var (addAssignment newMapping currSlices varToCompMap) c
+                            | Some ifMapping, None ->
+                                // find overlapping slices
+                                let currSlices = Option.defaultValue [] (Map.tryFind var c)
+                                let overlappingSlices =
+                                    mergeIfElse [ifMapping] currSlices varToCompMap
+                                    |> List.filter (fun pair -> Option.isSome (snd pair) && Option.isSome (fst pair))
+                                (c, overlappingSlices)
+                                ||> List.fold (fun c' ifElse->
+                                    let ifM, elseM = Option.get (fst ifElse), Option.get (snd ifElse)
+                                    let mux = createComponent Mux2 var
+                                    let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifM.Circuit.OutWidth}
+                                    let newCircuit = joinCircuits [elseM.Circuit;ifM.Circuit;condCircuit] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
+                                    let newMapping = {Slice=ifM.Slice; Circuit=newCircuit; LHSType=ifM.LHSType}
+                                    let currSlices = Option.defaultValue [] (Map.tryFind var c')
+                                    Map.add var (addAssignment newMapping currSlices varToCompMap) c'
+                                )
+                            | None, Some elseMapping ->
+                                // find overlapping slices
+                                let currSlices = Option.defaultValue [] (Map.tryFind var c)
+                                let overlappingSlices =
+                                    mergeIfElse currSlices [elseMapping] varToCompMap
+                                    |> List.filter (fun pair -> Option.isSome (snd pair) && Option.isSome (fst pair))
+                                
+                                (c, overlappingSlices)
+                                ||> List.fold (fun c' ifElse->
+                                    let ifM, elseM = Option.get (fst ifElse), Option.get (snd ifElse)
+                                    let mux = createComponent Mux2 var
+                                    let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifM.Circuit.OutWidth}
+                                    let newCircuit = joinCircuits [elseM.Circuit;ifM.Circuit;condCircuit] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
+                                    let newMapping = {Slice=ifM.Slice; Circuit=newCircuit; LHSType=ifM.LHSType}
+                                    let currSlices = Option.defaultValue [] (Map.tryFind var c')
+                                    Map.add var (addAssignment newMapping currSlices varToCompMap) c'
+                                )
 
-                        | _ -> c
-                    )    
-                )
-            res
-            // if the if and else circuits were stored in a sorted array based on starting index, i can go through them in parallel
-        | ForStatement forStmt ->
-            let forStmts = unrollForLoops forStmt
-            compileModule (SeqBlock forStmts) varToCompMap currCircuits
-            // failwithf "Reaching compile module, Forstatements: %A" forStmts
+                            | _ -> c
+                        )    
+                    )
+                res
+                // if the if and else circuits were stored in a sorted array based on starting index, i can go through them in parallel
+            | StatementDU.ForStatement forStmt ->
+                let forStmts = unrollForLoops forStmt
+                compileModule (Statement forStmts) varToCompMap currCircuits
+                // failwithf "Reaching compile module, Forstatements: %A" forStmts
+            | StatementDU.Case case ->
+                compileModule (Case case) varToCompMap currCircuits
         | _ -> currCircuits
     let res = compileModule node varToCompMap Map.empty
     res
@@ -1157,7 +1228,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
     let rec compileModule (node: ASTNode) varToCompMap (currCircuits: Map<string, Circuit>) =
         match node with
         | VerilogInput input ->
-            compileModule (Module input.Module) varToCompMap currCircuits
+            compileModule (Module (convertModule input.Module)) varToCompMap currCircuits
         | Module m ->
             compileModule (ModuleItems m.ModuleItems) varToCompMap currCircuits
         | ModuleItems items ->
@@ -1168,9 +1239,9 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
         | ContinuousAssign contAssign ->
             compileModule (Assignment contAssign.Assignment) varToCompMap currCircuits
         | Assignment assign -> 
-            match assign.LHS.VariableBitSelect, assign.LHS.Width with
-            | None, _ ->
-                let outPort = assign.LHS.Primary.Name
+            match assign.LHS.VariableBitSelect with
+            | None -> 
+                let outPort = assign.LHS.PrimaryType |> getPrimaryName
                 let bits = sliceFromBits assign.LHS varToCompMap varSizeMap // need different logic for variable indexed bit select
                 let circuit = mainExpressionCircuitBuilder assign.RHS varToCompMap varSizeMap (bits.MSB-bits.LSB+1)
                 let currCircuit = 
@@ -1187,8 +1258,9 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                     else [] // add logic to make sure this is not splitting off width 0!
                 let newCircuit = joinWithMerge' (LSBs @ [circuit] @ MSBs)
                 Map.add outPort newCircuit currCircuits
-            | Some expr, Some w ->
-                let outPort = assign.LHS.Primary.Name
+            | Some expr -> // need to build a circuit for the variable indexed bit select, then do the shifting and masking to get the right bit, then combine with the original circuit using muxes
+                let w = 1
+                let outPort = assign.LHS.PrimaryType |> getPrimaryName
                 let outWidth = Map.find outPort varSizeMap
                 let rhsCircuit = mainExpressionCircuitBuilder assign.RHS varToCompMap varSizeMap outWidth
                 let currCircuit = 
@@ -1214,56 +1286,63 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                 let orCircuit = {Comps=[orComp]; Conns=[]; Out=orComp.OutputPorts[0]; OutWidth=outWidth}
                 let orCircuit'= joinCircuits [andCircuit'; shiftLeftCircuit2'] [orComp.InputPorts[0]; orComp.InputPorts[1]] orCircuit
                 Map.add outPort orCircuit' currCircuits
-            | _ -> failwithf "No width given in variable bit select"
         | AlwaysConstruct always ->
             compileModule (Statement always.Statement) varToCompMap currCircuits
         | Statement statement ->
-            compileModule (getAlwaysStatement statement |> statementToNode) varToCompMap currCircuits
-        | NonBlockingAssign assign ->
-            compileModule (Assignment assign.Assignment) varToCompMap currCircuits
-        | BlockingAssign assign ->
-            compileModule (Assignment assign.Assignment) varToCompMap currCircuits // TO DO: get += etc. operators working too! currently this is just =
-        | SeqBlock seq ->
-            (currCircuits, seq.Statements)
-            ||> Array.fold (fun circuits stmt ->
-                compileModule (Statement stmt) varToCompMap circuits) 
-        | Conditional cond ->
-            let ifCircuits = compileModule (Statement cond.IfStatement.Statement) varToCompMap currCircuits
-            let elseCircuits =
-                match cond.ElseStatement with
-                | Some stmt -> compileModule (Statement stmt) varToCompMap currCircuits
-                | _ -> currCircuits
-            let condCircuit = mainExpressionCircuitBuilder cond.IfStatement.Condition varToCompMap varSizeMap 0// need to reduce it to 1 bit
-            let comp = createComponent (BusCompare (condCircuit.OutWidth, 0I)) "CMP"
-            let topCircuit = {Comps=[comp];Conns=[];Out=comp.OutputPorts[0];OutWidth=1}
-            let condCircuitN = joinCircuits [condCircuit] [comp.InputPorts[0]] topCircuit
-            (currCircuits, ifCircuits)
-            ||> Map.fold (fun circuits var ifCircuit ->
-                let elseCircuit = 
-                    match Map.tryFind var elseCircuits with
-                    | Some c -> c
-                    | _ -> failwithf "This should not happen variable doesn't have a circuit in else branch!"
-                if ifCircuit = elseCircuit then circuits
-                else
-                    let mux = createComponent Mux2 "Mux2"
-                    let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifCircuit.OutWidth}
-                    let newCircuit = joinCircuits [ifCircuit;elseCircuit;condCircuitN] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
-                    Map.add var newCircuit circuits
-            )
-        | ForStatement forStmt ->
-            let forStmts = unrollForLoops forStmt
-            compileModule (SeqBlock forStmts) varToCompMap currCircuits
-            // failwithf "Reaching compile module, Forstatements seq block: %A, number of statements: %d" forStmts forStmts.Statements.Length
+            match statement with
+            | StatementDU.NonBlockingAssign assign ->
+                compileModule (Assignment assign) varToCompMap currCircuits
+            | StatementDU.BlockingAssign assign ->
+                compileModule (Assignment assign) varToCompMap currCircuits // TO DO: get += etc. operators working too! currently this is just =
+            | StatementDU.SeqBlock (seq, _) ->
+                (currCircuits, seq)
+                ||> Array.fold (fun circuits stmt ->
+                    compileModule (Statement stmt) varToCompMap circuits) 
+            | StatementDU.Conditional (ifStmt, elseStmt) ->
+                let ifCircuits = compileModule (Statement ifStmt.Statement) varToCompMap currCircuits
+                let elseCircuits =
+                    match elseStmt with
+                    | Some stmt -> compileModule (Statement stmt) varToCompMap currCircuits
+                    | _ -> currCircuits
+                let condCircuit = mainExpressionCircuitBuilder ifStmt.Condition varToCompMap varSizeMap 0// need to reduce it to 1 bit
+                let comp = createComponent (BusCompare (condCircuit.OutWidth, 0I)) "CMP"
+                let topCircuit = {Comps=[comp];Conns=[];Out=comp.OutputPorts[0];OutWidth=1}
+                let condCircuitN = joinCircuits [condCircuit] [comp.InputPorts[0]] topCircuit
+                (currCircuits, ifCircuits)
+                ||> Map.fold (fun circuits var ifCircuit ->
+                    let elseCircuit = 
+                        match Map.tryFind var elseCircuits with
+                        | Some c -> c
+                        | _ -> failwithf "This should not happen variable doesn't have a circuit in else branch!"
+                    if ifCircuit = elseCircuit then circuits
+                    else
+                        let mux = createComponent Mux2 "Mux2"
+                        let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifCircuit.OutWidth}
+                        let newCircuit = joinCircuits [ifCircuit;elseCircuit;condCircuitN] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
+                        Map.add var newCircuit circuits
+                )
+            | StatementDU.ForStatement forStmt ->
+                let forStmts = unrollForLoops forStmt
+                compileModule (Statement forStmts) varToCompMap currCircuits
+                // failwithf "Reaching compile module, Forstatements seq block: %A, number of statements: %d" forStmts forStmts.Statements.Length
+            | StatementDU.Case case ->
+                compileModule (Case case) varToCompMap currCircuits
         | Case case ->
-            let caseItemMap: Map<bigint, StatementT> =
+            let caseItemMap: Map<bigint, StatementDU> =
                 (Map.empty, case.CaseItems)
                 ||> Array.fold (fun map caseItem -> 
                     (map, caseItem.Expressions)
                     ||> Array.fold (fun m num -> 
-                        let allNum = Option.defaultValue "0" num.AllNumber
-                        let numBase = Option.defaultValue "d" num.Base
-                        let width = Option.defaultValue "32" num.Bits
-                        let dec = toDecimal allNum numBase width
+                        let dec =
+                            match num with
+                            | Unsigned (n, _) -> bigint n
+                            | All (bits, numBase, allNumber, _) ->
+                                let numBaseStr =
+                                    match numBase with
+                                    | Binary -> "'b"
+                                    | Hex -> "'h"
+                                    | Decimal -> "'d"
+                                toDecimal (string allNumber) numBaseStr (string bits)
                         Map.add dec caseItem.Statement m
                     ) 
                 )
@@ -1331,7 +1410,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
             let inputCircuit = joinCircuits inputCircuits comp.InputPorts topCircuit
             (currCircuits, List.zip outputPrimaries comp.OutputPorts) 
             ||> List.fold (fun circuits (primary, port) ->
-                let outPort = primary.Primary.Name
+                let outPort = getPrimaryName primary
                 let bits = sliceFromBitsPrimary primary varToCompMap varSizeMap// need different logic for variable indexed bit select
                 let circuit = {inputCircuit with Out=port; OutWidth=(bits.MSB-bits.LSB+1)}
                 let currCircuit = 
@@ -1357,7 +1436,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
     res
 /////////   MAIN FUNCTION   //////////
 
-let createSheet input (project:Project)= 
+let createSheet (input:VerilogInput) (project:Project)= 
     let items = input.Module.ModuleItems.ItemList |> Array.toList
     let ioDecls = items |> List.filter (fun item -> Option.isSome item.IODecl)
     let assignments = items |> List.filter (fun item -> Option.isSome item.Statement) 
@@ -1387,7 +1466,10 @@ let createSheet input (project:Project)=
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
                 if Option.isNone decl.Range then Map.add variable.Name 1 map'
-                else Map.add variable.Name ((Option.get(decl.Range).Start |> int)-(Option.get(decl.Range).End |> int)+1) map'
+                else
+                    let bStart = evalIntExpression (Option.get decl.Range).Start
+                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    Map.add variable.Name (bStart - bEnd + 1) map'
             )
             // add paramemter evaluation here?
         )
@@ -1418,7 +1500,7 @@ let createSheet input (project:Project)=
             match Set.contains var inputs, Set.contains  var clockedVarsSet with
             | true, _ -> map
             | false, false ->
-                let zero = {Type="";NumberType="";Bits=(Some (string width));Base=(Some "'b");AllNumber=(Some "0");UnsignedNumber=None;Location=100} //location is Don't Care
+                let zero = All (width, Binary, 0, 100) //location is Don't Care
                 Map.add var (createNumberCircuit zero) map
             | false,true -> 
                 let reg = 

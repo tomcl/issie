@@ -154,10 +154,10 @@ IO_ITEM
 
 
 INPUT_DECL -> input __ (%bit _ ) (RANGE _ {%(d) => {return d[0]}%}):? LIST_OF_VARIABLES  {%function(d) {
-    return {Type: "declaration", DeclarationType: "input", Range: d[3], Variables: d[4], Location: d[0].Location};} %}
+    return {Type: "declaration", DeclarationType: "input", DataType: d[2][0].type, Range: d[3], Variables: d[4], Location: d[0].Location};} %}
 
 OUTPUT_DECL -> output __ (%bit _ ) (RANGE _ {%(d) => {return d[0]}%}):? LIST_OF_VARIABLES {%function(d) {
-    return {Type: "declaration", DeclarationType: "output", Range: d[3], Variables: d[4], Location: d[0].Location};} %}
+    return {Type: "declaration", DeclarationType: "output", DataType: d[2][0].type, Range: d[3], Variables: d[4], Location: d[0].Location};} %}
 
 LIST_OF_VARIABLES
     -> NAME_OF_VARIABLE _ %comma _ LIST_OF_VARIABLES {%function(d) {return {Type: "variable_list", Head: d[0], Tail: d[4]};} %}
@@ -185,8 +185,8 @@ REG_DECLARATION
     -> DATATYPE __  (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ %semicolon {% (d,l,r) => {
         return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], Location: d[0].offset};} %}
     ## arrays must be declared one at a time
-    | DATATYPE __ (RANGE _ {%(d,l,r) => {return d[0]}%}):? IDENTIFIER _ (ARRAY_RANGE _ {%(d,l,r) => {return d[0]}%}):? _ %semicolon {% (d,l,r) => {
-        return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: [{Type: "variable", Name: d[3], Location: d[3].Location}], ArrayRanges: d[5], Location: d[0].offset};} %}
+    # | DATATYPE __ (RANGE _ {%(d,l,r) => {return d[0]}%}):? IDENTIFIER _ (ARRAY_RANGE _ {%(d,l,r) => {return d[0]}%}):? _ %semicolon {% (d,l,r) => {
+    #     return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: [{Type: "variable", Name: d[3], Location: d[3].Location}], ArrayRanges: d[5], Location: d[0].offset};} %}
 ######################################     BEHAVIORAL STATEMENTS    #############################################
 
 ### PROCEDURAL BLOCKS AND ASSIGNMENTS
@@ -395,11 +395,12 @@ L_VALUE
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
 
 VARIABLE_BITSELECT_L_VALUE
-    -> IDENTIFIER _ %lbracket EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: 1};} %}
-    | IDENTIFIER _ %lbracket EXPRESSION %colon EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
-    | IDENTIFIER _ %lbracket EXPRESSION _ %minus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "minus"};} %} 
-    | IDENTIFIER _ %lbracket EXPRESSION _ %plus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "plus"};} %}
-    | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[4], BitsEnd: d[4], Primary: d[0], Expression: d[4], ArraySelect: d[8]};} %}
+    -> IDENTIFIER _ %lbracket EXPRESSION %rbracket
+    {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bit2", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: 1};} %}
+    # | IDENTIFIER _ %lbracket EXPRESSION %colon EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
+    # | IDENTIFIER _ %lbracket EXPRESSION _ %minus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "minus"};} %} 
+    # | IDENTIFIER _ %lbracket EXPRESSION _ %plus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "plus"};} %}
+    # | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[4], BitsEnd: d[4], Primary: d[0], Expression: d[4], ArraySelect: d[8]};} %}
 
 EXPRESSION -> CONDITIONAL {% id %}
 

@@ -796,7 +796,10 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | 0u -> convertIntToFastData numberOfBits 0u
                 | 1u ->
                     match numberOfBits with
-                    | n when n <= 32 -> convertIntToFastData numberOfBits ((1u <<< numberOfBits) - 1u)
+                    | n when n <= 32 -> 
+                        convertIntToFastData 
+                            numberOfBits 
+                            (if numberOfBits <> 32 then ((1u <<< numberOfBits) - 1u) else UInt32.MaxValue)
                     | _ -> convertBigintToFastData numberOfBits ((1I <<< numberOfBits) - 1I)
                 | _ -> failwithf $"Can't happen"
 

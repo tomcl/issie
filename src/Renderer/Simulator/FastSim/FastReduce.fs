@@ -854,7 +854,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let res =
             match a with
             | 0u -> 0u
-            | 1u -> (1u <<< numberOfBits) - 1u
+            | 1u -> if numberOfBits <> 32 then (1u <<< numberOfBits) - 1u else UInt32.MaxValue
             | _ -> failwithf $"Can't happen"
 
         putUInt32 0 res

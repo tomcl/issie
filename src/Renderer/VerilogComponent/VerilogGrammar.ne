@@ -44,6 +44,7 @@ const lexer = moo.compile({
     lnot: '!',
     mult: '*',
     dot: '.',
+    hash: '#',
     binary: /\'b[0-1]+/,
     unsigned_number: /[0-9]+/,
     all_numeric: /\'h[0-9a-fA-F]+/,
@@ -83,7 +84,7 @@ PROGRAM -> MODULE {%function(d) {return {Type: "program", Module: d[0]};} %}
 # _ for optional whitespace, __ for obligatory whitespace
 MODULE 
     -> _ %module __ NAME_OF_MODULE _ %lparen _ LIST_OF_PORTS _ %rparen _ %semicolon _ MODULE_ITEMS %endmodule _ {%function(d) { return {Type: "module_old", ModuleName: d[3], PortList: d[7], ModuleItems: d[13], EndLocation: d[14].offset}; } %}
-    | _ %module __ NAME_OF_MODULE (_ %hash %lparen _ PARAMETER_PORT_LIST _ %rparen {%function(d){return d[4];}%}):? _ %lparen _ (IO_ITEMS _ {%function(d){return d[0];}%}):? %rparen _ %semicolon _ NON_PORT_MODULE_ITEMS %endmodule _ {%function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[4], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};} %}
+    | _ %module __ NAME_OF_MODULE _ (PARAMETER_PORT_LIST {%function(d){return d[0];}%}):? %lparen _ (IO_ITEMS _ {%function(d){return d[0];}%}):? %rparen _ %semicolon _ NON_PORT_MODULE_ITEMS %endmodule _ {%function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[5], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};} %}
 
 NAME_OF_MODULE -> IDENTIFIER {% id %}
  
@@ -94,7 +95,8 @@ LIST_OF_PORTS
 PORT -> IDENTIFIER {%function(d) {return {Type: "port", Port: d[0], Location: d[0].Location};} %}
 
 # WIDTH = _
-PARAMETER_ASSIGNMENT -> IDENTIFIER _ %op_assign _ EXPRESSION {%function(d) {return {Type: "parameter", Identifier: d[1], RHS: d[5], Location: d[0] ? d[0].Location : d[1].Location};} %}
+PARAMETER_ASSIGNMENT 
+    -> IDENTIFIER _ %op_assign _ EXPRESSION {%function(d) {return {Type: "parameter", Identifier: d[0], RHS: d[4], Location: d[0].Location};} %}
 
 # WIDTH = _, WIDTH2 = _
 PARAMETER_LIST
@@ -103,16 +105,16 @@ PARAMETER_LIST
 
 # parameter WIDTH = _, WIDTH2 = _
 # OR just parameter WIDTH = _
-PARAMETER_ITEM -> %parameter __ (%bit __):? _ PARAMETER_LIST {%function(d) {return {Type: "item", ItemType: "parameter_decl", ParamDecl: {Type: "parameter_item", DeclarationType: "parameter", Parameters: d[2]}, Location: d[0].offset};} %}
+PARAMETER_DECL -> %parameter __ (%bit __):? _ PARAMETER_LIST {%function(d) {return {Type: "item", ItemType: "parameter_decl", ParamDecl: {Type: "parameter_item", DeclarationType: "parameter", Parameters: d[4]}, Location: d[0].offset};} %}
 
 PARAMETER_PORT_LIST 
-    -> %hash %lparen _ PARAMETER_LIST _ %comma _ PARAMETER_PORT_ITEM _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3].concat([d[7].ParamDecl.Parameters]), Location: d[0].offset};} %}
-    | %hash %lparen _ PARAMETER_PORT_ITEM _ %comma _ PARAMETER_PORT_ITEM _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: [d[3].ParamDecl.Parameters, d[7].ParamDecl.Parameters], Location: d[0].offset};} %}
+    -> %hash %lparen _ PARAMETER_LIST _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3].concat([d[7].ParamDecl.Parameters]), Location: d[0].offset};} %}
     | %hash %lparen _ PARAMETER_LIST _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3], Location: d[0].offset};} %}
-    | %hash %lparen _ PARAMETER_PORT_ITEM _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: [d[3].ParamDecl.Parameters], Location: d[0].offset};} %}
+    | %hash %lparen _ PARAMETER_PORT_DECL _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: [d[3].ParamDecl.Parameters, d[7].ParamDecl.Parameters], Location: d[0].offset};} %}
+    | %hash %lparen _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: [d[3].ParamDecl.Parameters], Location: d[0].offset};} %}
 
-PARAMETER_PORT_ITEM
-    -> PARAMETER_ITEM {%function(d) {return d[0];} %}
+PARAMETER_PORT_DECL
+    -> PARAMETER_DECL {%function(d) {return d[0];} %}
     | %bit __ PARAMETER_LIST {%function(d) {return {Type: "item", ItemType: "parameter_decl", ParamDecl: {Type: "parameter_item", DeclarationType: "parameter", Parameters: d[2]}, Location: d[0].offset};} %}
 
 MODULE_ITEMS -> MODULE_ITEM:* {%function(d) {return {Type: "module_items", ItemList: d[0]};} %}
@@ -120,13 +122,13 @@ MODULE_ITEMS -> MODULE_ITEM:* {%function(d) {return {Type: "module_items", ItemL
 NON_PORT_MODULE_ITEMS -> NON_PORT_MODULE_ITEM:* {%function(d) {return {Type: "module_items", ItemList: d[0]};} %}
 
 MODULE_ITEM
-    -> PARAMETER_ITEM _ %semicolon _ {% id %}
+    -> PARAMETER_DECL _ %semicolon _ {% id %}
     | INPUT_DECL _ %semicolon _  {%function(d,l, reject) {return {Type: "item", ItemType: "input_decl", IODecl: d[0], Decl: null, Statement: null, Location: d[0].Location};} %}
     | OUTPUT_DECL _ %semicolon _ {%function(d,l, reject) {return {Type: "item", ItemType: "output_decl", IODecl: d[0], Decl: null, Statement: null, Location: d[0].Location};} %}
     | NON_PORT_MODULE_ITEM {% id %} #?
 
 NON_PORT_MODULE_ITEM
-    -> PARAMETER_ITEM {% id %}
+    -> PARAMETER_DECL {% id %}
     | CONTINUOUS_ASSIGNMENT _ {%function(d,l, reject) {return {Type: "item", ItemType: "statement", IODecl: null, Decl: null, Statement: d[0], AlwaysConstruct: null, Location: d[0].Location};} %}
     | ALWAYS_CONSTRUCT {%function(d,l, reject) {return {Type: "item", ItemType: "always_construct", IODecl: null, Decl: null, Statement: null, AlwaysConstruct: d[0], Location: d[0].Location};} %}
     | REG_DECLARATION _ {%function(d,l, reject) {return {Type: "item", ItemType: "logic_decl", IODecl: null, Decl: d[0], Statement: null, AlwaysConstruct: null,Location: d[0].Location};} %}

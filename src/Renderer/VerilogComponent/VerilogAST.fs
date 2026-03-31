@@ -172,7 +172,7 @@ type ASTNode =
     | Primary of PrimaryDU
     | Unary of UnaryDU
     | ParameterItem of ParameterItem
-    | Parameter of Parameter
+    // | Parameter of Parameter
     | Range of Range
     | Number of Number
     | Item of ItemDU
@@ -516,6 +516,7 @@ let rec evalIntExpression (expr0: ExpressionDU) : int =
     | Comparison (_, _, rhs)
     | Equality (_, _, rhs) -> evalIntExpression rhs
     | _ -> failwith "Expression is not a constant integer"
+
 
 let primaryIdName (p: PrimaryDU) =
     match p with

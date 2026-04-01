@@ -35,7 +35,7 @@ type BitMapping = {
 /////// HELPERS ////////
 
 /// Helper function to find a port's width from the range definition of IODecl
-let getWidthFromRange (range:RangeT option) = 
+let getWidthFromRange (range:Range option) = 
     match range with
     |None -> 1
     |Some r ->
@@ -300,16 +300,19 @@ let fixCanvasState (oldCanvasState:CanvasState) =
     |> fixConsecutiveWires
 /////// STATIC MAP CREATION ////////
 
-let createIOComponent (item:ItemT) ioType (oldMap)  =  
-    
-    let width = getWidthFromRange (Option.get item.IODecl).Range
+let createIOComponent (item:ItemDU) ioType (oldMap)  =  
+    let ioItem =
+        match item with 
+        | ItemDU.IOItem ioItem -> ioItem
+        | _ -> failwithf "Should not happen! Expected IOItemDU"
+    let width = getWidthFromRange ioItem.Range
     let compType = 
         match ioType with
-        |"input_decl" -> Input1 (width,Some 0I)
+        | InputDecl -> Input1 (width,Some 0I)
         |_ -> Output width
 
     let names =
-        (Option.get item.IODecl).Variables 
+        ioItem.Variables 
         |> Array.map (fun identifier ->
             identifier.Name    
         )
@@ -322,27 +325,29 @@ let createIOComponent (item:ItemT) ioType (oldMap)  =
 /// Return a Map<string,Component> for input and output ports
 /// where string -> port name.
 /// It is necessary in order to find components when building circuits for assignments
-let getIOtoComponentMap (ioDecls:ItemT list) = 
+let getIOtoComponentMap (ioDecls:ItemDU list) = 
     ([],ioDecls)
     ||> List.fold (fun map item ->
-        createIOComponent item item.ItemType map
+        match item with
+        | ItemDU.IOItem it -> createIOComponent item it.DeclarationType map
+        | _ -> map
     )
     |> Map.ofList
 
 /// Return a Map<string,Component> for wires
 /// where string -> wire name.
 /// It is necessary in order to find wire components when building circuits for assignments
-let getWireToCompMap (lhs:AssignmentLHST) ioAndWireToCompMap =
-    let name = lhs.Primary.Name
+let getWireToCompMap (lhs:AssignmentLHS) ioAndWireToCompMap =
+    let name = lhs.PrimaryType |> getPrimaryName
     
     let wireComp = createComponent IOLabel name
     Map.add name wireComp ioAndWireToCompMap
 
 
-let collectWiresLHS (assignments:ItemT list) =
-    let wires = assignments |> List.filter (fun item -> (Option.get item.Statement).StatementType = "wire")
+let collectWiresLHS (assignments:ItemDU list) =
+    let wires = assignments |> List.filter (function ItemDU.ContStatement {StatementType=ContStatementDU.Wire} -> true | _ -> false)
     wires
-    |> List.map (fun item -> (Option.get item.Statement).Assignment.LHS)
+    |> List.map (function (ItemDU.ContStatement {Assignment={LHS=lhs}}) -> lhs | _ -> failwithf "Expected ContStatement with LHS")
 
 let collectInputAndWireComps (ioAndWireToCompMap:Map<string,Component>) =
     ioAndWireToCompMap
@@ -552,9 +557,9 @@ let getExprWidths (varSizeMap: Map<string, int>)(expr': ExpressionDU) : (Express
                         Map.find id.Name varSizeMap, None
                     | IdentifierBit _ ->
                         1, None
-                    | IdentifierBits (_, start, endOpt) ->
-                        let bStart = evalIntExpression start
-                        let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
+                    | IdentifierBits (_, bStart, bEnd) ->
+                        // let bStart = evalIntExpression start
+                        // let bEnd = evalIntExpression end_
                         (bStart - bEnd + 1), None // Assumption: bit-select range is constant here.
                     | IdentifierBitsSelect (_, start, width, _) ->
                         width, Some (getMinWidthsExpr start)
@@ -1062,7 +1067,7 @@ let compileModule' node varToCompMap ioToCompMap varSizeMap=
             ||> Array.fold (fun circuits item -> compileModule (Item item) varToCompMap circuits)
         | Item item ->
             compileModule (getItem item) varToCompMap currCircuits
-        | ContinuousAssign contAssign ->
+        | ContStatement contAssign ->
             compileModule (Assignment contAssign.Assignment) varToCompMap currCircuits
         | Assignment assign -> 
             let outPort = getPrimaryName assign.LHS.PrimaryType
@@ -1234,7 +1239,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
             ||> Array.fold (fun circuits item -> compileModule (Item item) varToCompMap circuits)
         | Item item ->
             compileModule (getItem item) varToCompMap currCircuits
-        | ContinuousAssign contAssign ->
+        | ContStatement contAssign ->
             compileModule (Assignment contAssign.Assignment) varToCompMap currCircuits
         | Assignment assign -> 
             match assign.LHS.VariableBitSelect with
@@ -1432,18 +1437,23 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
     res
 /////////   MAIN FUNCTION   //////////
 
-let createSheet (input:VerilogInput) (project:Project)= 
-    let items = input.Module.ModuleItems.ItemList |> Array.toList
-    let ioDecls = items |> List.filter (fun item -> Option.isSome item.IODecl)
-    let assignments = items |> List.filter (fun item -> Option.isSome item.Statement) 
+let createSheet (veriloginput:VerilogInput) (project:Project)= 
+    let input = convertModule veriloginput.Module
+    let items = input.ModuleItems.ItemList |> Array.toList
+    let ioDecls = items |> List.filter (function ItemDU.IOItem _ -> true | _ -> false)
+    let assignments = items |> List.filter (function ItemDU.ContStatement _ -> true | _ -> false)
     let wiresLHS = collectWiresLHS assignments // get declarations too
     let ioToCompMap = 
         getIOtoComponentMap ioDecls 
         |> Map.filter (fun var _ -> var <> "clk")   // for output ports make a wire label like for wires / we only need it for vars driven by continuous assigns though
     let inputs = 
         ioDecls
-        |> List.filter (fun decl -> (Option.get decl.IODecl).DeclarationType = "input")
-        |> List.fold (fun lst item -> Array.append lst (Option.get item.IODecl).Variables) [||]
+        |> List.filter (function ItemDU.IOItem {DeclarationType=InputDecl} -> true | _ -> false)
+        |> List.fold (fun lst item -> 
+            match item with 
+            | ItemDU.IOItem ioItem -> Array.append lst ioItem.Variables
+            | _ -> failwithf "Should not happen! Expecting only IOItems"
+        ) [||]
         |> Array.map (fun id -> id.Name)
         |> Set.ofArray
 
@@ -1455,7 +1465,7 @@ let createSheet (input:VerilogInput) (project:Project)=
         )
     let portSizeMap,_ = getPortSizeAndLocationMap items
     let wireSizeMap = getWireSizeMap items
-    let declarations = foldAST getDeclarations [] (VerilogInput input)
+    let declarations = foldAST getDeclarations [] (VerilogInput veriloginput)
     let wireSizeMap =
         (wireSizeMap, declarations)
         ||> List.fold (fun map decl ->
@@ -1470,8 +1480,8 @@ let createSheet (input:VerilogInput) (project:Project)=
             // add paramemter evaluation here?
         )
     let varSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
-    let combVars = getCombinationalVars input project
-    let clockedVars = getClockedVars input
+    let combVars = getCombinationalVars veriloginput project
+    let clockedVars = getClockedVars veriloginput
     let varToCompMap = // need to only do this for outputs and wires driven by combinational logic, need to differentiate between the two so they have unique names
         (ioToCompMap, combVars)
         ||> List.fold ( fun map var ->
@@ -1510,10 +1520,10 @@ let createSheet (input:VerilogInput) (project:Project)=
 
     let ioVars = 
         ioDecls
-        |> List.collect (fun item -> (Option.get item.IODecl).Variables |> Array.toList)
+        |> List.collect (function ItemDU.IOItem ioItem -> ioItem.Variables |> Array.toList | _ -> failwithf "Should not happen! Expecting only IOItems")
         |> List.map (fun id -> (id.Name).ToUpper())
     let perItemCircuits = 
-        compileModule (VerilogInput input) varToCompMap ioToCompMap varSizeMap initialCircuits project
+        compileModule (VerilogInput veriloginput) varToCompMap ioToCompMap varSizeMap initialCircuits project
         |> Map.toList
         |> List.sortBy (fun (s,c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=s) ioVars)) 
     

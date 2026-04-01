@@ -8,9 +8,9 @@ open VerilogAST
 open NumberHelpers
 
 /// Helper function to convert expressions to ints and back (for width checking)
-let evalExpr (expr: ExpressionT) =
+/// TODO: THIS CAN BE SIMPLIFIED AFTER REFACTORING
+let evalExpr (expr: ExpressionDU) =
         expr
-        |> convertExpression
         |> evalIntExpression
 
 /// Helper function to evaluate numeric bit-select bounds
@@ -25,7 +25,7 @@ let getPrimaryName (p: PrimaryDU) =
     match p with
     | Identifier id
     | IdentifierBit (id, _)
-    | VariableBitSelect id
+    | VariableBitSelect (id, _)
     | IdentifierBits (id, _, _)
     | IdentifierBitsSelect (id, _, _, _)
     | IdentifierArray (id, _) -> id.Name
@@ -34,7 +34,7 @@ let getPrimaryLocation (p: PrimaryDU) =
     match p with
     | Identifier id
     | IdentifierBit (id, _)
-    | VariableBitSelect id
+    | VariableBitSelect (id, _)
     | IdentifierBits (id, _, _)
     | IdentifierBitsSelect (id, _, _, _)
     | IdentifierArray (id, _) -> id.Location
@@ -44,13 +44,10 @@ let getPrimaryRange (p: PrimaryDU) =
     | Identifier _ -> None
     | IdentifierArray _ -> None
     | IdentifierBit (_, idx) ->
-        let b = evalIntExpression idx
-        Some (b, b)
-    | VariableBitSelect _ -> None
-    | IdentifierBits (_, start, endOpt) ->
-        let bStart = evalIntExpression start
-        let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
-        Some (bStart, bEnd)
+        Some (idx, idx)
+    | VariableBitSelect (_, _) -> None
+    | IdentifierBits (_, start, end_) ->
+        Some (start, end_)
     | IdentifierBitsSelect (_, start, width, sel) ->
         let bStart = evalIntExpression start
         let bEnd =
@@ -161,14 +158,13 @@ let getLHSBits portSizeMap (assignment: Assignment)  =
         | Identifier id
         | IdentifierArray (id, _) -> (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
-            let b = evalIntExpression idx
-            (id.Name, b, b)
-        | VariableBitSelect id ->
+            (id.Name, idx, idx)
+        | VariableBitSelect (id, idx) ->
             (id.Name, -1, -1)
-        | IdentifierBits (id, start, endOpt) ->
-            let bStart = evalIntExpression start
-            let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
-            (id.Name, bStart, bEnd)
+        | IdentifierBits (id, start, end_) ->
+            // let bStart = evalExpr start
+            // let bEnd = evalExpr end_
+            (id.Name, start, end_)
         | IdentifierBitsSelect (id, start, width, sel) ->
             let bStart = evalIntExpression start
             let bEnd =
@@ -201,14 +197,14 @@ let getLHSBits' portSizeMap (assignment: Assignment)  =
         | Identifier id
         | IdentifierArray (id, _) -> (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
-            let b = evalIntExpression idx
-            (id.Name, b, b)
-        | VariableBitSelect id ->
+            // let b = evalIntExpression idx
+            (id.Name, idx, idx)
+        | VariableBitSelect (id, idx) ->
             (id.Name, -1, -1)
-        | IdentifierBits (id, start, endOpt) ->
-            let bStart = evalIntExpression start
-            let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
-            (id.Name, bStart, bEnd)
+        | IdentifierBits (id, start, end_) ->
+            // let bStart = evalIntExpression start
+            // let bEnd = evalExpr end_
+            (id.Name, start, end_)
         | IdentifierBitsSelect (id, start, width, sel) ->
             let bStart = evalIntExpression start
             let bEnd =
@@ -246,11 +242,9 @@ let getLHSBitsAssignedCertainly portSizeMap (assignment: Assignment) =
                 let names = [0..size-1] |> List.map (fun y -> id.Name + "[" + string y + "]")
                 names
             | None -> []
-        | VariableBitSelect id ->
+        | VariableBitSelect (id, idx) ->
             []
-        | IdentifierBits (id, start, endOpt) ->
-            let bStart = evalIntExpression start
-            let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
+        | IdentifierBits (id, bStart, bEnd) ->
             let names = [bEnd..bStart] |> List.map (fun y -> id.Name + "[" + string y + "]")
             names
         | IdentifierBit _
@@ -263,15 +257,14 @@ let getPrimaryBits portSizeMap (primary: PrimaryDU) =
         match primary with
         | Identifier id
         | IdentifierArray (id, _) -> (id.Name, -1, -1)
-        | VariableBitSelect id ->
+        | VariableBitSelect (id, idx) ->
             (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
-            let b = evalIntExpression idx
-            (id.Name, b, b)
-        | IdentifierBits (id, start, endOpt) ->
-            let bStart = evalIntExpression start
-            let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
-            (id.Name, bStart, bEnd)
+            (id.Name, idx, idx)
+        | IdentifierBits (id, start, end_) ->
+            // let bStart = evalIntExpression start
+            // let bEnd = evalExpr end_
+            (id.Name, start, end_)
         | IdentifierBitsSelect (id, start, width, sel) ->
             let bStart = evalIntExpression start
             let bEnd =
@@ -354,15 +347,15 @@ let RHSUnaryAnalysis
                     match Map.tryFind id.Name inputWireSizeMap with
                     | Some num -> {Name=id.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
                     | None -> {Name="undefined";ResultWidth=0;Head=None;Tail=None;Elements=[]} 
-                | VariableBitSelect id ->
+                | VariableBitSelect (id, idx) ->
                     match Map.tryFind id.Name inputWireSizeMap with
                     | Some num -> {Name=id.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
                     | None -> {Name="undefined";ResultWidth=0;Head=None;Tail=None;Elements=[]} 
                 | IdentifierBit (id, _) ->
                     {Name=id.Name;ResultWidth=1;Head=None;Tail=None;Elements=[]}
-                | IdentifierBits (id, start, endOpt) ->
-                    let bStart = evalIntExpression start
-                    let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
+                | IdentifierBits (id, bStart, bEnd) ->
+                    // let bStart = evalExpr start
+                    // let bEnd = evalExpr end_
                     {Name=id.Name;ResultWidth=bStart - bEnd + 1;Head=None;Tail=None;Elements=[]}
                 | IdentifierBitsSelect (id, _, width, _) ->
                     {Name=id.Name;ResultWidth=width;Head=None;Tail=None;Elements=[]}
@@ -442,14 +435,14 @@ let getWidthOfExpr
                 match Map.tryFind id.Name inputWireSizeMap with
                 | Some num -> num
                 | None -> 0
-            | VariableBitSelect id -> 
+            | VariableBitSelect (id, idx) -> 
                 match Map.tryFind id.Name inputWireSizeMap with
                 | Some num -> num
                 | None -> 0
             | IdentifierBit _ -> 1
-            | IdentifierBits (_, start, endOpt) ->
-                let bStart = evalIntExpression start
-                let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
+            | IdentifierBits (id, bStart, bEnd) ->
+                // let bStart = evalExpr start
+                // let bEnd = evalExpr end_
                 bStart - bEnd + 1
             | IdentifierBitsSelect (_, _, width, _) -> width
                         
@@ -527,10 +520,9 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors (pri
             | Identifier id
             | IdentifierArray (id, _) ->
                 localErrors
-            | VariableBitSelect id ->
+            | VariableBitSelect (id, idx) ->
                 localErrors
-            | IdentifierBit (id, idx) ->
-                let bStart = evalIntExpression idx
+            | IdentifierBit (id, bStart) ->
                 let bEnd = bStart
                 match Map.tryFind id.Name currentInputWireSizeMap with
                 | Some size ->
@@ -549,9 +541,7 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors (pri
                             |]
                         List.append localErrors (createErrorMessage linesLocations id.Location message extraMessages id.Name)
                 | None -> localErrors
-            | IdentifierBits (id, start, endOpt) ->
-                let bStart = evalIntExpression start
-                let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
+            | IdentifierBits (id, bStart, bEnd) ->
                 match Map.tryFind id.Name currentInputWireSizeMap with
                 | Some size ->
                     if (bStart < size) && (bEnd >= 0) && (bStart >= bEnd) then
@@ -723,12 +713,12 @@ let getRHSBits portSizeMap (expression: ExpressionDU) =
                     let primaryBits = getPrimaryBits portSizeMap primary |> Set.ofList
                     let indexBits =
                         match primary with
-                        | IdentifierBit (_, idx) -> getExprBits idx
-                        | VariableBitSelect _ -> Set.empty
-                        | IdentifierBits (_, start, endOpt) ->
-                            let startBits = getExprBits start
-                            let endBits = endOpt |> Option.map getExprBits |> Option.defaultValue Set.empty
-                            Set.union startBits endBits
+                        | IdentifierBit (_, idx) -> Set.empty
+                        | VariableBitSelect (_, idx) -> getExprBits idx
+                        | IdentifierBits (_, start, end_) -> Set.empty
+                            // let startBits = getExprBits start
+                            // let endBits = getExprBits end_
+                            // Set.union startBits endBits
                         | IdentifierBitsSelect (_, start, _, _) -> getExprBits start
                         | IdentifierArray (_, indices) ->
                             indices
@@ -757,9 +747,9 @@ let getLHSWidth (assign:Assignment) (varSizeMap: Map<string, int>)  =
             1
         | VariableBitSelect _ ->
             1
-        | IdentifierBits (_, start, endOpt) ->
-            let bStart = evalIntExpression start
-            let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
+        | IdentifierBits (id, bStart, bEnd) ->
+            // let bStart = evalExpr start
+            // let bEnd = evalExpr end_
             bStart - bEnd + 1
         | IdentifierBitsSelect (_, _, width, _) ->
             width
@@ -881,11 +871,11 @@ and estimatePrimaryCost (p: PrimaryDU) : int =
     | Identifier _ ->
         1
     | IdentifierBit (_, idx) ->
-        2 + estimateExprCost idx
-    | VariableBitSelect _ ->
-        1
-    | IdentifierBits (_, start, endOpt) ->
-        2 + estimateExprCost start + (endOpt |> Option.map estimateExprCost |> Option.defaultValue 0)
+        2
+    | VariableBitSelect (_, idx) ->
+        1 + estimateExprCost idx
+    | IdentifierBits (_, bStart, bEnd) ->
+        2
     | IdentifierBitsSelect (_, start, _, _) ->
         2 + estimateExprCost start
     | IdentifierArray (_, indices) ->

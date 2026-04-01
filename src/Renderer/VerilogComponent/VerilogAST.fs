@@ -51,9 +51,9 @@ type SelectDU =
 
 type PrimaryDU = 
         | Identifier of IdentifierT
-        | IdentifierBit of id: IdentifierT * index: ExpressionDU
-        | IdentifierBits of id: IdentifierT * start: ExpressionDU * end_: ExpressionDU option
-        | VariableBitSelect of IdentifierT
+        | IdentifierBit of id: IdentifierT * index: int
+        | IdentifierBits of id: IdentifierT * start: int * end_: int
+        | VariableBitSelect of IdentifierT * index: ExpressionDU
         | IdentifierBitsSelect of id: IdentifierT * start: ExpressionDU * width: int * select: SelectDU
         | IdentifierArray of id: IdentifierT * indices: ExpressionDU array
     and ExpressionDU =
@@ -90,40 +90,97 @@ type Assignment = {Type: AssignDU; LHS: AssignmentLHS; RHS: ExpressionDU }
 and AssignmentLHS = {PrimaryType: PrimaryDU; VariableBitSelect: ExpressionDU option}
 
 type StatementDU =
-    | NonBlockingAssign of NonBlockingAssignT
-    | BlockingAssign of BlockingAssignT
-    | SeqBlock of SeqBlockT
-    | Case of CaseStatementT
-    | Conditional of ConditionalT
-    | ForStatement of ForStatementT
+    | NonBlockingAssign of Assignment
+    | BlockingAssign of Assignment
+    // | WireAssign of Assignment
+    | SeqBlock of StatementDU array * location: int
+    | Case of CaseStatement
+    | Conditional of ifstmt: IfStatement * elseStmt: StatementDU option
+    | ForStatement of ForStatement
 
-// should I add everything in here?
+and IfStatement = {Condition: ExpressionDU; Statement: StatementDU; Location: int}
+
+and CaseStatement = {Expression: ExpressionDU; CaseItems: CaseItem array; Default: StatementDU option; Location: int}
+and CaseItem = {Expressions: Number array; Statement: StatementDU}
+
+and ForStatement = {Initialisation: Assignment; Condition: ExpressionDU; Step: Assignment; Statement: StatementDU; Location: int}
+
+// ====== Declarations ======
+type Range = {Start: ExpressionDU; End: ExpressionDU; Location: int}
+
+type DeclarationDU = 
+    | InputDecl
+    | OutputDecl
+    | LogicDecl // reg decl
+    | ParameterDecl
+
+type DataTypeDU = 
+    | WireType
+    | Bit
+    // | Integer
+
+type Declaration = {DeclarationType: DeclarationDU; DataType: DataTypeDU; Range: Range option; ArrayRanges: Range array option; Variables: IdentifierT array; Location: int}
+
+// ====== Always ======
+type AlwaysDU = 
+    | AlwaysComb
+    | AlwaysFF
+
+type AlwaysConstruct = {AlwaysType: AlwaysDU; Statement: StatementDU; ClkLoc: int; Location: int}
+
+// ====== Module Items ======
+type ItemDU = 
+    | IOItem of IOItem
+    | ParamDecl of ParameterItem
+    | Decl of Declaration
+    | ContStatement of ContinuousAssign
+    | AlwaysConstruct of AlwaysConstruct
+    | ModuleInstantiation of ModuleInstantiation
+
+and IOItem = {DeclarationType: DeclarationDU; DataType: DataTypeDU; Range : Range option; Variables: IdentifierT array; Location: int}
+
+and ParameterItem = {DeclarationType: DeclarationDU; Parameters : Parameter array;}
+and Parameter = {Identifier: IdentifierT; RHS: ExpressionDU; Location: int}
+
+and ContinuousAssign = {StatementType: ContStatementDU; Assignment : Assignment; Location: int}
+and ContStatementDU = 
+    | Assign
+    | Wire
+
+and ModuleInstantiation = {Module: IdentifierT; Identifier: IdentifierT; Connections: NamedPortConnection array}
+and NamedPortConnection = {PortId: IdentifierT; Primary: PrimaryDU}
+
+type ModuleItems = {ItemList: ItemDU array; Location: int}
+
+type Module = {Type: ModuleDU; ModuleName: IdentifierT; PortList: string array; Locations: string array; ModuleItems: ModuleItems; EndLocation: int;}
+
 type ASTNode =
-    | IOItem of IOItemT
-    | ParamDecl of ParameterItemT
-    | ContinuousAssign of ContinuousAssignT
-    | Declaration of DeclarationT
-    | AlwaysConstruct of AlwaysConstructT
-    | Statement of StatementT
-    | NonBlockingAssign of NonBlockingAssignT
-    | BlockingAssign of BlockingAssignT
-    | SeqBlock of SeqBlockT
-    | Case of CaseStatementT
-    | CaseItem of CaseItemT
-    | Conditional of ConditionalT
-    | IfStatement of IfStatementT
-    | ForStatement of ForStatementT
-    | Assignment of AssignmentT
-    | AssignmentLHS of AssignmentLHST
-    | Expression of ExpressionT
-    | Primary of PrimaryT
-    | ParameterItem of ParameterItemT
-    | Parameter of ParameterT
-    | Range of RangeT
-    | Number of NumberT
-    | Item of ItemT
-    | ModuleItems of ModuleItemsT
-    | Module of ModuleT
+    | IOItem of IOItem
+    | ParamDecl of ParameterItem
+    | ContStatement of ContinuousAssign
+    | Declaration of Declaration
+    | AlwaysConstruct of AlwaysConstruct
+    | Statement of StatementDU
+    // | NonBlockingAssign of NonBlockingAssign
+    // | BlockingAssign of BlockingAssign
+    // | SeqBlock of SeqBlock
+    | Case of CaseStatement
+    | CaseItem of CaseItem
+    // | Conditional of Conditional
+    | IfStatement of IfStatement
+    | ForStatement of ForStatement
+    | Assignment of Assignment
+    | AssignmentLHS of AssignmentLHS
+    | Expression of ExpressionDU
+    | Primary of PrimaryDU
+    | Unary of UnaryDU
+    | ParameterItem of ParameterItem
+    // | Parameter of Parameter
+    | Range of Range
+    | Number of Number
+    | Item of ItemDU
+    | ModuleItems of ModuleItems
+    | Module of Module
     | VerilogInput of VerilogInput
     | ModuleInstantiation of ModuleInstantiation
 // type Module = {AST: ASTNode;}
@@ -132,7 +189,7 @@ type ASTNode =
 // ////////// AST Conversion - from string type (JSON) to DU types (internal representation)
 let parseDataType = function
     | "bit" -> Bit
-    | "wire" -> Wire
+    | "wire" -> WireType
     | s -> failwith $"Unknown DataType: {s}"
 
 let parseDeclarationType = function
@@ -240,18 +297,20 @@ and convertPrimary (raw: PrimaryT) : PrimaryDU =
         Identifier raw.Primary
     | "identifier_bit" ->
         // Single bit select: x[1]
-        let idx = convertExpression (Option.get raw.BitsStart)
+        let idx = int (raw.BitsStart |> Option.map int |> Option.get)
         IdentifierBit (raw.Primary, idx)
     | "identifier_bit2" ->
-        VariableBitSelect raw.Primary
+        let idx = convertExpression (Option.get raw.Expression)
+        VariableBitSelect (raw.Primary, idx)
+        // failwithf "Currently VBS not implemented"
     | "identifier_bits" -> 
         // Range select: x[start:end]
-        let start = convertExpression (Option.get raw.BitsStart)
-        let end_ = raw.BitsEnd |> Option.map convertExpression
+        let start = int (raw.BitsStart |> Option.map int |> Option.get)
+        let end_ = int (raw.BitsEnd |> Option.map int |> Option.get)
         IdentifierBits (raw.Primary, start, end_)
     | "identifier_bits_select" ->
         // Variable bit select: x[i+:width] or x[i-:width]
-        let start = convertExpression (Option.get raw.BitsStart)
+        let start = convertExpression (Option.get raw.Expression)
         let width = Option.get raw.Width
         let selectType = parseSelectType (Option.get raw.SelectType)
         IdentifierBitsSelect (raw.Primary, start, width, selectType)
@@ -272,6 +331,7 @@ let convertAssignmentLHS (raw: VerilogTypes.AssignmentLHST) : AssignmentLHS =
           BitsStart = raw.BitsStart
           BitsEnd = raw.BitsEnd
           Primary = raw.Primary
+          Expression = raw.VariableBitSelect
           Width = raw.Width
           ArrayIndices = raw.ArrayIndices
           SelectType = raw.SelectType }
@@ -357,8 +417,13 @@ let convertAlwaysConstruct (raw: VerilogTypes.AlwaysConstructT) : AlwaysConstruc
       ClkLoc = raw.ClkLoc
       Location = raw.Location }
 
+let parseContStatementType = function
+    | "assign" -> Assign
+    | "wire" -> Wire
+    | s -> failwith $"Unknown continuous assignment statement type: {s}"
+
 let convertContinuousAssign (raw: VerilogTypes.ContinuousAssignT) : ContinuousAssign =
-    { Assignment = convertAssignment raw.Assignment Blocking; Location = raw.Location }
+    { StatementType = parseContStatementType raw.StatementType; Assignment = convertAssignment raw.Assignment Blocking; Location = raw.Location }
 
 let convertNamedPortConnection (raw: VerilogTypes.NamedPortConnectionT) : NamedPortConnection =
     { PortId = raw.PortId; Primary = convertPrimary raw.Primary }
@@ -374,7 +439,7 @@ let convertItem (raw: VerilogTypes.ItemT) : ItemDU =
     | Some io, None, None, None, None, None -> ItemDU.IOItem (convertIOItem io)
     | None, Some param, None, None, None, None -> ItemDU.ParamDecl (convertParameterItem param)
     | None, None, Some decl, None, None, None -> ItemDU.Decl (convertDeclaration decl)
-    | None, None, None, Some stmt, None, None -> ItemDU.ContinuousAssign (convertContinuousAssign stmt)
+    | None, None, None, Some stmt, None, None -> ItemDU.ContStatement (convertContinuousAssign stmt)
     | None, None, None, None, Some always, None -> ItemDU.AlwaysConstruct (convertAlwaysConstruct always)
     | None, None, None, None, None, Some modInst -> ItemDU.ModuleInstantiation (convertModuleInstantiation modInst)
     | _ -> failwith "Invalid item: multiple or no fields set"
@@ -394,6 +459,7 @@ let convertModule (raw: VerilogTypes.ModuleT) : Module =
       Locations = raw.Locations
       ModuleItems = convertModuleItems raw.ModuleItems
       EndLocation = raw.EndLocation }
+      
 
 // let convertVerilogInput (raw: VerilogTypes.VerilogInput) : Module =
 //     convertModule raw.Module
@@ -424,7 +490,7 @@ let getItem (item: ItemDU) =
     | ItemDU.IOItem io -> IOItem io
     | ItemDU.ParamDecl p -> ParamDecl p
     | ItemDU.Decl d -> Declaration d
-    | ItemDU.ContinuousAssign c -> ContinuousAssign c
+    | ItemDU.ContStatement c -> ContStatement c
     | ItemDU.AlwaysConstruct a -> AlwaysConstruct a
     | ItemDU.ModuleInstantiation m -> ModuleInstantiation m
 
@@ -469,7 +535,7 @@ let primaryIdName (p: PrimaryDU) =
     | Identifier id -> id.Name
     | IdentifierBit (id, _) -> id.Name
     | IdentifierBits (id, _, _) -> id.Name
-    | VariableBitSelect id -> id.Name
+    | VariableBitSelect (id, _) -> id.Name
     | IdentifierBitsSelect (id, _, _, _) -> id.Name
     | IdentifierArray (id, _) -> id.Name
 
@@ -479,6 +545,16 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
         let rec substUnary (unary: UnaryDU) : UnaryDU =
             match unary with
             | UnaryDU.Primary (Identifier id) when id.Name = loopVarName ->
+                UnaryDU.Number (Unsigned (value, id.Location))
+            | UnaryDU.Primary (IdentifierBit (id, idx)) when id.Name = loopVarName ->
+                UnaryDU.Number (Unsigned (value, id.Location))
+            | UnaryDU.Primary (VariableBitSelect (id, idx)) when id.Name = loopVarName ->
+                UnaryDU.Number (Unsigned (value, id.Location))
+            | UnaryDU.Primary (IdentifierBits (id, start, end_)) when id.Name = loopVarName ->
+                UnaryDU.Number (Unsigned (value, id.Location))
+            | UnaryDU.Primary (IdentifierBitsSelect (id, start, width, sel)) when id.Name = loopVarName ->
+                UnaryDU.Number (Unsigned (value, id.Location))
+            | UnaryDU.Primary (IdentifierArray (id, indices)) when id.Name = loopVarName ->
                 UnaryDU.Number (Unsigned (value, id.Location))
             | UnaryDU.Primary p ->
                 UnaryDU.Primary (substLoopPrimary loopVarName value p)
@@ -506,11 +582,14 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
     and substLoopPrimary (loopVarName: string) (value: int) (p: PrimaryDU) : PrimaryDU =
         match p with
         | Identifier _ -> p
-        | IdentifierBit (id, idx) -> IdentifierBit (id, substLoopExpr loopVarName value width idx)
-        | VariableBitSelect id when id.Name = loopVarName ->
-            IdentifierBit (id, UnaryUnsigned (Unsigned (value, id.Location)))
-        | IdentifierBits (id, start, endOpt) ->
-            IdentifierBits (id, substLoopExpr loopVarName value width start, endOpt |> Option.map (substLoopExpr loopVarName value width))
+        // | IdentifierBit (id, idx) -> IdentifierBit (id, substLoopExpr loopVarName value width idx)
+        | IdentifierBit (id, idx) -> p
+        // Only VBS should have non-constant index
+        | VariableBitSelect (id, idx) when id.Name = loopVarName ->
+            IdentifierBit (id, evalIntExpression (substLoopExpr loopVarName value width idx))
+        // | IdentifierBits (id, start, end_) ->
+        //     IdentifierBits (id, substLoopExpr loopVarName value width start, substLoopExpr loopVarName value width end_)
+        | IdentifierBits (id, start, end_) -> p
         | IdentifierBitsSelect (id, start, width, sel) ->
             IdentifierBitsSelect (id, substLoopExpr loopVarName value width start, width, sel)
         | IdentifierArray (id, indices) ->
@@ -525,39 +604,37 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
         let vbs = lhs.VariableBitSelect |> Option.map (substLoopExpr loopVarName value width)
         let rewriteIndex (id: IdentifierT) idxExpr =
             let idxExpr' = substLoopExpr loopVarName value width idxExpr
-            try
-                let idx = evalIntExpression idxExpr'
-                let idxConst = UnaryUnsigned (Unsigned (idx, id.Location))
-                IdentifierBit (id, idxConst)
-            with _ ->
-                IdentifierBit (id, idxExpr')
+            let idx = evalIntExpression idxExpr'
+            // let idxConst = UnaryUnsigned (Unsigned (idx, id.Location))
+            IdentifierBit (id, idx)
 
         let primary' =
             match lhs.PrimaryType with
-            | Identifier id ->
+            | Identifier id 
+            | IdentifierBit (id, _) ->
                 match vbs with
                 | Some expr ->
                     try
                         let idx = evalIntExpression expr
-                        IdentifierBit (id, UnaryUnsigned (Unsigned (idx, id.Location)))
+                        IdentifierBit (id, idx)
                     with _ -> lhs.PrimaryType
                 | None -> lhs.PrimaryType
-            | IdentifierBit (id, idx) ->
+            // | IdentifierBit (id, idx) ->
+            //     rewriteIndex id idx
+            | VariableBitSelect (id, idx) when id.Name = loopVarName ->
                 rewriteIndex id idx
-            | VariableBitSelect id when id.Name = loopVarName ->
-                rewriteIndex id (UnaryUnsigned (Unsigned (value, id.Location)))
-            | VariableBitSelect id ->
+            | VariableBitSelect (id, idx) ->
                 match vbs with
                 | Some expr ->
                     try
                         let idx = evalIntExpression expr
-                        IdentifierBit (id, UnaryUnsigned (Unsigned (idx, id.Location)))
+                        IdentifierBit (id, idx)
                     with _ -> lhs.PrimaryType
                 | None -> lhs.PrimaryType
-            | IdentifierBits (id, start, endOpt) ->
-                let start' = substLoopExpr loopVarName value width start
-                let end' = endOpt |> Option.map (substLoopExpr loopVarName value width)
-                IdentifierBits (id, start', end')
+            | IdentifierBits (id, start, end_) ->
+                // let start' = substLoopExpr loopVarName value width start
+                // let end' = substLoopExpr loopVarName value width end_
+                IdentifierBits (id, start, end_)
             | IdentifierBitsSelect (id, start, w, sel) ->
                 let start' = substLoopExpr loopVarName value width start
                 IdentifierBitsSelect (id, start', w, sel)
@@ -920,7 +997,7 @@ let rec foldAST folder state (node: ASTNode) =
             |> Array.map (fun expr -> Number expr)
             |> Array.fold (foldAST folder) state'
         foldAST folder newstate (Statement caseItem.Statement)
-    | ContinuousAssign assign ->
+    | ContStatement assign ->
         foldAST folder state' (Assignment assign.Assignment)
     | Assignment assign ->
         (foldAST folder state' (AssignmentLHS assign.LHS), Expression assign.RHS)
@@ -960,7 +1037,7 @@ let getAssignments' (assignments: List<Assignment>) (node: ASTNode) =
 
 let getContAssignments (assignments: List<Assignment>) (node: ASTNode) =
     match node with
-    | ContinuousAssign contAssign -> assignments @ [contAssign.Assignment]
+    | ContStatement contStmt -> assignments @ [contStmt.Assignment]
     | _ -> assignments
 
 let getAlwaysAssignments (assignments: List<Assignment>) (node: ASTNode) =
@@ -977,7 +1054,7 @@ let assignmentLocation (a: Assignment) =
     | Identifier id -> id.Location
     | IdentifierBit (id, _) -> id.Location
     | IdentifierBits (id, _, _) -> id.Location
-    | VariableBitSelect id -> id.Location
+    | VariableBitSelect (id, _) -> id.Location
     | IdentifierBitsSelect (id, _, _, _) -> id.Location
     | IdentifierArray (id, _) -> id.Location
 
@@ -988,7 +1065,7 @@ let getAssignmentsWithLocations (assignments: List<Assignment*int>) (node: ASTNo
             items.ItemList
             |> Array.toList
             |> List.choose (function
-                | ItemDU.ContinuousAssign c -> Some (c.Assignment, c.Location)
+                | ItemDU.ContStatement c -> Some (c.Assignment, c.Location)
                 | _ -> None)
         assignments @ contAssigns
     | Statement stmt ->

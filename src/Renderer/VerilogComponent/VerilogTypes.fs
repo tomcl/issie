@@ -40,7 +40,7 @@ type ModuleNameT = {Type : string; Name : IdentifierT}
 
 type NumberT = {Type: string; NumberType: string; Bits: string option; Base: string option; UnsignedNumber: string option; AllNumber: string option; Location: int }
 
-type PrimaryT = {Type: string; PrimaryType: string; BitsStart: ExpressionT option; BitsEnd: ExpressionT option; Primary: IdentifierT; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
+type PrimaryT = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; Expression: ExpressionT option; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
     and ExpressionT = {Type: string; Operator: string option; Head: ExpressionT option; Tail: ExpressionT option; Unary: UnaryT option}
     and UnaryT = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionT option}
 
@@ -56,7 +56,7 @@ type ParameterT = {Type: string; Identifier: IdentifierT; RHS: ExpressionT; Loca
 type ParameterItemT = {Type: string; DeclarationType: string; Parameters : ParameterT array;}
 
 // type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; VariableBitSelect: ExpressionT option; Width: int option}
-type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: ExpressionT option; BitsEnd: ExpressionT option; Primary: IdentifierT; VariableBitSelect: ExpressionT option; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
+type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; VariableBitSelect: ExpressionT option; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
 type AssignmentT = {Type: string; LHS: AssignmentLHST; RHS: ExpressionT}
 
 type ContinuousAssignT = {Type: string; StatementType: string; Assignment : AssignmentT; Location: int} // need to add seq block, option statement array

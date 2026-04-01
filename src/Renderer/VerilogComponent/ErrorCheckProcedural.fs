@@ -262,20 +262,20 @@ let checkVariablesAlwaysAssigned
                 |> Array.map (fun item -> getVariablesAlwaysAssigned (Item item))
             (Set.empty, itemsCompleteVariables)
             ||> Array.fold Set.union
-        | Conditional ifstmt ->
-            if Option.isNone ifstmt.ElseStatement then
-                Set.empty
-            else
-            let ifVariables = 
-                getVariablesAlwaysAssigned (Statement ifstmt.IfStatement.Statement)
+        // | Conditional ifstmt ->
+        //     if Option.isNone ifstmt.ElseStatement then
+        //         Set.empty
+        //     else
+        //     let ifVariables = 
+        //         getVariablesAlwaysAssigned (Statement ifstmt.IfStatement.Statement)
     
-            let elseVariables =
-                getVariablesAlwaysAssigned (Statement (Option.get ifstmt.ElseStatement))
-            Set.intersect ifVariables elseVariables
+        //     let elseVariables =
+        //         getVariablesAlwaysAssigned (Statement (Option.get ifstmt.ElseStatement))
+        //     Set.intersect ifVariables elseVariables
         | ForStatement forstmt ->
             getVariablesAlwaysAssigned (Statement forstmt.Statement)
-        | BlockingAssign blocking -> (getLHSBitsAssignedCertainly portSizeMap blocking.Assignment) |> Set.ofList // fix getLHSBits
-        | NonBlockingAssign nonBlocking -> (getLHSBitsAssignedCertainly portSizeMap nonBlocking.Assignment) |> Set.ofList // fix getLHSBits
+        // | BlockingAssign blocking -> (getLHSBitsAssignedCertainly portSizeMap blocking.Assignment) |> Set.ofList // fix getLHSBits
+        // | NonBlockingAssign nonBlocking -> (getLHSBitsAssignedCertainly portSizeMap nonBlocking.Assignment) |> Set.ofList // fix getLHSBits
         | Item item -> getVariablesAlwaysAssigned (getItem item)
         | AlwaysConstruct always -> 
             getVariablesAlwaysAssigned (Statement always.Statement)
@@ -415,14 +415,14 @@ let checkExpressions
 let checkClk 
     (ast:VerilogInput) 
     (linesLocations: int list)
-    (portMap: Map<string,string>)
+    (portMap: Map<string,DeclarationDU>)
     (errorList: ErrorInfo list) =
 
     let alwaysFFsWithLoc = 
         foldAST getAlwaysBlocks [] (VerilogInput ast)
         |> List.filter (fun always -> always.AlwaysType = AlwaysFF)
     match Map.tryFind "clk" portMap with
-    | None | Some "output" ->
+    | None | Some OutputDecl ->
         (errorList, alwaysFFsWithLoc)
         ||>List.fold (fun errors always->
             let extraMessages=                    
@@ -446,7 +446,7 @@ let checkClk
 let checkClkNames 
     (ast:VerilogInput) 
     (linesLocations: int list)
-    (portMap: Map<string,string>)
+    (portMap: Map<string,DeclarationDU>)
     (portLocationMap: Map<string, int>)
     (portSizeMap: Map<string, int>)
     (errorList: ErrorInfo list) =
@@ -462,7 +462,7 @@ let checkClkNames
 
     let portErrors =
         match Map.tryFind "clk" portMap, Map.tryFind "clk" portLocationMap with
-        | Some "output", Some location ->
+        | Some OutputDecl, Some location ->
             let extraMessages=                    
                 [|
                     {Text=sprintf "'clk' represents the clock signal, which must be an input port" ;Copy=false;Replace=NoReplace};
@@ -565,7 +565,7 @@ let private getDependencies ast variableSizeMap =
             ||> Array.fold (fun acc item -> 
                 getDependencyFold acc (Item item) cond)
         | Item item -> getDependencyFold graph (getItem item) cond
-        | ContinuousAssign contAssign -> getDependencyFold graph (Assignment contAssign.Assignment) cond
+        | ContStatement contAssign -> getDependencyFold graph (Assignment contAssign.Assignment) cond
         | Assignment assign -> 
             let lhsBits = getLHSBits' variableSizeMap assign
             let rhsBits =
@@ -819,10 +819,10 @@ let getPrimaryWidth portSizeMap (primary: PrimaryDU) =
         | Some w -> w
         | _ -> 1
     | IdentifierBit _ -> 1
-    | IdentifierBits (_, start, endOpt) ->
-        let bStart = evalIntExpression start
-        let bEnd = endOpt |> Option.map evalIntExpression |> Option.defaultValue bStart
-        bStart - bEnd + 1
+    | IdentifierBits (_, start, end_) ->
+        // let bStart = evalIntExpression start
+        // let bEnd = evalIntExpression end_
+        start - end_ + 1
     | IdentifierBitsSelect (_, _, width, _) -> width
 
 /// Checks if module instantiation statements are correct:
@@ -838,7 +838,7 @@ let checkModuleInstantiations
     (portSizeMap: Map<string,int>)
     (wireSizeMap: Map<string, int>)
     (project: Project) 
-    (portMap: Map<string, string>)
+    (portMap: Map<string, DeclarationDU>)
     (errorList: ErrorInfo list) =
 
     let wireAndPortSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
@@ -914,7 +914,7 @@ let checkModuleInstantiations
         extraPortErrors @ missingPortErrors
     let inputPorts = 
         portMap
-        |> Map.filter (fun k v -> v="input")
+        |> Map.filter (fun k v -> v=InputDecl)
         |> Map.keysL
     let lhsVariables = 
         foldAST getAssignments' [] (VerilogInput ast)

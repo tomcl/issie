@@ -1,4 +1,3 @@
-
 // const nearley = require("nearley");
 // const verilogGrammar = require("./VerilogGrammar.js");
 import nearley from "nearley";

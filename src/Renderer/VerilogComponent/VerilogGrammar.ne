@@ -105,12 +105,12 @@ PARAMETER_LIST
 
 # parameter WIDTH = _, WIDTH2 = _
 # OR just parameter WIDTH = _
-PARAMETER_DECL -> %parameter __ (%bit __):? _ PARAMETER_LIST {%function(d) {return {Type: "item", ItemType: "parameter_decl", ParamDecl: {Type: "parameter_item", DeclarationType: "parameter", Parameters: d[4]}, Location: d[0].offset};} %}
+PARAMETER_DECL -> parameter __ (%bit __):? _ PARAMETER_LIST {%function(d) {return {Type: "item", ItemType: "parameter_decl", ParamDecl: {Type: "parameter_item", DeclarationType: "parameter", Parameters: d[4]}, Location: d[0].offset};} %}
 
 PARAMETER_PORT_LIST 
-    -> %hash %lparen _ PARAMETER_LIST _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3].concat([d[7].ParamDecl.Parameters]), Location: d[0].offset};} %}
+    -> %hash %lparen _ PARAMETER_LIST _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3].concat(d[7].ParamDecl.Parameters), Location: d[0].offset};} %}
     | %hash %lparen _ PARAMETER_LIST _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3], Location: d[0].offset};} %}
-    | %hash %lparen _ PARAMETER_PORT_DECL _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: (d[3].ParamDecl.Parameters).concat([d[7].ParamDecl.Parameters]), Location: d[0].offset};} %}
+    | %hash %lparen _ PARAMETER_PORT_DECL _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: (d[3].ParamDecl.Parameters).concat(d[7].ParamDecl.Parameters), Location: d[0].offset};} %}
     | %hash %lparen _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3].ParamDecl.Parameters, Location: d[0].offset};} %}
 
 PARAMETER_PORT_DECL

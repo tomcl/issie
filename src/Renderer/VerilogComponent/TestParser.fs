@@ -168,7 +168,9 @@ type PortInfo = {Label: string; Width: int}
 type Input = {Inputs:codegenInput List; Outputs: PortInfo List; IsClocked: bool; ModuleName: string}
 
 let simulateAST ast src dst loadedComps=
-    let cs = createSheet ast {project with LoadedComponents=loadedComps}
+    let model = Unchecked.defaultof<ModelType.Model>
+    let dispatch = ignore
+    let cs = createSheet ast {project with LoadedComponents=loadedComps} model dispatch
     // generate list of loaded components, then do the same for top level component
     let (loadedComp: LoadedComponent), _ = makeLoadedComponentFromCanvasData cs "" System.DateTime.MinValue None None
     let inputValuesFile = pathJoin [|(dirName src); (baseNameWithoutExtension src) + ".json"|]
@@ -314,7 +316,10 @@ let runCodeGenTests _ =
                     let ast, linesIndex = parseFile file dst
                     let cs =
                         match getSemanticErrors ast linesIndex with
-                        | [] -> createSheet ast {project with LoadedComponents=comps}
+                        | [] -> 
+                            let model = Unchecked.defaultof<ModelType.Model>
+                            let dispatch = ignore
+                            createSheet ast {project with LoadedComponents=comps} model dispatch
                         | _ -> 
                             printfn $"[TEST] couldn't parse input {baseNameWithoutExtension file}"
                             [],[]
@@ -599,6 +604,8 @@ let runPerformanceTests () =
     let files = 
         readFilesFromDirectory srcDir
         |> List.filter (hasExtn ".sv")
+    let model = Unchecked.defaultof<ModelType.Model>
+    let dispatch = ignore
     files
     |> List.map (fun file ->
         let filePath = pathJoin [|srcDir; file|]
@@ -620,7 +627,7 @@ let runPerformanceTests () =
             // semantic error check done
             // start synthesis
             let errorCheckEnd = getTimeMs()
-            createSheet ast dummyProject |> ignore
+            createSheet ast dummyProject model dispatch |> ignore
             // synthesis end
             // stop measuring
             let synthesisEnd = getTimeMs ()
@@ -649,7 +656,7 @@ let runPerformanceTests () =
             let fixedAST = fix parse
             let ast = Json.parseAs<VerilogInput> fixedAST
             let errorCheckEnd = getTimeMs()
-            let cs = createSheet ast dummyProject
+            let cs = createSheet ast dummyProject model dispatch
             let synthesisEnd = getTimeMs ()
             (List.length (fst cs), synthesisEnd-errorCheckEnd)
         )

@@ -276,7 +276,8 @@ export function fix(json_data) {
         try {
             if (obj.Module.ParameterPortList) {
                 var params = obj.Module.ParameterPortList.Parameters;
-                // Create a ParameterItemT wrapped in ItemT for each parameter
+                // console.log("Params are", params);
+
                 var paramItem = {
                     Type: "item",
                     ItemType: "parameter_decl",
@@ -293,6 +294,7 @@ export function fix(json_data) {
                     Location: obj.Module.ParameterPortList.Location
                 };
                 param_items.push(paramItem);
+                // console.log("param_items after push:", JSON.stringify(param_items, null, 2));
             }
         } catch (e) {
             console.log("Error processing parameter port list:", e.message);

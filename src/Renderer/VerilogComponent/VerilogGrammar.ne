@@ -110,8 +110,8 @@ PARAMETER_DECL -> %parameter __ (%bit __):? _ PARAMETER_LIST {%function(d) {retu
 PARAMETER_PORT_LIST 
     -> %hash %lparen _ PARAMETER_LIST _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3].concat([d[7].ParamDecl.Parameters]), Location: d[0].offset};} %}
     | %hash %lparen _ PARAMETER_LIST _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3], Location: d[0].offset};} %}
-    | %hash %lparen _ PARAMETER_PORT_DECL _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: [d[3].ParamDecl.Parameters, d[7].ParamDecl.Parameters], Location: d[0].offset};} %}
-    | %hash %lparen _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: [d[3].ParamDecl.Parameters], Location: d[0].offset};} %}
+    | %hash %lparen _ PARAMETER_PORT_DECL _ %comma _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: (d[3].ParamDecl.Parameters).concat([d[7].ParamDecl.Parameters]), Location: d[0].offset};} %}
+    | %hash %lparen _ PARAMETER_PORT_DECL _ %rparen {%function(d) {return {Type: "parameter_port_list", Parameters: d[3].ParamDecl.Parameters, Location: d[0].offset};} %}
 
 PARAMETER_PORT_DECL
     -> PARAMETER_DECL {%function(d) {return d[0];} %}
@@ -373,7 +373,13 @@ ASSIGNMENT -> L_VALUE _ %op_assign _ EXPRESSION {%function(d) {return {Type: "as
 WIRE_ASSIGNMENT -> WIRE_L_VALUE _ %op_assign _ EXPRESSION {%function(d) {return {Type: "bit", LHS: d[0], RHS: d[4], Location:d[0].Primary.Location };} %} 
 
 ###########################################      MODULE INSTANTIATION STATEMENTS    #############################
-MODULE_INSTANTIATION_STATEMENT -> IDENTIFIER __ IDENTIFIER _ %lparen _ LIST_OF_PORT_CONNECTIONS _ %rparen _ %semicolon {%(d) => {return {Type: "module_instantiation", Module: d[0], Identifier: d[2], Connections: d[6]}}%}
+MODULE_INSTANTIATION_STATEMENT -> IDENTIFIER __ (%hash _ %lparen _ LIST_OF_OVERRIDEN_PARAMS _ %rparen __ {%function(d){return d[4];}%}):? IDENTIFIER _ %lparen _ LIST_OF_PORT_CONNECTIONS _ %rparen _ %semicolon {%(d) => {return {Type: "module_instantiation", Module: d[0], Identifier: d[3], Parameters: d[2], Connections: d[7]}}%}
+
+LIST_OF_OVERRIDEN_PARAMS -> 
+    OVERRIDEN_PARAM _ %comma _ LIST_OF_OVERRIDEN_PARAMS {%function(d) {return [d[0]].concat(d[4]);} %}
+    | OVERRIDEN_PARAM {%function(d) {return [d[0]];} %}
+
+OVERRIDEN_PARAM -> %dot _ IDENTIFIER _ %lparen _ EXPRESSION _ %rparen {%function(d) {return {Type: "overriden_param", Identifier: d[2], Value: d[6]};} %}
 
 LIST_OF_PORT_CONNECTIONS ->
         NAMED_PORT_CONNECTION  (_ %comma _ NAMED_PORT_CONNECTION {%(d)=> {return d[3];}%}):* _ {%(d) => {return [d[0]].concat(d[1]);}%}

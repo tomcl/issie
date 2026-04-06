@@ -54,6 +54,13 @@
     <Compile Include="Simulator\Simulator.fs" />
     <Compile Include="VerilogComponent\Verilog.fs" />
 
+    <!-- JS and File interface -->
+    <Compile Include="Interface\Version.fs" />
+    <Compile Include="Interface\JSHelpers.fs" />
+    <Compile Include="Interface\FilesIO.fs" />
+    <Compile Include="Interface\WorkerInterface.fs" />
+    <None Include="scss\main.scss" />
+
     <!-- Verilog Component -->
     <Compile Include="VerilogComponent\VerilogTypes.fs" />
     <Compile Include="VerilogComponent\VerilogAST.fs" />
@@ -61,15 +68,7 @@
     <Compile Include="VerilogComponent\ErrorCheckHelpers.fs" />
     <Compile Include="VerilogComponent\ErrorCheckProcedural.fs" />
     <Compile Include="VerilogComponent\ErrorCheck.fs" />
-    <Compile Include="VerilogComponent\SheetCreator.fs" /> 
     <Compile Include="VerilogComponent\CodeEditorHelpers.fs" />   
-
-    <!-- JS and File interface -->
-    <Compile Include="Interface\Version.fs" />
-    <Compile Include="Interface\JSHelpers.fs" />
-    <Compile Include="Interface\FilesIO.fs" />
-    <Compile Include="Interface\WorkerInterface.fs" />
-    <None Include="scss\main.scss" />
 
 	<!-- Elmish Model -->
     <Compile Include="Model\DrawModelType.fs" />
@@ -105,6 +104,7 @@
     <Compile Include="UI\UIPopups.fs" />
     <Compile Include="UI\MemoryEditorView.fs" />
     <Compile Include="UI\MenuHelpers.fs" />
+      <Compile Include="VerilogComponent\SheetCreator.fs" /> 
     <Compile Include="UI\MiscMenuView.fs" />
     <Compile Include="UI\TopMenuView.fs" />
     <Compile Include="UI\CustomCompPorts.fs" />

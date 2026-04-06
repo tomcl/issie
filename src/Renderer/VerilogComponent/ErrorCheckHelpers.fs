@@ -7,18 +7,33 @@ open CommonTypes
 open VerilogAST
 open NumberHelpers
 
-/// Helper function to convert expressions to ints and back (for width checking)
-/// TODO: THIS CAN BE SIMPLIFIED AFTER REFACTORING
-let evalExpr (expr: ExpressionDU) =
-        expr
-        |> evalIntExpression
+
+// Helper function to evaluate expressions to integers
+// let rec evalIntExpression (expr0: ExpressionDU) : int =
+//     let rec strip (expr: ExpressionDU) =
+//         match expr with
+//         | ExpressionDU.Unary (Parenthesis e) -> strip e
+//         | _ -> expr
+//     let expr = strip expr0
+//     match expr with
+//     | UnaryUnsigned n -> tryEvalConst n
+//     | ExpressionDU.Unary (UnaryDU.Number n) -> tryEvalConst n
+//     | Negation (UnaryDU.Number n) -> -tryEvalConst n
+//     | Additive (_, lhs, rhs) -> evalIntExpression lhs + evalIntExpression rhs
+//     | Multiplicative (_, lhs, rhs) -> evalIntExpression lhs * evalIntExpression rhs
+//     | ShiftExpr (_, lhs, rhs) -> 
+//         let l = evalIntExpression lhs
+//         let r = evalIntExpression rhs
+//         l <<< r
+//     | Comparison (_, lhs, rhs) -> evalIntExpression rhs
+//     | Equality (_, lhs, rhs) -> evalIntExpression rhs
+//     | _ -> failwith "Expression is not a constant integer"
+
 
 /// Helper function to evaluate numeric bit-select bounds
 let evalNumber (num: string) =
     num
     |> int
-// let evalExprDU (expr: ExpressionDU) =
-//     expr |> evalIntExpression
 
 /// Helper functions to extract details from the LHS of an assignment
 let getPrimaryName (p: PrimaryDU) =
@@ -49,7 +64,7 @@ let getPrimaryRange (p: PrimaryDU) =
     | IdentifierBits (_, start, end_) ->
         Some (start, end_)
     | IdentifierBitsSelect (_, start, width, sel) ->
-        let bStart = evalIntExpression start
+        let bStart = evalExpr start
         let bEnd =
             match sel with
             | PlusWidth -> bStart + width - 1
@@ -166,7 +181,7 @@ let getLHSBits portSizeMap (assignment: Assignment)  =
             // let bEnd = evalExpr end_
             (id.Name, start, end_)
         | IdentifierBitsSelect (id, start, width, sel) ->
-            let bStart = evalIntExpression start
+            let bStart = evalExpr start
             let bEnd =
                 match sel with
                 | PlusWidth -> bStart + width - 1
@@ -197,16 +212,16 @@ let getLHSBits' portSizeMap (assignment: Assignment)  =
         | Identifier id
         | IdentifierArray (id, _) -> (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
-            // let b = evalIntExpression idx
+            // let b = evalExpr idx
             (id.Name, idx, idx)
         | VariableBitSelect (id, idx) ->
             (id.Name, -1, -1)
         | IdentifierBits (id, start, end_) ->
-            // let bStart = evalIntExpression start
+            // let bStart = evalExpr start
             // let bEnd = evalExpr end_
             (id.Name, start, end_)
         | IdentifierBitsSelect (id, start, width, sel) ->
-            let bStart = evalIntExpression start
+            let bStart = evalExpr start
             let bEnd =
                 match sel with
                 | PlusWidth -> bStart + width - 1
@@ -262,11 +277,11 @@ let getPrimaryBits portSizeMap (primary: PrimaryDU) =
         | IdentifierBit (id, idx) ->
             (id.Name, idx, idx)
         | IdentifierBits (id, start, end_) ->
-            // let bStart = evalIntExpression start
+            // let bStart = evalExpr start
             // let bEnd = evalExpr end_
             (id.Name, start, end_)
         | IdentifierBitsSelect (id, start, width, sel) ->
-            let bStart = evalIntExpression start
+            let bStart = evalExpr start
             let bEnd =
                 match sel with
                 | PlusWidth -> bStart + width - 1
@@ -563,7 +578,7 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors (pri
                         List.append localErrors (createErrorMessage linesLocations id.Location message extraMessages id.Name)
                 | None -> localErrors
             | IdentifierBitsSelect (id, start, width, _) ->
-                let bStart = evalIntExpression start
+                let bStart = evalExpr start
                 let bEnd = bStart - width + 1
                 match Map.tryFind id.Name currentInputWireSizeMap with
                 | Some size ->

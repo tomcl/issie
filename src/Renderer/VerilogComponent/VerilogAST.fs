@@ -139,16 +139,17 @@ type ItemDU =
 
 and IOItem = {DeclarationType: DeclarationDU; DataType: DataTypeDU; Range : Range option; Variables: IdentifierT array; Location: int}
 
-and ParameterItem = {DeclarationType: DeclarationDU; Parameters : Parameter array;}
 and Parameter = {Identifier: IdentifierT; RHS: ExpressionDU; Location: int}
+and ParameterItem = {DeclarationType: DeclarationDU; Parameters : Parameter array;}
 
 and ContinuousAssign = {StatementType: ContStatementDU; Assignment : Assignment; Location: int}
 and ContStatementDU = 
     | Assign
     | Wire
 
-and ModuleInstantiation = {Module: IdentifierT; Identifier: IdentifierT; Connections: NamedPortConnection array}
+and ModuleInstantiation = {Module: IdentifierT; Identifier: IdentifierT; Parameters: OverridenParameter array option; Connections: NamedPortConnection array}
 and NamedPortConnection = {PortId: IdentifierT; Primary: PrimaryDU}
+and OverridenParameter = {Identifier: IdentifierT; Value: ExpressionDU}
 
 type ModuleItems = {ItemList: ItemDU array; Location: int}
 
@@ -184,6 +185,124 @@ type ASTNode =
     | VerilogInput of VerilogInput
     | ModuleInstantiation of ModuleInstantiation
 // type Module = {AST: ASTNode;}
+
+//////////////////// EXPRESSION EVALUATION ////////////////////
+// Helper to evaluate integer expressions
+let tryEvalConst (number:Number) =
+    match number with
+    | Unsigned (value, _) -> value
+    | All (bits, numBase, allNumber, _) ->
+        let width = bits |> int
+        // let _base = Option.get number.Base
+        let digits = string allNumber
+        let text = 
+            match numBase with
+            | Binary -> "0b"+digits
+            | Hex -> "0x"+digits
+            |_ -> digits
+        let constValue: int =
+            match NumberHelpers.strToIntCheckWidth width text with
+            |Ok n -> int n
+            |Error _ -> failwithf "Shouldn't happen!" // TODO: better error handling - indicate that the value and size do not match
+        constValue
+
+/// Helper function to evaluate parameters to constants
+let rec evalExprWithParams (paramExpr: ExpressionDU) (paramMap: Map<string, int>) : int =
+    let rec strip (expr: ExpressionDU) =
+        match expr with
+        | ExpressionDU.Unary (Parenthesis e) -> strip e
+        | _ -> expr
+    let expr = strip paramExpr
+
+    match expr with
+    | ExpressionDU.UnaryUnsigned n ->  tryEvalConst n
+    | ExpressionDU.Negation (UnaryDU.Number n) -> -tryEvalConst n
+    | ExpressionDU.Unary (UnaryDU.Number n) -> tryEvalConst n
+
+    | ExpressionDU.Unary (UnaryDU.Primary (Identifier id)) ->
+        match Map.tryFind id.Name paramMap with
+        | Some v -> v
+        | None -> failwithf "Only parameters allowed to be used in width expressions (for now). '%s' is not a parameter or is an undefined parameter." id.Name
+    
+    | Additive (op, lhs, rhs) ->
+        let l = evalExprWithParams lhs paramMap
+        let r = evalExprWithParams rhs paramMap
+        match op with
+        | Plus -> l + r
+        | Minus -> l - r
+        | _ -> failwith "Unsupported additive operator for parameter evaluation"
+    | Multiplicative (op, lhs, rhs) ->
+        let l = evalExprWithParams lhs paramMap
+        let r = evalExprWithParams rhs paramMap
+        match op with
+        | Mult -> l * r
+        | _ -> failwith "Unsupported multiplicative operator for parameter evaluation"
+    | ShiftExpr (op, lhs, rhs) ->
+        let l = evalExprWithParams lhs paramMap
+        let r = evalExprWithParams rhs paramMap
+        match op with
+        | Sll -> l <<< r
+        | Srl -> l >>> r
+        | Sra -> l >>> r 
+        | _ -> failwith "Unsupported shift operator for parameter evaluation"
+    | BitwiseAnd (lhs, rhs) ->
+        let l = evalExprWithParams lhs paramMap
+        let r = evalExprWithParams rhs paramMap
+        l &&& r
+    | BitwiseOr (lhs, rhs) ->
+        let l = evalExprWithParams lhs paramMap
+        let r = evalExprWithParams rhs paramMap
+        l ||| r
+    | BitwiseXor (lhs, rhs) ->
+        let l = evalExprWithParams lhs paramMap
+        let r = evalExprWithParams rhs paramMap
+        l ^^^ r
+    | _ -> failwith "Expression does not evaluate to a constant integer or parameter reference"
+
+
+
+/// Helper function to convert expressions to ints and back (for width checking)
+let rec evalExpr (expr: ExpressionDU) : int =
+    match expr with
+    | ExpressionDU.UnaryUnsigned n ->  tryEvalConst n
+    | ExpressionDU.Negation (UnaryDU.Number n) -> -tryEvalConst n
+    | ExpressionDU.Unary (UnaryDU.Number n) -> tryEvalConst n
+    
+    | Additive (op, lhs, rhs) ->
+        let l = evalExpr lhs
+        let r = evalExpr rhs
+        match op with
+        | Plus -> l + r
+        | Minus -> l - r
+        | _ -> failwith "Unsupported operator for additive eval"
+    | Multiplicative (op, lhs, rhs) ->
+        let l = evalExpr lhs
+        let r = evalExpr rhs
+        match op with
+        | Mult -> l * r
+        | _ -> failwith "Unsupported operator for multiplicative eval"
+    | ShiftExpr (op, lhs, rhs) ->
+        let l = evalExpr lhs
+        let r = evalExpr rhs
+        match op with
+        | Sll -> l <<< r
+        | Srl -> l >>> r
+        | Sra -> l >>> r 
+        | _ -> failwith "Unsupported operator for shift eval"
+    | BitwiseAnd (lhs, rhs) ->
+        let l = evalExpr lhs
+        let r = evalExpr rhs
+        l &&& r
+    | BitwiseOr (lhs, rhs) ->
+        let l = evalExpr lhs
+        let r = evalExpr rhs
+        l ||| r
+    | BitwiseXor (lhs, rhs) ->
+        let l = evalExpr lhs
+        let r = evalExpr rhs
+        l ^^^ r
+    | _ -> failwith "Expression does not evaluate to a constant integer"
+
 
 
 // ////////// AST Conversion - from string type (JSON) to DU types (internal representation)
@@ -427,10 +546,12 @@ let convertContinuousAssign (raw: VerilogTypes.ContinuousAssignT) : ContinuousAs
 
 let convertNamedPortConnection (raw: VerilogTypes.NamedPortConnectionT) : NamedPortConnection =
     { PortId = raw.PortId; Primary = convertPrimary raw.Primary }
-
+let convertOverridenParameter (raw: VerilogTypes.OverridenParameterT) : OverridenParameter =
+    { Identifier = raw.Identifier; Value = convertExpression raw.Value }
 let convertModuleInstantiation (raw: VerilogTypes.ModuleInstantiationT) : ModuleInstantiation =
     { Module = raw.Module
       Identifier = raw.Identifier
+      Parameters = raw.Parameters |> Option.map (fun arr -> arr |> Array.map convertOverridenParameter)
       Connections = raw.Connections |> Array.map convertNamedPortConnection }
 
 // ====== Module Item conversion ======
@@ -494,41 +615,6 @@ let getItem (item: ItemDU) =
     | ItemDU.AlwaysConstruct a -> AlwaysConstruct a
     | ItemDU.ModuleInstantiation m -> ModuleInstantiation m
 
-// Helper to evaluate integer expressions (simple constants only)
-let tryEvalConst (number:Number) =
-    match number with
-    | Unsigned (value, _) -> value
-    | All (bits, numBase, allNumber, _) ->
-        let width = bits |> int
-        // let _base = Option.get number.Base
-        let digits = string allNumber
-        let text = 
-            match numBase with
-            | Binary -> "0b"+digits
-            | Hex -> "0x"+digits
-            |_ -> digits
-        let constValue: int =
-            match NumberHelpers.strToIntCheckWidth width text with
-            |Ok n -> int n
-            |Error _ -> failwithf "Shouldn't happen!" // TODO: better error handling - indicate that the value and size do not match
-        constValue
-let rec evalIntExpression (expr0: ExpressionDU) : int =
-    let rec strip (expr: ExpressionDU) =
-        match expr with
-        | ExpressionDU.Unary (Parenthesis e) -> strip e
-        | _ -> expr
-    let expr = strip expr0
-    match expr with
-    | UnaryUnsigned n -> tryEvalConst n
-    | ExpressionDU.Unary (UnaryDU.Number n) -> tryEvalConst n
-    | Negation (UnaryDU.Number n) -> -tryEvalConst n
-    | Additive (_, _, rhs)
-    | Multiplicative (_, _, rhs)
-    | ShiftExpr (_, _, rhs)
-    | Comparison (_, _, rhs)
-    | Equality (_, _, rhs) -> evalIntExpression rhs
-    | _ -> failwith "Expression is not a constant integer"
-
 
 let primaryIdName (p: PrimaryDU) =
     match p with
@@ -586,7 +672,7 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
         | IdentifierBit (id, idx) -> p
         // Only VBS should have non-constant index
         | VariableBitSelect (id, idx) when id.Name = loopVarName ->
-            IdentifierBit (id, evalIntExpression (substLoopExpr loopVarName value width idx))
+            IdentifierBit (id, evalExpr (substLoopExpr loopVarName value width idx))
         // | IdentifierBits (id, start, end_) ->
         //     IdentifierBits (id, substLoopExpr loopVarName value width start, substLoopExpr loopVarName value width end_)
         | IdentifierBits (id, start, end_) -> p
@@ -604,7 +690,7 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
         let vbs = lhs.VariableBitSelect |> Option.map (substLoopExpr loopVarName value width)
         let rewriteIndex (id: IdentifierT) idxExpr =
             let idxExpr' = substLoopExpr loopVarName value width idxExpr
-            let idx = evalIntExpression idxExpr'
+            let idx = evalExpr idxExpr'
             // let idxConst = UnaryUnsigned (Unsigned (idx, id.Location))
             IdentifierBit (id, idx)
 
@@ -615,7 +701,7 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
                 match vbs with
                 | Some expr ->
                     try
-                        let idx = evalIntExpression expr
+                        let idx = evalExpr expr
                         IdentifierBit (id, idx)
                     with _ -> lhs.PrimaryType
                 | None -> lhs.PrimaryType
@@ -627,7 +713,7 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
                 match vbs with
                 | Some expr ->
                     try
-                        let idx = evalIntExpression expr
+                        let idx = evalExpr expr
                         IdentifierBit (id, idx)
                     with _ -> lhs.PrimaryType
                 | None -> lhs.PrimaryType
@@ -701,12 +787,12 @@ let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
         | Gte -> startV - endV + 1
         | _ -> failwith "Unsupported operator"
 
-    let startValue = evalIntExpression forstmt.Initialisation.RHS
+    let startValue = evalExpr forstmt.Initialisation.RHS
     let endValue, condOp =
         match forstmt.Condition with
-        | Comparison (op, _, rhs) -> evalIntExpression rhs, op
+        | Comparison (op, _, rhs) -> evalExpr rhs, op
         | _ -> failwith "Unsupported operator in for loop condition"
-    let stepValue = evalIntExpression forstmt.Step.RHS
+    let stepValue = evalExpr forstmt.Step.RHS
     let iterations = computeIterations startValue condOp endValue stepValue
 
     if iterations < 0 || iterations > 500 then

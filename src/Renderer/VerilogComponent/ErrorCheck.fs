@@ -353,7 +353,7 @@ let checkAllOutputsAssigned
 let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (errorList: ErrorInfo list) : ErrorInfo list =
     let maxUnrollCost = 100 // TODO: instrument size and adjust this accordingly
     let tryEval expr =
-        try Ok (evalIntExpression expr) with _ -> Error "For loop bounds must be constant."
+        try Ok (evalExpr expr) with _ -> Error "For loop bounds must be constant."
 
     let tryGetIterations (f: ForStatement) =
         let startRes = tryEval f.Initialisation.RHS
@@ -531,6 +531,7 @@ let checkWiresAndAssignments
     (wireNameList: string list) 
     (wireSizeMap: Map<string,int>) 
     (wireLocationMap: Map<string,int>) 
+    (paramMap: Map<string,int>)
     (errorList: ErrorInfo list) 
         : ErrorInfo list =
 
@@ -633,8 +634,8 @@ let checkWiresAndAssignments
                     match isNullOrUndefined decl.Range with
                     |true -> localErrors // No errors
                     |false -> 
-                        let bStart = evalIntExpression (Option.get decl.Range).Start
-                        let bEnd = evalIntExpression (Option.get decl.Range).End
+                        let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
+                        let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
                         // CASE 3: Wrong Width declaration
                         if (bEnd <> 0 || bStart <= bEnd) then
                             let message = "Wrong width declaration"
@@ -946,7 +947,7 @@ let getNotUniquePortDeclarations items =
     |> List.map fst
 
 /// Returns the port-size map (e.g. (port "a" => 4 bits wide))
-let getPortSizeAndLocationMap (items: ItemDU list) = 
+let getPortSizeAndLocationMap (items: ItemDU list) paramMap = 
     let portSizeLocation = 
         items |> List.collect (fun x -> 
             match x with
@@ -954,32 +955,16 @@ let getPortSizeAndLocationMap (items: ItemDU list) =
                 let size =
                     match isNullOrUndefined ioItem.Range with
                     | true -> 1
-                    | false -> (evalExpr (Option.get ioItem.Range).Start) - (evalExpr (Option.get ioItem.Range).End) + 1
+                    | false -> (evalExprWithParams (Option.get ioItem.Range).Start paramMap) - (evalExprWithParams (Option.get ioItem.Range).End paramMap) + 1
                 let location = ioItem.Location
                 ioItem.Variables
                 |> Array.toList
                 |> List.collect (fun identifier -> [(identifier.Name,size,identifier.Location)])
             | _ -> []
-            // match (x.IOItem |> isNullOrUndefined) with
-            // | false -> 
-            //     match x.IODecl with
-            //     | Some d -> 
-            //         let size = 
-            //             match isNullOrUndefined d.Range with
-            //             | true -> 1
-            //             | false -> (evalExpr (Option.get d.Range).Start) - (evalExpr (Option.get d.Range).End) + 1
-            //         let location = x.Location
-            //         d.Variables 
-            //         |> Array.toList 
-            //         |> List.collect (fun identifier -> [(identifier.Name,size,identifier.Location)]) 
-            //     | None -> []
-            // | true -> []
         )
     let ps = List.map (fun x -> match x with | p,s,l -> (p,s)) portSizeLocation
     let pl = List.map (fun x -> match x with | p,s,l -> (p,l)) portSizeLocation
     (Map.ofList ps, Map.ofList pl)
-
-
 
 
 /// Returns the port-width declaration map (e.g. (  port "a" => (4,0)  ))
@@ -1032,7 +1017,7 @@ let getInputNames portMap =
 
 
 /// Returns the names of the declared WIRES
-let getWireSizeMap (items: ItemDU list) = 
+let getWireSizeMap (items: ItemDU list) paramMap = 
     items 
     |> List.collect (fun x -> 
         match x with
@@ -1044,7 +1029,7 @@ let getWireSizeMap (items: ItemDU list) =
                 | Identifier id -> [id.Name,1]
                 | IdentifierBit (id, _) -> [id.Name,1]
                 | VariableBitSelect (id, idx) -> 
-                    let size = evalExpr idx
+                    let size = evalExprWithParams idx paramMap
                     [id.Name,size]
                 | IdentifierBits (id, bStart, bEnd) -> 
                     // let bStart = evalExpr bitsstart
@@ -1083,6 +1068,20 @@ let getWireLocationMap (items: ItemDU list) =
         | _ -> [])
     |> Map.ofList
 
+let getParamMap (items: ItemDU list) : Map<string, int> =
+    let paramDecls = items |> List.filter (function ItemDU.ParamDecl _ -> true | _ -> false)
+    let paramBindings =
+        let paramDeclsList =
+            paramDecls
+            |> List.collect (function ItemDU.ParamDecl paramDecl -> paramDecl.Parameters |> Array.toList | _ -> [])
+            |> List.fold (fun acc param -> acc @ [param]) []
+        paramDeclsList 
+        |> List.fold (fun map param ->
+            let paramName = param.Identifier.Name
+            let paramValue = evalExpr param.RHS
+            Map.add paramName paramValue map
+        ) Map.empty
+    paramBindings
 
 
 /// Main error-finder function
@@ -1092,14 +1091,15 @@ let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:Co
     let (items: ItemDU list) = verilogitems |> List.map convertItem
     ///////// STATIC MAPS, LISTS NEEDED  ////////////////
     let portMap  = getPortMap items
-    let portSizeMap,portLocationMap = getPortSizeAndLocationMap items
+    let paramMap = getParamMap items
+    let portSizeMap,portLocationMap = getPortSizeAndLocationMap items paramMap
     let portWidthDeclarationMap = getPortWidthDeclarationMap items
     
     let notUniquePortDeclarations = getNotUniquePortDeclarations items
     
     let inputNameList = getInputNames portMap
 
-    let wireSizeMap = getWireSizeMap items
+    let wireSizeMap = getWireSizeMap items paramMap
     let declarations = foldAST getDeclarations [] (VerilogInput(ast))
     let wireSizeMap =
         (wireSizeMap, declarations)
@@ -1108,8 +1108,8 @@ let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:Co
             ||> Array.fold (fun map' variable -> 
                 if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
                 else
-                    let bStart = evalIntExpression (Option.get decl.Range).Start
-                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
+                    let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
                     Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
@@ -1128,19 +1128,19 @@ let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:Co
         |> portCheck ast linesLocations //all ports are declared as input/output
         |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations portMap project //all ports declared as IO are defined in the module header
         |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
-        |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap //checks 1-by-1 all assignments (wires & output ports)
+        |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap paramMap //checks 1-by-1 all assignments (wires & output ports)
         |> checkAllOutputsAssigned ast portMap portSizeMap linesLocations //checks whether all output ports have been assined a value
         |> checkUnsupportedKeywords ast linesLocations
         |> checkProceduralAssignments ast linesLocations
         |> checkForLoopUnrollCost ast linesLocations
         |> checkVariablesDrivenSimultaneously ast linesLocations
-        |> checkVariablesAlwaysAssigned ast linesLocations portSizeMap wireSizeMap
-        |> checkCasesStatements ast linesLocations portSizeMap wireSizeMap
-        |> checkExpressions ast linesLocations wireSizeMap
+        |> checkVariablesAlwaysAssigned ast linesLocations portSizeMap wireSizeMap paramMap
+        |> checkCasesStatements ast linesLocations portSizeMap wireSizeMap paramMap
+        |> checkExpressions ast linesLocations wireSizeMap paramMap
         |> checkClk ast linesLocations portMap
         |> checkClkNames ast linesLocations portMap portLocationMap portSizeMap
         |> cycleCheck ast linesLocations portSizeMap wireSizeMap
-        |> checkVariablesUsed ast linesLocations portSizeMap wireSizeMap
+        |> checkVariablesUsed ast linesLocations portSizeMap wireSizeMap paramMap
         |> checkAlwaysCombRHS ast linesLocations portSizeMap wireSizeMap
         |> checkAssignmentWidths ast linesLocations portSizeMap wireSizeMap
         |> checkModuleInstantiations ast linesLocations portSizeMap wireSizeMap project portMap

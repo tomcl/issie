@@ -6,6 +6,17 @@ open DrawHelpers
 open Helpers
 open NumberHelpers
 open VerilogAST
+open FilesIO
+open NearleyBindings
+open Fable.SimpleJson
+open Fable.Core.JsInterop
+open MenuHelpers
+
+NearleyBindings.importGrammar
+NearleyBindings.importFix
+NearleyBindings.importParser
+
+
 open ErrorCheck
 open ErrorCheckHelpers
 /////// TYPES ////////
@@ -558,8 +569,8 @@ let getExprWidths (varSizeMap: Map<string, int>)(expr': ExpressionDU) : (Express
                     | IdentifierBit _ ->
                         1, None
                     | IdentifierBits (_, bStart, bEnd) ->
-                        // let bStart = evalIntExpression start
-                        // let bEnd = evalIntExpression end_
+                        // let bStart = evalExpr start
+                        // let bEnd = evalExpr end_
                         (bStart - bEnd + 1), None // Assumption: bit-select range is constant here.
                     | IdentifierBitsSelect (_, start, width, _) ->
                         width, Some (getMinWidthsExpr start)
@@ -1226,21 +1237,131 @@ let multiplexerCircuit (inputs: List<bigint*Circuit>) (condition: Circuit) (defa
         joinCircuits [prevCircuit; inputCircuit; condCircuit] [mux2.InputPorts[0]; mux2.InputPorts[1]; mux2.InputPorts[2]] muxCircuit 
     )
 
+// Helper: parse a parameterized name into (baseName, paramList)
+let parseParamName (name: string) : string * string list =
+    printf "Parsing name: %s\n" name
+    match name.Split([|"_P_"|], System.StringSplitOptions.None) with
+    | [|baseName|] -> baseName, []
+    | [|baseName; paramString|] ->
+        let parts = paramString.Split('_')
+        let paramNames =
+            parts
+            |> Array.chunkBySize 2
+            |> Array.choose (function
+                | [|p; _|] -> Some p
+                | _ -> None)
+            |> Array.toList
+        baseName, paramNames
+    | _ -> name, []
 
-let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCompMap: Map<string,Component>) (varSizeMap: Map<string,int>) initialCircuits (project:Project)=
-    let rec compileModule (node: ASTNode) varToCompMap (currCircuits: Map<string, Circuit>) =
+// Returns true if two parameterized names have the same base module
+let isSameModuleIgnoringParams (name1: string) (name2: string) =
+    let base1, params1 = parseParamName name1
+    let base2, params2 = parseParamName name2
+    printf "Comparing %s and %s, base1: %s, base2: %s, params1: %A, params2: %A" name1 name2 base1 base2 params1 params2
+    (base1 = base2 && params1 = params2) || base1 = name2 || base2 = name1
+
+let getInitialMapAndCircuits (veriloginput: VerilogInput) (project:Project) paramMap =
+    let input = convertModule veriloginput.Module
+    let items = input.ModuleItems.ItemList |> Array.toList
+    let ioDecls = items |> List.filter (function ItemDU.IOItem _ -> true | _ -> false)
+    
+    let assignments = items |> List.filter (function ItemDU.ContStatement _ -> true | _ -> false)
+    let wiresLHS = collectWiresLHS assignments // get declarations too
+    let ioToCompMap = 
+        getIOtoComponentMap ioDecls 
+        |> Map.filter (fun var _ -> var <> "clk")   // for output ports make a wire label like for wires / we only need it for vars driven by continuous assigns though
+    let inputs = 
+        ioDecls
+        |> List.filter (function ItemDU.IOItem {DeclarationType=InputDecl} -> true | _ -> false)
+        |> List.fold (fun lst item -> 
+            match item with 
+            | ItemDU.IOItem ioItem -> Array.append lst ioItem.Variables
+            | _ -> failwithf "Should not happen! Expecting only IOItems"
+        ) [||]
+        |> Array.map (fun id -> id.Name)
+        |> Set.ofArray
+
+    // static map to search for input,wire components
+    let ioAndWireToCompMap = 
+        (ioToCompMap,wiresLHS) 
+        ||> List.fold(fun map wire ->
+            getWireToCompMap wire map
+        )
+
+    let portSizeMap,_ = getPortSizeAndLocationMap items paramMap
+    let wireSizeMap = getWireSizeMap items paramMap
+    let declarations = foldAST getDeclarations [] (VerilogInput veriloginput)
+    let wireSizeMap =
+        (wireSizeMap, declarations)
+        ||> List.fold (fun map decl ->
+            (map, decl.Variables)
+            ||> Array.fold (fun map' variable -> 
+                if Option.isNone decl.Range then Map.add variable.Name 1 map'
+                else
+                    let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
+                    let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
+                    Map.add variable.Name (bStart - bEnd + 1) map'
+            )
+        )
+    let varSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
+    let combVars = getCombinationalVars veriloginput project
+    let clockedVars = getClockedVars veriloginput
+    let varToCompMap = 
+        (ioToCompMap, combVars)
+        ||> List.fold ( fun map var ->
+            let wireComp = createComponent IOLabel var
+            Map.add var wireComp map
+            )
+    let varToCompMap =
+        (varToCompMap, clockedVars)
+        ||> List.fold (fun map var ->
+            let size = 
+                match Map.tryFind var varSizeMap with
+                | Some s -> s
+                | _ -> failwith "What? variable doesn't have a size?"
+            let regComp = createComponent (Register size) var
+            Map.add var regComp map
+        ) 
+    let clockedVarsSet = clockedVars |> Set.ofList
+    let initialCircuits = 
+        (Map.empty, varSizeMap)
+        ||> Map.fold (fun map var width->
+            match Set.contains var inputs, Set.contains  var clockedVarsSet with
+            | true, _ -> map
+            | false, false ->
+                let zero = All (width, Binary, 0, 100) //location is Don't Care
+                Map.add var (createNumberCircuit zero) map
+            | false,true -> 
+                let reg = 
+                    match Map.tryFind var varToCompMap with
+                    | Some comp -> comp
+                    | _ -> failwithf "Clocked variable doesn't have a component"
+                let circuit = {Comps=[reg]; Conns=[]; Out=reg.OutputPorts[0]; OutWidth=width}
+                Map.add var circuit map
+        )
+        |> Map.filter (fun var _ -> var <> "clk")
+
+    let ioVars = 
+        ioDecls
+        |> List.collect (function ItemDU.IOItem ioItem -> ioItem.Variables |> Array.toList | _ -> failwithf "Should not happen! Expecting only IOItems")
+        |> List.map (fun id -> (id.Name).ToUpper())
+    
+    varToCompMap, ioToCompMap, varSizeMap, initialCircuits, ioVars
+let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCompMap: Map<string,Component>) (varSizeMap: Map<string,int>) initialCircuits (project:Project) compName model dispatch =
+    let rec compileModuleRec (node: ASTNode) varToCompMap (currCircuits: Map<string, Circuit>) =
         match node with
         | VerilogInput input ->
-            compileModule (Module (convertModule input.Module)) varToCompMap currCircuits
+            compileModuleRec (Module (convertModule input.Module)) varToCompMap currCircuits
         | Module m ->
-            compileModule (ModuleItems m.ModuleItems) varToCompMap currCircuits
+            compileModuleRec (ModuleItems m.ModuleItems) varToCompMap currCircuits
         | ModuleItems items ->
             (currCircuits, items.ItemList)
-            ||> Array.fold (fun circuits item -> compileModule (Item item) varToCompMap circuits)
+            ||> Array.fold (fun circuits item -> compileModuleRec (Item item) varToCompMap circuits)
         | Item item ->
-            compileModule (getItem item) varToCompMap currCircuits
+            compileModuleRec (getItem item) varToCompMap currCircuits
         | ContStatement contAssign ->
-            compileModule (Assignment contAssign.Assignment) varToCompMap currCircuits
+            compileModuleRec (Assignment contAssign.Assignment) varToCompMap currCircuits
         | Assignment assign -> 
             match assign.LHS.VariableBitSelect with
             | None -> 
@@ -1290,44 +1411,46 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                 let orCircuit'= joinCircuits [andCircuit'; shiftLeftCircuit2'] [orComp.InputPorts[0]; orComp.InputPorts[1]] orCircuit
                 Map.add outPort orCircuit' currCircuits
         | AlwaysConstruct always ->
-            compileModule (Statement always.Statement) varToCompMap currCircuits
+            compileModuleRec (Statement always.Statement) varToCompMap currCircuits
         | Statement statement ->
-            compileModule (getAlwaysStatement statement |> statementToNode) varToCompMap currCircuits
-        | NonBlockingAssign assign ->
-            compileModule (Assignment assign.Assignment) varToCompMap currCircuits
-        | BlockingAssign assign ->
-            compileModule (Assignment assign.Assignment) varToCompMap currCircuits // TO DO: get += etc. operators working too! currently this is just =
-        | SeqBlock seq ->
-            (currCircuits, seq.Statements)
-            ||> Array.fold (fun circuits stmt ->
-                compileModule (Statement stmt) varToCompMap circuits) 
-        | Conditional cond ->
-            let ifCircuits = compileModule (Statement cond.IfStatement.Statement) varToCompMap currCircuits
-            let elseCircuits =
-                match cond.ElseStatement with
-                | Some stmt -> compileModule (Statement stmt) varToCompMap currCircuits
-                | _ -> currCircuits
-            let condCircuit = mainExpressionCircuitBuilder cond.IfStatement.Condition varToCompMap varSizeMap 0// need to reduce it to 1 bit
-            let comp = createComponent (BusCompare (condCircuit.OutWidth, 0I)) "CMP"
-            let topCircuit = {Comps=[comp];Conns=[];Out=comp.OutputPorts[0];OutWidth=1}
-            let condCircuitN = joinCircuits [condCircuit] [comp.InputPorts[0]] topCircuit
-            (currCircuits, ifCircuits)
-            ||> Map.fold (fun circuits var ifCircuit ->
-                let elseCircuit = 
-                    match Map.tryFind var elseCircuits with
-                    | Some c -> c
-                    | _ -> failwithf "This should not happen variable doesn't have a circuit in else branch!"
-                if ifCircuit = elseCircuit then circuits
-                else
-                    let mux = createComponent Mux2 "Mux2"
-                    let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifCircuit.OutWidth}
-                    let newCircuit = joinCircuits [ifCircuit;elseCircuit;condCircuitN] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
-                    Map.add var newCircuit circuits
-            )
-        | ForStatement forStmt ->
-            let forStmts = unrollForLoops forStmt
-            compileModule (SeqBlock forStmts) varToCompMap currCircuits
-            // failwithf "Reaching compile module, Forstatements seq block: %A, number of statements: %d" forStmts forStmts.Statements.Length
+            match statement with
+            | StatementDU.NonBlockingAssign assign ->
+                compileModuleRec (Assignment assign) varToCompMap currCircuits
+            | StatementDU.BlockingAssign assign ->
+                compileModuleRec (Assignment assign) varToCompMap currCircuits // TO DO: get += etc. operators working too! currently this is just =
+            | StatementDU.SeqBlock (seq, _) ->
+                (currCircuits, seq)
+                ||> Array.fold (fun circuits stmt ->
+                    compileModuleRec (Statement stmt) varToCompMap circuits) 
+            | StatementDU.Conditional (ifStmt, elseStmt) ->
+                let ifCircuits = compileModuleRec (Statement ifStmt.Statement) varToCompMap currCircuits
+                let elseCircuits =
+                    match elseStmt with
+                    | Some stmt -> compileModuleRec (Statement stmt) varToCompMap currCircuits
+                    | _ -> currCircuits
+                let condCircuit = mainExpressionCircuitBuilder ifStmt.Condition varToCompMap varSizeMap 0// need to reduce it to 1 bit
+                let comp = createComponent (BusCompare (condCircuit.OutWidth, 0I)) "CMP"
+                let topCircuit = {Comps=[comp];Conns=[];Out=comp.OutputPorts[0];OutWidth=1}
+                let condCircuitN = joinCircuits [condCircuit] [comp.InputPorts[0]] topCircuit
+                (currCircuits, ifCircuits)
+                ||> Map.fold (fun circuits var ifCircuit ->
+                    let elseCircuit = 
+                        match Map.tryFind var elseCircuits with
+                        | Some c -> c
+                        | _ -> failwithf "This should not happen variable doesn't have a circuit in else branch!"
+                    if ifCircuit = elseCircuit then circuits
+                    else
+                        let mux = createComponent Mux2 "Mux2"
+                        let topCircuit = {Comps=[mux];Conns=[];Out=mux.OutputPorts[0];OutWidth=ifCircuit.OutWidth}
+                        let newCircuit = joinCircuits [ifCircuit;elseCircuit;condCircuitN] [mux.InputPorts[0];mux.InputPorts[1];mux.InputPorts[2]] topCircuit
+                        Map.add var newCircuit circuits
+                )
+            | StatementDU.ForStatement forStmt ->
+                let forStmts = unrollForLoops forStmt
+                compileModuleRec (Statement forStmts) varToCompMap currCircuits
+                // failwithf "Reaching compile module, Forstatements seq block: %A, number of statements: %d" forStmts forStmts.Statements.Length
+            | StatementDU.Case case ->
+                compileModuleRec (Case case) varToCompMap currCircuits
         | Case case ->
             let caseItemMap: Map<bigint, StatementDU> =
                 (Map.empty, case.CaseItems)
@@ -1350,7 +1473,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
             let muxInputs: Map<string, List<bigint*Circuit>> =
                 (Map.empty, caseItemMap)
                 ||> Map.fold (fun inputs num stmt->
-                    let circuits = compileModule (Statement stmt) varToCompMap currCircuits
+                    let circuits = compileModuleRec (Statement stmt) varToCompMap currCircuits
                     let newInputs =
                         (inputs, circuits)
                         ||> Map.fold (fun currMap var circuit ->
@@ -1365,7 +1488,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                 )
             let defaultCircuits = 
                 match case.Default with
-                | Some stmt -> compileModule (Statement stmt) varToCompMap currCircuits
+                | Some stmt -> compileModuleRec (Statement stmt) varToCompMap currCircuits
                 | None -> currCircuits
             let sel = mainExpressionCircuitBuilder case.Expression varToCompMap varSizeMap 0
             (currCircuits, muxInputs)
@@ -1382,16 +1505,166 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                 match List.tryFind (fun comp -> comp.Name = modInst.Module.Name) project.LoadedComponents with
                     | Some comp -> comp
                     | _ -> failwithf "No such loaded component found, this should never happen %s" modInst.Module.Name
+            let loadedComp, name =
+                match modInst.Parameters with
+                | Some parameters -> 
+                    let overrideMap =
+                        (Map.empty, parameters)
+                        ||> Array.fold (fun map param ->
+                        // TODO: add check that param matches module def
+                            Map.add param.Identifier.Name (evalExpr param.Value) map
+                        )
+
+                    let modInstVerilog = 
+                        match loadedComp.Form with
+                        | Some (Verilog name) -> 
+                            let folderPath = project.ProjectPath
+                            let path = pathJoin [| folderPath; name + ".v" |]
+                            let code = 
+                                match tryReadFileSync path with
+                                |Ok text -> text
+                                |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" name
+                            let parsedCodeNearley = parseFromFile code
+                            let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                            let result = Option.get output.Result
+                            let fixedAST = fix result
+                            let parsedAST = fixedAST |> Json.parseAs<VerilogTypes.VerilogInput>
+                            // failwithf "failing at %s" fixedAST 
+                            parsedAST
+                        | _ -> failwithf "Loaded component doesn't have a form - Only verilog modules supported currently"
+
+                    
+                    let paramsOverriden = 
+                        overrideMap 
+                        |> Map.toList
+                        |> List.map (fun (param, value) -> sprintf "%s_%A" param value ) 
+                    
+                    let original_name = modInst.Module.Name
+                    let name = modInst.Module.Name + "_P_" + String.concat "_" paramsOverriden
+                    // failwithf "name: %s" name
+
+                    let folderPath = project.ProjectPath
+                    let oldPath = pathJoin [| folderPath; original_name + ".v" |]
+                    let code = 
+                        match tryReadFileSync oldPath with
+                        |Ok text -> text
+                        |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" original_name
+                    
+                    let path = pathJoin [| folderPath; name + ".v" |]
+                    let path2 = pathJoin [| folderPath; name + ".dgm" |]
+                    
+                    match writeFile path code with
+                    | Ok _ -> ()
+                    | Error _ -> failwithf "Writing verilog file FAILED"
+
+                    // replicating createSheet
+                    let input = convertModule modInstVerilog.Module
+                    
+                    let items = input.ModuleItems.ItemList |> Array.toList
+                    
+                    let varToCompMap, ioToCompMap, varSizeMap, initialCircuits, ioVars = getInitialMapAndCircuits modInstVerilog project overrideMap
+                    // failwithf "param override: %A" overrideMap
+
+                    let perItemCircuits = 
+                        compileModule (VerilogInput modInstVerilog) varToCompMap ioToCompMap varSizeMap initialCircuits project compName model dispatch
+                        |> Map.toList
+                        |> List.sortBy (fun (s,c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=s) ioVars)) 
+                    // failwithf "per item circuits: %A" perItemCircuits
+
+                    let csList = 
+                        perItemCircuits
+                        |> List.map (fun (portName,circuit) ->
+                            
+                            attachToOutput varToCompMap ioToCompMap circuit portName
+                        )
+                    let v =
+                        List.map (fun cs -> 
+                            cs
+                        ) csList
+
+                    let finalCanvasState =
+                        match List.isEmpty csList with
+                        | true ->
+                            (collectInputAndWireComps varToCompMap,[])
+                        |false -> 
+                            csList
+                            |> List.reduce (fun cs1 cs2 -> concatenateCanvasStates cs1 cs2)
+                            |> concatenateCanvasStates (collectInputAndWireComps varToCompMap,[])
+
+                    let components = 
+                        fst finalCanvasState
+                        |> List.sortBy (fun (c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=c.Label) ioVars))
+                    let finalCanvasState = 
+                        (components, snd finalCanvasState)
+                        |> fixCanvasState
+                    // failwithf "Final Canvas State: %A" finalCanvasState
+
+
+                    let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (finalCanvasState, None, Some {
+                                    Form = Some (Verilog name);
+                                    Description=None;
+                                    ParameterDefinitions = None})
+                    // failwithf "cs: %A" toSaveCanvasState
+                    // failwithf "path2 = %s" path2
+
+                    match writeFile path2 toSaveCanvasState with
+                    | Ok _ ->
+                        // failwithf "path2 = %s" path2
+                        let nestedComponent = 
+                            match tryLoadComponentFromPath path2 with
+                            |Ok comp -> comp
+                            |Error _ -> failwithf "failed to load the created Verilog file"
+                        // printf "initial project: %A" project
+
+                        let updateParentCanvasStates (project: Project) (parentName: string) (oldName: string) (newName: string) =
+                            let updateComp (comp: Component) =
+                                let isOldInstance (ct: CustomComponentType) =
+                                    printf "Comparing: old name base: %s and new: %s" oldName newName
+                                    isSameModuleIgnoringParams ct.Name oldName
+                                match comp.Type with
+                                | Custom ct when isOldInstance ct || ct.Name = oldName ->
+                                    { comp with Type = Custom { ct with Name = newName } }
+                                | _ -> comp
+                            let updateCanvasState (cs: CanvasState) =
+                                (fst cs |> List.map updateComp, snd cs)
+                            { project with
+                                LoadedComponents =
+                                    project.LoadedComponents
+                                    |> List.map (fun ldc ->
+                                        if ldc.Name = parentName then
+                                            { ldc with CanvasState = updateCanvasState ldc.CanvasState }
+                                        else ldc)
+                            }
+
+                        let updatedProject =
+                            {project with LoadedComponents = nestedComponent :: project.LoadedComponents}
+                        let updatedProject =
+                            updateParentCanvasStates updatedProject compName modInst.Module.Name name
+                            
+                        // printf "updated project: %A" updatedProject.LoadedComponents
+                        openFileInProject project.OpenFileName updatedProject model dispatch
+                        // failwithf "nested comp %A" nestedComponent
+                        // failwithf "project: %A" project
+                        // failwithf "Loaded component: %A, name: %s" nestedComponent name
+                        nestedComponent, name
+                    | Error _ -> failwithf "Writing .dgm file FAILED"
+
+                | None -> loadedComp, modInst.Module.Name
+
+            // failwithf "Loaded component: %A" loadedComp
             let (customCompType: CustomComponentType) =
                 {
-                    Name=modInst.Module.Name;
+                    Name=name;
                     InputLabels=loadedComp.InputLabels;
                     OutputLabels=loadedComp.OutputLabels;
                     Form=None;
                     Description=None;
                     ParameterBindings = None
                 }
+            // failwithf "comp type: %A" customCompType
+
             let comp = createComponent (Custom customCompType) modInst.Identifier.Name
+            // failwithf "Loaded component: %A" loadedComp
             let portLabels = loadedComp.InputLabels@loadedComp.OutputLabels
             let connections =
                 modInst.Connections
@@ -1409,6 +1682,7 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
 
             let topCircuit = {Conns=[]; Comps= [comp]; Out=comp.OutputPorts[0]; OutWidth=0}
             let inputCircuit = joinCircuits inputCircuits comp.InputPorts topCircuit
+            
             (currCircuits, List.zip outputPrimaries comp.OutputPorts) 
             ||> List.fold (fun circuits (primary, port) ->
                 let outPort = getPrimaryName primary
@@ -1430,100 +1704,24 @@ let compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioToCom
                 Map.add outPort newCircuit circuits
 
             )
+
             
             
         | _ -> currCircuits
-    let res = compileModule node varToCompMap initialCircuits // pass in everything set to 0 or flip flop output
+    let res = compileModuleRec node varToCompMap initialCircuits // pass in everything set to 0 or flip flop output
     res
 /////////   MAIN FUNCTION   //////////
 
-let createSheet (veriloginput:VerilogInput) (project:Project)= 
+let createSheet (veriloginput:VerilogInput) (project:Project) model dispatch= 
     let input = convertModule veriloginput.Module
     let items = input.ModuleItems.ItemList |> Array.toList
-    let ioDecls = items |> List.filter (function ItemDU.IOItem _ -> true | _ -> false)
-    let assignments = items |> List.filter (function ItemDU.ContStatement _ -> true | _ -> false)
-    let wiresLHS = collectWiresLHS assignments // get declarations too
-    let ioToCompMap = 
-        getIOtoComponentMap ioDecls 
-        |> Map.filter (fun var _ -> var <> "clk")   // for output ports make a wire label like for wires / we only need it for vars driven by continuous assigns though
-    let inputs = 
-        ioDecls
-        |> List.filter (function ItemDU.IOItem {DeclarationType=InputDecl} -> true | _ -> false)
-        |> List.fold (fun lst item -> 
-            match item with 
-            | ItemDU.IOItem ioItem -> Array.append lst ioItem.Variables
-            | _ -> failwithf "Should not happen! Expecting only IOItems"
-        ) [||]
-        |> Array.map (fun id -> id.Name)
-        |> Set.ofArray
-
-    // static map to search for input,wire components
-    let ioAndWireToCompMap = 
-        (ioToCompMap,wiresLHS) 
-        ||> List.fold(fun map wire ->
-            getWireToCompMap wire map
-        )
-    let portSizeMap,_ = getPortSizeAndLocationMap items
-    let wireSizeMap = getWireSizeMap items
-    let declarations = foldAST getDeclarations [] (VerilogInput veriloginput)
-    let wireSizeMap =
-        (wireSizeMap, declarations)
-        ||> List.fold (fun map decl ->
-            (map, decl.Variables)
-            ||> Array.fold (fun map' variable -> 
-                if Option.isNone decl.Range then Map.add variable.Name 1 map'
-                else
-                    let bStart = evalIntExpression (Option.get decl.Range).Start
-                    let bEnd = evalIntExpression (Option.get decl.Range).End
-                    Map.add variable.Name (bStart - bEnd + 1) map'
-            )
-            // add paramemter evaluation here?
-        )
-    let varSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
-    let combVars = getCombinationalVars veriloginput project
-    let clockedVars = getClockedVars veriloginput
-    let varToCompMap = // need to only do this for outputs and wires driven by combinational logic, need to differentiate between the two so they have unique names
-        (ioToCompMap, combVars)
-        ||> List.fold ( fun map var ->
-            let wireComp = createComponent IOLabel var // name won't be unique currently for output ports
-            Map.add var wireComp map
-            )
-    let varToCompMap =
-        (varToCompMap, clockedVars)
-        ||> List.fold (fun map var ->
-            let size = 
-                match Map.tryFind var varSizeMap with
-                | Some s -> s
-                | _ -> failwith "What? variable doesn't have a size?"
-            let regComp = createComponent (Register size) var
-            Map.add var regComp map
-        ) 
-    // initial circuits - don't need it for inputs
-    let clockedVarsSet = clockedVars |> Set.ofList
-    let initialCircuits = 
-        (Map.empty, varSizeMap)
-        ||> Map.fold (fun map var width->
-            match Set.contains var inputs, Set.contains  var clockedVarsSet with
-            | true, _ -> map
-            | false, false ->
-                let zero = All (width, Binary, 0, 100) //location is Don't Care
-                Map.add var (createNumberCircuit zero) map
-            | false,true -> 
-                let reg = 
-                    match Map.tryFind var varToCompMap with
-                    | Some comp -> comp
-                    | _ -> failwithf "Clocked variable doesn't have a component"
-                let circuit = {Comps=[reg]; Conns=[]; Out=reg.OutputPorts[0]; OutWidth=width}
-                Map.add var circuit map
-        )
-        |> Map.filter (fun var _ -> var <> "clk")
-
-    let ioVars = 
-        ioDecls
-        |> List.collect (function ItemDU.IOItem ioItem -> ioItem.Variables |> Array.toList | _ -> failwithf "Should not happen! Expecting only IOItems")
-        |> List.map (fun id -> (id.Name).ToUpper())
+    
+    let paramMap = getParamMap items
+    
+    let varToCompMap, ioToCompMap, varSizeMap, initialCircuits, ioVars = getInitialMapAndCircuits veriloginput project paramMap
+    let compName = input.ModuleName.Name
     let perItemCircuits = 
-        compileModule (VerilogInput veriloginput) varToCompMap ioToCompMap varSizeMap initialCircuits project
+        compileModule (VerilogInput veriloginput) varToCompMap ioToCompMap varSizeMap initialCircuits project compName model dispatch
         |> Map.toList
         |> List.sortBy (fun (s,c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=s) ioVars)) 
     
@@ -1570,3 +1768,5 @@ let createSheet (veriloginput:VerilogInput) (project:Project)=
 // 2. create circuit for rhs of cont assign using wire labels: rhs variables use output of wire label, lhs is input of wire label
 // maybe transform the ast into a variable name -> "smth easily translated to issie components"
 // go through continuous assignments lhs -> rhs circuit
+
+

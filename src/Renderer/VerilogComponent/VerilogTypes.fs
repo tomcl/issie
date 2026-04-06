@@ -85,7 +85,9 @@ type AlwaysConstructT = {Type: string; AlwaysType: string; Statement: StatementT
 
 type NamedPortConnectionT = {Type: string; PortId: IdentifierT; Primary: PrimaryT}
 
-type ModuleInstantiationT = {Type: string; Module: IdentifierT; Identifier: IdentifierT; Connections: NamedPortConnectionT array}
+type OverridenParameterT = {Type: string; Identifier: IdentifierT; Value: ExpressionT}
+
+type ModuleInstantiationT = {Type: string; Module: IdentifierT; Identifier: IdentifierT; Parameters: OverridenParameterT array option; Connections: NamedPortConnectionT array}
 
 type ItemT = {Type: string; ItemType: string; IODecl: IOItemT option; Decl: DeclarationT option; ParamDecl: ParameterItemT option; Statement: ContinuousAssignT option; AlwaysConstruct: AlwaysConstructT option; ModuleInstantiation: ModuleInstantiationT option; Location: int}
 

@@ -115,6 +115,7 @@ let checkCasesStatements
     (linesLocations: int list)
     (portSizeMap: Map<string,int>) 
     (wireSizeMap: Map<string,int>) 
+    (paramMap: Map<string,int>)
     (errorList: ErrorInfo list)
         : ErrorInfo list =
 
@@ -127,8 +128,8 @@ let checkCasesStatements
             ||> Array.fold (fun map' variable -> 
                 if isNullOrUndefined decl.Range then Map.add variable.Name 0 map'
                 else
-                    let bStart = evalIntExpression (Option.get decl.Range).Start
-                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
+                    let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
                     Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
@@ -235,6 +236,7 @@ let checkVariablesAlwaysAssigned
     (linesLocations: int list)
     (portSizeMap: Map<string,int>) 
     (wireSizeMap: Map<string,int>) 
+    (paramMap: Map<string,int>)
     (errorList: ErrorInfo list)
         : ErrorInfo list =
 
@@ -247,8 +249,8 @@ let checkVariablesAlwaysAssigned
             ||> Array.fold (fun map' variable -> 
                 if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
                 else
-                    let bStart = evalIntExpression (Option.get decl.Range).Start
-                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
+                    let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
                     Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
@@ -358,6 +360,7 @@ let checkExpressions
     (ast:VerilogInput) 
     (linesLocations: int list)
     (wireSizeMap: Map<string,int>) 
+    (paramMap: Map<string,int>)
     (errorList: ErrorInfo list) =
 
     let declarations = foldAST getDeclarations [] (VerilogInput(ast))
@@ -369,8 +372,8 @@ let checkExpressions
             ||> Array.fold (fun map' variable -> 
                 if isNullOrUndefined decl.Range then Map.add variable.Name 0 map'
                 else
-                    let bStart = evalIntExpression (Option.get decl.Range).Start
-                    let bEnd = evalIntExpression (Option.get decl.Range).End
+                    let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
+                    let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
                     Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
@@ -659,6 +662,7 @@ let checkVariablesUsed
     (linesLocations: int list)
     (portSizeMap: Map<string,int>)
     (wireSizeMap: Map<string, int>)
+    (paramMap: Map<string,int>)
     (errorList: ErrorInfo list) =
 
     let wireAndPortSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
@@ -681,8 +685,8 @@ let checkVariablesUsed
                 let res = decl.Variables |> Array.map (fun var -> var.Name + "[0]") |> Array.toList
                 res
             | Some range -> 
-                let bStart = evalIntExpression range.Start
-                let bEnd = evalIntExpression range.End
+                let bStart = evalExprWithParams range.Start paramMap
+                let bEnd = evalExprWithParams range.End paramMap
                 let bits = [|bEnd .. bStart|]
                 let res =
                     decl.Variables
@@ -820,8 +824,8 @@ let getPrimaryWidth portSizeMap (primary: PrimaryDU) =
         | _ -> 1
     | IdentifierBit _ -> 1
     | IdentifierBits (_, start, end_) ->
-        // let bStart = evalIntExpression start
-        // let bEnd = evalIntExpression end_
+        // let bStart = evalExpr start
+        // let bEnd = evalExpr end_
         start - end_ + 1
     | IdentifierBitsSelect (_, _, width, _) -> width
 

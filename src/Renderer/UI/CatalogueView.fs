@@ -730,7 +730,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let fixedAST = fix result
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
 
-                let cs = SheetCreator.createSheet parsedAST project
+                let cs = SheetCreator.createSheet parsedAST project model dispatch
                 let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {
                                 Form = Some (Verilog name);
                                 Description=None;
@@ -766,7 +766,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let result = Option.get output.Result
                 let fixedAST = fix result
                 let parsedAST = fixedAST |> Json.parseAs<VerilogInput>
-                let newCS = SheetCreator.createSheet parsedAST project
+                let newCS = SheetCreator.createSheet parsedAST project model dispatch
 
                 dispatch (StartUICmd SaveSheet)               
                 updateVerilogFileActionWithModelUpdate newCS name model dispatch |> ignore

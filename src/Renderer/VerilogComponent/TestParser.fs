@@ -85,6 +85,7 @@ open Fable.SimpleJson
 
 
 let parseFile src dst =
+    printfn $"[TEST] Parsing file {baseNameWithoutExtension src}"
     let input = tryReadFileSync src
     let parse, linesIndex = 
         match input with
@@ -134,11 +135,19 @@ let errorCheck ast linesIndex src dst =
         |> Json.stringify
         |> writeFile dst
     printfn $"[TEST] {baseNameWithoutExtension src}"
-    if List.sort outputErrors = List.sort refErrors  then 
+    let outText = List.sort outputErrors |> Json.stringify
+    let refText = List.sort refErrors |> Json.stringify
+    if outText = refText then 
         printf "[TEST] PASS"
         1
     else 
         printf "[TEST] FAIL"
+        // printfn $"Output errors: {outputErrors}"
+        // printfn $"Reference errors: {refErrors}"
+        // printfn $"Output JSON: {outText}"
+        // printfn $"Reference JSON: {refText}"
+        // let testDIFF = (outText = refText)
+        // printfn $"Output text matches reference text: {testDIFF}"
         0
 
     
@@ -148,6 +157,7 @@ let semanticErrorTests _ =
     let inputFiles =
         readFilesFromDirectory inputPath
         |> List.map (fun file -> pathJoin [|inputPath; file|])
+    printfn "Testing semantic error checks"
     let nrOfTestCases = List.length inputFiles
     let outputFiles = List.map (fun file -> pathJoin [|outputPath; (baseNameWithoutExtension file) + ".json"|]) inputFiles
     let res =
@@ -289,7 +299,12 @@ let runCodeGenTests _ =
             fun (src,dst) -> 
                 let ast, linesIndex = parseFile src dst
                 match getSemanticErrors ast linesIndex with
-                | [] -> simulateAST ast src dst []
+                | [] ->  
+                    try 
+                        simulateAST ast src dst []
+                    with _ -> 
+                        printfn $"[TEST] couldn't simulate AST for {baseNameWithoutExtension src}"
+                        0
                 | _ -> 
                     printfn $"[TEST] couldn't parse input {baseNameWithoutExtension src}"
                     0
@@ -569,6 +584,7 @@ let genDriverFiles () =
 
 
 let runCompilerTests _ =
+    printfn "test parsing"
     let filenames =
         readFilesFromDirectory "./src/Renderer/VerilogComponent/test/input/valid"
         |> List.map (fun file -> pathJoin [|"./src/Renderer/VerilogComponent/test/input/valid"; file|])
@@ -578,8 +594,10 @@ let runCompilerTests _ =
         parseFile src dst)
     |> ignore
     
+    printfn "Testing compiler error checks"
     semanticErrorTests () |> ignore
 
+    printfn "Testing code generation tests"
     runCodeGenTests () |> ignore
 
 let rec unzip5 lst =

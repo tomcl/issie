@@ -43,7 +43,7 @@ let getPrimaryName (p: PrimaryDU) =
     | VariableBitSelect (id, _)
     | IdentifierBits (id, _, _)
     | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _) -> id.Name
+    | IdentifierArray (id, _, _, _) -> id.Name
 
 let getPrimaryLocation (p: PrimaryDU) =
     match p with
@@ -52,15 +52,15 @@ let getPrimaryLocation (p: PrimaryDU) =
     | VariableBitSelect (id, _)
     | IdentifierBits (id, _, _)
     | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _) -> id.Location
+    | IdentifierArray (id, _, _, _) -> id.Location
 
 let getPrimaryRange (p: PrimaryDU) =
     match p with
     | Identifier _ -> None
     | IdentifierArray _ -> None
+    | VariableBitSelect (_, _) -> None
     | IdentifierBit (_, idx) ->
         Some (idx, idx)
-    | VariableBitSelect (_, _) -> None
     | IdentifierBits (_, start, end_) ->
         Some (start, end_)
     | IdentifierBitsSelect (_, start, width, sel) ->
@@ -87,6 +87,7 @@ let createErrorMessage
     let line = prevIndex+1
     let prevLineLocation = newLinesLocations[prevIndex]
     let length = String.length name
+    // printfn "name of error: %s" name
     
     [{Line = line; Col=currLocation-prevLineLocation+1;Length=length;Message = message;ExtraErrors=Some extraMessages}]
 
@@ -171,7 +172,7 @@ let getLHSBits portSizeMap (assignment: Assignment)  =
     let assignmentWithRange =
         match assignment.LHS.PrimaryType with
         | Identifier id
-        | IdentifierArray (id, _) -> (id.Name, -1, -1)
+        | IdentifierArray (id, _, _, _) -> (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
             (id.Name, idx, idx)
         | VariableBitSelect (id, idx) ->
@@ -210,7 +211,7 @@ let getLHSBits' portSizeMap (assignment: Assignment)  =
     let assignmentWithRange =
         match assignment.LHS.PrimaryType with
         | Identifier id
-        | IdentifierArray (id, _) -> (id.Name, -1, -1)
+        | IdentifierArray (id, _, _, _) -> (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
             // let b = evalExpr idx
             (id.Name, idx, idx)
@@ -251,7 +252,7 @@ let getLHSBitsAssignedCertainly portSizeMap (assignment: Assignment) =
     | _ ->
         match assignment.LHS.PrimaryType with
         | Identifier id
-        | IdentifierArray (id, _) ->
+        | IdentifierArray (id, _, _, _) ->
             match Map.tryFind id.Name portSizeMap with
             | Some size ->
                 let names = [0..size-1] |> List.map (fun y -> id.Name + "[" + string y + "]")
@@ -271,7 +272,7 @@ let getPrimaryBits portSizeMap (primary: PrimaryDU) =
     let primaryWithRange =
         match primary with
         | Identifier id
-        | IdentifierArray (id, _) -> (id.Name, -1, -1)
+        | IdentifierArray (id, _, _, _) -> (id.Name, -1, -1)
         | VariableBitSelect (id, idx) ->
             (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
@@ -358,7 +359,7 @@ let RHSUnaryAnalysis
             | UnaryDU.Primary primary ->
                 match primary with
                 | Identifier id
-                | IdentifierArray (id, _) ->
+                | IdentifierArray (id, _, _, _) ->
                     match Map.tryFind id.Name inputWireSizeMap with
                     | Some num -> {Name=id.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
                     | None -> {Name="undefined";ResultWidth=0;Head=None;Tail=None;Elements=[]} 
@@ -446,7 +447,7 @@ let getWidthOfExpr
         | Negation (UnaryDU.Primary primary) ->
             match primary with
             | Identifier id
-            | IdentifierArray (id, _) ->
+            | IdentifierArray (id, _, _, _) ->
                 match Map.tryFind id.Name inputWireSizeMap with
                 | Some num -> num
                 | None -> 0
@@ -533,7 +534,7 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors (pri
         |> List.collect (fun x ->
             match x with
             | Identifier id
-            | IdentifierArray (id, _) ->
+            | IdentifierArray (id, _, _, _) ->
                 localErrors
             | VariableBitSelect (id, idx) ->
                 localErrors
@@ -735,10 +736,10 @@ let getRHSBits portSizeMap (expression: ExpressionDU) =
                             // let endBits = getExprBits end_
                             // Set.union startBits endBits
                         | IdentifierBitsSelect (_, start, _, _) -> getExprBits start
-                        | IdentifierArray (_, indices) ->
-                            indices
-                            |> Array.map getExprBits
-                            |> Array.fold Set.union Set.empty
+                        // | IdentifierArray (_, indices, start, end_) ->
+                        //     indices
+                        //     |> Array.map getExprBits
+                        //     |> Array.fold Set.union Set.empty
                         | Identifier _
                         | IdentifierArray _ -> Set.empty
                     Set.union primaryBits indexBits
@@ -755,13 +756,12 @@ let getLHSWidth (assign:Assignment) (varSizeMap: Map<string, int>)  =
     | Some _ -> 1
     | None ->
         match assign.LHS.PrimaryType with
-        | Identifier id
-        | IdentifierArray (id, _) ->
-            Map.tryFind id.Name varSizeMap |> Option.defaultValue 0
+        | Identifier id -> Map.tryFind id.Name varSizeMap |> Option.defaultValue 0
         | IdentifierBit _ ->
             1
         | VariableBitSelect _ ->
             1
+        | IdentifierArray (id, _, bStart, bEnd)
         | IdentifierBits (id, bStart, bEnd) ->
             // let bStart = evalExpr start
             // let bEnd = evalExpr end_
@@ -890,10 +890,10 @@ and estimatePrimaryCost (p: PrimaryDU) : int =
     | VariableBitSelect (_, idx) ->
         1 + estimateExprCost idx
     | IdentifierBits (_, bStart, bEnd) ->
-        2
+        2 
     | IdentifierBitsSelect (_, start, _, _) ->
         2 + estimateExprCost start
-    | IdentifierArray (_, indices) ->
+    | IdentifierArray (_, indices, _, _) ->
         2 + (indices |> Array.toList |> List.map estimateExprCost |> List.sum)
 let estimateAssignmentCost (a: Assignment) : int =
     1 + estimatePrimaryCost a.LHS.PrimaryType + estimateExprCost a.RHS

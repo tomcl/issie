@@ -175,8 +175,8 @@ RANGE
     -> %lbracket _ EXPRESSION _ %colon _ EXPRESSION _ %rbracket {%function(d,l,reject) {return {Type: "range", Start: d[2], End: d[6], Location: d[0].offset};} %}
 
 ARRAY_RANGE 
-    -> %lbracket _ RANGE _ %rbracket _ ARRAY_RANGE {%function(d,l,reject) {return [d[2]].concat(d[6]);} %}
-    | %lbracket _ RANGE _ %rbracket {%function(d,l,reject) {return [d[2]];} %}
+    -> RANGE _ ARRAY_RANGE {%function(d,l,reject) {return [d[0]].concat(d[2]);} %}
+    | RANGE {%function(d,l,reject) {return [d[0]];} %}
 
 DATATYPE
     -> %bit {%function(d) {return {type: "bit", offset: d[0].offset};} %}
@@ -186,9 +186,9 @@ DATATYPE
 REG_DECLARATION 
     -> DATATYPE __  (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ %semicolon {% (d,l,r) => {
         return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], Location: d[0].offset};} %}
-    ## arrays must be declared one at a time
-    # | DATATYPE __ (RANGE _ {%(d,l,r) => {return d[0]}%}):? IDENTIFIER _ (ARRAY_RANGE _ {%(d,l,r) => {return d[0]}%}):? _ %semicolon {% (d,l,r) => {
-    #     return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: [{Type: "variable", Name: d[3], Location: d[3].Location}], ArrayRanges: d[5], Location: d[0].offset};} %}
+    # arrays must be declared one at a time
+    | DATATYPE __ (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ ARRAY_RANGE _ %semicolon {% (d,l,r) => {
+        return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], ArrayRanges: d[5], Location: d[0].offset};} %}
 ######################################     BEHAVIORAL STATEMENTS    #############################################
 
 ### PROCEDURAL BLOCKS AND ASSIGNMENTS
@@ -392,15 +392,23 @@ MODULE_INSTANTIATION_PRIMARY
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bit", BitsStart: d[3], BitsEnd: d[3], Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
 ###########################################      EXPRESSIONS      ###############################################
-
 WIRE_L_VALUE
     -> IDENTIFIER {%function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};} %}
     | %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket _ IDENTIFIER {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[1], BitsEnd: d[3], Primary: d[6]};} %}
+
+ARRAY_L_VALUE
+    -> %lbracket UNSIGNED_NUMBER %rbracket _ ARRAY_L_VALUE {%function(d) {return [{BitsStart: d[1], BitsEnd: d[1]}].concat(d[4]); } %}
+    | %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return [{BitsStart: d[1], BitsEnd: d[1]}]; } %}
+    # unpacked dimensions in arrays must be assigned one element at a time
+    # | %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return [d[1]];} %}
 
 L_VALUE
     -> IDENTIFIER {%function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bit", BitsStart: d[3], BitsEnd: d[3], Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
+    | IDENTIFIER _ ARRAY_L_VALUE _ %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[5]};} %}
+    | IDENTIFIER _ ARRAY_L_VALUE _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[7]};} %}
+    # | ARRAY_L_VALUE {% id %}
 
 VARIABLE_BITSELECT_L_VALUE
     -> IDENTIFIER _ %lbracket EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bit2", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: 1};} %}
@@ -471,6 +479,7 @@ UNARY
     | UNSIGNED_NUMBER2 {%function(d) {return {Type: "number", Primary: null, Number: d[0], Expression: null};} %}
     | %lparen _ BITWISE_OR _ %rparen {%function(d) {return {Type: "parenthesis", Primary: null, Number: null, Expression: d[2]};} %}
     | %lbrace _ LIST_OF_UNARIES _ %rbrace {%function(d) {return {Type: "concat", Primary: null, Number: null, Expression: d[2]};} %}
+    # potentially add entire array assignment (system verilog functionality)
 
 
 LIST_OF_UNARIES

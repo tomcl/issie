@@ -145,47 +145,52 @@ let checkCasesStatements
         let caseNumbers = caseStmt.CaseItems |> Array.collect (fun caseItem -> caseItem.Expressions)
         let _, repeatedErrors =
             ((Map.empty, []), caseNumbers)
-            ||> Array.fold (fun (casesCovered, errors) caseNumber ->
-                let widthOpt, baseText, numStr, loc, decVal, displayText =
+            ||> Array.fold (fun (casesCovered, errors) (caseNumber: Number) ->
+                let width, numBase, num, loc =
                     match caseNumber with
                     | Unsigned (n, loc) ->
-                        None, "'d", string n, loc, bigint n, string n
+                        "", "'d", string n, loc
                     | All (bits, numBase, allNumber, loc) ->
+                        // printfn "Checking case item number: %A, bits: %A, base: %A, allNumber: %A, loc: %A" caseNumber bits numBase allNumber loc
                         let baseText =
                             match numBase with
                             | Binary -> "'b"
                             | Hex -> "'h"
                             | Decimal -> "'d"
-                        let numStr = string allNumber
-                        let decVal = toDecimal numStr baseText (string bits)
-                        Some bits, baseText, numStr, loc, decVal, (string bits + baseText + numStr)
+                        let num = string allNumber
+                        let bits = string bits
+                        bits, baseText, num, loc
+                        // let decVal = toDecimal numStr baseText (string bits)
+                        // Some bits, baseText, numStr, loc, decVal, (string bits + baseText + numStr)
+                let caseNumberDec = toDecimal num numBase width
 
-                let repeated = Map.containsKey decVal casesCovered
+                let repeated = Map.containsKey caseNumberDec casesCovered
                 let repeatedError =
                     if repeated then 
-                        let firstLine = getLineNumber linesLocations (Map.find decVal casesCovered)
+                        let firstLine = getLineNumber linesLocations (Map.find caseNumberDec casesCovered)
                         let extraMessages=                    
                             [|
-                                {Text=sprintf "The following case value is duplicated: %A, see line %A. Please make sure there are no repeated case values." displayText firstLine;
+                                {Text=sprintf "The following case value is duplicated: %A, see line %A. Please make sure there are no repeated case values." (width+numBase+num) firstLine;
                                 Copy=false;
                                 Replace=NoReplace};
                             |]
                         let message = "Duplicate case value"
-                        createErrorMessage linesLocations loc message extraMessages displayText
+                        createErrorMessage linesLocations loc message extraMessages (width+numBase+num)
                     else 
                         []
                 let widthError =
-                    match widthOpt with
-                    | Some width when width <> condWidth ->
+                    if width|>int <> condWidth then 
                         let extraMessages=                    
                             [|
                                 {Text=sprintf "Width of case expression (%A bits wide) does not match width of this case item (%A bits wide)." condWidth width;Copy=false;Replace=NoReplace};
-                                {Text=(string condWidth)+baseText+numStr; Copy=true; Replace=Variable (string width + baseText + numStr)}
+                                {Text=(string condWidth)+numBase+num; Copy=true; Replace=Variable (width+numBase+num)}
                             |]
                         let message = "Width of case value does not match \n the given case expression"
-                        createErrorMessage linesLocations loc message extraMessages (string width + baseText + numStr)
-                    | _ -> []
-                Map.add decVal loc casesCovered, errors @ repeatedError @ widthError
+                        createErrorMessage linesLocations loc message extraMessages (width+numBase+num)
+                    else
+                        []
+
+                Map.add caseNumberDec loc casesCovered, errors @ repeatedError @ widthError
                 )
         match caseStmt.Default with
         | Some _ -> repeatedErrors // no missing cases
@@ -792,6 +797,7 @@ let rec getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars,
         |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
     | _ -> rhsVars, errors
 
+
 /// check that if an always block writes to and reads from the same variable, variable is assigned first and written later
 /// a=1; b=a; a=0; -> this shouldn't be allowed
 let checkAlwaysCombRHS
@@ -817,17 +823,19 @@ let checkAlwaysCombRHS
 
 let getPrimaryWidth portSizeMap (primary: PrimaryDU) =
     match primary with
-    | Identifier id
-    | IdentifierArray (id, _) ->
+    | Identifier id ->
         match Map.tryFind id.Name portSizeMap with
         | Some w -> w
         | _ -> 1
     | IdentifierBit _ -> 1
-    | IdentifierBits (_, start, end_) ->
+    | IdentifierArray (_, _, bStart, bEnd)
+    | IdentifierBits (_, bStart, bEnd) ->
         // let bStart = evalExpr start
         // let bEnd = evalExpr end_
-        start - end_ + 1
+        bStart - bEnd + 1
     | IdentifierBitsSelect (_, _, width, _) -> width
+    | VariableBitSelect (id, expr) ->
+        evalExpr expr
 
 /// Checks if module instantiation statements are correct:
 /// - Does a loaded component exist with the given name?

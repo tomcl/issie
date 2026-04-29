@@ -40,14 +40,17 @@ type ModuleNameT = {Type : string; Name : IdentifierT}
 
 type NumberT = {Type: string; NumberType: string; Bits: string option; Base: string option; UnsignedNumber: string option; AllNumber: string option; Location: int }
 
+// type ArrayIndicesT = {BitsStart: string option; BitsEnd: string option}
+
 type PrimaryT = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; Expression: ExpressionT option; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
+// type PrimaryT = {Type: string; PrimaryType: string; BitSelect: BitSelectT array option; Expression: ExpressionT option; Width: int option; SelectType: string option}
     and ExpressionT = {Type: string; Operator: string option; Head: ExpressionT option; Tail: ExpressionT option; Unary: UnaryT option}
     and UnaryT = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionT option}
 
 // type RangeT = {Type: string; Start: string; End: string; Location: int}
 type RangeT = {Type: string; Start: ExpressionT; End: ExpressionT; Location: int}
 
-type ArrayT = {Type: string; Ranges: RangeT array; Location: int}
+// type ArrayT = {Type: string; Ranges: RangeT array; Location: int}
 
 // change type to new DU that covers wire, bit, int?
 type IOItemT = {Type: string; DeclarationType: string; DataType: string; Range : RangeT option; Variables: IdentifierT array; Location: int}
@@ -57,11 +60,12 @@ type ParameterItemT = {Type: string; DeclarationType: string; Parameters : Param
 
 // type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; VariableBitSelect: ExpressionT option; Width: int option}
 type AssignmentLHST = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; VariableBitSelect: ExpressionT option; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
+// type AssignmentLHST = {Type: string; PrimaryType: string; BitsSelect: BitSelectT array option; Primary: IdentifierT; VariableBitSelect: ExpressionT option; Width: int option; SelectType: string option}
 type AssignmentT = {Type: string; LHS: AssignmentLHST; RHS: ExpressionT}
 
 type ContinuousAssignT = {Type: string; StatementType: string; Assignment : AssignmentT; Location: int} // need to add seq block, option statement array
 
-type DeclarationT = {Type: string; DeclarationType: string; DataType: string; Range: RangeT option; ArrayRanges: ArrayT option; Variables: IdentifierT array; Location: int}
+type DeclarationT = {Type: string; DeclarationType: string; DataType: string; Range: RangeT option; ArrayRanges: RangeT array option; Variables: IdentifierT array; Location: int}
 
 type NonBlockingAssignT = {Assignment: AssignmentT}
 

@@ -55,7 +55,8 @@ type PrimaryDU =
         | IdentifierBits of id: IdentifierT * start: int * end_: int
         | VariableBitSelect of IdentifierT * index: ExpressionDU
         | IdentifierBitsSelect of id: IdentifierT * start: ExpressionDU * width: int * select: SelectDU
-        | IdentifierArray of id: IdentifierT * indices: ExpressionDU array
+        | IdentifierArray of id: IdentifierT * indices: ExpressionDU array * start: int * end_: int
+
     and ExpressionDU =
         | LogicalOr of ExpressionDU * ExpressionDU
         | LogicalAnd of ExpressionDU * ExpressionDU
@@ -118,6 +119,8 @@ type DataTypeDU =
     | WireType
     | Bit
     // | Integer
+
+// type Array = {Ranges: Range array; Location: int}
 
 type Declaration = {DeclarationType: DeclarationDU; DataType: DataTypeDU; Range: Range option; ArrayRanges: Range array option; Variables: IdentifierT array; Location: int}
 
@@ -439,7 +442,9 @@ and convertPrimary (raw: PrimaryT) : PrimaryDU =
             raw.ArrayIndices 
             |> Option.defaultValue [||] 
             |> Array.map convertExpression
-        IdentifierArray (raw.Primary, indices)
+        let start = int (raw.BitsStart |> Option.map int |> Option.get)
+        let end_ = int (raw.BitsEnd |> Option.map int |> Option.get)
+        IdentifierArray (raw.Primary, indices, start, end_)
     | s -> failwith $"Unknown primary type: {s}"
 
 // ====== Statement conversion ======
@@ -507,9 +512,10 @@ let convertDeclaration (raw: VerilogTypes.DeclarationT) : Declaration =
     { DeclarationType = parseDeclarationType raw.DeclarationType
       DataType = parseDataType raw.DataType
       Range = raw.Range |> Option.map convertRange
-      ArrayRanges = raw.ArrayRanges |> Option.map (fun arr -> arr.Ranges |> Array.map convertRange)
+      ArrayRanges = raw.ArrayRanges |> Option.map (Array.map convertRange)
       Variables = raw.Variables
       Location = raw.Location }
+
 
 let convertIOItem (raw: VerilogTypes.IOItemT) : IOItem =
     { DeclarationType = parseDeclarationType raw.DeclarationType
@@ -623,7 +629,7 @@ let primaryIdName (p: PrimaryDU) =
     | IdentifierBits (id, _, _) -> id.Name
     | VariableBitSelect (id, _) -> id.Name
     | IdentifierBitsSelect (id, _, _, _) -> id.Name
-    | IdentifierArray (id, _) -> id.Name
+    | IdentifierArray (id, _, _, _) -> id.Name
 
 let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:StatementDU) : StatementDU =
     let rec substLoopExpr (loopVarName:string) (value:int) (width:int) (expr:ExpressionDU) : ExpressionDU =
@@ -640,7 +646,7 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
                 UnaryDU.Number (Unsigned (value, id.Location))
             | UnaryDU.Primary (IdentifierBitsSelect (id, start, width, sel)) when id.Name = loopVarName ->
                 UnaryDU.Number (Unsigned (value, id.Location))
-            | UnaryDU.Primary (IdentifierArray (id, indices)) when id.Name = loopVarName ->
+            | UnaryDU.Primary (IdentifierArray (id, indices, start, end_)) when id.Name = loopVarName ->
                 UnaryDU.Number (Unsigned (value, id.Location))
             | UnaryDU.Primary p ->
                 UnaryDU.Primary (substLoopPrimary loopVarName value p)
@@ -673,13 +679,15 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
         // Only VBS should have non-constant index
         | VariableBitSelect (id, idx) when id.Name = loopVarName ->
             IdentifierBit (id, evalExpr (substLoopExpr loopVarName value width idx))
+        | VariableBitSelect (id, idx) ->
+            VariableBitSelect (id, substLoopExpr loopVarName value width idx)
         // | IdentifierBits (id, start, end_) ->
         //     IdentifierBits (id, substLoopExpr loopVarName value width start, substLoopExpr loopVarName value width end_)
         | IdentifierBits (id, start, end_) -> p
         | IdentifierBitsSelect (id, start, width, sel) ->
             IdentifierBitsSelect (id, substLoopExpr loopVarName value width start, width, sel)
-        | IdentifierArray (id, indices) ->
-            IdentifierArray (id, indices |> Array.map (substLoopExpr loopVarName value width))    
+        | IdentifierArray (id, indices, start, end_) ->
+            IdentifierArray (id, indices |> Array.map (substLoopExpr loopVarName value width), start, end_)    
     // Drops any assignment whose LHS is the loop variable itself
     
     
@@ -724,9 +732,9 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
             | IdentifierBitsSelect (id, start, w, sel) ->
                 let start' = substLoopExpr loopVarName value width start
                 IdentifierBitsSelect (id, start', w, sel)
-            | IdentifierArray (id, indices) ->
+            | IdentifierArray (id, indices, start, end_) ->
                 let indices' = indices |> Array.map (substLoopExpr loopVarName value width)
-                IdentifierArray (id, indices')
+                IdentifierArray (id, indices', start, end_)
 
         let vbs' =
             match primary' with
@@ -792,7 +800,11 @@ let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
         match forstmt.Condition with
         | Comparison (op, _, rhs) -> evalExpr rhs, op
         | _ -> failwith "Unsupported operator in for loop condition"
-    let stepValue = evalExpr forstmt.Step.RHS
+    let stepValue = 
+        match forstmt.Step.RHS with
+        | ExpressionDU.Additive (Plus, _, stepExpr) -> evalExpr stepExpr
+        | ExpressionDU.Additive (Minus, _, stepExpr) -> -evalExpr stepExpr
+        | _ -> failwith "Unsupported step expression in for loop"
     let iterations = computeIterations startValue condOp endValue stepValue
 
     if iterations < 0 || iterations > 500 then
@@ -1142,7 +1154,7 @@ let assignmentLocation (a: Assignment) =
     | IdentifierBits (id, _, _) -> id.Location
     | VariableBitSelect (id, _) -> id.Location
     | IdentifierBitsSelect (id, _, _, _) -> id.Location
-    | IdentifierArray (id, _) -> id.Location
+    | IdentifierArray (id, _, _, _) -> id.Location
 
 let getAssignmentsWithLocations (assignments: List<Assignment*int>) (node: ASTNode) =
     match node with

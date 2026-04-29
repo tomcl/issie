@@ -357,7 +357,11 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
 
     let tryGetIterations (f: ForStatement) =
         let startRes = tryEval f.Initialisation.RHS
-        let stepRes = tryEval f.Step.RHS
+        let stepRes = 
+            match f.Step.RHS with
+            | ExpressionDU.Additive (Plus, _, step) -> tryEval step
+            | ExpressionDU.Additive (Minus, _, step) -> tryEval step
+            | _ -> Error "For loop step must be an addition or subtraction."
         let condRes =
             match f.Condition with
             | Comparison (op, _, rhs) -> Ok (op, rhs)
@@ -879,7 +883,7 @@ let lhsName (lhs: AssignmentLHS) =
     | IdentifierBits (id, _, _)
     | VariableBitSelect (id, _)
     | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _) -> id.Name
+    | IdentifierArray (id, _, _, _) -> id.Name
 
 let lhsLocation (lhs: AssignmentLHS) =
     match lhs.PrimaryType with
@@ -888,7 +892,7 @@ let lhsLocation (lhs: AssignmentLHS) =
     | IdentifierBits (id, _, _)
     | VariableBitSelect (id, _) -> id.Location
     | IdentifierBitsSelect (id, _, _, _) -> id.Location
-    | IdentifierArray (id, _) -> id.Location
+    | IdentifierArray (id, _, _, _) -> id.Location
 
 /// Checks if the RHS expression is wider than the LHS of an assignment.
 /// Checks every assignment: continuous and combinational
@@ -1015,6 +1019,35 @@ let getInputNames portMap =
     |> Map.toList 
     |> List.map fst
 
+let getArraySizeMap (items: ItemDU list) paramMap : Map<string, int * int array> = 
+    items 
+    |> List.collect (fun x -> 
+        match x with
+        | ItemDU.Decl decl -> 
+            decl.Variables
+            |> Array.toList
+            |> List.collect (fun var -> 
+                match decl.DeclarationType with 
+                | LogicDecl ->
+                    match decl.ArrayRanges with
+                    | Some arrayRanges ->
+                        let start = evalExprWithParams (decl.Range |> Option.get).Start paramMap
+                        let end_ = evalExprWithParams (decl.Range |> Option.get).End paramMap
+                        let width = start - end_ + 1
+                        let arraySizes = 
+                            arrayRanges
+                            |> Array.map (fun range ->
+                                let rStart = evalExprWithParams range.Start paramMap
+                                let rEnd = evalExprWithParams range.End paramMap
+                                rStart - rEnd + 1
+                            )
+                        [(var.Name, (width, arraySizes))]
+                    | None -> []
+                | _ -> []
+            )
+        | _ -> [])
+    |> Map.ofList
+
 
 /// Returns the names of the declared WIRES
 let getWireSizeMap (items: ItemDU list) paramMap = 
@@ -1038,7 +1071,7 @@ let getWireSizeMap (items: ItemDU list) paramMap =
                     [id.Name,size]
                 | IdentifierBitsSelect (id, bitsstart, width, select) -> 
                     [id.Name,width]
-                | IdentifierArray _ -> failwith "Array declaration not currently supported"
+                | IdentifierArray _ -> []
             | _ -> []
         | _ -> [])
     |> Map.ofList

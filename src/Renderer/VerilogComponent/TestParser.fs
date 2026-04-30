@@ -142,13 +142,19 @@ let errorCheck ast linesIndex src dst =
         1
     else 
         printf "[TEST] FAIL"
-        // printfn $"Output errors: {outputErrors}"
-        // printfn $"Reference errors: {refErrors}"
-        // printfn $"Output JSON: {outText}"
-        // printfn $"Reference JSON: {refText}"
-        // let testDIFF = (outText = refText)
-        // printfn $"Output text matches reference text: {testDIFF}"
+        printfn $"Output errors: {outputErrors}"
+        printfn $"Reference errors: {refErrors}"
+        printfn $"Output JSON: {outText}"
+        printfn $"Reference JSON: {refText}"
+        let testDIFF = (outText = refText)
+        printfn $"Output text matches reference text: {testDIFF}"
         0
+
+let printSemanticErrors src (errors: ErrorInfo list) =
+    let outputErrors = errors |> List.map errorInfoToJson
+    printfn $"[TEST] couldn't parse input {baseNameWithoutExtension src}"
+    printfn $"Output errors: {outputErrors}"
+    printfn $"Output JSON: {outputErrors |> Json.stringify}"
 
     
 let semanticErrorTests _ =
@@ -285,6 +291,9 @@ let simulateAST ast src dst loadedComps=
         printfn "[TEST] FAIL"
         0
 
+let formatSimulationError (error: exn) =
+    error.Message
+
 let runCodeGenTests _ =
     let inputPath = "./src/Renderer/VerilogComponent/test/input/codegen/single"
     let outputPath = "./src/Renderer/VerilogComponent/test/output/codegen"
@@ -302,11 +311,11 @@ let runCodeGenTests _ =
                 | [] ->  
                     try 
                         simulateAST ast src dst []
-                    with _ -> 
-                        printfn $"[TEST] couldn't simulate AST for {baseNameWithoutExtension src}"
+                    with error -> 
+                        printfn $"[TEST] couldn't simulate AST for {baseNameWithoutExtension src}: {formatSimulationError error}"
                         0
-                | _ -> 
-                    printfn $"[TEST] couldn't parse input {baseNameWithoutExtension src}"
+                | errors -> 
+                    printSemanticErrors src errors
                     0
             )
         |> List.filter (fun res -> res=1)
@@ -335,15 +344,19 @@ let runCodeGenTests _ =
                             let model = Unchecked.defaultof<ModelType.Model>
                             let dispatch = ignore
                             createSheet ast {project with LoadedComponents=comps} model dispatch
-                        | _ -> 
-                            printfn $"[TEST] couldn't parse input {baseNameWithoutExtension file}"
+                        | errors -> 
+                            printSemanticErrors file errors
                             [],[]
                     
                     let lc, _ = makeLoadedComponentFromCanvasData cs ast.Module.ModuleName.Name System.DateTime.MinValue None None
                     comps@[lc]
                 )
             let topast, toplinesIndex = parseFile topModulePath dst
-            simulateAST topast topModulePath dst loadedComps
+            try
+                simulateAST topast topModulePath dst loadedComps
+            with error ->
+                printfn $"[TEST] couldn't simulate AST for {baseNameWithoutExtension topModulePath}: {formatSimulationError error}"
+                0
             
         )
         |> List.sum

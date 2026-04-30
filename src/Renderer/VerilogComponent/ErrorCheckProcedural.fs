@@ -37,7 +37,7 @@ let checkProceduralAssignments
                             {Text=sprintf "Blocking assignment in a clocked always block is not supported.\nPlease use nonblocking assignments in clocked always blocks";Copy=false;Replace=NoReplace}
                             {Text=(sprintf "<=" );Copy=true;Replace=Variable "="}
                         |]
-                    let currError = createErrorMessage linesLocations loc message extraMessages (string assign.Type)
+                    let currError = createErrorMessage linesLocations loc message extraMessages "="
                     errors @ currError
                 )
         localErrors
@@ -55,7 +55,7 @@ let checkProceduralAssignments
                             {Text=sprintf "Nonblocking assignment in a combinational always block is not supported.\nPlease use blocking assignments in combinational always blocks";Copy=false;Replace=NoReplace}
                             {Text=(sprintf "=" );Copy=true;Replace=Variable "<="}
                         |]
-                    let currError = createErrorMessage linesLocations (snd nonblocking) message extraMessages (string (fst nonblocking).Type)
+                    let currError = createErrorMessage linesLocations (snd nonblocking) message extraMessages "<="
                     errors @ currError
                 )
         localErrors
@@ -159,7 +159,7 @@ let checkCasesStatements
                             | Decimal -> "'d"
                         let num = string allNumber
                         let bits = string bits
-                        bits, baseText, num, loc
+                        bits, baseText, allNumber, loc
                         // let decVal = toDecimal numStr baseText (string bits)
                         // Some bits, baseText, numStr, loc, decVal, (string bits + baseText + numStr)
                 let caseNumberDec = toDecimal num numBase width
@@ -288,9 +288,9 @@ let checkVariablesAlwaysAssigned
             getVariablesAlwaysAssigned (Statement always.Statement)
         | Statement statement ->
             match statement with
-            | BlockingAssign blocking ->
+            | BlockingAssign (blocking, _) ->
                 (getLHSBitsAssignedCertainly portSizeMap blocking) |> Set.ofList
-            | NonBlockingAssign nonBlocking ->
+            | NonBlockingAssign (nonBlocking, _) ->
                 (getLHSBitsAssignedCertainly portSizeMap nonBlocking) |> Set.ofList
             | SeqBlock (stmts, _) ->
                 let completeVariables =
@@ -298,16 +298,16 @@ let checkVariablesAlwaysAssigned
                     |> Array.map (fun s -> getVariablesAlwaysAssigned (Statement s))
                 (Set.empty, completeVariables)
                 ||> Array.fold Set.union
-            | StatementDU.Case case ->
+            | StatementDU.Case (case, _) ->
                 getVariablesAlwaysAssigned (Case case)
-            | Conditional (ifStmt, elseStmt) ->
+            | Conditional (ifStmt, elseStmt, _) ->
                 let ifVariables = getVariablesAlwaysAssigned (Statement ifStmt.Statement)
                 let elseVariables =
                     match elseStmt with
                     | Some stmt -> getVariablesAlwaysAssigned (Statement stmt)
                     | None -> Set.empty
                 if Option.isNone elseStmt then Set.empty else Set.intersect ifVariables elseVariables
-            | StatementDU.ForStatement forstmt ->
+            | StatementDU.ForStatement (forstmt, _) ->
                 getVariablesAlwaysAssigned (Statement forstmt.Statement)
         | Case case ->
             if allCasesCovered case portSizeMap wireSizeMap then
@@ -331,10 +331,22 @@ let checkVariablesAlwaysAssigned
     let variablesNotAssigned = 
         alwaysCombBlocksWithLoc
         |> List.map (fun (always, loc) -> 
+            let validAssignedBits =
+                foldAST getAssignments' [] (AlwaysConstruct always)
+                |> List.collect (fun assign ->
+                    let lhs = getPrimaryName assign.LHS.PrimaryType
+                    match Map.tryFind lhs portSizeMap with
+                    | Some size ->
+                        [0..size-1]
+                        |> List.map (fun bit -> lhs + "[" + string bit + "]")
+                    | None -> []
+                )
+                |> Set.ofList
             let allLHSVariables = 
                 foldAST getAssignments' [] (AlwaysConstruct always)
                 |> List.collect (getLHSBits' portSizeMap)
                 |> Set.ofList
+                |> Set.intersect validAssignedBits
             let variablesNotAssignedInAllBranches =
                 getVariablesAlwaysAssigned (AlwaysConstruct always)
             let undefVars =
@@ -591,22 +603,22 @@ let private getDependencies ast variableSizeMap =
             else graph
         | Statement statement ->
             match statement with
-            | BlockingAssign blocking ->
+            | BlockingAssign (blocking, _) ->
                 getDependencyFold graph (Assignment blocking) cond
-            | NonBlockingAssign nonblocking ->
+            | NonBlockingAssign (nonblocking, _) ->
                 getDependencyFold graph (Assignment nonblocking) cond
             | SeqBlock (seq, _) ->
                 (graph, seq)
                 ||> Array.fold (fun acc st -> getDependencyFold acc (Statement st) cond)
-            | StatementDU.Case case ->
+            | StatementDU.Case (case, _) ->
                 getDependencyFold graph (Case case) cond
-            | Conditional (ifStmt, elseStmt) ->
+            | Conditional (ifStmt, elseStmt, _) ->
                 getDependencyFold graph (IfStatement ifStmt) cond
                 |> fun g ->
                     match elseStmt with
                     | Some stmt -> getDependencyFold g (Statement stmt) cond
                     | None -> g
-            | StatementDU.ForStatement forstmt ->
+            | StatementDU.ForStatement (forstmt, _) ->
                 getDependencyFold graph (ForStatement forstmt) cond
         | Case case ->
             // need to add case.Expression to dependencies
@@ -768,20 +780,20 @@ let rec getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars,
     //     |> Array.fold (getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations) (rhsVars, errors)
     | Statement stmt ->
         match stmt with
-        | BlockingAssign blocking ->
+        | BlockingAssign (blocking, _) ->
             Assignment blocking
             |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
-        | NonBlockingAssign nonblocking ->
+        | NonBlockingAssign (nonblocking, _) ->
             Assignment nonblocking
             |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
         | SeqBlock (stmts, _) ->
             stmts
             |> Array.map (fun s -> Statement s)
             |> Array.fold (getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations) (rhsVars, errors)
-        | StatementDU.Case case ->
+        | StatementDU.Case (case, _) ->
             Case case
             |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
-        | Conditional (ifStmt, elseStmt) ->
+        | Conditional (ifStmt, elseStmt, _) ->
             let ifVars, ifErrors =
                 getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, List.empty) (IfStatement ifStmt)
             let elseVars, elseErrors =
@@ -789,7 +801,7 @@ let rec getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars,
                 | Some stmt -> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, List.empty) (Statement stmt)
                 | None -> Set.empty, []
             (Set.union ifVars elseVars), errors @ ifErrors @ elseErrors
-        | StatementDU.ForStatement forstmt ->
+        | StatementDU.ForStatement (forstmt, _) ->
             ForStatement forstmt
             |> getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors)
     | AlwaysConstruct always -> 

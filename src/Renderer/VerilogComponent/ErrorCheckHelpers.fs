@@ -323,7 +323,7 @@ let getCaseStatementsWithLoc caseStatements node =
     match node with
     | Statement statement ->
         match statement with
-        | StatementDU.Case case -> caseStatements @ [case, case.Location]
+        | StatementDU.Case (case, _) -> caseStatements @ [case, case.Location]
         | _ -> caseStatements
     | _ -> caseStatements
 
@@ -364,9 +364,7 @@ let RHSUnaryAnalysis
                     | Some num -> {Name=id.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
                     | None -> {Name="undefined";ResultWidth=0;Head=None;Tail=None;Elements=[]} 
                 | VariableBitSelect (id, idx) ->
-                    match Map.tryFind id.Name inputWireSizeMap with
-                    | Some num -> {Name=id.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
-                    | None -> {Name="undefined";ResultWidth=0;Head=None;Tail=None;Elements=[]} 
+                    {Name=id.Name;ResultWidth=1;Head=None;Tail=None;Elements=[]}
                 | IdentifierBit (id, _) ->
                     {Name=id.Name;ResultWidth=1;Head=None;Tail=None;Elements=[]}
                 | IdentifierBits (id, bStart, bEnd) ->
@@ -451,10 +449,7 @@ let getWidthOfExpr
                 match Map.tryFind id.Name inputWireSizeMap with
                 | Some num -> num
                 | None -> 0
-            | VariableBitSelect (id, idx) -> 
-                match Map.tryFind id.Name inputWireSizeMap with
-                | Some num -> num
-                | None -> 0
+            | VariableBitSelect _ -> 1
             | IdentifierBit _ -> 1
             | IdentifierBits (id, bStart, bEnd) ->
                 // let bStart = evalExpr start
@@ -537,7 +532,28 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors (pri
             | IdentifierArray (id, _, _, _) ->
                 localErrors
             | VariableBitSelect (id, idx) ->
-                localErrors
+                let checkedIndex =
+                    try
+                        Some (evalExpr idx)
+                    with
+                    | _ -> None
+                match checkedIndex, Map.tryFind id.Name currentInputWireSizeMap with
+                | Some bitIndex, Some size ->
+                    if (bitIndex < size) && (bitIndex >= 0) then
+                        localErrors
+                    else
+                        let definition =
+                            match size with
+                            | 1 -> " a single bit "
+                            | _ -> sprintf " %s[%i:0] " id.Name (size - 1)
+                        let usedWidth = sprintf " %s[%i] " id.Name bitIndex
+                        let message = sprintf "Wrong width of variable: '%s'" id.Name
+                        let extraMessages =
+                            [|
+                                {Text=(sprintf "Variable: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
+                            |]
+                        List.append localErrors (createErrorMessage linesLocations id.Location message extraMessages id.Name)
+                | _ -> localErrors
             | IdentifierBit (id, bStart) ->
                 let bEnd = bStart
                 match Map.tryFind id.Name currentInputWireSizeMap with
@@ -899,13 +915,13 @@ let estimateAssignmentCost (a: Assignment) : int =
     1 + estimatePrimaryCost a.LHS.PrimaryType + estimateExprCost a.RHS
 let rec estimateStatementCost (stmt: StatementDU) : int =
     match stmt with
-    | BlockingAssign a ->
+    | BlockingAssign (a, _) ->
         estimateAssignmentCost a
-    | NonBlockingAssign a ->
+    | NonBlockingAssign (a, _) ->
         estimateAssignmentCost a
     | SeqBlock (stmts, _) ->
         stmts |> Array.toList |> List.map estimateStatementCost |> List.sum
-    | StatementDU.Case c ->
+    | StatementDU.Case (c, _) ->
         let casesCost =
             c.CaseItems
             |> Array.toList
@@ -916,10 +932,10 @@ let rec estimateStatementCost (stmt: StatementDU) : int =
             |> Option.map estimateStatementCost
             |> Option.defaultValue 0
         1 + estimateExprCost c.Expression + casesCost + defaultCost
-    | Conditional (ifStmt, elseStmt) ->
+    | Conditional (ifStmt, elseStmt, _) ->
         let ifCost = estimateStatementCost ifStmt.Statement
         let elseCost = elseStmt |> Option.map estimateStatementCost |> Option.defaultValue 0
         1 + estimateExprCost ifStmt.Condition + ifCost + elseCost
-    | StatementDU.ForStatement f ->
+    | StatementDU.ForStatement (f, _) ->
         estimateStatementCost f.Statement
 

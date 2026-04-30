@@ -267,9 +267,9 @@ let checkAllOutputsAssigned
                 |> List.append vars
         | Statement stmt ->
             match stmt with
-            | BlockingAssign blocking ->
+            | BlockingAssign (blocking, _) ->
                 vars @ [(getPrimaryName blocking.LHS.PrimaryType, -1, -1)]
-            | NonBlockingAssign nonblocking ->
+            | NonBlockingAssign (nonblocking, _) ->
                 vars @ [(getPrimaryName nonblocking.LHS.PrimaryType, -1, -1)]
             | _ -> vars
         | ModuleInstantiation modInst -> 
@@ -351,7 +351,7 @@ let checkAllOutputsAssigned
 
 /// Checks estimated program size after loop unrolling.
 let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (errorList: ErrorInfo list) : ErrorInfo list =
-    let maxUnrollCost = 100 // TODO: instrument size and adjust this accordingly
+    let maxUnrollCost = 500 // TODO: instrument size and adjust this accordingly
     let tryEval expr =
         try Ok (evalExpr expr) with _ -> Error "For loop bounds must be constant."
 
@@ -387,16 +387,16 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
 
     let rec estimateUnrolledStatementCost (stmt: StatementDU) : ErrorInfo list * int =
         match stmt with
-        | BlockingAssign a ->
+        | BlockingAssign (a, _) ->
             [], estimateAssignmentCost a
-        | NonBlockingAssign a ->
+        | NonBlockingAssign (a, _) ->
             [], estimateAssignmentCost a
         | SeqBlock (stmts, _) ->
             (([], 0), stmts)
             ||> Array.fold (fun (errs, cost) s ->
                 let errs', cost' = estimateUnrolledStatementCost s
                 (errs @ errs', cost + cost'))
-        | StatementDU.Case c ->
+        | StatementDU.Case (c, _) ->
             let caseErrors, caseCost =
                 (([], 0), c.CaseItems)
                 ||> Array.fold (fun (errs, cost) item ->
@@ -409,7 +409,7 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
             let errors = caseErrors @ defaultErrors
             let cost = 1 + estimateExprCost c.Expression + caseCost + defaultCost
             errors, cost
-        | Conditional (ifStmt, elseStmt) ->
+        | Conditional (ifStmt, elseStmt, _) ->
             let ifErrors, ifCost = estimateUnrolledStatementCost ifStmt.Statement
             let elseErrors, elseCost =
                 elseStmt
@@ -418,7 +418,7 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
             let errors = ifErrors @ elseErrors
             let cost = 1 + estimateExprCost ifStmt.Condition + ifCost + elseCost
             errors, cost
-        | StatementDU.ForStatement f ->
+        | StatementDU.ForStatement (f, _) ->
             let loopVarName = primaryIdName f.Initialisation.LHS.PrimaryType
             match tryGetIterations f with
             | Error msg ->

@@ -18,7 +18,7 @@ type BaseDU =
 
 type Number = 
     // | Decimal of unsignednumber: int * location: int
-    | All of bits: int * num_base: BaseDU * allnumber: int * location: int
+    | All of bits: int * num_base: BaseDU * allnumber: string * location: int
     | Unsigned of unsignednumber: int * location: int
 
 
@@ -91,13 +91,13 @@ type Assignment = {Type: AssignDU; LHS: AssignmentLHS; RHS: ExpressionDU }
 and AssignmentLHS = {PrimaryType: PrimaryDU; VariableBitSelect: ExpressionDU option}
 
 type StatementDU =
-    | NonBlockingAssign of Assignment
-    | BlockingAssign of Assignment
+    | NonBlockingAssign of Assignment * location: int
+    | BlockingAssign of Assignment * location: int
     // | WireAssign of Assignment
     | SeqBlock of StatementDU array * location: int
-    | Case of CaseStatement
-    | Conditional of ifstmt: IfStatement * elseStmt: StatementDU option
-    | ForStatement of ForStatement
+    | Case of CaseStatement * location: int
+    | Conditional of ifstmt: IfStatement * elseStmt: StatementDU option * location: int
+    | ForStatement of ForStatement * location: int
 
 and IfStatement = {Condition: ExpressionDU; Statement: StatementDU; Location: int}
 
@@ -351,7 +351,7 @@ let convertNumber (raw: NumberT) : Number =
     | "unsigned" -> Unsigned (raw.UnsignedNumber |> Option.map int |> Option.get, raw.Location)
     | "all" -> 
         let bits = raw.Bits |> Option.map int |> Option.get
-        let allnumber = raw.AllNumber |> Option.map int |> Option.get
+        let allnumber = raw.AllNumber |> Option.get
         match raw.Base with
         | Some "'d" -> All (bits, Decimal, allnumber, raw.Location)
         | Some "'b" -> All (bits, Binary, allnumber, raw.Location)
@@ -472,17 +472,17 @@ and convertRange (raw: VerilogTypes.RangeT) : Range =
 and convertStatement (raw: VerilogTypes.StatementT) : StatementDU =
     match raw.BlockingAssign, raw.NonBlockingAssign, raw.CaseStatement, raw.Conditional, raw.SeqBlock, raw.ForStatement with
     | Some blocking, None, None, None, None, None ->
-        BlockingAssign (convertAssignment blocking.Assignment Blocking)
+        BlockingAssign (convertAssignment blocking.Assignment Blocking, raw.Location)
     | None, Some nonblocking, None, None, None, None ->
-        NonBlockingAssign (convertAssignment nonblocking.Assignment NonBlocking)
+        NonBlockingAssign (convertAssignment nonblocking.Assignment NonBlocking, raw.Location)
     | None, None, Some case, None, None, None ->
-        StatementDU.Case (convertCaseStatement case)
+        StatementDU.Case (convertCaseStatement case, raw.Location)
     | None, None, None, Some cond, None, None ->
-        Conditional (convertIfStatement cond.IfStatement, cond.ElseStatement |> Option.map convertStatement)
+        Conditional (convertIfStatement cond.IfStatement, cond.ElseStatement |> Option.map convertStatement, raw.Location)
     | None, None, None, None, Some seqBlock, None ->
         SeqBlock (seqBlock.Statements |> Array.map convertStatement, seqBlock.Location)
     | None, None, None, None, None, Some forStmt ->
-        StatementDU.ForStatement (convertForStatement forStmt)
+        StatementDU.ForStatement (convertForStatement forStmt, forStmt.Location)
     | _ -> failwith "Invalid statement: multiple or no fields set"
 
 and convertIfStatement (raw: VerilogTypes.IfStatementT) : IfStatement =
@@ -753,38 +753,38 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
             RHS = substLoopExpr loopVarName value width a.RHS }
 
     match stmt with
-    | BlockingAssign a ->
+    | BlockingAssign (a, loc) ->
         if isAssignToLoopVar a.LHS then
             failwith "Assignments to loop variable inside loop body are not supported"
-        else BlockingAssign (substAssign a)
-    | NonBlockingAssign a ->
+        else BlockingAssign (substAssign a, loc)
+    | NonBlockingAssign (a, loc) ->
         if isAssignToLoopVar a.LHS then
             failwith "Assignments to loop variable inside loop body are not supported"
-        else NonBlockingAssign (substAssign a)
+        else NonBlockingAssign (substAssign a, loc)
     | SeqBlock (stmts, loc) ->
         SeqBlock (stmts |> Array.map (substLoopVar loopVarName value width), loc)
-    | Conditional (ifStmt, elseStmt) ->
+    | Conditional (ifStmt, elseStmt, loc) ->
         let ifStmt' =
             { ifStmt with
                 Condition = substLoopExpr loopVarName value width ifStmt.Condition
                 Statement = substLoopVar loopVarName value width ifStmt.Statement }
         let elseStmt' = elseStmt |> Option.map (substLoopVar loopVarName value width)
-        Conditional (ifStmt', elseStmt')
-    | StatementDU.Case c ->
+        Conditional (ifStmt', elseStmt', loc)
+    | StatementDU.Case (c, loc) ->
         let c' =
             { c with
                 Expression = substLoopExpr loopVarName value width c.Expression
                 CaseItems = c.CaseItems |> Array.map (fun ci -> { ci with Statement = substLoopVar loopVarName value width ci.Statement })
                 Default = c.Default |> Option.map (substLoopVar loopVarName value width) }
-        StatementDU.Case c'
-    | StatementDU.ForStatement f ->
+        StatementDU.Case (c', loc)
+    | StatementDU.ForStatement (f, loc) ->
         let f' =
             { f with
                 Initialisation = { f.Initialisation with RHS = substLoopExpr loopVarName value width f.Initialisation.RHS }
                 Condition = substLoopExpr loopVarName value width f.Condition
                 Step = { f.Step with RHS = substLoopExpr loopVarName value width f.Step.RHS }
                 Statement = substLoopVar loopVarName value width f.Statement }
-        StatementDU.ForStatement f'
+        StatementDU.ForStatement (f', loc)
 
 let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
     let computeIterations startV op endV step =
@@ -833,7 +833,7 @@ let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
             |> Array.map (substLoopVar loopVarName value loopVarWidth)
             |> Array.collect (fun s ->
                 match s with
-                | StatementDU.ForStatement inner ->
+                | StatementDU.ForStatement (inner, loc) ->
                     match unrollForLoops inner with
                     | SeqBlock (stmts, _) -> stmts
                     | other -> [| other |]
@@ -1058,24 +1058,24 @@ let rec foldAST folder state (node: ASTNode) =
         foldAST folder state' (Statement always.Statement)
     | Statement stmt ->
         match stmt with
-        | NonBlockingAssign nonblocking -> 
+        | NonBlockingAssign (nonblocking, _) -> 
             foldAST folder state' (Assignment nonblocking)
-        | BlockingAssign blocking ->
+        | BlockingAssign (blocking, _) ->
             foldAST folder state' (Assignment blocking)
         | SeqBlock (stmts, _) ->
             stmts
             |> Array.map Statement
             |> Array.fold (foldAST folder) state'
-        | StatementDU.Case case -> 
+        | StatementDU.Case (case, _) -> 
             foldAST folder state' (Case case)
-        | Conditional (ifStmt, elseStmt) ->
+        | Conditional (ifStmt, elseStmt, _) ->
             let tmpState =
                 IfStatement ifStmt
                 |> foldAST folder state'
             match elseStmt with
             | Some elseStmt -> List.fold (foldAST folder) tmpState [Statement elseStmt]
             | _ -> tmpState
-        | StatementDU.ForStatement forstmt ->
+        | StatementDU.ForStatement (forstmt, _) ->
             let tmpState = 
                 unrollForLoops forstmt
             foldAST folder state' (Statement tmpState)
@@ -1142,8 +1142,8 @@ let getAlwaysAssignments (assignments: List<Assignment>) (node: ASTNode) =
     match node with
     | Statement stmt ->
         match stmt with
-        | BlockingAssign blocking -> assignments @ [blocking]
-        | NonBlockingAssign nonblocking -> assignments @ [nonblocking]
+        | BlockingAssign (blocking, _) -> assignments @ [blocking]
+        | NonBlockingAssign (nonblocking, _) -> assignments @ [nonblocking]
         | _ -> assignments
     | _ -> assignments
 
@@ -1168,8 +1168,8 @@ let getAssignmentsWithLocations (assignments: List<Assignment*int>) (node: ASTNo
         assignments @ contAssigns
     | Statement stmt ->
         match stmt with
-        | BlockingAssign a -> assignments @ [a, assignmentLocation a]
-        | NonBlockingAssign a -> assignments @ [a, assignmentLocation a]
+        | BlockingAssign (a, _) -> assignments @ [a, assignmentLocation a]
+        | NonBlockingAssign (a, _) -> assignments @ [a, assignmentLocation a]
         | _ -> assignments
     | _ -> assignments
 let getAlwaysBlocks (alwaysBlocks: List<AlwaysConstruct>) (node: ASTNode) =
@@ -1181,7 +1181,7 @@ let getBlockingAssignmentsWithLocation (assignments: List<Assignment*int>) (node
     match node with
     | Statement stmt ->
         match stmt with
-        | BlockingAssign a -> assignments @ [a, assignmentLocation a]
+        | BlockingAssign (a, loc) -> assignments @ [a, loc]
         | _ -> assignments
     | _ -> assignments
 
@@ -1189,7 +1189,7 @@ let getNonBlockingAssignmentsWithLocation (assignments: List<Assignment*int>) (n
     match node with
     | Statement stmt ->
         match stmt with
-        | NonBlockingAssign a -> assignments @ [a, assignmentLocation a]
+        | NonBlockingAssign (a, loc) -> assignments @ [a, loc]
         | _ -> assignments
     | _ -> assignments
 
@@ -1197,7 +1197,7 @@ let getBlockingAssignments (assignments: List<Assignment>) (node: ASTNode) =
     match node with
     | Statement stmt ->
         match stmt with
-        | BlockingAssign a -> assignments @ [a]
+        | BlockingAssign (a, _) -> assignments @ [a]
         | _ -> assignments
     | _ -> assignments
 
@@ -1205,6 +1205,6 @@ let getNonBlockingAssignments (assignments: List<Assignment>) (node: ASTNode) =
     match node with
     | Statement stmt ->
         match stmt with
-        | NonBlockingAssign a -> assignments @ [a]
+        | NonBlockingAssign (a, _) -> assignments @ [a]
         | _ -> assignments
     | _ -> assignments

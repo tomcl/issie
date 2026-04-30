@@ -214,6 +214,19 @@ export function parseFromFile(source) {
 
 export function fix(json_data) {
     var obj = JSON.parse(json_data);
+    function flattenLinkedList(listNode) {
+        const items = [];
+        let current = listNode;
+        while (current != null) {
+            items.push(current.Head);
+            current = current.Tail;
+        }
+        return items;
+    }
+
+    function flattenVariableList(listNode) {
+        return flattenLinkedList(listNode).map(item => item.Name);
+    }
     //console.log(obj.Module.EndLocation);
     if (obj.Module.Type == "module_old") {
 
@@ -224,13 +237,11 @@ export function fix(json_data) {
         var loc = [];
 
         try {
-            while (port_list.Tail != null) {
+            while (port_list != null) {
                 ports.push(port_list.Head.Port.Name);
                 loc.push(port_list.Location)
                 port_list = port_list.Tail;
             }
-            ports.push(port_list.Head.Port.Name);
-            loc.push(port_list.Location)
         } catch (e) {
             console.log(e.message);
         }
@@ -248,13 +259,7 @@ export function fix(json_data) {
         try {
             for (let i = 0; i < item_list.length; i++) {
                 if ((item_list[i].ItemType == "input_decl") | (item_list[i].ItemType == "output_decl")) {
-                    let variables = item_list[i].IODecl.Variables;
-                    while (variables.Tail != null) {
-                        temp_var.push(variables.Head.Name);
-                        variables = variables.Tail;
-                    }
-                    temp_var.push(variables.Head.Name);
-                    item_list[i].IODecl.Variables = temp_var;
+                    item_list[i].IODecl.Variables = flattenVariableList(item_list[i].IODecl.Variables);
                 }
                 temp_var = [];
             }
@@ -306,11 +311,7 @@ export function fix(json_data) {
         var IOs = [];
 
         try {
-            while (io_list.Tail != null) {
-                IOs.push(io_list.Head);
-                io_list = io_list.Tail;
-            }
-            IOs.push(io_list.Head);
+            IOs = flattenLinkedList(io_list);
         } catch (e) {
             console.log(e.message);
         }
@@ -324,13 +325,7 @@ export function fix(json_data) {
         try {
             for (let i = 0; i < io_list.length; i++) {
                 if ((io_list[i].ItemType == "input_decl") | (io_list[i].ItemType == "output_decl" )) {
-                    let variables = io_list[i].IODecl.Variables;
-                    while (variables.Tail != null) {
-                        temp_var.push(variables.Head.Name);
-                        variables = variables.Tail;
-                    }
-                    temp_var.push(variables.Head.Name);
-                    io_list[i].IODecl.Variables = temp_var;
+                    io_list[i].IODecl.Variables = flattenVariableList(io_list[i].IODecl.Variables);
                 }
                 temp_var = [];
             }

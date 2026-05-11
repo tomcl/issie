@@ -35,41 +35,7 @@ let evalNumber (num: string) =
     num
     |> int
 
-/// Helper functions to extract details from the LHS of an assignment
-let getPrimaryName (p: PrimaryDU) =
-    match p with
-    | Identifier id
-    | IdentifierBit (id, _)
-    | VariableBitSelect (id, _)
-    | IdentifierBits (id, _, _)
-    | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _, _, _) -> id.Name
 
-let getPrimaryLocation (p: PrimaryDU) =
-    match p with
-    | Identifier id
-    | IdentifierBit (id, _)
-    | VariableBitSelect (id, _)
-    | IdentifierBits (id, _, _)
-    | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _, _, _) -> id.Location
-
-let getPrimaryRange (p: PrimaryDU) =
-    match p with
-    | Identifier _ -> None
-    | IdentifierArray _ -> None
-    | VariableBitSelect (_, _) -> None
-    | IdentifierBit (_, idx) ->
-        Some (idx, idx)
-    | IdentifierBits (_, start, end_) ->
-        Some (start, end_)
-    | IdentifierBitsSelect (_, start, width, sel) ->
-        let bStart = evalExpr start
-        let bEnd =
-            match sel with
-            | PlusWidth -> bStart + width - 1
-            | MinusWidth -> bStart - width + 1
-        Some (bStart, bEnd)
 
 /// Helper function to create an ErrorInfo-type Error Message 
 /// given the location, the variable name, and the message
@@ -307,6 +273,25 @@ let getPrimaryBits portSizeMap (primary: PrimaryDU) =
 
 
 
+/// Helper functions to extract the name and location of the LHS of an assignment
+let lhsName (lhs: AssignmentLHS) =
+    match lhs.PrimaryType with
+    | Identifier id
+    | IdentifierBit (id, _)
+    | IdentifierBits (id, _, _)
+    | VariableBitSelect (id, _)
+    | IdentifierBitsSelect (id, _, _, _)
+    | IdentifierArray (id, _, _, _) -> id.Name
+
+let lhsLocation (lhs: AssignmentLHS) =
+    match lhs.PrimaryType with
+    | Identifier id
+    | IdentifierBit (id, _)
+    | IdentifierBits (id, _, _)
+    | VariableBitSelect (id, _) -> id.Location
+    | IdentifierBitsSelect (id, _, _, _) -> id.Location
+    | IdentifierArray (id, _, _, _) -> id.Location
+
 
     
 let getDeclarations declarations node =
@@ -340,6 +325,13 @@ let getCaseItemNums nums node =
     | Number num -> nums @ [num]
     | _ -> nums
 
+let getForStatementsWithLoc forStatements node =
+    match node with
+    | Statement statement ->
+        match statement with
+        | StatementDU.ForStatement (f, _) -> forStatements @ [f, f.Location]
+        | _ -> forStatements
+    | _ -> forStatements
 
 /// Helper function used by checkWidthOfAssignment
 /// with 3 recursive subfunctions

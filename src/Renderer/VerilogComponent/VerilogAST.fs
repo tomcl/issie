@@ -621,33 +621,59 @@ let getItem (item: ItemDU) =
     | ItemDU.AlwaysConstruct a -> AlwaysConstruct a
     | ItemDU.ModuleInstantiation m -> ModuleInstantiation m
 
-
-let primaryIdName (p: PrimaryDU) =
+/// Helper functions to extract details from primaries
+let getPrimaryName (p: PrimaryDU) =
     match p with
-    | Identifier id -> id.Name
-    | IdentifierBit (id, _) -> id.Name
-    | IdentifierBits (id, _, _) -> id.Name
-    | VariableBitSelect (id, _) -> id.Name
-    | IdentifierBitsSelect (id, _, _, _) -> id.Name
+    | Identifier id
+    | IdentifierBit (id, _)
+    | VariableBitSelect (id, _)
+    | IdentifierBits (id, _, _)
+    | IdentifierBitsSelect (id, _, _, _)
     | IdentifierArray (id, _, _, _) -> id.Name
+
+    
+let getPrimaryLocation (p: PrimaryDU) =
+    match p with
+    | Identifier id
+    | IdentifierBit (id, _)
+    | VariableBitSelect (id, _)
+    | IdentifierBits (id, _, _)
+    | IdentifierBitsSelect (id, _, _, _)
+    | IdentifierArray (id, _, _, _) -> id.Location
+
+let getPrimaryRange (p: PrimaryDU) =
+    match p with
+    | Identifier _ -> None
+    | IdentifierArray _ -> None
+    | VariableBitSelect (_, _) -> None
+    | IdentifierBit (_, idx) ->
+        Some (idx, idx)
+    | IdentifierBits (_, start, end_) ->
+        Some (start, end_)
+    | IdentifierBitsSelect (_, start, width, sel) ->
+        let bStart = evalExpr start
+        let bEnd =
+            match sel with
+            | PlusWidth -> bStart + width - 1
+            | MinusWidth -> bStart - width + 1
+        Some (bStart, bEnd)
 
 let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:StatementDU) : StatementDU =
     let rec substLoopExpr (loopVarName:string) (value:int) (width:int) (expr:ExpressionDU) : ExpressionDU =
-        // let substUnary (unary:UnaryT) : UnaryDU =
         let rec substUnary (unary: UnaryDU) : UnaryDU =
             match unary with
             | UnaryDU.Primary (Identifier id) when id.Name = loopVarName ->
-                UnaryDU.Number (Unsigned (value, id.Location))
-            | UnaryDU.Primary (IdentifierBit (id, idx)) when id.Name = loopVarName ->
-                UnaryDU.Number (Unsigned (value, id.Location))
-            | UnaryDU.Primary (VariableBitSelect (id, idx)) when id.Name = loopVarName ->
-                UnaryDU.Number (Unsigned (value, id.Location))
-            | UnaryDU.Primary (IdentifierBits (id, start, end_)) when id.Name = loopVarName ->
-                UnaryDU.Number (Unsigned (value, id.Location))
-            | UnaryDU.Primary (IdentifierBitsSelect (id, start, width, sel)) when id.Name = loopVarName ->
-                UnaryDU.Number (Unsigned (value, id.Location))
-            | UnaryDU.Primary (IdentifierArray (id, indices, start, end_)) when id.Name = loopVarName ->
-                UnaryDU.Number (Unsigned (value, id.Location))
+                UnaryDU.Number (All (width, Decimal, string value, id.Location))
+            | UnaryDU.Primary (IdentifierBit (id, _)) when id.Name = loopVarName ->
+                UnaryDU.Number (All (width, Decimal, string value, id.Location))
+            | UnaryDU.Primary (VariableBitSelect (id, _)) when id.Name = loopVarName ->
+                UnaryDU.Number (All (width, Decimal, string value, id.Location))
+            | UnaryDU.Primary (IdentifierBits (id, _, _)) when id.Name = loopVarName ->
+                UnaryDU.Number (All (width, Decimal, string value, id.Location))
+            | UnaryDU.Primary (IdentifierBitsSelect (id, _, _, _)) when id.Name = loopVarName ->
+                UnaryDU.Number (All (width, Decimal, string value, id.Location))
+            | UnaryDU.Primary (IdentifierArray (id, _, _, _)) when id.Name = loopVarName ->
+                UnaryDU.Number (All (width, Decimal, string value, id.Location))
             | UnaryDU.Primary p ->
                 UnaryDU.Primary (substLoopPrimary loopVarName value p)
             | UnaryDU.Number _ -> unary
@@ -674,47 +700,33 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
     and substLoopPrimary (loopVarName: string) (value: int) (p: PrimaryDU) : PrimaryDU =
         match p with
         | Identifier _ -> p
-        // | IdentifierBit (id, idx) -> IdentifierBit (id, substLoopExpr loopVarName value width idx)
         | IdentifierBit (id, idx) -> p
         // Only VBS should have non-constant index
         | VariableBitSelect (id, idx) when id.Name = loopVarName ->
             IdentifierBit (id, evalExpr (substLoopExpr loopVarName value width idx))
         | VariableBitSelect (id, idx) ->
             VariableBitSelect (id, substLoopExpr loopVarName value width idx)
-        // | IdentifierBits (id, start, end_) ->
-        //     IdentifierBits (id, substLoopExpr loopVarName value width start, substLoopExpr loopVarName value width end_)
         | IdentifierBits (id, start, end_) -> p
         | IdentifierBitsSelect (id, start, width, sel) ->
             IdentifierBitsSelect (id, substLoopExpr loopVarName value width start, width, sel)
         | IdentifierArray (id, indices, start, end_) ->
             IdentifierArray (id, indices |> Array.map (substLoopExpr loopVarName value width), start, end_)    
+    
     // Drops any assignment whose LHS is the loop variable itself
-    
-    
     let isAssignToLoopVar (lhs: AssignmentLHS) =
-        primaryIdName lhs.PrimaryType = loopVarName
+        getPrimaryName lhs.PrimaryType = loopVarName
 
     let substLhs (lhs: AssignmentLHS) =
-        let vbs = lhs.VariableBitSelect |> Option.map (substLoopExpr loopVarName value width)
         let rewriteIndex (id: IdentifierT) idxExpr =
             let idxExpr' = substLoopExpr loopVarName value width idxExpr
             let idx = evalExpr idxExpr'
-            // let idxConst = UnaryUnsigned (Unsigned (idx, id.Location))
             IdentifierBit (id, idx)
 
+        let vbs = lhs.VariableBitSelect |> Option.map (substLoopExpr loopVarName value width)
         let primary' =
             match lhs.PrimaryType with
             | Identifier id 
-            | IdentifierBit (id, _) ->
-                match vbs with
-                | Some expr ->
-                    try
-                        let idx = evalExpr expr
-                        IdentifierBit (id, idx)
-                    with _ -> lhs.PrimaryType
-                | None -> lhs.PrimaryType
-            // | IdentifierBit (id, idx) ->
-            //     rewriteIndex id idx
+            | IdentifierBit (id, _) -> lhs.PrimaryType
             | VariableBitSelect (id, idx) when id.Name = loopVarName ->
                 rewriteIndex id idx
             | VariableBitSelect (id, idx) ->
@@ -726,8 +738,6 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
                     with _ -> lhs.PrimaryType
                 | None -> lhs.PrimaryType
             | IdentifierBits (id, start, end_) ->
-                // let start' = substLoopExpr loopVarName value width start
-                // let end' = substLoopExpr loopVarName value width end_
                 IdentifierBits (id, start, end_)
             | IdentifierBitsSelect (id, start, w, sel) ->
                 let start' = substLoopExpr loopVarName value width start
@@ -743,8 +753,8 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
 
         { lhs with PrimaryType = primary'; VariableBitSelect = vbs' }
 
-    // TODO: force loop variable to be initialised outside the loop (think about implemnting int?)
-    // TODO: currently in always_ff does not require initialisation (error previously?)
+    // TODO: allow loop variable to be initialised inside the loop decl (this is part of system verilog)
+
 
     // If loop variable appears on RHS, substitute it with the given value
     let substAssign (a: Assignment) =
@@ -754,13 +764,9 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
 
     match stmt with
     | BlockingAssign (a, loc) ->
-        if isAssignToLoopVar a.LHS then
-            failwith "Assignments to loop variable inside loop body are not supported"
-        else BlockingAssign (substAssign a, loc)
+        BlockingAssign (substAssign a, loc)
     | NonBlockingAssign (a, loc) ->
-        if isAssignToLoopVar a.LHS then
-            failwith "Assignments to loop variable inside loop body are not supported"
-        else NonBlockingAssign (substAssign a, loc)
+        NonBlockingAssign (substAssign a, loc)
     | SeqBlock (stmts, loc) ->
         SeqBlock (stmts |> Array.map (substLoopVar loopVarName value width), loc)
     | Conditional (ifStmt, elseStmt, loc) ->
@@ -793,31 +799,27 @@ let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
         | Lte -> endV - startV + 1
         | Gt -> startV - endV
         | Gte -> startV - endV + 1
-        | _ -> failwith "Unsupported operator"
-
+        | _ -> failwith "Shouldn't happen: error check should catch unsupported operators in for loop condition"
+    
     let startValue = evalExpr forstmt.Initialisation.RHS
     let endValue, condOp =
         match forstmt.Condition with
         | Comparison (op, _, rhs) -> evalExpr rhs, op
-        | _ -> failwith "Unsupported operator in for loop condition"
+        | _ -> failwith "Shouldn't happen: error check should catch unsupported operators in for loop condition"
+
     let stepValue = 
         match forstmt.Step.RHS with
         | ExpressionDU.Additive (Plus, _, stepExpr) -> evalExpr stepExpr
         | ExpressionDU.Additive (Minus, _, stepExpr) -> -evalExpr stepExpr
-        | _ -> failwith "Unsupported step expression in for loop"
+        | _ -> failwith "Shouldn't happen: error check should catch unsupported step expressions in for loop"
     let iterations = computeIterations startValue condOp endValue stepValue
-
-    if iterations < 0 || iterations > 500 then
-            failwithf "Refusing to unroll loop: iterations=%d" iterations
-
-    // TODO: BETTER LOOP ITERATION SYSTEM
 
     let bodyStatements =
         match forstmt.Statement with
         | SeqBlock (stmts, _) -> stmts
         | s -> [| s |]
 
-    let loopVarName = primaryIdName forstmt.Initialisation.LHS.PrimaryType
+    let loopVarName = getPrimaryName forstmt.Initialisation.LHS.PrimaryType
     let loopVarWidth =
         match forstmt.Initialisation.RHS with
         | ExpressionDU.Unary (UnaryDU.Number n) ->
@@ -826,19 +828,26 @@ let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
             | All (bits, _, _, loc) -> bits |> int
         | _ -> failwith "Loop variable must be initialized to a constant number"
 
+    // let repeatedStmts =
+    //     Array.init iterations (fun k -> 
+    //         let value = startValue + k * stepValue
+    //         bodyStatements
+    //         |> Array.map (substLoopVar loopVarName value loopVarWidth)
+    //         // |> Array.collect (fun s ->
+    //         //     match s with
+    //         //     | StatementDU.ForStatement (inner, loc) ->
+    //         //         match unrollForLoops inner with
+    //         //         | SeqBlock (stmts, _) -> stmts
+    //         //         | other -> [| other |]
+    //         //     | _ -> [| s |]
+    //         // )
+    //     )
+    //     |> Array.concat
     let repeatedStmts =
-        Array.init iterations (fun k -> 
+        Array.init iterations (fun k ->
             let value = startValue + k * stepValue
             bodyStatements
             |> Array.map (substLoopVar loopVarName value loopVarWidth)
-            |> Array.collect (fun s ->
-                match s with
-                | StatementDU.ForStatement (inner, loc) ->
-                    match unrollForLoops inner with
-                    | SeqBlock (stmts, _) -> stmts
-                    | other -> [| other |]
-                | _ -> [| s |]
-            )
         )
         |> Array.concat
     // let unrolled_seq_block: SeqBlockT =
@@ -847,198 +856,10 @@ let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
 
     SeqBlock (repeatedStmts, forstmt.Location)
 
-// Helper to evaluate integer expressions (simple constants only)
-let tryEvalConst (number:NumberT) =
-    let width = (Option.get number.Bits) |> int
-    let _base = Option.get number.Base
-    let no = (Option.get number.AllNumber)
-    let text = 
-        match _base with
-        |"'b" -> "0b"+no
-        |"'h" -> "0x"+no
-        |_ -> no
-    let constValue: int =
-        match NumberHelpers.strToIntCheckWidth width text with
-        |Ok n -> int n
-        |Error _ -> failwithf "Shouldn't happen!" // TODO: better error handling - indicate that the value and size do not match
-    constValue
-let rec evalIntExpression (expr0: ExpressionT) : int =
-    let rec strip (e: ExpressionT) =
-        match e.Unary with
-        | Some u when Option.isSome u.Expression -> strip (Option.get u.Expression)
-        | _ -> e
-
-    let expr = strip expr0
-
-    match expr.Operator, expr.Head, expr.Tail, expr.Unary with
-    // plain literal e.g. 4'd3  (ExpressionT with Unary.Number)
-    | None, None, None, Some unary ->
-        match unary.Number with
-        | Some num -> tryEvalConst num
-        | None -> failwith "Unsupported expression in loop: expected numeric literal"
-
-    // allowed binary-like node where RHS is numeric literal (e.g. i < 3'd3 or i + 1)
-    | Some _, Some _, Some tail, None ->
-        let tail = strip tail
-        match tail.Unary with
-        | Some u ->
-            match u.Number with
-            | Some num -> tryEvalConst num
-            | None -> failwith "Tail must be a numeric literal"
-        | None -> failwith "Tail must be a unary numeric literal"
-    | _ -> failwith "Unsupported expression in loop"
-
-
-let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:StatementT) : StatementT =
-    let rec substLoopExpr (loopVarName:string) (value:int) (width:int) (expr:ExpressionT) : ExpressionT =
-        let substUnary (unary:UnaryT) : UnaryT =
-            match unary.Primary with
-            | Some prim when prim.Primary.Name = loopVarName ->
-                { unary with
-                    Type = "number"
-                    Primary = None
-                    Number = Some ({
-                        Type = "number"
-                        NumberType = "all"
-                        Bits = Some (string width)
-                        Base = Some "'d"
-                        AllNumber = Some (string value)
-                        UnsignedNumber = None
-                        Location = prim.Primary.Location
-                    })
-                }
-            | _ -> 
-                let expr' = unary.Expression |> Option.map (substLoopExpr loopVarName value width)
-                { unary with Expression = expr' }
-            
-        match expr.Operator, expr.Head, expr.Tail, expr.Unary with
-        | None, None, None, Some unary ->
-            let unary' = substUnary unary
-            { expr with Unary = Some unary' }
-        | Some op, Some head, Some tail, None ->
-            { expr with 
-                Head = Some (substLoopExpr loopVarName value width head)
-                Tail = Some (substLoopExpr loopVarName value width tail) }
-        | _ -> expr 
-    
-    // Drops any assignment whose LHS is the loop variable itself
-    let isAssignToLoopVar (lhs: AssignmentLHST) =
-        lhs.Primary.Name = loopVarName
-
-    let substLhs (lhs: AssignmentLHST) =
-        let vbs = lhs.VariableBitSelect |> Option.map (substLoopExpr loopVarName value width)
-        // If variable bit-select reduces to a constant, write it into Primary.BitsStart/BitsEnd
-        let lhs' =
-            match vbs with
-            | Some expr ->
-                try
-                    let idx = evalIntExpression expr
-                    let idxStr = string idx
-                    { lhs with VariableBitSelect = None; BitsStart = Some idxStr; BitsEnd = Some idxStr }
-                with _ -> { lhs with VariableBitSelect = vbs }
-            | None -> lhs
-        lhs'
-
-    // If loop variable appears on RHS, substitute it with the given value
-    let substAssign (a: AssignmentT) =
-        { a with
-            LHS = substLhs a.LHS
-            RHS = substLoopExpr loopVarName value width a.RHS }
-
-    match stmt.BlockingAssign, stmt.NonBlockingAssign, stmt.SeqBlock, stmt.Conditional, stmt.CaseStatement, stmt.ForStatement with
-    | Some b, None, None, None, None, None ->
-        if isAssignToLoopVar b.Assignment.LHS then
-            failwithf "Assignments to loop variable inside loop body are not supported"
-        else { stmt with BlockingAssign = Some { b with Assignment = substAssign b.Assignment } }
-    | None, Some nb, None, None, None, None ->
-        if isAssignToLoopVar nb.Assignment.LHS then
-            failwithf "Assignments to loop variable inside loop body are not supported"
-        else { stmt with NonBlockingAssign = Some { nb with Assignment = substAssign nb.Assignment } }
-    | None, None, Some sb, None, None, None ->
-        let stmts' = sb.Statements |> Array.map (substLoopVar loopVarName value width)
-        { stmt with SeqBlock = Some { sb with Statements = stmts' } }
-    | None, None, None, Some cond, None, None ->
-        let ifStmt' = substLoopVar loopVarName value width cond.IfStatement.Statement
-        let elseStmt' = cond.ElseStatement |> Option.map (substLoopVar loopVarName value width)
-        let condStmt' = substLoopExpr loopVarName value width cond.IfStatement.Condition
-        { stmt with Conditional = Some { cond with IfStatement = { cond.IfStatement with 
-                                                                    Condition = condStmt'; 
-                                                                    Statement = ifStmt' }; 
-                                                ElseStatement = elseStmt' } }
-    | None, None, None, None, Some caseStmt, None ->
-        let caseExpr' = substLoopExpr loopVarName value width caseStmt.Expression
-        let caseItems' =
-            caseStmt.CaseItems
-            |> Array.map (fun ci -> 
-                let stmt' = substLoopVar loopVarName value width ci.Statement
-                { ci with Statement = stmt' }
-            )
-        let defaultStmt' = caseStmt.Default |> Option.map (substLoopVar loopVarName value width)
-        { stmt with CaseStatement = Some { caseStmt with 
-                                                Expression = caseExpr'; 
-                                                CaseItems = caseItems'; 
-                                                Default = defaultStmt' } }
-    | None, None, None, None, None, Some forStmt ->
-        // Substitute occurrences of the current loop variable into the inner for-loop
-        let initRHS' = substLoopExpr loopVarName value width forStmt.Initialisation.RHS
-        let cond' = substLoopExpr loopVarName value width forStmt.Condition
-        let stepRHS' = substLoopExpr loopVarName value width forStmt.Step.RHS
-        let stmt' = substLoopVar loopVarName value width forStmt.Statement
-        let forStmt' = { forStmt with Initialisation = { forStmt.Initialisation with RHS = initRHS' }; Condition = cond'; Step = { forStmt.Step with RHS = stepRHS' }; Statement = stmt' }
-        { stmt with ForStatement = Some forStmt' }
-        
-    // TODO: add nested for loop handling
-    | _ -> stmt // other cases not handled for now
-let rec unrollForLoops (forstmt:ForStatementT) : SeqBlockT =
-    let computeIterations startV op endV step =
-        match op with
-        | "<"  -> endV - startV
-        | "<=" -> endV - startV + 1
-        | ">"  -> startV - endV
-        | ">=" -> startV - endV + 1
-        | _ -> failwith "Unsupported operator"
-
-    let startValue = evalIntExpression forstmt.Initialisation.RHS
-    let endValue   = evalIntExpression forstmt.Condition
-    let stepValue  = evalIntExpression forstmt.Step.RHS
-    let iterations = 
-        match forstmt.Condition.Operator with
-        | Some op -> computeIterations startValue op endValue stepValue
-        | None -> failwith "Unsupported operator in for loop condition"
-
-    if iterations < 0 || iterations > 10 then
-        failwithf "Refusing to unroll loop with %d iterations" iterations
-
-    let bodyStatements =
-        match forstmt.Statement.SeqBlock with
-        | Some seqBlock -> seqBlock.Statements
-        | None -> [| forstmt.Statement |]
-
-    let loopVarName = forstmt.Initialisation.LHS.Primary.Name
-    let loopVarWidth =
-        match forstmt.Initialisation.LHS.Width with
-        | Some w -> int w
-        | None -> 32
-
-    let repeatedStmts =
-        Array.init iterations (fun k -> 
-            let value = startValue + k * stepValue
-            bodyStatements
-            |> Array.map (substLoopVar loopVarName value loopVarWidth)
-            |> Array.collect (fun s ->
-                match s.ForStatement with
-                | Some innerFor ->
-                    // recursively unroll inner for after it has been substituted
-                    (unrollForLoops innerFor).Statements
-                | None -> [| s |]
-            )
-        )
-        |> Array.concat
-    let unrolled_seq_block: SeqBlockT =
-        { Type = "seq_block"; Statements = repeatedStmts; Location = forstmt.Location }
-    // failwithf "STATEMENT UNROLLED: iterations = %d, full block = %A" iterations unrolled_seq_block
-
-    unrolled_seq_block
+// let rec unrollAST node =
+//     match node with
+//     | ForStatement forstmt -> unrollForLoops forstmt
+//     | _ -> // can either just list all or find better way to do this
 
 /// Recursively folds over an ASTNode, calling folder at every level. Only explores parts where there are multiple possibilities within a Node
 let rec foldAST folder state (node: ASTNode) =
@@ -1076,9 +897,18 @@ let rec foldAST folder state (node: ASTNode) =
             | Some elseStmt -> List.fold (foldAST folder) tmpState [Statement elseStmt]
             | _ -> tmpState
         | StatementDU.ForStatement (forstmt, _) ->
+            // let tmpState = 
+            //     unrollForLoops forstmt
+            // foldAST folder state' (Statement tmpState)
             let tmpState = 
-                unrollForLoops forstmt
-            foldAST folder state' (Statement tmpState)
+                Assignment forstmt.Initialisation
+                |> foldAST folder state'
+            let tmpState' =
+                List.fold (foldAST folder) tmpState [Assignment forstmt.Step]
+            // let tmpState'' = List.fold (foldAST folder) tmpState' [Statement forstmt.Statement]
+            let unrolledForStmt = unrollForLoops forstmt
+            List.fold (foldAST folder) tmpState' [Statement unrolledForStmt]
+            // foldAST folder state' (Statement forstmt)
     | Case case ->
         let newState = foldAST folder state' (Expression case.Expression)
         // let s1 = foldAST folder state' (Expression cs.Expression)
@@ -1115,6 +945,16 @@ let rec foldAST folder state (node: ASTNode) =
     | _ ->
         state'
 
+// Applies foldAST to fully unrolled AST
+// let rec foldASTUnrolled folder state (node: ASTNode) =
+//     let state' = folder state node
+//     match node with
+//     | Statement (StatementDU.ForStatement (forstmt, _)) ->
+//         let unrolled = unrollForLoops forstmt
+//         foldASTUnrolled folder state' (Statement unrolled)
+//     | _ ->
+
+
 /// get rhs expressions from always, continuous assign, case stmt... (all of them)
 let getAllExpressions' (expressions: List<ExpressionDU>) (node: ASTNode) =
     match node with
@@ -1131,6 +971,8 @@ let getAssignments' (assignments: List<Assignment>) (node: ASTNode) =
     match node with
     | Assignment assign ->
         assignments @ [assign]
+    // | ForStatement forstmt ->
+    //     assignments @ [forstmt.Initialisation; forstmt.Step]
     | _ -> assignments
 
 let getContAssignments (assignments: List<Assignment>) (node: ASTNode) =
@@ -1170,6 +1012,10 @@ let getAssignmentsWithLocations (assignments: List<Assignment*int>) (node: ASTNo
         match stmt with
         | BlockingAssign (a, _) -> assignments @ [a, assignmentLocation a]
         | NonBlockingAssign (a, _) -> assignments @ [a, assignmentLocation a]
+        | StatementDU.ForStatement (forstmt, loc) ->
+            let initAssign = forstmt.Initialisation, assignmentLocation forstmt.Initialisation
+            let stepAssign = forstmt.Step, assignmentLocation forstmt.Step
+            assignments @ [initAssign; stepAssign]
         | _ -> assignments
     | _ -> assignments
 let getAlwaysBlocks (alwaysBlocks: List<AlwaysConstruct>) (node: ASTNode) =

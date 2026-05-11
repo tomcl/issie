@@ -85,7 +85,7 @@ open Fable.SimpleJson
 
 
 let parseFile src dst =
-    printfn $"[TEST] Parsing file {baseNameWithoutExtension src}"
+    // printfn $"[TEST] Parsing file {baseNameWithoutExtension src}"
     let input = tryReadFileSync src
     let parse, linesIndex = 
         match input with
@@ -113,8 +113,11 @@ let project =
         LoadedComponents = []
     }
 
+let getSemanticErrorsWithLoadedComponents loadedComps ast linesIndex =
+    ErrorCheck.getSemanticErrors ast linesIndex NewVerilogFile {project with LoadedComponents = loadedComps}
+
 let getSemanticErrors ast linesIndex =
-    ErrorCheck.getSemanticErrors ast linesIndex NewVerilogFile project
+    getSemanticErrorsWithLoadedComponents [] ast linesIndex
 
 let errorCheck ast linesIndex src dst =
     let refFile = FilesIO.pathJoin [|"./src/Renderer/VerilogComponent/test/ref/semantic"; (baseNameWithoutExtension src)+".json"|]
@@ -134,20 +137,20 @@ let errorCheck ast linesIndex src dst =
         //|> Set.toList
         |> Json.stringify
         |> writeFile dst
-    printfn $"[TEST] {baseNameWithoutExtension src}"
+    // printfn $"[TEST] {baseNameWithoutExtension src}"
     let outText = List.sort outputErrors |> Json.stringify
     let refText = List.sort refErrors |> Json.stringify
     if outText = refText then 
-        printf "[TEST] PASS"
+        // printf "[TEST] PASS"
         1
     else 
-        printf "[TEST] FAIL"
+        printfn $"[{baseNameWithoutExtension src}] FAIL"
         printfn $"Output errors: {outputErrors}"
         printfn $"Reference errors: {refErrors}"
-        printfn $"Output JSON: {outText}"
-        printfn $"Reference JSON: {refText}"
-        let testDIFF = (outText = refText)
-        printfn $"Output text matches reference text: {testDIFF}"
+        // printfn $"Output JSON: {outText}"
+        // printfn $"Reference JSON: {refText}"
+        // let testDIFF = (outText = refText)
+        // printfn $"Output text matches reference text: {testDIFF}"
         0
 
 let printSemanticErrors src (errors: ErrorInfo list) =
@@ -282,13 +285,13 @@ let simulateAST ast src dst loadedComps=
         | Ok out -> Json.parseAs<codegenOutput list> out
         | _ -> failwithf "Couldn't open codegen reference output!"
         |> List.map (fun out -> {out with Label=out.Label.ToUpper()})
-    printfn $"[TEST] {baseNameWithoutExtension refFilePath}"
+    // printfn $"[TEST] {baseNameWithoutExtension refFilePath}"
     match List.sort res = List.sort refOutput with
     | true -> 
-        printfn "[TEST] PASS"
+        // printfn "[TEST] PASS"
         1
     | false -> 
-        printfn "[TEST] FAIL"
+        printfn $"[{baseNameWithoutExtension refFilePath}] FAIL"
         0
 
 let formatSimulationError (error: exn) =
@@ -336,10 +339,10 @@ let runCodeGenTests _ =
             let loadedComps =
                 ([], modulePaths)
                 ||> List.fold (fun comps file ->
-                    printfn $"{comps}, {file}"
+                    // printfn $"{comps}, {file}"
                     let ast, linesIndex = parseFile file dst
                     let cs =
-                        match getSemanticErrors ast linesIndex with
+                        match getSemanticErrorsWithLoadedComponents comps ast linesIndex with
                         | [] -> 
                             let model = Unchecked.defaultof<ModelType.Model>
                             let dispatch = ignore
@@ -597,7 +600,7 @@ let genDriverFiles () =
 
 
 let runCompilerTests _ =
-    printfn "test parsing"
+    // printfn "test parsing"
     let filenames =
         readFilesFromDirectory "./src/Renderer/VerilogComponent/test/input/valid"
         |> List.map (fun file -> pathJoin [|"./src/Renderer/VerilogComponent/test/input/valid"; file|])

@@ -348,21 +348,58 @@ let checkAllOutputsAssigned
 
     List.append errorList localErrors
 
+/// Checks that loop variables in for loops are not assigned to inside the loop body
+let checkForLoopVar
+    (ast: VerilogInput)
+    (linesLocations: int list)
+    (errorList: ErrorInfo list) =
+    let forStatementsWithLoc = foldAST getForStatementsWithLoc [] (VerilogInput ast)
+    let checkForStatement (forStmt, location) =
+        let loopVarName = getPrimaryName forStmt.Initialisation.LHS.PrimaryType
+        let assignments = foldAST getAssignments' [] (Statement forStmt.Statement)
+        let loopVarAssignments = 
+            assignments
+            |> List.filter (fun assign -> 
+                let assignedVarName = getPrimaryName assign.LHS.PrimaryType
+                assignedVarName = loopVarName
+            )
+
+        if List.isEmpty loopVarAssignments then []
+        else loopVarAssignments
+            |> List.collect (fun assign ->
+                let extraMessages =
+                    [|
+                        {Text=sprintf "The loop variable '%s' is assigned to inside the loop. The loop variable should not be assigned to inside the loop body." loopVarName;Copy=false;Replace=NoReplace};
+                    |]
+                let message = sprintf "Loop variable '%s' is assigned to inside the loop" loopVarName
+                createErrorMessage linesLocations (lhsLocation assign.LHS) message extraMessages loopVarName
+                )
+    let localErrors = List.collect checkForStatement forStatementsWithLoc
+    List.append errorList localErrors
+
 
 /// Checks estimated program size after loop unrolling.
 let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (errorList: ErrorInfo list) : ErrorInfo list =
     let maxUnrollCost = 500 // TODO: instrument size and adjust this accordingly
     let tryEval expr =
-        try Ok (evalExpr expr) with _ -> Error "For loop bounds must be constant."
+        try 
+            Ok (evalExpr expr) 
+        with _ -> Error "For loop bounds must be constant."
 
     let tryGetIterations (f: ForStatement) =
         let startRes = tryEval f.Initialisation.RHS
-        let stepRes = 
+        // let stepRes = 
+        let stepRes, localErrors = 
             match f.Step.RHS with
-            | ExpressionDU.Additive (Plus, _, step) -> tryEval step
-            | ExpressionDU.Additive (Minus, _, step) -> tryEval step
-            | _ -> Error "For loop step must be an addition or subtraction."
+            | ExpressionDU.Additive (Plus, _, step) -> 
+                tryEval step, []
+            | ExpressionDU.Additive (Minus, _, step) -> 
+                tryEval step, []
+            | _ -> 
+                let extraMessages = [| {Text="For loop step must be an addition or subtraction.";Copy=false;Replace=NoReplace} |]
+                Error "Invalid step", createErrorMessage linesLocations f.Location "For loop step must be an addition or subtraction." extraMessages (getPrimaryName f.Initialisation.LHS.PrimaryType)
         let condRes =
+            printfn "Condition: %A" f.Condition
             match f.Condition with
             | Comparison (op, _, rhs) -> Ok (op, rhs)
             | _ -> Error "For loop condition must be a comparison."
@@ -370,16 +407,46 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
         | Ok startV, Ok stepV, Ok (op, rhs) ->
             match tryEval rhs with
             | Ok endV ->
-                match op with
-                | Lt -> Ok (stepV, endV - startV)
-                | Lte -> Ok (stepV, endV - startV + 1)
-                | Gt -> Ok (stepV, startV - endV)
-                | Gte -> Ok (stepV, startV - endV + 1)
-                | _ -> Error "Unsupported for loop comparison operator."
-            | Error msg -> Error msg
-        | Error msg, _, _ -> Error msg
-        | _, Error msg, _ -> Error msg
-        | _, _, Error msg -> Error msg
+                // match op with
+                //     | Lt -> Ok (stepV, endV - startV), localErrors
+                //     | Lte -> Ok (stepV, endV - startV + 1), localErrors
+                //     | Gt -> Ok (stepV, startV - endV), localErrors
+                //     | Gte -> Ok (stepV, startV - endV + 1), localErrors
+                //     | _ -> Error "Unsupported for loop comparison operator.", List.append localErrors (createErrorMessage linesLocations f.Location "Unsupported for loop comparison operator." [| {Text="For loop condition must be a comparision." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+                match f.Step.RHS with
+                | ExpressionDU.Additive (Plus, _, _) ->
+                    match op with
+                    | Lt -> Ok (stepV, endV - startV), localErrors
+                    | Lte -> Ok (stepV, endV - startV + 1), localErrors
+                    | Gte -> Ok (stepV, startV - endV + 1), localErrors
+                    | Gt -> 
+                        printfn "startV: %d, endV: %d, stepV: %d" startV endV stepV
+                        Ok (stepV, startV - endV), localErrors
+                    // | Gt -> Error "Infinite for loop", List.append localErrors (createErrorMessage linesLocations f.Location "Infinite for loop!" [| {Text="For loop bounds must produce a finite number of iterations." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+                    // | Gte -> Ok (stepV, startV - endV + 1), localErrors
+                    | _ -> Error "Unsupported for loop comparison operator.", List.append localErrors (createErrorMessage linesLocations f.Location "Unsupported for loop comparison operator." [| {Text="For loop condition must be a comparision." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+                | ExpressionDU.Additive (Minus, _, _) ->
+                    match op with 
+                    | Gt -> Ok (stepV, startV - endV), localErrors
+                    | Gte -> Ok (stepV, startV - endV + 1), localErrors
+                    | Lt -> Ok (stepV, startV - endV), localErrors
+                    | Lte -> Ok (stepV, startV - endV + 1), localErrors
+                    // | Lte -> Error "Infinite for loop", List.append localErrors (createErrorMessage linesLocations f.Location "Infinite for loop!" [| {Text="For loop bounds must produce a finite number of iterations." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+                    | _ -> Error "Unsupported for loop comparison operator.", List.append localErrors (createErrorMessage linesLocations f.Location "Unsupported for loop comparison operator." [| {Text="For loop condition must be a comparision." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+                | _ -> Error "Invalid for loop step", List.append localErrors (createErrorMessage linesLocations f.Location "Invalid for loop step." [| {Text="For loop step must be an addition or subtraction." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+            | Error msg -> Error msg, List.append localErrors (createErrorMessage linesLocations f.Location msg [| {Text="For loop condition must evaluate to a constant." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+            // let loopCount = evalExpr rhs
+            // if loopCount < 0 then 
+            //     let message = sprintf "For loop produces infinite loop!"
+            //     let extraMessages = 
+            //         [|
+            //             {Text=sprintf "For loop produces infinite loop! \n Please make sure that the loop bounds produce a finite number of iterations." ;Copy=false;Replace=NoReplace}
+            //         |]
+            //     Error "Invalid loop bounds", List.append localErrors (createErrorMessage linesLocations f.Location message extraMessages (getPrimaryName f.Initialisation.LHS.PrimaryType)) 
+            // else
+        | Error msg, _, _ -> Error msg, List.append localErrors (createErrorMessage linesLocations f.Location msg [| {Text="For loop initialisation must evaluate to a constant." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+        | _, Error msg, _ -> Error msg, List.append localErrors (createErrorMessage linesLocations f.Location msg [| {Text="For loop step must be an addition or subtraction." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
+        | _, _, Error msg -> Error msg, List.append localErrors (createErrorMessage linesLocations f.Location msg [| {Text="For loop condition must be a comparison." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
 
     let mkError loc name message detail =
         let extraMessages = [| {Text=detail;Copy=false;Replace=NoReplace} |]
@@ -419,19 +486,28 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
             let cost = 1 + estimateExprCost ifStmt.Condition + ifCost + elseCost
             errors, cost
         | StatementDU.ForStatement (f, _) ->
-            let loopVarName = primaryIdName f.Initialisation.LHS.PrimaryType
+            let loopVarName = getPrimaryName f.Initialisation.LHS.PrimaryType
             match tryGetIterations f with
-            | Error msg ->
-                mkError f.Location loopVarName "Invalid for loop bounds" msg, 0
-            | Ok (stepV, iterations) ->
+            | Error msg, localErrors ->
+                // let localErrors = List.append localErrors (mkError f.Location loopVarName "Invalid for loop bounds" msg)
+                // printfn "Local errors: %A" localErrors
+                let newError = mkError f.Location loopVarName "Invalid for loop bounds" msg
+                localErrors @ newError, 0
+                // List.append errorList localErrors, 0
+            | Ok (stepV, iterations), localErrors ->
                 if stepV = 0 then
-                    mkError f.Location loopVarName "Invalid for loop step" "For loop step must be a non-zero constant.", 0
-                elif iterations < 0 then
-                    mkError f.Location loopVarName "Invalid for loop bounds" "For loop bounds must produce a non-negative iteration count.", 0
+                    let localErrors = List.append localErrors (mkError f.Location loopVarName "Invalid for loop step" "For loop step must be a non-zero constant.")
+                    localErrors, 0
+                    // List.append errorList localErrors, 0
+                elif iterations <= 0 then
+                    let localErrors = List.append localErrors (mkError f.Location loopVarName "Infinite for loop!" "For loop bounds must not create an infinite loop.")
+                    // List.append errorList localErrors, 0
+                    localErrors, 0
                 else
                     let bodyErrors, bodyCost = estimateUnrolledStatementCost f.Statement
                     let totalCost = iterations * bodyCost
-                    bodyErrors, totalCost
+                    List.append localErrors bodyErrors, totalCost
+                    // List.append errorList localErrors, totalCost
 
     let estimateProgramCost (items: ItemT list) =
         (([], 0), items)
@@ -875,25 +951,6 @@ let checkUnsupportedKeywords
 
     List.append errorList localErrors
 
-/// Helper functions to extract the name and location of the LHS of an assignment
-let lhsName (lhs: AssignmentLHS) =
-    match lhs.PrimaryType with
-    | Identifier id
-    | IdentifierBit (id, _)
-    | IdentifierBits (id, _, _)
-    | VariableBitSelect (id, _)
-    | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _, _, _) -> id.Name
-
-let lhsLocation (lhs: AssignmentLHS) =
-    match lhs.PrimaryType with
-    | Identifier id
-    | IdentifierBit (id, _)
-    | IdentifierBits (id, _, _)
-    | VariableBitSelect (id, _) -> id.Location
-    | IdentifierBitsSelect (id, _, _, _) -> id.Location
-    | IdentifierArray (id, _, _, _) -> id.Location
-
 /// Checks if the RHS expression is wider than the LHS of an assignment.
 /// Checks every assignment: continuous and combinational
 let checkAssignmentWidths
@@ -1133,50 +1190,57 @@ let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:Co
     let inputNameList = getInputNames portMap
 
     let wireSizeMap = getWireSizeMap items paramMap
-    let declarations = foldAST getDeclarations [] (VerilogInput(ast))
-    let wireSizeMap =
-        (wireSizeMap, declarations)
-        ||> List.fold (fun map decl ->
-            (map, decl.Variables)
-            ||> Array.fold (fun map' variable -> 
-                if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
-                else
-                    let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
-                    let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
-                    Map.add variable.Name (bStart - bEnd + 1) map'
+
+    let loopErr = checkForLoopUnrollCost ast linesLocations []
+
+    if not (List.isEmpty loopErr) then
+        loopErr
+    else
+        let declarations = foldAST getDeclarations [] (VerilogInput(ast))
+        let wireSizeMap =
+            (wireSizeMap, declarations)
+            ||> List.fold (fun map decl ->
+                (map, decl.Variables)
+                ||> Array.fold (fun map' variable -> 
+                    if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
+                    else
+                        let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
+                        let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
+                        Map.add variable.Name (bStart - bEnd + 1) map'
+                )
             )
-        )
-    let wireNameList = getWireNames items
-    let wireLocationMap = getWireLocationMap items //need to add declarations
-    let wireLocationMap = 
-        (wireLocationMap, declarations)
-        ||> List.fold (fun (wireLocMap: Map<string, int>) (decl: Declaration) -> 
-                (wireLocMap, decl.Variables)
-                ||> Array.fold (fun map var -> Map.add var.Name var.Location map))
-    //////////////////////////////////////////////
-    
-    let errors =
-        []  //begin with empty list and add errors to it
-        |> nameCheck ast linesLocations origin project //name is valid (not used by another sheet/component)
-        |> portCheck ast linesLocations //all ports are declared as input/output
-        |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations portMap project //all ports declared as IO are defined in the module header
-        |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
-        |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap paramMap //checks 1-by-1 all assignments (wires & output ports)
-        |> checkAllOutputsAssigned ast portMap portSizeMap linesLocations //checks whether all output ports have been assined a value
-        |> checkUnsupportedKeywords ast linesLocations
-        |> checkProceduralAssignments ast linesLocations
-        |> checkForLoopUnrollCost ast linesLocations
-        |> checkVariablesDrivenSimultaneously ast linesLocations
-        |> checkVariablesAlwaysAssigned ast linesLocations portSizeMap wireSizeMap paramMap
-        |> checkCasesStatements ast linesLocations portSizeMap wireSizeMap paramMap
-        |> checkExpressions ast linesLocations wireSizeMap paramMap
-        |> checkClk ast linesLocations portMap
-        |> checkClkNames ast linesLocations portMap portLocationMap portSizeMap
-        |> cycleCheck ast linesLocations portSizeMap wireSizeMap
-        |> checkVariablesUsed ast linesLocations portSizeMap wireSizeMap paramMap
-        |> checkAlwaysCombRHS ast linesLocations portSizeMap wireSizeMap
-        |> checkAssignmentWidths ast linesLocations portSizeMap wireSizeMap
-        |> checkModuleInstantiations ast linesLocations portSizeMap wireSizeMap project portMap
-        |> checkInputsAssigned ast linesLocations portMap
-        |> List.distinct // filter out possible double Errors
-    errors
+        let wireNameList = getWireNames items
+        let wireLocationMap = getWireLocationMap items //need to add declarations
+        let wireLocationMap = 
+            (wireLocationMap, declarations)
+            ||> List.fold (fun (wireLocMap: Map<string, int>) (decl: Declaration) -> 
+                    (wireLocMap, decl.Variables)
+                    ||> Array.fold (fun map var -> Map.add var.Name var.Location map))
+        //////////////////////////////////////////////
+        
+        let errors =
+            []  //begin with empty list and add errors to it
+            |> nameCheck ast linesLocations origin project //name is valid (not used by another sheet/component)
+            |> portCheck ast linesLocations //all ports are declared as input/output
+            |> checkForLoopUnrollCost ast linesLocations
+            |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations portMap project //all ports declared as IO are defined in the module header
+            |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
+            |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap paramMap //checks 1-by-1 all assignments (wires & output ports)
+            |> checkAllOutputsAssigned ast portMap portSizeMap linesLocations //checks whether all output ports have been assined a value
+            |> checkUnsupportedKeywords ast linesLocations
+            |> checkProceduralAssignments ast linesLocations
+            |> checkForLoopVar ast linesLocations
+            |> checkVariablesDrivenSimultaneously ast linesLocations
+            |> checkVariablesAlwaysAssigned ast linesLocations portSizeMap wireSizeMap paramMap
+            |> checkCasesStatements ast linesLocations portSizeMap wireSizeMap paramMap
+            |> checkExpressions ast linesLocations wireSizeMap paramMap
+            |> checkClk ast linesLocations portMap
+            |> checkClkNames ast linesLocations portMap portLocationMap portSizeMap
+            |> cycleCheck ast linesLocations portSizeMap wireSizeMap
+            |> checkVariablesUsed ast linesLocations portSizeMap wireSizeMap paramMap
+            |> checkAlwaysCombRHS ast linesLocations portSizeMap wireSizeMap
+            |> checkAssignmentWidths ast linesLocations portSizeMap wireSizeMap
+            |> checkModuleInstantiations ast linesLocations portSizeMap wireSizeMap project portMap
+            |> checkInputsAssigned ast linesLocations portMap
+            |> List.distinct // filter out possible double Errors
+        errors

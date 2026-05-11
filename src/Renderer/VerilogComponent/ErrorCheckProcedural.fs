@@ -279,8 +279,8 @@ let checkVariablesAlwaysAssigned
         //     let elseVariables =
         //         getVariablesAlwaysAssigned (Statement (Option.get ifstmt.ElseStatement))
         //     Set.intersect ifVariables elseVariables
-        | ForStatement forstmt ->
-            getVariablesAlwaysAssigned (Statement forstmt.Statement)
+        // | ForStatement forstmt ->
+        //     getVariablesAlwaysAssigned (Statement forstmt.Statement)
         // | BlockingAssign blocking -> (getLHSBitsAssignedCertainly portSizeMap blocking.Assignment) |> Set.ofList // fix getLHSBits
         // | NonBlockingAssign nonBlocking -> (getLHSBitsAssignedCertainly portSizeMap nonBlocking.Assignment) |> Set.ofList // fix getLHSBits
         | Item item -> getVariablesAlwaysAssigned (getItem item)
@@ -308,7 +308,10 @@ let checkVariablesAlwaysAssigned
                     | None -> Set.empty
                 if Option.isNone elseStmt then Set.empty else Set.intersect ifVariables elseVariables
             | StatementDU.ForStatement (forstmt, _) ->
-                getVariablesAlwaysAssigned (Statement forstmt.Statement)
+                let loopVar = getVariablesAlwaysAssigned (Assignment forstmt.Initialisation)
+                let loopVar' = getVariablesAlwaysAssigned (Assignment forstmt.Step)
+                let loopStatementVars = getVariablesAlwaysAssigned (Statement forstmt.Statement)
+                Set.union loopVar (Set.union loopVar' loopStatementVars)
         | Case case ->
             if allCasesCovered case portSizeMap wireSizeMap then
                 let complCaseVars =
@@ -342,11 +345,18 @@ let checkVariablesAlwaysAssigned
                     | None -> []
                 )
                 |> Set.ofList
+            let loopVars =
+                foldAST getForStatementsWithLoc [] (AlwaysConstruct always)
+                |> List.map (fun (forStmt, _) -> getPrimaryName forStmt.Initialisation.LHS.PrimaryType)
+                |> Set.ofList
             let allLHSVariables = 
                 foldAST getAssignments' [] (AlwaysConstruct always)
                 |> List.collect (getLHSBits' portSizeMap)
                 |> Set.ofList
                 |> Set.intersect validAssignedBits
+                |> Set.filter (fun varBit ->
+                    let varName = (varBit.Split [|'['|])[0]
+                    not (Set.contains varName loopVars))
             let variablesNotAssignedInAllBranches =
                 getVariablesAlwaysAssigned (AlwaysConstruct always)
             let undefVars =
@@ -688,6 +698,9 @@ let checkVariablesUsed
         |> List.collect (fun modInst -> modInst.Connections |> Array.toList)
         |> List.collect (fun conn -> getPrimaryBits wireAndPortSizeMap conn.Primary)
         |> Set.ofList
+    // let assignmentsLHS = 
+    //     match ast with
+    //     | VerilogInput as
     let assignmentsLHS = 
         foldAST getAssignments' [] (VerilogInput ast)
         |> List.collect (fun assign -> getLHSBits' wireAndPortSizeMap assign)

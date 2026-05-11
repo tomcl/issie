@@ -1,0 +1,34 @@
+[
+    { 
+        "Line": 7,
+        "Col": 12,
+        "Length": 1,
+        "Message": "Variable 'i' is not declared as an output port",
+        "ExtraErrors": [{ "Text": "Variable 'i' is not declared as an output port",
+            "Copy": false,
+            "Replace": "NoReplace" } ]
+        },
+    { 
+        "Line": 7,
+        "Col": 36,
+        "Length": 1,
+        "Message": "Variable 'i' is not declared as input or variable",
+        "ExtraErrors": [{ "Text": "Variable 'i' is not declared as input or variable",
+            "Copy": false,
+            "Replace": "NoReplace" }] }, 
+    { 
+        "Line": 7,
+        "Col": 12,
+        "Length": 1,
+        "Message": "The RHS expression (4 bits wide) doesn't fit in the variable on the LHS (0 bits wide)",
+        "ExtraErrors": [{ "Text": "The RHS expression (4 bits wide) doesn't fit in the variable on the LHS (0 bits wide)",
+            "Copy": false,
+            "Replace": "NoReplace" }] }, 
+    { 
+        "Line": 7,
+        "Col": 32,
+        "Length": 1,
+        "Message": "The RHS expression (3 bits wide) doesn't fit in the variable on the LHS (0 bits wide)",
+        "ExtraErrors": [{ "Text": "The RHS expression (3 bits wide) doesn't fit in the variable on the LHS (0 bits wide)",
+            "Copy": false,
+            "Replace": "NoReplace" }] }]

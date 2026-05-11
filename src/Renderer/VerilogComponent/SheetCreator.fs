@@ -243,7 +243,11 @@ let attachToOutput' (ioAndWireToCompMap: Map<string,Component>) (ioToCompMap: Ma
 
 /// Attach the merged circuits to the correct output port 
 let attachToOutput (ioAndWireToCompMap: Map<string,Component>) (ioToCompMap: Map<string, Component>) (circuit:Circuit) (portName:string) : CanvasState =
-    let outputOrWire = Map.find portName ioAndWireToCompMap // always a wirelabel
+    // let outputOrWire = Map.find portName ioAndWireToCompMap // always a wirelabel
+    let outputOrWire = 
+        match Map.tryFind portName ioAndWireToCompMap with
+        | Some comp -> comp
+        | None -> createComponent IOLabel portName // probably loop variable
     let conn = createConnection circuit.Out outputOrWire.InputPorts[0]
     
 
@@ -386,6 +390,11 @@ let getIOtoComponentMap (ioDecls:ItemDU list) =
         | _ -> map
     )
     |> Map.ofList
+
+let isOutputComponent (comp: Component) =
+    match comp.Type with
+    | Output _ -> true
+    | _ -> false
 
 /// Return a Map<string,Component> for wires
 /// where string -> wire name.
@@ -1729,7 +1738,10 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                 let outWidth = 
                     match Map.tryFind outPort arraySizeMap with
                     | Some (size, _) -> size
-                    | None -> Map.tryFind outPort varSizeMap |> failwithf "Variable doesn't have a size?"
+                    | None -> 
+                        match Map.tryFind outPort varSizeMap with
+                        | Some size -> size
+                        | None -> failwithf "Variable doesn't have a size?"
                 let rhsCircuit = mainExpressionCircuitBuilder assign.RHS varToCompMap varSizeMap 1 arraySizeMap arrayToCompMap
                 let currCircuit = 
                     match Map.tryFind outPort currCircuits with
@@ -2044,6 +2056,7 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                 ||> List.fold (fun circuits (primary, port) ->
                     let outPort = getPrimaryName primary
                     let bits = sliceFromBitsPrimary primary varToCompMap varSizeMap// need different logic for variable indexed bit select
+                    // printf "outPort: %s, inputCircuit: %A, bits: %A" outPort inputCircuit bits
                     let circuit = {inputCircuit with Out=port; OutWidth=(bits.MSB-bits.LSB+1)}
                     let currCircuit = 
                         match Map.tryFind outPort circuits with

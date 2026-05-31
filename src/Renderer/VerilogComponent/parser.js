@@ -136,7 +136,7 @@ export function parseFromFile(source) {
             // console.log(getTokenValue())
             // console.log(source.substring(0, source.length))
             // console.log("Source context (±40 chars):\n" + context);
-            console.log(expected[i]);
+            // console.log(expected[i]);
         }
 
         if (token && typeof token.offset === 'number') {

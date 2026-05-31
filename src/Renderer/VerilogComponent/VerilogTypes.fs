@@ -45,7 +45,8 @@ type NumberT = {Type: string; NumberType: string; Bits: string option; Base: str
 type PrimaryT = {Type: string; PrimaryType: string; BitsStart: string option; BitsEnd: string option; Primary: IdentifierT; Expression: ExpressionT option; Width: int option; ArrayIndices: ExpressionT array option; SelectType: string option}
 // type PrimaryT = {Type: string; PrimaryType: string; BitSelect: BitSelectT array option; Expression: ExpressionT option; Width: int option; SelectType: string option}
     and ExpressionT = {Type: string; Operator: string option; Head: ExpressionT option; Tail: ExpressionT option; Unary: UnaryT option}
-    and UnaryT = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionT option}
+    and UnaryT = {Type: string; Primary: PrimaryT option; Number: NumberT option; Expression: ExpressionT option; ParamNumber: ParamNumberT option}
+    and ParamNumberT = {Type: string; Primary: PrimaryT; Bits: string}
 
 // type RangeT = {Type: string; Start: string; End: string; Location: int}
 type RangeT = {Type: string; Start: ExpressionT; End: ExpressionT; Location: int}

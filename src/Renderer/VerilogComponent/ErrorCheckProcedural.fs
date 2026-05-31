@@ -139,7 +139,7 @@ let checkCasesStatements
     // check for repeated cases
     // need to maybe check for missing cases
     let checkCaseStatement (caseStmt, location) =
-        let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap
+        let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap paramMap
         if condWidth = 0 then []
         else
         let caseNumbers = caseStmt.CaseItems |> Array.collect (fun caseItem -> caseItem.Expressions)
@@ -207,13 +207,15 @@ let checkCasesStatements
 let allCasesCovered 
     caseStmt
     (portSizeMap: Map<string,int>) 
-    (wireSizeMap: Map<string,int>)  =
+    (wireSizeMap: Map<string,int>)
+    (paramMap: Map<string,int>)
+      =
 
     match caseStmt.Default with
     | Some _ -> true
     | _ ->
         let portSizeMap = Map.fold (fun acc key value -> Map.add key value acc) portSizeMap wireSizeMap
-        let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap
+        let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap paramMap
         if condWidth = 0 then true
         else
         let expNrOfCases = (1I <<< condWidth)
@@ -313,7 +315,7 @@ let checkVariablesAlwaysAssigned
                 let loopStatementVars = getVariablesAlwaysAssigned (Statement forstmt.Statement)
                 Set.union loopVar (Set.union loopVar' loopStatementVars)
         | Case case ->
-            if allCasesCovered case portSizeMap wireSizeMap then
+            if allCasesCovered case portSizeMap wireSizeMap paramMap then
                 let complCaseVars =
                     case.CaseItems
                     |> Array.map (fun caseItem -> getVariablesAlwaysAssigned (Statement caseItem.Statement))
@@ -437,7 +439,7 @@ let checkExpressions
                         |]
                     createErrorMessage linesLocations loc message extraMessages "0'b"
 
-    let localErrors = List.collect (checkExpr linesLocations wireSizeMap []) expressions
+    let localErrors = List.collect (checkExpr linesLocations wireSizeMap paramMap []) expressions
     let caseItemErrors = List.collect (checkNumberDU linesLocations) caseItemNums
     errorList @ localErrors @ caseItemErrors
 
@@ -869,6 +871,7 @@ let getPrimaryWidth portSizeMap (primary: PrimaryDU) =
 /// - Are all the ports connected?
 /// - Are there any duplicate ports?
 /// - Make sure inputs are inputs (they have been assigned something), outputs are not driven by anything
+/// - Are parameters correct?
 let checkModuleInstantiations
     (ast:VerilogInput) 
     (linesLocations: int list)
@@ -1034,6 +1037,25 @@ let checkModuleInstantiations
         )
     
     errorList @ moduleTypeErrors @ portWidthErrors @ duplicatePortErrors
+
+
+// let getParamOverrides (ast: VerilogInput) : Map<string, int> =
+//     let paramOverrideItems = 
+//         ast.Module.ModuleItems.ItemList
+//         |> Array.toList
+//         |> List.filter (function ItemDU.ParamOverride _ -> true | _ -> false)
+//     let paramOverrides =
+//         paramOverrideItems
+//         |> List.collect (function ItemDU.ParamOverride paramOverride -> [paramOverride] | _ -> [])
+//         |> List.fold (fun map paramOverride ->
+//             let paramName = paramOverride.Identifier.Name
+//             let paramValue = evalExpr paramOverride.RHS
+//             Map.add paramName paramValue map
+//         ) Map.empty
+//     paramOverrides
+
+// let checkParamOverride (ast: VerilogInput) lineslocations paramMap errorList =
+//     let param
 
 // Check for blocking / nonblocking assignments in always_ff/always_comb - done, tested, later: change error length to only cover the operator
 // check if variables are well defined in always_comb blocks - done

@@ -79,7 +79,7 @@ type PrimaryDU =
         | Number of Number
         | Parenthesis of ExpressionDU
         | Concat of ExpressionDU array
-
+        | ParamNumber of PrimaryDU * bits: string
 
 // ====== Statements =======
 type AssignDU = 
@@ -154,7 +154,7 @@ and ModuleInstantiation = {Module: IdentifierT; Identifier: IdentifierT; Paramet
 and NamedPortConnection = {PortId: IdentifierT; Primary: PrimaryDU}
 and OverridenParameter = {Identifier: IdentifierT; Value: ExpressionDU}
 
-type ModuleItems = {ItemList: ItemDU array; Location: int}
+type ModuleItems = {ItemList: ItemDU array;}
 
 type Module = {Type: ModuleDU; ModuleName: IdentifierT; PortList: string array; Locations: string array; ModuleItems: ModuleItems; EndLocation: int;}
 
@@ -167,7 +167,7 @@ type ASTNode =
     | Statement of StatementDU
     // | NonBlockingAssign of NonBlockingAssign
     // | BlockingAssign of BlockingAssign
-    // | SeqBlock of SeqBlock
+    // | SeqBlock of StatementDU array 
     | Case of CaseStatement
     | CaseItem of CaseItem
     // | Conditional of Conditional
@@ -225,7 +225,7 @@ let rec evalExprWithParams (paramExpr: ExpressionDU) (paramMap: Map<string, int>
     | ExpressionDU.Unary (UnaryDU.Primary (Identifier id)) ->
         match Map.tryFind id.Name paramMap with
         | Some v -> v
-        | None -> failwithf "Only parameters allowed to be used in width expressions (for now). '%s' is not a parameter or is an undefined parameter." id.Name
+        | None -> failwithf "Only parameters allowed to be used in width expressions. '%s' is not a parameter or is an undefined parameter." id.Name
     
     | Additive (op, lhs, rhs) ->
         let l = evalExprWithParams lhs paramMap
@@ -411,6 +411,7 @@ and convertUnary (raw: UnaryT) : UnaryDU =
     | "number" -> UnaryDU.Number (convertNumber (Option.get raw.Number))
     | "parenthesis" -> UnaryDU.Parenthesis (convertExpression (Option.get raw.Expression))
     | "concat" -> UnaryDU.Concat (flattenUnaryList (Option.get raw.Expression))
+    | "param_number" -> UnaryDU.ParamNumber ((convertPrimary (Option.get raw.ParamNumber).Primary), (Option.get raw.ParamNumber).Bits)
     | s -> failwith $"Unknown unary type: {s}"
 
 and convertPrimary (raw: PrimaryT) : PrimaryDU =
@@ -572,7 +573,7 @@ let convertItem (raw: VerilogTypes.ItemT) : ItemDU =
     | _ -> failwith "Invalid item: multiple or no fields set"
 
 let convertModuleItems (raw: VerilogTypes.ModuleItemsT) : ModuleItems =
-    { ItemList = raw.ItemList |> Array.map convertItem; Location = 0 }
+    { ItemList = raw.ItemList |> Array.map convertItem;}
 
 let parseModuleType = function
     | "module_old" -> ModuleOld
@@ -641,11 +642,16 @@ let getPrimaryLocation (p: PrimaryDU) =
     | IdentifierBitsSelect (id, _, _, _)
     | IdentifierArray (id, _, _, _) -> id.Location
 
-let getPrimaryRange (p: PrimaryDU) =
+let getPrimaryRange (p: PrimaryDU) paramMap =
     match p with
     | Identifier _ -> None
     | IdentifierArray _ -> None
-    | VariableBitSelect (_, _) -> None
+    | VariableBitSelect (_, idx) -> 
+        try
+            let idxVal = evalExprWithParams idx paramMap
+            Some (idxVal, idxVal)
+        with
+        | _ -> None
     | IdentifierBit (_, idx) ->
         Some (idx, idx)
     | IdentifierBits (_, start, end_) ->
@@ -816,7 +822,7 @@ let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
 
     let bodyStatements =
         match forstmt.Statement with
-        | SeqBlock (stmts, _) -> stmts
+        | StatementDU.SeqBlock (stmts, _) -> stmts
         | s -> [| s |]
 
     let loopVarName = getPrimaryName forstmt.Initialisation.LHS.PrimaryType
@@ -854,7 +860,7 @@ let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
     //     { Type = "seq_block"; Statements = repeatedStmts; Location = forstmt.Location }
     // failwithf "STATEMENT UNROLLED: iterations = %d, full block = %A" iterations unrolled_seq_block
 
-    SeqBlock (repeatedStmts, forstmt.Location)
+    StatementDU.SeqBlock (repeatedStmts, forstmt.Location)
 
 // let rec unrollAST node =
 //     match node with
@@ -936,7 +942,7 @@ let rec foldAST folder state (node: ASTNode) =
     | ForStatement forstmt ->
         let tmpState = 
             unrollForLoops forstmt
-        foldAST folder state' (SeqBlock(tmpState))
+        foldAST folder state' (Statement(tmpState))
     | AssignmentLHS lhs ->
         match lhs.VariableBitSelect with
         | Some expr -> 

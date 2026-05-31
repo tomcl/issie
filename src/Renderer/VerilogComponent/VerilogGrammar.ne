@@ -477,6 +477,7 @@ UNARY
     -> PRIMARY {%function(d) {return {Type: "primary", Primary: d[0], Number: null, Expression: d[0].Expression};} %}
     | NUMBER {%function(d) {return {Type: "number", Primary: null, Number: d[0], Expression: null};} %}
     | UNSIGNED_NUMBER2 {%function(d) {return {Type: "number", Primary: null, Number: d[0], Expression: null};} %}
+    | %unsigned_number %decimalBase %lparen PRIMARY %rparen {%function(d) {return {Type: "param_number", Primary: null, Number: null, Expression: null, ParamNumber: {Type: "param_number", Primary: d[3], Bits: d[0].value}};} %}
     | %lparen _ BITWISE_OR _ %rparen {%function(d) {return {Type: "parenthesis", Primary: null, Number: null, Expression: d[2]};} %}
     | %lbrace _ LIST_OF_UNARIES _ %rbrace {%function(d) {return {Type: "concat", Primary: null, Number: null, Expression: d[2]};} %}
     # potentially add entire array assignment (system verilog functionality)

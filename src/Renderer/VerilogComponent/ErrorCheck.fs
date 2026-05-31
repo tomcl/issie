@@ -6,6 +6,14 @@ open CommonTypes
 open VerilogAST
 open ErrorCheckProcedural
 open ErrorCheckHelpers
+open FilesIO
+open NearleyBindings
+open Fable.SimpleJson
+open Fable.Core.JsInterop
+
+NearleyBindings.importGrammar
+NearleyBindings.importFix
+NearleyBindings.importParser
 
 let private getFileInProject (name:string) project = project.LoadedComponents |> List.tryFind (fun comp -> comp.Name.ToUpper() = name.ToUpper())
 
@@ -173,7 +181,7 @@ let checkIODeclarations
     |> List.append errorList   
 
 /// Checks whether the IO declarations have correct width format (i.e. Little-endian)
-let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
+let checkIOWidthDeclarations (ast: VerilogInput) paramMap linesLocations errorList  =
     ast.Module.ModuleItems.ItemList
     |> Array.map convertItem
     |> Array.filter (function ItemDU.IOItem {DeclarationType=declType} when declType = OutputDecl || declType = InputDecl -> true | _ -> false)
@@ -186,8 +194,8 @@ let checkIOWidthDeclarations (ast: VerilogInput) linesLocations errorList  =
             | None -> [] //No range given (i.e. one bit)
             | Some range ->
                 // CASE 1: Wrong width format
-                let bStart = evalExpr range.Start
-                let bEnd = evalExpr range.End
+                let bStart = evalExprWithParams range.Start paramMap
+                let bEnd = evalExprWithParams range.End paramMap
                 if (bEnd <> 0 || bStart <= bEnd) then
                     let message = "Wrong width declaration"
                     let temp = if bStart <= bEnd then "\nBig-Endian format is not allowed yet by ISSIE" else ""
@@ -238,6 +246,7 @@ let checkAllOutputsAssigned
     (ast:VerilogInput) 
     (portMap: Map<string,DeclarationDU>)
     (portSizeMap: Map<string,int>)  
+    (paramMap: Map<string, int>)
     (linesLocations: int list)
     (errorList: ErrorInfo list)
         : ErrorInfo list =
@@ -259,7 +268,7 @@ let checkAllOutputsAssigned
     let getVariablesAssigned vars node =
         match node with
         | ContStatement contAssign ->
-            match getPrimaryRange contAssign.Assignment.LHS.PrimaryType with
+            match getPrimaryRange contAssign.Assignment.LHS.PrimaryType paramMap with
             | None ->
                 vars @ [(getPrimaryName contAssign.Assignment.LHS.PrimaryType, -1, -1)]
             | Some (bStart, bEnd) ->
@@ -276,7 +285,7 @@ let checkAllOutputsAssigned
             modInst.Connections
             |> Array.toList
             |> List.map (fun connection ->
-                match getPrimaryRange connection.Primary with
+                match getPrimaryRange connection.Primary paramMap with
                 | None -> (getPrimaryName connection.Primary, -1, -1)
                 | Some (bStart, bEnd) -> (getPrimaryName connection.Primary, bStart, bEnd)
             )
@@ -371,7 +380,7 @@ let checkForLoopVar
                     [|
                         {Text=sprintf "The loop variable '%s' is assigned to inside the loop. The loop variable should not be assigned to inside the loop body." loopVarName;Copy=false;Replace=NoReplace};
                     |]
-                let message = sprintf "Loop variable '%s' is assigned to inside the loop" loopVarName
+                let message = sprintf "Loop variable should not be assigned to inside the loop"
                 createErrorMessage linesLocations (lhsLocation assign.LHS) message extraMessages loopVarName
                 )
     let localErrors = List.collect checkForStatement forStatementsWithLoc
@@ -496,7 +505,7 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
                 // List.append errorList localErrors, 0
             | Ok (stepV, iterations), localErrors ->
                 if stepV = 0 then
-                    let localErrors = List.append localErrors (mkError f.Location loopVarName "Invalid for loop step" "For loop step must be a non-zero constant.")
+                    let localErrors = List.append localErrors (mkError f.Location loopVarName "Infinite for loop!" "For loop step must be a non-zero constant.")
                     localErrors, 0
                     // List.append errorList localErrors, 0
                 elif iterations <= 0 then
@@ -529,8 +538,8 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
         if totalCost > maxUnrollCost then
             let name = ast.Module.ModuleName.Name
             let loc = ast.Module.ModuleName.Location
-            let detail = sprintf "Estimated unrolled program cost (%d) exceeds the limit (%d)." totalCost maxUnrollCost
-            mkError loc name "Program too large after unrolling" detail
+            let detail = sprintf "Estimated unrolled program cost (%d) exceeds the limit (%d). Consider reducing for loop size if possible." totalCost maxUnrollCost
+            mkError loc name "Program too large" detail
         else []
     List.append errorList (loopErrors @ totalError)
 
@@ -641,6 +650,11 @@ let checkWiresAndAssignments
         |> List.append inputNameList
         |> List.append outputNameList
 
+    let getCurrentParamList = 
+        paramMap
+        |> Map.toList
+        |> List.map fst
+
     /// Helper function to print errors
     let getPortTypesString portType= 
         match portType with
@@ -675,7 +689,7 @@ let checkWiresAndAssignments
                     |]
                 createErrorMessage linesLocations lhsLoc message extraMessages lhsName
             | _ ->
-                match getPrimaryRange lhs with
+                match getPrimaryRange lhs paramMap with
                 | None -> localErrors // No errors
                 | Some (bStart, bEnd) -> 
                     // CASE 3: Wrong Width declaration
@@ -738,7 +752,7 @@ let checkWiresAndAssignments
         | Some found when found = OutputDecl -> 
             match Map.tryFind lhsName portWidthDeclarationMap with
             | Some (bStart,bEnd) -> 
-                match getPrimaryRange lhs with
+                match getPrimaryRange lhs paramMap with
                 | Some (lhsStart, lhsEnd) ->
                     if (bStart >= lhsStart) && (bEnd <= lhsEnd) then
                         localErrors
@@ -843,12 +857,14 @@ let checkWiresAndAssignments
             )
     let checkNamesOnRHSOfAssignment (expression: ExpressionDU) currentInputWireList localErrors =
         let primariesRHS = primariesUsedInAssignment [] expression
-        checkNamesInPrimaries primariesRHS currentInputWireList localErrors
+        let paramList = getCurrentParamList
+        let paramAndVarList = List.append currentInputWireList paramList
+        checkNamesInPrimaries primariesRHS paramAndVarList localErrors
             
     /// Check if the width of each wire/input used
     /// is within the correct range (defined range)
     let checkSizesOnRHSOfAssignment (assignment: Assignment) currentInputWireSizeMap localErrors =
-        checkExpr linesLocations currentInputWireSizeMap localErrors assignment.RHS
+        checkExpr linesLocations currentInputWireSizeMap paramMap localErrors assignment.RHS
 
     /// Helper function to extract all inputs + wires declared 
     /// prior to the assignment being checked
@@ -886,7 +902,7 @@ let checkWiresAndAssignments
             let currentInputWireList = getCurrentInputWireList (getPrimaryLocation primary)
             let currentInputWireSizeMap = getCurrentInputWireSizeMap (getPrimaryLocation primary)
             checkNamesInPrimaries [primary] currentInputWireList []
-            |> List.append (checkPrimariesWidths linesLocations currentInputWireSizeMap [] [primary] [])
+            |> List.append (checkPrimariesWidths linesLocations currentInputWireSizeMap paramMap [] [primary] [])
         )
         
     let localErrors =
@@ -906,7 +922,7 @@ let checkWiresAndAssignments
             |> checkSizesOnRHSOfAssignment assignment currentInputWireSizeMap
             |> (fun errlst -> 
                 match assignment.LHS.VariableBitSelect with
-                | Some expr -> checkExpr linesLocations currentInputWireSizeMap errlst expr
+                | Some expr -> checkExpr linesLocations currentInputWireSizeMap paramMap errlst expr
                 | _ -> errlst)
             //|> checkWidthOfAssignment assignment currentInputWireSizeMap location 
         )
@@ -958,6 +974,7 @@ let checkAssignmentWidths
     (linesLocations: int list)
     (portSizeMap: Map<string,int>)
     (wireSizeMap: Map<string,int>)
+    (paramMap: Map<string,int>)
     (errorList: ErrorInfo list) =
 
     let wireAndPortSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
@@ -966,8 +983,8 @@ let checkAssignmentWidths
     let localErrors = 
         assignments
         |> List.collect (fun (assign, loc) ->
-            let rhsW = getWidthOfExpr assign.RHS wireAndPortSizeMap
-            let lhsW = getLHSWidth assign wireAndPortSizeMap 
+            let rhsW = getWidthOfExpr assign.RHS wireAndPortSizeMap paramMap
+            let lhsW = getLHSWidth assign wireAndPortSizeMap
             if rhsW > lhsW then
                 let message = sprintf "The RHS expression (%A bits wide) doesn't fit in the variable on the LHS (%A bits wide)" rhsW lhsW
                 let extraMessages = 
@@ -1029,7 +1046,7 @@ let getPortSizeAndLocationMap (items: ItemDU list) paramMap =
 
 
 /// Returns the port-width declaration map (e.g. (  port "a" => (4,0)  ))
-let getPortWidthDeclarationMap items = 
+let getPortWidthDeclarationMap items paramMap = 
     items 
     |> List.collect (fun x -> 
         match x with
@@ -1037,7 +1054,7 @@ let getPortWidthDeclarationMap items =
             let size = 
                 match isNullOrUndefined d.Range with
                 | true -> (0,0)
-                | false -> (evalExpr (Option.get d.Range).Start),(evalExpr (Option.get d.Range).End)
+                | false -> (evalExprWithParams (Option.get d.Range).Start paramMap),(evalExprWithParams (Option.get d.Range).End paramMap)
             d.Variables 
             |> Array.toList 
             |> List.collect (fun x -> [(x.Name,size)])
@@ -1176,14 +1193,14 @@ let getParamMap (items: ItemDU list) : Map<string, int> =
 
 /// Main error-finder function
 /// Returns a list of errors (type ErrorInfo)
-let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:CodeEditorOpen) (project:Project) =
+let getSemanticErrorsNoParamOverride (ast: VerilogTypes.VerilogInput) linesLocations paramMap (origin:CodeEditorOpen) (project:Project) =
     let (verilogitems: ItemT list) = ast.Module.ModuleItems.ItemList |> Array.toList
     let (items: ItemDU list) = verilogitems |> List.map convertItem
     ///////// STATIC MAPS, LISTS NEEDED  ////////////////
     let portMap  = getPortMap items
-    let paramMap = getParamMap items
+    // let paramMap = getParamMap items
     let portSizeMap,portLocationMap = getPortSizeAndLocationMap items paramMap
-    let portWidthDeclarationMap = getPortWidthDeclarationMap items
+    let portWidthDeclarationMap = getPortWidthDeclarationMap items paramMap
     
     let notUniquePortDeclarations = getNotUniquePortDeclarations items
     
@@ -1220,13 +1237,9 @@ let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:Co
         
         let errors =
             []  //begin with empty list and add errors to it
-            |> nameCheck ast linesLocations origin project //name is valid (not used by another sheet/component)
-            |> portCheck ast linesLocations //all ports are declared as input/output
-            |> checkForLoopUnrollCost ast linesLocations
-            |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations portMap project //all ports declared as IO are defined in the module header
-            |> checkIOWidthDeclarations ast linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
+            |> checkIOWidthDeclarations ast paramMap linesLocations //correct port width declaration (e.g. [1:4] -> invalid)
             |> checkWiresAndAssignments ast portMap portSizeMap portWidthDeclarationMap inputNameList linesLocations wireNameList wireSizeMap wireLocationMap paramMap //checks 1-by-1 all assignments (wires & output ports)
-            |> checkAllOutputsAssigned ast portMap portSizeMap linesLocations //checks whether all output ports have been assined a value
+            |> checkAllOutputsAssigned ast portMap portSizeMap paramMap linesLocations //checks whether all output ports have been assined a value
             |> checkUnsupportedKeywords ast linesLocations
             |> checkProceduralAssignments ast linesLocations
             |> checkForLoopVar ast linesLocations
@@ -1239,8 +1252,135 @@ let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:Co
             |> cycleCheck ast linesLocations portSizeMap wireSizeMap
             |> checkVariablesUsed ast linesLocations portSizeMap wireSizeMap paramMap
             |> checkAlwaysCombRHS ast linesLocations portSizeMap wireSizeMap
-            |> checkAssignmentWidths ast linesLocations portSizeMap wireSizeMap
+            |> checkAssignmentWidths ast linesLocations portSizeMap wireSizeMap paramMap
             |> checkModuleInstantiations ast linesLocations portSizeMap wireSizeMap project portMap
             |> checkInputsAssigned ast linesLocations portMap
             |> List.distinct // filter out possible double Errors
         errors
+
+
+let getParamDeclarations paramDeclarations node =
+    match node with
+    | ParamDecl paramDecl -> 
+        paramDecl.Parameters |> Array.toList |> List.append paramDeclarations
+    | _ -> paramDeclarations
+
+let getExtraParamErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:CodeEditorOpen) (project:Project) modInst comp =
+    // find any module instantiations with parameter overrides
+    match modInst.Parameters with
+    | Some parameters -> 
+        let givenParams = parameters |> Array.map (fun param -> param.Identifier.Name) |> Set.ofArray
+        let overrideMap =
+            (Map.empty, parameters)
+            ||> Array.fold (fun map param ->
+                Map.add param.Identifier.Name (evalExpr param.Value) map
+            )
+        // printf "params for component %A: %A" comp.Name parameters
+        // // if param in parammap doesnt exist in override map, then add from param map
+        // let overrideMap = 
+        //     (overrideMap, givenParamMap)
+        //     ||> Map.fold (fun map key value ->
+        //         if Map.containsKey key overrideMap then map
+        //         else Map.add key value map
+        //     )
+        // printf "Override map: %A" overrideMap
+        match comp.Form with
+        | Some (Verilog name) ->
+            let folderPath = project.ProjectPath
+            let path = pathJoin [| folderPath; name + ".v" |]
+            let code = 
+                match tryReadFileSync path with
+                |Ok text -> text
+                |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" name
+            let parsedCodeNearley = parseFromFile code
+            let output = Json.parseAs<ParserOutput> parsedCodeNearley
+            let result = Option.get output.Result
+            let fixedAST = fix result
+            let parsedAST = fixedAST |> Json.parseAs<VerilogTypes.VerilogInput>
+
+            let expectedParams = // type set
+                foldAST getParamDeclarations [] (VerilogInput parsedAST)
+                |> List.map (fun (param : VerilogAST.Parameter) -> param.Identifier.Name)
+                |> Set.ofList
+            
+            let expectedParamMap = // type map
+                foldAST getParamDeclarations [] (VerilogInput parsedAST)
+                |> List.map (fun (param : VerilogAST.Parameter) -> (param.Identifier.Name, evalExpr param.RHS))
+                |> Map.ofList
+            let overrideMap = 
+                (overrideMap, expectedParamMap)
+                ||> Map.fold (fun map key value ->
+                    if Map.containsKey key overrideMap then map
+                    else Map.add key value map
+                )
+
+            let extraParams = Set.difference givenParams expectedParams
+            let extraParamErrors =
+                parameters
+                |> Array.toList
+                |> List.collect (fun param ->
+                    if Set.contains (param.Identifier.Name) extraParams then 
+                        let extraMessages=                    
+                            [|
+                                {Text=sprintf "The parameter %A does not exist for component %A" param.Identifier.Name comp.Name; Copy=false;Replace=NoReplace};
+                            |]
+                        let message = sprintf "No such parameter for the given component"
+                        createErrorMessage linesLocations param.Identifier.Location message extraMessages param.Identifier.Name
+                    else []
+                )
+
+            let overrideParamErrorList = getSemanticErrorsNoParamOverride parsedAST linesLocations overrideMap origin project
+
+            extraParamErrors @ overrideParamErrorList
+        | _ -> failwithf "TODO ADD MORE THAN JUST VERILOG"
+    | None -> [] // no parameter overrides, so no extra errors
+
+
+let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:CodeEditorOpen) (project:Project) =
+    let (verilogitems: ItemT list) = ast.Module.ModuleItems.ItemList |> Array.toList
+    let (items: ItemDU list) = verilogitems |> List.map convertItem
+    let paramMap = getParamMap items
+    let portMap  = getPortMap items
+    let portSizeMap,portLocationMap = getPortSizeAndLocationMap items paramMap
+    let portWidthDeclarationMap = getPortWidthDeclarationMap items paramMap
+    let notUniquePortDeclarations = getNotUniquePortDeclarations items
+    let inputNameList = getInputNames portMap
+    
+    let moduleInstantiations = foldAST getModuleInstantiationStatements [] (VerilogInput ast)
+    let paramErrors =
+        moduleInstantiations
+        |> List.collect (fun (modInst : VerilogAST.ModuleInstantiation) -> 
+            match  List.filter (fun comp -> comp.Name = modInst.Module.Name)project.LoadedComponents with
+            | [] -> []
+            | [comp] -> 
+                let extraParamErrors = getExtraParamErrors ast linesLocations origin project modInst comp
+                match extraParamErrors.IsEmpty with
+                | false -> 
+                    let extraMessages = 
+                        [|
+                            {Text=sprintf "The overriden parameters instantiated with component %A are not compatible. Please see errors below and fix accordingly." modInst.Module.Name; Copy=false;Replace=NoReplace};
+                        |]
+                    let message = sprintf "Parameter override error for component"
+                    createErrorMessage linesLocations modInst.Identifier.Location message extraMessages modInst.Module.Name
+                    @ extraParamErrors
+                | true -> []
+            | _ -> failwithf "There are multiple custom components with this name!"
+        )
+
+    let allOtherErrors =
+        []
+        |> nameCheck ast linesLocations origin project //name is valid (not used by another sheet/component)
+        |> portCheck ast linesLocations //all ports are declared as input/output
+        |> checkForLoopUnrollCost ast linesLocations
+        |> checkIODeclarations ast portWidthDeclarationMap portLocationMap linesLocations notUniquePortDeclarations portMap project //all ports declared as IO are defined in the module header    
+
+    let allOtherErrors = allOtherErrors @ getSemanticErrorsNoParamOverride ast linesLocations paramMap origin project
+
+    paramErrors @ allOtherErrors
+
+    // let overridenModules = getOverridenModules project origin
+    // the param overriden checker should get the loaded comp ver, call the error checker above
+    // get all overriden modules
+    // pass it through 
+
+    // should call get semantic errors, then get extra param errors sep

@@ -73,12 +73,14 @@ let rec primariesUsedInAssignment inLst (tree: ExpressionDU) =
         | Parenthesis e -> primariesUsedInAssignment inLst e
         | Concat elems -> elems |> Array.fold primariesUsedInAssignment inLst
         | UnaryDU.Number _ -> inLst
+        | ParamNumber (paramName, _) -> inLst @ [paramName]
     | Negation u ->
         match u with
         | UnaryDU.Primary p -> inLst @ [p]
         | Parenthesis e -> primariesUsedInAssignment inLst e
         | Concat elems -> elems |> Array.fold primariesUsedInAssignment inLst
         | UnaryDU.Number _ -> inLst
+        | ParamNumber (paramName, _) -> inLst @ [paramName]
     | Reduction (_, e) -> primariesUsedInAssignment inLst e
     | UnaryUnsigned _ -> inLst
     | LogicalOr (a, b)
@@ -107,12 +109,14 @@ let rec numbersUsedInAssignment inLst (tree: ExpressionDU) =
         | Parenthesis e -> numbersUsedInAssignment inLst e
         | Concat elems -> elems |> Array.fold numbersUsedInAssignment inLst
         | UnaryDU.Primary _ -> inLst
+        | ParamNumber (paramName, _) -> inLst // should i evaluate it to a constant?
     | Negation u ->
         match u with
         | UnaryDU.Number n -> inLst @ [n]
         | Parenthesis e -> numbersUsedInAssignment inLst e
         | Concat elems -> elems |> Array.fold numbersUsedInAssignment inLst
         | UnaryDU.Primary _ -> inLst
+        | ParamNumber (paramName, _) -> inLst 
     | Reduction (_, e) -> numbersUsedInAssignment inLst e
     | UnaryUnsigned n -> inLst @ [n]
     | LogicalOr (a, b)
@@ -341,6 +345,7 @@ let getForStatementsWithLoc forStatements node =
 let RHSUnaryAnalysis
     (assignmentRHS:ExpressionDU)
     (inputWireSizeMap: Map<string,int>)
+    (paramMap: Map<string,int>)
         : OneUnary =
 
     let rec findSizeOfExpression (tree: ExpressionDU) : OneUnary =
@@ -378,6 +383,11 @@ let RHSUnaryAnalysis
             | UnaryDU.Parenthesis e ->
                 let elements = findSizeOfExpression e
                 {Name="(...)";ResultWidth=elements.ResultWidth;Head=None;Tail=None;Elements=[elements]}
+            | UnaryDU.ParamNumber (paramName, bits) ->
+                let name = getPrimaryName paramName
+                let value = Map.find name paramMap 
+                let number = All ((int bits), Decimal, string value, getPrimaryLocation paramName)
+                {Name="(...)";ResultWidth=(int bits);Head=None;Tail=None;Elements=[]}
 
         | BitwiseOr (a, b)
         | BitwiseXor (a, b)
@@ -429,6 +439,7 @@ let RHSUnaryAnalysis
 let getWidthOfExpr
     (assignmentRHS:ExpressionDU)
     (inputWireSizeMap: Map<string,int>)
+    (paramMap: Map<string,int>)
         =
 
     let rec findSizeOfExpression (tree:ExpressionDU) = 
@@ -440,7 +451,10 @@ let getWidthOfExpr
             | IdentifierArray (id, _, _, _) ->
                 match Map.tryFind id.Name inputWireSizeMap with
                 | Some num -> num
-                | None -> 0
+                | None -> 
+                    match Map.tryFind id.Name paramMap with
+                    | Some num -> 32
+                    | None -> 0
             | VariableBitSelect _ -> 1
             | IdentifierBit _ -> 1
             | IdentifierBits (id, bStart, bEnd) ->
@@ -464,6 +478,11 @@ let getWidthOfExpr
         | Negation (UnaryDU.Parenthesis e) ->
             let elements = (findSizeOfExpression e)
             elements
+
+        | ExpressionDU.Unary (UnaryDU.ParamNumber (paramName, bits)) ->
+            match Map.tryFind (getPrimaryName paramName) paramMap with
+            | Some num -> int bits
+            | None -> 32
 
         | BitwiseOr (head, tail)
         | BitwiseXor (head, tail)
@@ -515,7 +534,7 @@ let getWidthOfExpr
 
         /// Check if the width of each wire/input used
     /// is within the correct range (defined range)
-let checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors (primariesRHS: PrimaryDU list) (numbersRHS: Number list) =
+let checkPrimariesWidths linesLocations currentInputWireSizeMap paramMap localErrors (primariesRHS: PrimaryDU list) (numbersRHS: Number list) =
     let primaryErrors =
         primariesRHS
         |> List.collect (fun x ->
@@ -524,11 +543,13 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors (pri
             | IdentifierArray (id, _, _, _) ->
                 localErrors
             | VariableBitSelect (id, idx) ->
+                // printf "checking primary width for %s with index %A\n" id.Name idx
                 let checkedIndex =
                     try
-                        Some (evalExpr idx)
+                        Some (evalExprWithParams idx paramMap)
                     with
                     | _ -> None
+                // printf "checked index: %A\n" checkedIndex
                 match checkedIndex, Map.tryFind id.Name currentInputWireSizeMap with
                 | Some bitIndex, Some size ->
                     if (bitIndex < size) && (bitIndex >= 0) then
@@ -643,10 +664,10 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors (pri
 
     List.append primaryErrors numberErrors
 
-let checkExpr linesLocations currentInputWireSizeMap localErrors expr =
+let checkExpr linesLocations currentInputWireSizeMap paramMap localErrors expr =
     let primariesRHS = primariesUsedInAssignment [] expr
     let numbersRHS = numbersUsedInAssignment [] expr
-    checkPrimariesWidths linesLocations currentInputWireSizeMap localErrors primariesRHS numbersRHS
+    checkPrimariesWidths linesLocations currentInputWireSizeMap paramMap localErrors primariesRHS numbersRHS 
 
 let checkNumber linesLocations (num:NumberT) =
     let numBase, allNum, width = Option.get num.Base, Option.get num.AllNumber, Option.get num.Bits
@@ -751,6 +772,7 @@ let getRHSBits portSizeMap (expression: ExpressionDU) =
                         | Identifier _
                         | IdentifierArray _ -> Set.empty
                     Set.union primaryBits indexBits
+                | UnaryDU.ParamNumber (paramName, bits) -> Set.empty
             | Reduction (_, e) -> getExprBits e
             | UnaryUnsigned _ -> Set.empty
             | _ -> Set.empty
@@ -889,6 +911,8 @@ and estimateUnaryCost (u: UnaryDU) : int =
         1 + estimateExprCost e
     | UnaryDU.Concat elems ->
         1 + (elems |> Array.toList |> List.map estimateExprCost |> List.sum)
+    | UnaryDU.ParamNumber _ ->
+        1
 and estimatePrimaryCost (p: PrimaryDU) : int =
     match p with
     | Identifier _ ->

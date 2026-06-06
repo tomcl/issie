@@ -53,9 +53,14 @@ type PrimaryDU =
         | Identifier of IdentifierT
         | IdentifierBit of id: IdentifierT * index: int
         | IdentifierBits of id: IdentifierT * start: int * end_: int
-        | VariableBitSelect of IdentifierT * index: ExpressionDU
+        | VariableBitSelect of id: IdentifierT * index: ExpressionDU
         | IdentifierBitsSelect of id: IdentifierT * start: ExpressionDU * width: int * select: SelectDU
-        | IdentifierArray of id: IdentifierT * indices: ExpressionDU array * start: int * end_: int
+        | IdentifierArray of id: IdentifierT * indices: ArraySelect array * start: int * end_: int
+        | VariableArrayBitSel of id: IdentifierT * indices: ArraySelect array * index: ExpressionDU
+    
+    and ArraySelect =
+        | ConstArraySelect of int
+        | VarArraySelect of ExpressionDU
 
     and ExpressionDU =
         | LogicalOr of ExpressionDU * ExpressionDU
@@ -415,6 +420,7 @@ and convertUnary (raw: UnaryT) : UnaryDU =
     | s -> failwith $"Unknown unary type: {s}"
 
 and convertPrimary (raw: PrimaryT) : PrimaryDU =
+    // printfn "converting pri: %A" raw
     match raw.PrimaryType with
     | "identifier" -> 
         Identifier raw.Primary
@@ -424,7 +430,13 @@ and convertPrimary (raw: PrimaryT) : PrimaryDU =
         IdentifierBit (raw.Primary, idx)
     | "identifier_bit2" ->
         let idx = convertExpression (Option.get raw.Expression)
-        VariableBitSelect (raw.Primary, idx)
+        let idxInt = 
+            try 
+                Some (evalExpr idx)
+            with _ -> None
+        match idxInt with
+        | Some i -> IdentifierBit (raw.Primary, i)
+        | None -> VariableBitSelect (raw.Primary, idx)
         // failwithf "Currently VBS not implemented"
     | "identifier_bits" -> 
         // Range select: x[start:end]
@@ -438,15 +450,42 @@ and convertPrimary (raw: PrimaryT) : PrimaryDU =
         let selectType = parseSelectType (Option.get raw.SelectType)
         IdentifierBitsSelect (raw.Primary, start, width, selectType)
     | "identifier_array" ->
+        // Array access: x[i][0]...
+        let indices = 
+            raw.ArrayIndices 
+            |> Option.defaultValue [||] 
+            |> Array.map convertArraySelect
+        let start = int (raw.BitsStart |> Option.map int |> Option.get)
+        let end_ = int (raw.BitsEnd |> Option.map int |> Option.get)
+        // let start = ExpressionDU.Unary (UnaryDU.Number (Unsigned (int (raw.BitsStart |> Option.map int |> Option.get), 0)))
+        // let end_ = ExpressionDU.Unary (UnaryDU.Number (Unsigned (int (raw.BitsEnd |> Option.map int |> Option.get), 0)))
+        IdentifierArray (raw.Primary, indices, start, end_)
+    | "identifier_array2" ->
         // Array access: x[i][j]...
         let indices = 
             raw.ArrayIndices 
             |> Option.defaultValue [||] 
-            |> Array.map convertExpression
-        let start = int (raw.BitsStart |> Option.map int |> Option.get)
-        let end_ = int (raw.BitsEnd |> Option.map int |> Option.get)
-        IdentifierArray (raw.Primary, indices, start, end_)
+            |> Array.map convertArraySelect
+        
+        let idx = convertExpression (Option.get raw.Expression)
+        let idxInt = 
+            try 
+                Some (evalExpr idx)
+            with _ -> None
+        match idxInt with
+        | Some i -> IdentifierArray (raw.Primary, indices, i, i)
+        | None -> VariableArrayBitSel (raw.Primary, indices, idx)
+
+        // let idx = convertExpression (Option.get raw.Expression)
+        // VariableArrayBitSel (raw.Primary, indices, idx)
     | s -> failwith $"Unknown primary type: {s}"
+
+and convertArraySelect (raw: ArraySelectT) : ArraySelect =
+    // printfn "converting array: %A" raw
+    match raw.ArrayType with
+    | "const_array" -> ConstArraySelect (int (raw.WordSelect |> Option.get))
+    | "var_array" -> VarArraySelect (convertExpression (raw.VariableArraySelect |> Option.get))
+    | s -> failwith $"Unknown array type: {s}"
 
 // ====== Statement conversion ======
 let convertAssignmentLHS (raw: VerilogTypes.AssignmentLHST) : AssignmentLHS =
@@ -461,8 +500,12 @@ let convertAssignmentLHS (raw: VerilogTypes.AssignmentLHST) : AssignmentLHS =
           ArrayIndices = raw.ArrayIndices
           SelectType = raw.SelectType }
 
-    { PrimaryType = convertPrimary prim; 
-    VariableBitSelect = raw.VariableBitSelect |> Option.map convertExpression }
+    let priType = convertPrimary prim;
+    match priType with
+    | VariableBitSelect _ -> 
+        { PrimaryType = convertPrimary prim; VariableBitSelect = raw.VariableBitSelect |> Option.map convertExpression }
+    | _ -> { PrimaryType = convertPrimary prim; VariableBitSelect = None }
+
 
 let rec convertAssignment (raw: VerilogTypes.AssignmentT) (assignType: AssignDU) : Assignment =
     { Type = assignType; LHS = convertAssignmentLHS raw.LHS; RHS = convertExpression raw.RHS }
@@ -563,6 +606,7 @@ let convertModuleInstantiation (raw: VerilogTypes.ModuleInstantiationT) : Module
 
 // ====== Module Item conversion ======
 let convertItem (raw: VerilogTypes.ItemT) : ItemDU =
+    // printfn "converting item: %A" raw
     match raw.IODecl, raw.ParamDecl, raw.Decl, raw.Statement, raw.AlwaysConstruct, raw.ModuleInstantiation with
     | Some io, None, None, None, None, None -> ItemDU.IOItem (convertIOItem io)
     | None, Some param, None, None, None, None -> ItemDU.ParamDecl (convertParameterItem param)
@@ -630,7 +674,8 @@ let getPrimaryName (p: PrimaryDU) =
     | VariableBitSelect (id, _)
     | IdentifierBits (id, _, _)
     | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _, _, _) -> id.Name
+    | IdentifierArray (id, _, _, _)
+    | VariableArrayBitSel (id, _, _) -> id.Name
 
     
 let getPrimaryLocation (p: PrimaryDU) =
@@ -640,7 +685,8 @@ let getPrimaryLocation (p: PrimaryDU) =
     | VariableBitSelect (id, _)
     | IdentifierBits (id, _, _)
     | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _, _, _) -> id.Location
+    | IdentifierArray (id, _, _, _) 
+    | VariableArrayBitSel (id, _, _) -> id.Location
 
 let getPrimaryRange (p: PrimaryDU) paramMap =
     match p with
@@ -668,17 +714,13 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
     let rec substLoopExpr (loopVarName:string) (value:int) (width:int) (expr:ExpressionDU) : ExpressionDU =
         let rec substUnary (unary: UnaryDU) : UnaryDU =
             match unary with
-            | UnaryDU.Primary (Identifier id) when id.Name = loopVarName ->
-                UnaryDU.Number (All (width, Decimal, string value, id.Location))
-            | UnaryDU.Primary (IdentifierBit (id, _)) when id.Name = loopVarName ->
-                UnaryDU.Number (All (width, Decimal, string value, id.Location))
-            | UnaryDU.Primary (VariableBitSelect (id, _)) when id.Name = loopVarName ->
-                UnaryDU.Number (All (width, Decimal, string value, id.Location))
-            | UnaryDU.Primary (IdentifierBits (id, _, _)) when id.Name = loopVarName ->
-                UnaryDU.Number (All (width, Decimal, string value, id.Location))
-            | UnaryDU.Primary (IdentifierBitsSelect (id, _, _, _)) when id.Name = loopVarName ->
-                UnaryDU.Number (All (width, Decimal, string value, id.Location))
-            | UnaryDU.Primary (IdentifierArray (id, _, _, _)) when id.Name = loopVarName ->
+            | UnaryDU.Primary (Identifier id) 
+            | UnaryDU.Primary (IdentifierBit (id, _)) 
+            | UnaryDU.Primary (VariableBitSelect (id, _))            
+            | UnaryDU.Primary (IdentifierBits (id, _, _))            
+            | UnaryDU.Primary (IdentifierBitsSelect (id, _, _, _)) 
+            | UnaryDU.Primary (IdentifierArray (id, _, _, _)) 
+            | UnaryDU.Primary (VariableArrayBitSel (id, _, _)) when id.Name = loopVarName ->
                 UnaryDU.Number (All (width, Decimal, string value, id.Location))
             | UnaryDU.Primary p ->
                 UnaryDU.Primary (substLoopPrimary loopVarName value p)
@@ -716,7 +758,13 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
         | IdentifierBitsSelect (id, start, width, sel) ->
             IdentifierBitsSelect (id, substLoopExpr loopVarName value width start, width, sel)
         | IdentifierArray (id, indices, start, end_) ->
-            IdentifierArray (id, indices |> Array.map (substLoopExpr loopVarName value width), start, end_)    
+            IdentifierArray (id, indices |> Array.map (substLoopArraySel loopVarName value), start, end_)  
+        | VariableArrayBitSel (id, indices, idx) ->
+            VariableArrayBitSel (id, indices |> Array.map (substLoopArraySel loopVarName value), substLoopExpr loopVarName value width idx)
+    and substLoopArraySel (loopVarName: string) (value: int) (a: ArraySelect) : ArraySelect =
+        match a with
+        | ConstArraySelect _ -> a
+        | VarArraySelect v -> VarArraySelect (substLoopExpr loopVarName value width v)
     
     // Drops any assignment whose LHS is the loop variable itself
     let isAssignToLoopVar (lhs: AssignmentLHS) =
@@ -749,8 +797,10 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
                 let start' = substLoopExpr loopVarName value width start
                 IdentifierBitsSelect (id, start', w, sel)
             | IdentifierArray (id, indices, start, end_) ->
-                let indices' = indices |> Array.map (substLoopExpr loopVarName value width)
+                let indices' = indices |> Array.map (substLoopArraySel loopVarName value)
                 IdentifierArray (id, indices', start, end_)
+            | VariableArrayBitSel (id, indices, idx) ->
+                VariableArrayBitSel (id, indices |> Array.map (substLoopArraySel loopVarName value), substLoopExpr loopVarName value width idx)
 
         let vbs' =
             match primary' with
@@ -800,11 +850,12 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
 
 let rec unrollForLoops (forstmt:ForStatement) : StatementDU =
     let computeIterations startV op endV step =
+        let startV, endV, step = float(startV), float (endV), float(step)
         match op with
-        | Lt -> endV - startV
-        | Lte -> endV - startV + 1
-        | Gt -> startV - endV
-        | Gte -> startV - endV + 1
+        | Lt -> int (floor((endV - startV) / step))
+        | Lte -> int (floor((endV - startV + 1.0) / step))
+        | Gt -> int (floor((startV - endV) / step))
+        | Gte -> int (floor((startV - endV + 1.0) / step))
         | _ -> failwith "Shouldn't happen: error check should catch unsupported operators in for loop condition"
     
     let startValue = evalExpr forstmt.Initialisation.RHS
@@ -881,6 +932,26 @@ let rec foldAST folder state (node: ASTNode) =
         |> Array.fold (foldAST folder) state'
     | Item item ->
         foldAST folder state' (getItem item)
+    | IOItem item -> 
+        match item.Range with
+        | Some r -> foldAST folder state' (Range r)
+        | None -> state'
+    | Declaration decl ->
+        let tmpState = 
+            match decl.Range with
+            | Some r -> foldAST folder state' (Range r)
+            | None -> state'
+        let tmpState' =
+            match decl.ArrayRanges with
+            | Some ar ->
+                ar
+                |> Array.map (fun r -> Range r)
+                |> Array.fold (foldAST folder) tmpState
+            | None -> tmpState
+        tmpState'
+    | Range range ->
+        (foldAST folder state' (Expression range.Start), Expression range.End)
+        ||> foldAST folder
     | AlwaysConstruct always ->
         foldAST folder state' (Statement always.Statement)
     | Statement stmt ->
@@ -939,14 +1010,49 @@ let rec foldAST folder state (node: ASTNode) =
     | IfStatement ifstmt ->
         (foldAST folder state' (Expression ifstmt.Condition), Statement ifstmt.Statement)
         ||> foldAST folder
-    | ForStatement forstmt ->
-        let tmpState = 
-            unrollForLoops forstmt
-        foldAST folder state' (Statement(tmpState))
+    // | ForStatement forstmt ->
+    //     let tmpState = 
+    //         unrollForLoops forstmt
+    //     foldAST folder state' (Statement(tmpState))
     | AssignmentLHS lhs ->
         match lhs.VariableBitSelect with
         | Some expr -> 
-            foldAST folder state' (Expression(expr))
+            (foldAST folder state' (Expression expr), Primary lhs.PrimaryType)
+            ||> foldAST folder
+            // foldAST folder state' (Expression(expr))
+        | _ -> foldAST folder state' (Primary lhs.PrimaryType)
+    | Expression expr -> 
+        match expr with
+        | Negation unary
+        | ExpressionDU.Unary unary ->
+            foldAST folder state' (Unary(unary))
+        | UnaryUnsigned _ -> state'
+        | LogicalOr (e1, e2)
+        | LogicalAnd (e1, e2)
+        | BitwiseOr (e1, e2)
+        | BitwiseXor (e1, e2)
+        | BitwiseXnor (e1, e2)
+        | BitwiseAnd (e1, e2)
+        | Equality (_, e1, e2)
+        | Comparison (_, e1, e2)
+        | ShiftExpr (_, e1, e2)
+        | Additive (_, e1, e2)
+        | Multiplicative (_, e1, e2) -> 
+            (foldAST folder state' (Expression e1), Expression e2)
+            ||> foldAST folder
+        | Reduction (_, e) -> foldAST folder state' (Expression e)
+        | ConditionalOp (cond, ifTrue, ifFalse) ->
+            let tmpState =
+                Expression cond
+                |> foldAST folder state'
+            let tmpState' =
+                List.fold (foldAST folder) tmpState [Expression ifTrue]
+            List.fold (foldAST folder) tmpState' [Expression ifFalse]
+    | Unary unary ->
+        match unary with
+        | UnaryDU.Primary p -> foldAST folder state' (Primary(p))
+        | Parenthesis e -> foldAST folder state' (Expression e)
+        | ParamNumber (p, _) -> foldAST folder state' (Primary(p))
         | _ -> state'
     | _ ->
         state'
@@ -960,6 +1066,208 @@ let rec foldAST folder state (node: ASTNode) =
 //         foldASTUnrolled folder state' (Statement unrolled)
 //     | _ ->
 
+let rec foldParams (paramMap: Map<string, int>) (node: ASTNode) : ASTNode =
+    printfn "node %A" node
+    match node with
+    | Primary pri ->
+        let name = getPrimaryName pri
+        let loc = getPrimaryLocation pri
+        match Map.tryFind name paramMap with
+        | Some p -> Number (Unsigned (p, loc))
+        | None -> node
+    | Expression expr -> node
+        // let rec strip (e: ExpressionDU) =
+        //     match e with
+        //     | ExpressionDU.Unary (Parenthesis e) -> strip e
+        //     | _ -> e
+        // let expr = strip expr
+
+        // let newExpr = 
+        //     match expr with
+        //     | ExpressionDU.UnaryUnsigned n -> 
+        //         match foldParams paramMap (Number n) with 
+        //         | Number n -> UnaryUnsigned n
+        //         | _ -> failwithf "Shouldn't happen, expeted Number"
+        //     | ExpressionDU.Negation (UnaryDU.Number n) -> 
+        //         match foldParams paramMap (Number n) with
+        //         | Unary u -> Negation u
+        //         | _ -> failwithf "Shouldn't happen, expected unary"
+        //     | ExpressionDU.Unary (UnaryDU.Number n) -> 
+        //         match foldParams paramMap (Number n) with
+        //         | Unary u -> UnaryDU.Number u
+        //         | _ -> failwithf "Shouldn't happen, expected unary"
+
+        //     | ExpressionDU.Unary (UnaryDU.Primary (Identifier id)) ->
+        //         match Map.tryFind id.Name paramMap with
+        //         | Some v -> v
+        //         | None -> failwithf "Only parameters allowed to be used in width expressions. '%s' is not a parameter or is an undefined parameter." id.Name
+            
+        //     | Additive (op, lhs, rhs) ->
+        //         let l = evalExprWithParams lhs paramMap
+        //         let r = evalExprWithParams rhs paramMap
+        //         match op with
+        //         | Plus -> l + r
+        //         | Minus -> l - r
+        //         | _ -> failwith "Unsupported additive operator for parameter evaluation"
+        //     | Multiplicative (op, lhs, rhs) ->
+        //         let l = evalExprWithParams lhs paramMap
+        //         let r = evalExprWithParams rhs paramMap
+        //         match op with
+        //         | Mult -> l * r
+        //         | _ -> failwith "Unsupported multiplicative operator for parameter evaluation"
+        //     | ShiftExpr (op, lhs, rhs) ->
+        //         let l = evalExprWithParams lhs paramMap
+        //         let r = evalExprWithParams rhs paramMap
+        //         match op with
+        //         | Sll -> l <<< r
+        //         | Srl -> l >>> r
+        //         | Sra -> l >>> r 
+        //         | _ -> failwith "Unsupported shift operator for parameter evaluation"
+        //     | BitwiseAnd (lhs, rhs) ->
+        //         let l = evalExprWithParams lhs paramMap
+        //         let r = evalExprWithParams rhs paramMap
+        //         l &&& r
+        //     | BitwiseOr (lhs, rhs) ->
+        //         let l = evalExprWithParams lhs paramMap
+        //         let r = evalExprWithParams rhs paramMap
+        //         l ||| r
+        //     | BitwiseXor (lhs, rhs) ->
+        //         let l = evalExprWithParams lhs paramMap
+        //         let r = evalExprWithParams rhs paramMap
+        //         l ^^^ r
+        
+        // Expression newExpr
+    // | Unary of UnaryDU
+    | VerilogInput input ->
+        foldParams paramMap (Module (convertModule input.Module)) 
+    | Module m ->
+        foldParams paramMap (ModuleItems m.ModuleItems) 
+    | ModuleItems items ->
+        let newItems =
+            items.ItemList
+            |> Array.map (fun item ->
+                printfn "item %A" item
+                match foldParams paramMap (Item item) with
+                | IOItem i -> ItemDU.IOItem i
+                | ParamDecl i -> ItemDU.ParamDecl i
+                | Declaration i -> ItemDU.Decl i
+                | ContStatement i -> ItemDU.ContStatement i
+                | AlwaysConstruct i -> ItemDU.AlwaysConstruct i
+                | ModuleInstantiation i -> ItemDU.ModuleInstantiation i
+                | _ -> failwithf "Shouldn't happen, expected item"
+            )
+        ModuleItems { items with ItemList = newItems }
+    | Item item ->
+        foldParams paramMap (getItem item)
+    | AlwaysConstruct always ->
+        foldParams paramMap (Statement always.Statement)
+    | Statement stmt ->
+        match stmt with
+        | NonBlockingAssign (nonblocking, _) -> 
+            foldParams paramMap (Assignment nonblocking)
+        | BlockingAssign (blocking, _) ->
+            foldParams paramMap (Assignment blocking)
+        | SeqBlock (stmts, locs) ->
+            let newStmts =
+                stmts
+                |> Array.map (fun stmt ->
+                    match foldParams paramMap (Statement stmt) with
+                    | Statement s -> s
+                    | x -> failwithf "Shouldn't happen, expected Statement")
+            Statement (SeqBlock (newStmts, locs))
+        | StatementDU.Case (case, _) -> 
+            foldParams paramMap (Case case)
+        | Conditional (ifStmt, elseStmt, loc) ->
+            let newIfStmt =
+                match foldParams paramMap (IfStatement ifStmt) with
+                | IfStatement s -> s
+                | _ -> failwith "Expected IfStatement"
+            let newElseStmt =
+                elseStmt
+                |> Option.map (fun s ->
+                    match foldParams paramMap (Statement s) with
+                    | Statement s' -> s'
+                    | _ -> failwith "Expected Statement")
+            Statement (Conditional (newIfStmt, newElseStmt, loc))
+        | StatementDU.ForStatement (forstmt, loc) ->
+            let newInit =
+                match foldParams paramMap (Assignment forstmt.Initialisation) with
+                | Assignment a -> a
+                | _ -> failwith "Expected Assignment"
+            let newCond =
+                match foldParams paramMap (Expression forstmt.Condition) with
+                | Expression e -> e
+                | _ -> failwith "Expected Expression"
+            let newStep =
+                match foldParams paramMap (Assignment forstmt.Step) with
+                | Assignment a -> a
+                | _ -> failwith "Expected Assignment"
+            let newStmt =
+                match foldParams paramMap (Statement forstmt.Statement) with
+                | Statement s -> s
+                | _ -> failwith "Expected Statement"
+            let forstmt = {Initialisation = newInit; Condition = newCond; Step = newStep; Statement = newStmt; Location = loc}
+            Statement (StatementDU.ForStatement (forstmt, loc))
+    | Case case ->
+        let caseExpr = 
+            match foldParams paramMap (Expression case.Expression) with
+            | Expression e -> e
+            | _ -> failwith "Expected Expression"
+        let caseItems = 
+            case.CaseItems
+            |> Array.map (fun item -> 
+                match foldParams paramMap (CaseItem item) with
+                | CaseItem c -> c
+                | _ -> failwithf "Expected caseitem"
+            )
+        let caseDefault = 
+            match case.Default with
+            | Some stmt -> 
+                Some (foldParams paramMap (Statement stmt))
+            | _ -> None
+        let caseStmt =
+            match caseDefault with
+            | Some (Statement d) -> 
+                {Expression = caseExpr; CaseItems = caseItems; Default = Some d; Location = case.Location}
+            | _ -> failwithf "Expected stmt"
+        Case caseStmt
+    | CaseItem caseItem -> 
+        let newStmt =  
+            match foldParams paramMap (Statement caseItem.Statement) with
+            | Statement s -> s
+            | x -> failwithf "Shouldn't happen, expected Statement"
+        let caseItem = {Expressions = caseItem.Expressions; Statement = newStmt}
+        CaseItem caseItem
+    | ContStatement assign ->
+        foldParams paramMap (Assignment assign.Assignment)
+    | Assignment assign ->
+        let newLhs =
+            match foldParams paramMap (AssignmentLHS assign.LHS) with
+            | AssignmentLHS lhs -> lhs
+            | _ -> failwith "Expected AssignmentLHS"
+        let newRhs =
+            match foldParams paramMap (Expression assign.RHS) with
+            | Expression e -> e
+            | _ -> failwith "Expected Expression"
+        let assign = {Type = assign.Type; LHS = newLhs; RHS = newRhs}
+        Assignment assign
+    | IfStatement ifstmt ->
+        let newCond =
+            match foldParams paramMap (Expression ifstmt.Condition) with
+            | Expression e -> e
+            | _ -> failwith "Expected Expression"
+        let newStmt =
+            match foldParams paramMap (Statement ifstmt.Statement) with
+            | Statement s -> s
+            | _ -> failwith "Expected Statement"
+        let ifstmt = {Condition = newCond; Statement = newStmt; Location = ifstmt.Location}
+        IfStatement ifstmt
+    | AssignmentLHS lhs ->
+        match lhs.VariableBitSelect with
+        | Some expr -> 
+            foldParams paramMap (Expression(expr))
+        | _ -> node
+    | _ -> node
 
 /// get rhs expressions from always, continuous assign, case stmt... (all of them)
 let getAllExpressions' (expressions: List<ExpressionDU>) (node: ASTNode) =
@@ -1003,6 +1311,8 @@ let assignmentLocation (a: Assignment) =
     | VariableBitSelect (id, _) -> id.Location
     | IdentifierBitsSelect (id, _, _, _) -> id.Location
     | IdentifierArray (id, _, _, _) -> id.Location
+    | VariableArrayBitSel (id, _, _) -> id.Location
+    
 
 let getAssignmentsWithLocations (assignments: List<Assignment*int>) (node: ASTNode) =
     match node with

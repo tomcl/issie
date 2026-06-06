@@ -396,26 +396,35 @@ WIRE_L_VALUE
     -> IDENTIFIER {%function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};} %}
     | %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket _ IDENTIFIER {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[1], BitsEnd: d[3], Primary: d[6]};} %}
 
-ARRAY_L_VALUE
-    -> %lbracket UNSIGNED_NUMBER %rbracket _ ARRAY_L_VALUE {%function(d) {return [{BitsStart: d[1], BitsEnd: d[1]}].concat(d[4]); } %}
-    | %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return [{BitsStart: d[1], BitsEnd: d[1]}]; } %}
-    # unpacked dimensions in arrays must be assigned one element at a time
+# ARRAY_L_VALUE
+#     -> %lbracket UNSIGNED_NUMBER %rbracket _ ARRAY_L_VALUE {%function(d) {return d[0].concat(d[4]);} %}
+#     | %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return d[1];} %}
+#     # unpacked dimensions in arrays must be assigned one element at a time
     # | %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return [d[1]];} %}
 
 L_VALUE
     -> IDENTIFIER {%function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bit", BitsStart: d[3], BitsEnd: d[3], Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
-    | IDENTIFIER _ ARRAY_L_VALUE _ %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[5]};} %}
-    | IDENTIFIER _ ARRAY_L_VALUE _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[7]};} %}
+    | IDENTIFIER _ ARRAY_SELECT _ %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[5]};} %}
+    | IDENTIFIER _ ARRAY_SELECT _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[7]};} %}
     # | ARRAY_L_VALUE {% id %}
 
 VARIABLE_BITSELECT_L_VALUE
-    -> IDENTIFIER _ %lbracket EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bit2", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: 1};} %}
+    -> IDENTIFIER _ %lbracket EXPRESSION %rbracket {%
+         function(d, l, reject) {
+             if (d[3].Type === "unary" && d[3].Unary.Type === "number") return reject;
+             return {Type:"l_value", PrimaryType:"identifier_bit2", BitsStart:null, BitsEnd:null, Primary:d[0], VariableBitSelect:d[3], Width:1};
+         }
+      %}
+    # -> IDENTIFIER _ %lbracket EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bit2", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: 1};} %}
     # | IDENTIFIER _ %lbracket EXPRESSION %colon EXPRESSION %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
     # | IDENTIFIER _ %lbracket EXPRESSION _ %minus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "minus"};} %} 
     # | IDENTIFIER _ %lbracket EXPRESSION _ %plus _ %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits_select", BitsStart: d[3], BitsEnd: null, Primary: d[0], VariableBitSelect: d[3], Width: parseInt(d[8].value), SelectType: "plus"};} %}
-    # | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[4], BitsEnd: d[4], Primary: d[0], Expression: d[4], ArraySelect: d[8]};} %}
+    
+    # | IDENTIFIER _ ARRAY_SELECT _ %lbracket _ EXPRESSION _ %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", BitsStart: d[6], BitsEnd: d[6], Primary: d[0], VariableBitSelect: null, ArrayIndices: d[2]};} %}
+    # | IDENTIFIER _ ARRAY_SELECT _ %lbracket _ EXPRESSION _ %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array2", BitsStart: null, BitsEnd: null, Primary: d[0], VariableBitSelect: d[6], ArrayIndices: d[2]};} %}
+
 
 EXPRESSION -> CONDITIONAL {% id %}
 
@@ -514,8 +523,18 @@ UNARY_OPERATOR -> %lnot {%(d)=>{return d[0].value}%}  | %and {%(d)=>{return d[0]
 MULTIPLICATION_OPERATOR -> %mult {%(d)=>{return d[0].value}%} 
 
 ARRAY_SELECT
-    -> %lbracket EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d,l,reject) {return [d[1]].concat(d[5]);} %}
-    | %lbracket EXPRESSION _ %rbracket {%function(d,l,reject) {return [d[1]];} %}
+    -> %lbracket _ UNSIGNED_NUMBER _ %rbracket _ ARRAY_SELECT {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}].concat(d[6]);} %}
+    # | %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d,l,reject) {return [d[2]].concat(d[6]);} %}
+    | %lbracket _ %unsigned_number _ %rbracket {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}];} %}
+    # | %lbracket _ EXPRESSION _ %rbracket {%function(d,l,reject) {return {Type: "var_array", VariableArraySelect: d[2], WordSelect: null};} %}
+    | %lbracket _ EXPRESSION _ %rbracket {%function(d,l,reject) {
+          if (d[2].Type === "unary" && d[2].Unary.Type === "number") return reject;
+          return [{ArrayType: "var_array", VariableArraySelect: d[2], WordSelect: null}];
+      } %}
+
+# ARRAY_SELECT
+#     -> %lbracket EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d,l,reject) {return [d[1]].concat(d[5]);} %}
+#     | %lbracket EXPRESSION _ %rbracket {%function(d,l,reject) {return [d[1]];} %}
 
 PRIMARY
     -> IDENTIFIER {%function(d) {return {Type: "primary", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};} %}
@@ -524,7 +543,10 @@ PRIMARY
     | IDENTIFIER _ %lbracket _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bit", BitsStart: d[4], BitsEnd: d[4], Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket _ UNSIGNED_NUMBER _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits", BitsStart: d[4], BitsEnd: d[8], Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bit2", BitsStart: null, BitsEnd: null, Primary: d[0], Expression: d[4], Width:1};} %}
-    | IDENTIFIER _ %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[4], BitsEnd: d[4], Primary: d[0], Expression: d[4], ArraySelect: d[8]};} %}
+    | IDENTIFIER _ ARRAY_SELECT _ %lbracket _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[6], BitsEnd: d[6], Primary: d[0], ArrayIndices: d[2]};} %}
+    | IDENTIFIER _ ARRAY_SELECT _ %lbracket _ UNSIGNED_NUMBER _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[6], BitsEnd: d[10], Primary: d[0], ArrayIndices: d[2]};} %}
+    # | IDENTIFIER _ ARRAY_SELECT _ %lbracket _ EXPRESSION _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_array", BitsStart: d[6], BitsEnd: d[6], Primary: d[0], Expression: null, ArrayIndices: d[2]};} %}
+    # | IDENTIFIER _ ARRAY_SELECT _ %lbracket _ EXPRESSION _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_array2", BitsStart: null, BitsEnd: null, Primary: d[0], Expression: d[6], ArrayIndices: d[2]};} %}
     | IDENTIFIER _ %lbracket _ EXPRESSION _ %minus _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits_select", BitsStart: d[4], BitsEnd: null, Primary: d[0], Expression: d[4], Width:parseInt(d[10].value), SelectType: "minus"};} %}
     | IDENTIFIER _ %lbracket _ EXPRESSION _ %plus _ %colon _ UNSIGNED_NUMBER _ %rbracket {%function(d) {return {Type: "primary", PrimaryType: "identifier_bits_select", BitsStart: d[4], BitsEnd: null, Primary: d[0], Expression: d[4], Width:parseInt(d[10].value), SelectType: "plus"};} %}
 

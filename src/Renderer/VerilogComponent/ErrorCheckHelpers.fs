@@ -141,11 +141,13 @@ let rec numbersUsedInAssignment inLst (tree: ExpressionDU) =
 let getLHSBits portSizeMap (assignment: Assignment)  =
     let assignmentWithRange =
         match assignment.LHS.PrimaryType with
-        | Identifier id
-        | IdentifierArray (id, _, _, _) -> (id.Name, -1, -1)
+        | Identifier id -> (id.Name, -1, -1)
+        | IdentifierArray (id, _, start, end_) -> (id.Name, start, end_)
         | IdentifierBit (id, idx) ->
             (id.Name, idx, idx)
         | VariableBitSelect (id, idx) ->
+            (id.Name, -1, -1)
+        | VariableArrayBitSel (id, indices, idx) ->
             (id.Name, -1, -1)
         | IdentifierBits (id, start, end_) ->
             // let bStart = evalExpr start
@@ -180,8 +182,9 @@ let getLHSBits portSizeMap (assignment: Assignment)  =
 let getLHSBits' portSizeMap (assignment: Assignment)  =
     let assignmentWithRange =
         match assignment.LHS.PrimaryType with
-        | Identifier id
-        | IdentifierArray (id, _, _, _) -> (id.Name, -1, -1)
+        | Identifier id -> (id.Name, -1, -1)
+        | IdentifierArray (id, _, start, end_) -> (id.Name, -1, -1)
+        | VariableArrayBitSel (id, _, _) -> (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
             // let b = evalExpr idx
             (id.Name, idx, idx)
@@ -216,33 +219,44 @@ let getLHSBits' portSizeMap (assignment: Assignment)  =
     portListMap
 
 /// returns each bit of an assignment LHS. In the case of variable indexing, no bits are returned
-let getLHSBitsAssignedCertainly portSizeMap (assignment: Assignment) =
+let getLHSBitsAssignedCertainly portSizeMap paramMap (assignment: Assignment) =
     match assignment.LHS.VariableBitSelect with
     | Some _ -> []
     | _ ->
         match assignment.LHS.PrimaryType with
-        | Identifier id
-        | IdentifierArray (id, _, _, _) ->
+        | Identifier id -> 
             match Map.tryFind id.Name portSizeMap with
-            | Some size ->
-                let names = [0..size-1] |> List.map (fun y -> id.Name + "[" + string y + "]")
+            | Some size -> 
+                let names = [0..size-1] |> List.map (fun y -> (id.Name+"["+(string y)+"]"))
                 names
             | None -> []
+        | IdentifierArray (id, indices, bStart, bEnd) ->
+            let size = bEnd - bStart
+            // let size = (evalExprWithParams bStart paramMap) - (evalExprWithParams bEnd paramMap) + 1
+            let names = [0..size-1] |> List.map (fun y -> (id.Name+"["+ (string indices[0]) + "]["+(string y)+"]"))
+            names
         | VariableBitSelect (id, idx) ->
             []
+            //TODO: not sure if these should be all assigned or not 
         | IdentifierBits (id, bStart, bEnd) ->
             let names = [bEnd..bStart] |> List.map (fun y -> id.Name + "[" + string y + "]")
             names
-        | IdentifierBit _
+        | IdentifierBit (id, idx) -> 
+            [id.Name + "[" + string idx + "]"]
         | IdentifierBitsSelect _ ->
         []
+        | VariableArrayBitSel (id, indices, idx) ->
+            // let size = // maybe do a proper find in array size map later
+            // let names = [0..size-1] |> List.map (fun y -> (id.Name+"["+ (string indices[0]) + "]["+(string y)+"]"))
+            [id.Name + "[" + string indices[0] + "]"]
     // | _ -> failwithf "Wrong combination of bitstart, bitsend and variable bitselect"
 
 let getPrimaryBits portSizeMap (primary: PrimaryDU) =
     let primaryWithRange =
         match primary with
-        | Identifier id
-        | IdentifierArray (id, _, _, _) -> (id.Name, -1, -1)
+        | Identifier id -> (id.Name, -1, -1)
+        | IdentifierArray (id, _, start, end_) -> (id.Name, start, end_)
+        | VariableArrayBitSel (id, _, _) -> (id.Name, -1, -1)
         | VariableBitSelect (id, idx) ->
             (id.Name, -1, -1)
         | IdentifierBit (id, idx) ->
@@ -285,16 +299,18 @@ let lhsName (lhs: AssignmentLHS) =
     | IdentifierBits (id, _, _)
     | VariableBitSelect (id, _)
     | IdentifierBitsSelect (id, _, _, _)
-    | IdentifierArray (id, _, _, _) -> id.Name
+    | IdentifierArray (id, _, _, _)
+    | VariableArrayBitSel (id, _, _) -> id.Name
 
 let lhsLocation (lhs: AssignmentLHS) =
     match lhs.PrimaryType with
     | Identifier id
     | IdentifierBit (id, _)
     | IdentifierBits (id, _, _)
-    | VariableBitSelect (id, _) -> id.Location
-    | IdentifierBitsSelect (id, _, _, _) -> id.Location
-    | IdentifierArray (id, _, _, _) -> id.Location
+    | VariableBitSelect (id, _) 
+    | IdentifierBitsSelect (id, _, _, _)
+    | IdentifierArray (id, _, _, _) 
+    | VariableArrayBitSel (id, _, _) -> id.Location
 
 
     
@@ -357,6 +373,10 @@ let RHSUnaryAnalysis
                 match primary with
                 | Identifier id
                 | IdentifierArray (id, _, _, _) ->
+                    match Map.tryFind id.Name inputWireSizeMap with
+                    | Some num -> {Name=id.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
+                    | None -> {Name="undefined";ResultWidth=0;Head=None;Tail=None;Elements=[]} 
+                | VariableArrayBitSel (id, _, _) ->
                     match Map.tryFind id.Name inputWireSizeMap with
                     | Some num -> {Name=id.Name;ResultWidth=num;Head=None;Tail=None;Elements=[]}
                     | None -> {Name="undefined";ResultWidth=0;Head=None;Tail=None;Elements=[]} 
@@ -439,6 +459,7 @@ let RHSUnaryAnalysis
 let getWidthOfExpr
     (assignmentRHS:ExpressionDU)
     (inputWireSizeMap: Map<string,int>)
+    (arraySizeMap: Map<string, int * int array>)
     (paramMap: Map<string,int>)
         =
 
@@ -447,16 +468,23 @@ let getWidthOfExpr
         | ExpressionDU.Unary (UnaryDU.Primary primary)
         | Negation (UnaryDU.Primary primary) ->
             match primary with
-            | Identifier id
-            | IdentifierArray (id, _, _, _) ->
+            | Identifier id ->
                 match Map.tryFind id.Name inputWireSizeMap with
                 | Some num -> num
                 | None -> 
                     match Map.tryFind id.Name paramMap with
                     | Some num -> 32
                     | None -> 0
+            | IdentifierArray (id, indices, bStart, bEnd) ->
+                bStart - bEnd + 1
+                // (evalExprWithParams bStart paramMap) - (evalExprWithParams bEnd paramMap) + 1
+            | VariableArrayBitSel _
             | VariableBitSelect _ -> 1
-            | IdentifierBit _ -> 1
+            | IdentifierBit (id, idx) -> 
+                printf "checking primary width for %s with map: %A" id.Name arraySizeMap
+                match Map.tryFind id.Name arraySizeMap with
+                | Some (arrayWidth, arrayDims) -> arrayWidth
+                | None -> 1
             | IdentifierBits (id, bStart, bEnd) ->
                 // let bStart = evalExpr start
                 // let bEnd = evalExpr end_
@@ -534,14 +562,95 @@ let getWidthOfExpr
 
         /// Check if the width of each wire/input used
     /// is within the correct range (defined range)
-let checkPrimariesWidths linesLocations currentInputWireSizeMap paramMap localErrors (primariesRHS: PrimaryDU list) (numbersRHS: Number list) =
+let checkPrimariesWidths linesLocations currentInputWireSizeMap (arraySizeMap: Map<string, int * int array>) paramMap localErrors (primariesRHS: PrimaryDU list) (numbersRHS: Number list) =
     let primaryErrors =
         primariesRHS
         |> List.collect (fun x ->
             match x with
-            | Identifier id
-            | IdentifierArray (id, _, _, _) ->
-                localErrors
+            // maybe check if this is an array assignment?
+            | Identifier id -> localErrors
+            | IdentifierArray (id, indices, bStart, bEnd) ->
+                let arrayIndexErrors = 
+                    match indices[0], Map.tryFind id.Name arraySizeMap with
+                    | ConstArraySelect idxInt, Some (arrayWidth, arrayDims) ->
+                        if (idxInt < arrayDims[0]) && (idxInt >= 0) then
+                            []
+                        else
+                            let definition = sprintf " %s[%i:0][%i:0] " id.Name (arrayDims[0] - 1) (arrayWidth - 1)
+                            let usedWidth = sprintf " %s[%i] " id.Name idxInt
+                            let message = sprintf "Wrong width of array: '%s'" id.Name
+                            let extraMessages =
+                                [|
+                                    {Text=(sprintf "Array: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
+                                |]
+                            createErrorMessage linesLocations id.Location message extraMessages id.Name
+                    | _ -> []
+                if arrayIndexErrors.IsEmpty then
+                    let arrayWidthErrors =
+                        match Map.tryFind id.Name arraySizeMap with
+                        | Some (arrayWidth, arrayDims) ->
+                            if (bStart < arrayWidth) && (bEnd >= 0) && (bStart >= bEnd) then
+                                []
+                            else
+                                let definition =
+                                    match arrayWidth with
+                                    | 1 -> " a single bit "
+                                    | _ -> sprintf " %s[%i:0][%i:0] " id.Name (arrayDims[0] - 1) (arrayWidth - 1)
+                                let usedWidth =
+                                    match bStart = bEnd with
+                                    | true -> sprintf " %s[%i] " id.Name bStart
+                                    | false -> sprintf " %s[%A:0][%i:%i] " id.Name indices[0] bStart bEnd
+                                let message = sprintf "Wrong width of array: '%s'" id.Name
+                                let extraMessages =
+                                    [|
+                                        {Text=(sprintf "Array: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
+                                    |]
+                                createErrorMessage linesLocations id.Location message extraMessages id.Name
+                            | _ -> []
+                    localErrors @ arrayWidthErrors
+                else localErrors @ arrayIndexErrors
+            | VariableArrayBitSel (id, indices, idx) ->
+                let arrayIndexErrors = 
+                    match indices[0], Map.tryFind id.Name arraySizeMap with
+                    | ConstArraySelect idxInt, Some (arrayWidth, arrayDims) ->
+                        if (idxInt < arrayDims[0]) && (idxInt >= 0) then
+                            []
+                        else
+                            let definition = sprintf " %s[%i:0][%i:0] " id.Name (arrayDims[0] - 1) (arrayWidth - 1)
+                            let usedWidth = sprintf " %s[%i] " id.Name idxInt
+                            let message = sprintf "Wrong width of array: '%s'" id.Name
+                            let extraMessages =
+                                [|
+                                    {Text=(sprintf "Array: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
+                                |]
+                            createErrorMessage linesLocations id.Location message extraMessages id.Name
+                    | _ -> []
+                if arrayIndexErrors.IsEmpty then
+                    let checkedIndex =
+                        try
+                            Some (evalExprWithParams idx paramMap)
+                        with
+                        | _ -> None
+                    let arrayWidthErrors =
+                        match checkedIndex, Map.tryFind id.Name currentInputWireSizeMap with
+                        | Some bitIndex, Some size ->
+                            if (bitIndex < size) && (bitIndex >= 0) then
+                                localErrors
+                            else
+                                let definition =
+                                    match size with
+                                    | 1 -> " a single bit "
+                                    | _ -> sprintf " %s[%i:0] " id.Name (size - 1)
+                                let usedWidth = sprintf " %s[%i] " id.Name bitIndex
+                                let message = sprintf "Wrong width of variable: '%s'" id.Name
+                                let extraMessages =
+                                    [|
+                                        {Text=(sprintf "Variable: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
+                                    |]
+                                createErrorMessage linesLocations id.Location message extraMessages id.Name
+                        | _ -> []
+                    localErrors @ arrayWidthErrors
+                else localErrors @ arrayIndexErrors
             | VariableBitSelect (id, idx) ->
                 // printf "checking primary width for %s with index %A\n" id.Name idx
                 let checkedIndex =
@@ -566,26 +675,53 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap paramMap localEr
                                 {Text=(sprintf "Variable: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
                             |]
                         List.append localErrors (createErrorMessage linesLocations id.Location message extraMessages id.Name)
+                // | None, Some size ->
+                //     let bitIndex = Map.tryFind id.Name currentInputWireSizeMap
+                //     let definition =
+                //         match size with
+                //         | 1 -> " a single bit "
+                //         | _ -> sprintf " %s[%i:0] " id.Name (size - 1)
+                //     let usedWidth = sprintf " %s[?] " id.Name
+                //     let message = sprintf "Index of variable '%s' is not a constant expression and can't be evaluated" id.Name
+                //     let extraMessages =
+                //         [|
+                //             {Text=(sprintf "Variable: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
+                //         |]
+                //     List.append localErrors (createErrorMessage linesLocations id.Location message extraMessages id.Name)
                 | _ -> localErrors
             | IdentifierBit (id, bStart) ->
                 let bEnd = bStart
-                match Map.tryFind id.Name currentInputWireSizeMap with
-                | Some size ->
-                    if (bStart < size) && (bEnd >= 0) then
+                match Map.tryFind id.Name arraySizeMap with
+                | Some (arrayWidth, arrayDims) ->
+                    if (bStart < arrayDims[0]) && (bEnd >= 0) then
                         localErrors
                     else
-                        let definition =
-                            match size with
-                            | 1 -> " a single bit "
-                            | _ -> sprintf " %s[%i:0] " id.Name (size - 1)
+                        let definition = sprintf " %s[%i:0][%i:0] " id.Name (arrayDims[0] - 1) (arrayWidth - 1)
                         let usedWidth = sprintf " %s[%i] " id.Name bStart
-                        let message = sprintf "Wrong width of variable: '%s'" id.Name
+                        let message = sprintf "Wrong width of array: '%s'" id.Name
                         let extraMessages =
                             [|
-                                {Text=(sprintf "Variable: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
+                                {Text=(sprintf "Array: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
                             |]
                         List.append localErrors (createErrorMessage linesLocations id.Location message extraMessages id.Name)
-                | None -> localErrors
+                | None ->
+                    match Map.tryFind id.Name currentInputWireSizeMap with
+                    | Some size ->
+                        if (bStart < size) && (bEnd >= 0) then
+                            localErrors
+                        else
+                            let definition =
+                                match size with
+                                | 1 -> " a single bit "
+                                | _ -> sprintf " %s[%i:0] " id.Name (size - 1)
+                            let usedWidth = sprintf " %s[%i] " id.Name bStart
+                            let message = sprintf "Wrong width of variable: '%s'" id.Name
+                            let extraMessages =
+                                [|
+                                    {Text=(sprintf "Variable: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}
+                                |]
+                            List.append localErrors (createErrorMessage linesLocations id.Location message extraMessages id.Name)
+                    | None -> localErrors
             | IdentifierBits (id, bStart, bEnd) ->
                 match Map.tryFind id.Name currentInputWireSizeMap with
                 | Some size ->
@@ -664,10 +800,10 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap paramMap localEr
 
     List.append primaryErrors numberErrors
 
-let checkExpr linesLocations currentInputWireSizeMap paramMap localErrors expr =
+let checkExpr linesLocations currentInputWireSizeMap arraySizeMap paramMap localErrors expr =
     let primariesRHS = primariesUsedInAssignment [] expr
     let numbersRHS = numbersUsedInAssignment [] expr
-    checkPrimariesWidths linesLocations currentInputWireSizeMap paramMap localErrors primariesRHS numbersRHS 
+    checkPrimariesWidths linesLocations currentInputWireSizeMap arraySizeMap paramMap localErrors primariesRHS numbersRHS 
 
 let checkNumber linesLocations (num:NumberT) =
     let numBase, allNum, width = Option.get num.Base, Option.get num.AllNumber, Option.get num.Bits
@@ -770,7 +906,8 @@ let getRHSBits portSizeMap (expression: ExpressionDU) =
                         //     |> Array.map getExprBits
                         //     |> Array.fold Set.union Set.empty
                         | Identifier _
-                        | IdentifierArray _ -> Set.empty
+                        | IdentifierArray _ 
+                        | VariableArrayBitSel _ -> Set.empty
                     Set.union primaryBits indexBits
                 | UnaryDU.ParamNumber (paramName, bits) -> Set.empty
             | Reduction (_, e) -> getExprBits e
@@ -781,23 +918,29 @@ let getRHSBits portSizeMap (expression: ExpressionDU) =
 
     getExprBits expression
 
-let getLHSWidth (assign:Assignment) (varSizeMap: Map<string, int>)  =
-    match assign.LHS.VariableBitSelect with
-    | Some _ -> 1
-    | None ->
-        match assign.LHS.PrimaryType with
-        | Identifier id -> Map.tryFind id.Name varSizeMap |> Option.defaultValue 0
-        | IdentifierBit _ ->
-            1
-        | VariableBitSelect _ ->
-            1
-        | IdentifierArray (id, _, bStart, bEnd)
-        | IdentifierBits (id, bStart, bEnd) ->
-            // let bStart = evalExpr start
-            // let bEnd = evalExpr end_
-            bStart - bEnd + 1
-        | IdentifierBitsSelect (_, _, width, _) ->
-            width
+let getLHSWidth (assign:Assignment) (varSizeMap: Map<string, int>) (arraySizeMap: Map<string, int * int array>) =
+    match assign.LHS.PrimaryType with
+    | Identifier id -> Map.tryFind id.Name varSizeMap |> Option.defaultValue 0
+    | IdentifierBit (id, _)
+    | VariableBitSelect (id, _) ->
+        match Map.tryFind id.Name arraySizeMap with
+        | Some (arrayWidth, arrayDims) -> 
+            // printfn "arraywidth: %i for variable %s" arrayWidth id.Name
+            arrayWidth
+        | None -> 1
+    | IdentifierArray (id, _, bStart, bEnd) ->
+        // let bStart = evalExpr bStart
+        // let bEnd = evalExpr bEnd
+        bStart - bEnd + 1
+    | VariableArrayBitSel (id, _, idx) ->
+        let arrayWidth, arrayDims = Map.find id.Name arraySizeMap 
+        arrayWidth
+    | IdentifierBits (id, bStart, bEnd) ->
+        // let bStart = evalExpr start
+        // let bEnd = evalExpr end_
+        bStart - bEnd + 1
+    | IdentifierBitsSelect (_, _, width, _) ->
+        width
     // match assign.LHS.BitsStart, assign.LHS.BitsEnd, assign.LHS.VariableBitSelect, assign.LHS.Width with
     // | Some s, Some e, _, _ -> (int s)-(int e)+1
     // | None, None, None, _ -> 
@@ -926,7 +1069,15 @@ and estimatePrimaryCost (p: PrimaryDU) : int =
     | IdentifierBitsSelect (_, start, _, _) ->
         2 + estimateExprCost start
     | IdentifierArray (_, indices, _, _) ->
-        2 + (indices |> Array.toList |> List.map estimateExprCost |> List.sum)
+        2 + (indices |> Array.toList |> List.map estimateArraySelCost |> List.sum)
+    | VariableArrayBitSel (_, indices, idx) ->
+        1 + (indices |> Array.toList |> List.map estimateArraySelCost |> List.sum) + estimateExprCost idx
+
+and estimateArraySelCost (a: ArraySelect) : int =
+    match a with
+    | ConstArraySelect _ -> 1
+    | VarArraySelect v -> estimateExprCost v
+
 let estimateAssignmentCost (a: Assignment) : int =
     1 + estimatePrimaryCost a.LHS.PrimaryType + estimateExprCost a.RHS
 let rec estimateStatementCost (stmt: StatementDU) : int =

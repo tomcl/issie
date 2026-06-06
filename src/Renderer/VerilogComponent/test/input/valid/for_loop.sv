@@ -1,5 +1,5 @@
 module  for_loop(
-  output bit d_out
+  output bit [2:0] d_out
  );
 
  bit [2:0] i;
@@ -7,9 +7,8 @@ module  for_loop(
  //-------------Code Starts Here---------
 
   always_comb begin
-      for (i = 4'b0; i < 3'd3; i = i + 3'd1) begin
-          i = i + 1'd1;
-          d_out = d_out + 1'd1;
+      for (i = 3'd0; i < 3'd3; i = i + 3'd1) begin
+          d_out[i] = 1'b1;
       end
   end
  

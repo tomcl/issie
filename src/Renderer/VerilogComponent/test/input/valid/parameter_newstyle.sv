@@ -1,4 +1,4 @@
-module counter #(
+module parameter_newstyle #(
     parameter N = 2,
     parameter DOWN = 0
 )( 

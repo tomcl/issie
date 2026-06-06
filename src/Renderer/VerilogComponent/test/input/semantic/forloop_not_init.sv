@@ -1,6 +1,8 @@
 module forloop_not_init(
   output bit [2:0] d_out
  );
+
+ // for loop variable not initialised
  
   always_comb begin
       d_out = 1'b0;

@@ -69,11 +69,13 @@ let checkProceduralAssignments
 let checkVariablesDrivenSimultaneously     
     (ast:VerilogInput) 
     (linesLocations: int list)
+    (arraySizeMap: Map<string, int * int array>)
     (errorList: ErrorInfo list)
         : ErrorInfo list = 
     let alwaysBlocks = foldAST getAlwaysBlocks [] (VerilogInput(ast)) 
     let continuousAssignBits = 
         foldAST getContAssignments [] (VerilogInput ast)
+        |> List.filter (fun assign -> Map.containsKey (getPrimaryName assign.LHS.PrimaryType) arraySizeMap |> not)
         |> List.map (fun assign -> Set.singleton (getPrimaryName assign.LHS.PrimaryType))
 
     let getAlwaysAssignmentBits (alwaysBlock: AlwaysConstruct) = 
@@ -86,26 +88,176 @@ let checkVariablesDrivenSimultaneously
         alwaysBlocks |> List.map getAlwaysAssignmentBits
         |> List.append continuousAssignBits
 
+    let alwaysAssignmentArrayBits =
+        alwaysBlocks 
+        |> List.map (fun alwaysBlock ->
+            let assignments = 
+                foldAST getAssignments' [] (AlwaysConstruct(alwaysBlock))
+                |> List.filter (fun assign -> Map.containsKey (getPrimaryName assign.LHS.PrimaryType) arraySizeMap)
+            List.map (fun assign -> assign.LHS) assignments
+            |> List.distinct
+            |> Set.ofList)
+        |> List.append (
+            foldAST getContAssignments [] (VerilogInput ast)
+            |> List.filter (fun assign -> Map.containsKey (getPrimaryName assign.LHS.PrimaryType) arraySizeMap)
+            |> List.map (fun assign -> Set.singleton assign.LHS)
+        )
+
     let getDuplicates ((index1, assignmentBits1), (index2, assignmentBits2)) =
         if index1 = index2 then []
         else Set.intersect assignmentBits1 assignmentBits2 |> Set.toList
 
+    // Helper: extract array words targeted by an assignment LHS
+    let getArrayWordsTargeted (assignmentSet: Set<AssignmentLHS>) =
+        assignmentSet
+        |> Set.fold (fun wordsSet assignLHS ->
+            match assignLHS.PrimaryType with
+            | VariableBitSelect (id, _) 
+            | Identifier id ->
+                match Map.tryFind id.Name arraySizeMap with
+                | Some (arrayWidth, arrayDims) ->
+                    [0..arrayDims[0]-1]
+                    |> List.map (fun i -> id.Name + "[" + string i + "]")
+                    |> Set.ofList
+                    |> Set.union wordsSet
+                | None -> wordsSet
+            | IdentifierBit (id, idx) ->
+                Set.add (id.Name + "[" + string idx + "]") wordsSet
+            | IdentifierArray (id, indices, _, _) 
+            | VariableArrayBitSel (id, indices, _) ->
+                match indices[0] with
+                | ConstArraySelect c -> 
+                    Set.add (id.Name + "[" + string c + "]") wordsSet
+                | VarArraySelect v ->
+                    match Map.tryFind id.Name arraySizeMap with
+                    | Some (arrayWidth, arrayDims) ->
+                        [0..arrayDims[0]-1]
+                        |> List.map (fun i -> id.Name + "[" + string i + "]")
+                        |> Set.ofList
+                        |> Set.union wordsSet
+                    | None -> wordsSet
+            | IdentifierBits _ -> wordsSet
+            | IdentifierBitsSelect _ -> wordsSet
+        ) Set.empty
+
+    // array duplicates should not count as long as it's to different words
+    let getDuplicateArray ((index1, (assignmentBits1: Set<AssignmentLHS>)), (index2, (assignmentBits2: Set<AssignmentLHS>))) =
+        if index1 = index2 then []
+        else
+        let arrayBits1 = getArrayWordsTargeted assignmentBits1
+        let arrayBits2 = getArrayWordsTargeted assignmentBits2
+        Set.intersect arrayBits1 arrayBits2 |> Set.toList
+
+    let arrayNames = arraySizeMap |> Map.keys |> Seq.toList |> Set.ofList
     let indexedAssignmentBits =
         alwaysAssignmentBits
+        |> List.filter (fun bits -> Set.isEmpty (Set.intersect bits arrayNames))
         |> List.indexed
+    let indexedAssignmentArrayBits =
+        alwaysAssignmentArrayBits
+        |> List.indexed
+    
     let duplicates = 
         List.allPairs indexedAssignmentBits indexedAssignmentBits
         |> List.collect getDuplicates
         |> List.distinct
-    if List.isEmpty duplicates then errorList
-    else
-    let currLocation = ast.Module.EndLocation
-    let extraMessages=                    
-        [|
-            {Text=sprintf "The following variables are driven by multiple always blocks or continuous assignments: %A.  Please make sure that every port is driven by at most one always block or continuous assignment." (convert duplicates "");Copy=false;Replace=NoReplace};
-        |]
-    let message = "Some ports or variables are driven by multiple always blocks or continuous assignments."
-    errorList @ createErrorMessage linesLocations currLocation message extraMessages "endmodule"
+    
+    let duplicateArrays =
+        List.allPairs indexedAssignmentArrayBits indexedAssignmentArrayBits
+        |> List.collect getDuplicateArray
+        |> List.distinct
+
+    let varErrors = 
+        if List.isEmpty duplicates then []
+        else
+        let currLocation = ast.Module.EndLocation
+        let extraMessages=                    
+            [|
+                {Text=sprintf "The following variables are driven by multiple always blocks or continuous assignments: %A.  Please make sure that every port is driven by at most one always block or continuous assignment." (convert duplicates "");Copy=false;Replace=NoReplace};
+            |]
+        let message = "Some ports or variables are driven by multiple always blocks or continuous assignments."
+    
+        createErrorMessage linesLocations currLocation message extraMessages "endmodule"
+    
+    let arrayErrors = 
+        if List.isEmpty duplicateArrays then []
+        else
+        let currLocation = ast.Module.EndLocation
+        let arrayErrorMessages =
+            [|
+                {Text=sprintf "The following array words may be driven by multiple always blocks or continuous assignments: %A. Please make sure that every word is driven by at most one always block or continuous assignment." (convert duplicateArrays "");Copy=false;Replace=NoReplace};
+            |]
+        let arrayErrorMessage = "Some array words may be driven by multiple always blocks or continuous assignments."
+        createErrorMessage linesLocations currLocation arrayErrorMessage arrayErrorMessages "endmodule"
+    
+    errorList @ varErrors @ arrayErrors
+
+/// Checks array assignments
+/// - disallows multi-word assignment (unless assigning whole array)
+/// - only 2d arrays allowed
+let checkArrayStatements
+    (ast:VerilogInput)
+    (linesLocations: int list)
+    (arraySizeMap: Map<string, int * int array>)
+    (errorList: ErrorInfo list)
+        : ErrorInfo list =
+
+    let declarations = foldAST getDeclarations [] (VerilogInput(ast))
+    let declErrors =
+        declarations
+        |> List.collect (fun decl ->
+            decl.Variables
+            |> Array.toList
+            |> List.collect (fun variable ->
+                if Map.containsKey variable.Name arraySizeMap then
+                    let arrayWidth, arrayDims = Map.find variable.Name arraySizeMap
+                    if arrayDims.Length > 1 then
+                        let message = sprintf "Array has more than 2 dimensions."
+                        let extraMessages =
+                            [|
+                                {Text=sprintf "Only 2D arrays are supported. Please make sure that array %A has at most 2 dimensions." variable.Name;Copy=false;Replace=NoReplace}
+                            |]
+                        createErrorMessage linesLocations variable.Location message extraMessages variable.Name
+                    else []
+                else []
+            )
+        )
+
+    let assignments = foldAST getAssignments' [] (VerilogInput ast)
+    let arrayAssignments = 
+        assignments
+        |> List.filter (fun assign -> Map.containsKey (getPrimaryName assign.LHS.PrimaryType) arraySizeMap)
+    
+    let multiWordErrors =
+        arrayAssignments
+        |> List.collect (fun assign ->
+            match assign.LHS.PrimaryType with
+            | IdentifierBits (id, _, _) ->
+                let lhsName = id.Name
+                let loc = id.Location
+                let multiWordError =
+                    let message = sprintf "Multi-word assignment to array %A" lhsName
+                    let extraMessages =
+                        [|
+                            {Text=sprintf "Assignments cannot be made to multiple words in an array at once. Please either assign to one word of the array, or to the entire array." ;Copy=false;Replace=NoReplace}
+                        |]
+                    createErrorMessage linesLocations loc message extraMessages lhsName
+                multiWordError
+            | IdentifierArray (id, indices, _, _) ->
+                let lhsName = id.Name
+                let loc = id.Location
+                if indices.Length > 1 then
+                    let message = sprintf "Array has more than 2 dimensions."
+                    let extraMessages =
+                        [|
+                            {Text=sprintf "Only 2D arrays are supported. Please make sure that array %A has at most 2 dimensions." lhsName;Copy=false;Replace=NoReplace}
+                        |]
+                    createErrorMessage linesLocations loc message extraMessages lhsName
+                else []
+            | _ -> []
+        )
+
+    errorList @ declErrors @ multiWordErrors
 
 /// Checks the case items of the case statements:
 /// - Repeated cases
@@ -115,6 +267,7 @@ let checkCasesStatements
     (linesLocations: int list)
     (portSizeMap: Map<string,int>) 
     (wireSizeMap: Map<string,int>) 
+    (arraySizeMap: Map<string, int * int array>)
     (paramMap: Map<string,int>)
     (errorList: ErrorInfo list)
         : ErrorInfo list =
@@ -139,7 +292,7 @@ let checkCasesStatements
     // check for repeated cases
     // need to maybe check for missing cases
     let checkCaseStatement (caseStmt, location) =
-        let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap paramMap
+        let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap arraySizeMap paramMap
         if condWidth = 0 then []
         else
         let caseNumbers = caseStmt.CaseItems |> Array.collect (fun caseItem -> caseItem.Expressions)
@@ -208,6 +361,7 @@ let allCasesCovered
     caseStmt
     (portSizeMap: Map<string,int>) 
     (wireSizeMap: Map<string,int>)
+    (arraySizeMap: Map<string, int * int array>)
     (paramMap: Map<string,int>)
       =
 
@@ -215,7 +369,7 @@ let allCasesCovered
     | Some _ -> true
     | _ ->
         let portSizeMap = Map.fold (fun acc key value -> Map.add key value acc) portSizeMap wireSizeMap
-        let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap paramMap
+        let condWidth = getWidthOfExpr caseStmt.Expression portSizeMap arraySizeMap paramMap
         if condWidth = 0 then true
         else
         let expNrOfCases = (1I <<< condWidth)
@@ -243,6 +397,7 @@ let checkVariablesAlwaysAssigned
     (linesLocations: int list)
     (portSizeMap: Map<string,int>) 
     (wireSizeMap: Map<string,int>) 
+    (arraySizeMap: Map<string, int * int array>)
     (paramMap: Map<string,int>)
     (errorList: ErrorInfo list)
         : ErrorInfo list =
@@ -291,9 +446,9 @@ let checkVariablesAlwaysAssigned
         | Statement statement ->
             match statement with
             | BlockingAssign (blocking, _) ->
-                (getLHSBitsAssignedCertainly portSizeMap blocking) |> Set.ofList
+                (getLHSBitsAssignedCertainly portSizeMap paramMap blocking) |> Set.ofList
             | NonBlockingAssign (nonBlocking, _) ->
-                (getLHSBitsAssignedCertainly portSizeMap nonBlocking) |> Set.ofList
+                (getLHSBitsAssignedCertainly portSizeMap paramMap nonBlocking) |> Set.ofList
             | SeqBlock (stmts, _) ->
                 let completeVariables =
                     stmts
@@ -310,12 +465,14 @@ let checkVariablesAlwaysAssigned
                     | None -> Set.empty
                 if Option.isNone elseStmt then Set.empty else Set.intersect ifVariables elseVariables
             | StatementDU.ForStatement (forstmt, _) ->
-                let loopVar = getVariablesAlwaysAssigned (Assignment forstmt.Initialisation)
-                let loopVar' = getVariablesAlwaysAssigned (Assignment forstmt.Step)
-                let loopStatementVars = getVariablesAlwaysAssigned (Statement forstmt.Statement)
-                Set.union loopVar (Set.union loopVar' loopStatementVars)
+                // let loopVar = getVariablesAlwaysAssigned (Assignment forstmt.Initialisation)
+                // let loopVar' = getVariablesAlwaysAssigned (Assignment forstmt.Step)
+                let unrolledForStmt = unrollForLoops forstmt
+                getVariablesAlwaysAssigned (Statement unrolledForStmt)
+                // let loopStatementVars = getVariablesAlwaysAssigned (Statement forstmt.Statement)
+                // Set.union loopVar (Set.union loopVar' loopStatementVars)
         | Case case ->
-            if allCasesCovered case portSizeMap wireSizeMap paramMap then
+            if allCasesCovered case portSizeMap wireSizeMap arraySizeMap paramMap then
                 let complCaseVars =
                     case.CaseItems
                     |> Array.map (fun caseItem -> getVariablesAlwaysAssigned (Statement caseItem.Statement))
@@ -361,6 +518,8 @@ let checkVariablesAlwaysAssigned
                     not (Set.contains varName loopVars))
             let variablesNotAssignedInAllBranches =
                 getVariablesAlwaysAssigned (AlwaysConstruct always)
+            printfn "vars always assigned in all branches: %A in %A" variablesNotAssignedInAllBranches always
+            printfn "all LHS variables: %A" allLHSVariables
             let undefVars =
                 Set.difference allLHSVariables variablesNotAssignedInAllBranches
                 |> Set.map (fun varBit -> (varBit.Split [|'['|])[0])
@@ -389,6 +548,7 @@ let checkExpressions
     (ast:VerilogInput) 
     (linesLocations: int list)
     (wireSizeMap: Map<string,int>) 
+    (arraySizeMap: Map<string, int * int array>)
     (paramMap: Map<string,int>)
     (errorList: ErrorInfo list) =
 
@@ -399,13 +559,15 @@ let checkExpressions
         ||> List.fold (fun map decl ->
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
-                if isNullOrUndefined decl.Range then Map.add variable.Name 0 map'
+                // TODO: check if this is a load-bearing 0
+                if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
                 else
                     let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
                     let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
                     Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
+    printfn "checkExpressions wireSizeMap: %A" wireSizeMap
     let expressions = foldAST getAllExpressions' [] (VerilogInput ast)
     let caseItemNums = foldAST getCaseItemNums [] (VerilogInput ast)
 
@@ -439,7 +601,7 @@ let checkExpressions
                         |]
                     createErrorMessage linesLocations loc message extraMessages "0'b"
 
-    let localErrors = List.collect (checkExpr linesLocations wireSizeMap paramMap []) expressions
+    let localErrors = List.collect (checkExpr linesLocations wireSizeMap arraySizeMap paramMap []) expressions
     let caseItemErrors = List.collect (checkNumberDU linesLocations) caseItemNums
     errorList @ localErrors @ caseItemErrors
 
@@ -692,6 +854,7 @@ let checkVariablesUsed
     (portSizeMap: Map<string,int>)
     (wireSizeMap: Map<string, int>)
     (paramMap: Map<string,int>)
+    (arraySizeMap: Map<string, int * int array>)
     (errorList: ErrorInfo list) =
 
     let wireAndPortSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
@@ -700,6 +863,7 @@ let checkVariablesUsed
         |> List.collect (fun modInst -> modInst.Connections |> Array.toList)
         |> List.collect (fun conn -> getPrimaryBits wireAndPortSizeMap conn.Primary)
         |> Set.ofList
+    // printfn "moduleInstantiationPorts: %A" moduleInstantiationPorts
     // let assignmentsLHS = 
     //     match ast with
     //     | VerilogInput as
@@ -708,6 +872,9 @@ let checkVariablesUsed
         |> List.collect (fun assign -> getLHSBits' wireAndPortSizeMap assign)
         |> Set.ofList
         |> Set.union moduleInstantiationPorts
+    
+    // printf "declarations: %A" (foldAST getDeclarations [] (VerilogInput ast))
+    // printfn "AST: %A" ast
 
     let variables = 
         foldAST getDeclarations [] (VerilogInput ast)
@@ -735,16 +902,75 @@ let checkVariablesUsed
     let varsNotAssigned =
         variables
         |> List.fold checkVariable []
-    match varsNotAssigned with
-    | [] -> errorList
-    | _ ->        
-        let location = ast.Module.EndLocation
-        let extraMessages=                    
-            [|
-                {Text=sprintf "The following variables have not been assigned %A" varsNotAssigned; Copy=false;Replace=NoReplace};
-            |]
-        let message = sprintf "The following variables have not been assigned %A" varsNotAssigned
-        errorList @ createErrorMessage linesLocations location message extraMessages "endmodule"
+    
+    let varsNotAssignedErrs = 
+        match varsNotAssigned with
+        | [] -> []
+        | _ ->        
+            let location = ast.Module.EndLocation
+            let extraMessages=                    
+                [|
+                    {Text=sprintf "The following variables have not been assigned %A" varsNotAssigned; Copy=false;Replace=NoReplace};
+                |]
+            let message = sprintf "The following variables have not been assigned %A" varsNotAssigned
+            createErrorMessage linesLocations location message extraMessages "endmodule"
+
+    let assignmentsRHS =
+        foldAST getAssignments' [] (VerilogInput ast)
+        |> List.collect (fun assign ->
+            getRHSBits wireAndPortSizeMap assign.RHS
+            |> Set.toList)
+        |> Set.ofList
+        |> Set.union moduleInstantiationPorts
+
+    let checkArray errorBits (variable: string) =
+        match Set.contains variable assignmentsRHS with
+        | true -> errorBits
+        | false -> errorBits @ [variable]
+
+    let arrays = 
+        foldAST getDeclarations [] (VerilogInput ast)
+        |> List.filter (fun decl ->
+            match Map.tryFind (decl.Variables[0].Name) arraySizeMap with
+            | Some _ -> true
+            | None -> false)
+        |> List.collect (fun decl -> 
+            match decl.Range with
+            | None -> 
+                let res = decl.Variables |> Array.map (fun var -> var.Name + "[0]") |> Array.toList
+                res
+            | Some range -> 
+                let bStart = evalExprWithParams range.Start paramMap
+                let bEnd = evalExprWithParams range.End paramMap
+                let bits = [|bEnd .. bStart|]
+                let res =
+                    decl.Variables
+                    |> Array.collect (fun var -> 
+                        let varBits = bits |> Array.map (fun bit -> var.Name+"["+(string bit)+"]")
+                        varBits)
+                    |> Array.toList
+                res
+            )
+
+    let arraysNotAssigned =
+        arrays
+        |> List.fold checkArray []
+
+    let arraysNotReadErrs =
+        match arraysNotAssigned with
+        | [] -> []
+        | _ ->        
+            let location = ast.Module.EndLocation
+            let extraMessages=                    
+                [|
+                    {Text=sprintf "The following arrays have not been read from %A" arraysNotAssigned; Copy=false;Replace=NoReplace};
+                |]
+            let message = sprintf "The following arrays have not been read from %A" arraysNotAssigned
+            createErrorMessage linesLocations location message extraMessages "endmodule"
+
+    printfn "e: %A, v: %A, a: %A" errorList varsNotAssignedErrs arraysNotReadErrs
+
+    errorList @ varsNotAssignedErrs @ arraysNotReadErrs
 
 /// Helper function for checking if any variable or port being written to after it is read in always_comb blocks.
 let rec getVariablesWrittenAfterRead wireAndPortSizeMap linesLocations (rhsVars, errors) node =
@@ -855,14 +1081,20 @@ let getPrimaryWidth portSizeMap (primary: PrimaryDU) =
         | Some w -> w
         | _ -> 1
     | IdentifierBit _ -> 1
-    | IdentifierArray (_, _, bStart, bEnd)
+    | IdentifierArray (_, _, bStart, bEnd) ->
+        // let bStart = evalExpr bStart
+        // let bEnd = evalExpr bEnd
+        bStart - bEnd + 1
     | IdentifierBits (_, bStart, bEnd) ->
         // let bStart = evalExpr start
         // let bEnd = evalExpr end_
         bStart - bEnd + 1
     | IdentifierBitsSelect (_, _, width, _) -> width
+    | VariableArrayBitSel (id, _, expr)
     | VariableBitSelect (id, expr) ->
-        evalExpr expr
+        match Map.tryFind id.Name portSizeMap with
+        | Some w -> w
+        | _ -> 1
 
 /// Checks if module instantiation statements are correct:
 /// - Does a loaded component exist with the given name?

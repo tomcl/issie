@@ -3,7 +3,7 @@ module array_test(
   output bit [2:0] output1, output2
 );  
   // Write your Assignments here
-  bit [1:0] array_name [1:0][4:0];
+  bit [1:0] array_name [1:0];
   
   assign array_name[1] = 1'd1;
   

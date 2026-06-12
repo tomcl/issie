@@ -84,7 +84,7 @@ PROGRAM -> MODULE {%function(d) {return {Type: "program", Module: d[0]};} %}
 # _ for optional whitespace, __ for obligatory whitespace
 MODULE 
     -> _ %module __ NAME_OF_MODULE _ %lparen _ LIST_OF_PORTS _ %rparen _ %semicolon _ MODULE_ITEMS %endmodule _ {%function(d) { return {Type: "module_old", ModuleName: d[3], PortList: d[7], ModuleItems: d[13], EndLocation: d[14].offset}; } %}
-    | _ %module __ NAME_OF_MODULE _ (PARAMETER_PORT_LIST {%function(d){return d[0];}%}):? %lparen _ (IO_ITEMS _ {%function(d){return d[0];}%}):? %rparen _ %semicolon _ NON_PORT_MODULE_ITEMS %endmodule _ {%function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[5], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};} %}
+    | _ %module __ NAME_OF_MODULE (__ PARAMETER_PORT_LIST {%function(d){return d[0];}%}):? _ %lparen _ (IO_ITEMS _ {%function(d){return d[0];}%}):? %rparen _ %semicolon _ NON_PORT_MODULE_ITEMS %endmodule _ {%function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[5], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};} %}
 
 NAME_OF_MODULE -> IDENTIFIER {% id %}
  
@@ -270,7 +270,7 @@ COMPLETE_STATEMENT
     | FOR_STATEMENT {%function(d,l,reject) {return {Type: "statement", StatementType: "for_stmt", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: null, CaseStatement: null, ForStatement: d[0], Location: d[0].Location};}%}
 
 FOR_STATEMENT
-    -> %t_for _ %lparen _ ASSIGNMENT _ %semicolon _ EXPRESSION _ %semicolon _ ASSIGNMENT _ %rparen _ COMPLETE_STATEMENT {% function(d) {
+    -> %t_for __ %lparen _ ASSIGNMENT _ %semicolon _ EXPRESSION _ %semicolon _ ASSIGNMENT _ %rparen __ STATEMENT {% function(d) {
     // -> %t_for _ %lparen _ BLOCKING_ASSIGNMENT _ %semicolon _ EXPRESSION _ %semicolon _ BLOCKING_ASSIGNMENT _ %rparen _ STATEMENT {% function(d) {
     // -> %t_for _ %lparen _ (ASSIGNMENT | BLOCKING_ASSIGNMENT | NONBLOCKING_ASSIGNMENT) _ %semicolon _ EXPRESSION _ %semicolon _ (ASSIGNMENT | BLOCKING_ASSIGNMENT | NONBLOCKING_ASSIGNMENT) _ %rparen _ STATEMENT {% function(d) {
         return {Type: "for_stmt", Initialisation: d[4], Condition: d[8], Step: d[12], Statement: d[16], Location: d[0].offset};
@@ -406,8 +406,8 @@ L_VALUE
     -> IDENTIFIER {%function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bit", BitsStart: d[3], BitsEnd: d[3], Primary: d[0]};} %}
     | IDENTIFIER _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};} %}
-    | IDENTIFIER _ ARRAY_SELECT _ %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[5]};} %}
-    | IDENTIFIER _ ARRAY_SELECT _ %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[7]};} %}
+    | IDENTIFIER _ ARRAY_SELECT %lbracket UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[5]};} %}
+    | IDENTIFIER _ ARRAY_SELECT %lbracket UNSIGNED_NUMBER %colon UNSIGNED_NUMBER %rbracket {%function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[7]};} %}
     # | ARRAY_L_VALUE {% id %}
 
 VARIABLE_BITSELECT_L_VALUE
@@ -523,11 +523,11 @@ UNARY_OPERATOR -> %lnot {%(d)=>{return d[0].value}%}  | %and {%(d)=>{return d[0]
 MULTIPLICATION_OPERATOR -> %mult {%(d)=>{return d[0].value}%} 
 
 ARRAY_SELECT
-    -> %lbracket _ UNSIGNED_NUMBER _ %rbracket _ ARRAY_SELECT {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}].concat(d[6]);} %}
+    -> %lbracket UNSIGNED_NUMBER %rbracket ARRAY_SELECT {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}].concat(d[6]);} %}
     # | %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d,l,reject) {return [d[2]].concat(d[6]);} %}
-    | %lbracket _ %unsigned_number _ %rbracket {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}];} %}
+    | %lbracket %unsigned_number %rbracket {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}];} %}
     # | %lbracket _ EXPRESSION _ %rbracket {%function(d,l,reject) {return {Type: "var_array", VariableArraySelect: d[2], WordSelect: null};} %}
-    | %lbracket _ EXPRESSION _ %rbracket {%function(d,l,reject) {
+    | %lbracket EXPRESSION %rbracket {%function(d,l,reject) {
           if (d[2].Type === "unary" && d[2].Unary.Type === "number") return reject;
           return [{ArrayType: "var_array", VariableArraySelect: d[2], WordSelect: null}];
       } %}

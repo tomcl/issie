@@ -1,0 +1,1 @@
+[{"Line":9,"Col":7,"Length":1,"Message":"Infinite for loop!","ExtraErrors":[{"Text":"For loop bounds must not create an infinite loop.","Copy":false,"Replace":"NoReplace"}]}]

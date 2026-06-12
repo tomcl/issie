@@ -1,0 +1,17 @@
+{
+    "Inputs": [
+        {
+            "Label": "si",
+            "Width": 1,
+            "Values": [1,1,0,0,0,1,0,1,0,1,1,0,0,1,1,1,0]
+        }
+    ],
+    "Outputs": [
+        {
+            "Label": "so",
+            "Width": 1
+        }
+    ],
+    "IsClocked": true,
+    "ModuleName": "shift"
+}

@@ -776,37 +776,46 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
             let idx = evalExpr idxExpr'
             IdentifierBit (id, idx)
 
+        let loopVarBool = isAssignToLoopVar lhs
         let vbs = lhs.VariableBitSelect |> Option.map (substLoopExpr loopVarName value width)
         let primary' =
-            match lhs.PrimaryType with
-            | Identifier id 
-            | IdentifierBit (id, _) -> lhs.PrimaryType
-            | VariableBitSelect (id, idx) when id.Name = loopVarName ->
-                rewriteIndex id idx
-            | VariableBitSelect (id, idx) ->
-                match vbs with
-                | Some expr ->
-                    try
-                        let idx = evalExpr expr
-                        IdentifierBit (id, idx)
-                    with _ -> lhs.PrimaryType
-                | None -> lhs.PrimaryType
-            | IdentifierBits (id, start, end_) ->
-                IdentifierBits (id, start, end_)
-            | IdentifierBitsSelect (id, start, w, sel) ->
-                let start' = substLoopExpr loopVarName value width start
-                IdentifierBitsSelect (id, start', w, sel)
-            | IdentifierArray (id, indices, start, end_) ->
-                let indices' = indices |> Array.map (substLoopArraySel loopVarName value)
-                IdentifierArray (id, indices', start, end_)
-            | VariableArrayBitSel (id, indices, idx) ->
-                VariableArrayBitSel (id, indices |> Array.map (substLoopArraySel loopVarName value), substLoopExpr loopVarName value width idx)
+            match loopVarBool with
+            | true -> 
+                lhs.PrimaryType // error handling will flag
+            | false -> 
+
+            // let primary' =
+                match lhs.PrimaryType with
+                | Identifier id 
+                | IdentifierBit (id, _) -> lhs.PrimaryType
+                | VariableBitSelect (id, idx) when id.Name = loopVarName ->
+                    rewriteIndex id idx
+                | VariableBitSelect (id, idx) ->
+                    match vbs with
+                    | Some expr ->
+                        try
+                            let idx = evalExpr expr
+                            IdentifierBit (id, idx)
+                        with _ -> VariableBitSelect (id, expr)
+                    | None -> lhs.PrimaryType
+                | IdentifierBits (id, start, end_) ->
+                    IdentifierBits (id, start, end_)
+                | IdentifierBitsSelect (id, start, w, sel) ->
+                    let start' = substLoopExpr loopVarName value width start
+                    IdentifierBitsSelect (id, start', w, sel)
+                | IdentifierArray (id, indices, start, end_) ->
+                    let indices' = indices |> Array.map (substLoopArraySel loopVarName value)
+                    IdentifierArray (id, indices', start, end_)
+                | VariableArrayBitSel (id, indices, idx) ->
+                    VariableArrayBitSel (id, indices |> Array.map (substLoopArraySel loopVarName value), substLoopExpr loopVarName value width idx)
 
         let vbs' =
             match primary' with
-            | IdentifierBit _ -> None
-            | _ -> vbs
+            | VariableBitSelect _ 
+            | VariableArrayBitSel _ -> vbs
+            | _ -> None
 
+        // printf "substituted lhs %A" lhs
         { lhs with PrimaryType = primary'; VariableBitSelect = vbs' }
 
     // TODO: allow loop variable to be initialised inside the loop decl (this is part of system verilog)

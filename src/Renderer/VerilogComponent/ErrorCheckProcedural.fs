@@ -518,8 +518,8 @@ let checkVariablesAlwaysAssigned
                     not (Set.contains varName loopVars))
             let variablesNotAssignedInAllBranches =
                 getVariablesAlwaysAssigned (AlwaysConstruct always)
-            printfn "vars always assigned in all branches: %A in %A" variablesNotAssignedInAllBranches always
-            printfn "all LHS variables: %A" allLHSVariables
+            // printfn "vars always assigned in all branches: %A in %A" variablesNotAssignedInAllBranches always
+            // printfn "all LHS variables: %A" allLHSVariables
             let undefVars =
                 Set.difference allLHSVariables variablesNotAssignedInAllBranches
                 |> Set.map (fun varBit -> (varBit.Split [|'['|])[0])
@@ -567,7 +567,7 @@ let checkExpressions
                     Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
-    printfn "checkExpressions wireSizeMap: %A" wireSizeMap
+    // printfn "checkExpressions wireSizeMap: %A" wireSizeMap
     let expressions = foldAST getAllExpressions' [] (VerilogInput ast)
     let caseItemNums = foldAST getCaseItemNums [] (VerilogInput ast)
 
@@ -963,12 +963,10 @@ let checkVariablesUsed
             let location = ast.Module.EndLocation
             let extraMessages=                    
                 [|
-                    {Text=sprintf "The following arrays have not been read from %A" arraysNotAssigned; Copy=false;Replace=NoReplace};
+                    {Text=sprintf "Arrays cannot be outputs, and so should be read from. \n The following arrays have not been read from %A" arraysNotAssigned; Copy=false;Replace=NoReplace};
                 |]
             let message = sprintf "The following arrays have not been read from %A" arraysNotAssigned
             createErrorMessage linesLocations location message extraMessages "endmodule"
-
-    printfn "e: %A, v: %A, a: %A" errorList varsNotAssignedErrs arraysNotReadErrs
 
     errorList @ varsNotAssignedErrs @ arraysNotReadErrs
 
@@ -1108,12 +1106,12 @@ let checkModuleInstantiations
     (ast:VerilogInput) 
     (linesLocations: int list)
     (portSizeMap: Map<string,int>)
-    (wireSizeMap: Map<string, int>)
+    (paramMap: Map<string, int>)
+    (items: ItemDU list)
     (project: Project) 
     (portMap: Map<string, DeclarationDU>)
     (errorList: ErrorInfo list) =
 
-    let wireAndPortSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
     let moduleInstantiations = 
         foldAST getModuleInstantiationStatements [] (VerilogInput ast)
 
@@ -1124,27 +1122,13 @@ let checkModuleInstantiations
     let loadedComponentNamesSet =
         loadedComponentNames
         |> Set.ofList
-    let moduleTypeErrors = 
-        moduleInstantiations
-        |> List.collect (fun modInst ->
-            match Set.contains modInst.Module.Name loadedComponentNamesSet with
-            | true -> []
-            | false -> 
-                let message = sprintf "Component %s does not exist" modInst.Module.Name
-                let closeVariables = findCloseVariable modInst.Module.Name loadedComponentNames
-                let extraMessages = 
-                    [|
-                        {Text=(sprintf "Component '%s' does not exist - there is no custom component or Verilog component with this name" modInst.Module.Name);Copy=false;Replace=NoReplace}
-                        
-                    |]
-                let replaceMsg =
-                    match List.isEmpty closeVariables with
-                    | false -> 
-                        [|{Text=(sprintf "%s" closeVariables[0]);Copy=true;Replace=Variable modInst.Module.Name}|]
-                    | _ -> [||]
-                
-                createErrorMessage linesLocations modInst.Module.Location message (Array.append extraMessages replaceMsg) modInst.Module.Name
-        )
+        
+    // let paramOverrideMap, paramDeclErrors = getParamMap ast linesLocations items
+    // let wireSizeMap = getWireSizeMap items paramMap
+    // let paramErrors = 
+    //     paramErrors
+    //     |> checkModuleInstantiations ast linesLocations portSizeMap wireSizeMap project portMap
+
 
     let getMissingPortErrors modInst comp =
         let givenPortNames =
@@ -1221,32 +1205,68 @@ let checkModuleInstantiations
         )
         // all inputPorts have to be on lhs
         // all outputport cant be on lhs
-    let portWidthErrors =
+
+    
+    let moduleTypeAndWidthErrors = 
         moduleInstantiations
         |> List.collect (fun modInst ->
-            match  List.filter (fun comp -> comp.Name = modInst.Module.Name)project.LoadedComponents with
-            | [] -> []
-            | [comp] ->
-                modInst.Connections
-                |> Array.toList
-                |> List.collect (fun conn ->
-                    match List.tryFind (fun port' -> fst port' = conn.PortId.Name.ToUpper()) (comp.InputLabels@comp.OutputLabels) with
-                    | Some port -> 
-                        let w = getPrimaryWidth wireAndPortSizeMap conn.Primary
-                        if (snd port) <> w then
-                            let extraMessages=                    
-                                [|
-                                    {Text=sprintf "Wrong port width for port %A in module %A: %A bits wide but expected %A bits" conn.PortId.Name modInst.Module.Name w (snd port); Copy=false;Replace=NoReplace};
-                                |]
-                            let message = sprintf "Wrong port width"
-                            createErrorMessage linesLocations (getPrimaryLocation conn.Primary) message extraMessages (getPrimaryName conn.Primary)
-                        else []
-                    | _ ->
-                        []
-                    )
-                |> List.append (getMissingPortErrors modInst comp)
-                |> List.append (getInputOutputPortErrors modInst comp)
-            | _ -> failwithf "There are multiple custom components with this name!"
+            let paramOverrideMap =
+                match modInst.Parameters with
+                | Some p -> 
+                    p 
+                    |> Array.fold (fun acc overridenParam ->
+                        Map.add overridenParam.Identifier.Name (evalExpr overridenParam.Value) acc
+                    ) Map.empty
+                | None -> paramMap
+                
+            let wireSizeMap = getWireSizeMap items paramOverrideMap
+            let wireAndPortSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
+
+            let moduleTypeErrors = 
+                match Set.contains modInst.Module.Name loadedComponentNamesSet with
+                | true -> []
+                | false -> 
+                    let message = sprintf "Component %s does not exist" modInst.Module.Name
+                    let closeVariables = findCloseVariable modInst.Module.Name loadedComponentNames
+                    let extraMessages = 
+                        [|
+                            {Text=(sprintf "Component '%s' does not exist - there is no custom component or Verilog component with this name" modInst.Module.Name);Copy=false;Replace=NoReplace}
+                            
+                        |]
+                    let replaceMsg =
+                        match List.isEmpty closeVariables with
+                        | false -> 
+                            [|{Text=(sprintf "%s" closeVariables[0]);Copy=true;Replace=Variable modInst.Module.Name}|]
+                        | _ -> [||]
+                    
+                    createErrorMessage linesLocations modInst.Module.Location message (Array.append extraMessages replaceMsg) modInst.Module.Name
+
+            let portWidthErrors = 
+                match  List.filter (fun comp -> comp.Name = modInst.Module.Name)project.LoadedComponents with
+                | [] -> []
+                | [comp] ->
+                    modInst.Connections
+                    |> Array.toList
+                    |> List.collect (fun conn ->
+                        match List.tryFind (fun port' -> fst port' = conn.PortId.Name.ToUpper()) (comp.InputLabels@comp.OutputLabels) with
+                        | Some port -> 
+                            let w = getPrimaryWidth wireAndPortSizeMap conn.Primary
+                            if (snd port) <> w then
+                                let extraMessages=                    
+                                    [|
+                                        {Text=sprintf "Wrong port width for port %A in module %A: %A bits wide but expected %A bits" conn.PortId.Name modInst.Module.Name w (snd port); Copy=false;Replace=NoReplace};
+                                    |]
+                                let message = sprintf "Wrong port width"
+                                createErrorMessage linesLocations (getPrimaryLocation conn.Primary) message extraMessages (getPrimaryName conn.Primary)
+                            else []
+                        | _ ->
+                            []
+                        )
+                    |> List.append (getMissingPortErrors modInst comp)
+                    |> List.append (getInputOutputPortErrors modInst comp)
+                | _ -> failwithf "There are multiple custom components with this name!"
+            
+            moduleTypeErrors @ portWidthErrors
         )
 
     let duplicatePortErrors =
@@ -1268,7 +1288,7 @@ let checkModuleInstantiations
             |> fst
         )
     
-    errorList @ moduleTypeErrors @ portWidthErrors @ duplicatePortErrors
+    errorList @ moduleTypeAndWidthErrors @ duplicatePortErrors
 
 
 // let getParamOverrides (ast: VerilogInput) : Map<string, int> =

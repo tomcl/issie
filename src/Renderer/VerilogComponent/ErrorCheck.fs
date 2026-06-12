@@ -292,7 +292,7 @@ let checkParamsUsed
                 let message = sprintf "Parameter '%s' is defined but is not used" paramName
                 let extraMessages =
                     [|
-                        {Text=sprintf "Parameter '%s' is defined but is not used \n Please delete it if it is not needed" paramName;Copy=false;Replace=NoReplace}
+                        {Text=sprintf "Parameter '%s' is defined but is not used. \n Please delete it if it is not needed" paramName;Copy=false;Replace=NoReplace}
                     |]
                 createErrorMessage linesLocations paramLoc message extraMessages paramName
             | true -> []
@@ -321,7 +321,7 @@ let checkParamsUsed
         |> List.map (fun p -> p.Identifier.Name)
         |> Set.ofList
     
-    printfn "decls %A, params: %A" decls paramSet
+    // printfn "decls %A, params: %A" decls paramSet
 
     let varOverlapErrors =
         decls
@@ -463,6 +463,7 @@ let checkForLoopVar
     let checkForStatement (forStmt, location) =
         let loopVarName = getPrimaryName forStmt.Initialisation.LHS.PrimaryType
         let assignments = foldAST getAssignments' [] (Statement forStmt.Statement)
+        // printfn "loop assignments %A" assignments
         let loopVarAssignments = 
             assignments
             |> List.filter (fun assign -> 
@@ -503,9 +504,9 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
                 tryEval step, []
             | _ -> 
                 let extraMessages = [| {Text="For loop step must be an addition or subtraction.";Copy=false;Replace=NoReplace} |]
-                Error "Invalid step", createErrorMessage linesLocations f.Location "For loop step must be an addition or subtraction." extraMessages (getPrimaryName f.Initialisation.LHS.PrimaryType)
+                Error "Invalid for loop step", createErrorMessage linesLocations f.Location "For loop step must be an addition or subtraction." extraMessages (getPrimaryName f.Initialisation.LHS.PrimaryType)
         let condRes =
-            printfn "Condition: %A" f.Condition
+            // printfn "Condition: %A" f.Condition
             match f.Condition with
             | Comparison (op, _, rhs) -> Ok (op, rhs)
             | _ -> Error "For loop condition must be a comparison."
@@ -636,7 +637,7 @@ let checkForLoopUnrollCost (ast: VerilogInput) (linesLocations: int list) (error
         if totalCost > maxUnrollCost then
             let name = ast.Module.ModuleName.Name
             let loc = ast.Module.ModuleName.Location
-            let detail = sprintf "Estimated unrolled program cost (%d) exceeds the limit (%d). Consider reducing for loop size if possible." totalCost maxUnrollCost
+            let detail = sprintf "Estimated number of components to be synthesised exceeds the memory limit."
             mkError loc name "Program too large" detail
         else []
     List.append errorList (loopErrors @ totalError)
@@ -1228,33 +1229,6 @@ let getArraySizeMap (items: ItemDU list) paramMap : Map<string, int * int array>
     |> Map.ofList
 
 
-/// Returns the names of the declared WIRES
-let getWireSizeMap (items: ItemDU list) paramMap = 
-    items 
-    |> List.collect (fun x -> 
-        match x with
-        | ItemDU.ContStatement cont -> 
-            match cont.StatementType with
-            | Wire -> 
-                let lhs = cont.Assignment.LHS 
-                match lhs.PrimaryType with
-                | Identifier id -> [id.Name,1]
-                | IdentifierBit (id, _) -> [id.Name,1]
-                | VariableBitSelect (id, idx) -> 
-                    let size = evalExprWithParams idx paramMap
-                    [id.Name,size]
-                | IdentifierBits (id, bStart, bEnd) -> 
-                    // let bStart = evalExpr bitsstart
-                    // let bEnd = evalExpr bitsend
-                    let size = bStart - bEnd + 1
-                    [id.Name,size]
-                | IdentifierBitsSelect (id, bitsstart, width, select) -> 
-                    [id.Name,width]
-                | IdentifierArray _ -> []
-            | _ -> []
-        | _ -> [])
-    |> Map.ofList
-
 
 let getWireNames (items: ItemDU list) =
     items 
@@ -1350,7 +1324,7 @@ let getSemanticErrorsNoParamOverride (ast: VerilogTypes.VerilogInput) linesLocat
         loopErr
     else
         let declarations = foldAST getDeclarations [] (VerilogInput(ast))
-        printfn "Declarations: %A" declarations
+        // printfn "Declarations: %A" declarations
         let wireSizeMap =
             (wireSizeMap, declarations)
             ||> List.fold (fun map decl ->
@@ -1363,7 +1337,7 @@ let getSemanticErrorsNoParamOverride (ast: VerilogTypes.VerilogInput) linesLocat
                         Map.add variable.Name (bStart - bEnd + 1) map'
                 )
             )
-        printfn "Wire Size Map: %A" wireSizeMap
+        // printfn "Wire Size Map: %A" wireSizeMap
         let wireNameList = getWireNames items
         let wireLocationMap = getWireLocationMap items //need to add declarations
         let wireLocationMap = 
@@ -1380,7 +1354,7 @@ let getSemanticErrorsNoParamOverride (ast: VerilogTypes.VerilogInput) linesLocat
             |> checkAllOutputsAssigned ast portMap portSizeMap paramMap linesLocations //checks whether all output ports have been assined a value
             |> checkUnsupportedKeywords ast linesLocations
             |> checkProceduralAssignments ast linesLocations
-            // |> checkForLoopVar ast linesLocations
+            |> checkForLoopVar ast linesLocations
             |> checkVariablesDrivenSimultaneously ast linesLocations arraySizeMap
             |> checkVariablesAlwaysAssigned ast linesLocations portSizeMap wireSizeMap arraySizeMap paramMap
             |> checkArrayStatements ast linesLocations arraySizeMap
@@ -1392,7 +1366,7 @@ let getSemanticErrorsNoParamOverride (ast: VerilogTypes.VerilogInput) linesLocat
             |> checkVariablesUsed ast linesLocations portSizeMap wireSizeMap paramMap arraySizeMap
             |> checkAlwaysCombRHS ast linesLocations portSizeMap wireSizeMap
             |> checkAssignmentWidths ast linesLocations portSizeMap wireSizeMap arraySizeMap paramMap
-            |> checkModuleInstantiations ast linesLocations portSizeMap wireSizeMap project portMap
+            |> checkModuleInstantiations ast linesLocations portSizeMap paramMap items project portMap
             |> checkInputsAssigned ast linesLocations portMap
             |> List.distinct // filter out possible double Errors
         errors
@@ -1466,7 +1440,8 @@ let getExtraParamErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:
             let overrideParamErrorList = getSemanticErrorsNoParamOverride parsedAST linesLocations overrideMap origin project
 
             extraParamErrors @ overrideParamErrorList
-        | _ -> failwithf "TODO ADD MORE THAN JUST VERILOG"
+        // | _ -> failwithf "TODO ADD MORE THAN JUST VERILOG"
+        | _ -> []
     | None -> [] // no parameter overrides, so no extra errors
 
 
@@ -1506,7 +1481,7 @@ let getSemanticErrors (ast: VerilogTypes.VerilogInput) linesLocations (origin:Co
                             [|
                                 {Text=sprintf "The overriden parameters instantiated with component %A are not compatible. Please see errors below and fix accordingly." modInst.Module.Name; Copy=false;Replace=NoReplace};
                             |]
-                        let message = sprintf "Parameter override error for component"
+                        let message = sprintf "Parameter override value cannot be used for this module"
                         createErrorMessage linesLocations modInst.Identifier.Location message extraMessages modInst.Module.Name
                         @ extraParamErrors
                     | true -> []

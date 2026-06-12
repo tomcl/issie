@@ -1,0 +1,21 @@
+{
+    "Inputs": [
+        {
+            "Label": "addr",
+            "Width": 1,
+            "Values": [0,0,1,1,0,1]
+        }
+    ],
+    "Outputs": [
+        {
+        "Label": "output1",
+        "Width": 3
+        },
+        {
+        "Label": "output2",
+        "Width": 3
+        }
+    ],
+    "IsClocked": false,
+    "ModuleName": "array_test"
+}

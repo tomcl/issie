@@ -1,6 +1,6 @@
 module parameter_check2 #(
   WIDTH = 5,
-  CONST = 5 + WIDTH
+  CONST = 5 + WIDTH,
   d_out = 10
 )(
   output bit [WIDTH-1:0] d_out

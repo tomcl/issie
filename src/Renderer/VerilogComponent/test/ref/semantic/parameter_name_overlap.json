@@ -1,0 +1,1 @@
+[{"Line":6,"Col":26,"Length":5,"Message":"Conflicting declaration 'd_out'","ExtraErrors":[{"Text":"Identifier 'd_out' is declared both as a parameter and as a variable/port\n Please change one.","Copy":false,"Replace":"NoReplace"}]}]

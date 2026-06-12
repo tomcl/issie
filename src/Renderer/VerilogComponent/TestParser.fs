@@ -31,6 +31,10 @@ open NearleyBindings
 open FSharp.Core
 open TimeHelpers
 open GraphMerger
+open ElectronAPI
+open JSHelpers
+
+
 
 importGrammar
 importParser
@@ -85,7 +89,7 @@ open Fable.SimpleJson
 
 
 let parseFile src dst =
-    // printfn $"[TEST] Parsing file {baseNameWithoutExtension src}"
+    printfn $"[TEST] Parsing file {baseNameWithoutExtension src}"
     let input = tryReadFileSync src
     let parse, linesIndex = 
         match input with
@@ -128,6 +132,7 @@ let errorCheck ast linesIndex src dst =
             Json.parseAs<ErrorInfoJson list> msg
             //|> Json.parseAs<VerilogInput>
         | Error msg -> 
+            // printfn "ref output %A" refOutput
             printfn $"[TEST] Failed reading in reference output file {refFile} {msg}"
             []
         //|> Set.ofList
@@ -607,6 +612,7 @@ let runCompilerTests _ =
     let destinations = List.map (fun file -> FilesIO.pathJoin [|"./src/Renderer/VerilogComponent/test/output/valid"; (baseNameWithoutExtension file)+".json"|]) filenames
     List.zip filenames destinations 
     |> List.map (fun (src,dst) -> 
+        // printfn "testing %A" src
         parseFile src dst)
     |> ignore
     
@@ -633,6 +639,15 @@ let standardDev (list: float list) =
     let standardDeviation = sqrt meanOfSquaredDifferences
     standardDeviation
 
+
+let unzip6 xs =
+    xs
+    |> List.fold (fun (a,b,c,d,e,f) (x1,x2,x3,x4,x5,x6) ->
+        (x1::a, x2::b, x3::c, x4::d, x5::e, x6::f))
+        ([],[],[],[],[],[])
+    |> fun (a,b,c,d,e,f) ->
+        (List.rev a, List.rev b, List.rev c, List.rev d, List.rev e, List.rev f)
+
 let runPerformanceTests () =
     let srcDir = "./src/Renderer/VerilogComponent/test/input/codegen/single"
     let files = 
@@ -640,13 +655,16 @@ let runPerformanceTests () =
         |> List.filter (hasExtn ".sv")
     let model = Unchecked.defaultof<ModelType.Model>
     let dispatch = ignore
+    
     files
     |> List.map (fun file ->
         let filePath = pathJoin [|srcDir; file|]
         let input = 
             match (tryReadFileSync filePath) with | Ok msg -> msg | _ -> failwithf "Couldn't read file"
+        printfn "file: %A" file
         [1..100] 
         |>  List.map (fun _ ->
+            // globalGC ()
             // start measuring
             let parseStart = getTimeMs()
             let parse, linesIndex = 
@@ -661,17 +679,17 @@ let runPerformanceTests () =
             // semantic error check done
             // start synthesis
             let errorCheckEnd = getTimeMs()
-            createSheet ast dummyProject model dispatch |> ignore
+            let components, connections = createSheet ast dummyProject model dispatch
             // synthesis end
             // stop measuring
             let synthesisEnd = getTimeMs ()
             
-            (linesIndex.Length, parseEnd-parseStart, errorCheckEnd-parseEnd, synthesisEnd-errorCheckEnd, synthesisEnd-parseStart)
+            (linesIndex.Length, components.Length, parseEnd-parseStart, errorCheckEnd-parseEnd, synthesisEnd-errorCheckEnd, synthesisEnd-parseStart)
         )
-        |> unzip5
-        |> (fun (lineNums, parse,error,synth,total) ->
-            let a,b,c,d,e = lineNums[0], List.average parse, List.average error, List.average synth, List.average total 
-            $"{a}, {b}, {c}, {d}, {e}\n"
+        |> unzip6
+        |> (fun (lineNums, compNo, parse,error,synth,total) ->
+            let a,b,c,d,e, f = lineNums[0], compNo[0], List.average parse, List.average error, List.average synth, List.average total 
+            $"{a}, {b}, {c}, {d}, {e}, {f}\n"
         )
     )
     |> String.concat ""
@@ -704,3 +722,231 @@ let runPerformanceTests () =
     |> printfn "%A"
     
     //ErrorCheck.getSemanticErrors  ast lineslocation NewVerilogFile dummyProject
+
+let usedHeapSize = () |> usedHeap |> float |> (fun v -> v / 1000000.)
+let heapLimitSize = () |> heapLimit |> float |> (fun v -> v / 1000000.)
+let heapUsage = usedHeapSize / heapLimitSize * 100.
+
+// let runMemoryTests () =
+//     let srcDir = "./src/Renderer/VerilogComponent/test/input/codegen/single"
+//     let files = 
+//         readFilesFromDirectory srcDir
+//         |> List.filter (hasExtn ".sv")
+
+//     let model = Unchecked.defaultof<ModelType.Model>
+//     // let dispatch = ignore
+
+    
+//     let usedHeapSize = () |> usedHeap |> float |> (fun v -> v / 1000000.)
+//     let heapLimitSize = () |> heapLimit |> float |> (fun v -> v / 1000000.)
+//     let heapUsage = usedHeapSize / heapLimitSize * 100.
+
+//     files
+//     |> List.map (fun file ->
+//         let filePath = pathJoin [|srcDir; file|]
+//         let input = 
+//             match (tryReadFileSync filePath) with | Ok msg -> msg | _ -> failwithf "Couldn't read file"
+//         [1..100] 
+//         |>  List.map (fun _ ->
+//             // start measuring
+
+//             let mutable peak = usedHeapSize
+//             let updatePeak() =
+//                 peak <- max peak (usedHeapSize)
+            
+//             let initialMem = usedHeapSize
+//             printfn ("Used heap: %A") usedHeapSize
+//             printfn ("heap limit: %A") heapLimitSize
+//             printfn ("initialMem: %A") initialMem
+
+//             let parse, linesIndex = 
+//                 let parseRes = (parseFromFile input) |> Json.parseAs<ParserOutput>
+//                 Option.get parseRes.Result, Option.get parseRes.NewLinesIndex |> Array.toList
+//             let fixedAST = fix parse
+//             let ast = Json.parseAs<VerilogInput> fixedAST
+
+//             // parsing done
+
+//             let afterParseMem = usedHeapSize
+
+//             // semantic error check starts
+//             ErrorCheck.getSemanticErrors ast linesIndex NewVerilogFile dummyProject |> ignore
+//             // semantic error check done
+//             let afterErrorCheckMem = usedHeapSize
+
+//             // start synthesis
+
+//             let cs = createSheet ast dummyProject model dispatch
+//             let components = fst cs
+//             let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {
+//                                 Form = Some (Verilog "name");
+//                                 Description=None;
+//                                 ParameterDefinitions = None})
+//             // synthesis end
+//             // stop measuring
+//             let afterSynthMem = usedHeapSize
+            
+//             (linesIndex.Length, components.Length, initialMem, afterParseMem,  afterErrorCheckMem, afterSynthMem)
+//         )
+//         |> unzip6
+//         |> (fun (lineNums, compNo, parse,error,synth,total) ->
+//             let a,b,c,d,e, f = lineNums[0], compNo[0], List.average parse, List.average error, List.average synth, List.average total 
+//             $"{a}, {b}, {c}, {d}, {e}, {f}\n"
+//         )
+//     )
+//     |> String.concat ""
+//     |> writeFile "./verilogMemory.txt" |> ignore 
+    
+    
+//     files
+//     |> List.map (fun file ->
+//         let filePath = pathJoin [|srcDir; file|]
+//         let input = 
+//             match (tryReadFileSync filePath) with | Ok msg -> msg | _ -> failwithf "Couldn't read file"
+//         [1..100] 
+//         |>  List.map (fun _ ->
+//             let parse, linesIndex = 
+//                 let parseRes = (parseFromFile input) |> Json.parseAs<ParserOutput>
+//                 Option.get parseRes.Result, Option.get parseRes.NewLinesIndex |> Array.toList
+//             let fixedAST = fix parse
+//             let ast = Json.parseAs<VerilogInput> fixedAST
+//             let errorCheckEnd = getTimeMs()
+//             let cs = createSheet ast dummyProject model dispatch
+//             let synthesisEnd = getTimeMs ()
+//             (List.length (fst cs), synthesisEnd-errorCheckEnd)
+//         )
+//         |> List.unzip
+//         |> (fun (compNum, synth) ->
+//             let a,b = compNum[0], List.average synth
+//             $"{a}, {b}\n"
+//         )
+//     )
+//     |> String.concat ""
+//     |> printfn "%A"
+
+
+// Run node with --expose-gc for forceGC to work:
+// "testmemory": "cd src/Renderer/VerilogComponent/test && dotnet fable --noCache && node --expose-gc testParser.fs.js"
+
+let mbHeap () = usedHeap () |> float |> fun v -> v / 1_000_000.
+
+/// Returns (before, after) heap in MB, with a forced GC before each snapshot
+let measureMem (action: unit -> unit) : float * float =
+    // globalGC ()
+    let before = mbHeap ()
+    action ()
+    // globalGC ()
+    let after = mbHeap ()
+    before, after
+
+let unzip4 xs =
+    xs
+    |> List.fold (fun (a,b,c,d) (x1,x2,x3,x4) ->
+        (x1::a, x2::b, x3::c, x4::d))
+        ([],[],[],[])
+    |> fun (a,b,c,d) ->
+        (List.rev a, List.rev b, List.rev c, List.rev d)
+
+let runMemoryTests () =
+    let srcDir = "./src/Renderer/VerilogComponent/test/input/codegen/single"
+    let files = 
+        readFilesFromDirectory srcDir
+        |> List.filter (hasExtn ".sv")
+
+    let model = Unchecked.defaultof<ModelType.Model>
+    let dispatch = ignore
+
+    let results =
+        files
+        |> List.map (fun file ->
+            let filePath = pathJoin [|srcDir; file|]
+            let input = 
+                match tryReadFileSync filePath with
+                | Ok msg -> msg
+                | _ -> failwithf "Couldn't read file"
+
+            printfn "[TEST] Measuring memory for %s" (baseNameWithoutExtension file)
+
+            // Run 10 iterations and average 
+            // (accumulated heap pressure corrupts later readings)
+            let iterations = 10
+            let measurements =
+                [1..iterations]
+                |> List.map (fun i ->
+                    globalGC ()
+                    // --- Parse phase ---
+                    let parseBefore, parseAfter =
+                        measureMem (fun () ->
+                            let parseRes = parseFromFile input |> Json.parseAs<ParserOutput>
+                            let parse = Option.get parseRes.Result
+                            let linesIndex = Option.get parseRes.NewLinesIndex |> Array.toList
+                            let fixedAST = fix parse
+                            let _ast = Json.parseAs<VerilogInput> fixedAST
+                            ()
+                        )
+
+                    // Re-parse cleanly for subsequent phases so each phase
+                    // is measured on a consistent AST (not one mixed in with parse allocs)
+                    let parseRes = parseFromFile input |> Json.parseAs<ParserOutput>
+                    let parse = Option.get parseRes.Result
+                    let linesIndex = Option.get parseRes.NewLinesIndex |> Array.toList
+                    let fixedAST = fix parse
+                    let ast = Json.parseAs<VerilogInput> fixedAST
+
+                    // --- Error check phase ---
+                    let errorBefore, errorAfter =
+                        measureMem (fun () ->
+                            ErrorCheck.getSemanticErrors ast linesIndex NewVerilogFile dummyProject |> ignore
+                        )
+
+                    // --- Synthesis phase ---
+                    let synthBefore, synthAfter =
+                        measureMem (fun () ->
+                            let cs = createSheet ast dummyProject model dispatch
+                            // Include serialisation as that's part of real usage
+                            Helpers.JsonHelpers.stateToJsonString (cs, None, Some {
+                                Form = Some (Verilog "name")
+                                Description = None
+                                ParameterDefinitions = None}) |> ignore
+                        )
+
+                    let parseNet  = parseAfter  - parseBefore
+                    let errorNet  = errorAfter  - errorBefore
+                    let synthNet  = synthAfter  - synthBefore
+                    let total = synthAfter - parseBefore
+                    parseNet, errorNet, synthNet, total
+                )
+
+            let parseNets, errorNets, synthNets, total = unzip4 measurements
+            let avg = List.average
+
+            // Re-parse once more to get line/component counts
+            let parseRes = parseFromFile input |> Json.parseAs<ParserOutput>
+            let parse = Option.get parseRes.Result
+            let linesIndex = Option.get parseRes.NewLinesIndex |> Array.toList
+            let fixedAST = fix parse
+            let ast = Json.parseAs<VerilogInput> fixedAST
+            let cs = createSheet ast dummyProject model dispatch
+            let lineCount = List.length linesIndex
+            let compCount = List.length (fst cs)
+
+            printfn "[TEST] %s: %d lines, %d components" (baseNameWithoutExtension file) lineCount compCount
+            printfn "  parse net:      avg=%.3f MB  stddev=%.3f" (avg parseNets) (standardDev parseNets)
+            printfn "  error check net: avg=%.3f MB  stddev=%.3f" (avg errorNets) (standardDev errorNets)
+            printfn "  synthesis net:   avg=%.3f MB  stddev=%.3f" (avg synthNets) (standardDev synthNets)
+            printfn ("mbHeap heap: %A") usedHeapSize
+            printfn ("heap limit: %A") heapLimitSize
+
+
+            // CSV: filename, lines, components, parseNet, errorNet, synthNet
+            sprintf "%s, %d, %d, %.6f, %.6f, %.6f, %.6f\n"
+                (baseNameWithoutExtension file) lineCount compCount
+                (avg parseNets) (avg errorNets) (avg synthNets) (avg total)
+        )
+
+    let csv =
+        "file, lines, components, parseNetMB, errorCheckNetMB, synthesisNetMB, totalMB\n"
+        + String.concat "" results
+
+    csv |> writeFile "./verilogMemory.csv" |> ignore
+    printfn "Memory tests done"

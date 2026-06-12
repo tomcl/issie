@@ -3,7 +3,7 @@
         "Line": 10,
         "Col": 11,
         "Length": 1,
-        "Message": "Loop variable 'i' is assigned to inside the loop",
+        "Message": "Loop variable should not be assigned to inside the loop",
         "ExtraErrors": [
             {
                 "Text": "The loop variable 'i' is assigned to inside the loop. The loop variable should not be assigned to inside the loop body.",

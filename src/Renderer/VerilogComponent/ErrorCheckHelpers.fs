@@ -57,6 +57,36 @@ let createErrorMessage
     
     [{Line = line; Col=currLocation-prevLineLocation+1;Length=length;Message = message;ExtraErrors=Some extraMessages}]
 
+
+/// Returns the names of the declared WIRES
+let getWireSizeMap (items: ItemDU list) paramMap = 
+    items 
+    |> List.collect (fun x -> 
+        match x with
+        | ItemDU.ContStatement cont -> 
+            match cont.StatementType with
+            | Wire -> 
+                let lhs = cont.Assignment.LHS 
+                match lhs.PrimaryType with
+                | Identifier id -> [id.Name,1]
+                | IdentifierBit (id, _) -> [id.Name,1]
+                | VariableBitSelect (id, idx) -> 
+                    let size = evalExprWithParams idx paramMap
+                    [id.Name,size]
+                | IdentifierBits (id, bStart, bEnd) -> 
+                    // let bStart = evalExpr bitsstart
+                    // let bEnd = evalExpr bitsend
+                    let size = bStart - bEnd + 1
+                    [id.Name,size]
+                | IdentifierBitsSelect (id, bitsstart, width, select) -> 
+                    [id.Name,width]
+                | IdentifierArray _ -> []
+                | VariableArrayBitSel _ -> []
+            | _ -> []
+        | _ -> [])
+    |> Map.ofList
+
+
 /// return line number based on location
 let getLineNumber
     (linesLocations: int list)
@@ -481,7 +511,7 @@ let getWidthOfExpr
             | VariableArrayBitSel _
             | VariableBitSelect _ -> 1
             | IdentifierBit (id, idx) -> 
-                printf "checking primary width for %s with map: %A" id.Name arraySizeMap
+                // printf "checking primary width for %s with map: %A" id.Name arraySizeMap
                 match Map.tryFind id.Name arraySizeMap with
                 | Some (arrayWidth, arrayDims) -> arrayWidth
                 | None -> 1
@@ -578,7 +608,7 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap (arraySizeMap: M
                         else
                             let definition = sprintf " %s[%i:0][%i:0] " id.Name (arrayDims[0] - 1) (arrayWidth - 1)
                             let usedWidth = sprintf " %s[%i] " id.Name idxInt
-                            let message = sprintf "Wrong width of array: '%s'" id.Name
+                            let message = sprintf "Wrong width of array"
                             let extraMessages =
                                 [|
                                     {Text=(sprintf "Array: '%s' is defined as" id.Name)+definition+"\nTherefore,"+usedWidth+"is invalid"; Copy=false; Replace=NoReplace}

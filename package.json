@@ -89,7 +89,7 @@
     "react-tooltip": "^5",
     "source-map-support": "^0.5",
     "usb": "^2.15",
-    "uuid": "14"
+    "uuid": "11"
   },
   "devDependencies": {
     "@electron/remote": "^2",

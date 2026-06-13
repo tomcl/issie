@@ -2,21 +2,21 @@ version: 2
 
 updates:
   - package-ecosystem: "npm"
-    target-branch: "dependabot"
+    target-branch: "dependabot-integration"
     directory: "/"
     schedule:
       interval: "daily"
     assignees:
       - "samuelpswang"
   - package-ecosystem: "dotnet-sdk"
-    target-branch: "dependabot"
+    target-branch: "dependabot-integration"
     directory: "/"
     schedule:
       interval: "daily"
     assignees:
       - "samuelpswang"
   - package-ecosystem: "nuget"
-    target-branch: "dependabot"
+    target-branch: "dependabot-integration"
     directory: "/"
     schedule:
       interval: "daily"

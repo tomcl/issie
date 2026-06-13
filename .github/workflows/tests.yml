@@ -11,7 +11,7 @@ jobs:
       run: |
         printf "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" > report.xml
     - name: Upload report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: report
         path: report.xml
@@ -22,13 +22,13 @@ jobs:
     needs: report-prep
     steps:
     - name: Set up .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: '8.0.x'
     - name: Checkout the repo
       uses: actions/checkout@v5
     - name: Download report
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: report
     - name: Restore .NET tools and node packages, attempt build, and report
@@ -50,7 +50,7 @@ jobs:
           Write-Output "</testsuites>" >> report.xml
       continue-on-error: true
     - name: Upload report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: report
         path: report.xml
@@ -63,11 +63,11 @@ jobs:
     - name: Checkout the repo
       uses: actions/checkout@v5
     - name: Download report
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: report
     - name: Upload test results
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v3
       with:
         name: Results (${{ github.sha }})
         path: report.xml

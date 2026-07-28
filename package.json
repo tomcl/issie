@@ -120,5 +120,8 @@
     "webpack-cli": "^5",
     "webpack-dev-server": "^5.2.6"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@babel/core": "^8.0.1"
+  }
 }

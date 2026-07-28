@@ -856,7 +856,6 @@ let getExprWidths (varSizeMap: Map<string, int>)(paramMap: Map<string, int>)(exp
                 let value = string (Map.find name paramMap)
                 let number = All ((int bits), Decimal, value, getPrimaryLocation paramName)
                 {Type=UNumber; Primary=None; Number=Some number; Expression=None; Width=(int bits)}
-            |_ -> failwithf "Can't happen"
     and getWidthsUnaryList (lst: ExpressionDU array) : (ExpressionCompilable) =
         match lst with
         | [||] ->
@@ -1091,8 +1090,7 @@ let mainExpressionCircuitBuilder (expr:ExpressionDU) ioAndWireToCompMap varSizeM
         // | ParamNumber (paramName, bits) ->
         //     let paramval = Map.find (getPrimaryName paramName) paramMap
         //     createNumberCircuit paramval
-        |_ -> failwithf "Can't happen"
-
+     
     /// creates a list of unaries and merges them together using MergeWires
     /// used for concatenations
     and buildUnaryListCircuit (unaryList:ExpressionCompilable) = 

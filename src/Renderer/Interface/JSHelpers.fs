@@ -28,6 +28,11 @@ let usedHeap() : int = jsNative
 [<Emit("performance.memory.totalJSHeapSize")>]
 let maxHeap() : int = jsNative
 
+/// V8 heap size limit in bytes (set by --max-old-space-size in Main.fs).
+/// NB totalJSHeapSize (maxHeap) is the currently *allocated* heap, not the limit.
+[<Emit("performance.memory.jsHeapSizeLimit")>]
+let heapLimit() : int = jsNative
+
 let mutable memSize = 0
 
 let getProcessPrivateMemory() : int =

@@ -574,12 +574,12 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     | NbitsAdderNoCout numberOfBits ->
         //let cin, A, B = ins 0, ins 1, ins 2
         match ins 0, ins 1, ins 2 with
-        | Data cin, Data A, Data B ->
+        | Data cin, Data aIn, Data bIn ->
             let sum, cout =
                 let cin = convertFastDataToInt cin
-                let w = A.Width
+                let w = aIn.Width
 
-                match A.Dat, B.Dat with
+                match aIn.Dat, bIn.Dat with
                 | BigWord a, BigWord b ->
                     let mask = bigIntMask w
                     let a = a &&& mask
@@ -612,15 +612,15 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                         let cout = (sumInt >>> w) &&& 1u
                         let sum = convertIntToFastData w (sumInt &&& mask)
                         sum, packBitFData cout
-                | a, b -> failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
+                | a, b -> failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 
             match componentType with
             | NbitsAdder _ ->
                 put 0 <| Data sum
                 put 1 cout
             | _ -> put 0 <| Data sum
-        | cin, A, B ->
-            let cinExp, aExp, bExp = cin.toExp, A.toExp, B.toExp
+        | cin, aIn, bIn ->
+            let cinExp, aExp, bExp = cin.toExp, aIn.toExp, bIn.toExp
             let newExp = BinaryExp(BinaryExp(aExp, AddOp, bExp), AddOp, cinExp)
             let out0 = newExp
             let out1 = UnaryExp(CarryOfOp, newExp)
@@ -634,12 +634,12 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     | NbitsAdderNoCinCout numberOfBits ->
         //let cin, A, B = ins 0, ins 1, ins 2
         match ins 0, ins 1 with
-        | Data A, Data B ->
+        | Data aIn, Data bIn ->
             let sum, cout =
                 let cin = 0u
-                let w = A.Width
+                let w = aIn.Width
 
-                match A.Dat, B.Dat with
+                match aIn.Dat, bIn.Dat with
                 | BigWord a, BigWord b ->
                     let mask = bigIntMask w
                     let a = a &&& mask
@@ -672,15 +672,15 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                         let cout = (sumInt >>> w) &&& 1u
                         let sum = convertIntToFastData w (sumInt &&& mask)
                         sum, packBitFData cout
-                | a, b -> failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{A}; B={b},{B}"
+                | a, b -> failwithf $"Inconsistent inputs to NBitsAdder {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 
             match componentType with
             | NbitsAdderNoCin _ ->
                 put 0 <| Data sum
                 put 1 cout
             | _ -> put 0 <| Data sum
-        | A, B ->
-            let aExp, bExp = A.toExp, B.toExp
+        | aIn, bIn ->
+            let aExp, bExp = aIn.toExp, bIn.toExp
             let newExp = BinaryExp(aExp, AddOp, bExp)
             let out0 = newExp
             let out1 = UnaryExp(CarryOfOp, newExp)
@@ -693,24 +693,24 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     | NbitsXor(numberOfBits, op) ->
         //let A, B = ins 0, ins 1
         match ins 0, ins 1 with
-        | Data A, Data B ->
+        | Data aIn, Data bIn ->
             let outDat =
-                match A.Dat, B.Dat with
+                match aIn.Dat, bIn.Dat with
                 | BigWord a, BigWord b ->
                     BigWord(
                         match op with
                         | None -> a ^^^ b
-                        | Some Multiply -> (a * b) &&& ((1I <<< A.Width) - 1I)
+                        | Some Multiply -> (a * b) &&& ((1I <<< aIn.Width) - 1I)
                     )
                 | Word a, Word b ->
                     Word(
                         match op with
                         | None -> a ^^^ b
-                        | Some Multiply -> (a * b) &&& ((1u <<< A.Width) - 1u)
+                        | Some Multiply -> (a * b) &&& ((1u <<< aIn.Width) - 1u)
                     )
-                | a, b -> failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
+                | a, b -> failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 
-            put 0 <| Data { A with Dat = outDat }
+            put 0 <| Data { aIn with Dat = outDat }
         | Alg exp, Data { Dat = (Word num); Width = w }
         | Data { Dat = (Word num); Width = w }, Alg exp ->
             let minusOne = (2.0 ** w) - 1.0 |> uint32
@@ -721,20 +721,20 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             else
                 let numExp = (packBitFData num).toExp
                 put 0 <| Alg(BinaryExp(exp, AddOp, numExp))
-        | A, B ->
-            let aExp, bExp = A.toExp, B.toExp
+        | aIn, bIn ->
+            let aExp, bExp = aIn.toExp, bIn.toExp
             put 0 <| Alg(BinaryExp(aExp, BitXorOp, bExp))
     | NbitsOr numberOfBits ->
         //let A, B = ins 0, ins 1
         match ins 0, ins 1 with
-        | Data A, Data B ->
+        | Data aIn, Data bIn ->
             let outDat =
-                match A.Dat, B.Dat with
+                match aIn.Dat, bIn.Dat with
                 | BigWord a, BigWord b -> BigWord(a ||| b)
                 | Word a, Word b -> Word(a ||| b)
-                | a, b -> failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{A}; B={b},{B}"
+                | a, b -> failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 
-            put 0 <| Data { A with Dat = outDat }
+            put 0 <| Data { aIn with Dat = outDat }
         | Alg exp, Data { Dat = (Word num); Width = w }
         | Data { Dat = (Word num); Width = w }, Alg exp ->
             let minusOne = (2.0 ** w) - 1.0 |> uint32
@@ -746,19 +746,19 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             else
                 let numExp = (Data { Dat = (Word num); Width = w }).toExp
                 put 0 <| Alg(BinaryExp(exp, BitOrOp, numExp))
-        | A, B ->
-            let aExp, bExp = A.toExp, B.toExp
+        | aIn, bIn ->
+            let aExp, bExp = aIn.toExp, bIn.toExp
             put 0 <| Alg(BinaryExp(aExp, BitOrOp, bExp))
     | NbitsAnd numberOfBits ->
         match ins 0, ins 1 with
-        | Data A, Data B ->
+        | Data aIn, Data bIn ->
             let outDat =
-                match A.Dat, B.Dat with
+                match aIn.Dat, bIn.Dat with
                 | BigWord a, BigWord b -> BigWord(a &&& b)
                 | Word a, Word b -> Word(a &&& b)
-                | a, b -> failwithf $"Inconsistent inputs to NBitsAnd {comp.FullName} A={a},{A}; B={b},{B}"
+                | a, b -> failwithf $"Inconsistent inputs to NBitsAnd {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 
-            put 0 <| Data { A with Dat = outDat }
+            put 0 <| Data { aIn with Dat = outDat }
         | Alg exp, Data { Dat = (Word num); Width = w }
         | Data { Dat = (Word num); Width = w }, Alg exp ->
             let minusOne = (2.0 ** w) - 1.0 |> uint32
@@ -768,31 +768,31 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             else
                 let numExp = (Data { Dat = (Word num); Width = w }).toExp
                 put 0 <| Alg(BinaryExp(exp, BitAndOp, numExp))
-        | A, B ->
-            let aExp, bExp = A.toExp, B.toExp
+        | aIn, bIn ->
+            let aExp, bExp = aIn.toExp, bIn.toExp
             put 0 <| Alg(BinaryExp(aExp, BitAndOp, bExp))
     | NbitsNot numberOfBits ->
         match ins 0 with
-        | Data A ->
+        | Data aIn ->
             let outDat =
-                match A.Dat with
+                match aIn.Dat with
                 | BigWord a ->
                     // failwithf $"TODO: fable does not support op_OnesComplement function"
                     // BigWord (System.Numerics.BigInteger.op_OnesComplement a)  FIX: 2^n-1-a
-                    let w = A.Width
+                    let w = aIn.Width
                     // (bigint^w)
                     let (minusOne: bigint) = (1I <<< w) - 1I
                     BigWord(minusOne - a)
                 | Word a -> Word(~~~a)
 
-            put 0 <| Data { A with Dat = outDat }
+            put 0 <| Data { aIn with Dat = outDat }
         | Alg exp -> put 0 <| Alg(algNot exp)
 
     | NbitSpreader numberOfBits ->
         match ins 0 with
-        | Data A ->
+        | Data aIn ->
             let outDat =
-                match (convertFastDataToInt A) with
+                match (convertFastDataToInt aIn) with
                 | 0u -> convertIntToFastData numberOfBits 0u
                 | 1u ->
                     match numberOfBits with

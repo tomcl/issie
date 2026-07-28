@@ -29,6 +29,8 @@
     "build": "cross-env NODE_ENV=production ELECTRON_ENABLE_LOGGING=true node scripts/build.js",
     "build:analyze": "cross-env ANALYZE=true npm run build",
     "pack": "npm run compile:parallel && npm run build && electron-builder --dir",
+    "audit:prod": "npm audit --omit=dev",
+    "predist": "npm run audit:prod",
     "dist": "npm run compile:parallel && npm run build && electron-builder",
     "buildonly": "electron-builder",
     "compile-sass": "cd src/renderer/scss && node-sass main.scss main.css",

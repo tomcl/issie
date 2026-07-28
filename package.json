@@ -102,7 +102,7 @@
     "fs-extra":  "11.3.0",
     "dotenv": "^1",
     "electron": "35.2.0",
-    "electron-builder": "26.0.13",
+    "electron-builder": "26.15.3",
     "electron-builder-notarize": "^1.5",
     "@electron/notarize": "^3",
     "enzyme": "^3",

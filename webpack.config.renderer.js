@@ -2,6 +2,7 @@ const path = require('path');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
+const TerserPlugin = require('terser-webpack-plugin');
 
 const mode = process.env.NODE_ENV || "development";
 const staticPath =
@@ -21,7 +22,22 @@ module.exports = {
     publicPath: ''
   },
   optimization: {
-    minimize: false,
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        // extractComments would emit a separate LICENSE.txt that electron-builder
+        // then packages; keep everything in the one bundle instead.
+        extractComments: false,
+        terserOptions: {
+          // Property names are deliberately NOT mangled. Fable.SimpleJson
+          // serialises .dgm files using type information that reaches the output
+          // as object keys and string literals; renaming those would silently
+          // break loading every existing saved project.
+          mangle: true,
+          format: { comments: false },
+        },
+      }),
+    ],
   },
   module: {
       rules: [

@@ -74,7 +74,8 @@ Target.create "Dist" (fun _ ->
 )
 
 Target.create "DistDir" (fun _ ->
-  Npm.run "dist:dir" id
+  // "pack" is the --dir (unpacked directory, no installer) variant of "dist"
+  Npm.run "pack" id
 )
 
 Target.create "KillZombies" <| fun _ ->

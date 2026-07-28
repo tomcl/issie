@@ -101,6 +101,36 @@ let dispatchToRenderer ((menuType, s): string*string) =
         win.webContents.send("context-menu-command", args)
     | None -> ()
 
+/// URL of the webpack dev server used in development mode.
+/// Must match renderSrvOpts {port:} in scripts/start.js
+let devServerUrl = "http://localhost:8672"
+
+/// True only for Issie's own content: the dev server in development, the
+/// packaged bundle otherwise. Everything else counts as external.
+let isAppUrl (url: string) =
+    url.StartsWith "file://" || url.StartsWith devServerUrl
+
+/// Open a link in the user's default browser. Restricted to http(s) so a link
+/// cannot be used to invoke an arbitrary OS protocol handler.
+let openExternally (url: string) =
+    if url.StartsWith "https://" || url.StartsWith "http://" then
+        mainProcess.shell.openExternal url |> ignore
+
+/// The renderer runs with nodeIntegration enabled, so any page loaded into it
+/// gets full Node access. Refuse to navigate the app window away from Issie's
+/// own content, and refuse to open popup windows at all: external links are
+/// handed to the OS browser, which has no such privileges.
+let hardenWebContents (webContents: WebContents) =
+    webContents.setWindowOpenHandler (fun details ->
+        openExternally details.url
+        U2.Case1 {| action = "deny" |})
+
+    webContents.``on_will-navigate`` (fun ev url ->
+        if not (isAppUrl url) then
+            ev.preventDefault()
+            openExternally url)
+    |> ignore
+
 let createMainWindow () =
     let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
         options.show <- Some <| true
@@ -131,6 +161,7 @@ let createMainWindow () =
     let webContents = window.webContents
     // enable electronRemote for the renderer window
     electronRemote?enable webContents
+    hardenWebContents webContents
     mainWindow <- Some window
     window
 
@@ -158,7 +189,7 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
             // run the dev tools
             if debug then window.webContents.openDevTools() // default open in this case
 
-            sprintf $"http://localhost:8672" // muts match renderSrvOpts {port:} in scripts/start.js
+            devServerUrl
             |> window.loadURL
             |> ignore
 

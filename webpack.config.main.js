@@ -28,14 +28,7 @@ module.exports = {
               test: /\.js$/,
               enforce: "pre",
               use: ["source-map-loader"],
-          },
-      {
-        test: /\.(m|j|t)s$/,
-        exclude: /(node_modules|bower_components)/,
-        use: {
-          loader: 'babel-loader'
-        }
-      }
+          }
     ]
   },
   plugins: [

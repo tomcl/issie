@@ -92,7 +92,6 @@
   "devDependencies": {
     "@electron/notarize": "^3",
     "@electron/remote": "^2",
-    "babel-loader": "^10",
     "bufferutil": "^4",
     "classnames": "^2",
     "cross-env": "^7",
@@ -120,8 +119,5 @@
     "webpack-cli": "^5",
     "webpack-dev-server": "^5.2.6"
   },
-  "private": true,
-  "overrides": {
-    "@babel/core": "^8.0.1"
-  }
+  "private": true
 }

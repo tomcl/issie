@@ -31,13 +31,6 @@ module.exports = {
               use: ["source-map-loader"],
           },
       {
-        test: /\.(js|json|ts|tsx)$/,
-        exclude: /(node_modules|bower_components)/,
-        use: {
-          loader: 'babel-loader'
-        }
-      },
-      {
         test: /\.(sa|sc|c)ss$/,
         use: [
           MiniCssExtractPlugin.loader,

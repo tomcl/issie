@@ -37,16 +37,6 @@ module.exports = {
         use: ["source-map-loader"],
       },
       {
-        test: /\.(js|json|ts|tsx)$/,
-        exclude: /(node_modules|bower_components)/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            cacheDirectory: true // Enable babel caching
-          }
-        }
-      },
-      {
         test: /\.(sa|sc|c)ss$/,
         use: [
           'style-loader', // Use style-loader in dev for HMR

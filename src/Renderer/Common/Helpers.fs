@@ -487,7 +487,112 @@ module ReduceKeys =
         r.ScanProject p
         Optic.map loadedComponents_ updateLdc p
 
-            
+/// Give every component, port and connection on one sheet a fresh uuid, rewriting every
+/// reference to the old ones. Used when a sheet is copied (Import / Duplicate Sheet), and to
+/// repair projects in which two sheets were given the same ids by an earlier copy.
+/// Ids are unique within a sheet only, but a few places (waveform sheet labels, wire
+/// highlighting) assume they are unique across the whole project.
+module RegenerateIds =
+    open Optics
+    open ParameterTypes
+
+    /// old id -> fresh uuid, for every component id, port id and connection id on the sheet.
+    /// One map serves all three: uuids are globally unique so the kinds cannot collide.
+    let makeIdMap ((comps, conns): CanvasState) : Map<string,string> =
+        let compIds = comps |> List.map (fun comp -> comp.Id)
+        let portIds = comps |> List.collect (fun comp -> comp.InputPorts @ comp.OutputPorts) |> List.map (fun port -> port.Id)
+        let connIds = conns |> List.map (fun conn -> conn.Id)
+        compIds @ portIds @ connIds
+        |> List.distinct
+        |> List.map (fun id -> id, DrawHelpers.uuid ())
+        |> Map.ofList
+
+    /// Ids not in the map are left alone: saved sheets can reference ports that no longer exist,
+    /// and waveform access paths reference components on other sheets.
+    let private sub (idMap: Map<string,string>) (id: string) =
+        Map.tryFind id idMap
+        |> Option.defaultValue id
+
+    let private remapPort idMap (port: Port) =
+        {port with Id = sub idMap port.Id; HostId = sub idMap port.HostId}
+
+    /// PortOrientation is keyed by port id, PortOrder holds port ids in its values.
+    let private remapSymbolInfo idMap (info: SymbolInfo) =
+        info
+        |> Optic.map portOrientation_ (Map.toList >> List.map (fun (id, edge) -> sub idMap id, edge) >> Map.ofList)
+        |> Optic.map portOrder_ (Map.map (fun _ ids -> List.map (sub idMap) ids))
+
+    /// ComponentSlotExpr is keyed by ParamSlot, which holds the component id as a string.
+    let private remapSlots idMap (slots: ComponentSlotExpr) =
+        slots
+        |> Map.toList
+        |> List.map (fun (slot, expr) -> Optic.map compId_ (sub idMap) slot, expr)
+        |> Map.ofList
+
+    let private remapComp idMap (comp: Component) =
+        {comp with
+            Id = sub idMap comp.Id
+            InputPorts = List.map (remapPort idMap) comp.InputPorts
+            OutputPorts = List.map (remapPort idMap) comp.OutputPorts
+            SymbolInfo = Option.map (remapSymbolInfo idMap) comp.SymbolInfo
+            SlotInfo = Option.map (remapSlots idMap) comp.SlotInfo}
+
+    let private remapConn idMap (conn: Connection) =
+        {conn with
+            Id = sub idMap conn.Id
+            Source = remapPort idMap conn.Source
+            Target = remapPort idMap conn.Target}
+
+    /// Apply an id map to a canvas: component ids, port ids and host ids, symbol layout maps,
+    /// parameter slots, connection ids and endpoints. Geometry and labels are untouched.
+    let remapCanvasState (idMap: Map<string,string>) ((comps, conns): CanvasState) : CanvasState =
+        List.map (remapComp idMap) comps, List.map (remapConn idMap) conns
+
+    /// An FComponentId is a component id plus the access path of custom components containing it.
+    /// Path entries belong to other sheets, so they fall through sub unchanged.
+    let private remapFCompId idMap ((ComponentId cid, ap): FComponentId) : FComponentId =
+        ComponentId(sub idMap cid), List.map (fun (ComponentId id) -> ComponentId(sub idMap id)) ap
+
+    let private remapWaveInfo idMap (wi: SavedWaveInfo) =
+        let remapKeys map = map |> Map.toList |> List.map (fun (k, v) -> remapFCompId idMap k, v) |> Map.ofList
+        {wi with
+            SelectedWaves = wi.SelectedWaves |> Option.map (List.map (fun wave -> {wave with Id = remapFCompId idMap wave.Id}))
+            SelectedFRams = wi.SelectedFRams |> Option.map remapKeys
+            SelectedRams =
+                wi.SelectedRams
+                |> Option.map (Map.toList >> List.map (fun (ComponentId cid, v) -> ComponentId(sub idMap cid), v) >> Map.ofList)
+            DisplayedPortIds = wi.DisplayedPortIds |> Option.map (Array.map (sub idMap))}
+
+    /// Regenerate every id on a sheet, including the parameter slots and saved waveform selection
+    /// which live on the LoadedComponent rather than in its CanvasState.
+    let regenerateSheetIds (ldc: LoadedComponent) : LoadedComponent =
+        let idMap = makeIdMap ldc.CanvasState
+        {ldc with
+            CanvasState = remapCanvasState idMap ldc.CanvasState
+            LCParameterSlots = ldc.LCParameterSlots |> Option.map (Optic.map paramSlots_ (remapSlots idMap))
+            WaveInfo = ldc.WaveInfo |> Option.map (remapWaveInfo idMap)}
+
+    /// Scan sheets in order. Any sheet reusing a component or connection id already seen on an
+    /// earlier sheet has all of its ids regenerated and is marked as needing saving.
+    /// Returns the sheets, and the names of those that were changed.
+    let correctDuplicateIds (ldcs: LoadedComponent list) : LoadedComponent list * string list =
+        let idsOf (ldc: LoadedComponent) =
+            let comps, conns = ldc.CanvasState
+            List.map (fun (comp: Component) -> comp.Id) comps, List.map (fun (conn: Connection) -> conn.Id) conns
+        let step (seenComps, seenConns, sheets, changed) (ldc: LoadedComponent) =
+            let compIds, connIds = idsOf ldc
+            let clashes =
+                List.exists (fun id -> Set.contains id seenComps) compIds ||
+                List.exists (fun id -> Set.contains id seenConns) connIds
+            let ldc' =
+                if clashes then regenerateSheetIds ldc |> Optic.set loadedComponentIsOutOfDate_ true
+                else ldc
+            let compIds', connIds' = idsOf ldc'
+            let changed' = if clashes then ldc'.Name :: changed else changed
+            Set.union seenComps (Set.ofList compIds'), Set.union seenConns (Set.ofList connIds'), ldc' :: sheets, changed'
+        let _, _, sheets, changed = List.fold step (Set.empty, Set.empty, [], []) ldcs
+        List.rev sheets, List.rev changed
+
 //------------------------------------------------------------------------------------//
 //---------------------------Low Level Component Helpers------------------------------//
 let isInput =

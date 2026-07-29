@@ -710,11 +710,47 @@ let private createEmptyDiagramFile projectPath name =
     }
 
 
+/// Write every sheet of the open project to disk and clear its needs-saving flag.
+/// The project is only written if it is still the one expected: the popup that triggers this is
+/// shown while the project is still being loaded into the model.
+let private saveAllSheetsAction (expectedPath: string) (model: Model) (dispatch: Msg -> Unit) =
+    match model.CurrentProj with
+    | Some project when project.ProjectPath = expectedPath ->
+        saveAllProjectFilesFromLoadedComponentsToDisk project
+        let ldcs =
+            project.LoadedComponents
+            |> List.map (fun ldc -> {ldc with LoadedComponentIsOutOfDate = false; TimeStamp = DateTime.Now})
+        dispatch <| SetProject {project with LoadedComponents = ldcs}
+    | _ -> ()
+
+/// Tell the user that sheets sharing ids with other sheets have been given fresh ids in memory,
+/// and offer to write the whole project out so that the repair is permanent.
+let private idsCorrectedPopup (projectPath: string) (corrected: string list) dispatch =
+    let sheets =
+        match corrected with
+        | [name] -> sprintf "Design sheet %s used" name
+        | names -> sprintf "Design sheets %s used" (String.concat ", " names)
+    let body =
+        div []
+            [ str <| sprintf "%s the same component or connection ids as other sheets in this project. \
+                              This normally happens when a sheet has been copied or imported by an older \
+                              version of Issie." sheets
+              br []; br []
+              str "Ids have been made unique. The change has been made in memory only, so those sheets \
+                   now have unsaved changes. Save them to make the repair permanent, otherwise it will \
+                   be redone every time the project is opened."
+              br []; br []
+              str "Nothing else about the sheets has changed." ]
+    let buttonAction () =
+        dispatch <| ExecFuncInMessage(saveAllSheetsAction projectPath, dispatch)
+        dispatch ClosePopup
+    confirmationPopup "Duplicate sheet ids corrected" "Save corrected sheets" body buttonAction dispatch
+
 /// work out what to do opening a file
-let rec resolveComponentOpenPopup 
+let rec resolveComponentOpenPopup
         (pPath:string)
-        (components: LoadedComponent list)  
-        (resolves: LoadStatus list) 
+        (components: LoadedComponent list)
+        (resolves: LoadStatus list)
         (model: Model)
         (dispatch: Msg -> Unit) =
     let chooseWhichToOpen comps =
@@ -722,7 +758,14 @@ let rec resolveComponentOpenPopup
         (List.maxBy (fun comp -> comp.TimeStamp) onlyUserCreated).Name
     dispatch ClosePopup
     match resolves with
-    | [] -> setupProjectFromComponents false (chooseWhichToOpen components) components model dispatch
+    | [] ->
+        // components is accumulated in reverse of the order files were read: scan in read order so
+        // that the same sheet keeps its ids each time the project is opened
+        let ldcs, corrected = RegenerateIds.correctDuplicateIds (List.rev components)
+        setupProjectFromComponents false (chooseWhichToOpen ldcs) ldcs model dispatch
+        match corrected with
+        | [] -> ()
+        | _ -> idsCorrectedPopup pPath corrected dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let compChanges, connChanges = quantifyChanges ldComp autoComp

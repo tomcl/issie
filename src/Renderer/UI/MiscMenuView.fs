@@ -659,7 +659,8 @@ let copySheetIntoProjectPopup title placeholder buttonText notes nameOf oldPath 
             fun (model': Model) ->
                 let newName = newNameOf model'.PopupDialogData
                 let newPath = pathJoin [|project.ProjectPath; newName + ".dgm"|]
-                copyFile oldPath newPath
+                // fresh ids: a copied sheet must not share ids with the sheet it came from
+                copySheetWithNewIds oldPath newPath
                 afterCopy newName model'
                 dispatch ClosePopup
 
@@ -793,15 +794,15 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
             |> List.iter (fun oldSheetPath ->
                 let newSheetPath = pathJoin [|destProjectDir; baseName oldSheetPath|]
 
-                copyFile oldSheetPath newSheetPath
-                       
+                copySheetWithNewIds oldSheetPath newSheetPath
+
             )
 
             newSheetPaths
             |> List.iter (fun (oldSheetPath, newSheetPath) ->
                         match newSheetPath with
                         | "" -> ()
-                        | path -> copyFile oldSheetPath path )
+                        | path -> copySheetWithNewIds oldSheetPath path )
 
             JSHelpers.log destProjectDir
 

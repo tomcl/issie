@@ -28,7 +28,8 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
         else
             dispatch nextAction
 
-    let lockStateHasChanged =
+    // sheets are flagged out of date by a lock state change, or by an id correction on project load
+    let sheetsNeedingSave =
         match model.CurrentProj with
         | None -> ""
         | Some p ->
@@ -46,10 +47,10 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
             $"{name} without saving changes"  
             closeDialogButtons 
             dispatch
-    elif lockStateHasChanged <> "" then
-        choicePopup 
-            $"Do you want to close without saving lock state?" 
-            (div [] [ str $"""The lockstate of {lockStateHasChanged} sheets has changed."""])
+    elif sheetsNeedingSave <> "" then
+        choicePopup
+            $"Do you want to close without saving?"
+            (div [] [ str $"""The sheets {sheetsNeedingSave} have unsaved changes."""])
             "Go back to sheet" 
             $"{name} without saving changes"  
             closeDialogButtons 

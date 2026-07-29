@@ -680,6 +680,21 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
 
 
 
+/// Copy a sheet from some source path to a destination path, giving every component, port and
+/// connection in it a fresh uuid so that it cannot clash with the sheet it was copied from.
+/// Falls back to a plain file copy if the source cannot be parsed.
+let copySheetWithNewIds (sourcePath: string) (newPath: string) =
+    match tryLoadComponentFromPath sourcePath with
+    | Error msg ->
+        log msg
+        copyFile sourcePath newPath
+    | Ok ldc ->
+        let ldc' = RegenerateIds.regenerateSheetIds ldc
+        let sheetInfo: SheetInfo = {Form = ldc'.Form; Description = ldc'.Description; ParameterDefinitions = ldc'.LCParameterSlots}
+        match saveStateToFile (dirName newPath) (baseNameWithoutExtension newPath) (ldc'.CanvasState, ldc'.WaveInfo, Some sheetInfo) with
+        | Ok _ -> ()
+        | Error msg -> log <| msg
+
 type LoadStatus =
     | Resolve  of LoadedComponent * LoadedComponent
     | OkComp of LoadedComponent

@@ -631,11 +631,13 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
                 // 1. I/O validation only needs to determine port bit widths
                 // 2. Complex expressions are resolved later during full graph merging
                 // 3. This keeps the validation phase fast and simple
-                let rec eval expr =
-                    match expr with
-                    | PInt n -> Some n  // Integer constant - return its value
-                    | PParameter name -> Map.tryFind name paramBindings |> Option.bind eval  // Look up parameter and recursively evaluate
-                    | _ -> None  // Complex expressions not supported in this context
+                // Use the same evaluator as the rest of the parameter system, so that an arithmetic
+                // port width resolves here rather than silently falling back to its unresolved value.
+                // An expression that cannot be evaluated is left for the simulator to report on.
+                let eval expr =
+                    match ParameterTypes.evaluateParamExpression paramBindings expr with
+                    | Ok n -> Some n
+                    | Error _ -> None
                 
                 let (comps, conns) = sheet.CanvasState
                 let resolvedComps = 

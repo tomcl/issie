@@ -267,6 +267,13 @@ let getCurrSheets (model: Model) =
 /// model.WaveSimSheet
 let removeAllSimulationsFromModel (model:Model) = model
 
+/// True if a step simulation, truth table or waveform simulation is currently open.
+/// Parameters create dependencies across a whole design, so they cannot be changed while one is open.
+let simulationIsOpen (model: Model) =
+    model.CurrentStepSimulationStep <> None
+    || model.CurrentTruthTable <> None
+    || (model.WaveSimSheet <> None && model.WaveSimSheet <> Some "")
+
 
 /// Get the current WaveSimModel used by the Model (index the map using the current wavesim sheet).
 /// If no WaveSimModel for that sheet, return an empty wave sim model.

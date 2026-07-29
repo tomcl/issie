@@ -271,6 +271,21 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
 
     ldc
 
+/// Drop parameter slots naming components that are no longer on the sheet.
+/// Every parameter slot must name a live component: a slot outliving its component cannot be
+/// displayed or edited, and pushing a value into it would throw.
+let pruneDeadParamSlots ((comps, _): CanvasState) (paramDefs: ParameterTypes.ParameterDefs option) =
+    match paramDefs with
+    | None -> None
+    | Some defs ->
+        let liveIds =
+            comps
+            |> List.map (fun comp -> comp.Id)
+            |> Set.ofList
+        defs.ParamSlots
+        |> Map.filter (fun slot _ -> Set.contains slot.CompId liveIds)
+        |> fun slots -> Some {defs with ParamSlots = slots}
+
 /// Returns true if project exists and ldc is electrically identical to same sheet in project
 /// canvasState must be the project currently open state.
 let loadedComponentIsSameAsProject (canvasState: CanvasState) (ldc: LoadedComponent) (p: Project option) =

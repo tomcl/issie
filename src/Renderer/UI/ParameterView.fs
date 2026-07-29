@@ -569,16 +569,28 @@ let updateComponents
     (dispatch: Msg -> Unit)
     : Unit =
 
-    let evalExpression expr =
-        match ParameterTypes.evaluateParamExpression newBindings expr with
-        | Ok value -> value
-        | Error _ ->  failwithf "Component update cannot have invalid expression"
+    /// A slot naming a component that has gone, or referring to a parameter that has gone, breaks
+    /// the sheet invariant and cannot be pushed onto the canvas. Skip it rather than kill the app:
+    /// the checks made when parameters and components are deleted are what keep this from happening.
+    let liveSlotValue (slot: ParamSlot) (exprSpec: ConstrainedExpr) =
+        match Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols with
+        | false ->
+            JSHelpers.log $"Skipping parameter slot of component {slot.CompId}, which is not on this sheet"
+            None
+        | true ->
+            match ParameterTypes.evaluateParamExpression newBindings exprSpec.Expression with
+            | Ok value -> Some value
+            | Error err ->
+                JSHelpers.log $"Skipping parameter slot of component {slot.CompId}: {err}"
+                None
 
     model
     |> get paramSlotsOfModel_
     |> Option.defaultValue Map.empty
-    |> Map.map (fun _ expr -> evalExpression expr.Expression)
-    |> Map.iter (updateComponent dispatch model)
+    |> Map.iter (fun slot exprSpec ->
+        match liveSlotValue slot exprSpec with
+        | Some value -> updateComponent dispatch model slot value
+        | None -> ())
     
 
 /// Updates the LCParameterSlots DefaultParams section.
@@ -706,8 +718,15 @@ let editParameterBox model parameterName dispatch   =
         let currentSheet = project.LoadedComponents
                                    |> List.find (fun lc -> lc.Name = project.OpenFileName)
         let title = "Edit parameter value"
-        let currentValue = getDefaultParams currentSheet |> Map.find (ParamName parameterName)
-        let intPrompt = 
+        match getDefaultParams currentSheet |> Map.tryFind (ParamName parameterName) with
+        | None ->
+            // the row was rendered from an older model in which the parameter still existed
+            JSHelpers.log $"Cannot edit parameter {parameterName}: it is not defined on this sheet"
+        | Some (PParameter _ | PAdd _ | PSubtract _ | PMultiply _ | PDivide _ | PRemainder _) ->
+            dispatch <| SetPropertiesNotification (Notifications.errorPropsNotification
+                $"Parameter {parameterName} is bound to an expression. Only integer parameter values can be edited here.")
+        | Some currentValue ->
+        let intPrompt =
             fun _ ->
                 div []
                     [
@@ -719,7 +738,7 @@ let editParameterBox model parameterName dispatch   =
         let defaultVal =
             match currentValue with
             | PInt intVal -> intVal
-            | _ -> failwithf "Edit parameter box only supports integer bindings"
+            | _ -> 1 // non-integer bindings are rejected above
 
         let body = dialogPopupBodyOnlyInt intPrompt defaultVal dispatch
         let buttonText = "Set value"
@@ -764,34 +783,120 @@ let editParameterBox model parameterName dispatch   =
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
-let deleteParameterBox model parameterName dispatch  = 
+/// Human readable name of the slot a parameter expression fills, for use in messages.
+let describeSlot (model: Model) (slot: ParamSlot) =
+    let slotName =
+        match slot.CompSlot with
+        | Buswidth -> "Buswidth"
+        | NGateInputs -> "Num inputs"
+        | IO label -> $"Input/output {label}"
+        | SplitNWidth idx -> $"SplitN output {idx} width"
+        | SplitNLSB idx -> $"SplitN output {idx} LSB"
+        | CustomCompParam paramName -> $"Custom parameter {paramName}"
+    match Map.tryFind (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols with
+    | Some symbol -> $"{symbol.Component.Label}: {slotName}"
+    | None -> $"[deleted component]: {slotName}"
+
+/// A binding of a parameter of `sheetName` on an instance of that sheet no longer means anything
+/// once the parameter has gone, so drop it from every other sheet in the project.
+/// Bindings live in two places: the instance's own ParameterBindings, and a CustomCompParam slot
+/// of the sheet the instance sits on.
+let removeParamFromInstances (sheetName: string) (name: ParamName) (model: Model) : Model =
+    let dropFromSheet (ldc: LoadedComponent) =
+        let comps, conns = ldc.CanvasState
+        let isInstance (comp: Component) =
+            match comp.Type with
+            | Custom custom -> custom.Name = sheetName
+            | _ -> false
+        let dropBinding (comp: Component) =
+            match comp.Type with
+            | Custom custom when custom.Name = sheetName && Option.exists (Map.containsKey name) custom.ParameterBindings ->
+                {comp with Type = Custom {custom with ParameterBindings = Option.map (Map.remove name) custom.ParameterBindings}}
+            | _ -> comp
+        let instanceIds = comps |> List.filter isInstance |> List.map (fun comp -> comp.Id) |> Set.ofList
+        let paramString = match name with | ParamName s -> s
+        let dropSlots (slots: ComponentSlotExpr) =
+            slots
+            |> Map.filter (fun (slot: ParamSlot) _ ->
+                match slot.CompSlot with
+                | CustomCompParam p -> not (p = paramString && Set.contains slot.CompId instanceIds)
+                | _ -> true)
+        let ldc' =
+            {ldc with
+                CanvasState = List.map dropBinding comps, conns
+                LCParameterSlots = ldc.LCParameterSlots |> Option.map (Optic.map paramSlots_ dropSlots)}
+        match ldc'.CanvasState = ldc.CanvasState && ldc'.LCParameterSlots = ldc.LCParameterSlots with
+        | true -> ldc
+        | false -> {ldc' with LoadedComponentIsOutOfDate = true}
+    let updateSheets (ldcs: LoadedComponent list) =
+        ldcs
+        |> List.map (fun ldc -> if ldc.Name = sheetName then ldc else dropFromSheet ldc)
+    model
+    |> Optic.map (projectOpt_ >?> loadedComponents_) updateSheets
+
+/// Delete a sheet parameter. A slot referring to a parameter that does not exist is an undefined
+/// design, so this refuses while any slot on the sheet still refers to it and says which ones.
+let deleteParameterBox model parameterName dispatch  =
     match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: testDeleteParameterBox called when no project is currently open"
+    | None -> JSHelpers.log "Warning: deleteParameterBox called when no project is currently open"
     | Some project ->
-        modifyInfoSheet (project) (DefaultParams(parameterName,0,true)) dispatch
+        let name = ParamName parameterName
+        let sheet = getCurrentSheet model
+        // custom component instances are not a special case: their slot expression is in the
+        // parameters of the sheet they sit on, like the expression of any other slot.
+        // A slot whose component has just been deleted is not a real use: it is pruned on save.
+        let users =
+            getParamSlots sheet
+            |> ParameterTypes.slotsUsingParam name
+            |> List.filter (fun (slot, _) -> Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols)
+        match users with
+        | [] ->
+            modifyInfoSheet project (DefaultParams (parameterName, 0, true)) dispatch
+            dispatch <| UpdateModel (removeParamFromInstances sheet.Name name)
+        | _ ->
+            let body =
+                div []
+                    [ str $"Parameter {parameterName} cannot be deleted because it is still used by \
+                            the following component slots on this sheet:"
+                      br []
+                      ul [Style [MarginLeft "20px"; ListStyleType "disc"]]
+                          (users |> List.map (fun (slot, _) -> li [] [str (describeSlot model slot)]))
+                      br []
+                      str "Give each of them a value that does not use this parameter, then delete it." ]
+            closablePopup $"Cannot delete parameter {parameterName}" body (div [] []) [] dispatch
 
 
 /// UI to display and manage parameters for a design sheet.
 /// TODO: add structural abstraction.
 let private makeParamsField model (comp:LoadedComponent) dispatch =
     let sheetDefaultParams = getDefaultParams comp
+    // parameters create dependencies across the whole design, so changing them under a running
+    // simulation would leave it describing hardware that no longer exists
+    let simIsOpen = ModelHelpers.simulationIsOpen model
+    let simWarning =
+        match simIsOpen with
+        | false -> div [] []
+        | true -> p [Style [Color "red"]] [str "Close all simulations to change the parameters of this sheet."]
     match sheetDefaultParams.IsEmpty with
     | true ->
         div [] [
             Label.label [] [ str "Parameters" ]
-            p [] [str "No parameters have been added to this sheet." ]   
-            br [] 
-            Button.button 
+            p [] [str "No parameters have been added to this sheet." ]
+            simWarning
+            br []
+            Button.button
                             [ Fulma.Button.OnClick(fun _ -> addParameterBox model dispatch)
                               Fulma.Button.Color IsInfo
-                            ] 
+                              Fulma.Button.Disabled simIsOpen
+                            ]
                 [str "Add Parameter"]
             ]
     | false ->
-    
+
         div [] [
             Label.label [] [str "Parameters"]
             p [] [str "These parameters have been added to this sheet." ]
+            simWarning
             br []
             Table.table [
                         Table.IsBordered
@@ -818,24 +923,27 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                             td [] [str paramName]
                             td [] [str paramVal]
                             td [] [
-                                Button.button 
+                                Button.button
                                     [ Fulma.Button.OnClick(fun _ -> editParameterBox model (paramName) dispatch)
                                       Fulma.Button.Color IsInfo
-                                    ] 
+                                      Fulma.Button.Disabled simIsOpen
+                                    ]
                                     [str "Edit"]
-                                Button.button 
+                                Button.button
                                     [ Fulma.Button.OnClick(fun _ -> deleteParameterBox model (paramName) dispatch )
                                       Fulma.Button.Color IsDanger
-                                    ] 
+                                      Fulma.Button.Disabled simIsOpen
+                                    ]
                                     [str "Delete"]
                                 ]
                             ]
                         )
                     )
                 ]
-            Button.button 
+            Button.button
                 [ Fulma.Button.OnClick(fun _ -> addParameterBox model dispatch)
                   Fulma.Button.Color IsInfo
+                  Fulma.Button.Disabled simIsOpen
                 ]
                 [str "Add Parameter"]
         ]
@@ -1193,7 +1301,8 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
         let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
                         string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label
                     else
-                        "[Nonexistent]" // TODO deleted component slots aren't removed!
+                        // slots are pruned when the sheet is saved or left, so this should not persist
+                        "[Nonexistent]"
         tr [] [
             td [] [
                 b [] [str name] 

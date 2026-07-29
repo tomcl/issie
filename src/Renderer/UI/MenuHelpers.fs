@@ -928,6 +928,8 @@ let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
                     CanvasState = canvas
                     InputLabels = inputs
                     OutputLabels = outputs
+                    // components deleted from the canvas must not leave parameter slots behind
+                    LCParameterSlots = CanvasExtractor.pruneDeadParamSlots canvas lc.LCParameterSlots
                 }
             model.CurrentProj
             |> Option.map (fun p -> 
@@ -953,7 +955,8 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
-        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description ; ParameterDefinitions= ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
+        // slots of components deleted from the canvas must not be saved
+        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description ; ParameterDefinitions= CanvasExtractor.pruneDeadParamSlots canvasState ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
         let savedState = canvasState, getSavedWave model,(Some sheetInfo)
         if isAuto then
             failwithf "Auto saving is no longer used"
@@ -1001,7 +1004,8 @@ let saveOpenFileToModel model =
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
-        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions= ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
+        // slots of components deleted from the canvas must not be saved
+        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions= CanvasExtractor.pruneDeadParamSlots canvasState ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
         let savedState = canvasState, getSavedWave model,(Some sheetInfo)
         saveStateToFile project.ProjectPath project.OpenFileName savedState |> ignore
         removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName

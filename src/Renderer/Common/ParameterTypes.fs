@@ -132,59 +132,50 @@ let paramSlots_ = Optics.Lens.create (fun s -> s.ParamSlots) (fun v s -> {s with
 /// unresolved after full evaluation, an error is returned listing them.
 /// </remarks>
 let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpression) : Result<ParamInt, ParamError> =
-    // Recursively evaluate the expression, substituting parameters and simplifying arithmetic
-    let rec recursiveEvaluation (expr: ParamExpression) : ParamExpression =
-        match expr with
-        | PInt _ -> expr // constant, nothing needs to be changed
-        | PParameter name -> 
-            match Map.tryFind name paramBindings with
-            | Some evaluated -> evaluated
-            | None -> PParameter name
-        | PAdd (left, right) ->
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l+r)
-            | newLeft, newRight -> PAdd (newLeft, newRight) // keep as PAdd type
-        | PSubtract (left, right) -> 
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l-r)
-            | newLeft, newRight -> PSubtract (newLeft, newRight) // keep as Psubtract type
-        | PMultiply (left, right) ->
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l*r)
-            | newLeft, newRight -> PMultiply (newLeft, newRight)
-        | PDivide (left, right) ->
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l/r)
-            | newLeft, newRight -> PDivide (newLeft, newRight)
-        | PRemainder (left, right) ->
-            match recursiveEvaluation left, recursiveEvaluation right with
-            | PInt l, PInt r -> PInt (l%r)
-            | newLeft, newRight -> PRemainder (newLeft, newRight)
-        
-    
     let unwrapParamName (ParamName name) = name
-    
-    let rec collectUnresolved expr =
-        match expr with
-        | PInt _ -> []
-        | PParameter name -> [unwrapParamName name]  // Only collect unresolved parameters
-        | PAdd (left, right) 
-        | PSubtract (left, right) 
-        | PMultiply (left, right)
-        | PDivide (left, right) 
-        | PRemainder (left, right) ->
-            collectUnresolved left @ collectUnresolved right
 
-    match recursiveEvaluation paramExpr with
-    | PInt evaluated -> Ok evaluated
-    | unresolvedExpr ->
-        let unresolvedParams = collectUnresolved unresolvedExpr |> List.distinct
-        match unresolvedParams with
-        | [] -> failwithf "Unexpected error: non-constant expression with no unresolved parameters"
-        | [single] -> Error $"Parameter '{single}' is not defined"
-        | multiple -> 
-            let paramList = multiple |> String.concat ", "
-            Error $"Parameters {paramList} are not defined"
+    /// beingEvaluated is the chain of parameters whose definitions we are inside. A parameter bound
+    /// to an expression is evaluated in turn, so parameters may be defined in terms of each other;
+    /// the chain stops a parameter defined in terms of itself from recursing for ever.
+    let rec eval (beingEvaluated: ParamName list) (expr: ParamExpression) : Result<ParamInt, ParamError> =
+        /// Evaluate both operands, reporting the first that fails, then combine them.
+        let binary (combine: ParamInt -> ParamInt -> Result<ParamInt, ParamError>) left right =
+            match eval beingEvaluated left, eval beingEvaluated right with
+            | Ok l, Ok r -> combine l r
+            | Error err, _ -> Error err
+            | _, Error err -> Error err
+        match expr with
+        | PInt value -> Ok value
+        | PParameter name when List.contains name beingEvaluated ->
+            let chain =
+                name :: beingEvaluated
+                |> List.rev
+                |> List.map unwrapParamName
+                |> String.concat " which uses "
+            Error $"Parameter '{unwrapParamName name}' is defined in terms of itself: {chain}"
+        | PParameter name ->
+            match Map.tryFind name paramBindings with
+            | Some boundExpr -> eval (name :: beingEvaluated) boundExpr
+            | None -> Error $"Parameter '{unwrapParamName name}' is not defined"
+        | PAdd (left, right) -> binary (fun l r -> Ok (l + r)) left right
+        | PSubtract (left, right) -> binary (fun l r -> Ok (l - r)) left right
+        | PMultiply (left, right) -> binary (fun l r -> Ok (l * r)) left right
+        | PDivide (left, right) ->
+            binary
+                (fun l r ->
+                    match r with
+                    | 0 -> Error $"Division by zero: {l} cannot be divided by 0"
+                    | _ -> Ok (l / r))
+                left right
+        | PRemainder (left, right) ->
+            binary
+                (fun l r ->
+                    match r with
+                    | 0 -> Error $"Remainder by zero: the remainder of {l} divided by 0 is undefined"
+                    | _ -> Ok (l % r))
+                left right
+
+    eval [] paramExpr
 
 /// <summary>
 /// Converts a parameter expression to its string representation with proper operator precedence.
@@ -343,11 +334,42 @@ let rec exprContainsParams (expression: ParamExpression) : bool =
     | PInt _ -> false
     | PParameter _ -> true
     | PAdd (left, right)
-    | PSubtract (left, right) 
+    | PSubtract (left, right)
     | PMultiply (left, right)
     | PDivide (left, right)
     | PRemainder (left, right) ->
         exprContainsParams left || exprContainsParams right
+
+/// The parameters an expression refers to, without duplicates.
+/// Used to check the invariant that every parameter referred to on a sheet is defined on that sheet.
+let paramNamesOfExpr (expression: ParamExpression) : ParamName list =
+    let rec collect expression =
+        match expression with
+        | PInt _ -> []
+        | PParameter name -> [name]
+        | PAdd (left, right)
+        | PSubtract (left, right)
+        | PMultiply (left, right)
+        | PDivide (left, right)
+        | PRemainder (left, right) ->
+            collect left @ collect right
+    collect expression
+    |> List.distinct
+
+/// The parameters a slot refers to: its value expression and the expressions in its constraints.
+let paramNamesOfSlot (exprSpec: ConstrainedExpr) : ParamName list =
+    exprSpec.Constraints
+    |> List.collect (fun konst -> match konst with | MinVal (expr, _) | MaxVal (expr, _) -> paramNamesOfExpr expr)
+    |> List.append (paramNamesOfExpr exprSpec.Expression)
+    |> List.distinct
+
+/// The slots of one sheet that refer to the named parameter of that sheet.
+/// A custom component instance is not a special case: its CustomCompParam slot holds an expression
+/// in the parameters of the sheet the instance sits on, like any other slot.
+let slotsUsingParam (name: ParamName) (slots: ComponentSlotExpr) : (ParamSlot * ConstrainedExpr) list =
+    slots
+    |> Map.toList
+    |> List.filter (fun (_, exprSpec) -> List.contains name (paramNamesOfSlot exprSpec))
 
 
 

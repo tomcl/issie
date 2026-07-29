@@ -353,20 +353,11 @@ let rec resolveParametersInSimulationGraph
     /// - Evaluates arithmetic operations only if both operands can be resolved
     /// - Uses Option.map2 to ensure both operands are available before applying operations
     /// 
-    /// The evaluator differs from evaluateParamExpression in ParameterTypes:
-    /// - Returns Option instead of Result (simpler for internal use)
-    /// - Does not provide detailed error messages for unresolved parameters
-    /// - Optimized for the specific use case of component slot resolution
+    /// This is the same evaluator the properties pane uses, so a parameter expression that cannot
+    /// be evaluated - an undefined parameter, a parameter defined in terms of itself, or division
+    /// or remainder by zero - is reported here in the same words, before the simulation is built.
     /// </remarks>
-    let rec evalExpr expr =
-        match expr with
-        | PInt n -> Some n
-        | PParameter name -> Map.tryFind name bindings |> Option.bind evalExpr
-        | PAdd (l, r) -> Option.map2 (+) (evalExpr l) (evalExpr r)
-        | PSubtract (l, r) -> Option.map2 (-) (evalExpr l) (evalExpr r)
-        | PMultiply (l, r) -> Option.map2 (*) (evalExpr l) (evalExpr r)
-        | PDivide (l, r) -> Option.map2 (/) (evalExpr l) (evalExpr r)
-        | PRemainder (l, r) -> Option.map2 (%) (evalExpr l) (evalExpr r)
+    let evalExpr expr = ParameterTypes.evaluateParamExpression bindings expr
 
     /// <summary>
     /// Applies a resolved parameter value to the appropriate slot in a component type.
@@ -446,11 +437,12 @@ let rec resolveParametersInSimulationGraph
         |> List.fold (fun compRes (slot, expr) ->
             compRes |> Result.bind (fun (c: SimulationComponent) ->
                 match evalExpr expr.Expression with
-                | Some value -> 
+                | Ok value ->
                     Ok { c with Type = applySlotValue c.Type slot.CompSlot value }
-                | None ->
+                | Error msg ->
+                    let exprText = ParameterTypes.renderParamExpression expr.Expression 0
                     let err: SimGraphTypes.SimulationError = {
-                        ErrType = GenericSimError "Parameter expression could not be fully evaluated"
+                        ErrType = GenericSimError $"Parameter expression '{exprText}' could not be evaluated. {msg}"
                         InDependency = Some currDiagramName
                         ComponentsAffected = [compId]
                         ConnectionsAffected = []

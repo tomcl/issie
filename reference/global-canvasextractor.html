@@ -405,7 +405,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.addStateToLoadedComponents\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L298-298" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L313-313" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1597,7 +1597,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.getStateAndDependencies\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L322-322" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L337-337" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1899,7 +1899,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.loadedComponentIsSameAsProject\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L276-276" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L291-291" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2195,6 +2195,119 @@
             <div>
               <code onmouseout="hideTip(event, '377', 377)" onmouseover="showTip(event, '377', 377)">
                 <p>
+                  <a id="pruneDeadParamSlots">
+                    <a href="#pruneDeadParamSlots">
+                      <code><span>pruneDeadParamSlots&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;paramDefs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="377">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>pruneDeadParamSlots&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;paramDefs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        arg0
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg1
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        paramDefs
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:CanvasExtractor.pruneDeadParamSlots`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.pruneDeadParamSlots\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L277-277" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Drop parameter slots naming components that are no longer on the sheet.
+ Every parameter slot must name a live component: a slot outliving its component cannot be
+ displayed or edited, and pushing a value into it would throw.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg0
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg1
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    paramDefs
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/parametertypes-parameterdefs.html">ParameterDefs</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '378', 378)" onmouseover="showTip(event, '378', 378)">
+                <p>
                   <a id="referenceEquality">
                     <a href="#referenceEquality">
                       <code><span>referenceEquality&#32;<span>a1&#32;a2</span></span></code>
@@ -2202,7 +2315,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="377">
+              <div class="fsdocs-tip" id="378">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>referenceEquality&#32;<span>a1&#32;a2</span></span></code>
@@ -2288,7 +2401,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '378', 378)" onmouseover="showTip(event, '378', 378)">
+              <code onmouseout="hideTip(event, '379', 379)" onmouseover="showTip(event, '379', 379)">
                 <p>
                   <a id="sortQBy">
                     <a href="#sortQBy">
@@ -2297,7 +2410,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="378">
+              <div class="fsdocs-tip" id="379">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sortQBy&#32;<span>byFun&#32;ids</span></span></code>
@@ -2365,7 +2478,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '379', 379)" onmouseover="showTip(event, '379', 379)">
+              <code onmouseout="hideTip(event, '380', 380)" onmouseover="showTip(event, '380', 380)">
                 <p>
                   <a id="stateIsEqual">
                     <a href="#stateIsEqual">
@@ -2374,7 +2487,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="379">
+              <div class="fsdocs-tip" id="380">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>stateIsEqual&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
@@ -2492,7 +2605,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '380', 380)" onmouseover="showTip(event, '380', 380)">
+              <code onmouseout="hideTip(event, '381', 381)" onmouseover="showTip(event, '381', 381)">
                 <p>
                   <a id="stateIsEqualExInputDefault">
                     <a href="#stateIsEqualExInputDefault">
@@ -2501,7 +2614,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="380">
+              <div class="fsdocs-tip" id="381">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>stateIsEqualExInputDefault&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
@@ -2601,7 +2714,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '381', 381)" onmouseover="showTip(event, '381', 381)">
+              <code onmouseout="hideTip(event, '382', 382)" onmouseover="showTip(event, '382', 382)">
                 <p>
                   <a id="verticesAreSame">
                     <a href="#verticesAreSame">
@@ -2610,7 +2723,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="381">
+              <div class="fsdocs-tip" id="382">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>verticesAreSame&#32;<span>fixedOffset&#32;tolerance&#32;conns1&#32;conns2</span></span></code>

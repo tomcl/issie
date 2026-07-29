@@ -649,6 +649,12 @@ let viewTopMenu model dispatch =
                                     dispatch <| FileCommand(FileImportSheet,dispatch)) ] ]
                                      [ str "Import Sheet" ]
                              Navbar.divider [] []
+                             Navbar.Item.a [ Navbar.Item.Props
+                                [ OnClick(fun _ ->
+                                    dispatch (StartUICmd DuplicateSheet)
+                                    dispatch <| FileCommand(FileDuplicateSheet,dispatch)) ] ]
+                                     [ str "Duplicate Sheet" ]
+                             Navbar.divider [] []
                              ]
                            @ breadcrumbs
                            |> addVerticalScrollBars el)]

@@ -174,6 +174,7 @@ type UICommandType =
     | ChangeSheet
     | RenameSheet
     | ImportSheet
+    | DuplicateSheet
     | DeleteSheet
     | AddSheet
     | SaveSheet
@@ -183,6 +184,7 @@ type UICommandType =
 
 type FileCommandType =
     | FileImportSheet
+    | FileDuplicateSheet
     /// argument is true to save the current project
     | FileNewProject of bool
     /// argumnet is true to save the current project

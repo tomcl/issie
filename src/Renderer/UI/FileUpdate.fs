@@ -129,6 +129,10 @@ let fileCommand (fc: FileCommandType) (dispatch: (Msg->Unit)) (model: Model) =
         MiscMenuView.importSheet model dispatch
         model, Cmd.none
 
+    | FileDuplicateSheet ->
+        MiscMenuView.duplicateSheet model dispatch
+        model, Cmd.none
+
     | FileNewProject withSave ->
         if withSave then
             doActionWithSaveFileDialog "New project" (ExecFuncInMessage(newProject,dispatch)) model dispatch ()

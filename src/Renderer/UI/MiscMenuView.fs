@@ -633,51 +633,100 @@ let pathsWithDependencies destProjectDir paths sourceProjectDir =
         (path, dependencies)
     )
 
-/// When sheet selected for import is from current directory,
-/// show popup asking user to rename the file 
-let renameSheetBeforeImportPopup oldPath model dispatch =
+/// Copy the sheet file at oldPath into the current project under a name typed by the user.
+/// nameOf turns the dialog text into the new sheet name: Import prefixes it, Duplicate uses it whole.
+/// notes are extra lines displayed above the preview of the new name.
+/// afterCopy is given the new sheet name and the current model, and decides how the project is reloaded.
+/// Example: nameOf = (fun s -> s + "_adder"), text "old" -> sheet "old_adder" in file old_adder.dgm.
+let copySheetIntoProjectPopup title placeholder buttonText notes nameOf oldPath afterCopy model dispatch =
     match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: renameSheetBeforeImport called when no project is currently open"
+    | None -> JSHelpers.log "Warning: copySheetIntoProjectPopup called when no project is currently open"
     | Some project ->
-        // Prepare dialog popup.
-        let title = "Duplicate sheet "
+        // sheet names are always lower case, so validation and the preview use the name that will be created
+        let newNameOf (dialogData: PopupDialogData) = nameOf ((getText dialogData).ToLower())
 
-        let sheetName = baseName oldPath
         let before =
             fun (dialogData: PopupDialogData) ->
-                let dialogText = getText dialogData
-
+                let newName = newNameOf dialogData
                 div []
-                    [ 
-                        str <| sprintf "Warning: Sheet %s is from current directory." sheetName
-                        br []
-                        br []
-                        str <| sprintf "New name: %s" (dialogText + "_" + baseNameWithoutExtension oldPath)
-                        Option.defaultValue (div [] []) (maybeWarning (dialogText + "_" + baseNameWithoutExtension oldPath) project)]
+                    (notes @
+                        [ str <| sprintf "New name: %s" newName
+                          Option.defaultValue (div [] []) (maybeWarning newName project) ])
 
-        let placeholder = "Prefix for design sheet"
         let body = dialogPopupBodyOnlyText before placeholder dispatch
-        let buttonText = "Rename"
 
         let buttonAction =
             fun (model': Model) ->
-                // Create empty file.
-                let newName = (getText model'.PopupDialogData).ToLower() + "_" + sheetName
-                let newPath = pathJoin [|dirName oldPath; newName|]
-                // copy the file over with its new name
-
+                let newName = newNameOf model'.PopupDialogData
+                let newPath = pathJoin [|project.ProjectPath; newName + ".dgm"|]
                 copyFile oldPath newPath
-                openProjectFromPath project.ProjectPath model' dispatch
+                afterCopy newName model'
                 dispatch ClosePopup
 
         let isDisabled =
             fun (model': Model) ->
-                let dialogData = model'.PopupDialogData
-                let dialogText = getText dialogData
-                (isFileInProject (dialogText + "_" + baseNameWithoutExtension oldPath) project) || (dialogText = "") ||
-                fileNameIsBad (dialogText + "_" + baseNameWithoutExtension oldPath)
+                let newName = newNameOf model'.PopupDialogData
+                (getText model'.PopupDialogData = "") || fileNameIsBad newName || maybeWarning newName project <> None
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+/// When sheet selected for import is from current directory,
+/// show popup asking user to rename the file
+let renameSheetBeforeImportPopup oldPath model dispatch =
+    let notes =
+        [ str <| sprintf "Warning: Sheet %s is from current directory." (baseName oldPath)
+          br []
+          br [] ]
+    let nameOf dialogText = dialogText + "_" + baseNameWithoutExtension oldPath
+    let afterCopy _ model' = openProjectFromPath (dirName oldPath) model' dispatch
+    copySheetIntoProjectPopup "Duplicate sheet " "Prefix for design sheet" "Rename" notes nameOf oldPath afterCopy model dispatch
+
+/// Duplicate the currently open sheet under a new name typed by the user.
+/// The open sheet is saved to disk first if dirty, since the copy is made from the file not the canvas.
+let duplicateSheet model dispatch =
+    match model.CurrentProj with
+    | None -> JSHelpers.log "Current project must be open for a sheet to be duplicated"
+    | Some project ->
+        dispatch <| (Sheet (SheetT.SetSpinner false))
+
+        // the new sheet is loaded from the copied file and added to the project, leaving other sheets alone
+        let afterCopy newName (model': Model) =
+            let newPath = pathJoin [|project.ProjectPath; newName + ".dgm"|]
+            match model'.CurrentProj, tryLoadComponentFromPath newPath with
+            | Some proj, Ok ldc ->
+                let proj' = {proj with LoadedComponents = ldc :: proj.LoadedComponents}
+                openFileInProject' false newName proj' model' dispatch
+            | _, Error err -> displayFileErrorNotification err dispatch
+            | _ -> ()
+            dispatch FinishUICmd
+
+        let advice =
+            div []
+                [ str "Duplicating a sheet is only necessary if you intend to implement similar but \
+                       different versions of the sheet. If you want copies of sheet hardware you can add \
+                       the sheet multiple times as a component from this Project in the Catalog." ]
+
+        match getFileInProject project.OpenFileName project with
+        | Some ({Form = Some User} as openSheet) ->
+            let notes = [ str <| sprintf "Sheet '%s' will be duplicated as:" openSheet.Name; br [] ]
+            let nameDialog () =
+                copySheetIntoProjectPopup "Duplicate sheet" "New name for duplicated sheet" "Duplicate"
+                                          notes id openSheet.FilePath afterCopy model dispatch
+            // saving here rather than in the dialog action keeps the copy in step with what is on screen
+            if model.SavedSheetIsOutOfDate then
+                match saveOpenFileToModel model with
+                | Some {CurrentProj = Some p} -> dispatch <| SetProject p
+                | _ -> ()
+            choicePopup "Duplicate sheet" advice "Continue" "Cancel"
+                (fun isContinue _ ->
+                    dispatch ClosePopup
+                    match isContinue with
+                    | true -> nameDialog ()
+                    | false -> dispatch FinishUICmd)
+                dispatch
+        | _ ->
+            displayFileErrorNotification $"Sheet '{project.OpenFileName}' cannot be duplicated." dispatch
+            dispatch FinishUICmd
 
 let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
 

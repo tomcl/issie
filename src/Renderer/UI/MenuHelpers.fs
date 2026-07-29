@@ -710,24 +710,35 @@ let private createEmptyDiagramFile projectPath name =
     }
 
 
-/// Write every sheet of the open project to disk and clear its needs-saving flag.
-/// The project is only written if it is still the one expected: the popup that triggers this is
-/// shown while the project is still being loaded into the model.
-let private saveAllSheetsAction (expectedPath: string) (model: Model) (dispatch: Msg -> Unit) =
+/// Write the sheets whose ids were corrected to disk and clear their needs-saving flags.
+/// The sheets are written from the corrected LoadedComponents captured when the project was read,
+/// not from the model, which is still being loaded when the popup offering this appears.
+let private saveCorrectedSheets (corrected: LoadedComponent list) (model: Model) (dispatch: Msg -> Unit) =
+    corrected
+    |> List.iter (fun ldc ->
+        let folder = dirName ldc.FilePath
+        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions = ldc.LCParameterSlots}
+        saveStateToFile folder ldc.Name (ldc.CanvasState, ldc.WaveInfo, Some sheetInfo)
+        |> displayAlertOnError dispatch
+        removeFileWithExtn ".dgmauto" folder ldc.Name)
     match model.CurrentProj with
-    | Some project when project.ProjectPath = expectedPath ->
-        saveAllProjectFilesFromLoadedComponentsToDisk project
-        let ldcs =
-            project.LoadedComponents
-            |> List.map (fun ldc -> {ldc with LoadedComponentIsOutOfDate = false; TimeStamp = DateTime.Now})
-        dispatch <| SetProject {project with LoadedComponents = ldcs}
-    | _ -> ()
+    | None -> ()
+    | Some project ->
+        let names = corrected |> List.map (fun ldc -> ldc.Name) |> Set.ofList
+        project.LoadedComponents
+        |> List.map (fun ldc ->
+            match Set.contains ldc.Name names with
+            | true -> {ldc with LoadedComponentIsOutOfDate = false; TimeStamp = DateTime.Now}
+            | false -> ldc)
+        |> fun ldcs -> dispatch <| SetProject {project with LoadedComponents = ldcs}
 
 /// Tell the user that sheets sharing ids with other sheets have been given fresh ids in memory,
-/// and offer to write the whole project out so that the repair is permanent.
-let private idsCorrectedPopup (projectPath: string) (corrected: string list) dispatch =
+/// and offer to write them out so that the repair is permanent.
+/// Sheet KeyPress messages are dropped while a popup is open (Update.fs), which swallows the
+/// fit-to-window done at the end of a project load, so redo it however this popup is dismissed.
+let private idsCorrectedPopup (corrected: LoadedComponent list) dispatch =
     let sheets =
-        match corrected with
+        match corrected |> List.map (fun ldc -> ldc.Name) with
         | [name] -> sprintf "Design sheet %s used" name
         | names -> sprintf "Design sheets %s used" (String.concat ", " names)
     let body =
@@ -741,10 +752,32 @@ let private idsCorrectedPopup (projectPath: string) (corrected: string list) dis
                    be redone every time the project is opened."
               br []; br []
               str "Nothing else about the sheets has changed." ]
-    let buttonAction () =
-        dispatch <| ExecFuncInMessage(saveAllSheetsAction projectPath, dispatch)
+    let close () =
         dispatch ClosePopup
-    confirmationPopup "Duplicate sheet ids corrected" "Save corrected sheets" body buttonAction dispatch
+        dispatch <| Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlW)
+    let foot =
+        Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+            Level.left [] []
+            Level.right [] [
+                Level.item [] [
+                    Button.button [
+                        Button.Color IsLight
+                        Button.OnClick (fun _ -> close ())
+                    ] [ str "Cancel" ]
+                ]
+                Level.item [] [
+                    Button.button [
+                        Button.Color IsPrimary
+                        Button.OnClick (fun _ ->
+                            dispatch <| ExecFuncInMessage(saveCorrectedSheets corrected, dispatch)
+                            close ())
+                    ] [ str "Save corrected sheets" ]
+                ]
+            ]
+        ]
+    buildPopup "Duplicate sheet ids corrected" (fun _ _ -> body) (fun _ _ -> foot) (fun _ _ -> close ()) []
+    |> ShowPopup
+    |> dispatch
 
 /// work out what to do opening a file
 let rec resolveComponentOpenPopup
@@ -763,9 +796,9 @@ let rec resolveComponentOpenPopup
         // that the same sheet keeps its ids each time the project is opened
         let ldcs, corrected = RegenerateIds.correctDuplicateIds (List.rev components)
         setupProjectFromComponents false (chooseWhichToOpen ldcs) ldcs model dispatch
-        match corrected with
+        match ldcs |> List.filter (fun ldc -> List.contains ldc.Name corrected) with
         | [] -> ()
-        | _ -> idsCorrectedPopup pPath corrected dispatch
+        | correctedLdcs -> idsCorrectedPopup correctedLdcs dispatch
     | Resolve (ldComp,autoComp) :: rLst ->
         // ldComp, autocomp are from attemps to load saved file and its autosave version.
         let compChanges, connChanges = quantifyChanges ldComp autoComp

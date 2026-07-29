@@ -350,7 +350,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ErrorCheckProcedural.Graph\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L444-444" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L718-718" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -381,19 +381,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '671', 671)" onmouseover="showTip(event, '671', 671)">
+              <code onmouseout="hideTip(event, '696', 696)" onmouseover="showTip(event, '696', 696)">
                 <p>
                   <a id="allCasesCovered">
                     <a href="#allCasesCovered">
-                      <code><span>allCasesCovered&#32;<span>caseStmt&#32;portSizeMap&#32;wireSizeMap</span></span></code>
+                      <code><span>allCasesCovered&#32;<span>caseStmt&#32;portSizeMap&#32;wireSizeMap&#32;arraySizeMap&#32;paramMap</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="671">
+              <div class="fsdocs-tip" id="696">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>allCasesCovered&#32;<span>caseStmt&#32;portSizeMap&#32;wireSizeMap</span></span></code>
+                  <code><span>allCasesCovered&#32;<span>caseStmt&#32;portSizeMap&#32;wireSizeMap&#32;arraySizeMap&#32;paramMap</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -403,7 +403,7 @@
                         caseStmt
                       </b>
                       :
-                      <code><a href="/issie/reference/verilogtypes-casestatementt.html">CaseStatementT</a></code>
+                      <code><a href="/issie/reference/verilogast-casestatement.html">CaseStatement</a></code>
                     </span>
                     <br/>
                     <span>
@@ -417,6 +417,22 @@
                     <span>
                       <b>
                         wireSizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arraySizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        paramMap
                       </b>
                       :
                       <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
@@ -443,7 +459,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.allCasesCovered\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L188-188" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L360-360" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -457,7 +473,7 @@
                     caseStmt
                   </span>
                   :
-                  <code><a href="/issie/reference/verilogtypes-casestatementt.html">CaseStatementT</a></code>
+                  <code><a href="/issie/reference/verilogast-casestatement.html">CaseStatement</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -471,6 +487,22 @@
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
                     wireSizeMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arraySizeMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    paramMap
                   </span>
                   :
                   <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
@@ -492,7 +524,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '672', 672)" onmouseover="showTip(event, '672', 672)">
+              <code onmouseout="hideTip(event, '697', 697)" onmouseover="showTip(event, '697', 697)">
                 <p>
                   <a id="checkAlwaysCombRHS">
                     <a href="#checkAlwaysCombRHS">
@@ -501,7 +533,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="672">
+              <div class="fsdocs-tip" id="697">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>checkAlwaysCombRHS&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;errorList</span></span></code>
@@ -570,7 +602,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.checkAlwaysCombRHS\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L701-701" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L1054-1054" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -636,19 +668,148 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '673', 673)" onmouseover="showTip(event, '673', 673)">
+              <code onmouseout="hideTip(event, '698', 698)" onmouseover="showTip(event, '698', 698)">
                 <p>
-                  <a id="checkCasesStatements">
-                    <a href="#checkCasesStatements">
-                      <code><span>checkCasesStatements&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;errorList</span></span></code>
+                  <a id="checkArrayStatements">
+                    <a href="#checkArrayStatements">
+                      <code><span>checkArrayStatements&#32;<span>ast&#32;linesLocations&#32;arraySizeMap&#32;errorList</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="673">
+              <div class="fsdocs-tip" id="698">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>checkCasesStatements&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;errorList</span></span></code>
+                  <code><span>checkArrayStatements&#32;<span>ast&#32;linesLocations&#32;arraySizeMap&#32;errorList</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ast
+                      </b>
+                      :
+                      <code><a href="/issie/reference/verilogtypes-veriloginput.html">VerilogInput</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        linesLocations
+                      </b>
+                      :
+                      <code><span>int&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arraySizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        errorList
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/verilogtypes-errorinfo.html">ErrorInfo</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/verilogtypes-errorinfo.html">ErrorInfo</a>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ErrorCheckProcedural.checkArrayStatements`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.checkArrayStatements\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L198-198" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Checks array assignments
+ - disallows multi-word assignment (unless assigning whole array)
+ - only 2d arrays allowed
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ast
+                  </span>
+                  :
+                  <code><a href="/issie/reference/verilogtypes-veriloginput.html">VerilogInput</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    linesLocations
+                  </span>
+                  :
+                  <code><span>int&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arraySizeMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    errorList
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/verilogtypes-errorinfo.html">ErrorInfo</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/verilogtypes-errorinfo.html">ErrorInfo</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '699', 699)" onmouseover="showTip(event, '699', 699)">
+                <p>
+                  <a id="checkCasesStatements">
+                    <a href="#checkCasesStatements">
+                      <code><span>checkCasesStatements&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;arraySizeMap&#32;paramMap&#32;errorList</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="699">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>checkCasesStatements&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;arraySizeMap&#32;paramMap&#32;errorList</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -687,6 +848,22 @@
                     <br/>
                     <span>
                       <b>
+                        arraySizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        paramMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
                         errorList
                       </b>
                       :
@@ -714,7 +891,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.checkCasesStatements\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L114-114" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L265-265" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -759,6 +936,22 @@
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
+                    arraySizeMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    paramMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
                     errorList
                   </span>
                   :
@@ -781,7 +974,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '674', 674)" onmouseover="showTip(event, '674', 674)">
+              <code onmouseout="hideTip(event, '700', 700)" onmouseover="showTip(event, '700', 700)">
                 <p>
                   <a id="checkClk">
                     <a href="#checkClk">
@@ -790,7 +983,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="674">
+              <div class="fsdocs-tip" id="700">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>checkClk&#32;<span>ast&#32;linesLocations&#32;portMap&#32;errorList</span></span></code>
@@ -819,7 +1012,7 @@
                         portMap
                       </b>
                       :
-                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;string</span>&gt;</span></code>
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<a href="/issie/reference/verilogast-declarationdu.html">DeclarationDU</a></span>&gt;</span></code>
                     </span>
                     <br/>
                     <span>
@@ -851,7 +1044,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.checkClk\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L343-343" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L609-609" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -881,7 +1074,7 @@
                     portMap
                   </span>
                   :
-                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;string</span>&gt;</span></code>
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<a href="/issie/reference/verilogast-declarationdu.html">DeclarationDU</a></span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -908,7 +1101,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '675', 675)" onmouseover="showTip(event, '675', 675)">
+              <code onmouseout="hideTip(event, '701', 701)" onmouseover="showTip(event, '701', 701)">
                 <p>
                   <a id="checkClkNames">
                     <a href="#checkClkNames">
@@ -917,7 +1110,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="675">
+              <div class="fsdocs-tip" id="701">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>checkClkNames&#32;<span>ast&#32;linesLocations&#32;portMap&#32;portLocationMap&#32;portSizeMap&#32;errorList</span></span></code>
@@ -946,7 +1139,7 @@
                         portMap
                       </b>
                       :
-                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;string</span>&gt;</span></code>
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<a href="/issie/reference/verilogast-declarationdu.html">DeclarationDU</a></span>&gt;</span></code>
                     </span>
                     <br/>
                     <span>
@@ -994,7 +1187,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.checkClkNames\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L374-374" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L640-640" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1027,7 +1220,7 @@
                     portMap
                   </span>
                   :
-                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;string</span>&gt;</span></code>
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<a href="/issie/reference/verilogast-declarationdu.html">DeclarationDU</a></span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -1070,19 +1263,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '676', 676)" onmouseover="showTip(event, '676', 676)">
+              <code onmouseout="hideTip(event, '702', 702)" onmouseover="showTip(event, '702', 702)">
                 <p>
                   <a id="checkExpressions">
                     <a href="#checkExpressions">
-                      <code><span>checkExpressions&#32;<span>ast&#32;linesLocations&#32;wireSizeMap&#32;errorList</span></span></code>
+                      <code><span>checkExpressions&#32;<span>ast&#32;linesLocations&#32;wireSizeMap&#32;arraySizeMap&#32;paramMap&#32;errorList</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="676">
+              <div class="fsdocs-tip" id="702">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>checkExpressions&#32;<span>ast&#32;linesLocations&#32;wireSizeMap&#32;errorList</span></span></code>
+                  <code><span>checkExpressions&#32;<span>ast&#32;linesLocations&#32;wireSizeMap&#32;arraySizeMap&#32;paramMap&#32;errorList</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1106,6 +1299,22 @@
                     <span>
                       <b>
                         wireSizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arraySizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        paramMap
                       </b>
                       :
                       <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
@@ -1140,7 +1349,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.checkExpressions\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L319-319" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L547-547" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1177,6 +1386,22 @@
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
+                    arraySizeMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    paramMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
                     errorList
                   </span>
                   :
@@ -1199,19 +1424,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '677', 677)" onmouseover="showTip(event, '677', 677)">
+              <code onmouseout="hideTip(event, '703', 703)" onmouseover="showTip(event, '703', 703)">
                 <p>
                   <a id="checkModuleInstantiations">
                     <a href="#checkModuleInstantiations">
-                      <code><span>checkModuleInstantiations&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;project&#32;portMap&#32;errorList</span></span></code>
+                      <code><span>checkModuleInstantiations&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;paramMap&#32;items&#32;project&#32;portMap&#32;errorList</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="677">
+              <div class="fsdocs-tip" id="703">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>checkModuleInstantiations&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;project&#32;portMap&#32;errorList</span></span></code>
+                  <code><span>checkModuleInstantiations&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;paramMap&#32;items&#32;project&#32;portMap&#32;errorList</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1242,10 +1467,18 @@
                     <br/>
                     <span>
                       <b>
-                        wireSizeMap
+                        paramMap
                       </b>
                       :
                       <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        items
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/verilogast-itemdu.html">ItemDU</a>&#32;list</span></code>
                     </span>
                     <br/>
                     <span>
@@ -1261,7 +1494,7 @@
                         portMap
                       </b>
                       :
-                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;string</span>&gt;</span></code>
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<a href="/issie/reference/verilogast-declarationdu.html">DeclarationDU</a></span>&gt;</span></code>
                     </span>
                     <br/>
                     <span>
@@ -1293,7 +1526,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.checkModuleInstantiations\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L737-737" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L1105-1105" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1304,6 +1537,7 @@
  - Are all the ports connected?
  - Are there any duplicate ports?
  - Make sure inputs are inputs (they have been assigned something), outputs are not driven by anything
+ - Are parameters correct?
                   </p>
                 </div>
               </summary>
@@ -1334,10 +1568,18 @@
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    wireSizeMap
+                    paramMap
                   </span>
                   :
                   <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    items
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/verilogast-itemdu.html">ItemDU</a>&#32;list</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -1353,7 +1595,7 @@
                     portMap
                   </span>
                   :
-                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;string</span>&gt;</span></code>
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<a href="/issie/reference/verilogast-declarationdu.html">DeclarationDU</a></span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -1380,7 +1622,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '678', 678)" onmouseover="showTip(event, '678', 678)">
+              <code onmouseout="hideTip(event, '704', 704)" onmouseover="showTip(event, '704', 704)">
                 <p>
                   <a id="checkProceduralAssignments">
                     <a href="#checkProceduralAssignments">
@@ -1389,7 +1631,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="678">
+              <div class="fsdocs-tip" id="704">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>checkProceduralAssignments&#32;<span>ast&#32;linesLocations&#32;errorList</span></span></code>
@@ -1491,19 +1733,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '679', 679)" onmouseover="showTip(event, '679', 679)">
+              <code onmouseout="hideTip(event, '705', 705)" onmouseover="showTip(event, '705', 705)">
                 <p>
                   <a id="checkVariablesAlwaysAssigned">
                     <a href="#checkVariablesAlwaysAssigned">
-                      <code><span>checkVariablesAlwaysAssigned&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;errorList</span></span></code>
+                      <code><span>checkVariablesAlwaysAssigned&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;arraySizeMap&#32;paramMap&#32;errorList</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="679">
+              <div class="fsdocs-tip" id="705">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>checkVariablesAlwaysAssigned&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;errorList</span></span></code>
+                  <code><span>checkVariablesAlwaysAssigned&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;arraySizeMap&#32;paramMap&#32;errorList</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1535,6 +1777,22 @@
                     <span>
                       <b>
                         wireSizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arraySizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        paramMap
                       </b>
                       :
                       <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
@@ -1595,6 +1853,22 @@
               <dd class="fsdocs-param-docs"></dd>
               <dt class="fsdocs-param">
                 <span class="fsdocs-param-name">
+                  arraySizeMap
+                </span>
+                :
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  paramMap
+                </span>
+                :
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
                   errorList
                 </span>
                 :
@@ -1616,19 +1890,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '680', 680)" onmouseover="showTip(event, '680', 680)">
+              <code onmouseout="hideTip(event, '706', 706)" onmouseover="showTip(event, '706', 706)">
                 <p>
                   <a id="checkVariablesDrivenSimultaneously">
                     <a href="#checkVariablesDrivenSimultaneously">
-                      <code><span>checkVariablesDrivenSimultaneously&#32;<span>ast&#32;linesLocations&#32;errorList</span></span></code>
+                      <code><span>checkVariablesDrivenSimultaneously&#32;<span>ast&#32;linesLocations&#32;arraySizeMap&#32;errorList</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="680">
+              <div class="fsdocs-tip" id="706">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>checkVariablesDrivenSimultaneously&#32;<span>ast&#32;linesLocations&#32;errorList</span></span></code>
+                  <code><span>checkVariablesDrivenSimultaneously&#32;<span>ast&#32;linesLocations&#32;arraySizeMap&#32;errorList</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1647,6 +1921,14 @@
                       </b>
                       :
                       <code><span>int&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arraySizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
                     </span>
                     <br/>
                     <span>
@@ -1706,6 +1988,14 @@
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
+                    arraySizeMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
                     errorList
                   </span>
                   :
@@ -1728,19 +2018,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '681', 681)" onmouseover="showTip(event, '681', 681)">
+              <code onmouseout="hideTip(event, '707', 707)" onmouseover="showTip(event, '707', 707)">
                 <p>
                   <a id="checkVariablesUsed">
                     <a href="#checkVariablesUsed">
-                      <code><span>checkVariablesUsed&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;errorList</span></span></code>
+                      <code><span>checkVariablesUsed&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;paramMap&#32;arraySizeMap&#32;errorList</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="681">
+              <div class="fsdocs-tip" id="707">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>checkVariablesUsed&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;errorList</span></span></code>
+                  <code><span>checkVariablesUsed&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;paramMap&#32;arraySizeMap&#32;errorList</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1779,6 +2069,22 @@
                     <br/>
                     <span>
                       <b>
+                        paramMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arraySizeMap
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
                         errorList
                       </b>
                       :
@@ -1806,7 +2112,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.checkVariablesUsed\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L574-574" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L851-851" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1849,6 +2155,22 @@
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
+                    paramMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arraySizeMap
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<span>(<span>int&#32;*&#32;<span>int&#32;array</span></span>)</span></span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
                     errorList
                   </span>
                   :
@@ -1871,7 +2193,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '682', 682)" onmouseover="showTip(event, '682', 682)">
+              <code onmouseout="hideTip(event, '708', 708)" onmouseover="showTip(event, '708', 708)">
                 <p>
                   <a id="cycleCheck">
                     <a href="#cycleCheck">
@@ -1880,7 +2202,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="682">
+              <div class="fsdocs-tip" id="708">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>cycleCheck&#32;<span>ast&#32;linesLocations&#32;portSizeMap&#32;wireSizeMap&#32;errorList</span></span></code>
@@ -1949,7 +2271,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.cycleCheck\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L549-549" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L826-826" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2014,7 +2336,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '683', 683)" onmouseover="showTip(event, '683', 683)">
+              <code onmouseout="hideTip(event, '709', 709)" onmouseover="showTip(event, '709', 709)">
                 <p>
                   <a id="findCycleDFS">
                     <a href="#findCycleDFS">
@@ -2023,7 +2345,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="683">
+              <div class="fsdocs-tip" id="709">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findCycleDFS&#32;<span>graph</span></span></code>
@@ -2060,7 +2382,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.findCycleDFS\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L446-446" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L720-720" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2093,7 +2415,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '684', 684)" onmouseover="showTip(event, '684', 684)">
+              <code onmouseout="hideTip(event, '710', 710)" onmouseover="showTip(event, '710', 710)">
                 <p>
                   <a id="getPrimaryWidth">
                     <a href="#getPrimaryWidth">
@@ -2102,7 +2424,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="684">
+              <div class="fsdocs-tip" id="710">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getPrimaryWidth&#32;<span>portSizeMap&#32;primary</span></span></code>
@@ -2123,7 +2445,7 @@
                         primary
                       </b>
                       :
-                      <code><a href="/issie/reference/verilogtypes-primaryt.html">PrimaryT</a></code>
+                      <code><a href="/issie/reference/verilogast-primarydu.html">PrimaryDU</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -2152,7 +2474,7 @@
                   primary
                 </span>
                 :
-                <code><a href="/issie/reference/verilogtypes-primaryt.html">PrimaryT</a></code>
+                <code><a href="/issie/reference/verilogast-primarydu.html">PrimaryDU</a></code>
               </dt>
               <dd class="fsdocs-param-docs"></dd>
             </dl>
@@ -2170,7 +2492,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '685', 685)" onmouseover="showTip(event, '685', 685)">
+              <code onmouseout="hideTip(event, '711', 711)" onmouseover="showTip(event, '711', 711)">
                 <p>
                   <a id="getVariablesWrittenAfterRead">
                     <a href="#getVariablesWrittenAfterRead">
@@ -2179,7 +2501,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="685">
+              <div class="fsdocs-tip" id="711">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getVariablesWrittenAfterRead&#32;<span>wireAndPortSizeMap&#32;linesLocations&#32;<span>(<span>rhsVars,&#32;errors</span>)</span>&#32;node</span></span></code>
@@ -2248,7 +2570,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ErrorCheckProcedural.getVariablesWrittenAfterRead\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L629-629" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/ErrorCheckProcedural.fs#L974-974" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

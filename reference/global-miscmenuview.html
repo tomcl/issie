@@ -408,7 +408,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1017', 1017)" onmouseover="showTip(event, '1017', 1017)">
+              <code onmouseout="hideTip(event, '1049', 1049)" onmouseover="showTip(event, '1049', 1049)">
                 <p>
                   <a id="Button">
                     <a href="#Button">
@@ -417,7 +417,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1017">
+              <div class="fsdocs-tip" id="1049">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>Button&#32;<span>sheetPath&#32;buttonDecision&#32;label&#32;isDisabled&#32;model&#32;dispatch</span></span></code>
@@ -549,7 +549,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1018', 1018)" onmouseover="showTip(event, '1018', 1018)">
+              <code onmouseout="hideTip(event, '1050', 1050)" onmouseover="showTip(event, '1050', 1050)">
                 <p>
                   <a id="allRootHierarchiesFromProjectBreadcrumbs">
                     <a href="#allRootHierarchiesFromProjectBreadcrumbs">
@@ -558,7 +558,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1018">
+              <div class="fsdocs-tip" id="1050">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>allRootHierarchiesFromProjectBreadcrumbs&#32;<span>cfg&#32;dispatch&#32;model</span></span></code>
@@ -663,7 +663,204 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1019', 1019)" onmouseover="showTip(event, '1019', 1019)">
+              <code onmouseout="hideTip(event, '1051', 1051)" onmouseover="showTip(event, '1051', 1051)">
+                <p>
+                  <a id="copySheetIntoProjectPopup">
+                    <a href="#copySheetIntoProjectPopup">
+                      <code><span>copySheetIntoProjectPopup&#32;<span>title&#32;placeholder&#32;buttonText&#32;notes&#32;nameOf&#32;oldPath&#32;afterCopy&#32;model&#32;dispatch</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1051">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>copySheetIntoProjectPopup&#32;<span>title&#32;placeholder&#32;buttonText&#32;notes&#32;nameOf&#32;oldPath&#32;afterCopy&#32;model&#32;dispatch</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        title
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        placeholder
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        buttonText
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        notes
+                      </b>
+                      :
+                      <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        nameOf
+                      </b>
+                      :
+                      <code><span>string&#32;->&#32;string</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        oldPath
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        afterCopy
+                      </b>
+                      :
+                      <code><span>string&#32;->&#32;<a href="/issie/reference/modeltype-model.html">Model</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MiscMenuView.copySheetIntoProjectPopup`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MiscMenuView.copySheetIntoProjectPopup\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MiscMenuView.fs#L641-641" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Copy the sheet file at oldPath into the current project under a name typed by the user.
+ nameOf turns the dialog text into the new sheet name: Import prefixes it, Duplicate uses it whole.
+ notes are extra lines displayed above the preview of the new name.
+ afterCopy is given the new sheet name and the current model, and decides how the project is reloaded.
+ Example: nameOf = (fun s -> s + "_adder"), text "old" -> sheet "old_adder" in file old_adder.dgm.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    title
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    placeholder
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    buttonText
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    notes
+                  </span>
+                  :
+                  <code><span><a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    nameOf
+                  </span>
+                  :
+                  <code><span>string&#32;->&#32;string</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    oldPath
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    afterCopy
+                  </span>
+                  :
+                  <code><span>string&#32;->&#32;<a href="/issie/reference/modeltype-model.html">Model</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1052', 1052)" onmouseover="showTip(event, '1052', 1052)">
                 <p>
                   <a id="createSheetInfo">
                     <a href="#createSheetInfo">
@@ -672,7 +869,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1019">
+              <div class="fsdocs-tip" id="1052">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>createSheetInfo&#32;<span>model&#32;projectDir&#32;dispatch&#32;<span>(<span>arg4,&#32;arg5</span>)</span></span></span></code>
@@ -806,7 +1003,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1020', 1020)" onmouseover="showTip(event, '1020', 1020)">
+              <code onmouseout="hideTip(event, '1053', 1053)" onmouseover="showTip(event, '1053', 1053)">
                 <p>
                   <a id="dependencyRow">
                     <a href="#dependencyRow">
@@ -815,7 +1012,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1020">
+              <div class="fsdocs-tip" id="1053">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>dependencyRow&#32;<span>sheetPath&#32;model&#32;dispatch&#32;dependencyPath</span></span></code>
@@ -933,7 +1130,106 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1021', 1021)" onmouseover="showTip(event, '1021', 1021)">
+              <code onmouseout="hideTip(event, '1054', 1054)" onmouseover="showTip(event, '1054', 1054)">
+                <p>
+                  <a id="duplicateSheet">
+                    <a href="#duplicateSheet">
+                      <code><span>duplicateSheet&#32;<span>sheetName&#32;model&#32;dispatch</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1054">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>duplicateSheet&#32;<span>sheetName&#32;model&#32;dispatch</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        sheetName
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        dispatch
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MiscMenuView.duplicateSheet`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MiscMenuView.duplicateSheet\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MiscMenuView.fs#L688-688" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Duplicate the named sheet of the current project under a new name typed by the user.
+ If that sheet is the open one it is saved to disk first when dirty, since the copy is made
+ from the file rather than from the canvas.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    sheetName
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dispatch
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/modeltype-msg.html">Msg</a>&#32;->&#32;unit</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1055', 1055)" onmouseover="showTip(event, '1055', 1055)">
                 <p>
                   <a id="getDecisionText">
                     <a href="#getDecisionText">
@@ -942,7 +1238,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1021">
+              <div class="fsdocs-tip" id="1055">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getDecisionText&#32;<span>path&#32;model&#32;sheetIsDependency&#32;decisionNeeded</span></span></code>
@@ -1060,7 +1356,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1022', 1022)" onmouseover="showTip(event, '1022', 1022)">
+              <code onmouseout="hideTip(event, '1056', 1056)" onmouseover="showTip(event, '1056', 1056)">
                 <p>
                   <a id="getDependents">
                     <a href="#getDependents">
@@ -1069,7 +1365,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1022">
+              <div class="fsdocs-tip" id="1056">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getDependents&#32;<span>model&#32;oldSheetPath&#32;newSheetPath</span></span></code>
@@ -1172,7 +1468,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1023', 1023)" onmouseover="showTip(event, '1023', 1023)">
+              <code onmouseout="hideTip(event, '1057', 1057)" onmouseover="showTip(event, '1057', 1057)">
                 <p>
                   <a id="getDependentsFromSheet">
                     <a href="#getDependentsFromSheet">
@@ -1181,7 +1477,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1023">
+              <div class="fsdocs-tip" id="1057">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getDependentsFromSheet&#32;<span>model&#32;sheetName</span></span></code>
@@ -1267,7 +1563,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1024', 1024)" onmouseover="showTip(event, '1024', 1024)">
+              <code onmouseout="hideTip(event, '1058', 1058)" onmouseover="showTip(event, '1058', 1058)">
                 <p>
                   <a id="gridArea">
                     <a href="#gridArea">
@@ -1276,7 +1572,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1024">
+              <div class="fsdocs-tip" id="1058">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>gridArea&#32;<span>gridPos</span></span></code>
@@ -1328,7 +1624,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1025', 1025)" onmouseover="showTip(event, '1025', 1025)">
+              <code onmouseout="hideTip(event, '1059', 1059)" onmouseover="showTip(event, '1059', 1059)">
                 <p>
                   <a id="gridBox">
                     <a href="#gridBox">
@@ -1337,7 +1633,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1025">
+              <div class="fsdocs-tip" id="1059">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>gridBox&#32;<span>gap&#32;s</span></span></code>
@@ -1405,7 +1701,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1026', 1026)" onmouseover="showTip(event, '1026', 1026)">
+              <code onmouseout="hideTip(event, '1060', 1060)" onmouseover="showTip(event, '1060', 1060)">
                 <p>
                   <a id="gridElement">
                     <a href="#gridElement">
@@ -1414,7 +1710,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1026">
+              <div class="fsdocs-tip" id="1060">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>gridElement&#32;<span>reactElementId&#32;props&#32;styleProps&#32;pos&#32;x</span></span></code>
@@ -1548,7 +1844,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1027', 1027)" onmouseover="showTip(event, '1027', 1027)">
+              <code onmouseout="hideTip(event, '1061', 1061)" onmouseover="showTip(event, '1061', 1061)">
                 <p>
                   <a id="hierarchiesHaveDuplicates">
                     <a href="#hierarchiesHaveDuplicates">
@@ -1557,7 +1853,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1027">
+              <div class="fsdocs-tip" id="1061">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>hierarchiesHaveDuplicates&#32;<span>model</span></span></code>
@@ -1627,7 +1923,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1028', 1028)" onmouseover="showTip(event, '1028', 1028)">
+              <code onmouseout="hideTip(event, '1062', 1062)" onmouseover="showTip(event, '1062', 1062)">
                 <p>
                   <a id="hierarchyBreadcrumbs">
                     <a href="#hierarchyBreadcrumbs">
@@ -1636,7 +1932,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1028">
+              <div class="fsdocs-tip" id="1062">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>hierarchyBreadcrumbs&#32;<span>cfg&#32;dispatch&#32;model</span></span></code>
@@ -1740,7 +2036,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1029', 1029)" onmouseover="showTip(event, '1029', 1029)">
+              <code onmouseout="hideTip(event, '1063', 1063)" onmouseover="showTip(event, '1063', 1063)">
                 <p>
                   <a id="hierarchyFromSheetBreadcrumbs">
                     <a href="#hierarchyFromSheetBreadcrumbs">
@@ -1749,7 +2045,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1029">
+              <div class="fsdocs-tip" id="1063">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>hierarchyFromSheetBreadcrumbs&#32;<span>rootSheet&#32;cfg&#32;dispatch&#32;model</span></span></code>
@@ -1870,7 +2166,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1030', 1030)" onmouseover="showTip(event, '1030', 1030)">
+              <code onmouseout="hideTip(event, '1064', 1064)" onmouseover="showTip(event, '1064', 1064)">
                 <p>
                   <a id="importSheet">
                     <a href="#importSheet">
@@ -1879,7 +2175,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1030">
+              <div class="fsdocs-tip" id="1064">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>importSheet&#32;<span>model&#32;dispatch</span></span></code>
@@ -1919,7 +2215,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MiscMenuView.importSheet\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MiscMenuView.fs#L774-774" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MiscMenuView.fs#L821-821" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1951,7 +2247,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1031', 1031)" onmouseover="showTip(event, '1031', 1031)">
+              <code onmouseout="hideTip(event, '1065', 1065)" onmouseover="showTip(event, '1065', 1065)">
                 <p>
                   <a id="importSheetPopup">
                     <a href="#importSheetPopup">
@@ -1960,7 +2256,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1031">
+              <div class="fsdocs-tip" id="1065">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>importSheetPopup&#32;<span>destProjectDir&#32;paths&#32;sourceProjectDir&#32;dispatch</span></span></code>
@@ -2060,7 +2356,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1032', 1032)" onmouseover="showTip(event, '1032', 1032)">
+              <code onmouseout="hideTip(event, '1066', 1066)" onmouseover="showTip(event, '1066', 1066)">
                 <p>
                   <a id="makeBreadcrumbsFromPositions">
                     <a href="#makeBreadcrumbsFromPositions">
@@ -2069,7 +2365,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1032">
+              <div class="fsdocs-tip" id="1066">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeBreadcrumbsFromPositions&#32;<span>sheetTreeMap&#32;cfg&#32;positionSheetsInGrid&#32;dispatch</span></span></code>
@@ -2189,7 +2485,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1033', 1033)" onmouseover="showTip(event, '1033', 1033)">
+              <code onmouseout="hideTip(event, '1067', 1067)" onmouseover="showTip(event, '1067', 1067)">
                 <p>
                   <a id="makeGridFromSheetsWithPositions">
                     <a href="#makeGridFromSheetsWithPositions">
@@ -2198,7 +2494,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1033">
+              <div class="fsdocs-tip" id="1067">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeGridFromSheetsWithPositions&#32;<span>cfg&#32;dispatch&#32;posL</span></span></code>
@@ -2282,7 +2578,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1034', 1034)" onmouseover="showTip(event, '1034', 1034)">
+              <code onmouseout="hideTip(event, '1068', 1068)" onmouseover="showTip(event, '1068', 1068)">
                 <p>
                   <a id="maybeWarning">
                     <a href="#maybeWarning">
@@ -2291,7 +2587,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1034">
+              <div class="fsdocs-tip" id="1068">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>maybeWarning&#32;<span>dialogText&#32;project</span></span></code>
@@ -2377,7 +2673,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1035', 1035)" onmouseover="showTip(event, '1035', 1035)">
+              <code onmouseout="hideTip(event, '1069', 1069)" onmouseover="showTip(event, '1069', 1069)">
                 <p>
                   <a id="pathsWithDependencies">
                     <a href="#pathsWithDependencies">
@@ -2386,7 +2682,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1035">
+              <div class="fsdocs-tip" id="1069">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>pathsWithDependencies&#32;<span>destProjectDir&#32;paths&#32;sourceProjectDir</span></span></code>
@@ -2488,7 +2784,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1036', 1036)" onmouseover="showTip(event, '1036', 1036)">
+              <code onmouseout="hideTip(event, '1070', 1070)" onmouseover="showTip(event, '1070', 1070)">
                 <p>
                   <a id="positionDesignHierarchyInGrid">
                     <a href="#positionDesignHierarchyInGrid">
@@ -2497,7 +2793,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1036">
+              <div class="fsdocs-tip" id="1070">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>positionDesignHierarchyInGrid&#32;<span>rootSheet&#32;trees</span></span></code>
@@ -2565,7 +2861,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1037', 1037)" onmouseover="showTip(event, '1037', 1037)">
+              <code onmouseout="hideTip(event, '1071', 1071)" onmouseover="showTip(event, '1071', 1071)">
                 <p>
                   <a id="positionRootAndFocusChildrenInGrid">
                     <a href="#positionRootAndFocusChildrenInGrid">
@@ -2574,7 +2870,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1037">
+              <div class="fsdocs-tip" id="1071">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>positionRootAndFocusChildrenInGrid&#32;<span>root&#32;pathToFocus&#32;trees</span></span></code>
@@ -2658,7 +2954,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1038', 1038)" onmouseover="showTip(event, '1038', 1038)">
+              <code onmouseout="hideTip(event, '1072', 1072)" onmouseover="showTip(event, '1072', 1072)">
                 <p>
                   <a id="renameSheetBeforeImportPopup">
                     <a href="#renameSheetBeforeImportPopup">
@@ -2667,7 +2963,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1038">
+              <div class="fsdocs-tip" id="1072">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>renameSheetBeforeImportPopup&#32;<span>oldPath&#32;model&#32;dispatch</span></span></code>
@@ -2715,7 +3011,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MiscMenuView.renameSheetBeforeImportPopup\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MiscMenuView.fs#L638-638" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MiscMenuView.fs#L676-676" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2756,7 +3052,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1039', 1039)" onmouseover="showTip(event, '1039', 1039)">
+              <code onmouseout="hideTip(event, '1073', 1073)" onmouseover="showTip(event, '1073', 1073)">
                 <p>
                   <a id="smallSimulationBreadcrumbs">
                     <a href="#smallSimulationBreadcrumbs">
@@ -2765,7 +3061,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1039">
+              <div class="fsdocs-tip" id="1073">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>smallSimulationBreadcrumbs&#32;<span>rootName&#32;pathToFocus&#32;cfg&#32;dispatch&#32;model</span></span></code>
@@ -2905,7 +3201,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1040', 1040)" onmouseover="showTip(event, '1040', 1040)">
+              <code onmouseout="hideTip(event, '1074', 1074)" onmouseover="showTip(event, '1074', 1074)">
                 <p>
                   <a id="twoButtons">
                     <a href="#twoButtons">
@@ -2914,7 +3210,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1040">
+              <div class="fsdocs-tip" id="1074">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>twoButtons&#32;<span>leftButton&#32;rightButton</span></span></code>

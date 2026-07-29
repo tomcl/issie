@@ -655,6 +655,64 @@
             <div>
               <code onmouseout="hideTip(event, '68', 68)" onmouseover="showTip(event, '68', 68)">
                 <p>
+                  <a id="devServerUrl">
+                    <a href="#devServerUrl">
+                      <code><span>devServerUrl&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="68">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>devServerUrl&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:Main.devServerUrl`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:Main.devServerUrl\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L106-106" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     URL of the webpack dev server used in development mode.
+ Must match renderSrvOpts {port:} in scripts/start.js
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '69', 69)" onmouseover="showTip(event, '69', 69)">
+                <p>
                   <a id="dispatchToRenderer">
                     <a href="#dispatchToRenderer">
                       <code><span>dispatchToRenderer&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span></span></span></code>
@@ -662,7 +720,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="68">
+              <div class="fsdocs-tip" id="69">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>dispatchToRenderer&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span></span></span></code>
@@ -716,7 +774,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '69', 69)" onmouseover="showTip(event, '69', 69)">
+              <code onmouseout="hideTip(event, '70', 70)" onmouseover="showTip(event, '70', 70)">
                 <p>
                   <a id="electronRemote">
                     <a href="#electronRemote">
@@ -725,7 +783,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="69">
+              <div class="fsdocs-tip" id="70">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>electronRemote&#32;<span></span></span></code>
@@ -778,7 +836,75 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '70', 70)" onmouseover="showTip(event, '70', 70)">
+              <code onmouseout="hideTip(event, '71', 71)" onmouseover="showTip(event, '71', 71)">
+                <p>
+                  <a id="hardenWebContents">
+                    <a href="#hardenWebContents">
+                      <code><span>hardenWebContents&#32;<span>webContents</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="71">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>hardenWebContents&#32;<span>webContents</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        webContents
+                      </b>
+                      :
+                      <code><a href="/issie/reference/electronapi-electron-webcontents.html">WebContents</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Main.hardenWebContents`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.hardenWebContents\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L123-123" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The renderer runs with nodeIntegration enabled, so any page loaded into it
+ gets full Node access. Refuse to navigate the app window away from Issie's
+ own content, and refuse to open popup windows at all: external links are
+ handed to the OS browser, which has no such privileges.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    webContents
+                  </span>
+                  :
+                  <code><a href="/issie/reference/electronapi-electron-webcontents.html">WebContents</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '72', 72)" onmouseover="showTip(event, '72', 72)">
                 <p>
                   <a id="hasDebugArgs">
                     <a href="#hasDebugArgs">
@@ -787,7 +913,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="70">
+              <div class="fsdocs-tip" id="72">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>hasDebugArgs&#32;<span>()</span></span></code>
@@ -839,7 +965,87 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '71', 71)" onmouseover="showTip(event, '71', 71)">
+              <code onmouseout="hideTip(event, '73', 73)" onmouseover="showTip(event, '73', 73)">
+                <p>
+                  <a id="isAppUrl">
+                    <a href="#isAppUrl">
+                      <code><span>isAppUrl&#32;<span>url</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="73">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>isAppUrl&#32;<span>url</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        url
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Main.isAppUrl`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.isAppUrl\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L110-110" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     True only for Issie's own content: the dev server in development, the
+ packaged bundle otherwise. Everything else counts as external.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    url
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '74', 74)" onmouseover="showTip(event, '74', 74)">
                 <p>
                   <a id="isMacos">
                     <a href="#isMacos">
@@ -848,7 +1054,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="71">
+              <div class="fsdocs-tip" id="74">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isMacos&#32;<span></span></span></code>
@@ -878,7 +1084,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '72', 72)" onmouseover="showTip(event, '72', 72)">
+              <code onmouseout="hideTip(event, '75', 75)" onmouseover="showTip(event, '75', 75)">
                 <p>
                   <a id="isWin">
                     <a href="#isWin">
@@ -887,7 +1093,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="72">
+              <div class="fsdocs-tip" id="75">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isWin&#32;<span></span></span></code>
@@ -917,7 +1123,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '73', 73)" onmouseover="showTip(event, '73', 73)">
+              <code onmouseout="hideTip(event, '76', 76)" onmouseover="showTip(event, '76', 76)">
                 <p>
                   <a id="loadAppIntoWidowWhenReady">
                     <a href="#loadAppIntoWidowWhenReady">
@@ -926,7 +1132,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="73">
+              <div class="fsdocs-tip" id="76">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>loadAppIntoWidowWhenReady&#32;<span>window</span></span></code>
@@ -978,7 +1184,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '74', 74)" onmouseover="showTip(event, '74', 74)">
+              <code onmouseout="hideTip(event, '77', 77)" onmouseover="showTip(event, '77', 77)">
                 <p>
                   <a id="mainWindow">
                     <a href="#mainWindow">
@@ -987,7 +1193,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="74">
+              <div class="fsdocs-tip" id="77">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mainWindow&#32;<span></span></span></code>
@@ -1017,7 +1223,73 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '75', 75)" onmouseover="showTip(event, '75', 75)">
+              <code onmouseout="hideTip(event, '78', 78)" onmouseover="showTip(event, '78', 78)">
+                <p>
+                  <a id="openExternally">
+                    <a href="#openExternally">
+                      <code><span>openExternally&#32;<span>url</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="78">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>openExternally&#32;<span>url</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        url
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Main.openExternally`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.openExternally\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L115-115" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Open a link in the user's default browser. Restricted to http(s) so a link
+ cannot be used to invoke an arbitrary OS protocol handler.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    url
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '79', 79)" onmouseover="showTip(event, '79', 79)">
                 <p>
                   <a id="printListeners">
                     <a href="#printListeners">
@@ -1026,7 +1298,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="75">
+              <div class="fsdocs-tip" id="79">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>printListeners&#32;<span>()</span></span></code>
@@ -1064,7 +1336,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '76', 76)" onmouseover="showTip(event, '76', 76)">
+              <code onmouseout="hideTip(event, '80', 80)" onmouseover="showTip(event, '80', 80)">
                 <p>
                   <a id="startRenderer">
                     <a href="#startRenderer">
@@ -1073,7 +1345,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="76">
+              <div class="fsdocs-tip" id="80">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>startRenderer&#32;<span>doAfterReady</span></span></code>
@@ -1111,7 +1383,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '77', 77)" onmouseover="showTip(event, '77', 77)">
+              <code onmouseout="hideTip(event, '81', 81)" onmouseover="showTip(event, '81', 81)">
                 <p>
                   <a id="startup">
                     <a href="#startup">
@@ -1120,7 +1392,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="77">
+              <div class="fsdocs-tip" id="81">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>startup&#32;<span>()</span></span></code>
@@ -1158,7 +1430,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '78', 78)" onmouseover="showTip(event, '78', 78)">
+              <code onmouseout="hideTip(event, '82', 82)" onmouseover="showTip(event, '82', 82)">
                 <p>
                   <a id="staticDir">
                     <a href="#staticDir">
@@ -1167,7 +1439,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="78">
+              <div class="fsdocs-tip" id="82">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>staticDir&#32;<span>()</span></span></code>
@@ -1219,7 +1491,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '79', 79)" onmouseover="showTip(event, '79', 79)">
+              <code onmouseout="hideTip(event, '83', 83)" onmouseover="showTip(event, '83', 83)">
                 <p>
                   <a id="wait">
                     <a href="#wait">
@@ -1228,7 +1500,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="79">
+              <div class="fsdocs-tip" id="83">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wait&#32;<span>n&#32;cont</span></span></code>

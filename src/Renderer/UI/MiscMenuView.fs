@@ -682,14 +682,13 @@ let renameSheetBeforeImportPopup oldPath model dispatch =
     let afterCopy _ model' = openProjectFromPath (dirName oldPath) model' dispatch
     copySheetIntoProjectPopup "Duplicate sheet " "Prefix for design sheet" "Rename" notes nameOf oldPath afterCopy model dispatch
 
-/// Duplicate the currently open sheet under a new name typed by the user.
-/// The open sheet is saved to disk first if dirty, since the copy is made from the file not the canvas.
-let duplicateSheet model dispatch =
+/// Duplicate the named sheet of the current project under a new name typed by the user.
+/// If that sheet is the open one it is saved to disk first when dirty, since the copy is made
+/// from the file rather than from the canvas.
+let duplicateSheet (sheetName: string) model dispatch =
     match model.CurrentProj with
     | None -> JSHelpers.log "Current project must be open for a sheet to be duplicated"
     | Some project ->
-        dispatch <| (Sheet (SheetT.SetSpinner false))
-
         // the new sheet is loaded from the copied file and added to the project, leaving other sheets alone
         let afterCopy newName (model': Model) =
             let newPath = pathJoin [|project.ProjectPath; newName + ".dgm"|]
@@ -699,7 +698,6 @@ let duplicateSheet model dispatch =
                 openFileInProject' false newName proj' model' dispatch
             | _, Error err -> displayFileErrorNotification err dispatch
             | _ -> ()
-            dispatch FinishUICmd
 
         let advice =
             div []
@@ -707,14 +705,14 @@ let duplicateSheet model dispatch =
                        different versions of the sheet. If you want copies of sheet hardware you can add \
                        the sheet multiple times as a component from this Project in the Catalog." ]
 
-        match getFileInProject project.OpenFileName project with
-        | Some ({Form = Some User} as openSheet) ->
-            let notes = [ str <| sprintf "Sheet '%s' will be duplicated as:" openSheet.Name; br [] ]
+        match getFileInProject sheetName project with
+        | Some ({Form = Some User} as sheet) ->
+            let notes = [ str <| sprintf "Sheet '%s' will be duplicated as:" sheet.Name; br [] ]
             let nameDialog () =
                 copySheetIntoProjectPopup "Duplicate sheet" "New name for duplicated sheet" "Duplicate"
-                                          notes id openSheet.FilePath afterCopy model dispatch
+                                          notes id sheet.FilePath afterCopy model dispatch
             // saving here rather than in the dialog action keeps the copy in step with what is on screen
-            if model.SavedSheetIsOutOfDate then
+            if sheetName = project.OpenFileName && model.SavedSheetIsOutOfDate then
                 match saveOpenFileToModel model with
                 | Some {CurrentProj = Some p} -> dispatch <| SetProject p
                 | _ -> ()
@@ -723,11 +721,10 @@ let duplicateSheet model dispatch =
                     dispatch ClosePopup
                     match isContinue with
                     | true -> nameDialog ()
-                    | false -> dispatch FinishUICmd)
+                    | false -> ())
                 dispatch
         | _ ->
-            displayFileErrorNotification $"Sheet '{project.OpenFileName}' cannot be duplicated." dispatch
-            dispatch FinishUICmd
+            displayFileErrorNotification $"Sheet '{sheetName}' cannot be duplicated." dispatch
 
 let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
 

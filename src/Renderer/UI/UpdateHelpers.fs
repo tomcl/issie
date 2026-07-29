@@ -440,6 +440,9 @@ let processContextMenuClick
     | SheetMenuBreadcrumb(sheet,_), "Rename" ->
         renameFileInProject sheet.SheetName p model dispatch
         withNoCmd model
+    | SheetMenuBreadcrumb(sheet,_), "Duplicate" ->
+        MiscMenuView.duplicateSheet sheet.SheetName model dispatch
+        withNoCmd model
     | SheetMenuBreadcrumb(sheet,_), "Delete" ->
         deleteFileConfirmationPopup sheet.SheetName model dispatch
         withNoCmd model

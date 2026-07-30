@@ -48,10 +48,19 @@ type ParamConstraint =
 ```fsharp
 type CompSlotName =
     | Buswidth              // Component bus width
-    | NGateInputs           // Number of gate inputs
+    | NGateInputs           // Number of gate inputs (legacy: no longer creatable, see below)
     | IO of Label: string   // Input/Output port widths
     | CustomCompParam of ParamName: string // Custom component parameters
+    | SplitNWidth of Index: int // SplitN output width
+    | SplitNLSB of Index: int   // SplitN output LSB
+    | InputDefault          // Value an Input1 takes when undriven
 ```
+
+`NGateInputs` slots can no longer be created: the input count of a gate or merge sets how many
+ports it has, and a parameter records a value, not a change of topology. Designs saved before this
+was enforced may still contain such slots; simulation reports an error if one resolves to a value
+that disagrees with the component's ports, and editing the input count in Properties removes the
+stale slot.
 
 #### Sheet-Level Definitions
 ```fsharp
@@ -84,26 +93,27 @@ Manages all parameter-related user interactions:
 
 ### Simulation Integration (`GraphMerger.fs`)
 
-Handles parameter resolution during simulation graph construction using a two-stage process:
+Handles parameter resolution during simulation graph construction:
 
 #### Stage 1 - Graph Merging
 - Custom components replaced with internal graphs
 - Parameter resolution intentionally deferred to avoid forward references
 - Graphs stored in `CustomSimulationGraph` field
 
-#### Stage 2 - Parameter Resolution
+#### Stage 2 - Parameter Resolution (`resolveParametersInSimulationGraph`)
 
-**2a. Instance-specific** (`resolveCustomComponentParameters`):
-- Apply component instance parameter bindings
-- Override default values from definitions
-- Process nested custom components recursively
+A single recursive walk (`resolveSheet`) resolves each sheet and then descends into the sheets of
+the custom components it contains:
 
-**2b. Sheet-level** (`resolveParametersInSimulationGraph`):
-- Use default sheet parameter bindings
-- Evaluate expressions for all parameterized slots
-- Update component configurations with resolved values
-
-This two-stage approach prevents forward reference issues and ensures proper parameter precedence.
+- The top sheet is resolved with its own default bindings.
+- Each sheet below is resolved with its *effective bindings*: the instance's bindings override the
+  sheet's defaults, and every declared parameter always has a value.
+- An expression that cannot be evaluated fails the whole simulation with an informative
+  `SimulationError` — the widths in a `SimulationGraph` must be concrete, and skipping one would
+  simulate hardware that differs from the design.
+- The walk is memoised on `(sheet name, diff of effective values from default values)`: every
+  instance of a sheet whose bindings give the same diff resolves to the same graph, so a sheet
+  tree recurring in several places is walked once, and the common all-defaults case adds no work.
 
 ### Validation Layer (`CanvasStateAnalyser.fs`)
 
@@ -158,9 +168,9 @@ GraphMerger.mergeDependencies
     ↓
 Stage 1: Merge graphs (defer parameters)
     ↓
-Stage 2a: Resolve instance parameters
-    ↓
-Stage 2b: Resolve sheet parameters
+Stage 2: resolveSheet — top sheet with defaults,
+         each sheet below with its instance's bindings,
+         memoised on (sheet, diff from defaults)
     ↓
 FastSim with resolved values
 ```
@@ -208,7 +218,8 @@ The parser uses recursive descent with separate functions for each precedence le
 
 Notes and caveats:
 - Tokenizer restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
-- Division and modulo are evaluated during constant-folding; add a MinVal constraint to prevent zero divisors where needed.
+- Division or modulo by zero is reported as an informative evaluation error, as is a parameter
+  defined in terms of itself.
   
 Code: `src/Renderer/Common/ParameterTypes.fs` (`parseExpression`, tokenizer regex, and helpers)
 
@@ -270,12 +281,12 @@ The system implements three evaluation strategies optimized for different contex
   - Returns `Result<int, string>`
 - **Usage**: Parameter input fields, validation messages
 
-### 2. Graph Resolution (`GraphMerger.evalExpr`)
+### 2. Graph Resolution (`GraphMerger.resolveSheet`)
 - **Purpose**: Simulation graph construction
 - **Features**:
-  - Returns `Option<int>` instead of `Result`
-  - Optimized for batch processing
-  - No error messages needed
+  - Uses `evaluateParamExpression` with each sheet's effective bindings
+  - An evaluation failure becomes a `SimulationError` naming the component and sheet
+  - Memoised per sheet on the diff of bindings from defaults
 - **Usage**: Simulation preparation
 
 ### 3. Validation Resolution (`CanvasStateAnalyser`)
@@ -425,7 +436,7 @@ if Set.contains "params" JSHelpers.debugTraceUI then
 ```
 
 ### Common Issues
-1. **Forward references**: Resolved by two-stage simulation
+1. **Forward references**: Resolved by merging all graphs before resolving parameters
 2. **Circular dependencies**: Detected and reported
 3. **Constraint conflicts**: Validated before application
 4. **Type mismatches**: Caught by F# type system
@@ -483,7 +494,7 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> (Msg -> unit) -> R
 ## Resolution Mechanics Deep-Dive
 
 - UI evaluation: `ParameterTypes.evaluateParamExpression` performs recursive substitution and constant-folding with detailed errors. Used by `ParameterView` for validation and preview.
-- Graph evaluation: `GraphMerger.resolveParametersInSimulationGraph` uses internal `evalExpr` (returns `Option<int>`) and `applySlotValue` to write concrete values into `SimulationGraph` component types after merge.
+- Graph evaluation: `GraphMerger.resolveParametersInSimulationGraph` walks the sheet tree with `resolveSheet`, evaluating each slot with `evaluateParamExpression` and writing concrete values into `SimulationGraph` component types with `applySlotValue`; any failure is a `SimulationError`.
 - Validation evaluation: `CanvasStateAnalyser.checkCustomComponentForOkIOs` embeds a minimal evaluator supporting only `PInt` and `PParameter` to resolve port widths quickly for label checking.
 - Slot access: Lenses `ParameterView.compSlot_` and `ParameterView.modelToSlot_` provide strongly typed access into `Component.Type` for `Buswidth`, `NGateInputs`, and `IO label`.
 
@@ -512,8 +523,9 @@ For a side-by-side comparison with an earlier streamlined approach, see `PARAMET
 ## Known Limitations
 
 - Integer-only parameters today (`ParamInt = int`); very large constants may require future `bigint`.
-- No explicit guard on divide/modulo by zero during constant-folding; enforce with constraints.
 - Parameter names are unqualified; deeper inheritance across sheet hierarchies may require qualification if extended.
+- Design-time width checking uses default parameter values only; simulation elaboration performs
+  the exact check. See [parameterSystemPlan.md](parameterSystemPlan.md) for the planned redesign.
 
 ## Best Practices
 

@@ -1,264 +1,72 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) working in this repository.
 
-## Project Overview
+Issie (Interactive Schematic Simulator with Integrated Editor) is a digital circuit design and
+simulation application written in F#, transpiled to JavaScript by Fable and run under Electron.
 
-Issie (Interactive Schematic Simulator with Integrated Editor) is a digital circuit design and simulation application written in F# using functional programming paradigms. It transpiles to JavaScript via Fable and runs as an Electron desktop application.
+## Building, running, testing
 
-## Essential Commands
-
-### Building and Running
 ```bash
-# Initial setup (installs dependencies and builds)
-build.cmd    # Windows
-build.sh     # Linux/Mac
+build.cmd          # Windows: full setup - installs dependencies, builds, starts dev mode
+build.sh           # Linux/Mac equivalent
 
-# Development with hot reload
-npm run dev
-
-# Debug mode (includes assertions, slower)
-npm run debug
-
-# Build production executables
-npm run dist
-
-# Clean build artifacts
-build clean
+npm run dev        # hot reload
+npm run debug      # includes assertions - slower
+npm run dist       # production binaries
+npm run typecheck  # dotnet build of Renderer.fsproj: F# type check without Fable
 ```
 
-### Testing and Quality
-```bash
-# Run tests (note: tests are outdated and may not work)
-dotnet test
+There is no lint command; the F# compiler is the check.
 
-# No specific lint command - F# compiler provides type checking
-```
+`dotnet test` exists but the tests are outdated and may not work. The JS simulator harness under
+`simulator_tests/js` no longer compiles either: its fsproj references
+`src/Renderer/Simulator/SimulatorTypes.fs`, which has since been split into `SimGraphTypes.fs` and
+`SimTypes.fs`.
 
-## Architecture Overview
+## Things the code will not tell you
 
-The application follows the Elmish MVU (Model-View-Update) pattern:
+**Canvas is not the simulation graph.** `CanvasExtractor.fs` bridges them, stripping visual layout
+to produce the electrical graph. Treating the two as interchangeable is the most common mistake.
 
-1. **Model** (`/src/Renderer/Model/ModelType.fs`): Central application state
-2. **View** (`/src/Renderer/UI/`): React components written in F#
-3. **Update** (`/src/Renderer/UI/Update.fs`): State transitions via messages
+**Component creation flows across four files** in this order: `CatalogueView.fs` (user picks a
+type) → `Sheet.fs` (mouse placement) → `Symbol.fs` (visual representation and ports) →
+`CanvasExtractor.fs` (simulation node).
 
-### Key Modules
+**Fable emits `.fs.js` and `.fs.js.map` next to every `.fs`.** When JS behaviour disagrees with the
+F# you just wrote, read the emitted `.fs.js`.
 
-- **DrawBlock** (`/src/Renderer/DrawBlock/`): SVG-based schematic editor
-  - `Symbol.fs`: Component rendering and logic
-  - `BusWire.fs`: Wire routing and rendering
-  - `Sheet.fs`: Canvas management
+**Paket manages F# dependencies and npm manages JavaScript ones**; the two must stay in sync.
 
-- **Simulator** (`/src/Renderer/Simulator/`): Circuit simulation engine
-  - `FastSim/`: Optimized simulation implementation
-  - `CanvasExtractor.fs`: Converts visual design to simulation graph
+**All file I/O goes through the Electron main process**, not the renderer.
 
-- **VerilogComponent** (`/src/Renderer/VerilogComponent/`): Verilog import functionality
-  - Uses Nearley parser (`VerilogGrammar.ne`)
-  - Converts Verilog to Issie components
+**The Verilog grammar is Nearley**: `VerilogGrammar.ne`, compiled with `npx nearleyc`.
 
-### File Formats
+## File formats
 
-- `.dgm`: Individual circuit diagram (JSON format)
-- `.dprj`: Project marker file (empty)
-- `.ram`: Memory initialization data
+- `.dgm` — one circuit diagram, JSON. Canvas state is `(Component list * Connection list)`.
+- `.dprj` — project marker, empty.
+- `.ram` — memory initialisation data.
 
-## Development Patterns
+Sheets are continuously auto-backed-up to a `backup/` subdirectory of the project.
 
-### F# and Functional Programming
-- Immutable data structures throughout
-- Pattern matching for control flow
-- Option/Result types for error handling
-- No null values - use Option types
+## Conventions that differ from the defaults
 
-### Elmish Message Handling
-Messages flow through a central dispatch:
-```fsharp
-type Msg =
-    | Wire of BusWire.Msg
-    | Sheet of DrawModelType.SheetT.Msg
-    | SimulationStart
-    // etc.
-```
+These are enforced across the codebase, so following the surrounding code is not enough — the
+defaults would teach the wrong pattern.
 
-### Component Creation
-New Issie components are defined in `Symbol.fs` with:
-- Port definitions
-- Rendering logic (SVG generation)
-- Simulation behavior
+- **State updates go through lens/prism composition**, not record-copy syntax:
+  `model |> Optic.set (sheet_ >-> symbols_ >-> label_) newLabel`. Lenses are defined in
+  `ModelType.fs` for every record field.
+- **Strictly immutable.** No `for` loops, no `mutable`, no side effects in model code. Use `map`,
+  `fold`, `filter`, pipelines and recursion.
+- **No nulls** — `Option` and `Result` throughout.
 
-### Build System
-- FAKE scripts handle complex build tasks
-- Webpack bundles the transpiled JavaScript
-- Paket manages F# dependencies
-- npm manages JavaScript dependencies
+## Common gotchas
 
-
-# Issie - GitHub Copilot Instructions
-
-## Project Overview
-
-Issie is a functional reactive digital circuit design and simulation application built in F# using the Elmish MVU (Model-View-Update) pattern. It transpiles to JavaScript via Fable and runs as an Electron desktop app.
-
-## Goal:
-Implement the parameter system inside `ParameterView.fs` using only serial lines of clean code, minimal total lines.
-
-### Context:
-- Use functional programming style **always**:
-  - **No** `for` loops.
-  - **No** `mutable` variables or side effects.
-- Reuse existing helper functions from the codebase where possible.
-- Keep the implementation as **simple** and **concise** as possible.
-
-### Requirements:
-1. Write clean, serial code—one statement per line (no chaining or nesting unnecessarily).
-2. No imperative constructs: only use `map`, `fold`, `filter`, `Seq`, `List`, pipeline, recursion.
-3. Always immutable; prefer pattern matching and pipelining.
-4. Show example input-output mapping if applicable.
-5. Document assumptions in comments as short natural language.
-6. After implementation, include a one-line explanation comment at end like `// Implemented in N lines`.
-
-### Constraints:
-- Avoid complexity; if a built-in function exists, use it instead of writing a helper.
-
-## Essential Architecture
-
-### Elmish MVU Pattern
-- **Single source of truth**: All state lives in `ModelType.Model` (global immutable record)
-- **Message dispatch**: All state changes via `Msg` union types processed in `Update.fs`
-- **Optics everywhere**: State updates use lens/prism composition (`model |> set lens_ newValue`)
-- **Commands**: Side effects via `Cmd<Msg>` returned from update functions
-
-Example update pattern:
-```fsharp
-| SetSelectedComponent comp ->
-    model
-    |> set selectedComponent_ (Some comp)
-    |> withNoMsg  // helper for (model, Cmd.none)
-```
-
-### Key Modules & Data Flow
-
-1. **DrawBlock** (`/src/Renderer/DrawBlock/`): SVG schematic editor
-   - `Symbol.fs`: Component rendering (900+ lines) - defines visual representation
-   - `BusWire.fs`: Wire routing with auto-routing algorithms
-   - `Sheet.fs`: Canvas management, selection, mouse interactions
-
-2. **Simulator** (`/src/Renderer/Simulator/`): Circuit simulation engine
-   - `CanvasExtractor.fs`: Converts visual design → simulation graph
-   - `FastSim/`: Optimized bitwise simulation implementation
-   - **Critical**: Visual canvas ≠ simulation graph - extractor bridges the gap
-
-3. **VerilogComponent** (`/src/Renderer/VerilogComponent/`): Verilog import
-   - `VerilogGrammar.ne`: Nearley parser grammar (compile with `npx nearleyc`)
-   - F# bindings to JavaScript parser for Verilog → Issie components
-
-## Development Workflows
-
-### Building & Running
-```bash
-# Windows setup
-build.cmd          # Full setup: installs deps + builds + dev mode with HMR
-
-# Development commands (after setup)
-npm run dev        # Hot reload development
-npm run debug      # Debug mode (slower, has assertions)
-npm run dist       # Production binaries
-
-# Build system
-dotnet fable       # F# → JS transpilation
-build.fsx          # FAKE build script with FAKE 5 syntax
-```
-
-### Critical Build Details
-- **FAKE 5**: Uses `#r "nuget:"` syntax, targets defined with `Target.create`
-- **Fable transpilation**: Every `.fs` gets `.fs.js` + `.fs.js.map` files
-- **Webpack bundling**: Separate configs for main/renderer processes
-- **Dependencies**: Paket for F#, npm for JS, both must stay in sync
-
-## Conventions & Patterns
-
-### F# Functional Style
-```fsharp
-// Pattern matching everywhere
-match model.Action with
-| DragAndDrop -> (* handle drag *)
-| Idle -> (* handle idle *)
-
-// Option types, never null
-let getComponent id model =
-    Map.tryFind id model.Components  // returns Option<Component>
-
-// Pipeline operators for readability
-model
-|> set selectedComponents_ []
-|> map waveSim_ (updateWaveforms simulation)
-```
-
-### State Management with Optics
-```fsharp
-// Lenses defined in ModelType.fs for every record field
-let selectedComponent_ = Lens.create (fun a -> a.SelectedComponent) (fun s a -> {a with SelectedComponent = s})
-
-// Composition for nested updates
-model |> Optic.set (sheet_ >-> symbols_ >-> symbolAt_ compId >-> label_) newLabel
-```
-
-### Message Handling Patterns
-- **Nested messages**: `Sheet (Wire (Symbol msg))` - drill down through modules
-- **Command batching**: `Cmd.batch [msg1; msg2]` for multiple side effects
-- **Async operations**: `Cmd.OfAsyncImmediate.result` for file I/O, simulation
-
-### File Structure Conventions
-- **Types**: `*Types.fs` define data structures
-- **Update**: `*Update.fs` handle messages for that module
-- **Helpers**: `*Helpers.fs` pure functions, no state dependencies
-- **View**: `*View.fs` React components (return `ReactElement`)
-
-## Critical Integration Points
-
-### Canvas ↔ Simulation Bridge
-```fsharp
-// CanvasExtractor.fs - THE critical data transformation
-let extractReducedState (components, connections) : SimulationGraph =
-    // Strips visual layout, creates electrical graph
-```
-
-### Component Creation Flow
-1. `CatalogueView.fs` - user selects component type
-2. `Sheet.fs` - handles mouse placement
-3. `Symbol.fs` - creates visual representation + ports
-4. `CanvasExtractor.fs` - converts to simulation node
-
-### File Persistence
-- **Project format**: `.dprj` (empty marker) + multiple `.dgm` files
-- **Canvas state**: `(Component list * Connection list)` serialized as JSON
-- **Auto-backup**: Continuous backup to `/backup/` subdirectory
-
-## Testing & Debugging
-
-### Debug Infrastructure
-```fsharp
-// JSHelpers.fs provides debug tracing
-if Set.contains "update" JSHelpers.debugTraceUI then
-    printfn "Message: %A" msg
-
-// Memory monitoring (enabled via CheckMemory msg)
-let heapInBytes = JSHelpers.getProcessPrivateMemory()
-```
-
-### Common Gotchas
-- **Fable compilation**: JS output changes with F# - check `.fs.js` files for issues
-- **Elmish timing**: Some updates need `Cmd.OfAsyncImmediate` with delays for UI sync
-- **Wire routing**: Complex state machine - test thoroughly with edge cases
-- **Memory components**: Special handling for RAM/ROM initialization from `.ram` files
-
-## External Dependencies
-
-- **Electron**: Desktop app host - all file I/O goes through main process
-- **Nearley**: Verilog parser (JS library with F# bindings)
-- **SVG rendering**: Direct SVG manipulation, not React-managed
-- **Node.js tools**: Required for Fable + webpack build chain
-
-Use existing patterns when adding features - the codebase is highly systematic and functional patterns are strictly enforced.
+- **Elmish timing**: some updates need `Cmd.OfAsyncImmediate` with a delay to stay in step with the
+  UI.
+- **Wire routing** is a complex state machine — exercise edge cases when changing it.
+- **Memory components** need special handling for RAM/ROM initialisation from `.ram` files.
+- **Debug tracing** is gated on `JSHelpers.debugTraceUI`; memory monitoring on the `CheckMemory`
+  message.

@@ -104,6 +104,12 @@
 
   </a>
 </li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/parameterSystem.html">
     Parameter System Documentation
@@ -241,6 +247,12 @@
 
   </a>
 </li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/parameterSystem.html">
     Parameter System Documentation
@@ -336,12 +348,20 @@
 <h4><a name="Component-Slots" class="anchor" href="#Component-Slots">Component Slots</a></h4>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs3', 15)" onmouseover="showTip(event, 'fs3', 15)" class="rt">CompSlotName</span> <span class="o">=</span>
     <span class="pn">|</span> <span class="uc">Buswidth</span>              <span class="c">// Component bus width</span>
-    <span class="pn">|</span> <span class="uc">NGateInputs</span>           <span class="c">// Number of gate inputs</span>
+    <span class="pn">|</span> <span class="uc">NGateInputs</span>           <span class="c">// Number of gate inputs (legacy: no longer creatable, see below)</span>
     <span class="pn">|</span> <span class="uc">IO</span> <span class="k">of</span> <span class="prop">Label</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 16)" onmouseover="showTip(event, 'fs4', 16)" class="rt">string</span>   <span class="c">// Input/Output port widths</span>
     <span class="pn">|</span> <span class="uc">CustomCompParam</span> <span class="k">of</span> <span class="prop">ParamName</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 17)" onmouseover="showTip(event, 'fs4', 17)" class="rt">string</span> <span class="c">// Custom component parameters</span>
+    <span class="pn">|</span> <span class="uc">SplitNWidth</span> <span class="k">of</span> <span class="prop">Index</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 18)" onmouseover="showTip(event, 'fs5', 18)" class="vt">int</span> <span class="c">// SplitN output width</span>
+    <span class="pn">|</span> <span class="uc">SplitNLSB</span> <span class="k">of</span> <span class="prop">Index</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 19)" onmouseover="showTip(event, 'fs5', 19)" class="vt">int</span>   <span class="c">// SplitN output LSB</span>
+    <span class="pn">|</span> <span class="uc">InputDefault</span>          <span class="c">// Value an Input1 takes when undriven</span>
 </code></pre>
+<p><code>NGateInputs</code> slots can no longer be created: the input count of a gate or merge sets how many
+ports it has, and a parameter records a value, not a change of topology. Designs saved before this
+was enforced may still contain such slots; simulation reports an error if one resolves to a value
+that disagrees with the component's ports, and editing the input count in Properties removes the
+stale slot.</p>
 <h4><a name="Sheet-Level-Definitions" class="anchor" href="#Sheet-Level-Definitions">Sheet-Level Definitions</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs5', 18)" onmouseover="showTip(event, 'fs5', 18)" class="rt">ParameterDefs</span> <span class="o">=</span> <span class="pn">{</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs6', 20)" onmouseover="showTip(event, 'fs6', 20)" class="rt">ParameterDefs</span> <span class="o">=</span> <span class="pn">{</span>
     <span class="prop">DefaultBindings</span><span class="pn">:</span> <span class="id">ParamBindings</span>  <span class="c">// Parameter name to expression mappings</span>
     <span class="prop">ParamSlots</span><span class="pn">:</span> <span class="id">ComponentSlotExpr</span>   <span class="c">// Component slots bound to expressions</span>
 <span class="pn">}</span>
@@ -369,23 +389,33 @@
 <li>*<em><code>resolveParametersForComponent</code>*</em>: Resolve parameters for simulation</li>
 </ul>
 <h3><a name="Simulation-Integration" class="anchor" href="#Simulation-Integration">Simulation Integration (<code>GraphMerger.fs</code>)</a></h3>
-<p>Handles parameter resolution during simulation graph construction using a two-stage process:</p>
+<p>Handles parameter resolution during simulation graph construction:</p>
 <h4><a name="Stage-1-Graph-Merging" class="anchor" href="#Stage-1-Graph-Merging">Stage 1 - Graph Merging</a></h4>
 <ul>
 <li>Custom components replaced with internal graphs</li>
 <li>Parameter resolution intentionally deferred to avoid forward references</li>
 <li>Graphs stored in <code>CustomSimulationGraph</code> field</li>
 </ul>
-<h4><a name="Stage-2-Parameter-Resolution" class="anchor" href="#Stage-2-Parameter-Resolution">Stage 2 - Parameter Resolution</a></h4>
-<p><strong>2a. Instance-specific</strong> (<code>resolveCustomComponentParameters</code>):
-- Apply component instance parameter bindings
-- Override default values from definitions
-- Process nested custom components recursively</p>
-<p><strong>2b. Sheet-level</strong> (<code>resolveParametersInSimulationGraph</code>):
-- Use default sheet parameter bindings
-- Evaluate expressions for all parameterized slots
-- Update component configurations with resolved values</p>
-<p>This two-stage approach prevents forward reference issues and ensures proper parameter precedence.</p>
+<h4><a name="Stage-2-Parameter-Resolution" class="anchor" href="#Stage-2-Parameter-Resolution">Stage 2 - Parameter Resolution (<code>resolveParametersInSimulationGraph</code>)</a></h4>
+<p>A single recursive walk (<code>resolveSheet</code>) resolves each sheet and then descends into the sheets of
+the custom components it contains:</p>
+<ul>
+<li>The top sheet is resolved with its own default bindings.</li>
+<li>
+Each sheet below is resolved with its <em>effective bindings</em>: the instance's bindings override the
+sheet's defaults, and every declared parameter always has a value.
+</li>
+<li>
+An expression that cannot be evaluated fails the whole simulation with an informative
+<code>SimulationError</code> — the widths in a <code>SimulationGraph</code> must be concrete, and skipping one would
+simulate hardware that differs from the design.
+</li>
+<li>
+The walk is memoised on <code>(sheet name, diff of effective values from default values)</code>: every
+instance of a sheet whose bindings give the same diff resolves to the same graph, so a sheet
+tree recurring in several places is walked once, and the common all-defaults case adds no work.
+</li>
+</ul>
 <h3><a name="Validation-Layer" class="anchor" href="#Validation-Layer">Validation Layer (<code>CanvasStateAnalyser.fs</code>)</a></h3>
 <p>Provides lightweight parameter resolution for component validation:
 - Simplified evaluator supporting only <code>PInt</code> and <code>PParameter</code>
@@ -429,9 +459,9 @@
     
 <span class="id">Stage</span> <span class="n">1</span><span class="pn">:</span> <span class="id">Merge</span> <span class="id">graphs</span> <span class="pn">(</span><span class="id">defer</span> <span class="id">parameters</span><span class="pn">)</span>
     
-<span class="id">Stage</span> <span class="n">2a</span><span class="pn">:</span> <span class="id">Resolve</span> <span class="id">instance</span> <span class="id">parameters</span>
-    
-<span class="id">Stage</span> <span class="n">2b</span><span class="pn">:</span> <span class="id">Resolve</span> <span class="id">sheet</span> <span class="id">parameters</span>
+<span class="id">Stage</span> <span class="n">2</span><span class="pn">:</span> <span class="id">resolveSheet</span> 
+         <span class="id">each</span> <span class="id">sheet</span> <span class="id">below</span> <span class="k">with</span> <span class="id">its</span> <span class="id">instance&#39;s</span> <span class="id">bindings</span><span class="pn">,</span>
+         <span class="id">memoised</span> <span class="id">on</span> <span class="pn">(</span><span class="id">sheet</span><span class="pn">,</span> <span class="id">diff</span> <span class="id">from</span> <span class="id">defaults</span><span class="pn">)</span>
     
 <span class="id">FastSim</span> <span class="k">with</span> <span class="id">resolved</span> <span class="id">values</span>
 </code></pre>
@@ -476,7 +506,8 @@
 - <code>parseExpressionTokens</code>: Handles addition and subtraction</p>
 <p>Notes and caveats:
 - Tokenizer restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
-- Division and modulo are evaluated during constant-folding; add a MinVal constraint to prevent zero divisors where needed.</p>
+- Division or modulo by zero is reported as an informative evaluation error, as is a parameter
+defined in terms of itself.</p>
 <p>Code: <code>src/Renderer/Common/ParameterTypes.fs</code> (<code>parseExpression</code>, tokenizer regex, and helpers)</p>
 <h2><a name="Parameter-Scoping-amp-Precedence" class="anchor" href="#Parameter-Scoping-amp-Precedence">Parameter Scoping &amp; Precedence</a></h2>
 <h3><a name="Scope-Levels" class="anchor" href="#Scope-Levels">Scope Levels</a></h3>
@@ -496,14 +527,14 @@
 <span class="id">Custom</span> <span class="id">Component</span> <span class="id">B</span> <span class="id">has</span> <span class="k">default</span><span class="pn">:</span> <span class="id">WIDTH</span> <span class="o">=</span> <span class="n">16</span>
 <span class="id">Instance</span> <span class="k">of</span> <span class="id">B</span> <span class="k">in</span> <span class="id">A</span> <span class="k">with</span> <span class="k">override</span><span class="pn">:</span> <span class="id">WIDTH</span> <span class="o">=</span> <span class="n">32</span>
 
-<span onmouseout="hideTip(event, 'fs6', 19)" onmouseover="showTip(event, 'fs6', 19)" class="id">Result</span><span class="pn">:</span> <span class="id">Instance</span> <span class="id">uses</span> <span class="id">WIDTH</span> <span class="o">=</span> <span class="n">32</span>
+<span onmouseout="hideTip(event, 'fs7', 21)" onmouseover="showTip(event, 'fs7', 21)" class="id">Result</span><span class="pn">:</span> <span class="id">Instance</span> <span class="id">uses</span> <span class="id">WIDTH</span> <span class="o">=</span> <span class="n">32</span>
 </code></pre>
 <h2><a name="Constraint-System" class="anchor" href="#Constraint-System">Constraint System</a></h2>
 <p>Constraints ensure parameter values remain within valid ranges:</p>
 <h3><a name="Constraint-Definition" class="anchor" href="#Constraint-Definition">Constraint Definition</a></h3>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs2', 20)" onmouseover="showTip(event, 'fs2', 20)" class="id">ParamConstraint</span> <span class="o">=</span>
-    <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs7', 21)" onmouseover="showTip(event, 'fs7', 21)" class="id">MinVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 22)" onmouseover="showTip(event, 'fs1', 22)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
-    <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs8', 23)" onmouseover="showTip(event, 'fs8', 23)" class="id">MaxVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 24)" onmouseover="showTip(event, 'fs1', 24)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs2', 22)" onmouseover="showTip(event, 'fs2', 22)" class="id">ParamConstraint</span> <span class="o">=</span>
+    <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs8', 23)" onmouseover="showTip(event, 'fs8', 23)" class="id">MinVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 24)" onmouseover="showTip(event, 'fs1', 24)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
+    <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs9', 25)" onmouseover="showTip(event, 'fs9', 25)" class="id">MaxVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 26)" onmouseover="showTip(event, 'fs1', 26)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
 </code></pre>
 <h3><a name="Features" class="anchor" href="#Features">Features</a></h3>
 <ul>
@@ -514,8 +545,8 @@
 </ul>
 <h3><a name="Example" class="anchor" href="#Example">Example</a></h3>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span class="id">widthConstraints</span> <span class="o">=</span> <span class="pn">[</span>
-    <span onmouseout="hideTip(event, 'fs7', 25)" onmouseover="showTip(event, 'fs7', 25)" class="id">MinVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs9', 26)" onmouseover="showTip(event, 'fs9', 26)" class="id">PInt</span> <span class="n">1</span><span class="pn">,</span> <span class="s">&quot;Width must be at least 1 bit&quot;</span><span class="pn">)</span>
-    <span onmouseout="hideTip(event, 'fs8', 27)" onmouseover="showTip(event, 'fs8', 27)" class="id">MaxVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs9', 28)" onmouseover="showTip(event, 'fs9', 28)" class="id">PInt</span> <span class="n">64</span><span class="pn">,</span> <span class="s">&quot;Width cannot exceed 64 bits&quot;</span><span class="pn">)</span>
+    <span onmouseout="hideTip(event, 'fs8', 27)" onmouseover="showTip(event, 'fs8', 27)" class="id">MinVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs10', 28)" onmouseover="showTip(event, 'fs10', 28)" class="id">PInt</span> <span class="n">1</span><span class="pn">,</span> <span class="s">&quot;Width must be at least 1 bit&quot;</span><span class="pn">)</span>
+    <span onmouseout="hideTip(event, 'fs9', 29)" onmouseover="showTip(event, 'fs9', 29)" class="id">MaxVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs10', 30)" onmouseover="showTip(event, 'fs10', 30)" class="id">PInt</span> <span class="n">64</span><span class="pn">,</span> <span class="s">&quot;Width cannot exceed 64 bits&quot;</span><span class="pn">)</span>
 <span class="pn">]</span>
 </code></pre>
 <h2><a name="Three-Tier-Evaluation-Architecture" class="anchor" href="#Three-Tier-Evaluation-Architecture">Three-Tier Evaluation Architecture</a></h2>
@@ -533,15 +564,15 @@
 </li>
 <li><strong>Usage</strong>: Parameter input fields, validation messages</li>
 </ul>
-<h3><a name="2-Graph-Resolution" class="anchor" href="#2-Graph-Resolution">2. Graph Resolution (<code>GraphMerger.evalExpr</code>)</a></h3>
+<h3><a name="2-Graph-Resolution" class="anchor" href="#2-Graph-Resolution">2. Graph Resolution (<code>GraphMerger.resolveSheet</code>)</a></h3>
 <ul>
 <li><strong>Purpose</strong>: Simulation graph construction</li>
 <li>
 <strong>Features</strong>:
 <ul>
-<li>Returns <code>Option&lt;int&gt;</code> instead of <code>Result</code></li>
-<li>Optimized for batch processing</li>
-<li>No error messages needed</li>
+<li>Uses <code>evaluateParamExpression</code> with each sheet's effective bindings</li>
+<li>An evaluation failure becomes a <code>SimulationError</code> naming the component and sheet</li>
+<li>Memoised per sheet on the diff of bindings from defaults</li>
 </ul>
 </li>
 <li><strong>Usage</strong>: Simulation preparation</li>
@@ -624,7 +655,7 @@
 <span class="n">1.</span> <span class="id">Add</span> <span class="id">Register</span> <span class="id">component</span> <span class="k">to</span> <span class="id">sheet</span>
 <span class="n">2.</span> <span class="id">Select</span> <span class="id">Register</span>
 <span class="n">3.</span> <span class="id">In</span> <span class="id">properties</span><span class="pn">,</span> <span class="id">enter</span> <span class="id">bus</span> <span class="id">width</span><span class="pn">:</span> <span class="s">&quot;WIDTH&quot;</span>
-<span class="n">4.</span> <span onmouseout="hideTip(event, 'fs10', 29)" onmouseover="showTip(event, 'fs10', 29)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">8</span>
+<span class="n">4.</span> <span onmouseout="hideTip(event, 'fs11', 31)" onmouseover="showTip(event, 'fs11', 31)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">8</span>
 <span class="n">5.</span> <span class="id">Change</span> <span class="id">WIDTH</span> <span class="id">parameter</span> 
 </code></pre>
 <h3><a name="Example-3-Override-in-Custom-Component" class="anchor" href="#Example-3-Override-in-Custom-Component">Example 3: Override in Custom Component</a></h3>
@@ -639,7 +670,7 @@
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="c">// Address decoder with calculated ranges</span>
 <span class="n">1.</span> <span class="id">Define</span> <span class="id">parameters</span><span class="pn">:</span> <span class="id">BASE_ADDR</span> <span class="o">=</span> <span class="n">0x1000</span><span class="pn">,</span> <span class="id">BLOCK_SIZE</span> <span class="o">=</span> <span class="n">256</span>
 <span class="n">2.</span> <span class="id">Create</span> <span class="id">comparator</span> <span class="k">with</span> <span class="id">expression</span><span class="pn">:</span> <span class="s">&quot;BASE_ADDR + (BLOCK_SIZE * 4)&quot;</span>
-<span class="n">3.</span> <span onmouseout="hideTip(event, 'fs10', 30)" onmouseover="showTip(event, 'fs10', 30)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">0x1400</span>
+<span class="n">3.</span> <span onmouseout="hideTip(event, 'fs11', 32)" onmouseover="showTip(event, 'fs11', 32)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">0x1400</span>
 </code></pre>
 <h2><a name="Error-Handling" class="anchor" href="#Error-Handling">Error Handling</a></h2>
 <p>The system provides comprehensive error handling at multiple levels:</p>
@@ -670,7 +701,7 @@
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span class="id">paramSlotsOfModel_</span> <span class="o">=</span> 
     <span class="id">lcParameterInfoOfModel_</span> <span class="pn">&gt;</span><span class="o">?&gt;</span> <span class="id">paramSlots_</span>
 
-<span class="id">model</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs11', 31)" onmouseover="showTip(event, 'fs11', 31)" class="id">set</span> <span class="id">paramSlotsOfModel_</span> <span class="id">newSlots</span>
+<span class="id">model</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs12', 33)" onmouseover="showTip(event, 'fs12', 33)" class="id">set</span> <span class="id">paramSlotsOfModel_</span> <span class="id">newSlots</span>
 </code></pre>
 <h3><a name="Message-Dispatch" class="anchor" href="#Message-Dispatch">Message Dispatch</a></h3>
 <p>State changes flow through Elmish messages:</p>
@@ -686,12 +717,12 @@
 <h2><a name="Testing-amp-Debugging" class="anchor" href="#Testing-amp-Debugging">Testing &amp; Debugging</a></h2>
 <h3><a name="Debug-Helpers" class="anchor" href="#Debug-Helpers">Debug Helpers</a></h3>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="c">// Enable parameter debug tracing</span>
-<span class="k">if</span> <span onmouseout="hideTip(event, 'fs12', 32)" onmouseover="showTip(event, 'fs12', 32)" class="id">Set</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs13', 33)" onmouseover="showTip(event, 'fs13', 33)" class="id">contains</span> <span class="s">&quot;params&quot;</span> <span class="id">JSHelpers</span><span class="pn">.</span><span class="id">debugTraceUI</span> <span class="k">then</span>
-    <span onmouseout="hideTip(event, 'fs14', 34)" onmouseover="showTip(event, 'fs14', 34)" class="id">printfn</span> <span class="s">&quot;Parameter evaluation: %A -&gt; %A&quot;</span> <span class="id">expr</span> <span class="id">value</span>
+<span class="k">if</span> <span onmouseout="hideTip(event, 'fs13', 34)" onmouseover="showTip(event, 'fs13', 34)" class="id">Set</span><span class="pn">.</span><span onmouseout="hideTip(event, 'fs14', 35)" onmouseover="showTip(event, 'fs14', 35)" class="id">contains</span> <span class="s">&quot;params&quot;</span> <span class="id">JSHelpers</span><span class="pn">.</span><span class="id">debugTraceUI</span> <span class="k">then</span>
+    <span onmouseout="hideTip(event, 'fs15', 36)" onmouseover="showTip(event, 'fs15', 36)" class="id">printfn</span> <span class="s">&quot;Parameter evaluation: %A -&gt; %A&quot;</span> <span class="id">expr</span> <span class="id">value</span>
 </code></pre>
 <h3><a name="Common-Issues" class="anchor" href="#Common-Issues">Common Issues</a></h3>
 <ol>
-<li><strong>Forward references</strong>: Resolved by two-stage simulation</li>
+<li><strong>Forward references</strong>: Resolved by merging all graphs before resolving parameters</li>
 <li><strong>Circular dependencies</strong>: Detected and reported</li>
 <li><strong>Constraint conflicts</strong>: Validated before application</li>
 <li><strong>Type mismatches</strong>: Caught by F# type system</li>
@@ -721,24 +752,24 @@
 <h2><a name="API-Reference" class="anchor" href="#API-Reference">API Reference</a></h2>
 <h3><a name="Key-Functions" class="anchor" href="#Key-Functions">Key Functions</a></h3>
 <h4><a name="Expression-Parsing" class="anchor" href="#Expression-Parsing">Expression Parsing</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">parseExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 35)" onmouseover="showTip(event, 'fs4', 35)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 36)" onmouseover="showTip(event, 'fs6', 36)" class="id">Result</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs1', 37)" onmouseover="showTip(event, 'fs1', 37)" class="id">ParamExpression</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">parseExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 37)" onmouseover="showTip(event, 'fs4', 37)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 38)" onmouseover="showTip(event, 'fs7', 38)" class="id">Result</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs1', 39)" onmouseover="showTip(event, 'fs1', 39)" class="id">ParamExpression</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
 </code></pre>
 <h4><a name="Expression-Evaluation" class="anchor" href="#Expression-Evaluation">Expression Evaluation</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateParamExpression</span><span class="pn">:</span> <span class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs1', 38)" onmouseover="showTip(event, 'fs1', 38)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 39)" onmouseover="showTip(event, 'fs6', 39)" class="id">Result</span><span class="pn">&lt;</span><span class="id">ParamInt</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateParamExpression</span><span class="pn">:</span> <span class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs1', 40)" onmouseover="showTip(event, 'fs1', 40)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 41)" onmouseover="showTip(event, 'fs7', 41)" class="id">Result</span><span class="pn">&lt;</span><span class="id">ParamInt</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
 </code></pre>
 <h4><a name="Expression-Rendering" class="anchor" href="#Expression-Rendering">Expression Rendering</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">renderParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs1', 40)" onmouseover="showTip(event, 'fs1', 40)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs15', 41)" onmouseover="showTip(event, 'fs15', 41)" class="id">int</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs4', 42)" onmouseover="showTip(event, 'fs4', 42)" class="id">string</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">renderParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs1', 42)" onmouseover="showTip(event, 'fs1', 42)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 43)" onmouseover="showTip(event, 'fs5', 43)" class="id">int</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs4', 44)" onmouseover="showTip(event, 'fs4', 44)" class="id">string</span>
 </code></pre>
 <h4><a name="Parameter-Resolution" class="anchor" href="#Parameter-Resolution">Parameter Resolution</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">resolveParametersForComponent</span><span class="pn">:</span> <span class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs16', 43)" onmouseover="showTip(event, 'fs16', 43)" class="id">Map</span><span class="pn">&lt;</span><span class="id">ParamSlot</span><span class="pn">,</span> <span class="id">ConstrainedExpr</span><span class="pn">&gt;</span> <span class="k">-&gt;</span> <span class="id">Component</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 44)" onmouseover="showTip(event, 'fs6', 44)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Component</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs4', 45)" onmouseover="showTip(event, 'fs4', 45)" class="id">string</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">resolveParametersForComponent</span><span class="pn">:</span> <span class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs16', 45)" onmouseover="showTip(event, 'fs16', 45)" class="id">Map</span><span class="pn">&lt;</span><span class="id">ParamSlot</span><span class="pn">,</span> <span class="id">ConstrainedExpr</span><span class="pn">&gt;</span> <span class="k">-&gt;</span> <span class="id">Component</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 46)" onmouseover="showTip(event, 'fs7', 46)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Component</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs4', 47)" onmouseover="showTip(event, 'fs4', 47)" class="id">string</span><span class="pn">&gt;</span>
 </code></pre>
 <h4><a name="Constraint-Checking" class="anchor" href="#Constraint-Checking">Constraint Checking</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateConstraints</span><span class="pn">:</span> <span class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs17', 46)" onmouseover="showTip(event, 'fs17', 46)" class="id">list</span> <span class="k">-&gt;</span> <span class="pn">(</span><span class="id">Msg</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs18', 47)" onmouseover="showTip(event, 'fs18', 47)" class="id">unit</span><span class="pn">)</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 48)" onmouseover="showTip(event, 'fs6', 48)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Unit</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs2', 49)" onmouseover="showTip(event, 'fs2', 49)" class="id">ParamConstraint</span> <span onmouseout="hideTip(event, 'fs17', 50)" onmouseover="showTip(event, 'fs17', 50)" class="id">list</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateConstraints</span><span class="pn">:</span> <span class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs17', 48)" onmouseover="showTip(event, 'fs17', 48)" class="id">list</span> <span class="k">-&gt;</span> <span class="pn">(</span><span class="id">Msg</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs18', 49)" onmouseover="showTip(event, 'fs18', 49)" class="id">unit</span><span class="pn">)</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 50)" onmouseover="showTip(event, 'fs7', 50)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Unit</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs2', 51)" onmouseover="showTip(event, 'fs2', 51)" class="id">ParamConstraint</span> <span onmouseout="hideTip(event, 'fs17', 52)" onmouseover="showTip(event, 'fs17', 52)" class="id">list</span><span class="pn">&gt;</span>
 </code></pre>
 <h2><a name="Resolution-Mechanics-Deep-Dive" class="anchor" href="#Resolution-Mechanics-Deep-Dive">Resolution Mechanics Deep-Dive</a></h2>
 <ul>
 <li>UI evaluation: <code>ParameterTypes.evaluateParamExpression</code> performs recursive substitution and constant-folding with detailed errors. Used by <code>ParameterView</code> for validation and preview.</li>
-<li>Graph evaluation: <code>GraphMerger.resolveParametersInSimulationGraph</code> uses internal <code>evalExpr</code> (returns <code>Option&lt;int&gt;</code>) and <code>applySlotValue</code> to write concrete values into <code>SimulationGraph</code> component types after merge.</li>
+<li>Graph evaluation: <code>GraphMerger.resolveParametersInSimulationGraph</code> walks the sheet tree with <code>resolveSheet</code>, evaluating each slot with <code>evaluateParamExpression</code> and writing concrete values into <code>SimulationGraph</code> component types with <code>applySlotValue</code>; any failure is a <code>SimulationError</code>.</li>
 <li>Validation evaluation: <code>CanvasStateAnalyser.checkCustomComponentForOkIOs</code> embeds a minimal evaluator supporting only <code>PInt</code> and <code>PParameter</code> to resolve port widths quickly for label checking.</li>
 <li>Slot access: Lenses <code>ParameterView.compSlot_</code> and <code>ParameterView.modelToSlot_</code> provide strongly typed access into <code>Component.Type</code> for <code>Buswidth</code>, <code>NGateInputs</code>, and <code>IO label</code>.</li>
 </ul>
@@ -764,8 +795,11 @@
 <h2><a name="Known-Limitations" class="anchor" href="#Known-Limitations">Known Limitations</a></h2>
 <ul>
 <li>Integer-only parameters today (<code>ParamInt = int</code>); very large constants may require future <code>bigint</code>.</li>
-<li>No explicit guard on divide/modulo by zero during constant-folding; enforce with constraints.</li>
 <li>Parameter names are unqualified; deeper inheritance across sheet hierarchies may require qualification if extended.</li>
+<li>
+Design-time width checking uses default parameter values only; simulation elaboration performs
+the exact check. See <a href="parameterSystemPlan.html">parameterSystemPlan.md</a> for the planned redesign.
+</li>
 </ul>
 <h2><a name="Best-Practices" class="anchor" href="#Best-Practices">Best Practices</a></h2>
 <ol>
@@ -818,25 +852,30 @@
   | Buswidth
   | NGateInputs
   | IO of Label: string
-  | CustomCompParam of ParamName: string</div>
+  | CustomCompParam of ParamName: string
+  | SplitNWidth of Index: int
+  | SplitNLSB of Index: int
+  | InputDefault</div>
 <div class="fsdocs-tip" id="fs4">Multiple items<br />val string: value: &#39;T -&gt; string<br /><br />--------------------<br />type string = System.String</div>
-<div class="fsdocs-tip" id="fs5">type ParameterDefs =
+<div class="fsdocs-tip" id="fs5">Multiple items<br />val int: value: &#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; =
+  int</div>
+<div class="fsdocs-tip" id="fs6">type ParameterDefs =
   {
     DefaultBindings: obj
     ParamSlots: obj
   }</div>
-<div class="fsdocs-tip" id="fs6">Multiple items<br />module Result
+<div class="fsdocs-tip" id="fs7">Multiple items<br />module Result
 
 from Microsoft.FSharp.Core<br /><br />--------------------<br />[&lt;Struct&gt;]
 type Result&lt;&#39;T,&#39;TError&gt; =
   | Ok of ResultValue: &#39;T
   | Error of ErrorValue: &#39;TError</div>
-<div class="fsdocs-tip" id="fs7">union case ParamConstraint.MinVal: ParamExpression * obj -&gt; ParamConstraint</div>
-<div class="fsdocs-tip" id="fs8">union case ParamConstraint.MaxVal: ParamExpression * obj -&gt; ParamConstraint</div>
-<div class="fsdocs-tip" id="fs9">union case ParamExpression.PInt: obj -&gt; ParamExpression</div>
-<div class="fsdocs-tip" id="fs10">namespace System</div>
-<div class="fsdocs-tip" id="fs11">val set: elements: &#39;T seq -&gt; Set&lt;&#39;T&gt; (requires comparison)</div>
-<div class="fsdocs-tip" id="fs12">Multiple items<br />module Set
+<div class="fsdocs-tip" id="fs8">union case ParamConstraint.MinVal: ParamExpression * obj -&gt; ParamConstraint</div>
+<div class="fsdocs-tip" id="fs9">union case ParamConstraint.MaxVal: ParamExpression * obj -&gt; ParamConstraint</div>
+<div class="fsdocs-tip" id="fs10">union case ParamExpression.PInt: obj -&gt; ParamExpression</div>
+<div class="fsdocs-tip" id="fs11">namespace System</div>
+<div class="fsdocs-tip" id="fs12">val set: elements: &#39;T seq -&gt; Set&lt;&#39;T&gt; (requires comparison)</div>
+<div class="fsdocs-tip" id="fs13">Multiple items<br />module Set
 
 from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Set&lt;&#39;T (requires comparison)&gt; =
   interface IReadOnlyCollection&lt;&#39;T&gt;
@@ -850,10 +889,8 @@ from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Set&
   member Contains: value: &#39;T -&gt; bool
   override Equals: obj -&gt; bool
   ...<br /><br />--------------------<br />new: elements: &#39;T seq -&gt; Set&lt;&#39;T&gt;</div>
-<div class="fsdocs-tip" id="fs13">val contains: element: &#39;T -&gt; set: Set&lt;&#39;T&gt; -&gt; bool (requires comparison)</div>
-<div class="fsdocs-tip" id="fs14">val printfn: format: Printf.TextWriterFormat&lt;&#39;T&gt; -&gt; &#39;T</div>
-<div class="fsdocs-tip" id="fs15">Multiple items<br />val int: value: &#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; =
-  int</div>
+<div class="fsdocs-tip" id="fs14">val contains: element: &#39;T -&gt; set: Set&lt;&#39;T&gt; -&gt; bool (requires comparison)</div>
+<div class="fsdocs-tip" id="fs15">val printfn: format: Printf.TextWriterFormat&lt;&#39;T&gt; -&gt; &#39;T</div>
 <div class="fsdocs-tip" id="fs16">Multiple items<br />module Map
 
 from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&lt;&#39;Key,&#39;Value (requires comparison)&gt; =
@@ -939,11 +976,6 @@ from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&
   <li class="level-4">
     <a href="#Stage-1-Graph-Merging">
       Stage 1 - Graph Merging
-    </a>
-  </li>
-  <li class="level-4">
-    <a href="#Stage-2-Parameter-Resolution">
-      Stage 2 - Parameter Resolution
     </a>
   </li>
   <li class="level-2">

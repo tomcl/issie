@@ -101,6 +101,10 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                 | Input1 (busWidth, _) -> busWidth
                 | Output busWidth -> busWidth
                 | _ -> failwithf $"Invalid component {comp.Type} for IO"
+            | InputDefault ->
+                match comp.Type with
+                | Input1 (_, defaultValue) -> int (Option.defaultValue 0I defaultValue)
+                | _ -> failwithf $"Invalid component {comp.Type} for default value"
             | SplitNWidth idx ->
                 match comp.Type with
                 | SplitN (_, widths, _) ->
@@ -166,6 +170,10 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
                         | Output _ -> Output value
                         | _ -> failwithf $"Invalid component {comp.Type} for IO"
+                    | InputDefault ->
+                        match comp.Type with
+                        | Input1 (busWidth, _) -> Input1 (busWidth, Some (bigint value))
+                        | _ -> failwithf $"Invalid component {comp.Type} for default value"
                     | SplitNWidth idx ->
                         match comp.Type with
                         | SplitN (n, widths, lsbs) ->
@@ -227,29 +235,32 @@ let evaluateConstraints
     let failedConstraints konst expr =
         let resultExpression = ParameterTypes.evaluateParamExpression paramBindings expr
         match resultExpression with
-            | Ok value ->        
+            | Ok value ->
                 konst
                 |> List.filter (fun constr ->
+                    // a bound that cannot be evaluated cannot pass the value it guards
                     match constr with
-                    | MaxVal (expr, errorMsg) -> 
+                    | MaxVal (expr, errorMsg) ->
                         match ParameterTypes.evaluateParamExpression paramBindings expr with
                         | Ok maxValue -> value > maxValue
                         | Error err -> // evaluation of constraint failed
                             let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
                             dispatch <| SetPopupDialogText (Some (string errMsg))
-                            false
-                    | MinVal (expr, _) -> 
+                            true
+                    | MinVal (expr, _) ->
                         match ParameterTypes.evaluateParamExpression paramBindings expr with
                         | Ok minValue -> value < minValue
                         | Error err -> // evaluation of constraint failed
                             let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
                             dispatch <| SetPopupDialogText (Some (string errMsg))
-                            false
+                            true
                     )
             | Error err ->
+                // an expression that cannot be evaluated fails its constraints: returning no
+                // failures here would let an undefined value through the guard
                 let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
                 dispatch <| SetPopupDialogText (Some (string errMsg))
-                List.empty
+                [MinVal (expr, errMsg)]
     
     let result =
         exprSpecs
@@ -331,10 +342,14 @@ let updateComponent dispatch model slot (value:int) =
     match comp.Type, slot.CompSlot with
     | BusSelection _, IO _ -> model.Sheet.ChangeLSB sheetDispatch compId (bigint value)
     | _, Buswidth | _, IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value 
-    | _, NGateInputs -> 
+    | _, NGateInputs ->
         match comp.Type with
         | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
-        | _ -> failwithf $"Gate cannot have type {comp.Type}"
+        | _ -> failwithf $"Number of inputs cannot be set on {comp.Type}"
+    | _, InputDefault ->
+        match comp.Type with
+        | Input1 _ -> model.Sheet.ChangeInputValue sheetDispatch compId (bigint value)
+        | _ -> failwithf $"Default value cannot be set on {comp.Type}"
     | _, SplitNWidth idx ->
         match comp.Type with
         | SplitN (n, widths, lsbs) ->
@@ -425,6 +440,17 @@ let updateParamSlot
         | false -> Map.remove slot paramSlots
 
     set paramSlotsOfModel_ newParamSlots model
+
+
+/// Remove any parameter slot recording the number of inputs of the given component.
+/// An input count sets how many ports a component has, so it cannot be parameterised;
+/// designs saved before this was enforced may still contain such slots.
+let removeNGateInputsSlot (compId: string) (model: Model) : Model =
+    let paramSlots =
+        model
+        |> get paramSlotsOfModel_
+        |> Option.defaultValue Map.empty
+    set paramSlotsOfModel_ (Map.remove {CompId = compId; CompSlot = NGateInputs} paramSlots) model
 
 
 /// Add the parameter information from a newly created component to paramSlots
@@ -793,6 +819,7 @@ let describeSlot (model: Model) (slot: ParamSlot) =
         | SplitNWidth idx -> $"SplitN output {idx} width"
         | SplitNLSB idx -> $"SplitN output {idx} LSB"
         | CustomCompParam paramName -> $"Custom parameter {paramName}"
+        | InputDefault -> "Default value"
     match Map.tryFind (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols with
     | Some symbol -> $"{symbol.Component.Label}: {slotName}"
     | None -> $"[deleted component]: {slotName}"
@@ -1000,6 +1027,11 @@ let ngateInputsPrism : Prism<ComponentType, int> =
         (function GateN (_, n) -> Some n | _ -> None)
         (fun n -> function GateN (gt, _) -> GateN (gt, n) | t -> t)
 
+let defaultValuePrism : Prism<ComponentType, int> =
+    Prism.create
+        (function Input1 (_, dv) -> Some (int (Option.defaultValue 0I dv)) | _ -> None)
+        (fun dv -> function Input1 (w, _) -> Input1 (w, Some (bigint dv)) | t -> t)
+
 let ioPortPrism : Prism<ComponentType, int> =
     Prism.create
         (function | Input1 (w, _)
@@ -1052,6 +1084,7 @@ let resolveParametersForComponent
                                     let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then evaluatedValue else l)
                                     SplitN (n, widths, newLsbs)
                                 | _ -> currentType
+                            | InputDefault -> currentType |> (evaluatedValue ^= defaultValuePrism)
                             | CustomCompParam _ -> currentType
                         (newType, None)
                     | Error err -> (currentType, Some err)
@@ -1297,6 +1330,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             | SplitNWidth idx -> $"SplitN output {idx} width"
             | SplitNLSB idx -> $"SplitN output {idx} LSB"
             | CustomCompParam paramName -> $"Custom parameter {paramName}"
+            | InputDefault -> "Default value"
         
         let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
                         string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label

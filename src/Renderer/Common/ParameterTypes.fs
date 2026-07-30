@@ -52,6 +52,9 @@ type CompSlotName =
     // SplitN-specific parameterised slots
     | SplitNWidth of Index: int
     | SplitNLSB of Index: int
+    /// The value an Input takes when it is undriven. Distinct from IO, which is the input's width:
+    /// both are edited from the same properties pane and so cannot share a slot.
+    | InputDefault
 
 /// A slot in a component instance that can be bound to a parameter expression
 /// CompId should be a ComponentId but then we would need these types to be defined after CommonTypes.

@@ -491,17 +491,31 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
 
 
 let private makeNumberOfInputsField model (comp: Component) dispatch =
-    let prompt, nInp =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+
+    let prompt, gateType, nInp =
         match comp.Type with
-        | GateN (_, n) -> "Number of inputs", n
+        | GateN (gt, n) -> "Number of inputs", gt, n
         | c -> failwithf $"makeNumberOfInputsField called with invalid component: {c}"
 
-    let constraints = [
-        MinVal (PInt 2, "Must have at least 2 inputs")
-        MaxVal (PInt maxGateInputs, $"Cannot have more than {maxGateInputs} inputs")
+    // Plain numeric input, not a parameter box: the number of inputs sets how many ports the
+    // component has, and changing it deletes the wires on any port that goes away. Parameter
+    // slots record a value, not a change of topology, so this cannot be parameterised.
+    Field.div [] [
+        Label.label [] [ str prompt ]
+        Input.number [
+            Input.Props [ Style [ Width "60px" ]; Min 2; Max maxGateInputs ]
+            Input.DefaultValue (string nInp)
+            Input.OnChange (getIntEventValue >> fun newNum ->
+                match newNum >= 2 && newNum <= maxGateInputs with
+                | true ->
+                    model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) gateType newNum
+                    // a slot saved before input counts stopped being parameterisable would
+                    // override this number at simulation time
+                    dispatch <| UpdateModel (ParameterView.removeNGateInputsSlot comp.Id)
+                | false -> ())
+        ]
     ]
-
-    ParameterView.paramInputField model prompt  1 (Some nInp) constraints (Some comp) NGateInputs dispatch
 
 
 let private changeMergeN model (comp:Component) dispatch =
@@ -521,17 +535,29 @@ let private changeMergeN model (comp:Component) dispatch =
         | MergeN n -> "Number of inputs", n
         | c -> failwithf "changeMergeN called with invalid component: %A" c
 
-    let constraints = [
-        MinVal (PInt 2, "Must have at least 2 inputs")
-        MaxVal (PInt Constants.maxSplitMergeBranches, $"Cannot have more than {Constants.maxSplitMergeBranches} inputs")
-    ]
-
     div [] [
         span
             [Style [Color Red]]
             [str errText]
 
-        ParameterView.paramInputField model title 2 (Some nInp) constraints (Some comp) NGateInputs dispatch
+        // Plain numeric input, not a parameter box: the number of inputs sets how many ports the
+        // component has, and changing it deletes the wires on any port that goes away. Parameter
+        // slots record a value, not a change of topology, so this cannot be parameterised.
+        Field.div [] [
+            Label.label [] [ str title ]
+            Input.number [
+                Input.Props [ Style [ Width "60px" ]; Min 2; Max Constants.maxSplitMergeBranches ]
+                Input.DefaultValue (string nInp)
+                Input.OnChange (getIntEventValue >> fun newNum ->
+                    match newNum >= 2 && newNum <= Constants.maxSplitMergeBranches with
+                    | true ->
+                        model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newNum
+                        // a slot saved before input counts stopped being parameterisable would
+                        // override this number at simulation time
+                        dispatch <| UpdateModel (ParameterView.removeNGateInputsSlot comp.Id)
+                    | false -> ())
+            ]
+        ]
     ]
 
 
@@ -636,10 +662,15 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
     
     let constraints = [
         MinVal (PInt 0, "Default value must be non-negative")
-        MaxVal (PInt ((1 <<< width) - 1), $"Default value must fit in {width} bits")
+        // 1 <<< width wraps at 32 bits, so a wide input's default cannot be range-checked
+        // here; out-of-range values on wide inputs are caught by simulation width checking
+        if width < 31 then
+            MaxVal (PInt ((1 <<< width) - 1), $"Default value must fit in {width} bits")
     ]
     
-    ParameterView.paramInputField model title 0 (Some (int defValue)) constraints (Some comp) (IO comp.Label) dispatch
+    // DefaultValue, not IO: IO is this input's width, and two fields of one component cannot
+    // share a parameter slot
+    ParameterView.paramInputField model title 0 (Some (int defValue)) constraints (Some comp) InputDefault dispatch
 
 let mockDispatchS msgFun msg =
     match msg with

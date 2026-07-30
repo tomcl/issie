@@ -279,59 +279,77 @@ let rec private merger (currGraph: SimulationGraph) (dependencyMap: DependencyMa
             currGraph.Add(compId, newComp)
         | _ -> currGraph // Ignore non-custom components.
     )
-/// Recursively update the SimulationGraph replacing integers with the correct parameter values.
-/// Parameter names, and slots using parameters, can be picked up from loadedDependencies
-/// Parameters can be resolved by looking at the parameter bindings of the custom components.
-/// bindings: parameter bindings for the current sheet.
-/// <summary>
-/// Recursively resolves parameter expressions in a simulation graph.
-/// </summary>
-/// <param name="bindings">Map of parameter names to their bound expressions</param>
-/// <param name="currDiagramName">The name of the current sheet</param>
-/// <param name="state">The current CanvasState</param>
-/// <param name="loadedDependencies">List of loaded component sheets</param>
-/// <param name="graph">The fully merged SimulationGraph to update</param>
-/// <returns>
-/// Success: Updated graph with all parameters resolved to concrete values
-/// Error: Details of any parameter evaluation failures
-/// </returns>
-/// <remarks>
-/// Parameter Resolution Details:
-/// 
-/// 1. Expression Evaluation (evalExpr):
-///    - PInt: Direct integer values
-///    - PParameter: Lookup in bindings, then recursive evaluation
-///    - Arithmetic: Evaluates both operands, applies operation
-///    - Returns None if any parameter cannot be resolved
-/// 
-/// 2. Slot Application (applySlotValue):
-///    - Buswidth: Updates width for viewers, buses, gates, registers, etc.
-///    - NGateInputs: Updates number of inputs for variable-input gates
-///    - IO: Updates Input/Output component configurations
-/// 
-/// 3. Component Processing:
-///    - Finds all parameter slots for current component
-///    - Evaluates each slot's expression
-///    - Updates component type with resolved values
-///    - Preserves other component properties (Id, Label, etc.)
-/// 
-/// 4. Recursive Resolution:
-///    - Processes custom components' internal graphs
-///    - Uses component-specific parameter bindings
-///    - Ensures nested parameterized components work correctly
-/// 
-/// Note: SimulationGraph components include the widths of all input and output busses,
-/// which are crucial for simulation and must be concrete values (not expressions).
-/// </remarks>
-let rec resolveParametersInSimulationGraph
+/// The parameters of a sheet whose effective value differs from that sheet's default value.
+/// An empty diff means the sheet resolves exactly as it was saved, and so exactly as
+/// buildDependencyMap has already checked it.
+type private BindingDiff = Map<ParameterTypes.ParamName, ParameterTypes.ParamInt>
+
+/// Resolved sheet graphs, keyed by sheet name and the diff of its bindings from its defaults.
+/// Every instance of a sheet whose bindings give the same diff resolves to the same graph, so a
+/// sheet tree that recurs in several places is walked once. Sharing the graph is safe: nothing
+/// mutates a SimulationComponent, and merger already shares the OutputWidths arrays across
+/// instances of a sheet.
+type private ResolvedSheets = Map<string * BindingDiff, SimulationGraph>
+
+/// Evaluate every binding of a sheet to an integer.
+/// None if any of them cannot be evaluated.
+let private evaluateAllBindings (bindings: ParameterTypes.ParamBindings) =
+    (Some Map.empty, bindings)
+    ||> Map.fold (fun values name expr ->
+        values
+        |> Option.bind (fun values ->
+            match ParameterTypes.evaluateParamExpression bindings expr with
+            | Ok value -> Some (Map.add name value values)
+            | Error _ -> None))
+
+/// Which of a sheet's parameters have an effective value differing from its default value.
+/// None if either set of bindings cannot be fully evaluated, in which case the sheet must be
+/// processed regardless so that the failure is reported rather than skipped.
+let private bindingDiff (defaults: ParameterTypes.ParamBindings) (effective: ParameterTypes.ParamBindings) =
+    match evaluateAllBindings defaults, evaluateAllBindings effective with
+    | Some defaultValues, Some effectiveValues ->
+        // both maps have the sheet's parameters as their key set, so a value-wise filter is enough
+        effectiveValues
+        |> Map.filter (fun name value -> Map.tryFind name defaultValues <> Some value)
+        |> Some
+    | _ -> None
+
+/// The default bindings of a sheet, which declare its parameters.
+let private defaultBindingsOfSheet (loadedDependencies: LoadedComponent list) (sheetName: string) =
+    loadedDependencies
+    |> List.tryFind (fun (lc: LoadedComponent) -> lc.Name = sheetName)
+    |> Option.bind (fun lc -> lc.LCParameterSlots)
+    |> Option.map (fun ps -> ps.DefaultBindings)
+    |> Option.defaultValue Map.empty
+
+/// The bindings a sheet is resolved with inside one instance of it: the instance's bindings
+/// override the sheet's defaults, and every parameter the sheet declares always has a value.
+/// A binding for a parameter the sheet no longer declares is dropped, as it is in the properties
+/// pane. This is the same merge the UI shows, so the two agree on what an instance resolves to.
+let private effectiveBindings (defaults: ParameterTypes.ParamBindings) (instance: ParameterTypes.ParamBindings option) =
+    match instance with
+    | None -> defaults
+    | Some given -> defaults |> Map.map (fun name expr -> Map.tryFind name given |> Option.defaultValue expr)
+
+/// Recursively resolve the parameterised slots of a sheet and of the sheets inside the custom
+/// components it contains, replacing the integers in each component type with the values its
+/// parameter expressions evaluate to.
+/// `bindings` are the effective parameter bindings for this sheet: the top sheet uses its own
+/// defaults, and each sheet below uses the bindings given by the instance that contains it.
+/// `memo` holds the sheets already resolved, keyed by name and by how far their bindings differ
+/// from their defaults, so a sheet tree occurring in several places is walked once.
+/// An expression that cannot be evaluated fails the whole simulation rather than being skipped:
+/// the widths in a SimulationGraph must be concrete, and leaving one unresolved would simulate
+/// hardware that differs from the design.
+let rec private resolveSheet
+    (memo: ResolvedSheets)
     (bindings: Map<ParameterTypes.ParamName, ParameterTypes.ParamExpression>)
     (currDiagramName: string)
-    (state: CanvasState)
     (loadedDependencies: LoadedComponent list)
     (graph: SimulationGraph)
-    : Result<SimulationGraph, SimulationError>
+    : Result<SimulationGraph * ResolvedSheets, SimulationError>
     =
-    let paramSlots = 
+    let paramSlots =
         loadedDependencies
         |> List.tryFind (fun lc -> lc.Name = currDiagramName)
         |> Option.bind (fun sheet -> sheet.LCParameterSlots)
@@ -419,6 +437,15 @@ let rec resolveParametersInSimulationGraph
         // IO ports
         | IO _, Input1 (_, dv) -> Input1 (value, dv)
         | IO _, Output _ -> Output value
+        // Value an input takes when undriven
+        | InputDefault, Input1 (w, _) -> Input1 (w, Some (bigint value))
+        // A parameter of the sheet inside a custom component, bound by this instance to an
+        // expression in the parameters of the sheet the instance sits on. Applying it here is what
+        // carries a parameter down the sheet tree: resolveSheet descends using the bindings of the
+        // component as processed, so the value computed here is the one the inner sheet resolves with.
+        | CustomCompParam paramName, Custom cc ->
+            let bindings = cc.ParameterBindings |> Option.defaultValue Map.empty
+            Custom { cc with ParameterBindings = Some (Map.add (ParamName paramName) (PInt value) bindings) }
         // SplitN output slots
         | SplitNWidth idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length widths ->
             let newWidths = widths |> List.mapi (fun i w -> if i = idx then value else w)
@@ -437,6 +464,20 @@ let rec resolveParametersInSimulationGraph
         |> List.fold (fun compRes (slot, expr) ->
             compRes |> Result.bind (fun (c: SimulationComponent) ->
                 match evalExpr expr.Expression with
+                // The input count of a gate or merge sets how many ports it has, and the ports
+                // and connections of the graph are fixed by the canvas: a value that disagrees
+                // with them cannot be applied. Only designs saved before input counts stopped
+                // being parameterisable contain such slots.
+                | Ok value when (match slot.CompSlot, c.Type with
+                                 | NGateInputs, (GateN (_, n) | MergeN n) -> value <> n
+                                 | _ -> false) ->
+                    let err: SimGraphTypes.SimulationError = {
+                        ErrType = GenericSimError $"The number of inputs of this component is set by a parameter to {value}, but it has a different number of input ports. The number of inputs cannot be set by a parameter: set it as a number in Properties."
+                        InDependency = Some currDiagramName
+                        ComponentsAffected = [compId]
+                        ConnectionsAffected = []
+                    }
+                    Error err
                 | Ok value ->
                     Ok { c with Type = applySlotValue c.Type slot.CompSlot value }
                 | Error msg ->
@@ -451,82 +492,65 @@ let rec resolveParametersInSimulationGraph
             )
         ) (Ok comp)
 
-    // Process all components and handle custom component bindings
-    graph
-    |> Map.map (fun compId comp -> 
-        processComponent compId comp
-        |> Result.map (fun c ->
-            match c.Type, c.CustomSimulationGraph with
-            | Custom cc, Some cGraph ->
-                let bindings = 
-                    cc.ParameterBindings 
-                    |> Option.defaultValue (
-                        loadedDependencies
-                        |> List.tryFind (fun lc -> lc.Name = cc.Name)
-                        |> Option.bind (fun lc -> lc.LCParameterSlots)
-                        |> Option.map (fun ps -> ps.DefaultBindings)
-                        |> Option.defaultValue Map.empty
-                    )
-                let resolvedGraph = 
-                    loadedDependencies
-                    |> List.tryFind (fun lc -> lc.Name = cc.Name)
-                    |> Option.bind (fun dep ->
-                        match resolveParametersInSimulationGraph bindings cc.Name dep.CanvasState loadedDependencies cGraph with
-                        | Ok resolved -> Some resolved
-                        | Error _ -> None
-                    )
-                    |> Option.defaultValue cGraph
-                { c with Type = Custom { cc with ParameterBindings = Some bindings }
-                         CustomSimulationGraph = Some resolvedGraph }
-            | _ -> c
-        )
-    )
-    |> Map.toList
-    |> List.fold (fun res (id, compRes) ->
-        match res, compRes with
-        | Ok m, Ok c -> Ok (Map.add id c m)
-        | Error e, _ | _, Error e -> Error e
-    ) (Ok Map.empty)
+    /// Resolve the parameters of one custom component instance and of the sheet inside it.
+    /// A failure here is a failure of the whole simulation: silently keeping the unresolved
+    /// sub-graph would simulate hardware that differs from the design.
+    let resolveCustomComp memo compId (c: SimulationComponent) (cc: CustomComponentType) (cGraph: SimulationGraph) =
+        match loadedDependencies |> List.tryFind (fun (lc: LoadedComponent) -> lc.Name = cc.Name) with
+        | None ->
+            Error {
+                ErrType = DependencyNotFound cc.Name
+                InDependency = Some currDiagramName
+                ComponentsAffected = [compId]
+                ConnectionsAffected = [] }
+        | Some dep ->
+            let bindings =
+                effectiveBindings (defaultBindingsOfSheet loadedDependencies cc.Name) cc.ParameterBindings
+            resolveSheet memo bindings cc.Name loadedDependencies cGraph
+            |> Result.map (fun (resolved, memo') ->
+                let c' =
+                    { c with
+                        Type = Custom { cc with ParameterBindings = Some bindings }
+                        CustomSimulationGraph = Some resolved }
+                c', memo')
 
-/// <summary>
-/// Resolve parameters for all custom component instances in the simulation graph.
-/// </summary>
-/// <param name="graph">The merged simulation graph with custom components</param>
-/// <param name="loadedDependencies">List of all loaded component sheets</param>
-/// <returns>
-/// Success: Graph with instance-specific parameters resolved
-/// Error: Details of any parameter resolution failures
-/// </returns>
-/// <remarks>
-/// This is Stage 2a of the parameter resolution process:
-/// - Processes each custom component instance in the graph
-/// - Applies instance-specific parameter bindings if present
-/// - These bindings override any default values from the component definition
-/// - Recursively resolves parameters for nested custom components
-/// 
-/// This step happens AFTER merging but BEFORE sheet-level parameter resolution
-/// to ensure proper parameter precedence.
-/// </remarks>
-let rec private resolveCustomComponentParameters 
-    (graph: SimulationGraph) 
+    /// Apply this sheet's slots to every component, then descend into each custom component.
+    let resolveComponents memo =
+        ((Ok (Map.empty, memo)), graph)
+        ||> Map.fold (fun acc compId comp ->
+            acc
+            |> Result.bind (fun (resolvedSoFar, memo) ->
+                processComponent compId comp
+                |> Result.bind (fun c ->
+                    match c.Type, c.CustomSimulationGraph with
+                    | Custom cc, Some cGraph -> resolveCustomComp memo compId c cc cGraph
+                    | _ -> Ok (c, memo))
+                |> Result.map (fun (c, memo') -> Map.add compId c resolvedSoFar, memo')))
+
+    // A sheet resolved once with a given diff from its defaults resolves the same way everywhere,
+    // so the whole tree below it need only be walked for the first instance with that diff.
+    let diffOpt = bindingDiff (defaultBindingsOfSheet loadedDependencies currDiagramName) bindings
+    match diffOpt |> Option.bind (fun diff -> Map.tryFind (currDiagramName, diff) memo) with
+    | Some resolved -> Ok (resolved, memo)
+    | None ->
+        resolveComponents memo
+        |> Result.map (fun (resolved, memo') ->
+            match diffOpt with
+            | Some diff -> resolved, Map.add (currDiagramName, diff) resolved memo'
+            | None -> resolved, memo')
+
+/// Resolve every parameterised slot in a sheet and, recursively, in the sheets of the custom
+/// components it contains. `state` is unused: the slots come from the LoadedComponent.
+let resolveParametersInSimulationGraph
+    (bindings: Map<ParameterTypes.ParamName, ParameterTypes.ParamExpression>)
+    (currDiagramName: string)
+    (state: CanvasState)
     (loadedDependencies: LoadedComponent list)
-    : Result<SimulationGraph, SimulationError> =
-    graph
-    |> Map.map (fun _ comp ->
-        match comp.Type, comp.CustomSimulationGraph with
-        | Custom custom, Some customGraph when custom.ParameterBindings |> Option.exists (Map.isEmpty >> not) ->
-            loadedDependencies
-            |> List.tryFind (fun ldc -> ldc.Name = custom.Name)
-            |> Option.bind (fun ldc ->
-                let bindings = custom.ParameterBindings |> Option.defaultValue Map.empty
-                match resolveParametersInSimulationGraph bindings custom.Name ldc.CanvasState loadedDependencies customGraph with
-                | Ok resolved -> Some { comp with CustomSimulationGraph = Some resolved }
-                | Error _ -> None
-            )
-            |> Option.defaultValue comp
-        | _ -> comp
-    )
-    |> Ok
+    (graph: SimulationGraph)
+    : Result<SimulationGraph, SimulationError>
+    =
+    resolveSheet Map.empty bindings currDiagramName loadedDependencies graph
+    |> Result.map fst
 
 /// Try to resolve all the dependencies in a graph, and replace the reducer
 /// of the custom components with a simulationgraph.
@@ -542,28 +566,19 @@ let rec private resolveCustomComponentParameters
 /// Error: Details of any dependency or parameter resolution failures
 /// </returns>
 /// <remarks>
-/// Parameter Resolution Process (Two-Stage):
-/// 
+/// Parameter Resolution:
+///
 /// Stage 1 - Merging (via merger function):
 /// - Custom components are replaced with their internal graphs
 /// - Parameter resolution is DEFERRED to avoid forward reference issues
 /// - Each custom component's graph is stored in CustomSimulationGraph field
-/// 
-/// Stage 2 - Parameter Resolution (happens after all merging):
-/// 2a. Instance-specific parameters (resolveCustomComponentParameters):
-///     - Each custom component instance may have specific parameter bindings
-///     - These override any default values from the component definition
-///     - Resolved recursively for nested custom components
-/// 
-/// 2b. Sheet-level parameters (resolveParametersInSimulationGraph):
-///     - Uses default parameter bindings from the sheet definition
-///     - Applies to all parameterized slots in the current sheet
-///     - Evaluates expressions and updates component configurations
-/// 
-/// This two-stage approach ensures:
-/// - No forward reference problems (all graphs merged before parameters resolved)
-/// - Proper parameter precedence (instance bindings override defaults)
-/// - Support for nested parameterized custom components
+///
+/// Stage 2 - Parameter Resolution (resolveParametersInSimulationGraph, after all merging):
+/// - The top sheet is resolved with its own default bindings
+/// - Each sheet below is resolved with the bindings of the instance containing it, so instance
+///   bindings override defaults
+/// - Sheets whose bindings give the same difference from their defaults are resolved once
+///
 /// </remarks>
 let mergeDependencies
     (currDiagramName: string)
@@ -578,20 +593,9 @@ let mergeDependencies
         // Recursively replace the dependencies, in a top down fashion.
         Ok <| merger graph dependencyMap loadedDependencies
     |> Result.bind (fun graph ->
-        // First resolve instance-specific parameters for custom components
-        resolveCustomComponentParameters graph loadedDependencies)
-    |> Result.bind (fun graph ->
-        // Then resolve sheet-level parameters using default bindings
-        let currentSheet = 
-            loadedDependencies
-            |> List.tryFind (fun lc -> lc.Name = currDiagramName)
-        
-        let parameterBindings = 
-            match currentSheet with
-            | Some sheet -> 
-                match sheet.LCParameterSlots with
-                | Some paramInfo -> paramInfo.DefaultBindings
-                | None -> Map.empty
-            | None -> Map.empty
-        
+        // Resolve the top sheet with its default bindings, and every sheet below it with the
+        // bindings its instance gives. There is no separate instance-binding pass: the walk
+        // applies each sheet's slots and then descends using the bindings of each instance,
+        // which is the same order but does the work once rather than twice.
+        let parameterBindings = defaultBindingsOfSheet loadedDependencies currDiagramName
         resolveParametersInSimulationGraph parameterBindings currDiagramName state loadedDependencies graph)

@@ -2,7 +2,6 @@ group Electron
 	Fable.Browser.Css
 	Fable.Core
 	Fable.Browser.Dom
-	Fable.Electron
 	Fable.Elmish
 	Fable.Elmish.React
 	Fable.Elmish.Debugger
@@ -12,6 +11,6 @@ group Electron
 	Fable.React
 	Fulma
 	Fulma.Extensions.Wikiki.Tooltip
-	Fable.SimpleJson
+	Fable.Parsimmon
 	Thoth.Json
 	Thoth.Json.Net

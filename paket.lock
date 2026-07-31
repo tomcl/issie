@@ -17,7 +17,7 @@ NUGET
       Fable.Browser.Svg (>= 2.2) - restriction: >= netstandard2.0
       Fable.Core (>= 3.0) - restriction: >= netstandard2.0
       FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
-    Fable.Browser.Dom (2.18.1)
+    Fable.Browser.Dom (2.20)
       Fable.Browser.Blob (>= 1.4) - restriction: >= netstandard2.0
       Fable.Browser.Event (>= 1.7) - restriction: >= netstandard2.0
       Fable.Browser.WebStorage (>= 1.3) - restriction: >= netstandard2.0
@@ -38,70 +38,59 @@ NUGET
       Fable.Browser.Event (>= 1.6) - restriction: >= netstandard2.0
       Fable.Core (>= 3.2.8) - restriction: >= netstandard2.0
       FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
-    Fable.Core (3.7.1) - restriction: >= netstandard2.0
-    Fable.Electron (6.0)
-      Fable.Browser.Dom (>= 1.0) - restriction: >= netstandard2.0
-      Fable.Core (>= 3.0) - restriction: >= netstandard2.0
-      Fable.Node (>= 1.0) - restriction: >= netstandard2.0
-      FSharp.Core (>= 4.5.2) - restriction: >= netstandard2.0
-    Fable.Elmish (3.1)
-      Fable.Core (>= 3.0) - restriction: >= netstandard2.0
-      FSharp.Core (>= 4.6.2) - restriction: >= netstandard2.0
-    Fable.Elmish.Browser (3.0.5) - restriction: >= netstandard2.0
-      Fable.Browser.Dom (>= 1.0) - restriction: >= netstandard2.0
-      Fable.Core (>= 3.0) - restriction: >= netstandard2.0
-      Fable.Elmish (>= 3.0) - restriction: >= netstandard2.0
-      FSharp.Core (>= 4.6.2) - restriction: >= netstandard2.0
-    Fable.Elmish.Debugger (3.3)
-      Fable.Core (>= 3.2.8) - restriction: >= netstandard2.0
-      Fable.Elmish (>= 3.0) - restriction: >= netstandard2.0
+    Fable.Core (5.2)
       FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
+    Fable.Elmish (5.0.2)
+      Fable.Core (>= 4.0) - restriction: >= netstandard2.0
+      FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
+    Fable.Elmish.Debugger (4.2.2)
+      Fable.Elmish (>= 4.3) - restriction: >= netstandard2.0
+      FSharp.Core (>= 6.0.7) - restriction: >= netstandard2.0
       Thoth.Json (>= 6.0) - restriction: >= netstandard2.0
-    Fable.Elmish.HMR (5.2)
-      Fable.Core (>= 3.0) - restriction: >= netstandard2.0
-      Fable.Elmish.Browser (>= 3.0.4) - restriction: >= netstandard2.0
-      Fable.Elmish.React (>= 3.0.1) - restriction: >= netstandard2.0
+    Fable.Elmish.HMR (9.0)
+      Fable.Core (>= 5.0) - restriction: >= netstandard2.0
+      Fable.Elmish.React (>= 5.6) - restriction: >= netstandard2.0
       FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
-    Fable.Elmish.React (3.0.1)
-      Fable.Core (>= 3.0) - restriction: >= netstandard2.0
-      Fable.Elmish (>= 3.0) - restriction: >= netstandard2.0
-      Fable.React (>= 5.1) - restriction: >= netstandard2.0
-      FSharp.Core (>= 4.6.2) - restriction: >= netstandard2.0
-    Fable.Import.Node (0.4.3)
-      Fable.Core (>= 1.3.8) - restriction: >= netstandard2.0
-    Fable.Node (1.2) - restriction: >= netstandard2.0
+    Fable.Elmish.React (5.6)
+      Fable.Elmish (>= 5.0.2) - restriction: >= netstandard2.0
+      Fable.ReactDom.Types (>= 18.2) - restriction: >= netstandard2.0
+      FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
+    Fable.Node (1.6)
       Fable.Core (>= 3.1.2) - restriction: >= netstandard2.0
-      FSharp.Core (>= 5.0) - restriction: >= netstandard2.0
-    Fable.Parsimmon (4.1) - restriction: >= netstandard2.0
+      FSharp.Core (>= 5.0.2) - restriction: >= netstandard2.0
+    Fable.Parsimmon (4.1)
       Fable.Core (>= 3.0) - restriction: >= netstandard2.0
       FSharp.Core (>= 4.6.2) - restriction: >= netstandard2.0
     Fable.Promise (3.1.3)
       Fable.Core (>= 3.1.5) - restriction: >= netstandard2.0
       FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
-    Fable.React (8.0.1)
+    Fable.React (9.4)
+      Fable.React.Types (>= 18.3) - restriction: >= netstandard2.0
+      Fable.ReactDom.Types (>= 18.2) - restriction: >= netstandard2.0
+      FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
+    Fable.React.Types (18.4) - restriction: >= netstandard2.0
       Fable.Browser.Dom (>= 2.4.4) - restriction: >= netstandard2.0
       Fable.Core (>= 3.2.7) - restriction: >= netstandard2.0
       FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
-    Fable.SimpleJson (3.24)
-      Fable.Core (>= 3.1.5) - restriction: >= netstandard2.0
-      Fable.Parsimmon (>= 4.0) - restriction: >= netstandard2.0
-      FSharp.Core (>= 4.7) - restriction: >= netstandard2.0
+    Fable.ReactDom.Types (18.2) - restriction: >= netstandard2.0
+      Fable.React.Types (>= 18.3) - restriction: >= netstandard2.0
+      FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
     FsCheck (2.16.6)
       FSharp.Core (>= 4.0.0.1) - restriction: && (< net452) (>= netstandard1.0) (< netstandard1.6)
       FSharp.Core (>= 4.2.3) - restriction: || (>= net452) (>= netstandard1.6)
-    FSharp.Core (9.0.202) - redirects: force
-    Fulma (2.16)
-      Fable.Core (>= 3.2.6) - restriction: >= netstandard2.0
-      Fable.React (>= 7.4) - restriction: >= netstandard2.0
-    Fulma.Extensions.Wikiki.Tooltip (3.0)
-      Fable.Core (>= 3.0) - restriction: >= netstandard2.0
-      Fable.React (>= 5.1) - restriction: >= netstandard2.0
-      Fulma (>= 2.3) - restriction: >= netstandard2.0
+    FSharp.Core (10.1.302) - redirects: force
+    Fulma (3.0)
+      Fable.Core (>= 3.7.1) - restriction: >= netstandard2.0
+      Fable.React (>= 9.2) - restriction: >= netstandard2.0
+    Fulma.Extensions.Wikiki.Tooltip (4.0)
+      Fable.Core (>= 3.7.1) - restriction: >= netstandard2.0
+      Fable.React (>= 9.2) - restriction: >= netstandard2.0
+      Fulma (>= 3.0) - restriction: >= netstandard2.0
     Mono.Cecil (0.11.6) - restriction: || (>= net461) (>= netstandard2.0)
     Newtonsoft.Json (13.0.3) - restriction: || (>= net46) (>= netstandard2.0)
-    Thoth.Json (7.0)
-      Fable.Core (>= 3.1.6) - restriction: >= netstandard2.0
-      FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
+    Thoth.Json (10.5.1)
+      Fable.Core (>= 5.0) - restriction: >= netstandard2.0
+      FSharp.Core (>= 10.1.203) - restriction: >= netstandard2.0
     Thoth.Json.Net (11.0)
       Fable.Core (>= 3.1.6) - restriction: && (< net46) (>= netstandard2.0)
       FSharp.Core (>= 4.7.2) - restriction: || (>= net46) (>= netstandard2.0)

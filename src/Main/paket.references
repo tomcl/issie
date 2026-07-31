@@ -1,7 +1,6 @@
 group Electron
     Fable.Core
     Fable.Browser.Dom
-    Fable.Electron
     Fable.Elmish
     Fable.Elmish.React
     Fable.Elmish.Debugger
@@ -10,4 +9,3 @@ group Electron
     Fable.Promise
     Fable.React
     Fulma
-    Fable.SimpleJson

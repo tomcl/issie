@@ -3,21 +3,26 @@ source https://api.nuget.org/v3/index.json
 
 group Electron
 	source https://api.nuget.org/v3/index.json
+	// The Fable 5 / Fable.Core 5 package generation (stage B of the upgrade from
+	// Fable.Core 3). Compiled by the Fable 5 CLI (see dotnet-tools.json).
+	// Fable.Electron and Fable.Import.Node are gone: no code used them (the app has its
+	// own ElectronAPI.fs bindings); Fable.Node - which IS used - was only resolving as a
+	// transitive dependency of Fable.Electron, so it is now explicit.
 	nuget Fable.Browser.Css
-	nuget Fable.Electron 
-	nuget Fable.Elmish 
-	nuget Fable.Elmish.Debugger
-	nuget Fable.Elmish.HMR 
-	nuget Fable.Elmish.React 
-	nuget Fable.Import.Node
+	nuget Fable.Core ~> 5.2
+	nuget Fable.Elmish ~> 5.0
+	nuget Fable.Elmish.Debugger ~> 4.2
+	nuget Fable.Elmish.HMR ~> 9.0
+	nuget Fable.Elmish.React ~> 5.6
+	nuget Fable.Node ~> 1.6
 	nuget Fable.Browser.Dom
-	nuget Fable.SimpleJson
-	nuget Fable.Promise 
-	nuget Fable.React  
+	nuget Fable.Parsimmon
+	nuget Fable.Promise
+	nuget Fable.React ~> 9.4
 	nuget FSharp.Core  redirects:force
-	nuget Fulma
-	nuget Fulma.Extensions.Wikiki.Tooltip
-	nuget Thoth.Json
+	nuget Fulma ~> 3.0
+	nuget Fulma.Extensions.Wikiki.Tooltip ~> 4.0
+	nuget Thoth.Json ~> 10.5
 	nuget Thoth.Json.Net
 	// test-only packages, in this group so Tests/Issie.Tests gets a single
 	// unified resolution (mixing groups made paket install fail on FSharp.Core)

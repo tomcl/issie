@@ -74,7 +74,7 @@ If you want to get started as a developer, follow these steps.
 Download and install (if you already have these tools installed just check the version constraints).
 
 
-* [.Net 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).  
+* [.Net 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).  
 * [Node.js v22](https://nodejs.org/en/download/prebuilt-installer/current).
     * You do not need to install chocolatey (at the prompt for this) however you can if you want
     * Node.js includes the `npm` package manager, so this does not need to be installed separately.

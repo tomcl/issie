@@ -55,7 +55,7 @@ let staticDir() =
 /// assets.
 let staticFileDirectory = staticDir()
 
-let pathJoin args = 
+let pathJoin (args: string array) =
     #if FABLE_COMPILER
     path.join args
     #else
@@ -168,7 +168,7 @@ let tryReadFileSync fPath =
 
 /// Write utf8 encoded data to file.
 /// Create file if it does not exist.
-let writeFile path data =
+let writeFile (path: string) (data: string) =
     try
         let options = createObj ["encoding" ==> "utf8"] |> Some
         #if FABLE_COMPILER

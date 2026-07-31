@@ -6,31 +6,36 @@
       "version": "6.0.0",
       "commands": [
         "fake"
-      ]
+      ],
+      "rollForward": false
     },
     "fsdocs-tool": {
       "version": "20.0.1",
       "commands": [
         "fsdocs"
-      ]
+      ],
+      "rollForward": false
     },
     "paket": {
-      "version": "8.0.3",
+      "version": "10.3.1",
       "commands": [
         "paket"
-      ]
+      ],
+      "rollForward": false
     },
     "fable": {
       "version": "4.24.0",
       "commands": [
         "fable"
-      ]
+      ],
+      "rollForward": false
     },
     "fantomas": {
       "version": "6.0.1",
       "commands": [
         "fantomas"
-      ]
+      ],
+      "rollForward": false
     }
   }
 }

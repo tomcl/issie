@@ -203,7 +203,13 @@ type ShiftComponentType =
     |LSL
     |LSR
     |ASR
-    
+
+/// Number of bits needed on a shifter's SHIFT input to express every shift
+/// amount 0 .. busWidth-1. Must be recomputed whenever the bus width changes.
+let shifterWidthFor (busWidth: int) =
+    let rec numBits v = if v = 0 then 0 else 1 + numBits (v >>> 1)
+    max 1 (numBits (busWidth - 1))
+
 [<StringEnum>]
 type GateComponentType =
     | And

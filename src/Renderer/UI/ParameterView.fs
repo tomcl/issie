@@ -156,7 +156,7 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | CounterNoLoad _ -> CounterNoLoad value
                         | CounterNoEnable _ -> CounterNoEnable value
                         | CounterNoEnableLoad _ -> CounterNoEnableLoad value
-                        | Shift (_, shifterWidth, shiftType) -> Shift (value, shifterWidth, shiftType)
+                        | Shift (_, _, shiftType) -> Shift (value, shifterWidthFor value, shiftType)
                         | BusCompare (_, compareValue) -> BusCompare (value, compareValue)
                         | Input _ -> Input value
                         | Constant (_, constValue) -> Constant (value, constValue)
@@ -1014,7 +1014,7 @@ let buswidthPrism : Prism<ComponentType, int> =
             | CounterNoLoad _ -> CounterNoLoad w
             | CounterNoEnable _ -> CounterNoEnable w
             | CounterNoEnableLoad _ -> CounterNoEnableLoad w
-            | Shift (_, sw, st) -> Shift (w, sw, st)
+            | Shift (_, _, st) -> Shift (w, shifterWidthFor w, st)
             | BusCompare (_, cv) -> BusCompare (w, cv)
             | Input _ -> Input w
             | Input1 (_, dv) -> Input1 (w, dv)

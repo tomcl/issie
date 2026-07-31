@@ -426,7 +426,7 @@ let rec private resolveSheet
         | Buswidth, CounterNoLoad _ -> CounterNoLoad value
         | Buswidth, CounterNoEnable _ -> CounterNoEnable value
         | Buswidth, CounterNoEnableLoad _ -> CounterNoEnableLoad value
-        | Buswidth, Shift (_, sw, st) -> Shift (value, sw, st)
+        | Buswidth, Shift (_, _, st) -> Shift (value, shifterWidthFor value, st)
         | Buswidth, BusCompare (_, cv) -> BusCompare (value, cv)
         | Buswidth, Input _ -> Input value
         | Buswidth, Input1 (_, dv) -> Input1 (value, dv)

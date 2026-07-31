@@ -887,7 +887,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             // the shift AMOUNT is algebraic: a variable shift has no representation
             let err =
                 { ErrType = AlgInpNotAllowed "The chosen set of Algebraic inputs results in algebra being passed to the
-                    SHIFTER (shift amount) port of a Shifter. Only values can be passed to this port."
+                    SHIFT (shift amount) port of a Shifter. Only values can be passed to this port."
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }

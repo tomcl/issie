@@ -363,11 +363,6 @@ let private createSplitNPopup (model: Model) dispatch =
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
-/// Number of bits needed to express every shift amount 0 .. busWidth-1
-let private shifterWidthFor (busWidth: int) =
-    let rec numBits v = if v = 0 then 0 else 1 + numBits (v >>> 1)
-    max 1 (numBits (busWidth - 1))
-
 /// Component creation popup box for n-bit arithmetic components
 let private createArithmeticPopup compType (model: Model) dispatch =
     let compName, toComp =
@@ -377,13 +372,6 @@ let private createArithmeticPopup compType (model: Model) dispatch =
         | NbitsAnd _ -> "AND", NbitsAnd
         | NbitsOr _ -> "OR", NbitsOr
         | NbitsNot _ -> "NOT", NbitsNot
-        | Shift (_, _, shiftType) ->
-            let name =
-                match shiftType with
-                | LSL -> "shift left"
-                | LSR -> "shift right"
-                | ASR -> "arithmetic shift right"
-            name, fun n -> Shift (n, shifterWidthFor n, shiftType)
         | _ -> failwithf $"Invalid component type {compType} for arithmetic popup"
 
     let title = $"Add N bits {compName}"
@@ -432,6 +420,81 @@ let private createArithmeticPopup compType (model: Model) dispatch =
 
     dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
     dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
+
+
+/// Component creation popup for the shifter: bus width plus a choice of shift kind.
+/// The chosen kind is held in PopupDialogData.Int2 (0 = LSL, 1 = LSR, 2 = ASR).
+let private createShiftPopup (model: Model) dispatch =
+    let title = "Add N bits shift"
+    let buttonText = "Add"
+    let intDefault = model.LastUsedDialogWidth
+    let slot = Buswidth
+    let constraints = [MinVal (PInt 1, "Number of bits in shift must be positive")]
+
+    let defaultParamSpec = {
+        CompSlot = slot
+        Expression = PInt intDefault
+        Constraints = constraints
+        Value = intDefault
+    }
+
+    let shiftKinds = [ LSL, 0I, "LSL", "logical shift left"
+                       LSR, 1I, "LSR", "logical shift right"
+                       ASR, 2I, "ASR", "arithmetic shift right" ]
+
+    let chosenKind (model': Model) =
+        shiftKinds
+        |> List.tryPick (fun (kind, tag, _, _) ->
+            if model'.PopupDialogData.Int2 = Some tag then Some kind else None)
+        |> Option.defaultValue LSL
+
+    let body (model': Model) =
+        div [] [
+            ParameterView.paramInputField model' "How many bits should the input/output have?" intDefault None constraints None slot dispatch
+            br []
+            str "Which kind of shift?"
+            br []; br []
+            Field.div [Field.HasAddons] (
+                shiftKinds
+                |> List.map (fun (kind, tag, short, descr) ->
+                    Control.div [] [
+                        Button.button [
+                            Button.Color (if chosenKind model' = kind then IsPrimary else IsLight)
+                            Button.OnClick (fun _ -> dispatch <| SetPopupDialogInt2 (Some tag))
+                        ] [ str $"{short}: {descr}" ]
+                    ]))
+        ]
+
+    let buttonAction =
+        fun (model': Model) ->
+            let inputFieldDialog =
+                match model'.PopupDialogData.DialogState with
+                | Some inputSpec -> Map.find slot inputSpec
+                | None -> failwithf "Param input field must set new param info"
+            let compParamSpec =
+                match inputFieldDialog with
+                | Ok paramSpec -> paramSpec
+                | Error err ->
+                    failwithf $"Received error message '{err}' when creating N-bits shift"
+            let w = compParamSpec.Value
+            let comp = Shift (w, shifterWidthFor w, chosenKind model')
+            let addParamCompFunction =
+                Some <| ParameterView.addParamComponent compParamSpec dispatch
+
+            createCompStdLabel comp addParamCompFunction model dispatch
+            dispatch <| ReloadSelectedComponent w
+            dispatch ClosePopup
+
+    let isDisabled =
+        fun (model': Model) ->
+            model'.PopupDialogData.DialogState
+            |> function
+               | Some specs -> Map.find slot specs |> Result.isError
+               | None -> failwithf "Dialog state must exist for input box"
+
+    dispatch <| SetPopupDialogInt2 (Some 0I)
+    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
 let private createNbitSpreaderPopup (model:Model) dispatch =
@@ -1027,9 +1090,8 @@ let viewCatalogue model dispatch =
                           catTip1 "N bits AND" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAnd 1)) "N bit AND gates"
                           catTip1 "N bits OR" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsOr 1)) "N bit OR gates"
                           catTip1 "N bits NOT" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsNot 1)) "N bit NOT gates"
-                          catTip1 "N bits shift left" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| Shift (1, 1, LSL))) "N bit logical shift left: shifts the input left by the number of positions on the SHIFTER input, filling with zeros"
-                          catTip1 "N bits shift right" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| Shift (1, 1, LSR))) "N bit logical shift right: shifts the input right by the number of positions on the SHIFTER input, filling with zeros"
-                          catTip1 "N bits shift right (arithmetic)" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| Shift (1, 1, ASR))) "N bit arithmetic shift right: shifts the input right by the number of positions on the SHIFTER input, replicating the sign bit"]
+                          catTip1 "N bits shift" (fun  _ -> dispatchAsFunc (createShiftPopup)) "N bit shifter: shifts the input by the number of positions on the SHIFT input. \
+                                                    The kind of shift - logical left (LSL), logical right (LSR) or arithmetic right (ASR) - is chosen when the component is created"]
 
                     makeMenuGroup
                         "Flip Flops and Registers"

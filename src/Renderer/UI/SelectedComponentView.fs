@@ -483,7 +483,7 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
         | BusCompare (w, _) -> "Bus width", w, Buswidth
         | BusCompare1 (w, _, _) -> "Bus width", w, Buswidth
         | Constant1 (w, _, _) -> "Number of bits in the wire", w, Buswidth
-        // the SHIFTER input width is fixed when the component is created
+        // the SHIFT input width follows the bus width (see shifterWidthFor)
         | Shift (w, _, _) -> "Number of bits in the IN and OUT busses", w, Buswidth
         | c -> failwithf $"makeNumberOfBitsField called with invalid component: {c}"
 
@@ -968,14 +968,17 @@ let private makeDescription (comp:Component) model dispatch =
             The component is implicitly connected to the global clock."
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
     | Shift (_, shifterWidth, shiftType) ->
-        let kind =
+        let kindName, kind =
             match shiftType with
-            | LSL -> "Logical shift left: bits shifted in are zero."
-            | LSR -> "Logical shift right: bits shifted in are zero."
-            | ASR -> "Arithmetic shift right: the sign bit is replicated into the bits shifted in."
-        div [] [str <| $"Shifts the IN bus by the number of positions given on the {shifterWidth} bit \
-                        SHIFTER input. {kind} Shifting by the bus width or more clears the output, \
-                        or fills it with the sign bit for an arithmetic shift."]
+            | LSL -> "LSL (logical shift left)", "bits shifted in are zero."
+            | LSR -> "LSR (logical shift right)", "bits shifted in are zero."
+            | ASR -> "ASR (arithmetic shift right)", "the sign bit is replicated into the bits shifted in."
+        div [] [
+            b [] [str $"Shift kind: {kindName}."]
+            br []; br []
+            str <| $"Shifts the IN bus by the number of positions given on the {shifterWidth} bit \
+                    SHIFT input: {kind} Shifting by the bus width or more clears the output, \
+                    or fills it with the sign bit for an arithmetic shift."]
         
 
 let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =

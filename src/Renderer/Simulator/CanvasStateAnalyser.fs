@@ -83,7 +83,7 @@ let portNames (componentType:ComponentType)  = //(input port names, output port 
     | Demux8 -> (["DATA"; "SEL"],["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])
     | NbitsXor _ | NbitsAnd _ | NbitsOr _ -> (["P"; "Q"], ["OUT"])
     | NbitsNot _ -> (["IN"],["OUT"])
-    | Shift _ -> (["IN" ; "SHIFTER"],["OUT"])
+    | Shift _ -> (["IN" ; "SHIFT"],["OUT"])
     | Custom x -> (List.map fst x.InputLabels), (List.map fst x.OutputLabels)
     | _ -> ([],[])
    // |Demux8 -> (["IN"; "SEL"],["0"; "1"; "2" ; "3" ; "4" ; "5" ; "6" ; "7"])

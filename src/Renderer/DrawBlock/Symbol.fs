@@ -375,7 +375,9 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | NbitsOr (x)->   nBitsGateTitle "Or" x
     | NbitsAnd (x)->   nBitsGateTitle "And" x
     | NbitsNot (x)->  nBitsGateTitle "Not" x
-    | Shift (n,_,_) -> busTitleAndBits "Shift" n
+    | Shift (n,_,tp) ->
+        let kind = match tp with | LSL -> "LSL" | LSR -> "LSR" | ASR -> "ASR"
+        busTitleAndBits kind n
     | Custom x -> x.Name.ToUpper()
     | MergeN _ -> "Merge"
     | SplitN _ -> "Split"

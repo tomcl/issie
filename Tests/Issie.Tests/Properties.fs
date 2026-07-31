@@ -147,6 +147,13 @@ let tests =
             && ComponentSemantics.simulate (SplitN(2, [ 8; 40 ], [ 0; 8 ])) [ 56 ] [ 8; 40 ] [ merged ]
                = [ merged % (1I <<< 8); (merged >>> 8) % (1I <<< 40) ]
 
+        testPropertyWithConfig config "shifter width is minimal but sufficient for every shift amount"
+        <| fun (w: int) ->
+            let w = 1 + abs w % 256
+            let sw = shifterWidthFor w
+            // 2^sw distinct values cover amounts 0 .. w-1, and one bit fewer would not
+            (1 <<< sw) >= w && (sw = 1 || (1 <<< (sw - 1)) < w)
+
         // all-uint32 inputs merging to a bigint output
         testPropertyWithConfig { config with maxTest = 40 } "MergeN of two uint32 inputs to a >32-bit output"
         <| fun (x: bigint) (y: bigint) ->

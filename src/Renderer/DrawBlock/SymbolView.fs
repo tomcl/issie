@@ -547,6 +547,8 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | 0, 1, Custom _ -> {X = -10.; Y = 0}
             | _, _, Custom _ -> {X = 0; Y = 0}
             | _, _, MergeN _ | _, 1, SplitN _ -> {X = 0.; Y = Constants.legendVertOffset * 1.1 * -3.}
+            // legend one line up, clear of the SHIFT input port legend
+            | _, _, Shift _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 0.5 else -3.)}
             | _, _, Not -> {X=0;Y=0}
             | _, _, IsBinaryGate -> {X=0;Y=0}
             | 1, 1, _ -> {X = 0.; Y = Constants.legendVertOffset * (if vertFlip then 0.5 else -3.)}

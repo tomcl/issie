@@ -131,6 +131,12 @@ jobs:
       uses: actions/checkout@v5
       with:
         ref: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+    # Fable 4.24 (pinned in dotnet-tools.json for Windows) cannot crack projects under the
+    # .NET 10 SDK on Linux/macOS: it finds 0 source files and hangs (fable-compiler/Fable#4252,
+    # fixed in 4.28). 4.28+ in turn hangs during cracking on some Windows machines
+    # (fable-compiler/Fable#4326), so the manifest keeps 4.24 and only these jobs move to 4.29.
+    - name: Use Fable 4.29 (4.24 cannot crack projects under the .NET 10 SDK here)
+      run: dotnet tool update fable --version 4.29.0
     - name: Restore .NET tools and node packages, via build.sh
       run: ./build.sh -t Build
     - name: Build app, via build_dist.sh
@@ -162,6 +168,10 @@ jobs:
       uses: actions/checkout@v5
       with:
         ref: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+    # See the equivalent step in build-macos: 4.24 cannot crack under the .NET 10 SDK here,
+    # while 4.28+ hangs on some Windows machines, so only Linux/macOS move to 4.29.
+    - name: Use Fable 4.29 (4.24 cannot crack projects under the .NET 10 SDK here)
+      run: dotnet tool update fable --version 4.29.0
     - name: Restore .NET tools and node packages, via build.sh
       run: ./build.sh -t Build
     - name: Build app, via build_dist.sh

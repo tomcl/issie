@@ -327,10 +327,13 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             let bits = insBigInt 0
             checkWidth width (comp.OutputWidth 0)
             putBigInt 0 bits
+    // twosComp, not a 32 bit conversion: a negative constant (e.g. -1 at width 4) must
+    // store its width-wide two's complement bit pattern, as everything downstream relies
+    // on stored values being within their width
     | Constant1(width, cVal, _), false
-    | Constant(width, cVal), false -> putUInt32 0 <| uint32 (convertBigintToInt32 cVal)
+    | Constant(width, cVal), false -> putUInt32 0 <| uint32 (twosComp width cVal)
     | Constant1(width, cVal, _), true
-    | Constant(width, cVal), true -> putBigInt 0 <| cVal
+    | Constant(width, cVal), true -> putBigInt 0 <| twosComp width cVal
     | Output width, false ->
         let bits = insUInt32 0
         // printfn "In output bits=%A, ins = %A" bits comp.InputLinks
@@ -803,7 +806,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let res =
                     match op with
                     | None -> a ^^^ b
-                    | Some Multiply -> (a * b) &&& ((1u <<< comp.InputWidth 0) - 1u)
+                    | Some Multiply ->
+                        // at width 32 the mask is not needed - and (1u <<< 32) would be 1u,
+                        // making the mask 0 - since uint32 multiplication wraps at 2^32
+                        match comp.InputWidth 0 with
+                        | 32 -> a * b
+                        | w -> (a * b) &&& ((1u <<< w) - 1u)
 
         putUInt32 0 res
     | NbitsXor(numberOfBits, op),true ->

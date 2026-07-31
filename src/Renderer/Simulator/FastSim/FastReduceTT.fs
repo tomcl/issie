@@ -706,7 +706,12 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                     Word(
                         match op with
                         | None -> a ^^^ b
-                        | Some Multiply -> (a * b) &&& ((1u <<< aIn.Width) - 1u)
+                        | Some Multiply ->
+                            // at width 32 the mask is not needed - and (1u <<< 32) would be
+                            // 1u, making the mask 0 - since uint32 multiplication wraps at 2^32
+                            match aIn.Width with
+                            | 32 -> a * b
+                            | w -> (a * b) &&& ((1u <<< w) - 1u)
                     )
                 | a, b -> failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 

@@ -164,6 +164,27 @@ let tests =
                         shifted
             [ result ])
 
+        // constants: the stored value must be the width-wide two's complement bit pattern
+        test "Constant values are masked to width" {
+            let check width value expected =
+                let actual = simulate (Constant1(width, value, string value)) [] [ width ] []
+                if actual <> [ expected ] then
+                    failtest $"Constant {value} at width {width} gave %A{actual}, expected {expected}"
+            check 4 5I 5I
+            check 4 -1I 15I
+            check 32 -1I ((1I <<< 32) - 1I)
+            check 40 -1I ((1I <<< 40) - 1I)
+            check 40 -2I ((1I <<< 40) - 2I)
+        }
+
+        // multiply at width exactly 32: naive masking with (1u <<< 32) - 1u gives a zero mask
+        test "Multiply at width 32 wraps correctly" {
+            let a, b = (1I <<< 31) + 3I, 5I
+            let expected = (a * b) % (1I <<< 32)
+            let actual = simulate (NbitsXor(32, Some Multiply)) [ 32; 32 ] [ 32 ] [ a; b ]
+            Expect.equal actual [ expected ] "32-bit multiply"
+        }
+
         // clocked components: outputs reflect the previous cycle's inputs
         test "Register" {
             let stimuli = [ [ 5I ]; [ 2I ]; [ 7I ]; [ 0I ] ]

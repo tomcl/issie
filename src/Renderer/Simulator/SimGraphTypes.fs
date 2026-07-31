@@ -261,7 +261,16 @@ type UnaryOp =
 // Comparison between expression and constant
 type ComparisonOp = | Equals
 
-// Type for algebraic expressions in Issie
+// Type for algebraic expressions in Issie.
+//
+// ALGEBRA SEMANTICS. Every expression denotes an UNSIGNED value truncated to its bit-width
+// (getAlgExpWidth): AddOp, SubOp and NegOp are modular, so NotOp e = -1 - e exactly, and
+// NegOp produces the two's complement bit pattern - there is no signed interpretation
+// anywhere. The one exception is CarryOfOp, which reads the carry OUT of its addition
+// operand, i.e. bit w of the pre-truncation sum. At width 1, A XOR B = A + B and -A = A
+// (mod 2). Doubling has two equivalent forms - arithmetic (A + A) and structural
+// (A[w-2:0] :: 0, see doubleExp) - which simplify in different contexts.
+// AppendExp lists are MSB-first: the head holds the most significant bits.
 type FastAlgExp =
     | SingleTerm of SimulationIO
     | DataLiteral of FastData
@@ -293,6 +302,50 @@ let rec getAlgExpWidth (exp: FastAlgExp) =
             (0, exps)
             ||> List.fold (fun w exp -> w + getAlgExpWidth exp)
 
+
+let bigIntMaskA =
+    [| 0..128 |]
+    |> Array.map (fun width -> (1I <<< width) - 1I)
+
+let bigIntBitMaskA =
+    [| 0..128 |]
+    |> Array.map (fun width -> (1I <<< width))
+
+/// all bits with numbers < width = 1
+let bigIntMask width =
+    if width <= 128 then
+        bigIntMaskA[width]
+    else
+        (1I <<< width) - 1I
+
+/// single bit 1 (2 ** pos)
+let bigIntBitMask pos =
+    if pos <= 128 then
+        bigIntBitMaskA[pos]
+    else
+        (1I <<< pos)
+
+/// A DataLiteral holding the given non-negative value, respecting the representation
+/// invariant that Word is used iff width <= 32
+let valueLiteral (width: int) (value: bigint) =
+    if width <= 32 then
+        DataLiteral { Dat = Word(uint32 value); Width = width }
+    else
+        DataLiteral { Dat = BigWord value; Width = width }
+
+let zeroLiteral (width: int) = valueLiteral width 0I
+
+let allOnesLiteral (width: int) = valueLiteral width (bigIntMask width)
+
+/// The structural form of 2*exp truncated to width: exp's bits shifted up one, LSB 0.
+/// Degenerates to the constant 0 at width 1 (2A = 0 mod 2). Doubling also has the
+/// arithmetic form A + A; the two simplify in different contexts - the structural form
+/// merges with bit ranges and appends, the arithmetic form cancels against negated terms.
+let doubleExp (width: int) (exp: FastAlgExp) =
+    if width = 1 then
+        zeroLiteral 1
+    else
+        AppendExp [ UnaryExp(BitRangeOp(0, width - 2), exp); zeroLiteral 1 ]
 
 let rec flattenNestedArithmetic exp =
     /// Multiplies an expression by -1: Positive <-> Negative
@@ -341,51 +394,47 @@ let assembleArithmetic width expLst =
 let tryBitwiseOperation (expressions: FastAlgExp list) =
     match expressions with
     | [] -> failwithf "what? Expressions List should never be empty"
-    | (BinaryExp(_, AddOp, _)) :: tl
-    | (BinaryExp(_, SubOp, _)) :: tl -> None
-    | (BinaryExp(UnaryExp(BitRangeOp(_, _), left), bop, UnaryExp(BitRangeOp(_, _), right))) :: tl ->
-        let rec checkList exps state remBits =
-            match (exps: FastAlgExp list), state with
-            | [], s -> s, remBits
-            | hd :: tl, false -> checkList tl false remBits
-            | (BinaryExp(UnaryExp(BitRangeOp(ll, lu), l), op, UnaryExp(BitRangeOp(rl, ru), r))) :: tl, true ->
-                if
-                    ll = lu
-                    && ll = rl
-                    && rl = ru
-                    && l = left
-                    && r = right
-                    && op = bop
-                then
-                    let newRemBits = List.except [ ll ] remBits
-                    checkList tl true newRemBits
-                else
-                    checkList tl false remBits
-            | _ :: tl, s -> checkList tl false remBits
-
+    | (BinaryExp(_, AddOp, _)) :: _
+    | (BinaryExp(_, SubOp, _)) :: _ -> None
+    | (BinaryExp(UnaryExp(BitRangeOp(_, _), left), bop, UnaryExp(BitRangeOp(_, _), right))) :: _ ->
         let widthL, widthR = getAlgExpWidth left, getAlgExpWidth right
 
-        if widthL <> widthR then
+        if widthL <> widthR || List.length expressions <> widthL then
             None
         else
-            let remBits = [ 0 .. (widthL - 1) ]
+            // AppendExp lists are MSB-first, so element i must be exactly bit (width-1-i)
+            // of both operands: a permuted bit order is a different value and must not
+            // collapse to the plain bus operation
+            let allBitsInOrder =
+                expressions
+                |> List.mapi (fun i exp -> (widthL - 1 - i), exp)
+                |> List.forall (fun (bitIndex, exp) ->
+                    match exp with
+                    | BinaryExp(UnaryExp(BitRangeOp(ll, lu), l), op, UnaryExp(BitRangeOp(rl, ru), r)) ->
+                        ll = lu
+                        && ll = rl
+                        && rl = ru
+                        && ll = bitIndex
+                        && l = left
+                        && r = right
+                        && op = bop
+                    | _ -> false)
 
-            match checkList expressions true remBits with
-            | true, [] -> BinaryExp(left, bop, right) |> Some
-            | _, _ -> None
+            if allBitsInOrder then
+                BinaryExp(left, bop, right) |> Some
+            else
+                None
     | _ -> None
 
 /// Check the Bit Ranges for two expressions, and check if they can be merged.
-/// If they can, return the merged expression, otherwise return None.
-// A[5:3] and A[2:1] -> A[5:1]
-// A[5:4] and A[2:1] -> None
-// A[5:3] and B[2:1] -> None
+/// The first range must be the MORE significant part, since AppendExp lists are MSB-first:
+// A[5:3] then A[2:1] -> A[5:1]
+// A[2:1] then A[5:3] -> None (a swapped-halves value, not a contiguous slice)
+// A[5:4] then A[2:1] -> None
+// A[5:3] then B[2:1] -> None
 let tryMergeBitRanges (l1, u1, exp1) (l2, u2, exp2) =
-    let lHigh, lLow = if l1 > l2 then l1, l2 else l2, l1
-    let uHigh, uLow = if u1 > u2 then u1, u2 else u2, u1
-
-    if exp1 = exp2 && lHigh = uLow + 1 then
-        UnaryExp(BitRangeOp(lLow, uHigh), exp1) |> Some
+    if exp1 = exp2 && l1 = u2 + 1 then
+        UnaryExp(BitRangeOp(l2, u1), exp1) |> Some
     else
         None
 
@@ -510,13 +559,10 @@ let rec expToKatex (exp: FastAlgExp) : string =
         | UnaryExp (CarryOfOp, e) ->
             sprintf "\\mathrm{carry}\\bigl(%s\\bigr)" (expToKatex' e)
 
-        | BinaryExp (e1, AddOp, e2) ->
-            // +
-            sprintf "\\bigl(%s + %s\\bigr)" (expToKatex' e1) (expToKatex' e2)
-
-        | BinaryExp (e1, SubOp, e2) ->
-            // -
-            sprintf "\\bigl(%s - %s\\bigr)" (expToKatex' e1) (expToKatex' e2)
+        | BinaryExp (_, AddOp, _)
+        | BinaryExp (_, SubOp, _) ->
+            // flatten the whole Add/Sub chain so a - b - c renders without nested brackets
+            sprintf "\\bigl(%s\\bigr)" (arithmeticToKatex exp)
 
         | BinaryExp (e1, BitAndOp, e2) ->
             // AND, \cdot
@@ -540,7 +586,7 @@ let rec expToKatex (exp: FastAlgExp) : string =
             |> String.concat "\\Vert "
             |> sprintf "\\bigl(%s\\bigr)"
 
-    let rec arithmeticToKatex exp =
+    and arithmeticToKatex exp =
         // change it to LaTeX
         exp
         |> flattenNestedArithmetic
@@ -587,23 +633,27 @@ let rec evalExp exp =
 
         match left, right with
         // Annulment: AND with 0 is always 0
-        | exp, DataLiteral { Dat = Word 0u; Width = w }
-        | DataLiteral { Dat = Word 0u; Width = w }, exp -> DataLiteral { Dat = Word 0u; Width = w }
-        // Identity: AND with 1 is always the other operand
+        | _, DataLiteral { Dat = Word 0u; Width = w }
+        | DataLiteral { Dat = Word 0u; Width = w }, _ -> DataLiteral { Dat = Word 0u; Width = w }
+        | _, DataLiteral { Dat = BigWord z; Width = w }
+        | DataLiteral { Dat = BigWord z; Width = w }, _ when z = 0I -> zeroLiteral w
+        // Identity: AND with all-ones is always the other operand
         | exp, DataLiteral { Dat = Word n; Width = w }
         | DataLiteral { Dat = Word n; Width = w }, exp ->
-            let one = uint32 <| (2.0 ** w) - 1.0
-            if n = one then
+            if n = uint32 (bigIntMask w) then
                 exp
             else
                 BinaryExp(left, BitAndOp, right)
-        // Complement: A AND (NOT A) = 0
-        | e1, UnaryExp(NotOp, e2) ->
-            if e1 = e2 then
-                let w = getAlgExpWidth e1
-                DataLiteral { Dat = Word 0u; Width = w }
+        | exp, DataLiteral { Dat = BigWord n; Width = w }
+        | DataLiteral { Dat = BigWord n; Width = w }, exp ->
+            if n = bigIntMask w then
+                exp
             else
                 BinaryExp(left, BitAndOp, right)
+        // Complement: A AND (NOT A) = 0, whichever side the NOT is on
+        // (guarded so a non-complement NOT falls through to the later rules)
+        | e1, UnaryExp(NotOp, e2)
+        | UnaryExp(NotOp, e2), e1 when e1 = e2 -> zeroLiteral (getAlgExpWidth e1)
         // (A OR B) AND (A OR C) = A OR (B AND C)
         | BinaryExp(e1, BitOrOp, e2), BinaryExp(e3, BitOrOp, e4) ->
             if e1 = e3 then
@@ -630,22 +680,27 @@ let rec evalExp exp =
         // Identity: OR with 0 is always the other operand
         | exp, DataLiteral { Dat = Word 0u; Width = _ }
         | DataLiteral { Dat = Word 0u; Width = _ }, exp -> exp
-        // Annulment: OR with 1 is always 1
-        | exp, DataLiteral { Dat = Word n; Width = w }
-        | DataLiteral { Dat = Word n; Width = w }, exp ->
-            let one = uint32 <| (2.0 ** w) - 1.0
-
-            if n = one then
-                DataLiteral { Dat = Word one; Width = w }
+        | exp, DataLiteral { Dat = BigWord z; Width = _ }
+        | DataLiteral { Dat = BigWord z; Width = _ }, exp when z = 0I -> exp
+        // Annulment: OR with all-ones is always all-ones
+        | _, DataLiteral { Dat = Word n; Width = w }
+        | DataLiteral { Dat = Word n; Width = w }, _ ->
+            if n = uint32 (bigIntMask w) then
+                DataLiteral { Dat = Word n; Width = w }
             else
-                BinaryExp(left, BitAndOp, right)
-        // Complement: A OR (NOT A) = 1
-        | e1, UnaryExp(NotOp, e2) ->
-            if e1 = e2 then
-                let w = getAlgExpWidth e1
-                DataLiteral { Dat = Word 1u; Width = w }
+                // rebuilt as an OR: this used to say BitAndOp, silently turning the
+                // expression into an AND
+                BinaryExp(left, BitOrOp, right)
+        | _, DataLiteral { Dat = BigWord n; Width = w }
+        | DataLiteral { Dat = BigWord n; Width = w }, _ ->
+            if n = bigIntMask w then
+                allOnesLiteral w
             else
                 BinaryExp(left, BitOrOp, right)
+        // Complement: A OR (NOT A) = all-ones, whichever side the NOT is on
+        // (guarded so a non-complement NOT falls through to the later rules)
+        | e1, UnaryExp(NotOp, e2)
+        | UnaryExp(NotOp, e2), e1 when e1 = e2 -> allOnesLiteral (getAlgExpWidth e1)
         // Check for Carry from Full Adder
         // All combinations of: CIN&(A+B)|(A&B)
         | BinaryExp(c1, BitAndOp, BinaryExp(a1, AddOp, b1)), BinaryExp(a2, BitAndOp, b2)
@@ -690,20 +745,33 @@ let rec evalExp exp =
         // XOR with 0 is always the other operand
         | exp, DataLiteral { Dat = Word 0u; Width = _ }
         | DataLiteral { Dat = Word 0u; Width = _ }, exp -> exp
-        // XOR with 1 is always the inverse of the other operand
+        | exp, DataLiteral { Dat = BigWord z; Width = _ }
+        | DataLiteral { Dat = BigWord z; Width = _ }, exp when z = 0I -> exp
+        // XOR with all-ones is always the inverse of the other operand
         | exp, DataLiteral { Dat = Word n; Width = w }
         | DataLiteral { Dat = Word n; Width = w }, exp ->
-            let one = uint32 <| (2.0 ** w) - 1.0
-
-            if n = one then
+            if n = uint32 (bigIntMask w) then
                 UnaryExp(NotOp, exp)
             else
-                reduceArithmetic (BinaryExp(exp, AddOp, DataLiteral { Dat = Word n; Width = w }))
+                // XOR with a general constant is NOT an addition (carries differ):
+                // keep it as an XOR
+                BinaryExp(left, BitXorOp, right)
+        | exp, DataLiteral { Dat = BigWord n; Width = w }
+        | DataLiteral { Dat = BigWord n; Width = w }, exp ->
+            if n = bigIntMask w then
+                UnaryExp(NotOp, exp)
+            else
+                BinaryExp(left, BitXorOp, right)
         | l, r ->
-            // if getAlgExpWidth l = 1 && getAlgExpWidth r = 1 then
-            //     reduceArithmetic (BinaryExp(l, AddOp, r))
-            // else
-            // These code creates the problem... so comment it out
+            if l = r then
+                // A XOR A = 0 at any width
+                zeroLiteral (getAlgExpWidth l)
+            elif getAlgExpWidth l = 1 && getAlgExpWidth r = 1 then
+                // at width 1 XOR is exactly addition mod 2 (arithmetic is truncated to
+                // width), which reduceArithmetic can fold and which lets the full-adder
+                // carry rule in the OR branch recognise gate-built adders
+                reduceArithmetic (BinaryExp(l, AddOp, r))
+            else
                 BinaryExp(l, BitXorOp, r)
     | BinaryExp(_, AddOp, _)
     | BinaryExp(_, SubOp, _) -> reduceArithmetic exp
@@ -738,11 +806,11 @@ and reduceArithmetic expression =
         |> List.map evalExp
 
     let numVal, expCounts =
-        ((0, Map.empty<FastAlgExp, int>), flatLst)
+        ((0I, Map.empty<FastAlgExp, int>), flatLst)
         ||> List.fold (fun (numTrack, expTrack) expr ->
             match expr with
-            | DataLiteral { Dat = Word w; Width = _ } -> (numTrack + (int w)), expTrack
-            | UnaryExp(NegOp, DataLiteral { Dat = Word w; Width = _ }) -> (numTrack - (int w)), expTrack
+            | DataLiteral { Dat = Word w; Width = _ } -> (numTrack + bigint w), expTrack
+            | UnaryExp(NegOp, DataLiteral { Dat = Word w; Width = _ }) -> (numTrack - bigint w), expTrack
             | UnaryExp(NegOp, e) ->
                 let newExpTrack = updateExpCount e expTrack decrement
                 numTrack, newExpTrack
@@ -750,13 +818,28 @@ and reduceArithmetic expression =
                 let newExpTrack = updateExpCount expr expTrack increment
                 numTrack, newExpTrack)
 
+    // at width 1 arithmetic is mod 2, where -A = A and 2A = 0 (see doubleExp), so every
+    // multiplicity reduces mod 2: this is what cancels A XOR A
+    let expCounts =
+        if width = 1 then
+            expCounts |> Map.map (fun _ count -> ((count % 2) + 2) % 2)
+        else
+            expCounts
+
+    // the numeric total truncated to width; sign is kept (except at width 1, where +1 is
+    // preferred to -1) so that A - 3 renders as a subtraction rather than a large constant
+    let constVal =
+        let m = 1I <<< width
+        if width = 1 then
+            ((numVal % m) + m) % m
+        else
+            numVal % m
+
     let numDataExp =
-        int (bigint numVal % (1I <<< width))
-        |> fun n ->
-            if n > 0 then
-                DataLiteral { Dat = Word(uint32 n); Width = width }
-            else
-                UnaryExp(NegOp, DataLiteral { Dat = Word(uint32 <| abs n); Width = width })
+        if constVal >= 0I then
+            valueLiteral width constVal
+        else
+            UnaryExp(NegOp, valueLiteral width (-constVal))
 
     let expressionsToAssemble =
         expCounts
@@ -769,7 +852,9 @@ and reduceArithmetic expression =
             else
                 [ for i in 1 .. (abs count) -> UnaryExp(NegOp, exp) ])
         |> fun l ->
-            if numVal = 0 then
+            // append the literal only when it is non-zero after truncation, else a
+            // constant total of 2^width would emit a spurious "- 0" term
+            if constVal = 0I then
                 l
             else
                 l @ [ numDataExp ]
@@ -786,28 +871,6 @@ type FSInterface =
     | IAlg of FastAlgExp
 
 
-
-let bigIntMaskA =
-    [| 0..128 |]
-    |> Array.map (fun width -> (1I <<< width) - 1I)
-
-let bigIntBitMaskA =
-    [| 0..128 |]
-    |> Array.map (fun width -> (1I <<< width))
-
-/// all bits with numbers < width = 1
-let bigIntMask width =
-    if width <= 128 then
-        bigIntMaskA[width]
-    else
-        (1I <<< width) - 1I
-
-/// single bit 1 (2 ** pos)
-let bigIntBitMask pos =
-    if pos <= 128 then
-        bigIntBitMaskA[pos]
-    else
-        (1I <<< pos)
 
 let fastBit (n: uint32) =
 #if ASSERTS

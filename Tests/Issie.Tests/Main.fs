@@ -8,6 +8,7 @@ let main argv =
     // a module-level mutable), so tests that simulate cannot run in parallel
     testList "Issie" [
         Properties.tests
+        AlgebraTests.tests
         ParameterScenarios.tests
         ComponentSemantics.tests
         GoldenModel.tests

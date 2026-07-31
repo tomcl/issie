@@ -124,37 +124,46 @@ let truthTableUpdate (model: Model) (msg:TTMsg) : (Model * Cmd<Msg>)  =
         | Some (Ok sd,_) ->
             // delete any old simulations
             let model = ModelHelpers.removeAllSimulationsFromModel model
-            // Generate the Truth Table
-            let tt = 
-                truthTable 
-                    sd 
-                    model.TTConfig
-                    false
-            // Styles for the grid
-            let colStyles = 
-                tt.IOOrder
-                |> List.mapi (fun i io -> (io,ttGridColumnProps i))
-                |> Map.ofList 
-            // List of messages
-            let commands = 
-                [
-                    // Set the IO Order for the Truth Table
-                    tt.IOOrder 
-                    |> List.toArray 
-                    |> SetIOOrder
-                    |> TruthTableMsg
-                    // Set the popup Algebra inputs to empty list
-                    (TruthTableMsg <| SetPopupAlgebraInputs (Some []))
-                    // Truncation warning
-                    if tt.IsTruncated then
-                        Notifications.warningPropsNotification (truncationWarning tt)
-                        |> SetPropertiesNotification
-                ]
-                |> List.map Cmd.ofMsg
-            model
-            |> set currentTruthTable_ (Some (Ok tt))
-            |> set (tTType_ >-> gridStyles_) colStyles
-            |> withCommands commands
+            // Generate the Truth Table. The algebra input validation should prevent
+            // AlgebraNotImplemented here, but catch it as RegenerateTruthTable does
+            // rather than crash on first generation.
+            let ttRes =
+                try
+                    Ok (truthTable sd model.TTConfig false)
+                with
+                | AlgebraNotImplemented err -> Error err
+            match ttRes with
+            | Ok tt ->
+                // Styles for the grid
+                let colStyles =
+                    tt.IOOrder
+                    |> List.mapi (fun i io -> (io,ttGridColumnProps i))
+                    |> Map.ofList
+                // List of messages
+                let commands =
+                    [
+                        // Set the IO Order for the Truth Table
+                        tt.IOOrder
+                        |> List.toArray
+                        |> SetIOOrder
+                        |> TruthTableMsg
+                        // Set the popup Algebra inputs to empty list
+                        (TruthTableMsg <| SetPopupAlgebraInputs (Some []))
+                        // Truncation warning
+                        if tt.IsTruncated then
+                            Notifications.warningPropsNotification (truncationWarning tt)
+                            |> SetPropertiesNotification
+                    ]
+                    |> List.map Cmd.ofMsg
+                model
+                |> set currentTruthTable_ (Some (Ok tt))
+                |> set (tTType_ >-> gridStyles_) colStyles
+                |> withCommands commands
+            | Error e ->
+                model
+                |> set currentTruthTable_ (Some (Error e))
+                |> set (tTType_ >-> gridStyles_) Map.empty,
+                    Cmd.none
         | Some (Error e, _) ->
             model
             |> set currentTruthTable_ (Some (Error e))

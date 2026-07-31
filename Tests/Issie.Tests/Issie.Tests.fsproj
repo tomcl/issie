@@ -14,6 +14,7 @@
     <Compile Include="ComponentSemantics.fs" />
     <Compile Include="Properties.fs" />
     <Compile Include="ParameterScenarios.fs" />
+    <Compile Include="AlgebraTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

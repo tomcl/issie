@@ -722,19 +722,35 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | a, b -> failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 
             put 0 <| Data { aIn with Dat = outDat }
-        | Alg exp, Data { Dat = (Word num); Width = w }
-        | Data { Dat = (Word num); Width = w }, Alg exp ->
-            let minusOne = (2.0 ** w) - 1.0 |> uint32
-
-            if num = minusOne then
-                put 0 <| Alg(UnaryExp(NotOp, exp))
-            //Alg (BinaryExp(UnaryExp(NegOp,exp),SubOp,DataLiteral {Dat = Word 1u; Width=w}))
-            else
-                let numExp = (packBitFData num).toExp
-                put 0 <| Alg(BinaryExp(exp, AddOp, numExp))
         | aIn, bIn ->
-            let aExp, bExp = aIn.toExp, bIn.toExp
-            put 0 <| Alg(BinaryExp(aExp, BitXorOp, bExp))
+            // at least one operand is algebraic
+            match op with
+            | Some Multiply ->
+                // a product has no representation in the expression AST: refuse cleanly
+                // rather than build a wrong expression
+                let err =
+                    { ErrType = AlgInpNotAllowed "The chosen set of Algebraic inputs results in algebra being passed to a
+                        multiply block. Algebraic multiplication cannot be represented, so only values can be passed to its ports."
+                      InDependency = Some(comp.FullName)
+                      ComponentsAffected = [ comp.cId ]
+                      ConnectionsAffected = [] }
+                raise (AlgebraNotImplemented err)
+            | None ->
+                match aIn, bIn with
+                | Alg exp, Data { Dat = (Word num); Width = w }
+                | Data { Dat = (Word num); Width = w }, Alg exp ->
+                    if num = uint32 (bigIntMask w) then
+                        put 0 <| Alg(UnaryExp(NotOp, exp))
+                    elif num = 0u then
+                        put 0 <| Alg exp
+                    else
+                        // a general constant XORs: build the literal at its real width
+                        // (this used to go through packBitFData, destroying the value)
+                        let numExp = (Data { Dat = Word num; Width = w }).toExp
+                        put 0 <| Alg(BinaryExp(exp, BitXorOp, numExp))
+                | aIn, bIn ->
+                    let aExp, bExp = aIn.toExp, bIn.toExp
+                    put 0 <| Alg(BinaryExp(aExp, BitXorOp, bExp))
     | NbitsOr numberOfBits ->
         //let A, B = ins 0, ins 1
         match ins 0, ins 1 with
@@ -748,12 +764,11 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 0 <| Data { aIn with Dat = outDat }
         | Alg exp, Data { Dat = (Word num); Width = w }
         | Data { Dat = (Word num); Width = w }, Alg exp ->
-            let minusOne = (2.0 ** w) - 1.0 |> uint32
-
             if num = 0u then
                 put 0 <| Alg exp
-            // else if num=minusOne
-            //     put 0 <| Alg
+            elif num = uint32 (bigIntMask w) then
+                // annulment: OR with all-ones is all-ones
+                put 0 <| Alg((Data { Dat = Word num; Width = w }).toExp)
             else
                 let numExp = (Data { Dat = (Word num); Width = w }).toExp
                 put 0 <| Alg(BinaryExp(exp, BitOrOp, numExp))
@@ -772,10 +787,11 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 0 <| Data { aIn with Dat = outDat }
         | Alg exp, Data { Dat = (Word num); Width = w }
         | Data { Dat = (Word num); Width = w }, Alg exp ->
-            let minusOne = (2.0 ** w) - 1.0 |> uint32
-
-            if num = minusOne then
+            if num = uint32 (bigIntMask w) then
                 put 0 <| Alg exp
+            elif num = 0u then
+                // annulment: AND with 0 is 0
+                put 0 <| Alg((Data { Dat = Word 0u; Width = w }).toExp)
             else
                 let numExp = (Data { Dat = (Word num); Width = w }).toExp
                 put 0 <| Alg(BinaryExp(exp, BitAndOp, numExp))
@@ -815,15 +831,13 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | _ -> failwithf $"Can't happen"
 
             put 0 <| Data outDat
-        | _ ->
-            let err =
-                { ErrType = AlgInpNotAllowed "The chosen set of Algebraic inputs results in algebra being passed to the
-                    input port of a Bit-Spreader. Only values can be passed to this port."
-                  InDependency = Some(comp.FullName)
-                  ComponentsAffected = [ comp.cId ]
-                  ConnectionsAffected = [] }
-            // Algebra at bit spreader is not supported
-            raise (AlgebraNotImplemented err)
+        | Alg exp ->
+            // the 1-bit input replicated onto every output bit (AppendExp is MSB-first,
+            // and every element is the same bit). This is exact, and it is what algebraic
+            // sign-extension circuits need, since a spreader is how Issie sign-extends.
+            match numberOfBits with
+            | 1 -> put 0 <| Alg exp
+            | n -> put 0 <| Alg(AppendExp(List.replicate n exp))
     // Shift: input 0 is the data bus, input 1 the shift amount (at most 32 bits wide).
     // Shifting by the bus width or more gives 0, or all-sign-bits for ASR.
     | Shift(width, _, shiftType) ->
@@ -846,10 +860,34 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                     | ASR when signSet -> (bits >>> amt) ||| (mask &&& (mask <<< (width - amt)))
                     | ASR -> bits >>> amt
             put 0 <| Data(convertBigintToFastData width res)
+        | Alg exp, Data amtIn ->
+            // a shift by a KNOWN amount is exactly representable with bit ranges and
+            // appends (AppendExp is MSB-first), matching FastReduce semantics including
+            // shifting by the bus width or more
+            let amt = convertFastDataToInt amtIn
+            let signBit = UnaryExp(BitRangeOp(width - 1, width - 1), exp)
+            let res =
+                if amt = 0u then
+                    exp
+                elif amt >= uint32 width then
+                    match shiftType with
+                    | LSL | LSR -> zeroLiteral width
+                    | ASR -> AppendExp(List.replicate width signBit)
+                else
+                    let amt = int amt
+                    match shiftType with
+                    | LSL -> AppendExp [ UnaryExp(BitRangeOp(0, width - 1 - amt), exp); zeroLiteral amt ]
+                    | LSR -> AppendExp [ zeroLiteral amt; UnaryExp(BitRangeOp(amt, width - 1), exp) ]
+                    | ASR ->
+                        AppendExp(
+                            List.replicate amt signBit
+                            @ [ UnaryExp(BitRangeOp(amt, width - 1), exp) ])
+            put 0 <| Alg res
         | _ ->
+            // the shift AMOUNT is algebraic: a variable shift has no representation
             let err =
                 { ErrType = AlgInpNotAllowed "The chosen set of Algebraic inputs results in algebra being passed to the
-                    input port of a Shifter. Only values can be passed to this port."
+                    SHIFTER (shift amount) port of a Shifter. Only values can be passed to this port."
                   InDependency = Some(comp.FullName)
                   ComponentsAffected = [ comp.cId ]
                   ConnectionsAffected = [] }
@@ -992,42 +1030,13 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 0 <| Alg exp0
             put 1 <| Alg exp1
 
-    | SplitN (n, widths, lsbs) -> 
+    | SplitN (n, widths, lsbs) ->
+        // makeSplitOutput handles Data and every Alg form for each output; a second
+        // per-output write that used to follow it was a redundant repeat and has been
+        // removed
         let fd = ins 0
         List.zip widths lsbs
         |> List.iteri (fun i (width,lsb) -> makeSplitOutput fd i width lsb )
-#if ASSERTS
-        assertThat (fd.Width >= topWireWidth + 1)
-        <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (topWireWidth + 1) fd.Width
-#endif
-        match fd with
-        | Data bits ->
-            List.iteri2 (fun i width lsb ->
-                getBits (lsb+width-1) lsb bits 
-                |> Data
-                |> put i
-                ) widths lsbs
-
-        | Alg(UnaryExp(BitRangeOp(l, u), exp)) ->
-            List.iteri2 (fun i width lsb ->
-                UnaryExp(BitRangeOp(l + lsb, l+lsb+width-1), exp)
-                |> Alg
-                |> put i
-            ) widths lsbs
-
-        | Alg(UnaryExp(NotOp, exp)) ->
-            List.iteri2 (fun i width lsb ->
-                let expi = UnaryExp(BitRangeOp(lsb, lsb+width-1), exp)
-                Alg(UnaryExp(NotOp, expi))
-                |> put i
-            ) widths lsbs
-
-        | Alg exp ->
-            List.iteri2 (fun i width lsb ->
-                UnaryExp(BitRangeOp(lsb, lsb+width-1), exp)
-                |> Alg
-                |> put i
-            ) widths lsbs
 
     | DFF ->
         match insOld 0 with

@@ -550,7 +550,7 @@ let saveStateToFileExperimental folderPath baseName state =
 
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =
-    saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None;ParameterDefinitions = None})
+    saveStateToFile folderPath baseName (([],[]), None, Some {Form=Some User;Description=None;ParameterDefinitions = None; IsTopSheet = None})
 
 let stripVertices (conn: LegacyCanvas.LegacyConnection) =
     {conn with Vertices = []}
@@ -657,6 +657,7 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
             Description = description
             LoadedComponentIsOutOfDate = false
             LCParameterSlots = sheetInfo |> Option.bind (fun sI -> sI.ParameterDefinitions)
+            IsTopSheet = sheetInfo |> Option.bind (fun sI -> sI.IsTopSheet) |> Option.defaultValue false
         }
     ldc, ramChanges
 
@@ -691,7 +692,8 @@ let copySheetWithNewIds (sourcePath: string) (newPath: string) =
         copyFile sourcePath newPath
     | Ok ldc ->
         let ldc' = RegenerateIds.regenerateSheetIds ldc
-        let sheetInfo: SheetInfo = {Form = ldc'.Form; Description = ldc'.Description; ParameterDefinitions = ldc'.LCParameterSlots}
+        // a copied sheet never claims to be the top of the design it is copied into
+        let sheetInfo: SheetInfo = {Form = ldc'.Form; Description = ldc'.Description; ParameterDefinitions = ldc'.LCParameterSlots; IsTopSheet = None}
         match saveStateToFile (dirName newPath) (baseNameWithoutExtension newPath) (ldc'.CanvasState, ldc'.WaveInfo, Some sheetInfo) with
         | Ok _ -> ()
         | Error msg -> log <| msg
@@ -759,7 +761,7 @@ let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
         let name = ldc.Name
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterDefinitions=ldc.LCParameterSlots}
+        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterDefinitions=ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
         saveStateToFile proj.ProjectPath name (state,waveInfo,Some sheetInfo) |> ignore
         removeFileWithExtn ".dgmauto" proj.ProjectPath name)
 

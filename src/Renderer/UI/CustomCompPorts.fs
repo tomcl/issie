@@ -48,11 +48,13 @@ let getCorrectFileName (project:Project) =
 let syncLoadedComponentsToDisk newProj oldProj =
     let needToSave ldc' ldc =
        (not <| compareCanvas 10. ldc'.CanvasState ldc.CanvasState) ||
-       ldc'.WaveInfo <> ldc.WaveInfo
+       ldc'.WaveInfo <> ldc.WaveInfo ||
+       ldc'.LCParameterSlots <> ldc.LCParameterSlots ||
+       ldc'.IsTopSheet <> ldc.IsTopSheet
     let saveToDisk ldc =
         let state = ldc.CanvasState
         let waveInfo = ldc.WaveInfo
-        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterDefinitions=ldc.LCParameterSlots}
+        let sheetInfo: SheetInfo = {Form=ldc.Form;Description=ldc.Description; ParameterDefinitions=ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
         saveStateToFile newProj.ProjectPath ldc.Name (state,waveInfo,Some sheetInfo)
         |> ignore
 
@@ -60,7 +62,7 @@ let syncLoadedComponentsToDisk newProj oldProj =
     let oldLDCs = oldProj.LoadedComponents
     let newLDCs = newProj.LoadedComponents
     let sheets = List.distinct (List.map (fun ldc -> ldc.Name) (oldLDCs @ newLDCs))
-    let sheetMap = 
+    let sheetMap =
         sheets
         |> List.map (fun sheet -> sheet, (List.tryFind (nameOf sheet) newLDCs, List.tryFind (nameOf sheet) oldLDCs))
         |> Map.ofList
@@ -68,7 +70,7 @@ let syncLoadedComponentsToDisk newProj oldProj =
     |> Map.iter (fun name (optLdcNew, optLdcOld) ->
         match optLdcNew,optLdcOld with
         | Some ldcNew, Some ldcOld when needToSave ldcNew ldcOld ->
-            saveToDisk ldcOld
+            saveToDisk ldcNew
         | Some _, Some _ -> ()
         | None, Some ldcOld -> 
             removeFileWithExtn ".dgm" oldProj.ProjectPath ldcOld.Name

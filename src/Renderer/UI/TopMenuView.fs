@@ -43,7 +43,12 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         // "DEBUG: Saving Sheet"
         // printfn "DEBUG: %A" project.ProjectPath
         // printfn "DEBUG: %A" project.OpenFileName
-        let sheetInfo: SheetInfo = {Form=Some (Verilog name);Description=None; ParameterDefinitions=None} //only user defined sheets are editable and thus saveable
+        // regenerating the file must not clear a previously chosen top-sheet flag
+        let wasTop =
+            project.LoadedComponents
+            |> List.tryFind (fun lc -> lc.Name = name)
+            |> Option.map (fun lc -> lc.IsTopSheet)
+        let sheetInfo: SheetInfo = {Form=Some (Verilog name);Description=None; ParameterDefinitions=None; IsTopSheet = wasTop} //only user defined sheets are editable and thus saveable
         let savedState = newCS, getSavedWave model,(Some sheetInfo)
         saveStateToFile project.ProjectPath name savedState
         |> displayAlertOnError dispatch
@@ -57,7 +62,7 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
         let (SheetInfo:SheetInfo option) =
             match origLdComp.Form with
             |None -> None
-            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots}
+            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots; IsTopSheet = Some origLdComp.IsTopSheet}
         let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData newCS origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
         let newState =
             newCS
@@ -122,8 +127,9 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         Form = Some User
         Description = None
         LCParameterSlots = None
+        IsTopSheet = false
     }
-    
+
 /// rename a sheet
 let renameSheet oldName newName (model:Model) dispatch =
 
@@ -263,6 +269,7 @@ let addFileToProject model dispatch =
                         Form = Some User
                         Description = None
                         LCParameterSlots = None
+                        IsTopSheet = false
                     }
                     let updatedProject =
                         { project with
@@ -531,8 +538,6 @@ let changeLockState (isSubSheet: bool) (sheet: SheetTree) (updateLock: LockState
 let changeSubtreeLockState (isSubSheet: bool) (sheet: SheetTree) (updateLock: LockState -> LockState) =
     foldOverTree isSubSheet (fun b sheet -> changeLockState b sheet updateLock) sheet
 
-
-
 let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
     // dealwith case where Canvas does not exist
     match el with
@@ -597,11 +602,36 @@ let viewTopMenu model dispatch =
                         let p = Option.get model.CurrentProj
                         openFileInProject (sheet.SheetName) p model dispatch), dispatch)
 
+            // The top sheet is only surfaced when the project uses parameters: users who never
+            // touch parameters must see no change anywhere.
+            let projectUsesParams =
+                updatedProject.LoadedComponents
+                |> List.exists (fun ldc -> not (Map.isEmpty (ParameterAnalysis.declaredParams ldc)))
+            let topSheet =
+                match projectUsesParams with
+                | true -> ParameterAnalysis.effectiveTopSheet updatedProject.LoadedComponents
+                | false -> None
+            /// sheets in the instance tree under the top: computed from the sheet trees already
+            /// built for this menu, not by a second walk
+            let sheetsUnderTop =
+                let rec namesIn (tree: SheetTree) =
+                    tree.SheetName :: List.collect namesIn tree.SubSheets
+                topSheet
+                |> Option.bind (fun top -> Map.tryFind top sTrees)
+                |> Option.map (namesIn >> Set.ofList)
+                |> Option.defaultValue Set.empty
+
             let sheetColor (sheet:SheetTree) =
+                let isTop = topSheet = Some sheet.SheetName
+                let outsideTop = topSheet.IsSome && not (Set.contains sheet.SheetName sheetsUnderTop)
                 match sheet.SheetName = project.OpenFileName, sheetIsLocked sheet.SheetName updatedModel with
                 | true, true -> IColor.IsCustomColor "pink"
+                | true, false when isTop -> IColor.IsSuccess
                 | true, false -> IColor.IsInfo
                 | false, true -> IColor.IsDanger
+                | false, false when isTop -> IColor.IsCustomColor "darkgreen"
+                // outside the top's tree: necessarily displayed at default parameter values
+                | false, false when outsideTop -> IColor.IsCustomColor "grey"
                 | false, false -> IColor.IsCustomColor "darkslategrey"
 
             let breadcrumbConfig =  {

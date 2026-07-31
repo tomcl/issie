@@ -28,6 +28,7 @@
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\DrawHelpers.fs" />
     <Compile Include="Common\Helpers.fs" />
+    <Compile Include="Common\ParameterAnalysis.fs" />
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
 

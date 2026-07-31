@@ -263,6 +263,7 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
           Description = None
           LCParameterSlots = None // Parameter slots will be set by the sheet's parameter system
           LoadedComponentIsOutOfDate = false
+          IsTopSheet = false
           }
 
     ldc
@@ -322,6 +323,7 @@ let addStateToLoadedComponents openFileName canvasState loadedComponents =
           FilePath = ""
           TimeStamp = System.DateTime.Now
           LCParameterSlots = existingLdc |> Option.map (fun e -> e.LCParameterSlots) |> Option.flatten
+          IsTopSheet = existingLdc |> Option.map (fun e -> e.IsTopSheet) |> Option.defaultValue false
          }
 
     loadedComponents

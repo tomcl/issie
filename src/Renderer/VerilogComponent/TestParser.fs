@@ -907,7 +907,8 @@ let runMemoryTests () =
                             Helpers.JsonHelpers.stateToJsonString (cs, None, Some {
                                 Form = Some (Verilog "name")
                                 Description = None
-                                ParameterDefinitions = None}) |> ignore
+                                ParameterDefinitions = None
+                                IsTopSheet = None}) |> ignore
                         )
 
                     let parseNet  = parseAfter  - parseBefore

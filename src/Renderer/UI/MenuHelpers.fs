@@ -124,7 +124,7 @@ let updateSymbolRAMs (ramCheck: Component list) (sModel: SymbolT.Model) =
 
 
 let loadComponentWithRAMChanges newCS savedWaveSim ldc model =
-        let sheetInfo:SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions=ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
+        let sheetInfo:SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions=ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet} //only user defined sheets are editable and thus saveable
         let filePath = ldc.FilePath
         let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData newCS filePath DateTime.Now savedWaveSim (Some sheetInfo)
         model
@@ -434,8 +434,35 @@ let writeComponentToFile comp =
     stateToJsonString (comp.CanvasState,comp.WaveInfo,Some {
         Form=comp.Form;
         Description=comp.Description
-        ParameterDefinitions = None})
+        ParameterDefinitions = comp.LCParameterSlots
+        IsTopSheet = Some comp.IsTopSheet})
     |> Result.bind (writeFile comp.FilePath)
+
+/// Make the named sheet the current top sheet governing parameter display, clearing the flag
+/// from every other sheet. The flag is per-sheet view state persisted in the .dgm file.
+/// Sheets whose files are already in step with memory are written immediately, so the choice
+/// survives without a manual save; a sheet with unsaved changes (normally the open sheet) is
+/// only marked as needing saving - setting the top must not silently commit circuit edits.
+let setTopSheetState (sheetName: string) (model: Model) : Model =
+    match model.CurrentProj with
+    | None -> model
+    | Some project ->
+        let updateLdc (ldc: LoadedComponent) =
+            let flag = ldc.Name = sheetName
+            match flag = ldc.IsTopSheet, ldc.LoadedComponentIsOutOfDate || ldc.Name = project.OpenFileName with
+            | true, _ -> ldc
+            | false, false ->
+                let ldc' = {ldc with IsTopSheet = flag}
+                writeComponentToFile ldc' |> ignore
+                ldc'
+            | false, true ->
+                {ldc with IsTopSheet = flag; LoadedComponentIsOutOfDate = true}
+        let ldcs = project.LoadedComponents |> List.map updateLdc
+        {model with CurrentProj = Some {project with LoadedComponents = ldcs}}
+        |> (fun m ->
+            match List.exists (fun (ldc: LoadedComponent) -> ldc.LoadedComponentIsOutOfDate) ldcs with
+            | true -> Optic.set savedSheetIsOutOfDate_ true m
+            | false -> m)
 
 /// return an option containing sequence data and file name and directory of the latest
 /// backup file for given component, if it exists.
@@ -626,8 +653,13 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
 
             Sheet (SheetT.KeyPress  SheetT.KeyboardMsg.CtrlW)
             SynchroniseCanvas
-            SetIsLoading false 
+            SetIsLoading false
             if finishUI then FinishUICmd else DoNothing
+
+            // after everything is loaded: ask which top-level sheet governs parameter display,
+            // in the rare case where several exist and they disagree about this sheet.
+            // FinishUICmd overwrites any popup, so this must come after it.
+            CheckTopSheetChoice
 
             //printfn "Check 6..."
         ]
@@ -707,6 +739,7 @@ let private createEmptyDiagramFile projectPath name =
         Form = Some User
         Description = None
         LCParameterSlots = None
+        IsTopSheet = false
     }
 
 
@@ -717,7 +750,7 @@ let private saveCorrectedSheets (corrected: LoadedComponent list) (model: Model)
     corrected
     |> List.iter (fun ldc ->
         let folder = dirName ldc.FilePath
-        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions = ldc.LCParameterSlots}
+        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions = ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet}
         saveStateToFile folder ldc.Name (ldc.CanvasState, ldc.WaveInfo, Some sheetInfo)
         |> displayAlertOnError dispatch
         removeFileWithExtn ".dgmauto" folder ldc.Name)
@@ -956,7 +989,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
         // printfn "DEBUG: %A" project.OpenFileName
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
         // slots of components deleted from the canvas must not be saved
-        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description ; ParameterDefinitions= CanvasExtractor.pruneDeadParamSlots canvasState ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
+        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description ; ParameterDefinitions= CanvasExtractor.pruneDeadParamSlots canvasState ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet} //only user defined sheets are editable and thus saveable
         let savedState = canvasState, getSavedWave model,(Some sheetInfo)
         if isAuto then
             failwithf "Auto saving is no longer used"
@@ -975,7 +1008,7 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
             let (SheetInfo:SheetInfo option) =
                 match origLdComp.Form with
                 |None -> None
-                |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots}
+                |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots; IsTopSheet = Some origLdComp.IsTopSheet}
             let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
             let newState =
                 canvasState
@@ -1005,7 +1038,7 @@ let saveOpenFileToModel model =
         // printfn "DEBUG: %A" project.OpenFileName
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
         // slots of components deleted from the canvas must not be saved
-        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions= CanvasExtractor.pruneDeadParamSlots canvasState ldc.LCParameterSlots} //only user defined sheets are editable and thus saveable
+        let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions= CanvasExtractor.pruneDeadParamSlots canvasState ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet} //only user defined sheets are editable and thus saveable
         let savedState = canvasState, getSavedWave model,(Some sheetInfo)
         saveStateToFile project.ProjectPath project.OpenFileName savedState |> ignore
         removeFileWithExtn ".dgmauto" project.ProjectPath project.OpenFileName
@@ -1018,7 +1051,7 @@ let saveOpenFileToModel model =
         let (SheetInfo:SheetInfo option) =
             match origLdComp.Form with
             |None -> None
-            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots}
+            |Some form -> Some {Form=Some form;Description=origLdComp.Description; ParameterDefinitions=origLdComp.LCParameterSlots; IsTopSheet = Some origLdComp.IsTopSheet}
         let (newLdc, ramCheck) = makeLoadedComponentFromCanvasData canvasState origLdComp.FilePath DateTime.Now savedWaveSim SheetInfo
         let sModel, newState =
             canvasState
@@ -1049,7 +1082,7 @@ let saveOpenProjectInNewFormat (model: Model) =
     | Some project ->
         project.LoadedComponents
         |> List.map (fun comp ->
-            let sheetInfo = {Form=comp.Form;Description=comp.Description; ParameterDefinitions= comp.LCParameterSlots}
+            let sheetInfo = {Form=comp.Form;Description=comp.Description; ParameterDefinitions= comp.LCParameterSlots; IsTopSheet = Some comp.IsTopSheet}
             let savedState = comp.CanvasState, None, Some sheetInfo
             match saveStateToFileExperimental project.ProjectPath comp.Name savedState with
             | Ok _ -> printfn "Successfully saved %s" comp.Name

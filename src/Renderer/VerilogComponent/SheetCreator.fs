@@ -2344,7 +2344,8 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                     let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (finalCanvasState, None, Some {
                                     Form = Some (Verilog name);
                                     Description=None;
-                                    ParameterDefinitions = None})
+                                    ParameterDefinitions = None
+                                    IsTopSheet = None})
                     // failwithf "cs: %A" toSaveCanvasState
                     // failwithf "path2 = %s" path2
 

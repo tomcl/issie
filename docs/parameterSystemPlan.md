@@ -1,8 +1,26 @@
 # Parameter System: Planned Redesign
 
-This document records the agreed design for the next stage of the Issie parameter system. It is a
-plan: none of it is implemented yet. The current implementation is described in
-[parameterSystem.md](parameterSystem.md).
+This document records the agreed design for the next stage of the Issie parameter system.
+
+**Implementation status**: the design below is implemented (see
+[parameterSystem.md](parameterSystem.md) for where the code lives), with these deviations and
+deferrals:
+
+- **Display of real values** happens in the properties pane (parameter table annotations); the
+  canvas itself is still drawn and width-checked at default values. Drawing the canvas at the
+  singleton real values is a possible later step.
+- **Undo/redo** restores whole model snapshots, so re-doing a placement does not re-fire the
+  component-added trigger. The unbound state remains visible as a "(default; unbound)" note in
+  the instance's properties, and the next qualifying event re-checks.
+- **Deletion**: the existing behaviour (refusing deletion while slots on the sheet use the
+  parameter, and dropping dead bindings from instances elsewhere) is kept unchanged; the
+  pass-through-chain listing remains a possible extension.
+- The **later extensions** (instance-path viewing, memory parametrisation) are not implemented.
+
+One behaviour change beyond the plan text: placing a custom component instance no longer copies
+the parent sheet's default bindings into the instance as frozen values (the old behaviour, which
+was precisely the silent-stale-chain problem). New instances carry no bindings and elaborate at
+their sheet's defaults until a binding is created explicitly or through an accepted offer.
 
 ## The problem
 

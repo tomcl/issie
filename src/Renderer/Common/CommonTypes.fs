@@ -926,9 +926,13 @@ type SavedWaveInfo = {
 
 /// Info regarding sheet saved in the .dgm file
 type SheetInfo = {
-    Form: CCForm option 
+    Form: CCForm option
     Description: string option
     ParameterDefinitions: ParameterTypes.ParameterDefs option
+    /// True on the sheet the user has chosen as the current top of the design for display
+    /// purposes. View state, not semantics: it changes what the editor displays, never what
+    /// anything means. Optional so files saved by older Issie versions load unchanged.
+    IsTopSheet: bool option
 }
 
 (*--------------------------------------------------------------------------------------------------*)
@@ -966,6 +970,9 @@ type LoadedComponent = {
     /// If component needs saving to disk
     LoadedComponentIsOutOfDate: bool
     Description: string option
+    /// True on the sheet chosen as the current top of the design for display purposes.
+    /// View state persisted in the sheet's file; never affects elaboration.
+    IsTopSheet: bool
 }
 
 open Optics.Operators
@@ -975,6 +982,7 @@ let canvasState_ = Lens.create (fun a -> a.CanvasState) (fun s a -> {a with Canv
 let loadedComponentIsOutOfDate_ = Lens.create (fun a -> a.LoadedComponentIsOutOfDate) (fun s a -> {a with LoadedComponentIsOutOfDate = s})
 let componentsState_ = canvasState_ >-> Optics.fst_
 let lcParameterSlots_ = Prism.create (fun a -> a.LCParameterSlots) (fun s a -> {a with LCParameterSlots = Some s})
+let isTopSheet_ = Lens.create (fun a -> a.IsTopSheet) (fun s a -> {a with IsTopSheet = s})
 
 /// Returns true if a component is clocked
 let rec isClocked (visitedSheets: string list) (ldcs: LoadedComponent list) (comp: Component) =

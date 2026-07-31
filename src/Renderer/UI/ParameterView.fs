@@ -718,13 +718,16 @@ let addParameterBox model dispatch =
 
         // Update the parameter value then close the popup
         let buttonAction =
-            fun (model': Model) -> 
+            fun (model': Model) ->
                 let newParamName = getText model'.PopupDialogData
                 let newValue = getInt model'.PopupDialogData
 
                 modifyInfoSheet (project) (DefaultParams (newParamName, newValue, false)) dispatch
                 // Close popup window
                 ClosePopup |> dispatch
+                // a new parameter may be the missing ancestor that lets unbound same-named
+                // parameters in the sheets below be bound to it
+                dispatch <| CheckBindToTopOffers (ParameterAnalysis.NewParam (project.OpenFileName, ParamName newParamName))
 
         // Parameter Names can only be made out of letters and numbers
         let isDisabled = 
@@ -904,6 +907,39 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
         match simIsOpen with
         | false -> div [] []
         | true -> p [Style [Color "red"]] [str "Close all simulations to change the parameters of this sheet."]
+    // What each parameter resolves to across the instances of this sheet under the current top:
+    // one agreed value is shown as the real value; disagreeing instances are enumerated and the
+    // default shown. Editing always targets the definition (the default); inherited values are
+    // read-only annotations naming their source.
+    let topSheetOpt, displayValues =
+        match model.CurrentProj with
+        | None -> None, Map.empty
+        | Some proj ->
+            let ldcs = (ModelHelpers.getUpdatedLoadedComponents proj model).LoadedComponents
+            match ParameterAnalysis.effectiveTopSheet ldcs with
+            | None -> None, Map.empty
+            | Some top -> Some top, ParameterAnalysis.displayValues ldcs top comp.Name
+    /// annotation shown under a parameter's value, or None for a plain default
+    let annotate (key: ParamName) (defaultText: string) : string * string option =
+        let top = Option.defaultValue "" topSheetOpt
+        match Map.tryFind key displayValues with
+        | Some (ParameterAnalysis.ExactValue v) when string v <> defaultText ->
+            string v, Some $"from {top}; default {defaultText}"
+        | Some (ParameterAnalysis.MultipleValues (shown, values)) ->
+            let describeValue (v, paths) =
+                let examples =
+                    paths
+                    |> List.truncate 2
+                    |> List.map (ParameterAnalysis.renderInstancePath top)
+                    |> String.concat ", "
+                let more = if List.length paths > 2 then ", …" else ""
+                $"{v} at {examples}{more}"
+            let note =
+                values
+                |> List.map describeValue
+                |> String.concat "; "
+            defaultText, Some $"{note}; showing default {shown}"
+        | _ -> defaultText, None
     match sheetDefaultParams.IsEmpty with
     | true ->
         div [] [
@@ -940,15 +976,20 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                 tbody [] (
                     sheetDefaultParams |> Map.toList |> List.map (fun (key, value) ->
                         let paramName =
-                            match key with 
+                            match key with
                             | ParameterTypes.ParamName s -> s
-                        let paramVal = 
+                        let defaultVal =
                             match value with
                             |ParameterTypes.PInt i -> string i
                             | x -> string x
+                        let paramVal, note = annotate key defaultVal
                         tr [] [
                             td [] [str paramName]
-                            td [] [str paramVal]
+                            td [] (
+                                [str paramVal]
+                                @ (match note with
+                                   | Some noteText -> [p [Style [FontSize "11px"; Color "grey"]] [str noteText]]
+                                   | None -> []))
                             td [] [
                                 Button.button
                                     [ Fulma.Button.OnClick(fun _ -> editParameterBox model (paramName) dispatch)
@@ -1268,17 +1309,23 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                             | ParameterTypes.ParamName s -> s
                         
                         // Look for the expression in the parameter slots
-                        let paramValStr = 
+                        let paramValStr =
                             let slotKey = {CompId = comp.Id; CompSlot = CustomCompParam paramName}
-                            match Map.tryFind slotKey slots with
-                            | Some constrainedExpr ->
+                            match Map.tryFind slotKey slots, Map.containsKey key ccParams with
+                            | Some constrainedExpr, _ ->
                                 // If there's an expression, render it as a string
                                 ParameterTypes.renderParamExpression constrainedExpr.Expression 0
-                            | None ->
+                            | None, true ->
                                 // Otherwise show the evaluated value
                                 match value with
                                 | ParameterTypes.PInt i -> string i
                                 | x -> string x
+                            | None, false ->
+                                // nothing binds this parameter on this instance: the sheet
+                                // inside elaborates with its declared default
+                                match value with
+                                | ParameterTypes.PInt i -> $"{i} (default; unbound)"
+                                | x -> $"{x} (default; unbound)"
                         
                         let paramValInt = 
                             match value with
@@ -1403,3 +1450,260 @@ let viewParameters (model: ModelType.Model) dispatch =
             br []
             makeSlotsField model sheetLdc dispatch]
         |None -> null
+
+//------------------------------------------------------------------------------------------------//
+//------------------------------------- Bind-to-top offers ---------------------------------------//
+//------------------------------------------------------------------------------------------------//
+
+let private emptyParamDefs : ParameterDefs = {DefaultBindings = Map.empty; ParamSlots = Map.empty}
+
+/// Apply one accepted chain action to the LoadedComponent of the sheet it names.
+/// Both stores of an instance binding are kept in step: the CustomCompParam slot on the parent
+/// sheet, and the ParameterBindings of the instance component in the parent's canvas.
+let private applyChainActionToLdc (action: ParameterAnalysis.ChainAction) (ldc: LoadedComponent) : LoadedComponent =
+    match action with
+    | ParameterAnalysis.AddSheetParam (sheet, name, defVal) when sheet = ldc.Name ->
+        let defs = Option.defaultValue emptyParamDefs ldc.LCParameterSlots
+        match Map.containsKey name defs.DefaultBindings with
+        | true -> ldc
+        | false ->
+            {ldc with LCParameterSlots = Some {defs with DefaultBindings = Map.add name (PInt defVal) defs.DefaultBindings}}
+    | ParameterAnalysis.BindInstance (sheet, instId, _, _, name) when sheet = ldc.Name ->
+        let (ParamName nameStr) = name
+        let defs = Option.defaultValue emptyParamDefs ldc.LCParameterSlots
+        let slot = {CompId = instId; CompSlot = CustomCompParam nameStr}
+        let defs' = {defs with ParamSlots = Map.add slot {Expression = PParameter name; Constraints = []} defs.ParamSlots}
+        let comps, conns = ldc.CanvasState
+        let comps' =
+            comps
+            |> List.map (fun c ->
+                match c.Id = instId, c.Type with
+                | true, Custom cc ->
+                    let bindings = cc.ParameterBindings |> Option.defaultValue Map.empty
+                    {c with Type = Custom {cc with ParameterBindings = Some (Map.add name (PParameter name) bindings)}}
+                | _ -> c)
+        {ldc with LCParameterSlots = Some defs'; CanvasState = comps', conns}
+    | _ -> ldc
+
+/// Apply accepted bind-to-top offers: create the parameters and bindings of their chains,
+/// update the open sheet's symbols to match, and persist. A sheet whose file was in step with
+/// memory is written through immediately; the open sheet (whose canvas belongs to the draw
+/// block) is marked as needing saving instead, so accepting an offer never silently commits
+/// unrelated circuit edits.
+let applyBindOffers (offers: ParameterAnalysis.BindOffer list) (model: Model) (dispatch: Msg -> unit) : unit =
+    match model.CurrentProj with
+    | None -> ()
+    | Some project ->
+        let actions = offers |> List.collect (fun offer -> offer.Actions) |> List.distinct
+        let modifiedSheets = offers |> List.collect ParameterAnalysis.sheetsModifiedByOffer |> Set.ofList
+        let openName = project.OpenFileName
+        let updateLdc (ldc: LoadedComponent) =
+            match Set.contains ldc.Name modifiedSheets with
+            | false -> ldc
+            | true ->
+                let ldc' = (ldc, actions) ||> List.fold (fun l action -> applyChainActionToLdc action l)
+                match ldc.Name = openName || ldc.LoadedComponentIsOutOfDate with
+                | false ->
+                    MenuHelpers.writeComponentToFile ldc' |> ignore
+                    ldc'
+                | true -> {ldc' with LoadedComponentIsOutOfDate = true}
+        let ldcs' = project.LoadedComponents |> List.map updateLdc
+        dispatch <| UpdateModel (fun m ->
+            {m with CurrentProj = Some {project with LoadedComponents = ldcs'}}
+            |> (fun m' ->
+                match Set.contains openName modifiedSheets with
+                | true -> Optic.set savedSheetIsOutOfDate_ true m'
+                | false -> m'))
+
+        // The open sheet's canvas lives in the draw block: bindings created on its instances
+        // must go through symbol messages as well, with the instance's port widths updated to
+        // the value the binding takes at this sheet's displayed parameter values.
+        // All parameters bound on one instance are combined into a single ChangeCustom - each
+        // message replaces the whole custom type, so per-parameter messages built from the same
+        // symbol snapshot would overwrite each other.
+        let openDefaults =
+            ldcs'
+            |> List.tryFind (fun ldc -> ldc.Name = openName)
+            |> Option.bind (fun ldc -> ldc.LCParameterSlots)
+            |> Option.map (fun defs -> defs.DefaultBindings)
+            |> Option.defaultValue Map.empty
+        actions
+        |> List.choose (fun action ->
+            match action with
+            | ParameterAnalysis.BindInstance (sheet, instId, _, childSheet, name) when sheet = openName ->
+                Some ((instId, childSheet), name)
+            | _ -> None)
+        |> List.groupBy fst
+        |> List.iter (fun ((instId, childSheet), namedBinds) ->
+            let names = namedBinds |> List.map snd |> List.distinct
+            match Map.tryFind (ComponentId instId) model.Sheet.Wire.Symbol.Symbols with
+            | None -> ()
+            | Some symbol ->
+                let comp = symbol.Component
+                match comp.Type with
+                | Custom cc ->
+                    let newBindings =
+                        (cc.ParameterBindings |> Option.defaultValue Map.empty, names)
+                        ||> List.fold (fun bindings name -> Map.add name (PParameter name) bindings)
+                    let labelToEval =
+                        match project.LoadedComponents |> List.tryFind (fun ldc -> ldc.Name = childSheet) with
+                        | None -> Map.empty
+                        | Some childLdc ->
+                            let childDefaults = ParameterAnalysis.declaredParams childLdc
+                            let evalInParent expr =
+                                match ParameterTypes.evaluateParamExpression openDefaults expr with
+                                | Ok v -> Some (PInt v)
+                                | Error _ -> None
+                            let childEffective =
+                                childDefaults
+                                |> Map.map (fun n defExpr ->
+                                    Map.tryFind n newBindings
+                                    |> Option.bind evalInParent
+                                    |> Option.defaultValue defExpr)
+                            ParameterAnalysis.sheetParamSlots childLdc
+                            |> Map.toSeq
+                            |> Seq.choose (fun (slot, cexpr) ->
+                                match slot.CompSlot with
+                                | IO label ->
+                                    match ParameterTypes.evaluateParamExpression childEffective cexpr.Expression with
+                                    | Ok v -> Some (label, v)
+                                    | Error _ -> None
+                                | _ -> None)
+                            |> Map.ofSeq
+                    let updated = updateCustomComponent labelToEval newBindings comp
+                    dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (ComponentId comp.Id, comp, updated.Type))))
+                | _ -> ())
+        let sheetDispatch sMsg = dispatch (Sheet sMsg)
+        model.Sheet.DoBusWidthInference sheetDispatch
+
+/// The bind-to-top offers an event should surface. Offers are suppressed while a simulation is
+/// open, because accepting one changes the parameters of the design being simulated.
+let private offersForScope (scope: ParameterAnalysis.BindOfferScope) (model: Model) : ParameterAnalysis.BindOffer list =
+    match model.CurrentProj with
+    | None -> []
+    | Some _ when ModelHelpers.simulationIsOpen model -> []
+    | Some proj ->
+        let ldcs = (ModelHelpers.getUpdatedLoadedComponents proj model).LoadedComponents
+        match ParameterAnalysis.effectiveTopSheet ldcs with
+        | None -> []
+        | Some top ->
+            ParameterAnalysis.findBindOffers ldcs top None
+            |> ParameterAnalysis.offersInScope ldcs scope
+
+/// A popup offering to bind qualifying unbound instance parameters to the same-named parameter
+/// of an ancestor sheet, materialising the chain of parameters and bindings if accepted.
+/// Returns None when the event's scope surfaces nothing, which is almost always.
+let bindToTopOfferCheck (scope: ParameterAnalysis.BindOfferScope) (model: Model) : ((Msg -> unit) -> Model -> ReactElement) option =
+    match offersForScope scope model with
+    | [] -> None
+    | offers ->
+        let sheets = offers |> List.collect ParameterAnalysis.sheetsModifiedByOffer |> List.distinct
+        let describeOffer (offer: ParameterAnalysis.BindOffer) =
+            let (ParamName name) = offer.Param
+            li [] [
+                str $"{offer.InstanceLabel} on sheet {offer.OnSheet}: bind parameter "
+                b [] [str name]
+                str $" to {offer.BindsTo}:{name}"
+            ]
+        let body =
+            div [] [
+                str "A parameter of the same name is defined on a sheet above these component \
+                     instances, but nothing binds them together. Binding keeps them in step: \
+                     changing the value near the top of the design changes them too. Instances \
+                     that already have their own explicit bindings are left unchanged."
+                br []; br []
+                ul [Style [MarginLeft "20px"; ListStyleType "disc"]] (List.map describeOffer offers)
+                br []
+                str ("Parameters and bindings will be created in sheets: " + String.concat ", " sheets + ". \
+                     The modified sheets are saved. Declining leaves each parameter at its default \
+                     value, noted in the instance's properties.")
+            ]
+        let foot (dispatch: Msg -> unit) (_: Model) =
+            Level.level [Level.Level.Props [Style [Width "100%"]]] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsLight
+                            Button.OnClick (fun _ -> dispatch ClosePopup)
+                        ] [str "Keep defaults"]
+                    ]
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ ->
+                                dispatch <| ExecFuncInMessage(applyBindOffers offers, dispatch)
+                                dispatch ClosePopup)
+                        ] [str "Create bindings"]
+                    ]
+                ]
+            ]
+        Some (buildPopup "Bind parameters to the top sheet?" (fun _ _ -> body) foot (fun dispatch _ -> dispatch ClosePopup) [])
+
+//------------------------------------------------------------------------------------------------//
+//----------------------------------- Top sheet choice on open -----------------------------------//
+//------------------------------------------------------------------------------------------------//
+
+/// Project paths whose top-sheet choice popup the user has cancelled this session. Cancelling
+/// opens the sheet displaying defaults; the question is not asked again until the project is
+/// next opened, so the popup can never nag.
+let mutable private topChoiceDeclinedFor: Set<string> = Set.empty
+
+/// A popup asking the user to choose the top sheet, or None. It fires only when several
+/// top-level sheets exist, none has been chosen, and they disagree about the parameter values
+/// the opened sheet displays with - roughly once per project. It never blocks opening.
+let topSheetChoiceCheck (model: Model) : ((Msg -> unit) -> Model -> ReactElement) option =
+    match model.CurrentProj with
+    | None -> None
+    | Some proj when Set.contains proj.ProjectPath topChoiceDeclinedFor -> None
+    | Some proj when proj.LoadedComponents |> List.exists (fun ldc -> ldc.IsTopSheet) -> None
+    | Some proj ->
+        let ldcs = proj.LoadedComponents
+        let sheetName = proj.OpenFileName
+        let rootsContaining =
+            ParameterAnalysis.instanceForestRoots ldcs
+            |> List.filter (fun root -> Set.contains sheetName (ParameterAnalysis.sheetsUnderTop ldcs root))
+        let shownValues root =
+            ParameterAnalysis.displayValues ldcs root sheetName
+            |> Map.map (fun _ display -> ParameterAnalysis.shownValue display)
+        match rootsContaining with
+        | [] | [_] -> None
+        | _ when (rootsContaining |> List.map shownValues |> List.distinct |> List.length) <= 1 -> None
+        | _ ->
+            let decline (dispatch: Msg -> unit) =
+                topChoiceDeclinedFor <- Set.add proj.ProjectPath topChoiceDeclinedFor
+                dispatch ClosePopup
+            let body =
+                div [] [
+                    str $"Sheet {sheetName} is used in more than one top-level design, and its \
+                          parameter values differ between them. Choose which design the editor \
+                          should display it as part of."
+                    br []; br []
+                    str "You can change this at any time by right-clicking a sheet in the Sheets \
+                         menu and choosing 'Set as top'. Cancelling shows the sheet with its \
+                         default parameter values."
+                ]
+            let foot (dispatch: Msg -> unit) (_: Model) =
+                let chooseButton root =
+                    Level.item [] [
+                        Button.button [
+                            Button.Color IsPrimary
+                            Button.OnClick (fun _ ->
+                                dispatch <| UpdateModel (MenuHelpers.setTopSheetState root)
+                                dispatch ClosePopup
+                                // the top has (for display purposes) just changed: re-run the
+                                // bind-to-top check under it
+                                dispatch <| CheckBindToTopOffers ParameterAnalysis.WholeDesign)
+                        ] [str root]
+                    ]
+                Level.level [Level.Level.Props [Style [Width "100%"]]] [
+                    Level.left [] []
+                    Level.right [] (
+                        [ Level.item [] [
+                            Button.button [
+                                Button.Color IsLight
+                                Button.OnClick (fun _ -> decline dispatch)
+                            ] [str "Not now"] ] ]
+                        @ List.map chooseButton rootsContaining)
+                ]
+            Some (buildPopup "Choose the top sheet" (fun _ _ -> body) foot (fun dispatch _ -> decline dispatch) [])

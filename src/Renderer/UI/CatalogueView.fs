@@ -55,38 +55,26 @@ let createCompStdLabel comp createParam model dispatch =
 let private makeCustom styles model dispatch (loadedComponent: LoadedComponent)  =
     let canvas = loadedComponent.CanvasState
     menuItem styles loadedComponent.Name (fun _ ->
-        // Get current sheet's parameter bindings to pass to the custom component
-        let currentSheetBindings = 
-            match model.CurrentProj with
-            | Some proj ->
-                match proj.LoadedComponents |> List.tryFind (fun lc -> lc.Name = proj.OpenFileName) with
-                | Some currentSheet ->
-                    match currentSheet.LCParameterSlots with
-                    | Some paramSlots -> paramSlots.DefaultBindings
-                    | None -> Map.empty
-                | None -> Map.empty
-            | None -> Map.empty
-
-        // Get default parameter bindings from the sub sheet
-        let defaultParameterBindings = 
+        // A new instance carries no parameter bindings: the sheet inside it elaborates with its
+        // declared defaults until the user binds a parameter explicitly, or accepts the offer
+        // (raised when the instance is placed) to bind it to a same-named ancestor parameter.
+        // Bindings frozen in silently at placement were the old behaviour, and are exactly the
+        // stale-chain problem the offer replaces.
+        let defaultParameterBindings =
             match loadedComponent.LCParameterSlots with
             | Some paramSlots -> paramSlots.DefaultBindings
             | None -> Map.empty
-        
-        // Merge parent sheet parameters with component defaults (parent takes precedence)
-        let mergedBindings = 
-            defaultParameterBindings
-            |> Map.fold (fun acc k v -> Map.add k v acc) currentSheetBindings
 
-        // Resolve parameters in the canvas state before extracting port labels
-        let resolvedCanvas = 
+        // Resolve parameters in the canvas state before extracting port labels, at the
+        // defaults the unbound instance will elaborate with
+        let resolvedCanvas =
             match loadedComponent.LCParameterSlots with
             | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
                 // Apply parameter resolution to the canvas components
                 let (comps, conns) = canvas
-                let resolvedComps = 
+                let resolvedComps =
                     comps |> List.map (fun comp ->
-                        match ParameterView.resolveParametersForComponent mergedBindings paramSlots.ParamSlots comp with
+                        match ParameterView.resolveParametersForComponent defaultParameterBindings paramSlots.ParamSlots comp with
                         | Ok resolvedComp -> resolvedComp
                         | Error _ -> comp
                     )
@@ -102,9 +90,9 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
             OutputLabels = outputLabels
             Form = loadedComponent.Form
             Description = loadedComponent.Description
-            ParameterBindings = if Map.isEmpty currentSheetBindings then None else Some currentSheetBindings
+            ParameterBindings = None
         }
-        
+
         Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "", None)) |> dispatch
     )
 
@@ -126,38 +114,22 @@ let private makeCustomList styles model dispatch =
 let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)  =
     let canvas = loadedComponent.CanvasState
     menuItem styles loadedComponent.Name (fun _ ->
-        // Get current sheet's parameter bindings to pass to the custom component
-        let currentSheetBindings = 
-            match model.CurrentProj with
-            | Some proj ->
-                match proj.LoadedComponents |> List.tryFind (fun lc -> lc.Name = proj.OpenFileName) with
-                | Some currentSheet ->
-                    match currentSheet.LCParameterSlots with
-                    | Some paramSlots -> paramSlots.DefaultBindings
-                    | None -> Map.empty
-                | None -> Map.empty
-            | None -> Map.empty
-
-        // Get default parameter bindings from the sub sheet  
-        let defaultParameterBindings = 
+        // As in makeCustom: a new instance carries no parameter bindings and its ports resolve
+        // at the sheet's declared defaults.
+        let defaultParameterBindings =
             match loadedComponent.LCParameterSlots with
             | Some paramSlots -> paramSlots.DefaultBindings
             | None -> Map.empty
-        
-        // Merge parent sheet parameters with component defaults (parent takes precedence)
-        let mergedBindings = 
-            defaultParameterBindings
-            |> Map.fold (fun acc k v -> Map.add k v acc) currentSheetBindings
 
         // Resolve parameters in the canvas state before extracting port labels
-        let resolvedCanvas = 
+        let resolvedCanvas =
             match loadedComponent.LCParameterSlots with
             | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
                 // Apply parameter resolution to the canvas components
                 let (comps, conns) = canvas
-                let resolvedComps = 
+                let resolvedComps =
                     comps |> List.map (fun comp ->
-                        match ParameterView.resolveParametersForComponent mergedBindings paramSlots.ParamSlots comp with
+                        match ParameterView.resolveParametersForComponent defaultParameterBindings paramSlots.ParamSlots comp with
                         | Ok resolvedComp -> resolvedComp
                         | Error _ -> comp
                     )
@@ -170,9 +142,9 @@ let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)
             OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
             Form = loadedComponent.Form
             Description = loadedComponent.Description
-            ParameterBindings = if Map.isEmpty currentSheetBindings then None else Some currentSheetBindings
+            ParameterBindings = None
         }
-        
+
         Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, verilog, "", None)) |> dispatch
     )
 
@@ -809,7 +781,8 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                 let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (cs, None, Some {
                                 Form = Some (Verilog name);
                                 Description=None;
-                                ParameterDefinitions = None})
+                                ParameterDefinitions = None
+                                IsTopSheet = None})
 
                 match toSaveCanvasState |> Result.bind (writeFile path2) with
                 | Ok _ -> 

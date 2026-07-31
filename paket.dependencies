@@ -19,6 +19,11 @@ group Electron
 	nuget Fulma.Extensions.Wikiki.Tooltip
 	nuget Thoth.Json
 	nuget Thoth.Json.Net
+	// test-only packages, in this group so Tests/Issie.Tests gets a single
+	// unified resolution (mixing groups made paket install fail on FSharp.Core)
+	nuget Expecto ~> 9.0.4
+	nuget Expecto.FsCheck ~> 9.0.4
+	nuget FsCheck ~> 2.16.5
 
 group Testing
 	source https://api.nuget.org/v3/index.json

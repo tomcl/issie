@@ -3,6 +3,12 @@ RESTRICTION: || (== net6.0) (== net7.0) (== net8.0) (== netcoreapp3.1)
 GROUP Electron
 NUGET
   remote: https://api.nuget.org/v3/index.json
+    Expecto (9.0.4)
+      FSharp.Core (>= 4.6) - restriction: || (>= net461) (>= netstandard2.0)
+      Mono.Cecil (>= 0.11.3) - restriction: || (>= net461) (>= netstandard2.0)
+    Expecto.FsCheck (9.0.4)
+      Expecto (>= 9.0.4) - restriction: || (>= net461) (>= netstandard2.0)
+      FsCheck (>= 2.14.3) - restriction: || (>= net461) (>= netstandard2.0)
     Fable.Browser.Blob (1.4) - restriction: >= netstandard2.0
       Fable.Core (>= 3.2.8) - restriction: >= netstandard2.0
       FSharp.Core (>= 4.7.2) - restriction: >= netstandard2.0
@@ -80,6 +86,9 @@ NUGET
       Fable.Core (>= 3.1.5) - restriction: >= netstandard2.0
       Fable.Parsimmon (>= 4.0) - restriction: >= netstandard2.0
       FSharp.Core (>= 4.7) - restriction: >= netstandard2.0
+    FsCheck (2.16.6)
+      FSharp.Core (>= 4.0.0.1) - restriction: && (< net452) (>= netstandard1.0) (< netstandard1.6)
+      FSharp.Core (>= 4.2.3) - restriction: || (>= net452) (>= netstandard1.6)
     FSharp.Core (9.0.202) - redirects: force
     Fulma (2.16)
       Fable.Core (>= 3.2.6) - restriction: >= netstandard2.0
@@ -88,6 +97,7 @@ NUGET
       Fable.Core (>= 3.0) - restriction: >= netstandard2.0
       Fable.React (>= 5.1) - restriction: >= netstandard2.0
       Fulma (>= 2.3) - restriction: >= netstandard2.0
+    Mono.Cecil (0.11.6) - restriction: || (>= net461) (>= netstandard2.0)
     Newtonsoft.Json (13.0.3) - restriction: || (>= net46) (>= netstandard2.0)
     Thoth.Json (7.0)
       Fable.Core (>= 3.1.6) - restriction: >= netstandard2.0

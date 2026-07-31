@@ -1,6 +1,4 @@
 group Electron
 FSharp.Core
-
-group Testing
 Expecto
 Expecto.FsCheck

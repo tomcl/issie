@@ -116,4 +116,22 @@ let tests =
             && ComponentSemantics.simulate (NbitsXor(w, None)) [ w; w ] [ w ] [ a; b ] = [ a ^^^ b ]
             && ComponentSemantics.simulate (NbitsNot w) [ w ] [ w ] [ a ]
                = [ a ^^^ ((1I <<< w) - 1I) ]
+
+        testPropertyWithConfig { config with maxTest = 40 } "40-bit shifts match bigint shifts"
+        <| fun (a: bigint) (amt: int) ->
+            let w = 40
+            let mask = (1I <<< w) - 1I
+            let a = abs a % (1I <<< w)
+            let amt = abs amt % (1 <<< 6)   // 6-bit shifter: amounts 0..63 cross the bus width
+            let amtB = bigint amt
+            let signSet = a >>> (w - 1) = 1I
+            let expectLsl = if amt >= w then 0I else (a <<< amt) &&& mask
+            let expectLsr = if amt >= w then 0I else a >>> amt
+            let expectAsr =
+                if amt >= w then (if signSet then mask else 0I)
+                elif signSet then (a >>> amt) ||| (mask &&& (mask <<< (w - amt)))
+                else a >>> amt
+            ComponentSemantics.simulate (Shift(w, 6, LSL)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectLsl ]
+            && ComponentSemantics.simulate (Shift(w, 6, LSR)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectLsr ]
+            && ComponentSemantics.simulate (Shift(w, 6, ASR)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectAsr ]
     ]

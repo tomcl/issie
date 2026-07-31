@@ -144,6 +144,26 @@ let tests =
         checkExhaustive "BusCompare1" (BusCompare1(w, 5I, "5")) [ w ] [ 1 ] (fun [ a ] ->
             [ if a = 5I then 1I else 0I ])
 
+        // shifts: input 0 data, input 1 amount; 2-bit shifter covers amounts 0..3 at width 3,
+        // including shifting by >= the bus width
+        checkExhaustive "Shift LSL" (Shift(w, 2, LSL)) [ w; 2 ] [ w ] (fun [ a; amt ] ->
+            [ if amt >= bigint w then 0I else mask w (a <<< int amt) ])
+        checkExhaustive "Shift LSR" (Shift(w, 2, LSR)) [ w; 2 ] [ w ] (fun [ a; amt ] ->
+            [ if amt >= bigint w then 0I else a >>> int amt ])
+        checkExhaustive "Shift ASR" (Shift(w, 2, ASR)) [ w; 2 ] [ w ] (fun [ a; amt ] ->
+            let signSet = a >>> (w - 1) = 1I
+            let allOnes = (1I <<< w) - 1I
+            let result =
+                if amt >= bigint w then
+                    if signSet then allOnes else 0I
+                else
+                    let shifted = a >>> int amt
+                    if signSet then
+                        shifted ||| (allOnes &&& (allOnes <<< (w - int amt)))
+                    else
+                        shifted
+            [ result ])
+
         // clocked components: outputs reflect the previous cycle's inputs
         test "Register" {
             let stimuli = [ [ 5I ]; [ 2I ]; [ 7I ]; [ 0I ] ]

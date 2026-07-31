@@ -207,9 +207,17 @@ let findBigIntState (fc: FastComponent) =
         | true, true -> true, Some { InputIsBigInt = [| true |]; OutputIsBigInt = [| true |] }
     // Custom components
     | Custom c -> false, None // NOTE - custom components will not be reduced, so we don't need to worry about their width
+    // Shift: the data bus may be wide; the shift amount input is at most 32 bits
+    | Shift(width, shifterWidth, _) ->
+        match width > 32 with
+        | false -> false, None
+        | true ->
+            true,
+            Some
+                { InputIsBigInt = [| true; shifterWidth > 32 |]
+                  OutputIsBigInt = [| true |] }
     // Legacy components
     | Decode4
-    | Shift _
     | AsyncROM _
     | ROM _
     | RAM _ -> failwith "Legacy components, not Implemented"

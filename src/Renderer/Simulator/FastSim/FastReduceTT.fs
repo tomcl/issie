@@ -813,6 +813,36 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                   ConnectionsAffected = [] }
             // Algebra at bit spreader is not supported
             raise (AlgebraNotImplemented err)
+    // Shift: input 0 is the data bus, input 1 the shift amount (at most 32 bits wide).
+    // Shifting by the bus width or more gives 0, or all-sign-bits for ASR.
+    | Shift(width, _, shiftType) ->
+        match ins 0, ins 1 with
+        | Data bitsIn, Data amtIn ->
+            let mask = (1I <<< width) - 1I
+            let bits = bitsIn.GetBigInt &&& mask
+            let amt = convertFastDataToInt amtIn
+            let signSet = (bits >>> (width - 1)) &&& 1I = 1I
+            let res =
+                if amt >= uint32 width then
+                    match shiftType with
+                    | LSL | LSR -> 0I
+                    | ASR -> if signSet then mask else 0I
+                else
+                    let amt = int amt
+                    match shiftType with
+                    | LSL -> (bits <<< amt) &&& mask
+                    | LSR -> bits >>> amt
+                    | ASR when signSet -> (bits >>> amt) ||| (mask &&& (mask <<< (width - amt)))
+                    | ASR -> bits >>> amt
+            put 0 <| Data(convertBigintToFastData width res)
+        | _ ->
+            let err =
+                { ErrType = AlgInpNotAllowed "The chosen set of Algebraic inputs results in algebra being passed to the
+                    input port of a Shifter. Only values can be passed to this port."
+                  InDependency = Some(comp.FullName)
+                  ComponentsAffected = [ comp.cId ]
+                  ConnectionsAffected = [] }
+            raise (AlgebraNotImplemented err)
     | Custom c ->
         // Custom components are removed
         failwithf "what? Custom components are removed before the fast simulation: %A" c

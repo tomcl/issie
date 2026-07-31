@@ -363,15 +363,27 @@ let private createSplitNPopup (model: Model) dispatch =
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
+/// Number of bits needed to express every shift amount 0 .. busWidth-1
+let private shifterWidthFor (busWidth: int) =
+    let rec numBits v = if v = 0 then 0 else 1 + numBits (v >>> 1)
+    max 1 (numBits (busWidth - 1))
+
 /// Component creation popup box for n-bit arithmetic components
 let private createArithmeticPopup compType (model: Model) dispatch =
-    let compName, toComp = 
+    let compName, toComp =
         match compType with
         | NbitsAdder _ -> "adder", NbitsAdder
         | NbitsXor _ -> "XOR", fun n -> NbitsXor (n, None)
         | NbitsAnd _ -> "AND", NbitsAnd
         | NbitsOr _ -> "OR", NbitsOr
         | NbitsNot _ -> "NOT", NbitsNot
+        | Shift (_, _, shiftType) ->
+            let name =
+                match shiftType with
+                | LSL -> "shift left"
+                | LSR -> "shift right"
+                | ASR -> "arithmetic shift right"
+            name, fun n -> Shift (n, shifterWidthFor n, shiftType)
         | _ -> failwithf $"Invalid component type {compType} for arithmetic popup"
 
     let title = $"Add N bits {compName}"
@@ -1014,7 +1026,10 @@ let viewCatalogue model dispatch =
                           catTip1 "N bits XOR" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsXor (1, None))) "N bit XOR gates - use to make subtractor or comparator"
                           catTip1 "N bits AND" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAnd 1)) "N bit AND gates"
                           catTip1 "N bits OR" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsOr 1)) "N bit OR gates"
-                          catTip1 "N bits NOT" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsNot 1)) "N bit NOT gates"]
+                          catTip1 "N bits NOT" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsNot 1)) "N bit NOT gates"
+                          catTip1 "N bits shift left" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| Shift (1, 1, LSL))) "N bit logical shift left: shifts the input left by the number of positions on the SHIFTER input, filling with zeros"
+                          catTip1 "N bits shift right" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| Shift (1, 1, LSR))) "N bit logical shift right: shifts the input right by the number of positions on the SHIFTER input, filling with zeros"
+                          catTip1 "N bits shift right (arithmetic)" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| Shift (1, 1, ASR))) "N bit arithmetic shift right: shifts the input right by the number of positions on the SHIFTER input, replicating the sign bit"]
 
                     makeMenuGroup
                         "Flip Flops and Registers"

@@ -24,7 +24,7 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | NbitsAdder _ -> NbitsAdder newBits
         | NbitsAdderNoCin _ -> NbitsAdderNoCin newBits
         | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout newBits
-        | NbitsAdderNoCout _ -> NbitsAdderNoCinCout newBits
+        | NbitsAdderNoCout _ -> NbitsAdderNoCout newBits
         | NbitsXor(_, typ) -> NbitsXor(newBits,typ)
         | NbitsAnd _ -> NbitsAnd newBits
         | NbitsOr _ -> NbitsOr newBits
@@ -41,6 +41,8 @@ let changeNumberOfBitsf (symModel:Model) (compId:ComponentId) (newBits : int) =
         | BusCompare (_,b) -> BusCompare (newBits,b)
         | BusCompare1 (_,v,t) -> BusCompare1 (newBits,v,t) 
         | Constant1 (_,b,txt) -> Constant1 (newBits,b,txt)
+        // the shifter amount input width is fixed when the component is created
+        | Shift (_, sw, st) -> Shift (newBits, sw, st)
         | c -> c
         
     set (component_ >-> type_) newcompotype symbol

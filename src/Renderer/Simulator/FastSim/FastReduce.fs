@@ -867,6 +867,46 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | _ -> failwithf $"Can't happen"
 
         putBigInt 0 res
+    // Shift: input 0 is the data bus, input 1 the shift amount (at most 32 bits wide).
+    // Shifting by the bus width or more gives 0, or all-sign-bits for ASR.
+    | Shift(width, _, shiftType), false ->
+        let mask = if width = 32 then UInt32.MaxValue else (1u <<< width) - 1u
+        let bits = insUInt32 0 &&& mask
+        let amt = insUInt32 1
+        let signSet = (bits >>> (width - 1)) &&& 1u = 1u
+        let res =
+            if amt = 0u then
+                bits
+            elif amt >= uint32 width then
+                match shiftType with
+                | LSL | LSR -> 0u
+                | ASR -> if signSet then mask else 0u
+            else
+                let amt = int amt
+                match shiftType with
+                | LSL -> (bits <<< amt) &&& mask
+                | LSR -> bits >>> amt
+                | ASR when signSet -> (bits >>> amt) ||| (mask &&& (mask <<< (width - amt)))
+                | ASR -> bits >>> amt
+        putUInt32 0 res
+    | Shift(width, _, shiftType), true ->
+        let mask = bigIntMask width
+        let bits = insBigInt 0 &&& mask
+        let amt = insUInt32 1
+        let signSet = (bits >>> (width - 1)) &&& 1I = 1I
+        let res =
+            if amt >= uint32 width then
+                match shiftType with
+                | LSL | LSR -> 0I
+                | ASR -> if signSet then mask else 0I
+            else
+                let amt = int amt
+                match shiftType with
+                | LSL -> (bits <<< amt) &&& mask
+                | LSR -> bits >>> amt
+                | ASR when signSet -> (bits >>> amt) ||| (mask &&& (mask <<< (width - amt)))
+                | ASR -> bits >>> amt
+        putBigInt 0 res
 
     | Custom c, _ ->
         // Custom components are removed

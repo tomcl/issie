@@ -483,6 +483,8 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
         | BusCompare (w, _) -> "Bus width", w, Buswidth
         | BusCompare1 (w, _, _) -> "Bus width", w, Buswidth
         | Constant1 (w, _, _) -> "Number of bits in the wire", w, Buswidth
+        // the SHIFTER input width is fixed when the component is created
+        | Shift (w, _, _) -> "Number of bits in the IN and OUT busses", w, Buswidth
         | c -> failwithf $"makeNumberOfBitsField called with invalid component: {c}"
 
     let constraints = [MinVal (PInt 1, $"{title} must be positive")]
@@ -965,8 +967,15 @@ let private makeDescription (comp:Component) model dispatch =
             location addressed by the current cycle addres.
             The component is implicitly connected to the global clock."
         makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
-    | Shift _ -> 
-        div [] [str "Issie Internal Error: This is an internal component and should never appear selected to view properties"]
+    | Shift (_, shifterWidth, shiftType) ->
+        let kind =
+            match shiftType with
+            | LSL -> "Logical shift left: bits shifted in are zero."
+            | LSR -> "Logical shift right: bits shifted in are zero."
+            | ASR -> "Arithmetic shift right: the sign bit is replicated into the bits shifted in."
+        div [] [str <| $"Shifts the IN bus by the number of positions given on the {shifterWidth} bit \
+                        SHIFTER input. {kind} Shifting by the bus width or more clears the output, \
+                        or fills it with the sign bit for an arithmetic shift."]
         
 
 let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
@@ -987,7 +996,7 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             [
                 changeMergeN model comp dispatch
             ]
-    | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ ->
+    | Output _ |NbitsAnd _ |NbitsOr _ |NbitsNot _ |NbitSpreader _ | NbitsXor _ | Viewer _ | Shift _ ->
         makeNumberOfBitsField model comp text dispatch
     | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ ->
         div []

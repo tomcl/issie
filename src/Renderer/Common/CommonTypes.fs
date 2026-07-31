@@ -606,7 +606,19 @@ let convertFromJSONComponent (comp: JSONComponent.Component) : Component =
         | JSONComponent.Constant(w,v) -> Constant1(w,v,sprintf "%A" v)
         | JSONComponent.Input n -> Input1(n, None)
         | JSONComponent.BusCompare(w,v) -> BusCompare1(w,v, sprintf "%A" v)
-    {unbox comp with Type = newType comp.Type}
+    // explicit construction, not unbox: the records only share a JS runtime representation,
+    // and this code also runs under dotnet where unboxing between them is an invalid cast
+    { Id = comp.Id
+      Type = newType comp.Type
+      Label = comp.Label
+      InputPorts = comp.InputPorts
+      OutputPorts = comp.OutputPorts
+      SlotInfo = comp.SlotInfo
+      X = comp.X
+      Y = comp.Y
+      H = comp.H
+      W = comp.W
+      SymbolInfo = comp.SymbolInfo }
 
 /// Transforms normal Components into JSON Components which can be saved.
 /// This is always an identity transformation since the normal ComponentType
@@ -669,7 +681,19 @@ let convertToJSONComponent (comp: Component) : JSONComponent.Component =
         | BusCompare (w, v) -> JSONComponent.ComponentType.BusCompare (w, v)
         | Input w -> JSONComponent.ComponentType.Input w
         | Constant (w, v) -> JSONComponent.ComponentType.Constant (w, v)
-    {unbox comp with Type = newType}
+    // explicit construction, not unbox: the records only share a JS runtime representation,
+    // and this code also runs under dotnet where unboxing between them is an invalid cast
+    { Id = comp.Id
+      Type = newType
+      Label = comp.Label
+      InputPorts = comp.InputPorts
+      OutputPorts = comp.OutputPorts
+      SlotInfo = comp.SlotInfo
+      X = comp.X
+      Y = comp.Y
+      H = comp.H
+      W = comp.W
+      SymbolInfo = comp.SymbolInfo }
 
 //---------------------------------------------------------------------------------------------------------------//
 //--------------------------END OF ComponentType CONVERSION - used when upgarding Component definitions----------//

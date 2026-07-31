@@ -504,15 +504,37 @@ let rec private resolveSheet
                 ComponentsAffected = [compId]
                 ConnectionsAffected = [] }
         | Some dep ->
-            let bindings =
-                effectiveBindings (defaultBindingsOfSheet loadedDependencies cc.Name) cc.ParameterBindings
-            resolveSheet memo bindings cc.Name loadedDependencies cGraph
-            |> Result.map (fun (resolved, memo') ->
-                let c' =
-                    { c with
-                        Type = Custom { cc with ParameterBindings = Some bindings }
-                        CustomSimulationGraph = Some resolved }
-                c', memo')
+            // An instance binding is an expression in THIS sheet's parameters; the sheet
+            // inside the instance knows nothing of them, so it must receive plain values.
+            let evaluatedInstanceBindings =
+                match cc.ParameterBindings with
+                | None -> Ok None
+                | Some instanceBindings ->
+                    (Ok Map.empty, instanceBindings)
+                    ||> Map.fold (fun acc name expr ->
+                        acc
+                        |> Result.bind (fun evaluated ->
+                            match evalExpr expr with
+                            | Ok value -> Ok (Map.add name (ParameterTypes.PInt value) evaluated)
+                            | Error msg ->
+                                let (ParameterTypes.ParamName paramName) = name
+                                Error {
+                                    ErrType = GenericSimError $"Parameter '{paramName}' of {cc.Name} could not be evaluated. {msg}"
+                                    InDependency = Some currDiagramName
+                                    ComponentsAffected = [compId]
+                                    ConnectionsAffected = [] }))
+                    |> Result.map Some
+            evaluatedInstanceBindings
+            |> Result.bind (fun instanceBindings ->
+                let bindings =
+                    effectiveBindings (defaultBindingsOfSheet loadedDependencies cc.Name) instanceBindings
+                resolveSheet memo bindings cc.Name loadedDependencies cGraph
+                |> Result.map (fun (resolved, memo') ->
+                    let c' =
+                        { c with
+                            Type = Custom { cc with ParameterBindings = Some bindings }
+                            CustomSimulationGraph = Some resolved }
+                    c', memo'))
 
     /// Apply this sheet's slots to every component, then descend into each custom component.
     let resolveComponents memo =
@@ -527,6 +549,53 @@ let rec private resolveSheet
                     | _ -> Ok (c, memo))
                 |> Result.map (fun (c, memo') -> Map.add compId c resolvedSoFar, memo')))
 
+    /// The widths held in a sheet's graph (OutputWidths, InputWidths) were inferred from the
+    /// canvas as saved, i.e. at default parameter values, and FastSim sizes its data arrays
+    /// from them. When the effective bindings differ from the defaults the resolved types
+    /// differ too, so re-run width inference on the canvas with the resolved types
+    /// substituted, rebuild the sheet's graph from it, and graft the resolved custom
+    /// sub-graphs back on. Failures surface as ordinary simulation errors, e.g. a width
+    /// mismatch that only exists at these parameter values.
+    let rebuildWidths (resolved: SimulationGraph) : Result<SimulationGraph, SimulationError> =
+        match loadedDependencies |> List.tryFind (fun (lc: LoadedComponent) -> lc.Name = currDiagramName) with
+        | None -> Ok resolved
+        | Some ldc ->
+            let comps, conns = ldc.CanvasState
+            /// The canvas component's type after resolution. A custom component's port
+            /// widths are read from its resolved sheet, since this sheet's wires follow them.
+            let resolvedType (comp: Component) =
+                match Map.tryFind (ComponentId comp.Id) resolved with
+                | None -> comp.Type
+                | Some sc ->
+                    match sc.Type, sc.CustomSimulationGraph with
+                    | Custom cc, Some cGraph ->
+                        let portWidth isOutput ((label, width): string * int) =
+                            cGraph
+                            |> Map.tryPick (fun _ (child: SimulationComponent) ->
+                                match child.Label, child.Type, isOutput with
+                                | ComponentLabel l, Output w, true when l = label -> Some w
+                                | ComponentLabel l, Input1 (w, _), false when l = label -> Some w
+                                | _ -> None)
+                            |> Option.defaultValue width
+                            |> fun w -> label, w
+                        Custom { cc with
+                                    InputLabels = List.map (portWidth false) cc.InputLabels
+                                    OutputLabels = List.map (portWidth true) cc.OutputLabels }
+                    | t, _ -> t
+            let substituted =
+                comps |> List.map (fun comp -> { comp with Type = resolvedType comp }), conns
+            GraphBuilder.runCanvasStateChecksAndBuildGraph substituted loadedDependencies
+            |> Result.map (fun fresh ->
+                fresh
+                |> Map.map (fun cid freshComp ->
+                    match Map.tryFind cid resolved with
+                    | Some rc -> { freshComp with CustomSimulationGraph = rc.CustomSimulationGraph }
+                    | None -> freshComp))
+            |> Result.mapError (fun e ->
+                match e.InDependency with
+                | Some _ -> e
+                | None -> { e with InDependency = Some currDiagramName })
+
     // A sheet resolved once with a given diff from its defaults resolves the same way everywhere,
     // so the whole tree below it need only be walked for the first instance with that diff.
     let diffOpt = bindingDiff (defaultBindingsOfSheet loadedDependencies currDiagramName) bindings
@@ -534,6 +603,11 @@ let rec private resolveSheet
     | Some resolved -> Ok (resolved, memo)
     | None ->
         resolveComponents memo
+        |> Result.bind (fun (resolved, memo') ->
+            // at default values the saved canvas was already inferred correctly
+            match Map.isEmpty paramSlots || diffOpt = Some Map.empty with
+            | true -> Ok (resolved, memo')
+            | false -> rebuildWidths resolved |> Result.map (fun rebuilt -> rebuilt, memo'))
         |> Result.map (fun (resolved, memo') ->
             match diffOpt with
             | Some diff -> resolved, Map.add (currDiagramName, diff) resolved memo'

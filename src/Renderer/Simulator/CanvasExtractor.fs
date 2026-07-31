@@ -3,10 +3,6 @@ module CanvasExtractor
 open CommonTypes
 open Fable.Core
 
-/// access javascript reference equality
-[<Emit("($1 === $0)")>]
-let referenceEquality (a1: obj) (a2: obj) : bool = jsNative
-
 let sortQBy (byFun: 'a -> 'b) (ids: 'a list) =
     let mutable isSorted = true
 

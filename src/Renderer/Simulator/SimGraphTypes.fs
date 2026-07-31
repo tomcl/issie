@@ -9,8 +9,6 @@ module rec SimGraphTypes
 open Fable.Core
 open CommonTypes
 open Fable.Core.JsInterop
-importSideEffects "katex/dist/katex.min.css"
-let katex: obj = importDefault "katex"
 
 /// Binary data used in simulation
 type Bit =

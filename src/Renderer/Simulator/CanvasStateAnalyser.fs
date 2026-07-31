@@ -614,55 +614,53 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
     |> Option.map (fun sheet ->
-        // Check if we need to resolve parameters for port labels
-        let resolvedInputs, resolvedOutputs = 
+        // Resolve the sheet's parameterised port widths with this instance's bindings, so
+        // the check compares the widths this instance actually has.
+        // widthsKnown = false means some port width depends on an expression that cannot be
+        // evaluated in this context (e.g. a binding referring to a parameter of the sheet
+        // holding the instance). Comparing default widths would then be a false positive, so
+        // only port names are checked and widths are left to simulation elaboration, which
+        // is exact.
+        let resolvedInputs, resolvedOutputs, widthsKnown =
             match args.ParameterBindings, sheet.LCParameterSlots with
             | Some paramBindings, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
-                // Simple inline parameter resolution for IO ports only
-                // This evaluator handles only the subset of expressions needed for I/O validation
-                //
-                // IMPORTANT: This is a simplified evaluator compared to the full evaluateParamExpression
-                // in ParameterTypes or evalExpr in GraphMerger. Key differences:
-                // - Only supports PInt and PParameter (no arithmetic operations)
-                // - Returns Option instead of Result (no error messages needed)
-                // - Specifically designed for resolving I/O port widths during validation
-                //
-                // The limitation to PInt and PParameter is intentional because:
-                // 1. I/O validation only needs to determine port bit widths
-                // 2. Complex expressions are resolved later during full graph merging
-                // 3. This keeps the validation phase fast and simple
-                // Use the same evaluator as the rest of the parameter system, so that an arithmetic
-                // port width resolves here rather than silently falling back to its unresolved value.
-                // An expression that cannot be evaluated is left for the simulator to report on.
                 let eval expr =
                     match ParameterTypes.evaluateParamExpression paramBindings expr with
                     | Ok n -> Some n
                     | Error _ -> None
-                
+
                 let (comps, conns) = sheet.CanvasState
-                let resolvedComps = 
-                    comps |> List.map (fun comp ->
-                        paramSlots.ParamSlots
-                        |> Map.toList
-                        |> List.tryPick (fun (slot, expr) ->
-                            if slot.CompId = comp.Id then
-                                match slot.CompSlot, comp.Type with
-                                | IO label, Input1 (_, d) when label = comp.Label ->
-                                    eval expr.Expression |> Option.map (fun w -> { comp with Type = Input1 (w, d) })
-                                | IO label, Output _ when label = comp.Label ->
-                                    eval expr.Expression |> Option.map (fun w -> { comp with Type = Output w })
-                                | _ -> None
-                            else None
-                        )
-                        |> Option.defaultValue comp
+                let resolveComp (comp: Component) : Component option =
+                    paramSlots.ParamSlots
+                    |> Map.toList
+                    |> List.tryPick (fun (slot, expr) ->
+                        if slot.CompId = comp.Id then
+                            match slot.CompSlot, comp.Type with
+                            | IO label, Input1 (_, d) when label = comp.Label ->
+                                Some (eval expr.Expression |> Option.map (fun w -> { comp with Type = Input1 (w, d) }))
+                            | IO label, Output _ when label = comp.Label ->
+                                Some (eval expr.Expression |> Option.map (fun w -> { comp with Type = Output w }))
+                            | _ -> None
+                        else None
                     )
-                let resolvedCanvas = (resolvedComps, conns)
-                CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas,
-                CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
-            | _ -> sheet.InputLabels, sheet.OutputLabels
-        
-        let inputsMatch = compare resolvedInputs args.InputLabels
-        let outputsMatch = compare resolvedOutputs args.OutputLabels
+                    |> Option.defaultValue (Some comp)
+                let resolvedComps = comps |> List.map resolveComp
+                match resolvedComps |> List.forall Option.isSome with
+                | false -> sheet.InputLabels, sheet.OutputLabels, false
+                | true ->
+                    let resolvedCanvas = (resolvedComps |> List.map Option.get, conns)
+                    CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas,
+                    CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas,
+                    true
+            | _ -> sheet.InputLabels, sheet.OutputLabels, true
+
+        let names labs = labs |> List.map fst
+        let inputsMatch =
+            if widthsKnown then compare resolvedInputs args.InputLabels
+            else compare (names resolvedInputs) (names args.InputLabels)
+        let outputsMatch =
+            if widthsKnown then compare resolvedOutputs args.OutputLabels
+            else compare (names resolvedOutputs) (names args.OutputLabels)
         sheet, inputsMatch, outputsMatch)
     |> function
         | None -> Error(c, NoSheet name)

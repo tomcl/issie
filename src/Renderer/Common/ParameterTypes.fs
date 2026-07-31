@@ -202,21 +202,26 @@ let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string 
         if precedence > currentPrecedence then
             "(" + renderParamExpression left currentPrecedence + "+" + renderParamExpression right currentPrecedence + ")"
         else renderParamExpression left currentPrecedence + "+" + renderParamExpression right currentPrecedence
-    | PSubtract (left, right) -> 
+    | PSubtract (left, right) ->
         let currentPrecedence = 1
+        // the right operand renders one level tighter: parsing is left-associative, so
+        // a-(b-c) must keep its parentheses
         if precedence > currentPrecedence then
-            "(" + renderParamExpression left currentPrecedence + "-" + renderParamExpression right currentPrecedence + ")"
-        else renderParamExpression left currentPrecedence + "-" + renderParamExpression right currentPrecedence
-    | PMultiply (left, right) -> 
+            "(" + renderParamExpression left currentPrecedence + "-" + renderParamExpression right (currentPrecedence + 1) + ")"
+        else renderParamExpression left currentPrecedence + "-" + renderParamExpression right (currentPrecedence + 1)
+    | PMultiply (left, right) ->
         let currentPrecedence = 2
+        // a*(b/c) must keep its parentheses: reparsed left-associatively as (a*b)/c it
+        // differs under integer division
         if precedence > currentPrecedence then
-            "(" + renderParamExpression left currentPrecedence + "*" + renderParamExpression right currentPrecedence + ")"
-        else renderParamExpression left currentPrecedence + "*" + renderParamExpression right currentPrecedence
-    | PDivide (left, right) -> 
+            "(" + renderParamExpression left currentPrecedence + "*" + renderParamExpression right (currentPrecedence + 1) + ")"
+        else renderParamExpression left currentPrecedence + "*" + renderParamExpression right (currentPrecedence + 1)
+    | PDivide (left, right) ->
         let currentPrecedence = 2
+        // as with subtraction, a/(b/c) must keep its parentheses
         if precedence > currentPrecedence then
-            "(" + renderParamExpression left currentPrecedence + "/" + renderParamExpression right currentPrecedence + ")"
-        else renderParamExpression left currentPrecedence + "/" + renderParamExpression right currentPrecedence
+            "(" + renderParamExpression left currentPrecedence + "/" + renderParamExpression right (currentPrecedence + 1) + ")"
+        else renderParamExpression left currentPrecedence + "/" + renderParamExpression right (currentPrecedence + 1)
     | PRemainder (left, right) -> 
         let currentPrecedence = 3
         "(" + renderParamExpression left currentPrecedence + "%" + renderParamExpression right currentPrecedence + ")"

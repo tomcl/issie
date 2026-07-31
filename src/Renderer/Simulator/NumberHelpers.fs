@@ -486,10 +486,25 @@ let strToBigint (str: string) : Result<bigint, string> =
         str.Replace(",", "")
     let str = str.ToLower().Trim()
     let str = if str.Length > 1 && str[0] = 'x' || str[0]='b' || str.Length = 0 then "0" + str else str
+    let str = removeCommas str
     let success, n =
-        str
-        |> removeCommas
-        |> bigint.TryParse 
+#if FABLE_COMPILER
+        // JS BigInt accepts 0x and 0b prefixes directly
+        bigint.TryParse str
+#else
+        // .NET BigInteger.TryParse does not know the 0x/0b prefixes, so match the JS behaviour
+        if str.StartsWith "0x" then
+            // leading 0 keeps the hex parse unsigned
+            bigint.TryParse("0" + str[2..], System.Globalization.NumberStyles.HexNumber,
+                            System.Globalization.CultureInfo.InvariantCulture)
+        elif str.StartsWith "0b" then
+            match str[2..] |> Seq.forall (fun c -> c = '0' || c = '1'), str.Length > 2 with
+            | true, true ->
+                true, (0I, str[2..]) ||> Seq.fold (fun acc c -> acc * 2I + (if c = '1' then 1I else 0I))
+            | _ -> false, 0I
+        else
+            bigint.TryParse str
+#endif
     match success with
     | false -> Error "Invalid number."
     | true -> Ok n

@@ -64,6 +64,12 @@ defaults would teach the wrong pattern.
 
 ## Common gotchas
 
+- **FastSim masking invariant**: every value stored in a step array is already within its bus
+  width. Readers (bus compare, mux selects, memory addressing, waveform extraction) never mask;
+  a reducer in `FastReduce.fs`/`FastReduceTT.fs` must mask its result exactly when the operation
+  can overflow the width (add, multiply, not, shift, constants) and not otherwise. Beware width
+  exactly 32 on the uint32 path: `1u <<< 32` wraps to `1u`, so a `(1u <<< w) - 1u` mask is wrong
+  there — either special-case it or rely on uint32 wrap-around.
 - **Elmish timing**: some updates need `Cmd.OfAsyncImmediate` with a delay to stay in step with the
   UI.
 - **Wire routing** is a complex state machine — exercise edge cases when changing it.

@@ -309,6 +309,14 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     // Each case case calculated the output for its type of component
     // NB CustomComponent is not needed since these are removed in the FastComponent
     // generation stage - being replaced by the relavant sheet logic.
+    //
+    // MASKING INVARIANT: every value stored in a step array is already within its bus width.
+    // Nothing masks on read: bus compare matches the raw value, mux selects dispatch on it,
+    // memory addresses index with it, and extraction returns it. A case must therefore mask
+    // its result exactly when its operation can overflow the width (add, multiply, not,
+    // shift, constants) and, for speed, not otherwise. NB on the uint32 path a width of
+    // exactly 32 needs care: 1u <<< 32 wraps to 1u, so build the mask another way or use
+    // uint32 wrap-around.
 
     match componentType, comp.UseBigInt with
     | ROM _, _

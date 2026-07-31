@@ -204,6 +204,12 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     // Each case case calculated the output for its type of component
     // NB CustomComponent is not needed since these are removed in the FastComponent
     // generation stage - being replaced by the relavant sheet logic.
+    //
+    // MASKING INVARIANT: as in FastReduce, every Data value stored is already within its bus
+    // width, and nothing masks on read. A case must mask its result exactly when its
+    // operation can overflow the width (add, multiply, not, shift, constants) and, for
+    // speed, not otherwise. NB on the uint32 path a width of exactly 32 needs care:
+    // 1u <<< 32 wraps to 1u, so build the mask another way or use uint32 wrap-around.
     match componentType with
     | ROM _
     | RAM _

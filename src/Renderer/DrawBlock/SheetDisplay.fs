@@ -29,6 +29,47 @@ let getActivePressedKeys model =
 let writeCanvasScroll (scrollPos:XYPos) =
     putScrollProps scrollPos
 
+/// The canvas div currently mounted in the DOM, used to detect when React has created a fresh
+/// one. Under React 18 a hot reload remounts the whole tree, so the canvas loses its DOM scroll
+/// position; the model - which hot reload preserves - still holds the real position, and it is
+/// restored once per fresh mount. Normal renders reuse the same element and write nothing.
+/// Cleared on unmount so this reference never keeps a detached canvas (and its whole SVG
+/// subtree) alive - holding DOM refs past unmount was a documented React 17 leak, and there is
+/// no reason to rely on React 18 having fixed it when the reference can simply be dropped.
+let mutable private mountedCanvas: Browser.Types.Element option = None
+
+/// The scroll position held in the model at the last render, for canvasRef to restore from.
+/// Passed this way rather than by closing over the model so that canvasRef keeps the same
+/// function identity across renders: React then invokes it only on real mount and unmount,
+/// not on every render (a changed ref identity makes React call oldRef(null) + newRef(el)
+/// each render, which would defeat the fresh-mount detection).
+let mutable private modelScrollPos: XYPos = {X=0.; Y=0.}
+
+/// Canvas div ref: on a fresh mount restore the model's scroll position; on unmount drop the
+/// element reference.
+/// NB the ref passed to React must be the SAME function object on every render: React
+/// re-invokes a ref whose identity changed (null, then the element) on each render, which would
+/// make the mount detection fire continually and yank the scroll to the model's lagging
+/// position (seen as the canvas oscillating between two nearby offsets). Fable eta-expands a
+/// module-level function - named or let-bound lambda alike - into a fresh arrow at every use
+/// site, so the one closure is pinned inside `lazy`: it is created once, and .Value returns
+/// that same object each render.
+let private canvasRef : Lazy<Browser.Types.Element -> unit> =
+    lazy
+        (fun el ->
+            match el with
+            | null -> mountedCanvas <- None
+            | el ->
+                let isNewMount =
+                    match mountedCanvas with
+                    | Some prev -> not (System.Object.ReferenceEquals(prev, el))
+                    | None -> true
+                if isNewMount then
+                    mountedCanvas <- Some el
+                    let canvas = el :?> Browser.Types.HTMLElement
+                    canvas.scrollLeft <- modelScrollPos.X
+                    canvas.scrollTop <- modelScrollPos.Y)
+
 let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Model) =
     {
         X = (ev.pageX + sheetModel.ScreenScrollPos.X) / sheetModel.Zoom  ;
@@ -97,9 +138,11 @@ let displaySvgWithZoom
             ]
             
         | _ -> []
-    let attrs : IHTMLProp list = 
-        [ 
+    modelScrollPos <- model.ScreenScrollPos
+    let attrs : IHTMLProp list =
+        [
               HTMLAttr.Id "Canvas"
+              Ref canvasRef.Value
               //Key cursorText // force cursor change to be rendered
               Style ( CSSProp.Cursor cursorText :: style)
               OnMouseDown (fun ev -> (mouseOp Down ev dispatch headerHeight))

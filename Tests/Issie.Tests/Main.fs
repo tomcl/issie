@@ -12,5 +12,6 @@ let main argv =
         ParameterScenarios.tests
         ComponentSemantics.tests
         GoldenModel.tests
+        PersistenceTests.tests
     ]
     |> runTestsWithCLIArgs [ Sequenced ] argv

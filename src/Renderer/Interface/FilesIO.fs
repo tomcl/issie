@@ -534,18 +534,19 @@ let savePngFile folderPath baseName png = // TODO: catch error?
 /// Save state to normal file. Automatically add the .dgm suffix.
 /// This version will not correctly deal with bigint numbers.
 /// See svaStateToFileNew
-let saveStateToFile folderPath baseName state = // TODO: catch error?
+/// If serialisation fails the existing file is left untouched and an Error returned.
+let saveStateToFile folderPath baseName state =
     let path = pathJoin [| folderPath; baseName + ".dgm" |]
-    let data = stateToJsonString state
-    writeFile path data
+    stateToJsonString state
+    |> Result.bind (writeFile path)
 
 /// Save state to file. Automatically add the .dgm suffix.
 /// This is the new version of the function that uses the new state format and copes with bigints
 /// However, it seems that it is not used??
-let saveStateToFileExperimental folderPath baseName state = // TODO: catch error?
+let saveStateToFileExperimental folderPath baseName state =
     let path = pathJoin [| folderPath; baseName + ".dgmNew" |]
-    let data = stateToJsonStringExperimental state
-    writeFile path data
+    stateToJsonStringExperimental state
+    |> Result.bind (writeFile path)
 
 /// Create new empty diagram file. Automatically add the .dgm suffix.
 let createEmptyDgmFile folderPath baseName =

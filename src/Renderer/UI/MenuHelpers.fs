@@ -431,11 +431,11 @@ let quantifyChanges (ldc1:LoadedComponent) (ldc2:LoadedComponent) =
 
 
 let writeComponentToFile comp =
-    let data =  stateToJsonString (comp.CanvasState,comp.WaveInfo,Some {
+    stateToJsonString (comp.CanvasState,comp.WaveInfo,Some {
         Form=comp.Form;
         Description=comp.Description
         ParameterDefinitions = None})
-    writeFile comp.FilePath data
+    |> Result.bind (writeFile comp.FilePath)
 
 /// return an option containing sequence data and file name and directory of the latest
 /// backup file for given component, if it exists.

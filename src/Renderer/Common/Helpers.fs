@@ -73,25 +73,33 @@ open System.Text.RegularExpressions
         let convStateToJC ( compL, connL) = (List.map convertToJSONComponent compL, connL)
 
         /// Code to convert a CanvasState to a JSON string, does not work for bigints (I think).
-        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
+        /// A serialisation failure is an Error: it must never be written to the sheet's
+        /// .dgm file, which would overwrite the sheet with garbage.
+        let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : Result<string,string> =
             let time = System.DateTime.Now
             //printfn "%A" cState
             try
-                 Json.serialize<SavedInfo> (NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time))
+                 let savedInfo = NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time)
+                 #if FABLE_COMPILER
+                 Json.serialize<SavedInfo> savedInfo
+                 #else
+                 // SimpleJson serialisation works only under Fable: on .NET (tests) use Thoth
+                 Encode.Auto.toString(space = 0, value = savedInfo, extra = extraCoder)
+                 #endif
                  |> (fun json -> Regex.Replace(json, """(\d+\.\d\d)\d+""", "$1")) // reduce json size by truncating floats to 2 d.p.
+                 |> Ok
             with
             | e ->
-                printfn "HELP: exception in SimpleJson.stringify %A" e
-                "Error in stringify"
+                Error $"JSON serialisation of the sheet failed, so it was not saved: {e.Message}"
         /// Code to convert a CanvasState to a JSON string, allowing bigints
-        let stateToJsonStringExperimental (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : string =
+        let stateToJsonStringExperimental (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : Result<string,string> =
             let time = System.DateTime.Now
             try
                 Encode.Auto.toString(space = 0, value = (NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time)), extra = extraCoder)
+                |> Ok
             with
-            | e -> 
-                printfn "HELP: exception in Thoth.Json.Encode.Auto.toString %A" e
-                "Error in stringify"
+            | e ->
+                Error $"JSON serialisation of the sheet failed, so it was not saved: {e.Message}"
 
         let jsonStringToState (jsonString : string) =
             #if FABLE_COMPILER

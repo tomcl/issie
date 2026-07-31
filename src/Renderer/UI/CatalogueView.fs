@@ -748,7 +748,7 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
                                 Description=None;
                                 ParameterDefinitions = None})
 
-                match writeFile path2 toSaveCanvasState with
+                match toSaveCanvasState |> Result.bind (writeFile path2) with
                 | Ok _ -> 
                     let newComponent = 
                         match tryLoadComponentFromPath path2 with

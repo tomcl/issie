@@ -2348,7 +2348,7 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                     // failwithf "cs: %A" toSaveCanvasState
                     // failwithf "path2 = %s" path2
 
-                    match writeFile path2 toSaveCanvasState with
+                    match toSaveCanvasState |> Result.bind (writeFile path2) with
                     | Ok _ ->
                         // failwithf "path2 = %s" path2
                         let nestedComponent = 

@@ -93,6 +93,11 @@
     "usb": "^2.15",
     "uuid": "^11.1.1"
   },
+  "overrides": {
+    "sockjs": {
+      "uuid": "^11.1.1"
+    }
+  },
   "devDependencies": {
     "@electron/notarize": "^3",
     "@electron/remote": "^2",

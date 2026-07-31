@@ -41,6 +41,7 @@
   },
   "build": {
     "appId": "ISSIE",
+    "npmRebuild": false,
     "files": [
       "build/**/*"
     ],

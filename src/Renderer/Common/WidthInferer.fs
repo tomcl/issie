@@ -481,8 +481,10 @@ let private calculateOutputPortsWidth
             |> List.max
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
         | [None] -> Ok Map.empty
-        | [Some n] when n < msb + 1 -> makeWidthInferErrorAtLeast (msb + 1) n [getConnectionIdForPort 0]
-        | [Some n] -> 
+        | [Some inWidth] when inWidth < msb + 1 -> makeWidthInferErrorAtLeast (msb + 1) inWidth [getConnectionIdForPort 0]
+        | [Some _] ->
+            // n is the number of outputs, not the input width: shadowing it here once
+            // made this fold crash whenever the two differed
             let out = Map.empty
             Ok (List.fold2 (fun (acc: Map<OutputPortId,int>) index width -> acc.Add (getOutputPortId comp index, width)) out [0..n-1] outputWidths)
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type

@@ -134,4 +134,23 @@ let tests =
             ComponentSemantics.simulate (Shift(w, 6, LSL)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectLsl ]
             && ComponentSemantics.simulate (Shift(w, 6, LSR)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectLsr ]
             && ComponentSemantics.simulate (Shift(w, 6, ASR)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectAsr ]
+
+        // MergeN/SplitN crossing 32 bits: merge mixes a bigint input with uint32 inputs,
+        // split produces one uint32 slice and one bigint slice from a bigint input
+        testPropertyWithConfig { config with maxTest = 40 } "MergeN and SplitN at >32-bit widths"
+        <| fun (a: bigint) (b: bigint) (c: bigint) ->
+            let a = abs a % (1I <<< 40)
+            let b = abs b % (1I <<< 8)
+            let c = abs c % (1I <<< 8)
+            let merged = a ||| (b <<< 40) ||| (c <<< 48)
+            ComponentSemantics.simulate (MergeN 3) [ 40; 8; 8 ] [ 56 ] [ a; b; c ] = [ merged ]
+            && ComponentSemantics.simulate (SplitN(2, [ 8; 40 ], [ 0; 8 ])) [ 56 ] [ 8; 40 ] [ merged ]
+               = [ merged % (1I <<< 8); (merged >>> 8) % (1I <<< 40) ]
+
+        // all-uint32 inputs merging to a bigint output
+        testPropertyWithConfig { config with maxTest = 40 } "MergeN of two uint32 inputs to a >32-bit output"
+        <| fun (x: bigint) (y: bigint) ->
+            let x = abs x % (1I <<< 20)
+            let y = abs y % (1I <<< 20)
+            ComponentSemantics.simulate (MergeN 2) [ 20; 20 ] [ 40 ] [ x; y ] = [ x ||| (y <<< 20) ]
     ]

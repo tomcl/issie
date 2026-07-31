@@ -965,8 +965,14 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | MergeN n , true ->
         match comp.BigIntState with
         | None -> failwith "MergeN with BigIntState"
-        | Some { InputIsBigInt = ins; OutputIsBigInt = outs } -> 
-            failwith "TODO: MergeN with BigIntState"
+        | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
+            // Little endian, input 0 occupies the least significant bits.
+            // Total width > 32 so the output is always a bigint; each input may be either.
+            let getInput i = if ins[i] then insBigInt i else bigint (insUInt32 i)
+            let res =
+                (0I, [ n - 1 .. -1 .. 0 ])
+                ||> List.fold (fun acc i -> (acc <<< comp.InputWidth i) ||| getInput i)
+            putBigInt 0 res
     | SplitWire topWireWidth, false ->
         let bits = insUInt32 0
 #if ASSERTS
@@ -995,11 +1001,26 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             fun index lsb msb -> 
                 let outBits = getBitsFromUInt32 msb lsb bits
                 putUInt32 index outBits)
-    | SplitN _, true -> 
+    | SplitN(n, outputWidths, lsBits), true ->
         match comp.BigIntState with
         | None -> failwith "SplitN with BigIntState"
-        | Some { InputIsBigInt = ins; OutputIsBigInt = outs } -> 
-            failwith "TODO: SplitN with BigIntState"
+        | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
+            // Outputs are slices of the input, so a bigint state means the input is a bigint;
+            // each output may be either.
+            let msBits = List.map2 (fun width lsb -> width + lsb - 1) outputWidths lsBits
+            let bits = insBigInt 0
+#if ASSERTS
+            let maxMsb = List.max msBits
+            let w = comp.InputWidth 0
+            assertThat (w >= maxMsb + 1)
+            <| sprintf "SplitN received too few bits: expected at least %d but got %d" (maxMsb + 1) w
+#endif
+            (lsBits, msBits)
+            ||> List.iteri2 (fun index lsb msb ->
+                if outs[index] then
+                    putBigInt index (getBitsFromBigInt msb lsb bits)
+                else
+                    putUInt32 index (getBitsFromBigIntToUInt32 msb lsb bits))
     | SplitWire topWireWidth, true ->
         let bits = insBigInt 0
 #if ASSERTS
@@ -1406,7 +1427,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     putState (RamState mem)
                 else
                     let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
-                    let address = insOldBigInt 0
+                    let address = insBigInt 0
                     let data = readMemoryAddrBigIntDataUInt32 mem address
                     putUInt32 0 data
     | _ -> failwithf $"simulation error: deprecated component type {componentType}"

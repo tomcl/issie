@@ -139,6 +139,11 @@ let tests =
         checkExhaustive "MergeWires" MergeWires [ 2; w ] [ 2 + w ] (fun [ a; b ] -> [ (b <<< 2) ||| a ])
         checkExhaustive "SplitWire" (SplitWire 2) [ 2 + w ] [ 2; w ] (fun [ a ] ->
             [ mask 2 a; a >>> 2 ])
+        checkExhaustive "MergeN" (MergeN 3) [ 1; 2; 2 ] [ 5 ] (fun [ a; b; c ] ->
+            [ a ||| (b <<< 1) ||| (c <<< 3) ])
+        // SplitN slices need not tile the input: slice 1 starts at bit 1, slice 2 at bit 3
+        checkExhaustive "SplitN" (SplitN(2, [ 2; 2 ], [ 1; 3 ])) [ 5 ] [ 2; 2 ] (fun [ a ] ->
+            [ mask 2 (a >>> 1); mask 2 (a >>> 3) ])
         checkExhaustive "BusSelection" (BusSelection(2, 1)) [ w + 2 ] [ 2 ] (fun [ a ] ->
             [ mask 2 (a >>> 1) ])
         checkExhaustive "BusCompare1" (BusCompare1(w, 5I, "5")) [ w ] [ 1 ] (fun [ a ] ->
@@ -207,5 +212,27 @@ let tests =
             let stimuli = List.replicate 5 [ 0I; 0I; 1I ]
             let outs = simulateClocked (Counter w) [ w; 1; 1 ] [ w ] stimuli
             Expect.equal outs [ [ 0I ]; [ 1I ]; [ 2I ]; [ 3I ]; [ 4I ] ] "counter increments when enabled"
+        }
+
+        // AsyncRAM1: writes land in the state one cycle later; the async read must use the
+        // *current* cycle's address. Ticks 1-3 read a different address from the one driven
+        // on the previous tick, so a stale-address read gives the wrong word.
+        // inputs: address, data-in, write
+        let asyncRamStimuli =
+            [ [ 1I; 11I; 1I ]   // write 11 -> addr 1
+              [ 2I; 22I; 1I ]   // write 22 -> addr 2; read addr 2 (still 0)
+              [ 1I; 0I; 0I ]    // read addr 1 -> 11
+              [ 2I; 0I; 0I ] ]  // read addr 2 -> 22
+        let asyncRamExpected = [ [ 0I ]; [ 0I ]; [ 11I ]; [ 22I ] ]
+        test "AsyncRAM1" {
+            let mem = { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map.empty }
+            let outs = simulateClocked (AsyncRAM1 mem) [ 4; 8; 1 ] [ 8 ] asyncRamStimuli
+            Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
+        }
+        test "AsyncRAM1 with >32-bit address" {
+            // bigint address, uint32 data: exercises the mixed-width FastSim path
+            let mem = { Init = FromData; AddressWidth = 33; WordWidth = 8; Data = Map.empty }
+            let outs = simulateClocked (AsyncRAM1 mem) [ 33; 8; 1 ] [ 8 ] asyncRamStimuli
+            Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
         }
     ]

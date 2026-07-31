@@ -529,9 +529,9 @@ let foldAppends (expressions: FastAlgExp list) =
 let rec expToKatex (exp: FastAlgExp) : string =
     let rec expToKatex' exp =
         match exp with
-        | SingleTerm (_, label, _) ->
+        | SingleTerm (_, ComponentLabel label, _) ->
             // Variable
-            string label
+            label
 
         | DataLiteral { Dat = Word w; Width = _ } ->
             // Num to string
@@ -558,6 +558,18 @@ let rec expToKatex (exp: FastAlgExp) : string =
 
         | UnaryExp (CarryOfOp, e) ->
             sprintf "\\mathrm{carry}\\bigl(%s\\bigr)" (expToKatex' e)
+
+        | BinaryExp (_, AddOp, _)
+        | BinaryExp (_, SubOp, _) when getAlgExpWidth exp = 1 ->
+            // at width 1 addition and subtraction are both XOR (and negation is the
+            // identity), so print the chain with the XOR symbol
+            exp
+            |> flattenNestedArithmetic
+            |> List.map (function
+                | UnaryExp(NegOp, e) -> expToKatex' e
+                | e -> expToKatex' e)
+            |> String.concat " \\oplus "
+            |> sprintf "\\bigl(%s\\bigr)"
 
         | BinaryExp (_, AddOp, _)
         | BinaryExp (_, SubOp, _) ->
@@ -599,11 +611,15 @@ let rec expToKatex (exp: FastAlgExp) : string =
 
     let katexStr = expToKatex' exp
 
-    // delete the outermost parentheses
-    if katexStr.StartsWith "(" && katexStr.EndsWith ")" then
-        katexStr[1 .. katexStr.Length - 2]
-    else
-        katexStr
+    // delete the outermost brackets, added only by the cases matched here (a prefix/suffix
+    // check alone would corrupt e.g. \bigl(a+b\bigr) \cdot \bigl(c+d\bigr))
+    match exp with
+    | BinaryExp(_, AddOp, _)
+    | BinaryExp(_, SubOp, _)
+    | ComparisonExp _
+    | AppendExp _ -> katexStr["\\bigl(".Length .. katexStr.Length - "\\bigr)".Length - 1]
+    | UnaryExp(NegOp, _) -> katexStr[1 .. katexStr.Length - 2]
+    | _ -> katexStr
 
 
 /// Recursively evaluates an expression to reduce it to its simplest form

@@ -262,5 +262,25 @@ let private e2eTests =
         }
     ]
 
+let private katexTests =
+    testList "expToKatex" [
+        test "single-bit addition prints as XOR" {
+            let s = expToKatex (BinaryExp(a1, AddOp, b1))
+            Expect.equal s "A \\oplus B" "at width 1, + is XOR"
+        }
+        test "single-bit add chain prints as XOR chain" {
+            let s = expToKatex (BinaryExp(BinaryExp(a1, AddOp, b1), AddOp, cin1))
+            Expect.equal s "A \\oplus B \\oplus CIN" "full-adder sum shape"
+        }
+        test "single-bit subtraction prints as XOR" {
+            let s = expToKatex (BinaryExp(a1, SubOp, b1))
+            Expect.equal s "A \\oplus B" "at width 1, - is also XOR and negation is identity"
+        }
+        test "multi-bit addition keeps the plus sign" {
+            let s = expToKatex (BinaryExp(a4, AddOp, b4))
+            Expect.equal s "A + B" "arithmetic rendering above width 1"
+        }
+    ]
+
 let tests =
-    testList "Algebra" [ evalTests; appendTests; e2eTests ]
+    testList "Algebra" [ evalTests; appendTests; e2eTests; katexTests ]

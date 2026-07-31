@@ -1,4 +1,4 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33205.214
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -30,6 +30,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "static", "static", "{EB3414
 		static\index.html = static\index.html
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{4F1E0C6C-A2EE-4F89-92CE-D9431728FF88}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Issie.Tests", "Tests\Issie.Tests\Issie.Tests.fsproj", "{F7CB1AFB-E722-4CB1-AFF5-B5A35FB532D1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,11 +48,18 @@ Global
 		{9F63D5D3-10F5-46F4-BF38-43E75E4FCB2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9F63D5D3-10F5-46F4-BF38-43E75E4FCB2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9F63D5D3-10F5-46F4-BF38-43E75E4FCB2D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F7CB1AFB-E722-4CB1-AFF5-B5A35FB532D1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F7CB1AFB-E722-4CB1-AFF5-B5A35FB532D1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F7CB1AFB-E722-4CB1-AFF5-B5A35FB532D1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F7CB1AFB-E722-4CB1-AFF5-B5A35FB532D1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {96DAE6A9-B1CC-4FF7-B08C-D5FBFD55B385}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F7CB1AFB-E722-4CB1-AFF5-B5A35FB532D1} = {4F1E0C6C-A2EE-4F89-92CE-D9431728FF88}
 	EndGlobalSection
 EndGlobal

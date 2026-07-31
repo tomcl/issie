@@ -384,29 +384,28 @@ let editMenu dispatch' =
             |> Some
 
 
-let attachMenusAndKeyShortcuts dispatch =
-    //setupExitInterlock dispatch
-    let sub dispatch =
-        let menu:Menu =
-            [|
+/// One-shot application setup, run as an Elmish subscription so it receives dispatch:
+/// build and attach the Electron menus, attach the exit handler, read the user data.
+/// There is nothing to tear down - the menus live as long as the app.
+let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
+    let menu:Menu =
+        [|
 
-                fileMenu dispatch
+            fileMenu dispatch
 
-                editMenu dispatch
+            editMenu dispatch
 
-                viewMenu dispatch
-            |]
-            |> Array.map U2.Case1
-            |> electronRemote.Menu.buildFromTemplate   //Help? How do we call buildfromtemplate
-        menu.items[0].visible <- true
-        dispatch <| Msg.ExecFuncInMessage((fun _ _ ->
-            electronRemote.app.applicationMenu <- Some menu), dispatch)
-        attachExitHandler dispatch
-        let userAppDir = getUserAppDir()
-        dispatch <| ReadUserData userAppDir
-
-
-    Cmd.ofSub sub
+            viewMenu dispatch
+        |]
+        |> Array.map U2.Case1
+        |> electronRemote.Menu.buildFromTemplate   //Help? How do we call buildfromtemplate
+    menu.items[0].visible <- true
+    dispatch <| Msg.ExecFuncInMessage((fun _ _ ->
+        electronRemote.app.applicationMenu <- Some menu), dispatch)
+    attachExitHandler dispatch
+    let userAppDir = getUserAppDir()
+    dispatch <| ReadUserData userAppDir
+    { new System.IDisposable with member _.Dispose() = () }
 
 // This setup is useful to add other pages, in case they are needed.
 
@@ -450,12 +449,23 @@ let view' model dispatch =
 
 let mutable firstPress = true
 
+/// A DOM event listener as an Elmish 4 subscription: attach on subscribe, detach on dispose.
+let private domListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (Browser.Types.Event -> unit)) =
+    fun (dispatch: Msg -> unit) ->
+        let handler = makeHandler dispatch
+        Browser.Dom.document.addEventListener(eventName, handler)
+        { new System.IDisposable with
+            member _.Dispose() = Browser.Dom.document.removeEventListener(eventName, handler) }
+
+/// The application's subscriptions, in Elmish 4 form: a constant set of identified
+/// subscriptions, each returning its teardown. The set does not depend on the model, so each
+/// subscription is started exactly once, as with Elmish 3's Cmd.ofSub.
 /// Used to listen for pressing down of Ctrl for selection toggle.
 /// Also for the code editor keys.
 /// TODO: use this for global key press info throughout Issie
-let keyPressListener initial =
-    let subDown dispatch =
-        Browser.Dom.document.addEventListener("keydown", fun e ->
+let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
+    let subDown =
+        domListenerSub "keydown" (fun dispatch e ->
             let ke: KeyboardEvent = downcast e
             if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
                 firstPress <- false
@@ -481,22 +491,21 @@ let keyPressListener initial =
                 e.preventDefault()
             | _ -> () //e.preventDefault()
             )
-    let subUp dispatch =
-        Browser.Dom.document.addEventListener("keyup", fun e ->
+    let subUp =
+        domListenerSub "keyup" (fun dispatch _e ->
             firstPress <- true
             //printf "Any Key up (old method)"
             dispatch <| Sheet(SheetT.PortMovementEnd))
     /// unfinished code
     /// add hook in main function to display a context menu
     /// create menu as shown in main.fs
-    let subRightClick dispatch =
-        Browser.Dom.document.addEventListener("contextmenu", unbox (fun (e:Browser.Types.MouseEvent) ->
+    let subRightClick =
+        domListenerSub "contextmenu" (fun dispatch -> unbox (fun (e:Browser.Types.MouseEvent) ->
             e.preventDefault()
             //printfn "Context Menu listener sending to main..."
             dispatch (ContextMenuAction e)))
-            
 
-    let subContextMenuCommand dispatch =
+    let subContextMenuCommand (dispatch: Msg -> unit) =
         renderer.ipcRenderer.on("context-menu-command", fun ev args ->
             let arg:string = unbox args |> Array.map string |> String.concat ""
             match arg.Split [|','|] |> Array.toList with
@@ -504,31 +513,22 @@ let keyPressListener initial =
                 //printfn "%A" $"Renderer context menu callback: {menuType} --> {item}"
                 dispatch <| ContextMenuItemClick(menuType,item,dispatch)
             | _ -> printfn "Unexpected callback argument sent from main.") |> ignore
+        // the listener lives as long as the app: nothing worth tearing down
+        { new System.IDisposable with member _.Dispose() = () }
 
     /// Why does this not work in production?
-    let periodicMemoryCheckCommand dispatch =
-        JSHelpers.periodicDispatch dispatch UpdateHelpers.Constants.memoryUpdateCheckTime CheckMemory |> ignore
+    // let periodicMemoryCheckCommand dispatch =
+    //     JSHelpers.periodicDispatch dispatch UpdateHelpers.Constants.memoryUpdateCheckTime CheckMemory |> ignore
 
-
-    Cmd.batch [
-        Cmd.ofSub subDown
-        Cmd.ofSub subUp
-        Cmd.ofSub subRightClick
-        Cmd.ofSub subContextMenuCommand
-        //Cmd.ofSub periodicMemoryCheckCommand 
-        ]
-
-
-
-
-    
-
-
-
-    
+    [
+        ["menus"], attachMenusAndKeyShortcuts
+        ["keydown"], subDown
+        ["keyup"], subUp
+        ["contextmenu"], subRightClick
+        ["ipc"; "context-menu-command"], subContextMenuCommand
+    ]
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"
-|> Program.withSubscription attachMenusAndKeyShortcuts
-|> Program.withSubscription keyPressListener
+|> Program.withSubscription appSubscriptions
 |> Program.run

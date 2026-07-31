@@ -111,7 +111,7 @@ type CodeEditorReactStatefulComponent (props) =
 //---------------------------------------------------------------------------------------------//
 
 let openInBrowser url =
-    (fun _ -> Electron.Electron.electron.shell.openExternal url |> ignore)
+    (fun _ -> electronRemote.shell.openExternal url |> ignore)
 
 //------------------------------Popup-specific helper functions--------------------------------//
 

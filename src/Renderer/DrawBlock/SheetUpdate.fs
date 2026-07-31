@@ -653,7 +653,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                         dispatchS <| StopCompilation
                 })
 
-            {model with CompilationProcess = Some child}, Cmd.ofSub <| startComp
+            {model with CompilationProcess = Some child}, Cmd.ofEffect <| startComp
     | StopCompilation ->
         //printfn "stopping compilation"
         match model.CompilationProcess with
@@ -758,7 +758,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 ()
             })
         
-        model, Cmd.ofSub (readSingleStep n)
+        model, Cmd.ofEffect (readSingleStep n)
     | DebugRead n ->
         //printfn "reading"
         
@@ -783,7 +783,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 ()
             })
         
-        model, Cmd.ofSub (readSingleStep n)
+        model, Cmd.ofEffect (readSingleStep n)
     | DebugConnect ->      
         let remainder = (Array.length model.DebugMappings) % 8
         let viewerNo = 
@@ -809,7 +809,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
         { model with
             DebugIsConnected = true
-        }, Cmd.ofSub (connectAndRead viewerNo)
+        }, Cmd.ofEffect (connectAndRead viewerNo)
     | DebugDisconnect ->
         printfn "Closing device"
         disconnect()

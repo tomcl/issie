@@ -219,6 +219,8 @@ let shortDisplayMsg (msg:Msg) =
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
     | CodeEditorMsg _ -> Some "CodeEditorMsg"
+    | CheckBindToTopOffers _ -> Some "CheckBindToTopOffers"
+    | CheckTopSheetChoice -> Some "CheckTopSheetChoice"
 
 
 

@@ -24,6 +24,14 @@
     <Compile Include="Common\Optics.fs" />
     <Compile Include="Common\ElectronAPI.fs" />
     <Compile Include="Common\HashMap.fs" />
+    <!-- Vendored Fable.SimpleJson, patched for Fable 5 - see Common\SimpleJson\README.md -->
+    <Compile Include="Common\SimpleJson\TypeCheck.fs" />
+    <Compile Include="Common\SimpleJson\TypeInfo.fs" />
+    <Compile Include="Common\SimpleJson\TypeInfo.Converter.fs" />
+    <Compile Include="Common\SimpleJson\Json.fs" />
+    <Compile Include="Common\SimpleJson\Parser.fs" />
+    <Compile Include="Common\SimpleJson\SimpleJson.fs" />
+    <Compile Include="Common\SimpleJson\Json.Converter.fs" />
     <Compile Include="Common\ParameterTypes.fs" />
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\DrawHelpers.fs" />

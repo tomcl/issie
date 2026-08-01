@@ -11596,3 +11596,15 @@ th, td {
   background-color: #9aa6b1;
   color: black;
 }
+
+/* sheet-menu pill colours for the parameter system's top sheet:
+   the top of the design, and the sheets outside its instance tree */
+.is-darkgreen {
+  background-color: #1f7a3f;
+  color: white;
+}
+
+.is-grey {
+  background-color: #7a848e;
+  color: white;
+}

@@ -150,6 +150,9 @@ let fileCommand (fc: FileCommandType) (dispatch: (Msg->Unit)) (model: Model) =
 
     | FileSaveOpenFile ->
         saveOpenFileActionWithModelUpdate model dispatch |> ignore
+        // A library sheet whose last instance has gone is dropped here rather than when the
+        // instance was deleted, so that deleting an instance stays undoable.
+        dispatch <| UpdateModel MenuHelpers.sweepUnusedLibrarySheets
         model, Cmd.none
 
     | FileShowDemos demoOpts ->

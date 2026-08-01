@@ -67,6 +67,7 @@
     <Compile Include="Interface\Version.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
     <Compile Include="Interface\FilesIO.fs" />
+    <Compile Include="Interface\ComponentLibraries.fs" />
     <Compile Include="Interface\WorkerInterface.fs" />
     <None Include="scss\main.scss" />
 

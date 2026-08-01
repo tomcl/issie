@@ -212,6 +212,24 @@ the saved copy because size is derived from the parameter value.
 A layer above sheets: reusable parameterised components shipped with Issie, placed like catalogue
 components and materialised into the project on use.
 
+**Implemented** in `src/Renderer/Interface/ComponentLibraries.fs` and the catalogue, with these
+deviations from the plan text below:
+
+- The **placement popup is not library-specific**: it was built in the previous phase for any sheet
+  that declares parameters, and libraries reuse it unchanged.
+- The **index is optional**. With no `index.json` the library directory is scanned instead, which
+  is slower but gives the same result, so a library works with no tooling at all.
+  `ComponentLibraries.writeLibraryIndex` regenerates one; there is no build step wiring it in.
+- **No library ships yet.** `static/libraries/` holds only a README describing the layout, so
+  `readLibraries ()` returns `[]` and no Library item appears in the catalogue. The mechanism is
+  therefore untested against a real library.
+- **Multi-sheet components** are recognised but not placed: a sheet instantiated by another sheet
+  of the same library is correctly kept out of the catalogue, but only the component's own sheet is
+  copied into the project, so such a component would arrive incomplete.
+- The **prefix reservation** discussed under naming (stopping a user naming a sheet into a
+  registered library's `L<n>_` prefix) is computed by `reservedPrefixes` but not yet enforced by
+  sheet-name validation.
+
 ### UI
 
 The catalogue gains a top-level **Library** item. Opening it lists the available libraries;

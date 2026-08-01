@@ -112,6 +112,54 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
     menuItem styles loadedComponent.Name (fun _ ->
         startPlacingCustomComponent loadedComponent model dispatch)
 
+//------------------------------------------------------------------------------------------------//
+//---------------------------------- Shipped component libraries ---------------------------------//
+//------------------------------------------------------------------------------------------------//
+
+/// Copy a library component's sheet into the project, unless it is already there, and return the
+/// LoadedComponent to instantiate. The sheet is copied with fresh ids so that two projects using
+/// the same library share nothing, and named L<n>_<comp> so that it cannot clash with a user
+/// sheet - see ComponentLibraries for how n is chosen.
+let private materialiseLibrarySheet
+        (library: ComponentLibraries.ComponentLibrary)
+        (comp: ComponentLibraries.LibraryComponent)
+        (project: Project)
+        : Result<LoadedComponent, string> =
+    let index = ComponentLibraries.libraryIndexFor project.LoadedComponents library
+    let sheetName = ComponentLibraries.sheetNameFor index comp.Name
+    match project.LoadedComponents |> List.tryFind (fun ldc -> ldc.Name = sheetName) with
+    | Some existing -> Ok existing
+    | None ->
+        let sourcePath = pathJoin [| library.Path; comp.Name + ".dgm" |]
+        let destPath = pathJoin [| project.ProjectPath; sheetName + ".dgm" |]
+        copySheetWithNewIds sourcePath destPath
+        match tryLoadComponentFromPath destPath with
+        | Error msg -> Error $"Could not add {comp.Name} from library {library.Name}: {msg}"
+        | Ok ldc ->
+            // the sheet is a library sheet from now on: hidden from the Sheets menu, and carrying
+            // where it came from so the catalogue can name it properly
+            let ldc = {ldc with Name = sheetName; Form = Some (Library (library.Name, comp.Name))}
+            writeComponentToFile ldc |> ignore
+            Ok ldc
+
+/// Place an instance of a library component, adding its sheet to the project first if needed.
+let private startPlacingLibraryComponent library comp model dispatch =
+    match model.CurrentProj with
+    | None -> ()
+    | Some project ->
+        match materialiseLibrarySheet library comp project with
+        | Error msg -> dispatch <| SetFilesNotification (Notifications.errorFilesNotification msg)
+        | Ok ldc ->
+            // the project gains a sheet, so the model must know about it before the instance that
+            // refers to it is created
+            dispatch <| UpdateModel (fun m ->
+                match m.CurrentProj with
+                | Some p when p.LoadedComponents |> List.exists (fun c -> c.Name = ldc.Name) -> m
+                | Some p -> {m with CurrentProj = Some {p with LoadedComponents = p.LoadedComponents @ [ldc]}}
+                | None -> m)
+            dispatch <| ExecFuncInMessage ((fun model' dispatch' ->
+                startPlacingCustomComponent ldc model' dispatch'), dispatch)
+
 let private makeCustomList styles model dispatch =
     match model.CurrentProj with
     | None -> []
@@ -1075,15 +1123,60 @@ let viewCatalogue model dispatch =
                         it can be added any number of times, each instance replicating the sheet logic"
                         (makeCustomList styles model dispatch)
 
-                    makeMenuGroupWithTip 
+                    makeMenuGroupWithTip
                         styles
                         "Verilog"
-                        "Write combinational logic in Verilog and use it as a Custom Component. 
+                        "Write combinational logic in Verilog and use it as a Custom Component.
                          To edit/delete a verilog component add it in a sheet and click on 'properties'"
-                        (List.append 
+                        (List.append
                             [menuItem styles "New Verilog Component" (
                                 fun _ -> dispatchAsFunc(fun model _ -> createVerilogPopup model true None None NewVerilogFile dispatch)) ]
                             (makeVerilogList styles model dispatch))
-                          
+
+                    match model.ComponentLibraries with
+                    | [] -> null
+                    | libraries ->
+                        makeMenuGroupWithTip styles
+                            "Library"
+                            "Ready-made parameterised components. Choosing one adds its sheet to \
+                             this project and asks for the values its parameters should take."
+                            (libraries |> List.map (fun lib ->
+                                menuItem styles lib.Name (fun _ ->
+                                    dispatch <| UpdateModel (Optics.Optic.set openLibrary_ (Some lib.Name)))))
                     ]
-        (viewCatOfModel) model 
+
+        /// The catalogue body replaced by one library's components, grouped into sections as the
+        /// catalogue itself is. Back returns to the catalogue.
+        let viewLibrary (library: ComponentLibraries.ComponentLibrary) = fun (model: Model) ->
+            let styles =
+                match model.Sheet.Action with
+                | SheetT.InitialisedCreateComponent _ -> [Cursor "grabbing"]
+                | _ -> []
+            let componentItem (comp: ComponentLibraries.LibraryComponent) =
+                div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+                      Tooltip.dataTooltip comp.Description
+                      Style styles ]
+                    [ menuItem styles comp.Name (fun _ ->
+                        dispatchAsFunc (startPlacingLibraryComponent library comp)) ]
+            Menu.menu [Props [Class "py-1"; Style ([Height "calc(100vh - 200px)"; OverflowY OverflowOptions.Auto] @ styles)]] [
+                div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; JustifyContent "space-between"; MarginBottom "6px"]] [
+                    b [] [str $"{library.Name} library"]
+                    Button.button [
+                        Button.Size IsSmall
+                        Button.OnClick (fun _ -> dispatch <| UpdateModel (Optics.Optic.set openLibrary_ None))
+                    ] [str "Back"]
+                ]
+                yield!
+                    library.Components
+                    |> List.groupBy (fun comp -> comp.Section)
+                    |> List.sortBy fst
+                    |> List.map (fun (section, comps) ->
+                        makeMenuGroup section (comps |> List.map componentItem))
+            ]
+
+        let openLibrary =
+            model.OpenLibrary
+            |> Option.bind (fun name -> model.ComponentLibraries |> List.tryFind (fun lib -> lib.Name = name))
+        match openLibrary with
+        | Some library -> viewLibrary library model
+        | None -> viewCatOfModel model

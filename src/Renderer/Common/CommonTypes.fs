@@ -143,7 +143,13 @@ with
 /// Type to specify the origin of a custom component
 type CCForm =
     |User
-    |Library
+    /// A sheet materialised into the project from a shipped component library. The sheet is named
+    /// L<n>_<CompName> so that it cannot clash with a user sheet, and that name is what the user
+    /// sees on the canvas and in the waveform simulator; the library and component names are kept
+    /// here so the catalogue can show the real name and the origin stays recoverable.
+    /// Library sheets are hidden from the Sheets menu and cannot be opened, but are otherwise
+    /// ordinary sheets: parameter analysis, width inference and simulation all see them.
+    |Library of LibName: string * CompName: string
     |ProtectedTopLevel
     |ProtectedSubSheet
     |Verilog of string

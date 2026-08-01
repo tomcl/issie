@@ -589,7 +589,19 @@ let viewTopMenu model dispatch =
             let updatedProject = getUpdatedLoadedComponents project model
             let updatedModel = {model with CurrentProj = Some updatedProject}
 
-            let sTrees = getSheetTrees false updatedProject
+            // Library sheets are not part of the design the user navigates: they are the innards
+            // of a catalogue component, added and removed with its instances, and cannot be
+            // opened. Hiding them here keeps them out of the menu and out of the hierarchy below
+            // the sheets that use them. Everything else - parameter analysis, width inference,
+            // simulation - still sees them, because they are ordinary sheets.
+            let isLibrarySheet (ldc: LoadedComponent) =
+                match ldc.Form with
+                | Some (Library _) -> true
+                | _ -> false
+            let sTrees =
+                {updatedProject with
+                    LoadedComponents = updatedProject.LoadedComponents |> List.filter (isLibrarySheet >> not)}
+                |> getSheetTrees false
 
             let allRoots = allRootSheets sTrees
             let isSubSheet sh = not <| Set.contains sh allRoots

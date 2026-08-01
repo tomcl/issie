@@ -438,6 +438,31 @@ let writeComponentToFile comp =
         IsTopSheet = Some comp.IsTopSheet})
     |> Result.bind (writeFile comp.FilePath)
 
+/// Drop library sheets that nothing instantiates any more, deleting their files.
+/// Run when the project is saved rather than when an instance is deleted: undo restores model
+/// snapshots, so deleting the sheet at deletion time would leave undo unable to bring it back.
+let sweepUnusedLibrarySheets (model: Model) : Model =
+    match model.CurrentProj with
+    | None -> model
+    | Some project ->
+        match ComponentLibraries.unusedLibrarySheets project.LoadedComponents with
+        | [] -> model
+        | unused ->
+            let unusedNames = unused |> List.map (fun ldc -> ldc.Name) |> Set.ofList
+            // never remove the sheet the user is looking at, whatever its form
+            let toRemove = unusedNames |> Set.remove project.OpenFileName
+            toRemove
+            |> Set.iter (fun name ->
+                match project.LoadedComponents |> List.tryFind (fun ldc -> ldc.Name = name) with
+                | Some ldc -> removeFileWithExtn ".dgm" project.ProjectPath ldc.Name
+                | None -> ())
+            {model with
+                CurrentProj =
+                    Some {project with
+                            LoadedComponents =
+                                project.LoadedComponents
+                                |> List.filter (fun ldc -> not (Set.contains ldc.Name toRemove))}}
+
 /// Make the named sheet the current top sheet governing parameter display, clearing the flag
 /// from every other sheet. The flag is per-sheet view state persisted in the .dgm file.
 /// Sheets whose files are already in step with memory are written immediately, so the choice

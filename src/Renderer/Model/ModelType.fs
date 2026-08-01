@@ -766,6 +766,11 @@ type Model = {
     /// Projects whose top-sheet choice popup the user has cancelled. Cancelling opens the sheet
     /// at default parameter values; the question is not asked again for that project.
     TopSheetChoiceDeclined : Set<string>
+    /// The component libraries shipped with Issie, read once at startup. The catalogue is a pure
+    /// render function, so it cannot read them itself.
+    ComponentLibraries : ComponentLibraries.ComponentLibrary list
+    /// Which library the catalogue is showing instead of its own contents, if any.
+    OpenLibrary : string option
     /// the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
     /// function to create popup pane if present
@@ -820,6 +825,7 @@ let uISheetTrail_ = Lens.create (fun a -> a.UISheetTrail) (fun s a -> {a with UI
 let savedSheetIsOutOfDate_ = Lens.create (fun a -> a.SavedSheetIsOutOfDate) (fun s a -> {a with SavedSheetIsOutOfDate = s})
 let pendingDragAddition_ = Lens.create (fun a -> a.PendingDragAddition) (fun s a -> {a with PendingDragAddition = s})
 let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (fun s a -> {a with TopSheetChoiceDeclined = s})
+let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_

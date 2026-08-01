@@ -286,4 +286,26 @@ let tests =
                 ParameterView.portWidthsOfInstance [ childLdc ] Map.empty childLdc.Name Map.empty
             Expect.equal (Map.tryFind "A" widths) (Some 4) "input A takes the child's declared default"
         }
+
+        // Drawing a sheet at parameter values computed for the current top sheet must not change
+        // what is saved. Only the parameterised slots are put back, so an edit made to any other
+        // field while computed values were on display survives. Stashing a whole declared
+        // component, as this used to, silently discarded such edits.
+
+        test "putting declared slot values back leaves the rest of the type alone" {
+            // displayed at width 8, and the constant's value edited to 200 meanwhile
+            let live = Constant1(8, 200I, "200")
+            let declared = ComponentSlots.setSlotValues (Map [ Buswidth, 4 ]) live
+            Expect.equal declared (Constant1(4, 200I, "200")) "width reverts; the edited value does not"
+        }
+
+        test "a symbol saves its declared width and its edited memory contents" {
+            let sym = makeSymbol (makeComp "in" 0 1 (Input1(8, Some 7I)) "IN")
+            // displayed at width 8 though the sheet declares 4, and the default value edited to 7
+            let displaying = { sym with DeclaredSlots = Map [ IO "IN", 4 ] }
+            let saved = SymbolUpdate.declaredComponent displaying
+            Expect.equal saved.Type (Input1(4, Some 7I)) "declared width saved, edited default kept"
+            Expect.equal (SymbolUpdate.declaredComponent sym).Type (Input1(8, Some 7I))
+                "a symbol with nothing stashed is saved exactly as it stands"
+        }
     ]

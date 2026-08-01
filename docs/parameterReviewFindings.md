@@ -1,12 +1,15 @@
 # Review findings: parameter, library and simulator code
 
-Recorded 2026-08-01 against the `parameter-display-values` branch (`11ff44b70`). Nothing here has
-been fixed; this is the to-do list from an objective read of the parameter system
+Recorded 2026-08-01 against the `parameter-display-values` branch (`11ff44b70`), from an objective
+read of the parameter system
 (`ParameterTypes`, `ParameterAnalysis`, `ParameterView`), the component library layer
 (`ComponentLibraries`, `CatalogueView`, `MenuHelpers`), and the simulator's parameter path
 (`GraphMerger`), plus the display-value plumbing in `SymbolUpdate`/`DrawModelType`.
 
-Line numbers are as of that commit and will drift; the named functions will not.
+**All three High findings, and the Medium that shared a cause with one of them, are now fixed**,
+each pinned by a test in `Tests/Issie.Tests/ParameterScenarios.fs` that was checked to fail without
+the fix. The rest stand. Line numbers are as of the original commit and will have drifted; the
+named functions will not.
 
 ## High
 
@@ -33,6 +36,9 @@ evaluated in the parent. Two correct implementations already exist to copy:
 `applyBindOffers`'s `childEffective` (~`ParameterView.fs:1524-1544`) and
 `GraphMerger.effectiveBindings` (`GraphMerger.fs:329-332`).
 
+**Fixed.** `ParameterView.portWidthsOfInstance` now builds that environment once and all three call
+sites use it. A width that cannot be worked out leaves the port alone instead of setting it to 0.
+
 ### 2. A parameterised `BusSelection` LSB is ignored by the simulator
 
 `SelectedComponentView.makeLsbBitNumberField` (~`:768`) creates an `IO comp.Label` slot for the
@@ -50,6 +56,9 @@ not. The same gap applies to `BusCompare`/`BusCompare1` compare-values, which
 Root cause is the overloading of `CompSlotName.IO`: documented as an input's width, but used for
 three unrelated fields.
 
+**Fixed.** `ComponentSlots.setSlotValue` handles all three, and elaboration calls it rather than
+carrying its own copy. Finding 4 below was the same confusion on the canvas side and went with it.
+
 ### 3. `SavedComponent` discards non-parameter edits to a symbol's type
 
 `SymbolUpdate.extractComponent` (`:908-911`) is the sole path to saved state and returns
@@ -65,8 +74,11 @@ only the width is parameterised, `Shift`'s type, memory contents. The edit lands
 `applyComputedDisplayValues` also reverts such an edit on screen, since `stashDeclaredComponents`
 restores every symbol from the stash first.
 
-Fixing this means either making the stash per-slot rather than a whole component, or refreshing it
-on every symbol-changing message.
+**Fixed**, by making the stash per-slot. `Symbol.SavedComponent` is now
+`Symbol.DeclaredSlots: Map<CompSlotName, int>`, and `extractComponent` puts just those slot values
+back, so every other field is saved as it stands. This is what motivated extracting
+`ComponentSlots`: `SymbolUpdate` is compiled long before `ParameterView` and `GraphMerger`, which
+between them held three divergent copies of the slot-to-field mapping.
 
 ## Medium
 
@@ -77,6 +89,10 @@ special-cased, on line 396. For a `BusCompare` — whose `IO` slot is the compar
 finding 2 — this writes the comparison value into the bus width. The
 `ReloadSelectedComponent value` at line 408 likewise feeds an LSB or compare value into "most
 recent bus width".
+
+**Fixed** alongside finding 2: `ChangeLSB` already handled `BusCompare`, so routing it there was
+two lines, and leaving it would have made the canvas disagree with the now-corrected simulator.
+The `ReloadSelectedComponent` oddity stands.
 
 ### 5. `evaluateConstraints` dispatches from inside a render-time predicate
 
@@ -101,10 +117,9 @@ handles `BusCompare1` separately.
 
 ## Low
 
-- `ParameterView.compSlot_` / `modelToSlot_` (`:70-216`) are dead — nothing references them — and
-  already out of step: `Buswidth` has no `Input1` case (unlike `buswidthPrism` and
-  `GraphMerger.applySlotValue`), and the `CustomCompParam` getter `failwithf`s on any binding that
-  is not a bare `PInt`. Delete or fix.
+- ~~`ParameterView.compSlot_` / `modelToSlot_` are dead and out of step.~~ **Deleted** as part of
+  the `ComponentSlots` extraction: they were a third copy of the slot-to-field mapping, and the
+  drift they had already accumulated is exactly what finding 2 was.
 - `MiscMenuView.fs:299-301` computes `ComponentLibraries.reservedPrefixOf` twice and then uses
   `.Value`.
 - Three different silent fallbacks for the same "cannot evaluate" condition:

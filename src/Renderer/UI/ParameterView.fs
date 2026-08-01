@@ -67,159 +67,6 @@ let symbolToComponent_ : Optics.Lens<SymbolT.Symbol, Component> =
         (fun newComponent symbol -> { symbol with Component = newComponent })
 
 
-let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> = 
-    Lens.create
-        (fun comp ->
-            match compSlotName with
-            | Buswidth -> 
-                match comp.Type with
-                | Viewer busWidth -> busWidth
-                | BusCompare1 (busWidth, _, _) -> busWidth
-                | BusSelection (outputWidth, _) -> outputWidth
-                | Constant1 (width, _, _) -> width
-                | NbitsAdder busWidth -> busWidth
-                | NbitsAdderNoCin busWidth -> busWidth
-                | NbitsAdderNoCout busWidth -> busWidth
-                | NbitsAdderNoCinCout busWidth -> busWidth
-                | NbitsXor (busWidth, _) -> busWidth
-                | NbitsAnd busWidth -> busWidth
-                | NbitsNot busWidth -> busWidth
-                | NbitsOr busWidth -> busWidth
-                | NbitSpreader busWidth -> busWidth
-                | SplitWire busWidth -> busWidth
-                | Register busWidth -> busWidth
-                | RegisterE busWidth -> busWidth
-                | Counter busWidth -> busWidth
-                | CounterNoLoad busWidth -> busWidth
-                | CounterNoEnable busWidth -> busWidth
-                | CounterNoEnableLoad busWidth -> busWidth
-                | Shift (busWidth, _, _) -> busWidth
-                | BusCompare (busWidth, _) -> busWidth
-                | Input busWidth -> busWidth
-                | Constant (width, _) -> width
-                | _ -> failwithf $"Invalid component {comp.Type} for buswidth"
-            | IO _ ->
-                match comp.Type with
-                | Input1 (busWidth, _) -> busWidth
-                | Output busWidth -> busWidth
-                | _ -> failwithf $"Invalid component {comp.Type} for IO"
-            | InputDefault ->
-                match comp.Type with
-                | Input1 (_, defaultValue) -> int (Option.defaultValue 0I defaultValue)
-                | _ -> failwithf $"Invalid component {comp.Type} for default value"
-            | SplitNWidth idx ->
-                match comp.Type with
-                | SplitN (_, widths, _) ->
-                    if idx >= 0 && idx < List.length widths then
-                        widths[idx]
-                    else failwithf $"SplitNWidth index %d{idx} out of range"
-                | _ -> failwithf $"Invalid component {comp.Type} for SplitNWidth"
-            | SplitNLSB idx ->
-                match comp.Type with
-                | SplitN (_, _, lsbs) ->
-                    if idx >= 0 && idx < List.length lsbs then
-                        lsbs[idx]
-                    else failwithf $"SplitNLSB index %d{idx} out of range"
-                | _ -> failwithf $"Invalid component {comp.Type} for SplitNLSB"
-            | CustomCompParam paramName ->
-                match comp.Type with
-                | Custom customComp ->
-                    // Look up the parameter value from the custom component's parameter bindings
-                    match customComp.ParameterBindings with
-                    | Some bindings ->
-                        match Map.tryFind (ParamName paramName) bindings with
-                        | Some (PInt value) -> value
-                        | _ -> failwithf $"Parameter {paramName} not found in custom component {customComp.Name} bindings"
-                    | None -> failwithf $"No parameter bindings found for custom component {customComp.Name}"
-                | _ -> failwithf $"CustomCompParam can only be used with Custom components, not {comp.Type}"
-        )
-        (fun value comp->
-                let newType = 
-                    match compSlotName with
-                    | Buswidth ->
-                        match comp.Type with
-                        | Viewer _ -> Viewer value
-                        | BusCompare1 (_, compareValue, dialogText) -> BusCompare1 (value, compareValue, dialogText)
-                        | BusSelection (_, outputLSBit) -> BusSelection (value, outputLSBit)
-                        | Constant1 (_, constValue, dialogText) -> Constant1 (value, constValue, dialogText)
-                        | NbitsAdder _ -> NbitsAdder value
-                        | NbitsAdderNoCin _ -> NbitsAdderNoCin value
-                        | NbitsAdderNoCout _ -> NbitsAdderNoCout value
-                        | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout value
-                        | NbitsXor (_, arithmeticOp) -> NbitsXor (value, arithmeticOp)
-                        | NbitsAnd _ -> NbitsAnd value
-                        | NbitsNot _ -> NbitsNot value
-                        | NbitsOr _ -> NbitsOr value
-                        | NbitSpreader _ -> NbitSpreader value
-                        | SplitWire _ -> SplitWire value
-                        | Register _ -> Register value
-                        | RegisterE _ -> RegisterE value
-                        | Counter _ -> Counter value
-                        | CounterNoLoad _ -> CounterNoLoad value
-                        | CounterNoEnable _ -> CounterNoEnable value
-                        | CounterNoEnableLoad _ -> CounterNoEnableLoad value
-                        | Shift (_, _, shiftType) -> Shift (value, shifterWidthFor value, shiftType)
-                        | BusCompare (_, compareValue) -> BusCompare (value, compareValue)
-                        | Input _ -> Input value
-                        | Constant (_, constValue) -> Constant (value, constValue)
-                        | _ -> failwithf $"Invalid component {comp.Type} for buswidth"
-                    | IO _ ->
-                        match comp.Type with
-                        | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
-                        | Output _ -> Output value
-                        | _ -> failwithf $"Invalid component {comp.Type} for IO"
-                    | InputDefault ->
-                        match comp.Type with
-                        | Input1 (busWidth, _) -> Input1 (busWidth, Some (bigint value))
-                        | _ -> failwithf $"Invalid component {comp.Type} for default value"
-                    | SplitNWidth idx ->
-                        match comp.Type with
-                        | SplitN (n, widths, lsbs) ->
-                            if idx < 0 || idx >= List.length widths then failwithf $"SplitNWidth index %d{idx} out of range"
-                            let newWidths = widths |> List.mapi (fun i w -> if i = idx then value else w)
-                            SplitN (n, newWidths, lsbs)
-                        | _ -> failwithf $"Invalid component {comp.Type} for SplitNWidth"
-                    | SplitNLSB idx ->
-                        match comp.Type with
-                        | SplitN (n, widths, lsbs) ->
-                            if idx < 0 || idx >= List.length lsbs then failwithf $"SplitNLSB index %d{idx} out of range"
-                            let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then value else l)
-                            SplitN (n, widths, newLsbs)
-                        | _ -> failwithf $"Invalid component {comp.Type} for SplitNLSB"
-                    | CustomCompParam paramName ->
-                        match comp.Type with
-                        | Custom customComp ->
-                            // Update the parameter value in the custom component's bindings
-                            let newBindings = 
-                                match customComp.ParameterBindings with
-                                | Some bindings -> Map.add (ParamName paramName) (PInt value) bindings
-                                | None -> Map.ofList [(ParamName paramName, PInt value)]
-                            Custom { customComp with ParameterBindings = Some newBindings }
-                        | _ -> failwithf $"CustomCompParam can only be used with Custom components, not {comp.Type}"
-                { comp with Type = newType}
-)
-
-
-/// Return a Lens that can be used to read or update the value of a component slot integer in the component.
-/// The value is contained in the ComponentType part of a Component record.
-/// The Component record will be found in various places, depending on the context.
-/// For Properties changes, the Component record will be in the Model under SelectedComponent.
-/// For changes in a newly created component the component is created by CatalogueView.createComponent.
-/// A partial implementation of this function would be OK for MVP.
-/// NB - the Lens cannot be part of the slot record because the Lens type can change depending on 'PINT.
-/// Maybe this will be fixed by using a D.U. for the slot type: however for MVP
-/// we can simplify things by dealing only with int parameters.
-let modelToSlot_ (slot: ParamSlot) : Optics.Lens<Model, int> =
-    modelToSymbols
-    >-> symbolsToSymbol_ (ComponentId slot.CompId)
-    >-> symbolToComponent_
-    >-> compSlot_ slot.CompSlot
-
-
-// evaluateParamExpression, renderParamExpression, parseExpression, and exprContainsParams
-// have been moved to ParameterTypes module 
-
-
 /// Evaluates a list of constraints got from slots against a set of parameter bindings to
 /// check what values of param are allowed.
 /// NB here 'PINT is not a polymorphic type but a type parameter that will be instantiated to int or bigint.
@@ -670,43 +517,47 @@ let computedBindingsForOpenSheet (model: Model) : ParamBindings =
                 | ParameterAnalysis.DefaultValue _
                 | ParameterAnalysis.MultipleValues _ -> bindings)
 
-/// Put every symbol back to its declared component, then stash the declared component of those
-/// about to display something different. Running the restore first is what makes this safe to
-/// repeat: on a later call `Component` may already hold values computed for a previous top sheet,
-/// and stashing that would record a computed component as if it were the declaration.
-let private stashDeclaredComponents (changed: Set<ComponentId>) (model: Model) : Model =
-    let restoreThenStash cid (sym: SymbolT.Symbol) =
-        let declared = {sym with Component = SymbolUpdate.declaredComponent sym; SavedComponent = None}
-        match Set.contains cid changed with
-        | true -> {declared with SavedComponent = Some declared.Component}
-        | false -> declared
-    model |> Optic.map modelToSymbols (Map.map restoreThenStash)
+/// The declared value of every parameterised slot whose displayed value differs from it, grouped
+/// by the component the slot belongs to. This is what has to be put back before the sheet is
+/// saved; a slot displaying its declared value needs nothing remembering.
+let private declaredSlotValues (model: Model) : Map<ComponentId, Map<CompSlotName, int>> =
+    let declared = paramBindingsOfModel model
+    let computed = computedBindingsForOpenSheet model
+    model
+    |> get paramSlotsOfModel_
+    |> Option.defaultValue Map.empty
+    |> Map.toList
+    |> List.choose (fun (slot, exprSpec) ->
+        match
+            ParameterTypes.evaluateParamExpression declared exprSpec.Expression,
+            ParameterTypes.evaluateParamExpression computed exprSpec.Expression
+            with
+        | Ok declaredValue, Ok computedValue when declaredValue <> computedValue ->
+            Some (ComponentId slot.CompId, (slot.CompSlot, declaredValue))
+        | _ -> None)
+    |> List.groupBy fst
+    |> List.map (fun (compId, entries) -> compId, entries |> List.map snd |> Map.ofList)
+    |> Map.ofList
+
+/// Record on each symbol the declared value of the slots it is about to display differently.
+/// Every symbol is written, so a symbol that no longer differs has its record cleared: this must
+/// be safe to repeat, and on a later call the values may have been computed for a different top
+/// sheet. Only the slot values are recorded, so no other edit to the symbol is disturbed.
+let private stashDeclaredSlots (model: Model) : Model =
+    let byComp = declaredSlotValues model
+    let stash cid (sym: SymbolT.Symbol) =
+        {sym with DeclaredSlots = Map.tryFind cid byComp |> Option.defaultValue Map.empty}
+    model |> Optic.map modelToSymbols (Map.map stash)
 
 /// Draw the open sheet at the values its parameters take under the current top sheet.
-/// What is saved is unaffected: the declared component of every symbol that displays something
-/// different is kept in SavedComponent, which SymbolUpdate.extractComponent hands back.
+/// What is saved is unaffected: the declared value of every slot displaying something different
+/// is kept in the symbol's DeclaredSlots, which SymbolUpdate.extractComponent puts back.
 /// Values are pushed through the same symbol-change path the properties pane uses, so symbol
 /// size, ports and geometry are recomputed rather than patched.
 let applyComputedDisplayValues (model: Model) (dispatch: Msg -> unit) : unit =
-    let declared = paramBindingsOfModel model
     let computed = computedBindingsForOpenSheet model
-    let slots = model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
-    // a slot whose displayed value differs from its declared one is what makes a symbol need
-    // its declaration remembering
-    let changed =
-        slots
-        |> Map.toList
-        |> List.filter (fun (_, exprSpec) ->
-            match
-                ParameterTypes.evaluateParamExpression declared exprSpec.Expression,
-                ParameterTypes.evaluateParamExpression computed exprSpec.Expression
-                with
-            | Ok declaredValue, Ok computedValue -> declaredValue <> computedValue
-            | _ -> false)
-        |> List.map (fun (slot, _) -> ComponentId slot.CompId)
-        |> Set.ofList
     // the stash is dispatched first so that it is applied before the value changes that follow
-    dispatch <| UpdateModel (stashDeclaredComponents changed)
+    dispatch <| UpdateModel stashDeclaredSlots
     updateComponents computed model dispatch
 
 
@@ -1068,8 +919,8 @@ let deleteParameterBox model parameterName dispatch  =
 let computedValueNote (model: Model) (comp: Component) : ReactElement =
     let isDisplayingComputedValues =
         Map.tryFind (ComponentId comp.Id) model.Sheet.Wire.Symbol.Symbols
-        |> Option.bind (fun sym -> sym.SavedComponent)
-        |> Option.isSome
+        |> Option.map (fun sym -> not (Map.isEmpty sym.DeclaredSlots))
+        |> Option.defaultValue false
     match isDisplayingComputedValues with
     | false -> null
     | true ->
@@ -1221,118 +1072,26 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                 [str "Add Parameter"]
         ]
 
-/// Evaluate parameter expression using parameter bindings - exposed for external use
-
-/// Helper function for simulation: resolve parameter expressions for a component
-/// Returns the component type with resolved parameter values
-// Create prisms for component type parameter updates using the existing Optics library
-let buswidthPrism : Prism<ComponentType, int> =
-    Prism.create
-        (function
-            | Viewer w | Input w | Output w 
-            | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
-            | NbitsAnd w | NbitsNot w | NbitsOr w | NbitSpreader w | SplitWire w
-            | Register w | RegisterE w | Counter w | CounterNoLoad w 
-            | CounterNoEnable w | CounterNoEnableLoad w -> Some w
-            | BusCompare1 (w, _, _) | Constant1 (w, _, _) | BusSelection (w, _) 
-            | NbitsXor (w, _) | Shift (w, _, _) | BusCompare (w, _) 
-            | Input1 (w, _) | Constant (w, _) -> Some w
-            | _ -> None)
-        (fun w compType ->
-            match compType with
-            | Viewer _ -> Viewer w
-            | BusCompare1 (_, cv, dt) -> BusCompare1 (w, cv, dt)
-            | BusSelection (_, lsb) -> BusSelection (w, lsb)
-            | Constant1 (_, cv, dt) -> Constant1 (w, cv, dt)
-            | NbitsAdder _ -> NbitsAdder w
-            | NbitsAdderNoCin _ -> NbitsAdderNoCin w
-            | NbitsAdderNoCout _ -> NbitsAdderNoCout w
-            | NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout w
-            | NbitsXor (_, op) -> NbitsXor (w, op)
-            | NbitsAnd _ -> NbitsAnd w
-            | NbitsNot _ -> NbitsNot w
-            | NbitsOr _ -> NbitsOr w
-            | NbitSpreader _ -> NbitSpreader w
-            | SplitWire _ -> SplitWire w
-            | Register _ -> Register w
-            | RegisterE _ -> RegisterE w
-            | Counter _ -> Counter w
-            | CounterNoLoad _ -> CounterNoLoad w
-            | CounterNoEnable _ -> CounterNoEnable w
-            | CounterNoEnableLoad _ -> CounterNoEnableLoad w
-            | Shift (_, _, st) -> Shift (w, shifterWidthFor w, st)
-            | BusCompare (_, cv) -> BusCompare (w, cv)
-            | Input _ -> Input w
-            | Input1 (_, dv) -> Input1 (w, dv)
-            | Output _ -> Output w
-            | Constant (_, cv) -> Constant (w, cv)
-            | _ -> compType)
-
-let defaultValuePrism : Prism<ComponentType, int> =
-    Prism.create
-        (function Input1 (_, dv) -> Some (int (Option.defaultValue 0I dv)) | _ -> None)
-        (fun dv -> function Input1 (w, _) -> Input1 (w, Some (bigint dv)) | t -> t)
-
-let ioPortPrism : Prism<ComponentType, int> =
-    Prism.create
-        (function | Input1 (w, _)
-                  | Output w -> Some w
-                  | BusSelection(_w,lsb) -> Some lsb
-                  | _ -> None)
-        (fun iow -> function 
-            | Input1 (_, dv) -> Input1 (iow, dv) 
-            | Output _ -> Output iow
-            | BusSelection(w, _lsb) -> BusSelection (w, iow)
-            | t -> t)
-
-let resolveParametersForComponent 
-    (paramBindings: ParamBindings) 
-    (paramSlots: Map<ParamSlot, ConstrainedExpr>) 
-    (comp: Component) 
+/// Resolve every parameterised slot of one component against the given bindings.
+/// Used to work out the port widths of a custom component instance before it is placed, and to
+/// refresh a LoadedComponent's port labels. The slot-to-field mapping is ComponentSlots'.
+let resolveParametersForComponent
+    (paramBindings: ParamBindings)
+    (paramSlots: Map<ParamSlot, ConstrainedExpr>)
+    (comp: Component)
     : Result<Component, string> =
-    
-    let compIdStr = comp.Id
-    let relevantSlots = 
-        paramSlots 
-        |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
 
-    if Map.isEmpty relevantSlots then
-        Ok comp
-    else
-        relevantSlots
-        |> Map.toList
-        |> List.fold 
-            (fun (currentType, errorOpt) (slot, constrainedExpr) ->
-                match errorOpt with
-                | Some _ -> (currentType, errorOpt)
-                | None ->
-                    match ParameterTypes.evaluateParamExpression paramBindings constrainedExpr.Expression with
-                    | Ok evaluatedValue -> 
-                        let newType =
-                            match slot.CompSlot with
-                            | Buswidth -> currentType |> (evaluatedValue ^= buswidthPrism)
-                            | IO _ -> currentType |> (evaluatedValue ^= ioPortPrism)
-                            | SplitNWidth idx ->
-                                match currentType with
-                                | SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length widths ->
-                                    let newWidths = widths |> List.mapi (fun i w -> if i = idx then evaluatedValue else w)
-                                    SplitN (n, newWidths, lsbs)
-                                | _ -> currentType
-                            | SplitNLSB idx ->
-                                match currentType with
-                                | SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length lsbs ->
-                                    let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then evaluatedValue else l)
-                                    SplitN (n, widths, newLsbs)
-                                | _ -> currentType
-                            | InputDefault -> currentType |> (evaluatedValue ^= defaultValuePrism)
-                            | CustomCompParam _ -> currentType
-                        (newType, None)
-                    | Error err -> (currentType, Some err)
-            )
-            (comp.Type, None)
-        |> function
-            | (_, Some err) -> Error err
-            | (updatedType, None) -> Ok { comp with Type = updatedType }
+    paramSlots
+    |> Map.filter (fun slot _ -> slot.CompId = comp.Id)
+    |> Map.toList
+    |> List.fold
+        (fun compRes (slot, constrainedExpr) ->
+            compRes
+            |> Result.bind (fun (compType: ComponentType) ->
+                ParameterTypes.evaluateParamExpression paramBindings constrainedExpr.Expression
+                |> Result.map (fun value -> ComponentSlots.setSlotValue slot.CompSlot value compType)))
+        (Ok comp.Type)
+    |> Result.map (fun compType -> { comp with Type = compType })
 
 /// Update LoadedComponent port labels after parameter resolution
 let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedComponent =

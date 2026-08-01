@@ -468,7 +468,7 @@ let createSymbolRecord ldcs theme comp =
             Id = ComponentId comp.Id
             Component = {comp with H=h ; W = w}
             // loaded from file, so at declared values: display values are pushed on afterwards
-            SavedComponent = None
+            DeclaredSlots = Map.empty
             Annotation = None
             Moving = false
             InWidth0 = None
@@ -877,24 +877,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
 // ----------------------interface to Issie----------------------------- //
 /// The symbol's component as DECLARED, with any computed parameter display values undone.
-/// Only the declared Type and the H/W that belong to it are taken from the stashed copy, since
-/// symbol size is derived from the parameter value. Everything identifying or positioning the
-/// component comes from the live symbol: those are user edits which must survive whatever is
-/// being displayed, and taking identity from the live symbol is also what makes a pasted copy
-/// correct, as it inherits SavedComponent from the symbol it was copied from.
+/// Only the parameterised slots are put back; everything else about the component is taken as it
+/// stands, so an edit made while computed values were on display - a constant's value, a memory's
+/// contents, the label, the position - survives being saved.
+/// A pasted copy is correct for the same reason: it inherits DeclaredSlots from the symbol it was
+/// copied from, and those slots mean the same thing on the copy.
 let declaredComponent (symbol: Symbol) : Component =
-    let live = symbol.Component
-    match symbol.SavedComponent with
-    | None -> live
-    | Some saved ->
-        { saved with
-            Id = live.Id
-            Label = live.Label
-            X = live.X
-            Y = live.Y
-            InputPorts = live.InputPorts
-            OutputPorts = live.OutputPorts
-            SymbolInfo = live.SymbolInfo }
+    match Map.isEmpty symbol.DeclaredSlots with
+    | true -> symbol.Component
+    | false ->
+        { symbol.Component with
+            Type = ComponentSlots.setSlotValues symbol.DeclaredSlots symbol.Component.Type }
 
 /// The component as it is DRAWN, including any parameter values computed for the current top
 /// sheet. This is what the properties pane should show; use extractComponent for anything that

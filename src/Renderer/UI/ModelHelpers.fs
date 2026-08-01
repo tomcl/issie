@@ -529,9 +529,12 @@ let private symbolInspection (sym: DrawModelType.SymbolT.Symbol) =
         IsClocked = sym.IsClocked
         IsAnnotation = Option.isSome sym.Annotation
         // true when the symbol is drawn at a parameter value computed for the current top sheet
-        // rather than at the one it declares: see SymbolT.Symbol.SavedComponent
-        DisplaysComputedValues = Option.isSome sym.SavedComponent
-        DeclaredType = sym.SavedComponent |> Option.map (fun c -> string c.Type) |> Option.defaultValue ""
+        // rather than at the one it declares: see SymbolT.Symbol.DeclaredSlots
+        DisplaysComputedValues = not (Map.isEmpty sym.DeclaredSlots)
+        DeclaredSlots =
+            sym.DeclaredSlots
+            |> Map.toArray
+            |> Array.map (fun (slot, value) -> {| Slot = string slot; Declared = value |})
         Ports =
             sym.PortMaps.Orientation
             |> Map.toArray

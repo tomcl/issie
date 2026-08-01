@@ -63,3 +63,37 @@ let customOf
           Form = ldc.Form
           ParameterBindings = bindings
           Description = None }
+
+/// A minimal draw-block symbol wrapping a component. Only the fields the test reads are
+/// meaningful; the rest are zeroed. Symbol.createNewSymbol cannot be used here because it mints a
+/// uuid through a Fable import, which is dummy code under .NET.
+let makeSymbol (comp: Component) : DrawModelType.SymbolT.Symbol =
+    let zero: XYPos = { X = 0.; Y = 0. }
+    { Pos = zero
+      CentrePos = zero
+      OffsetFromBBCentre = zero
+      InWidth0 = None
+      InWidth1 = None
+      InWidths = None
+      LabelBoundingBox = { TopLeft = zero; W = 0.; H = 0. }
+      LabelHasDefaultPos = true
+      LabelRotation = None
+      Appearance =
+        { ShowPorts = DrawModelType.SymbolT.ShowNone
+          ShowCorners = DrawModelType.SymbolT.DontShow
+          HighlightLabel = false
+          Colour = "lightgray"
+          Opacity = 1.0 }
+      Id = ComponentId comp.Id
+      Component = comp
+      DeclaredSlots = Map.empty
+      Annotation = None
+      Moving = false
+      IsClocked = false
+      STransform = { Rotation = Degree0; flipped = false }
+      ReversedInputPorts = None
+      PortMaps = { Order = Map.empty; Orientation = Map.empty }
+      HScale = None
+      VScale = None
+      MovingPort = None
+      MovingPortTarget = None }

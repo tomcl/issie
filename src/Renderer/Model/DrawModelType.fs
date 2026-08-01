@@ -161,19 +161,23 @@ module SymbolT =
             /// NB HScale, VScale modify V, H
             /// This holds the values the symbol is DISPLAYED with. Where the sheet's parameters
             /// resolve to a definite value under the current top sheet, that is the value here -
-            /// see SavedComponent below.
+            /// see DeclaredSlots below.
             Component : Component
 
-            /// The component as declared, when parameter values computed for the current top sheet
-            /// are being displayed and differ from it; None otherwise (so, for almost every symbol).
+            /// The DECLARED value of each parameterised slot whose displayed value differs from it,
+            /// while the sheet is drawn at values computed for the current top sheet. Empty
+            /// otherwise, so for almost every symbol.
             /// Drawing at computed values must not change what is written to the .dgm, so
-            /// SymbolUpdate.extractComponent - the sole path from symbols to saved state - prefers
-            /// this. Type/H/W come from here (size is derived from the parameter value) while
-            /// position and layout come from the live symbol, as those are user edits.
+            /// SymbolUpdate.extractComponent - the sole path from symbols to saved state - puts
+            /// these values back before saving.
+            /// Slot values rather than a whole declared Component: everything about the symbol
+            /// that is NOT a parameterised slot - a constant's value, a memory's contents, the
+            /// label, the position - is then saved as it stands, instead of being reverted along
+            /// with the parameter. Stashing a whole component silently discarded such edits.
             /// The computed value lives in Component rather than here because SymbolView.renderSymbol
             /// memoises on the whole Symbol record: a computed value held outside the symbol would
             /// leave the memo blind to a top-sheet change and the canvas would silently go stale.
-            SavedComponent : Component option
+            DeclaredSlots : Map<ParameterTypes.CompSlotName, int>
 
             /// Use Some Annotation for visible (and clickable) objects on screen
             /// In this case Component is a dummy used only to provide expected H & V
@@ -219,7 +223,7 @@ module SymbolT =
     let movingPort_ = Lens.create (fun a -> a.MovingPort) (fun s a -> {a with MovingPort = s})
     let movingPortTarget_ = Lens.create (fun a -> a.MovingPortTarget) (fun s a -> {a with MovingPortTarget = s})
     let component_ = Lens.create (fun a -> a.Component) (fun s a -> {a with Component = s})
-    let savedComponent_ = Lens.create (fun a -> a.SavedComponent) (fun s a -> {a with SavedComponent = s})
+    let declaredSlots_ = Lens.create (fun a -> a.DeclaredSlots) (fun s a -> {a with DeclaredSlots = s})
     let posOfSym_ = Lens.create (fun a -> a.Pos) (fun s a -> {a with Pos = s})
     let getScaleF = Option.defaultValue 1.
     let scaleF_ = Lens.create

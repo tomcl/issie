@@ -913,9 +913,7 @@ let sheetMsg sMsg model =
             let pasteCmd =
                 match pending with
                 | Some (PastedFromClipboard pastedIds) ->
-                    let sourceIds =
-                        SymbolUpdate.copiedSymbolsInPasteOrder model'.Sheet.Wire.Symbol
-                        |> List.map (fun sym -> sym.Id)
+                    let sourceIds = BlockHelpers.getCopiedSymbols model'.Sheet.Wire.Symbol
                     match List.length sourceIds = List.length pastedIds with
                     | false -> Cmd.none
                     | true ->

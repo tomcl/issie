@@ -313,11 +313,23 @@ let getSymbolPos (symbolModel: SymbolT.Model) compId = //makes sense or should w
     let symbol = Map.find compId symbolModel.Symbols
     symbol.Pos
 
-/// Interface function to get componentIds of the copied symbols
-let getCopiedSymbols (symModel: SymbolT.Model) : (ComponentId list) =
+/// The copied symbols in the order SymbolUpdate.pasteSymbols creates new symbols from them.
+/// This ordering is load-bearing: pasteSymbols returns the new component ids in this order, and
+/// pasteWires pairs old with new by position in the two lists to find the equivalent ports.
+/// Both sides must therefore agree - they did not between July 2025 (when the sort below was
+/// added to pasteSymbols alone, the two having previously shared plain Map order) and the fix
+/// that added this function, during which pasting connected components could attach a wire to
+/// the wrong component or drop it.
+let copiedSymbolsInPasteOrder (symModel: SymbolT.Model) : SymbolT.Symbol list =
     symModel.CopiedSymbols
     |> Map.toList
-    |> List.map fst
+    |> List.map snd
+    |> List.sortBy (fun sym -> sym.Pos.Y)
+
+/// Interface function to get componentIds of the copied symbols
+let getCopiedSymbols (symModel: SymbolT.Model) : (ComponentId list) =
+    copiedSymbolsInPasteOrder symModel
+    |> List.map (fun sym -> sym.Id)
 
 
 /// Returns the port object associated with a given portId

@@ -678,21 +678,45 @@ let applyComputedDisplayValues (model: Model) (dispatch: Msg -> unit) : unit =
 let copyParamSlotsToPastedComponents (pairs: (string * string) list) (model: Model) : Model =
     let slots = model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
     let declared = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
-    let copyable (exprSpec: ConstrainedExpr) =
-        ParameterTypes.paramNamesOfSlot exprSpec
-        |> List.forall (fun name -> Map.containsKey name declared)
+    let isDeclaredHere name = Map.containsKey name declared
+    let pastedIds = pairs |> List.map snd |> Set.ofList
+
+    // 1. the slot expressions, keyed by component id, copied onto the new ids
     let copied =
         pairs
         |> List.collect (fun (sourceId, pastedId) ->
             slots
             |> Map.toList
-            |> List.filter (fun (slot, exprSpec) -> slot.CompId = sourceId && copyable exprSpec)
+            |> List.filter (fun (slot, exprSpec) ->
+                slot.CompId = sourceId
+                && ParameterTypes.paramNamesOfSlot exprSpec |> List.forall isDeclaredHere)
             |> List.map (fun (slot, exprSpec) -> {slot with CompId = pastedId}, exprSpec))
-    match copied with
-    | [] -> model
-    | _ ->
-        let slots' = (slots, copied) ||> List.fold (fun acc (slot, exprSpec) -> Map.add slot exprSpec acc)
-        set paramSlotsOfModel_ slots' model
+    let withSlots =
+        match copied with
+        | [] -> model
+        | _ ->
+            let slots' = (slots, copied) ||> List.fold (fun acc (slot, exprSpec) -> Map.add slot exprSpec acc)
+            set paramSlotsOfModel_ slots' model
+
+    // 2. a custom component instance stores its bindings twice: in the CustomCompParam slot above
+    // and on the component itself. The component was copied verbatim, so drop from it any binding
+    // whose expression names a parameter this sheet does not declare - the instance then
+    // elaborates that parameter at the child sheet's default, which is the whole point of the
+    // default. Without this a paste into another sheet leaves a binding referring to nothing.
+    let pruneBindings _ (sym: SymbolT.Symbol) =
+        match Set.contains sym.Component.Id pastedIds, sym.Component.Type with
+        | true, Custom cc ->
+            let bindings = cc.ParameterBindings |> Option.defaultValue Map.empty
+            let kept =
+                bindings
+                |> Map.filter (fun _ expr -> ParameterTypes.paramNamesOfExpr expr |> List.forall isDeclaredHere)
+            match Map.count kept = Map.count bindings with
+            | true -> sym
+            | false ->
+                let cc' = {cc with ParameterBindings = if Map.isEmpty kept then None else Some kept}
+                {sym with Component = {sym.Component with Type = Custom cc'}}
+        | _ -> sym
+    withSlots |> Optic.map modelToSymbols (Map.map pruneBindings)
 
 
 /// Updates the LCParameterSlots DefaultParams section.

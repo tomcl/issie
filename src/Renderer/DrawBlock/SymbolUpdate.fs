@@ -142,18 +142,10 @@ let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
 /// Interface function to paste symbols. Is a function instead of a message because we want an output.
 /// Currently drag-and-drop.
 /// Pastes a list of symbols into the model and returns the new model and the id of the pasted modules.
-/// The copied symbols in the order pasteSymbols creates new symbols from them. The ids it returns
-/// are in this same order, so the two can be zipped to pair each pasted component with the one it
-/// was copied from - which is how the pasted copy inherits its parameter slots.
-let copiedSymbolsInPasteOrder (model: Model) : Symbol list =
-    model.CopiedSymbols
-    |> Map.toList
-    |> List.map snd
-    |> List.sortBy (fun sym -> sym.Pos.Y)
-
 let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT.Wire>) (newBasePos: XYPos) : (Model * ComponentId list) =
 
-    let oldSymbolsList = copiedSymbolsInPasteOrder model
+    // the ids returned below are in this order, and pasteWires relies on that: see BlockHelpers
+    let oldSymbolsList = BlockHelpers.copiedSymbolsInPasteOrder model
 
     let addNewSymbol (basePos: XYPos) ((currSymbolModel, pastedIdsList) : Model * ComponentId List) (oldSymbol: Symbol): Model * ComponentId List =
         

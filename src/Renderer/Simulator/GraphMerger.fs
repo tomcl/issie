@@ -377,86 +377,11 @@ let rec private resolveSheet
     /// </remarks>
     let evalExpr expr = ParameterTypes.evaluateParamExpression bindings expr
 
-    /// <summary>
-    /// Applies a resolved parameter value to the appropriate slot in a component type.
-    /// </summary>
-    /// <param name="compType">The component type to update</param>
-    /// <param name="slot">The slot identifier specifying which parameter to update</param>
-    /// <param name="value">The resolved integer value to apply</param>
-    /// <returns>A new component type with the parameter value applied</returns>
-    /// <remarks>
-    /// This function handles two main categories of parameter slots:
-    ///
-    /// 1. Buswidth: Updates the width parameter for components that have configurable bus widths
-    ///    - Viewer, BusCompare, BusSelection, Constant components
-    ///    - Arithmetic components (Adders, XOR, AND, OR, NOT)
-    ///    - Memory components (Registers, Counters)
-    ///    - Wire manipulation (Splitter, Spreader)
-    ///    - I/O components (Input, Output)
-    ///
-    /// 2. IO: Updates the bit width for Input/Output components with specific labels
-    ///    - Input1 and Output components matching the IO label
-    ///
-    /// For unmatched slot/component combinations, returns the original component type unchanged.
-    /// This ensures backward compatibility and graceful handling of new component types.
-    /// </remarks>
+    /// Apply a resolved parameter value to the slot it fills. ComponentSlots is the one place
+    /// that knows how a slot maps onto a field of a ComponentType; elaboration used to carry its
+    /// own copy, which drifted from the one the properties pane used.
     let applySlotValue compType (slot: CompSlotName) value =
-        match slot, compType with
-        // Buswidth updates
-        | Buswidth, Viewer _ -> Viewer value
-        | Buswidth, BusCompare1 (_, cv, dt) -> BusCompare1 (value, cv, dt)
-        | Buswidth, BusSelection (_, lsb) -> BusSelection (value, lsb)
-        | Buswidth, Constant1 (_, cv, dt) -> Constant1 (value, cv, dt)
-        | Buswidth, NbitsAdder _ -> NbitsAdder value
-        | Buswidth, NbitsAdderNoCin _ -> NbitsAdderNoCin value
-        | Buswidth, NbitsAdderNoCout _ -> NbitsAdderNoCout value
-        | Buswidth, NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout value
-        | Buswidth, NbitsXor (_, op) -> NbitsXor (value, op)
-        | Buswidth, NbitsAnd _ -> NbitsAnd value
-        | Buswidth, NbitsNot _ -> NbitsNot value
-        | Buswidth, NbitsOr _ -> NbitsOr value
-        | Buswidth, NbitSpreader _ -> NbitSpreader value
-        | Buswidth, SplitWire _ -> SplitWire value
-        | Buswidth, Register _ -> Register value
-        | Buswidth, RegisterE _ -> RegisterE value
-        | Buswidth, Counter _ -> Counter value
-        | Buswidth, CounterNoLoad _ -> CounterNoLoad value
-        | Buswidth, CounterNoEnable _ -> CounterNoEnable value
-        | Buswidth, CounterNoEnableLoad _ -> CounterNoEnableLoad value
-        | Buswidth, Shift (_, _, st) -> Shift (value, shifterWidthFor value, st)
-        | Buswidth, BusCompare (_, cv) -> BusCompare (value, cv)
-        | Buswidth, Input _ -> Input value
-        | Buswidth, Input1 (_, dv) -> Input1 (value, dv)
-        | Buswidth, Output _ -> Output value
-        | Buswidth, Constant (_, cv) -> Constant (value, cv)
-        // IO ports
-        | IO _, Input1 (_, dv) -> Input1 (value, dv)
-        | IO _, Output _ -> Output value
-        // An IO slot is a width only on an Input or an Output. The properties pane puts two other
-        // fields in it - the LSB of a BusSelection and the comparison value of a BusCompare, both
-        // from SelectedComponentView.makeLsbBitNumberField - because a component's slots are keyed
-        // by name and those fields already had Buswidth taken by the component's width.
-        // Without these cases the value is applied to the canvas but not to the simulation, so an
-        // instance binding the parameter away from its default simulates the saved number instead.
-        | IO _, BusSelection (w, _) -> BusSelection (w, value)
-        | IO _, BusCompare (w, _) -> BusCompare (w, bigint value)
-        // Value an input takes when undriven
-        | InputDefault, Input1 (w, _) -> Input1 (w, Some (bigint value))
-        // A parameter of the sheet inside a custom component, bound by this instance to an
-        // expression in the parameters of the sheet the instance sits on. Applying it here is what
-        // carries a parameter down the sheet tree: resolveSheet descends using the bindings of the
-        // component as processed, so the value computed here is the one the inner sheet resolves with.
-        | CustomCompParam paramName, Custom cc ->
-            let bindings = cc.ParameterBindings |> Option.defaultValue Map.empty
-            Custom { cc with ParameterBindings = Some (Map.add (ParamName paramName) (PInt value) bindings) }
-        // SplitN output slots
-        | SplitNWidth idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length widths ->
-            let newWidths = widths |> List.mapi (fun i w -> if i = idx then value else w)
-            SplitN (n, newWidths, lsbs)
-        | SplitNLSB idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length lsbs ->
-            let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then value else l)
-            SplitN (n, widths, newLsbs)
-        | _ -> compType
+        ComponentSlots.setSlotValue slot value compType
 
     // Process a single component
     let processComponent (ComponentId compIdStr as compId) (comp: SimulationComponent) =

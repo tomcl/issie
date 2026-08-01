@@ -317,6 +317,12 @@ let displayView model dispatch =
     if time - Option.defaultValue 0. lastMemoryCheckTime > float Constants.memoryCheckMinTime then
         lastMemoryCheckTime <- Some time
         dispatch CheckMemory
+    // Debug builds publish what the draw block is showing as window.issie, for
+    // scripts/inspect-canvas.js to read over the DevTools protocol - see ModelHelpers.
+    // A function rather than the data, so that nothing is computed unless something asks: all
+    // this costs per render is one closure and one object.
+    if JSHelpers.debugLevel > 0 then
+        window?issie <- createObj [ "canvas" ==> (fun () -> ModelHelpers.canvasInspection model) ]
     //JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight

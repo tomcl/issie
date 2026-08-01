@@ -45,7 +45,12 @@ let electronStarted = false;
       var buildFile = path.join(buildPath, 'index.js');
       buildFile = '\"' + buildFile + '\"';
 
-      const electron = spawn(electronPath, [buildFile],{stdio: 'inherit', shell:true});
+      // Expose the Chrome DevTools Protocol so that scripts/inspect-canvas.js can read the draw
+      // block's geometry and screenshot the renderer. Development only: this script is not used
+      // by `npm run build` or by a packaged app, so no released build ever listens on this port.
+      const debugPort = process.env.ISSIE_DEBUG_PORT || '9222';
+
+      const electron = spawn(electronPath, [`--remote-debugging-port=${debugPort}`, buildFile],{stdio: 'inherit', shell:true});
 
       electron.on('exit', function () {
           process.exit(0);

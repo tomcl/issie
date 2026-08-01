@@ -19,6 +19,12 @@ npm run typecheck  # dotnet build of Renderer.fsproj: F# type check without Fabl
 
 There is no lint command; the F# compiler is the check.
 
+**You can see what the running app is drawing.** `npm run dev` opens a DevTools-protocol port, and
+`scripts/inspect-canvas.js` reads the canvas through it — symbol geometry and wire routing from the
+model, the SVG as rendered, a screenshot, or arbitrary JavaScript evaluated in the renderer (which
+can click through the UI). Use it instead of guessing when the drawing and the model might disagree.
+See [docs/dev/inspectingTheCanvas.md](docs/dev/inspectingTheCanvas.md).
+
 `dotnet test` exists but the tests are outdated and may not work. The JS simulator harness under
 `simulator_tests/js` no longer compiles either: its fsproj references
 `src/Renderer/Simulator/SimulatorTypes.fs`, which has since been split into `SimGraphTypes.fs` and

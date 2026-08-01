@@ -98,8 +98,31 @@ let newParamValue_ = Optics.Lens.create (fun s -> s.Value) (fun v s -> {s with V
 /// Part of Model.PopupDialogData.DialogState.
 type ParamBoxDialogState = Map<CompSlotName, Result<NewParamCompSpec, ParamError>>
 
-/// Map from name to expression for each parameter
+/// Map from name to expression for each parameter.
+/// This is what an INSTANCE binds: a custom component binding carries no description, because the
+/// description belongs to the declaration on the sheet inside it.
 type ParamBindings = Map<ParamName, ParamExpression>
+
+/// The DECLARATION of one parameter on a sheet: its default value and what it means.
+/// The description is compulsory - it is what the user reads when a custom component instance of
+/// the sheet asks them for a value, so a parameter without one cannot be explained at the point
+/// it has to be understood.
+type ParamDefinition = {
+    Expression: ParamExpression
+    Description: string
+}
+
+/// Lenses for ParamDefinition
+let paramExpression_ = Optics.Lens.create (fun s -> s.Expression) (fun v s -> {s with Expression = v})
+let paramDescription_ = Optics.Lens.create (fun s -> s.Description) (fun v s -> {s with Description = v})
+
+/// The parameters a sheet declares, with their defaults and descriptions.
+type ParamDefinitions = Map<ParamName, ParamDefinition>
+
+/// The declarations seen as an evaluation environment: descriptions dropped.
+/// Every place that evaluates an expression against a sheet's defaults goes through this.
+let bindingsOf (defs: ParamDefinitions) : ParamBindings =
+    defs |> Map.map (fun _ def -> def.Expression)
 
 
 /// For Part A: alternatively you could store slot information in the component record
@@ -112,7 +135,7 @@ type ComponentSlotExpr = Map<ParamSlot, ConstrainedExpr>
 /// LoadedComponent.LCParameterSlots
 /// (also used in SheetInfo - to save / load files - but the LoadedComponent field is the only one used by HLP Teams)
 type ParameterDefs = {
-    DefaultBindings: ParamBindings
+    DefaultBindings: ParamDefinitions
     ParamSlots: ComponentSlotExpr
 }
 

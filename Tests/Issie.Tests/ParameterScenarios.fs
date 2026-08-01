@@ -13,6 +13,11 @@ open CanvasBuilder
 
 let private maxArraySize = 10
 
+/// A parameter declaration. Descriptions are compulsory on a sheet parameter but say nothing
+/// these tests depend on, so they are filled in from the parameter name.
+let private declares (name: string) (expr: ParamExpression) =
+    ParamName name, {Expression = expr; Description = $"test parameter {name}"}
+
 /// The parameterised child sheet: S = (A + B) truncated to W bits, W defaulting to 4
 let private childLdc =
     let a = makeComp "a" 0 1 (Input1(4, None)) "A"
@@ -22,7 +27,7 @@ let private childLdc =
     let canvas = [ a; b; add; s ], [ conn a 0 add 0; conn b 0 add 1; conn add 0 s 0 ]
     let wExpr = { Expression = PParameter(ParamName "W"); Constraints = [] }
     let paramDefs =
-        { DefaultBindings = Map [ ParamName "W", PInt 4 ]
+        { DefaultBindings = Map [ declares "W" (PInt 4) ]
           ParamSlots =
             Map [ { CompId = "a"; CompSlot = IO "A" }, wExpr
                   { CompId = "b"; CompSlot = IO "B" }, wExpr
@@ -129,7 +134,7 @@ let tests =
             let cc = childInstance "cc" 8 (Some(Map [ ParamName "W", PParameter(ParamName "P") ]))
             let out = makeComp "sout" 1 0 (Output 8) "S"
             let paramDefs =
-                { DefaultBindings = Map [ ParamName "P", PInt 8 ]
+                { DefaultBindings = Map [ declares "P" (PInt 8) ]
                   ParamSlots =
                     Map [ { CompId = "x"; CompSlot = IO "X" }, { Expression = PParameter(ParamName "P"); Constraints = [] }
                           { CompId = "y"; CompSlot = IO "Y" }, { Expression = PParameter(ParamName "P"); Constraints = [] }
@@ -151,7 +156,7 @@ let tests =
             let s2 = makeComp "s2" 1 0 (Output 4) "S2"
             let pExpr = { Expression = PParameter(ParamName "P"); Constraints = [] }
             let midDefs =
-                { DefaultBindings = Map [ ParamName "P", PInt 4 ]
+                { DefaultBindings = Map [ declares "P" (PInt 4) ]
                   ParamSlots =
                     Map [ { CompId = "a2"; CompSlot = IO "A2" }, pExpr
                           { CompId = "b2"; CompSlot = IO "B2" }, pExpr
@@ -196,7 +201,7 @@ let tests =
             let a = makeComp "a" 0 1 (Input1(4, None)) "A"
             let s = makeComp "s" 1 0 (Output 4) "S"
             let defs =
-                { DefaultBindings = Map [ ParamName "W", PDivide(PInt 4, PInt 0) ]
+                { DefaultBindings = Map [ declares "W" (PDivide(PInt 4, PInt 0)) ]
                   ParamSlots =
                     Map [ { CompId = "a"; CompSlot = IO "A" },
                           { Expression = PParameter(ParamName "W"); Constraints = [] } ] }
@@ -210,7 +215,7 @@ let tests =
             let a = makeComp "a" 0 1 (Input1(4, None)) "A"
             let s = makeComp "s" 1 0 (Output 4) "S"
             let defs =
-                { DefaultBindings = Map [ ParamName "W", PParameter(ParamName "W") ]
+                { DefaultBindings = Map [ declares "W" (PParameter(ParamName "W")) ]
                   ParamSlots =
                     Map [ { CompId = "a"; CompSlot = IO "A" },
                           { Expression = PParameter(ParamName "W"); Constraints = [] } ] }

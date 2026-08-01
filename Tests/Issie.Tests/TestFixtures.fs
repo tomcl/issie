@@ -220,6 +220,7 @@ let loadLoadedComponent (filePath: string) : LoadedComponent =
       LCParameterSlots = sheetInfo |> Option.bind (fun si -> si.ParameterDefinitions)
       Form = (match sheetInfo with Some si -> si.Form | None -> Some User)
       LoadedComponentIsOutOfDate = false
+      IsTopSheet = sheetInfo |> Option.bind (fun si -> si.IsTopSheet) |> Option.defaultValue false
       Description = sheetInfo |> Option.bind (fun si -> si.Description) }
 
 /// Load every sheet of a fixture project directory

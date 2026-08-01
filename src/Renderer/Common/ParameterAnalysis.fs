@@ -41,11 +41,15 @@ type SheetInstance = {
 /// as its own single instance with an empty path).
 type SheetInstances = Map<string, SheetInstance list>
 
-/// The parameters a sheet declares: its default bindings.
-let declaredParams (ldc: LoadedComponent) : ParamBindings =
+/// The parameters a sheet declares, with their defaults and descriptions.
+let declaredParamDefs (ldc: LoadedComponent) : ParamDefinitions =
     ldc.LCParameterSlots
     |> Option.map (fun ps -> ps.DefaultBindings)
     |> Option.defaultValue Map.empty
+
+/// The parameters a sheet declares as an evaluation environment: its default bindings.
+let declaredParams (ldc: LoadedComponent) : ParamBindings =
+    declaredParamDefs ldc |> bindingsOf
 
 /// The parameterised slots of a sheet.
 let sheetParamSlots (ldc: LoadedComponent) : ComponentSlotExpr =
@@ -271,8 +275,11 @@ let sheetsUnderTop (ldcs: LoadedComponent list) (topSheet: string) : Set<string>
 
 /// One modification the bind-to-top offer would make if accepted.
 type ChainAction =
-    /// Declare parameter Param on Sheet with the given default value.
-    | AddSheetParam of Sheet: string * Param: ParamName * Default: ParamInt
+    /// Declare parameter Param on Sheet with the given default value and description.
+    /// The description is copied from the declaring ancestor: a pass-through parameter created
+    /// here means the same thing as the one it is being chained to, and every parameter must
+    /// carry a description.
+    | AddSheetParam of Sheet: string * Param: ParamName * Default: ParamInt * Description: string
     /// Bind parameter Param of the instance InstanceId (of sheet ChildSheet, labelled
     /// InstanceLabel) on Sheet to the expression `Param`, i.e. to Sheet's own parameter.
     | BindInstance of Sheet: string * InstanceId: string * InstanceLabel: string * ChildSheet: string * Param: ParamName
@@ -303,7 +310,7 @@ type BindOffer = {
 let sheetsModifiedByOffer (offer: BindOffer) : string list =
     offer.Actions
     |> List.map (function
-        | AddSheetParam (sheet, _, _) -> sheet
+        | AddSheetParam (sheet, _, _, _) -> sheet
         | BindInstance (sheet, _, _, _, _) -> sheet)
     |> List.distinct
 
@@ -384,6 +391,12 @@ let private chainActionsForInstance
             |> Option.bind (Map.tryFind name)
             |> Option.flatten
             |> Option.defaultValue 1
+        let descriptionOf sheetName =
+            Map.tryFind sheetName byName
+            |> Option.map declaredParamDefs
+            |> Option.bind (Map.tryFind name)
+            |> Option.map (fun def -> def.Description)
+            |> Option.defaultValue ""
         let bindingExists (link: InstancePathLink) =
             match Map.tryFind link.ParentSheet byName with
             | None -> false
@@ -396,9 +409,11 @@ let private chainActionsForInstance
                     | _ -> None)
                 |> Option.map (Map.containsKey name)
                 |> Option.defaultValue false
-        // parameters created on intermediate sheets take the value of a declaring ancestor as
-        // their default, so those sheets remain viewable and simulatable standalone
-        let rootDefault = defaultOf (Set.minElement declarers)
+        // parameters created on intermediate sheets take the value and meaning of a declaring
+        // ancestor, so those sheets remain viewable and simulatable standalone
+        let rootDeclarer = Set.minElement declarers
+        let rootDefault = defaultOf rootDeclarer
+        let rootDescription = descriptionOf rootDeclarer
         let chainEdges =
             edges
             |> List.filter (fun e -> Set.contains e.ParentSheet chainSheets && Set.contains e.ChildSheet chainSheets)
@@ -407,7 +422,7 @@ let private chainActionsForInstance
             chainSheets
             |> Set.toList
             |> List.filter (declares >> not)
-            |> List.map (fun sheetName -> AddSheetParam (sheetName, name, rootDefault))
+            |> List.map (fun sheetName -> AddSheetParam (sheetName, name, rootDefault, rootDescription))
         let bindActions =
             chainEdges
             |> List.filter (bindingExists >> not)

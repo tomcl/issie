@@ -621,6 +621,80 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
             ]
         ]
 
+/// Create the body of a dialog Popup with a name, a compulsory description, and an int.
+/// Used to declare a sheet parameter: the description is what a custom component instance of the
+/// sheet shows the user when it asks them for a value, so a parameter cannot be declared without
+/// one. Name goes to Text, description to Text2, value to Int.
+let dialogPopupBodyTextDescriptionAndInt beforeText placeholder beforeDescription descriptionPlaceholder beforeInt intDefault dispatch =
+
+    intDefault |> Some |> SetPopupDialogInt |> dispatch
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
+        let goodLabelStart =
+                getText dialogData
+                |> (fun s -> String.startsWithLetter s || s = "")
+        let goodLabelLetters =
+                 getText dialogData
+                 |> (fun s -> Regex.IsMatch(s, "^[a-zA-Z0-9]+$") || s = "")
+        // an empty description is only flagged once the user has started naming the parameter,
+        // so the popup does not open already showing an error
+        let describedOrUnstarted = getText2 dialogData <> "" || getText dialogData = ""
+        div [] [
+            beforeText dialogData
+            Input.text [
+                Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck false]
+                Input.Placeholder placeholder
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabelStart] [str "Name must start with a letter."]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden (goodLabelLetters || not goodLabelStart)] [str "Name can only contain letters and numbers."]
+            br []
+            br []
+            beforeDescription dialogData
+            Input.text [
+                Input.Props [OnPaste preventDefault; SpellCheck true]
+                Input.Placeholder descriptionPlaceholder
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText2 >> dispatch)
+            ]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden describedOrUnstarted] [str "A description is required: it is what users of this sheet read when asked for a value."]
+            br []
+            br []
+            beforeInt dialogData
+            br []
+            Input.number [
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]]
+                Input.DefaultValue <| sprintf "%d" intDefault
+                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+        ]
+
+/// Create the body of a dialog Popup with a compulsory description and an int, for editing an
+/// existing sheet parameter whose name is fixed. The caller seeds Text2 with the current
+/// description so that editing only the value leaves it intact.
+let dialogPopupBodyDescriptionAndInt beforeDescription currentDescription beforeInt intDefault dispatch =
+
+    intDefault |> Some |> SetPopupDialogInt |> dispatch
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
+        div [] [
+            beforeDescription dialogData
+            Input.text [
+                Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck true]
+                Input.DefaultValue currentDescription
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText2 >> dispatch)
+            ]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden (getText2 dialogData <> "")] [str "A description is required: it is what users of this sheet read when asked for a value."]
+            br []
+            br []
+            beforeInt dialogData
+            br []
+            Input.number [
+                Input.Props [OnPaste preventDefault; Style [Width "60px"]]
+                Input.DefaultValue <| sprintf "%d" intDefault
+                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
+            ]
+        ]
+
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyIntAndText beforeText placeholder beforeInt intDefault dispatch =
     intDefault |> Some |> SetPopupDialogInt |> dispatch

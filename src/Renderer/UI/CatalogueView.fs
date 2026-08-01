@@ -62,7 +62,7 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
         // stale-chain problem the offer replaces.
         let defaultParameterBindings =
             match loadedComponent.LCParameterSlots with
-            | Some paramSlots -> paramSlots.DefaultBindings
+            | Some paramSlots -> ParameterTypes.bindingsOf paramSlots.DefaultBindings
             | None -> Map.empty
 
         // Resolve parameters in the canvas state before extracting port labels, at the
@@ -118,7 +118,7 @@ let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)
         // at the sheet's declared defaults.
         let defaultParameterBindings =
             match loadedComponent.LCParameterSlots with
-            | Some paramSlots -> paramSlots.DefaultBindings
+            | Some paramSlots -> ParameterTypes.bindingsOf paramSlots.DefaultBindings
             | None -> Map.empty
 
         // Resolve parameters in the canvas state before extracting port labels

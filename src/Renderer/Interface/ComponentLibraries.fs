@@ -138,14 +138,16 @@ let private readLibrary (librariesPath: string) (libName: string) : ComponentLib
 
 /// Every library shipped with Issie. Read once when the application starts: the index files make
 /// this cheap, and the catalogue is a pure render function so it cannot read them itself.
-/// Anything in the libraries directory that is not a directory of sheets - the README, say - has
-/// no components and so is simply not a library.
+/// Only directories are considered. Anything else in the libraries directory - the README, say -
+/// is skipped here rather than further down, because reading a file as though it were a directory
+/// logs a warning on every startup even though the result is correctly no library.
 let readLibraries () : ComponentLibrary list =
     let librariesPath = pathJoin [| staticFileDirectory; Constants.librariesDirectory |]
     match exists librariesPath with
     | false -> []
     | true ->
         readFilesFromDirectory librariesPath
+        |> List.filter (fun name -> isDirectory (pathJoin [| librariesPath; name |]))
         |> List.choose (readLibrary librariesPath)
         |> List.sortBy (fun lib -> lib.Name)
 

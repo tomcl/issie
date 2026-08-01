@@ -26,10 +26,14 @@ screenshot, or arbitrary JavaScript evaluated in the renderer (which can click t
 it instead of guessing when the drawing and the model might disagree.
 See [docs/dev/inspectingTheCanvas.md](docs/dev/inspectingTheCanvas.md).
 
-`dotnet test` exists but the tests are outdated and may not work. The JS simulator harness under
-`simulator_tests/js` no longer compiles either: its fsproj references
-`src/Renderer/Simulator/SimulatorTypes.fs`, which has since been split into `SimGraphTypes.fs` and
-`SimTypes.fs`.
+`npm run test` runs the Expecto suite under `Tests/Issie.Tests` (`dotnet run`, not `dotnet test`).
+It works and is fast — around 100 tests in 16s — and it reaches the whole of `Renderer.fsproj`, so
+simulation, parameter resolution and even UI-module helpers can all be tested. Use it: a fix to
+simulation or parameter behaviour can be pinned by a test rather than argued about.
+
+The JS simulator harness under `simulator_tests/js` is a different thing and no longer compiles:
+its fsproj references `src/Renderer/Simulator/SimulatorTypes.fs`, which has since been split into
+`SimGraphTypes.fs` and `SimTypes.fs`.
 
 ## Things the code will not tell you
 

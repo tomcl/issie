@@ -333,6 +333,48 @@ let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBin
         { comp with Type = Custom updatedCustom }
     | _ -> comp
 
+/// The port widths an instance of `childSheet` has when it binds its parameters as given.
+///
+/// An instance binding is an expression in the parameters of the sheet the instance SITS ON, so it
+/// is evaluated there first; the child sheet's own declared defaults then fill in every parameter
+/// the instance does not bind. That merged environment - the same one GraphMerger.effectiveBindings
+/// builds for elaboration - is what the child's IO slot expressions have to be evaluated in.
+///
+/// Evaluating them against the raw instance bindings instead leaves every unbound parameter
+/// undefined, and makes a parameter bound to a same-named parent parameter look self-referential,
+/// so the width silently comes out as zero.
+///
+/// A label whose width cannot be worked out is left out of the result rather than guessed at, so
+/// its port keeps the width it already has.
+let portWidthsOfInstance
+        (ldcs: LoadedComponent list)
+        (parentBindings: ParamBindings)
+        (childSheet: string)
+        (instanceBindings: ParamBindings)
+        : Map<string, int> =
+    match ldcs |> List.tryFind (fun lc -> lc.Name = childSheet) with
+    | None -> Map.empty
+    | Some childLdc ->
+        let effective =
+            ParameterAnalysis.declaredParams childLdc
+            |> Map.map (fun name defExpr ->
+                Map.tryFind name instanceBindings
+                |> Option.bind (fun expr ->
+                    ParameterTypes.evaluateParamExpression parentBindings expr
+                    |> Result.toOption
+                    |> Option.map PInt)
+                |> Option.defaultValue defExpr)
+        ParameterAnalysis.sheetParamSlots childLdc
+        |> Map.toSeq
+        |> Seq.choose (fun (slot, exprSpec) ->
+            match slot.CompSlot with
+            | IO label ->
+                ParameterTypes.evaluateParamExpression effective exprSpec.Expression
+                |> Result.toOption
+                |> Option.map (fun width -> label, width)
+            | _ -> None)
+        |> Map.ofSeq
+
 /// Push the values of the parameterised slots of ONE component onto the canvas.
 /// All of a component's slots are applied together because two of the messages replace a whole
 /// field of the component type - a SplitN's width and LSB lists, a custom component's parameter
@@ -364,23 +406,8 @@ let updateComponentSlots dispatch (model: Model) (compIdStr: string) (slotValues
         | Some project ->
             // the instance's port widths at the new bindings, from the child sheet's IO slots
             let labelToEval =
-                project.LoadedComponents
-                |> List.tryFind (fun lc -> lc.Name = customComp.Name)
-                |> Option.bind (fun sheet -> sheet.LCParameterSlots)
-                |> Option.map (fun sheetInfo ->
-                    sheetInfo.ParamSlots
-                    |> Map.toSeq
-                    |> Seq.choose (fun (paramSlot, constrainedExpr) ->
-                        match paramSlot.CompSlot with
-                        | IO label ->
-                            let evaluatedValue =
-                                match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
-                                | Ok expr -> expr
-                                | Error _ -> 0
-                            Some (label, evaluatedValue)
-                        | _ -> None)
-                    |> Map.ofSeq)
-                |> Option.defaultValue Map.empty
+                portWidthsOfInstance
+                    project.LoadedComponents (paramBindingsOfModel model) customComp.Name newBindings
 
             let updatedCustom = updateCustomComponent labelToEval newBindings comp
             dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, updatedCustom.Type))))
@@ -393,7 +420,11 @@ let updateComponentSlots dispatch (model: Model) (compIdStr: string) (slotValues
         slotValues
         |> List.iter (fun (slot, value) ->
             match comp.Type, slot with
-            | BusSelection _, IO _ -> model.Sheet.ChangeLSB sheetDispatch compId (bigint value)
+            // an IO slot is a width only on an Input/Output. On these two the properties pane puts
+            // the BusSelection LSB and the BusCompare comparison value in it - see
+            // SelectedComponentView.makeLsbBitNumberField - and ChangeLSB is what sets both.
+            | (BusSelection _ | BusCompare _), IO _ ->
+                model.Sheet.ChangeLSB sheetDispatch compId (bigint value)
             | _, Buswidth | _, IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value
             | Input1 _, InputDefault -> model.Sheet.ChangeInputValue sheetDispatch compId (bigint value)
             | _, InputDefault -> failwithf $"Default value cannot be set on {comp.Type}"
@@ -1369,33 +1400,14 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                             | None -> Map.empty
                             |> Map.add (ParamName parameterName) (PInt newValue)
                         
-                        // Get the custom component's loaded component to find parameter slot definitions
-                        let currentSheet = 
-                            project.LoadedComponents
-                            |> List.tryFind (fun lc -> lc.Name = custom.Name)
-                        
-                        // Calculate updated label widths based on parameter evaluations
-                        let labelToEval = 
-                            match currentSheet with
-                            | Some sheet ->
-                                match sheet.LCParameterSlots with
-                                | Some sheetInfo ->
-                                    sheetInfo.ParamSlots
-                                    |> Map.toSeq
-                                    |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
-                                        match paramSlot.CompSlot with
-                                        | IO label -> 
-                                            let evaluatedValue = 
-                                                match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
-                                                | Ok expr -> expr
-                                                | Error _ -> 0
-                                            Some (label, evaluatedValue)
-                                        | _ -> None 
-                                    )
-                                    |> Map.ofSeq
-                                | None -> Map.empty
-                            | None -> Map.empty
-                        
+                        // the instance's port widths at the new bindings, from the child sheet's
+                        // IO slots. Only this parameter is being set, so the others are still
+                        // expressions in THIS sheet's parameters: see portWidthsOfInstance.
+                        let labelToEval =
+                            portWidthsOfInstance
+                                project.LoadedComponents paramBindings custom.Name newBindings
+
+
                         // Update the custom component with new parameter bindings and updated port widths
                         let updatedCustom = updateCustomComponent labelToEval newBindings comp
                         dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (ComponentId comp.Id, comp, updatedCustom.Type))))
@@ -1517,31 +1529,10 @@ let applyBindOffers (offers: ParameterAnalysis.BindOffer list) (model: Model) (d
                     let newBindings =
                         (cc.ParameterBindings |> Option.defaultValue Map.empty, names)
                         ||> List.fold (fun bindings name -> Map.add name (PParameter name) bindings)
+                    // the sheets are the updated ones: an accepted offer can have just declared a
+                    // parameter on the child sheet
                     let labelToEval =
-                        match project.LoadedComponents |> List.tryFind (fun ldc -> ldc.Name = childSheet) with
-                        | None -> Map.empty
-                        | Some childLdc ->
-                            let childDefaults = ParameterAnalysis.declaredParams childLdc
-                            let evalInParent expr =
-                                match ParameterTypes.evaluateParamExpression openDefaults expr with
-                                | Ok v -> Some (PInt v)
-                                | Error _ -> None
-                            let childEffective =
-                                childDefaults
-                                |> Map.map (fun n defExpr ->
-                                    Map.tryFind n newBindings
-                                    |> Option.bind evalInParent
-                                    |> Option.defaultValue defExpr)
-                            ParameterAnalysis.sheetParamSlots childLdc
-                            |> Map.toSeq
-                            |> Seq.choose (fun (slot, cexpr) ->
-                                match slot.CompSlot with
-                                | IO label ->
-                                    match ParameterTypes.evaluateParamExpression childEffective cexpr.Expression with
-                                    | Ok v -> Some (label, v)
-                                    | Error _ -> None
-                                | _ -> None)
-                            |> Map.ofSeq
+                        portWidthsOfInstance ldcs' openDefaults childSheet newBindings
                     let updated = updateCustomComponent labelToEval newBindings comp
                     dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (ComponentId comp.Id, comp, updated.Type))))
                 | _ -> ())

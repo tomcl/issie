@@ -432,6 +432,14 @@ let rec private resolveSheet
         // IO ports
         | IO _, Input1 (_, dv) -> Input1 (value, dv)
         | IO _, Output _ -> Output value
+        // An IO slot is a width only on an Input or an Output. The properties pane puts two other
+        // fields in it - the LSB of a BusSelection and the comparison value of a BusCompare, both
+        // from SelectedComponentView.makeLsbBitNumberField - because a component's slots are keyed
+        // by name and those fields already had Buswidth taken by the component's width.
+        // Without these cases the value is applied to the canvas but not to the simulation, so an
+        // instance binding the parameter away from its default simulates the saved number instead.
+        | IO _, BusSelection (w, _) -> BusSelection (w, value)
+        | IO _, BusCompare (w, _) -> BusCompare (w, bigint value)
         // Value an input takes when undriven
         | InputDefault, Input1 (w, _) -> Input1 (w, Some (bigint value))
         // A parameter of the sheet inside a custom component, bound by this instance to an

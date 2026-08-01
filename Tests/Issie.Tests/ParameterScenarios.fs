@@ -69,6 +69,26 @@ let private parentWith (w: int) (bindings: ParamBindings option) =
     let out = makeComp "sout" 1 0 (Output w) "S"
     makeLdc "pparent" None ([ x; y; cc; out ], [ conn x 0 cc 0; conn y 0 cc 1; conn cc 0 out 0 ])
 
+/// A child sheet selecting one bit out of an 8-bit input, at a parameterised LSB.
+let private selectLdc =
+    let inp = makeComp "sin" 0 1 (Input1(8, None)) "IN"
+    let sel = makeComp "sel" 1 1 (BusSelection(1, 0)) "SEL"
+    let out = makeComp "sout" 1 0 (Output 1) "O"
+    let canvas = [ inp; sel; out ], [ conn inp 0 sel 0; conn sel 0 out 0 ]
+    let paramDefs =
+        { DefaultBindings = Map [ declares "L" (PInt 0) ]
+          ParamSlots =
+            Map [ { CompId = "sel"; CompSlot = IO "SEL" },
+                  { Expression = PParameter(ParamName "L"); Constraints = [] } ] }
+    makeLdc "pselect" (Some paramDefs) canvas
+
+/// A parent driving one instance of the bit selector
+let private selectParent (bindings: ParamBindings option) =
+    let x = makeComp "sx" 0 1 (Input1(8, None)) "X"
+    let cc = makeComp "scc" 1 1 (customOf selectLdc [ "IN", 8 ] [ "O", 1 ] bindings) "SCC"
+    let o = makeComp "so" 1 0 (Output 1) "O"
+    makeLdc "pselparent" None ([ x; cc; o ], [ conn x 0 cc 0; conn cc 0 o 0 ])
+
 let tests =
     testList "ParameterScenarios" [
 
@@ -223,5 +243,47 @@ let tests =
             match run ldc [] (Map [ "A", 1I ]) with
             | Ok _ -> failtest "expected a simulation error"
             | Error e -> Expect.stringContains $"%A{e}" "in terms of itself" "reports the cycle"
+        }
+
+        // A BusSelection's LSB and a BusCompare's comparison value live in an IO slot, not a
+        // Buswidth one: the component's own width has already taken Buswidth. GraphMerger has to
+        // apply those, or the canvas and the simulation disagree wherever an instance binds the
+        // parameter away from its default. See SelectedComponentView.makeLsbBitNumberField.
+
+        test "a parameterised BusSelection LSB is applied at the sheet default" {
+            let outs = run (selectParent None) [ selectLdc ] (Map [ "X", 8I ]) |> expectOk
+            Expect.equal outs["O"] 0I "bit 0 of 0b1000 at the default LSB of 0"
+        }
+
+        test "a parameterised BusSelection LSB is applied at an instance binding" {
+            let bound = Some(Map [ ParamName "L", PInt 3 ])
+            let outs = run (selectParent bound) [ selectLdc ] (Map [ "X", 8I ]) |> expectOk
+            Expect.equal outs["O"] 1I "bit 3 of 0b1000 at the bound LSB of 3"
+        }
+
+        // The port widths shown for an instance are worked out by evaluating the CHILD sheet's IO
+        // expressions. The environment for that is the child's declared defaults overridden by the
+        // instance's bindings evaluated in the PARENT - not the instance bindings on their own.
+
+        test "instance port widths resolve a parameter bound to a same-named parent parameter" {
+            let parentDefs =
+                { DefaultBindings = Map [ declares "W" (PInt 8) ]; ParamSlots = Map.empty }
+            let parentLdc = makeLdc "pwidths" (Some parentDefs) ([], [])
+            let widths =
+                ParameterView.portWidthsOfInstance
+                    [ childLdc; parentLdc ]
+                    (bindingsOf parentDefs.DefaultBindings)
+                    childLdc.Name
+                    (Map [ ParamName "W", PParameter(ParamName "W") ])
+            // evaluating PParameter W against the bindings alone looks self-referential, and the
+            // width used to come out as 0
+            Expect.equal (Map.tryFind "A" widths) (Some 8) "input A takes the parent's W"
+            Expect.equal (Map.tryFind "S" widths) (Some 8) "output S takes the parent's W"
+        }
+
+        test "instance port widths use the child default for a parameter the instance leaves unbound" {
+            let widths =
+                ParameterView.portWidthsOfInstance [ childLdc ] Map.empty childLdc.Name Map.empty
+            Expect.equal (Map.tryFind "A" widths) (Some 4) "input A takes the child's declared default"
         }
     ]

@@ -449,6 +449,10 @@ let processContextMenuClick
         deleteFileConfirmationPopup sheet.SheetName model dispatch
         withNoCmd model
 
+    | SheetMenuBreadcrumb(sheet,_), "Save as library component" ->
+        MiscMenuView.saveAsLibraryComponent sheet.SheetName model dispatch
+        withNoCmd model
+
     | SheetMenuBreadcrumb(sheet,_), "Set as top" ->
         // changing the top changes the values every sheet displays with, so the open one is
         // redrawn. Which ancestor parameters exist above a sheet changes too, but that is now

@@ -589,6 +589,28 @@ let dialogPopupBodyTextAndTwoInts (focus: int) (beforeText, textPlaceholder) (be
             ]
         ]
 
+/// Create the body of a dialog Popup with two text fields, both required.
+/// First goes to Text, second to Text2.
+let dialogPopupBodyTwoTexts (beforeText1, placeholder1) (beforeText2, placeholder2) dispatch =
+    fun (model: Model) ->
+        let dialogData = model.PopupDialogData
+        div [] [
+            beforeText1 dialogData
+            Input.text [
+                Input.Props [OnPaste preventDefault; AutoFocus true; SpellCheck false]
+                Input.Placeholder placeholder1
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+            ]
+            br []
+            br []
+            beforeText2 dialogData
+            Input.text [
+                Input.Props [OnPaste preventDefault; SpellCheck true]
+                Input.Placeholder placeholder2
+                Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText2 >> dispatch)
+            ]
+        ]
+
 /// Create the body of a dialog Popup with both text and int.
 let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispatch =
     

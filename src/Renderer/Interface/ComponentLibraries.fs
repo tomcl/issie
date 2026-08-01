@@ -140,13 +140,30 @@ let private subdirectoriesOf (path: string) : string list =
         readFilesFromDirectory path
         |> List.filter (fun name -> isDirectory (pathJoin [| path; name |]))
 
-/// The libraries available. Directory names only - no file is opened - so this is cheap enough for
-/// startup, which it has to be: the catalogue is a pure render function and cannot read the disk
-/// itself. Everything about a component is read later, when its library is opened.
+/// Where libraries the user makes or imports are kept. Those shipped with Issie stay read-only
+/// under the installation; this is the writable side. Error when the directory cannot be made -
+/// see FilesIO.tryUserDataDirectory for why that is a real possibility and not a theoretical one.
+let tryUserLibrariesDirectory () : Result<string, string> =
+    tryUserDataDirectory ()
+    |> Result.bind (fun root -> tryEnsureDirectory (pathJoin [| root; Constants.librariesDirectory |]))
+
+/// The libraries available: those shipped with Issie, and those the user has made or imported.
+/// Directory names only - no file is opened - so this is cheap enough for startup, which it has to
+/// be: the catalogue is a pure render function and cannot read the disk itself. Everything about a
+/// component is read later, when its library is opened.
+/// A user library with the same name as a shipped one wins, so a library can be overridden.
 let findLibraries () : ComponentLibrary list =
-    let librariesPath = pathJoin [| staticFileDirectory; Constants.librariesDirectory |]
-    subdirectoriesOf librariesPath
-    |> List.map (fun name -> {Name = name; Path = pathJoin [| librariesPath; name |]})
+    let librariesIn root =
+        subdirectoriesOf root |> List.map (fun name -> {Name = name; Path = pathJoin [| root; name |]})
+    let shipped = librariesIn (pathJoin [| staticFileDirectory; Constants.librariesDirectory |])
+    let user =
+        match tryUserLibrariesDirectory () with
+        | Ok path -> librariesIn path
+        | Error _ -> []      // nowhere to keep user libraries just means there are none
+    let userNames = user |> List.map (fun lib -> lib.Name) |> Set.ofList
+    shipped
+    |> List.filter (fun lib -> not (Set.contains lib.Name userNames))
+    |> List.append user
     |> List.sortBy (fun lib -> lib.Name)
 
 /// Read the headers of a library's components. Done when the user opens the library, and not kept:
@@ -188,6 +205,16 @@ let readComponentAndDependencies (libPath: string) (name: string) : Result<Libra
                 ||> List.fold (fun acc required -> acc |> Result.bind (fun got -> read got required))
                 |> Result.map (fun got -> got @ [header, body]))
     read [] name
+
+/// The sheets a sheet instantiates, by name and without duplicates. Used to fill in a header's
+/// Requires when a component is saved, and to find everything that must be saved with it.
+let customSheetsUsedBy (ldc: LoadedComponent) : string list =
+    fst ldc.CanvasState
+    |> List.choose (fun comp ->
+        match comp.Type with
+        | Custom cc -> Some cc.Name
+        | _ -> None)
+    |> List.distinct
 
 //------------------------------------------------------------------------------------------------//
 //--------------------------- Naming library sheets within a project -----------------------------//

@@ -21,8 +21,8 @@ open ElectronAPI
 /// menu and item names can be arbitrary strings
 /// add menus as here
 let contextMenus = [
-        "SheetMenuBreadcrumbDev", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Lock"; "Unlock"; "Lock Subtree"; "Unlock Subtree"]
-        "SheetMenuBreadcrumb", ["Rename"; "Duplicate"; "Delete"; "Set as top"]
+        "SheetMenuBreadcrumbDev", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Save as library component"; "Lock"; "Unlock"; "Lock Subtree"; "Unlock Subtree"]
+        "SheetMenuBreadcrumb", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Save as library component"]
         "CustomComponent", ["Go to sheet" ; "Properties"]
         "ScalingBox", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)"; "Delete Box (DEL)"; "Copy Box (Ctrl+C)"; "Move Box (Drag any component)"]
         "Component", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Properties"]

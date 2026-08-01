@@ -295,7 +295,12 @@ let smallSimulationBreadcrumbs
 let maybeWarning dialogText project =
     let redText txt = Some <| div [ Style [ Color "red" ] ] [ str txt ]
     if isFileInProject dialogText project then
-        redText "This sheet already exists." 
+        redText "This sheet already exists."
+    elif (ComponentLibraries.reservedPrefixOf project.LoadedComponents dialogText).IsSome then
+        // the prefix belongs to a library this project uses: a component of that library added
+        // later is named into it, and would otherwise have nowhere to go
+        let prefix = (ComponentLibraries.reservedPrefixOf project.LoadedComponents dialogText).Value
+        redText $"Sheet names starting {prefix} belong to a component library used by this project."
     elif dialogText.StartsWith " " || dialogText.EndsWith " " then
         redText "The sheet name cannot start or end with a space."
     elif String.exists ((=) '.') dialogText then

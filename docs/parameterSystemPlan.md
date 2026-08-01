@@ -8,7 +8,8 @@ deferrals:
 
 - **Display of real values** happens in the properties pane (parameter table annotations); the
   canvas itself is still drawn and width-checked at default values. Drawing the canvas at the
-  singleton real values is a possible later step.
+  singleton real values is designed but not implemented — see
+  [Drawing at computed values](#drawing-at-computed-values) below.
 - **Undo/redo** restores whole model snapshots, so re-doing a placement does not re-fire the
   component-added trigger. The unbound state remains visible as a "(default; unbound)" note in
   the instance's properties, and the next qualifying event re-checks.
@@ -148,6 +149,125 @@ last edited outside these triggers (older Issie builds, hand-edited files).
 - Deleting a parameter lists the dependent pass-through chain, extending the existing behaviour
   of listing referencing slots before allowing deletion.
 - Later, optionally: an offer to delete pass-through parameters no longer referenced below.
+
+## Drawing at computed values
+
+A sheet drawn at its declared defaults is, in many designs, obviously wrong: the widths on screen
+are not the widths the sheet elaborates to under the top. The fix is to draw the open sheet at the
+values its parameters actually take, **without changing what is saved**. The declaration stays the
+declaration; the `.dgm` of a sheet that is only viewed is byte-identical to today.
+
+For a given top sheet and a given displayed sheet, the parameters that have a definite value are
+exactly the `ExactValue` cases of `ParameterAnalysis.displayValues` — every instance under the top
+agrees. Those, and only those, are pushed onto the canvas.
+
+### Two components per symbol
+
+`Symbol.Component` holds the **computed** component; a new field `Symbol.SavedComponent :
+Component option` holds the declared-default one, `Some` only where the two differ.
+
+The direction matters and is forced by React caching. `SymbolView.renderSymbol` is a
+`FunctionComponent.Of(..., "Symbol", equalsButFunctions)` whose memo key is the whole `Symbol`
+record. Holding the computed value anywhere outside the symbol — a model-level map consulted at
+draw time — leaves every `Symbol` structurally unchanged when the top sheet changes, so
+`equalsButFunctions` suppresses the re-render and the canvas silently goes stale. Putting the
+computed value in `Symbol.Component` makes the memo correct by construction, and every existing
+reader (`drawComponent`, port geometry, `H`/`W`, width inference, `GetComponentById`) gets real
+values with no change.
+
+Computed components are produced through the existing `ParameterView.updateComponents` path
+(`ChangeWidth`, `ChangeSplitN`, …), not by patching `Component.Type`, so symbol size, ports and
+port geometry are all recomputed properly. The pre-change component is stashed in `SavedComponent`
+first.
+
+### One funnel keeps the file unchanged
+
+`SymbolUpdate.extractComponent` is the sole path from symbols to saved state: `extractComponents`
+→ `Sheet.GetCanvasState()` → both save paths, the backup write, and `currentSheetIsOutOfDate`.
+Preferring `SavedComponent` there makes saving, autosaving and the dirty flag all correct at once,
+with no normalise-on-save step and no invariant to maintain at boundaries.
+
+It is a merge, not a substitution: `storeLayoutInfoInComponent` writes `SymbolInfo`, `X` and `Y`,
+which are user edits and must come from the live symbol, while `Type`, `H` and `W` must come from
+the saved copy because size is derived from the parameter value.
+
+### Decisions
+
+- **Input counts are not parameterisable.** The `NGateInputs` slot is removed from `CompSlotName`
+  outright, not merely made uncreatable. An input count sets how many ports a component has, so a
+  computed value would make `SymbolInfo.PortOrder` name ports the saved type does not have. The
+  number of inputs of a gate or merge is edited as a plain number in Properties.
+- **Properties pane** shows the symbol name and its viewed (computed) value, and the default as
+  well when the two differ. The viewed value it already gets for free from `GetComponentById`; the
+  default is an added annotation read from `SavedComponent`.
+- **Copy and paste preserve both components**, and the parameter linkage with them: pasted
+  components get fresh ids, so their slot expressions must be duplicated into `ParamSlots` under
+  those new ids. More work than dropping to a literal, but semantically correct — a pasted
+  parameterised component stays parameterised.
+- Residue not worth engineering around: dragging a symbol whose displayed footprint differs from
+  its saved one can produce overlap when the sheet is reloaded at defaults.
+
+## Component libraries
+
+A layer above sheets: reusable parameterised components shipped with Issie, placed like catalogue
+components and materialised into the project on use.
+
+### UI
+
+The catalogue gains a top-level **Library** item. Opening it lists the available libraries;
+clicking one replaces the catalogue body with that library's components, arranged in sections just
+as the catalogue is, under a header showing "*XXX* library" and a **Back** control returning to the
+catalogue.
+
+Dragging a library component onto a sheet places a custom component. If the library sheet declares
+parameters, a popup requires a value for each before placement — and, uniformly, **creating a
+custom component from any sheet that declares parameters raises the same popup**. The drag adds the
+library sheet(s) to the project if not already present.
+
+### Library sheets in a project
+
+Library sheets are ordinary sheets with restrictions. They do not appear in the Sheets menu and
+cannot be opened. When the last custom component referencing a library sheet is deleted, the sheet
+is removed from the project.
+
+`CCForm.Library` already exists in `CommonTypes` and is currently unused, so it is free to carry
+exactly this meaning. Hiding is a UI property only: parameter analysis, width inference and
+simulation must continue to see library sheets like any other.
+
+### On disk and the index
+
+Library sheets live in `static/libraries/<libname>/<compname>.dgm`. `FilesIO.staticDir()` already
+resolves `static/` for both development and packaged builds, and the existing demo-project flow
+(`openDemoProjectFromPath`) is the precedent for shipping `.dgm` files with the app; adding a sheet
+to the project is what `FileImportSheet` already does.
+
+Reading every sheet of every library at startup does not scale, so each library carries an
+**index** — enough to render its catalogue entries and its parameter popups without opening a
+single `.dgm`: component name, description, section, port summary, and each parameter's name,
+default and constraints. Only the drag itself reads `.dgm` files.
+
+### Multi-sheet library components (future)
+
+A library component may be a multi-sheet design. All of its sheets are added to the project and
+hidden. Within a library, a custom component instance marks its target as *part of* the enclosing
+component rather than a separate catalogue entry — which is `instanceForestRoots` applied within
+one library folder, so the index generator can compute the distinction with existing code.
+
+### Open questions
+
+- **Name collisions.** `CustomComponentType.Name` refers to sheets by name, so a library `Adder`
+  and a user `Adder` cannot coexist. Needs a namespacing or rename-on-import rule before anything
+  else here is built.
+- **Deletion versus undo.** Removing the sheet when its last instance goes is a project-level side
+  effect, but undo restores model snapshots — an eager delete makes undo unable to resurrect the
+  sheet. Sweep unreferenced library sheets at save or close rather than on the delete itself.
+- **Divergence.** Once copied in, a library sheet is a project sheet and does not track later
+  library versions. Probably wanted; should be stated rather than discovered.
+- **The placement popup versus the bind-to-top offer.** Both now fire when a parameterised instance
+  is created. The popup should probably offer "bind to the top sheet's *X*" alongside a literal
+  value, which would unify the two mechanisms rather than stacking them.
+- **Keeping the index honest.** A hand-maintained index will rot; it needs a generator run as a
+  build step or dev command.
 
 ## Later extensions
 

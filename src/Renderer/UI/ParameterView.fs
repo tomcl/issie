@@ -92,10 +92,6 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                 | Input busWidth -> busWidth
                 | Constant (width, _) -> width
                 | _ -> failwithf $"Invalid component {comp.Type} for buswidth"
-            | NGateInputs ->
-                match comp.Type with
-                | GateN (_, n) -> n
-                | _ -> failwithf $"Invalid component {comp.Type} for gate inputs"
             | IO _ ->
                 match comp.Type with
                 | Input1 (busWidth, _) -> busWidth
@@ -161,10 +157,6 @@ let compSlot_ (compSlotName:CompSlotName) : Optics.Lens<Component, int> =
                         | Input _ -> Input value
                         | Constant (_, constValue) -> Constant (value, constValue)
                         | _ -> failwithf $"Invalid component {comp.Type} for buswidth"
-                    | NGateInputs ->
-                        match comp.Type with
-                        | GateN (gateType, _) -> GateN (gateType, value)
-                        | _ -> failwithf $"Invalid component {comp.Type} for gate inputs"
                     | IO _ ->
                         match comp.Type with
                         | Input1 (_, defaultValue) -> Input1 (value, defaultValue)
@@ -341,11 +333,7 @@ let updateComponent dispatch model slot (value:int) =
     // Update component slot value
     match comp.Type, slot.CompSlot with
     | BusSelection _, IO _ -> model.Sheet.ChangeLSB sheetDispatch compId (bigint value)
-    | _, Buswidth | _, IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value 
-    | _, NGateInputs ->
-        match comp.Type with
-        | GateN (gateType, _) -> model.Sheet.ChangeGate sheetDispatch compId gateType value
-        | _ -> failwithf $"Number of inputs cannot be set on {comp.Type}"
+    | _, Buswidth | _, IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value
     | _, InputDefault ->
         match comp.Type with
         | Input1 _ -> model.Sheet.ChangeInputValue sheetDispatch compId (bigint value)
@@ -440,17 +428,6 @@ let updateParamSlot
         | false -> Map.remove slot paramSlots
 
     set paramSlotsOfModel_ newParamSlots model
-
-
-/// Remove any parameter slot recording the number of inputs of the given component.
-/// An input count sets how many ports a component has, so it cannot be parameterised;
-/// designs saved before this was enforced may still contain such slots.
-let removeNGateInputsSlot (compId: string) (model: Model) : Model =
-    let paramSlots =
-        model
-        |> get paramSlotsOfModel_
-        |> Option.defaultValue Map.empty
-    set paramSlotsOfModel_ (Map.remove {CompId = compId; CompSlot = NGateInputs} paramSlots) model
 
 
 /// Add the parameter information from a newly created component to paramSlots
@@ -817,7 +794,6 @@ let describeSlot (model: Model) (slot: ParamSlot) =
     let slotName =
         match slot.CompSlot with
         | Buswidth -> "Buswidth"
-        | NGateInputs -> "Num inputs"
         | IO label -> $"Input/output {label}"
         | SplitNWidth idx -> $"SplitN output {idx} width"
         | SplitNLSB idx -> $"SplitN output {idx} LSB"
@@ -1063,11 +1039,6 @@ let buswidthPrism : Prism<ComponentType, int> =
             | Constant (_, cv) -> Constant (w, cv)
             | _ -> compType)
 
-let ngateInputsPrism : Prism<ComponentType, int> =
-    Prism.create
-        (function GateN (_, n) -> Some n | _ -> None)
-        (fun n -> function GateN (gt, _) -> GateN (gt, n) | t -> t)
-
 let defaultValuePrism : Prism<ComponentType, int> =
     Prism.create
         (function Input1 (_, dv) -> Some (int (Option.defaultValue 0I dv)) | _ -> None)
@@ -1111,7 +1082,6 @@ let resolveParametersForComponent
                         let newType =
                             match slot.CompSlot with
                             | Buswidth -> currentType |> (evaluatedValue ^= buswidthPrism)
-                            | NGateInputs -> currentType |> (evaluatedValue ^= ngateInputsPrism)
                             | IO _ -> currentType |> (evaluatedValue ^= ioPortPrism)
                             | SplitNWidth idx ->
                                 match currentType with
@@ -1372,7 +1342,6 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
         let slotNameStr =
             match slot.CompSlot with
             | Buswidth -> "Buswidth"
-            | NGateInputs -> "Num inputs"
             | IO label -> $"Input/output {label}"
             | SplitNWidth idx -> $"SplitN output {idx} width"
             | SplitNLSB idx -> $"SplitN output {idx} LSB"

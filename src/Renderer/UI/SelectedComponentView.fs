@@ -510,11 +510,7 @@ let private makeNumberOfInputsField model (comp: Component) dispatch =
             Input.DefaultValue (string nInp)
             Input.OnChange (getIntEventValue >> fun newNum ->
                 match newNum >= 2 && newNum <= maxGateInputs with
-                | true ->
-                    model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) gateType newNum
-                    // a slot saved before input counts stopped being parameterisable would
-                    // override this number at simulation time
-                    dispatch <| UpdateModel (ParameterView.removeNGateInputsSlot comp.Id)
+                | true -> model.Sheet.ChangeGate sheetDispatch (ComponentId comp.Id) gateType newNum
                 | false -> ())
         ]
     ]
@@ -552,11 +548,7 @@ let private changeMergeN model (comp:Component) dispatch =
                 Input.DefaultValue (string nInp)
                 Input.OnChange (getIntEventValue >> fun newNum ->
                     match newNum >= 2 && newNum <= Constants.maxSplitMergeBranches with
-                    | true ->
-                        model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newNum
-                        // a slot saved before input counts stopped being parameterisable would
-                        // override this number at simulation time
-                        dispatch <| UpdateModel (ParameterView.removeNGateInputsSlot comp.Id)
+                    | true -> model.Sheet.ChangeMergeN sheetDispatch (ComponentId comp.Id) newNum
                     | false -> ())
             ]
         ]

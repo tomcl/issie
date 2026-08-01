@@ -48,7 +48,6 @@ type ParamConstraint =
 ```fsharp
 type CompSlotName =
     | Buswidth              // Component bus width
-    | NGateInputs           // Number of gate inputs (legacy: no longer creatable, see below)
     | IO of Label: string   // Input/Output port widths
     | CustomCompParam of ParamName: string // Custom component parameters
     | SplitNWidth of Index: int // SplitN output width
@@ -56,11 +55,9 @@ type CompSlotName =
     | InputDefault          // Value an Input1 takes when undriven
 ```
 
-`NGateInputs` slots can no longer be created: the input count of a gate or merge sets how many
-ports it has, and a parameter records a value, not a change of topology. Designs saved before this
-was enforced may still contain such slots; simulation reports an error if one resolves to a value
-that disagrees with the component's ports, and editing the input count in Properties removes the
-stale slot.
+The number of inputs of a gate or merge is deliberately not a slot: an input count sets how many
+ports a component has, and a parameter records a value, not a change of topology. It is edited as
+a plain number in Properties.
 
 #### Sheet-Level Definitions
 ```fsharp
@@ -535,7 +532,7 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> (Msg -> unit) -> R
 - UI evaluation: `ParameterTypes.evaluateParamExpression` performs recursive substitution and constant-folding with detailed errors. Used by `ParameterView` for validation and preview.
 - Graph evaluation: `GraphMerger.resolveParametersInSimulationGraph` walks the sheet tree with `resolveSheet`, evaluating each slot with `evaluateParamExpression` and writing concrete values into `SimulationGraph` component types with `applySlotValue`; any failure is a `SimulationError`.
 - Validation evaluation: `CanvasStateAnalyser.checkCustomComponentForOkIOs` embeds a minimal evaluator supporting only `PInt` and `PParameter` to resolve port widths quickly for label checking.
-- Slot access: Lenses `ParameterView.compSlot_` and `ParameterView.modelToSlot_` provide strongly typed access into `Component.Type` for `Buswidth`, `NGateInputs`, and `IO label`.
+- Slot access: Lenses `ParameterView.compSlot_` and `ParameterView.modelToSlot_` provide strongly typed access into `Component.Type` for `Buswidth` and `IO label`.
 
 ## Developer Notes (Files & Responsibilities)
 

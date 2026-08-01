@@ -44,9 +44,10 @@ type ParamConstraint =
 /// A string marking a specific integer value in a case of ComponentType.
 /// The values here are arbitrary and ComponentType-case specific and all that matters is that each value is unique
 /// within the case.
+/// The number of inputs of a gate or merge is deliberately absent: an input count sets how many
+/// ports a component has, and a parameter records a value, not a change of topology.
 type CompSlotName =
     | Buswidth
-    | NGateInputs
     | IO of Label: string
     | CustomCompParam of ParamName: string // TODO: implement this case
     // SplitN-specific parameterised slots

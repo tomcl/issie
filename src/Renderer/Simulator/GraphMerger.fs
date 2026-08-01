@@ -385,21 +385,18 @@ let rec private resolveSheet
     /// <param name="value">The resolved integer value to apply</param>
     /// <returns>A new component type with the parameter value applied</returns>
     /// <remarks>
-    /// This function handles three main categories of parameter slots:
-    /// 
+    /// This function handles two main categories of parameter slots:
+    ///
     /// 1. Buswidth: Updates the width parameter for components that have configurable bus widths
     ///    - Viewer, BusCompare, BusSelection, Constant components
     ///    - Arithmetic components (Adders, XOR, AND, OR, NOT)
     ///    - Memory components (Registers, Counters)
     ///    - Wire manipulation (Splitter, Spreader)
     ///    - I/O components (Input, Output)
-    /// 
-    /// 2. NGateInputs: Updates the number of inputs for variable-input gates
-    ///    - GateN components with configurable input counts
-    /// 
-    /// 3. IO: Updates the bit width for Input/Output components with specific labels
+    ///
+    /// 2. IO: Updates the bit width for Input/Output components with specific labels
     ///    - Input1 and Output components matching the IO label
-    /// 
+    ///
     /// For unmatched slot/component combinations, returns the original component type unchanged.
     /// This ensures backward compatibility and graceful handling of new component types.
     /// </remarks>
@@ -432,8 +429,6 @@ let rec private resolveSheet
         | Buswidth, Input1 (_, dv) -> Input1 (value, dv)
         | Buswidth, Output _ -> Output value
         | Buswidth, Constant (_, cv) -> Constant (value, cv)
-        // Gate inputs
-        | NGateInputs, GateN (gt, _) -> GateN (gt, value)
         // IO ports
         | IO _, Input1 (_, dv) -> Input1 (value, dv)
         | IO _, Output _ -> Output value
@@ -464,20 +459,6 @@ let rec private resolveSheet
         |> List.fold (fun compRes (slot, expr) ->
             compRes |> Result.bind (fun (c: SimulationComponent) ->
                 match evalExpr expr.Expression with
-                // The input count of a gate or merge sets how many ports it has, and the ports
-                // and connections of the graph are fixed by the canvas: a value that disagrees
-                // with them cannot be applied. Only designs saved before input counts stopped
-                // being parameterisable contain such slots.
-                | Ok value when (match slot.CompSlot, c.Type with
-                                 | NGateInputs, (GateN (_, n) | MergeN n) -> value <> n
-                                 | _ -> false) ->
-                    let err: SimGraphTypes.SimulationError = {
-                        ErrType = GenericSimError $"The number of inputs of this component is set by a parameter to {value}, but it has a different number of input ports. The number of inputs cannot be set by a parameter: set it as a number in Properties."
-                        InDependency = Some currDiagramName
-                        ComponentsAffected = [compId]
-                        ConnectionsAffected = []
-                    }
-                    Error err
                 | Ok value ->
                     Ok { c with Type = applySlotValue c.Type slot.CompSlot value }
                 | Error msg ->

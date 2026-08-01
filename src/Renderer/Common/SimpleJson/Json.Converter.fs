@@ -341,12 +341,12 @@ module Convert =
             let optionalType = optionalTypeDelayed()
             let parsedOptional = unbox (fromJsonAs jsonValue optionalType)
             unbox Some parsedOptional
-        | JString value, TypeInfo.Guid _ -> unbox (System.Guid.Parse(value))
+        | JString value, TypeInfo.Guid -> unbox (System.Guid.Parse(value))
         // int64 as a number, convert it to int then to in64
-        | JNumber value , TypeInfo.Long _ -> unbox int64 (int value)
+        | JNumber value , TypeInfo.Long -> unbox int64 (int value)
         // int64 as the internal representation from Long.js
         // then reconstruct it from the high/low (two integers) components
-        | JObject dict, TypeInfo.Long _ ->
+        | JObject dict, TypeInfo.Long ->
             let get key = Map.tryFind key dict
             [ get "low"; get "high"; get "unsigned" ]
             |> List.choose id

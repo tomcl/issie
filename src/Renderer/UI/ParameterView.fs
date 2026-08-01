@@ -1852,9 +1852,9 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
     /// This is read-only - changes can be made via the priperties of the component.
     let slotView (slotMap: ComponentSlotExpr) =
         div [Class "component-slots"] [ 
-            label [Class "label"] [ str "Parameterised Components"]
+            label [Class "label"] [ str "Parametrised Components"]
             // br []
-            p [] [str "This sheet contains the following parameterised components"]
+            p [] [str "This sheet contains the following parametrised components"]
             br []
             Table.table [
                 Table.IsBordered
@@ -1878,8 +1878,8 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
     match sheetParamsSlots with
         |None ->
             div [] [
-                Label.label [] [ str "Parameterised Components" ]
-                p [] [str "This sheet does not contain any parameterised." ]    
+                Label.label [] [ str "Parametrised Components" ]
+                p [] [str "This sheet does not contain any parametrised components." ]    
                 ]
         |Some sheetParamsSlots -> slotView sheetParamsSlots
 

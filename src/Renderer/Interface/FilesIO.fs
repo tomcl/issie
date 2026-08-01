@@ -136,8 +136,47 @@ let rename (oldPath: string) (newPath: string) =
     #endif
 
 let ensureDirectory dPath =
-    if (not <| exists dPath) then 
+    if (not <| exists dPath) then
         mkdir dPath
+
+/// Modification time in milliseconds since the epoch, or None when the path is not there.
+/// Works on a directory as well as a file. NB a directory's time changes when an entry is added
+/// to it, removed from it or renamed - NOT when a file already in it is rewritten in place.
+let modifiedTimeMs (filePath: string) : float option =
+    match exists filePath with
+    | false -> None
+    | true ->
+        #if FABLE_COMPILER
+        Some (unbox<float> (fs.lstatSync (U2.Case1 filePath))?mtimeMs)
+        #else
+        Some (File.GetLastWriteTimeUtc filePath - System.DateTime(1970, 1, 1)).TotalMilliseconds
+        #endif
+
+/// The per-user, writable Issie directory, created if it is not there.
+///
+/// Everything Issie creates for the user - demo working copies, component libraries - belongs
+/// here and NOT beside the installation. On macOS the app bundle is signed and notarised, so
+/// writing inside it invalidates the signature and Gatekeeper can then refuse to launch it. On
+/// Windows the installation is usually under Program Files, which needs administrator rights to
+/// write. Both fail only for installed users, never in a development build, which is exactly the
+/// kind of bug that ships.
+let userDataDirectory () =
+    let dir = electronRemote.app.getPath AppGetPath.UserData
+    ensureDirectory dir
+    dir
+
+/// Where a demo project is copied so that the user can edit it.
+let userDemosDirectory () =
+    let dir = pathJoin [| userDataDirectory (); "demos" |]
+    ensureDirectory dir
+    dir
+
+/// Where component libraries live: those shipped with Issie, copied here on first use, and any
+/// the user imports later.
+let userLibrariesDirectory () =
+    let dir = pathJoin [| userDataDirectory (); "libraries" |]
+    ensureDirectory dir
+    dir
 
 let pathWithoutExtension filePath =
     let ext = extName filePath

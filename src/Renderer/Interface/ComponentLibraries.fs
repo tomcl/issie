@@ -24,11 +24,16 @@ open FilesIO
 open ParameterTypes
 
 module Constants =
-    /// directory under static/ holding the shipped libraries
+    /// directory under static/ holding the libraries shipped with Issie
     let librariesDirectory = "libraries"
     let indexFile = "index.json"
     /// catalogue section used when a component's sheet does not name one
     let defaultSection = "Components"
+    /// How far a library directory's modification time may be after its index before the index is
+    /// treated as stale. Writing index.json into the directory it describes can leave the
+    /// directory a moment newer than the file, and packaging through a zip rounds times to the
+    /// nearest two seconds, so a strict comparison would rebuild every index on every startup.
+    let indexStaleMarginMs = 10000.0
 
 //------------------------------------------------------------------------------------------------//
 //------------------------------------------ The index -------------------------------------------//
@@ -136,27 +141,78 @@ let private readLibrary (librariesPath: string) (libName: string) : ComponentLib
     | [] -> None
     | _ -> Some {Name = libName; Components = components; Path = libPath}
 
-/// Every library shipped with Issie. Read once when the application starts: the index files make
-/// this cheap, and the catalogue is a pure render function so it cannot read them itself.
-/// Only directories are considered. Anything else in the libraries directory - the README, say -
-/// is skipped here rather than further down, because reading a file as though it were a directory
-/// logs a warning on every startup even though the result is correctly no library.
-let readLibraries () : ComponentLibrary list =
-    let librariesPath = pathJoin [| staticFileDirectory; Constants.librariesDirectory |]
-    match exists librariesPath with
-    | false -> []
-    | true ->
-        readFilesFromDirectory librariesPath
-        |> List.filter (fun name -> isDirectory (pathJoin [| librariesPath; name |]))
-        |> List.choose (readLibrary librariesPath)
-        |> List.sortBy (fun lib -> lib.Name)
-
-/// Write a library's index from its sheets. Not called by the application: a library author runs
-/// this after changing a library, because a hand-maintained index would rot.
+/// Write a library's index from its sheets. Called when the index is missing or stale, and by a
+/// library author directly after editing sheets in place - see refreshIndex for why that case
+/// cannot be detected.
 let writeLibraryIndex (libPath: string) : Result<unit, string> =
     indexOfLibraryDirectory libPath
     |> Json.stringify
     |> writeFile (pathJoin [| libPath; Constants.indexFile |])
+
+/// The names of the subdirectories of `path`. Anything that is not a directory - a README, say -
+/// is not a library and is skipped here rather than further in, since reading a file as though it
+/// were a directory logs a warning even though the answer is correctly "no components".
+let private subdirectoriesOf (path: string) : string list =
+    match exists path with
+    | false -> []
+    | true ->
+        readFilesFromDirectory path
+        |> List.filter (fun name -> isDirectory (pathJoin [| path; name |]))
+
+/// Copy the libraries shipped with Issie into the user's library directory, which is where they
+/// are read from and where an imported library will also go. A library already there is left
+/// alone: it may have been changed, and the shipped copy is only a starting point.
+/// This means a library changed by a new Issie version does not replace one already copied. That
+/// is the right way round while libraries are user-editable; a version check can be added when
+/// there is something to check.
+let private seedShippedLibraries (userPath: string) : unit =
+    let shippedPath = pathJoin [| staticFileDirectory; Constants.librariesDirectory |]
+    subdirectoriesOf shippedPath
+    |> List.iter (fun name ->
+        let target = pathJoin [| userPath; name |]
+        match exists target with
+        | true -> ()
+        | false ->
+            ensureDirectory target
+            let source = pathJoin [| shippedPath; name |]
+            readFilesFromDirectory source
+            |> List.filter (fun f -> hasExtn ".dgm" f || f = Constants.indexFile)
+            |> List.iter (fun f -> copyFile (pathJoin [| source; f |]) (pathJoin [| target; f |])))
+
+/// Rewrite a library's index if it is missing or older than the directory it describes.
+///
+/// A directory's modification time changes when a sheet is added to it, removed from it or
+/// renamed, which covers importing a library, deleting a component, and a fresh checkout. It does
+/// NOT change when a sheet already there is rewritten in place, so a library author who edits a
+/// sheet with Issie must regenerate the index with writeLibraryIndex. Watching every file for that
+/// one case is not worth it: the index is derived data, and regenerating it is one call.
+let private refreshIndex (libPath: string) : unit =
+    let stale =
+        match modifiedTimeMs (pathJoin [| libPath; Constants.indexFile |]), modifiedTimeMs libPath with
+        | None, _ -> true
+        | Some indexTime, Some dirTime -> dirTime > indexTime + Constants.indexStaleMarginMs
+        | Some _, None -> false
+    match stale with
+    | false -> ()
+    | true ->
+        match writeLibraryIndex libPath with
+        | Ok () -> ()
+        // a library that cannot be indexed is still usable, just slower to open, so this must not
+        // be allowed to stop the application starting
+        | Error msg -> JSHelpers.log $"Could not write the index of library {libPath}: {msg}"
+
+/// Every component library available. Read once when the application starts: the index files make
+/// this cheap, and the catalogue is a pure render function so it cannot read them itself.
+/// Libraries are read from the user's writable directory, not from the installation: see
+/// FilesIO.userDataDirectory for why nothing may be written beside the installation.
+let readLibraries () : ComponentLibrary list =
+    let librariesPath = userLibrariesDirectory ()
+    seedShippedLibraries librariesPath
+    let libraries = subdirectoriesOf librariesPath
+    libraries |> List.iter (fun name -> refreshIndex (pathJoin [| librariesPath; name |]))
+    libraries
+    |> List.choose (readLibrary librariesPath)
+    |> List.sortBy (fun lib -> lib.Name)
 
 //------------------------------------------------------------------------------------------------//
 //--------------------------- Naming library sheets within a project -----------------------------//

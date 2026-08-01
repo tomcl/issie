@@ -59,7 +59,11 @@ defaults would teach the wrong pattern.
   `model |> Optic.set (sheet_ >-> symbols_ >-> label_) newLabel`. Lenses are defined in
   `ModelType.fs` for every record field.
 - **Strictly immutable.** No `for` loops, no `mutable`, no side effects in model code. Use `map`,
-  `fold`, `filter`, pipelines and recursion.
+  `fold`, `filter`, pipelines and recursion. Module-level `let mutable` is allowed only for a
+  measured performance reason or for state that genuinely is not model state (DOM refs, Electron,
+  debug flags) — never as somewhere to park a value until the next message. See
+  [docs/mutableState.md](docs/mutableState.md) for the policy, the audit of existing ones, and the
+  cleanup list.
 - **No nulls** — `Option` and `Result` throughout.
 
 ## Common gotchas

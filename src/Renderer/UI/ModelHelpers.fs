@@ -490,3 +490,92 @@ let resimulateWaveSimForErrors (model: Model) : Result<SimulationData, Simulatio
     simulateModel true model.WaveSimSheet simSize canv model
     |> fst
     
+
+//------------------------------------------------------------------------------------------------//
+//------------------------------------ Canvas inspection -----------------------------------------//
+//------------------------------------------------------------------------------------------------//
+
+(*
+    A view of what the draw block is showing, reduced to data.
+
+    MainView.displayView publishes this as `window.issie` in debug builds, and
+    scripts/inspect-canvas.js reads it over the Chrome DevTools Protocol. It answers questions the
+    rendered SVG can only be used to guess at: where a symbol really is, how a wire is really
+    routed, and whether a symbol is being drawn at a computed parameter value.
+
+    The Model cannot cross the interop boundary itself - it holds F# maps, closures and React
+    elements, none of which survive JSON.stringify. So everything here is arrays, numbers, strings
+    and bools: F# lists are linked lists in JavaScript, so arrays are used throughout, and options
+    are resolved to a value or a flag rather than passed on.
+*)
+
+/// One symbol as data: what it is, where it is, how big it is, how it is oriented, and where its
+/// ports sit. Coordinates are diagram units, the same ones the SVG is drawn in.
+let private symbolInspection (sym: DrawModelType.SymbolT.Symbol) =
+    let comp = sym.Component
+    let (ComponentId id) = sym.Id
+    {|
+        Id = id
+        Label = comp.Label
+        Type = string comp.Type
+        // Pos is the live top-left; Component.X/Y agree with it only once layout has been stored
+        X = sym.Pos.X
+        Y = sym.Pos.Y
+        W = comp.W
+        H = comp.H
+        HScale = Option.defaultValue 1.0 sym.HScale
+        VScale = Option.defaultValue 1.0 sym.VScale
+        Rotation = string sym.STransform.Rotation
+        Flipped = sym.STransform.flipped
+        IsClocked = sym.IsClocked
+        IsAnnotation = Option.isSome sym.Annotation
+        // true when the symbol is drawn at a parameter value computed for the current top sheet
+        // rather than at the one it declares: see SymbolT.Symbol.SavedComponent
+        DisplaysComputedValues = Option.isSome sym.SavedComponent
+        DeclaredType = sym.SavedComponent |> Option.map (fun c -> string c.Type) |> Option.defaultValue ""
+        Ports =
+            sym.PortMaps.Orientation
+            |> Map.toArray
+            |> Array.map (fun (portId, edge) -> {| Id = portId; Edge = string edge |})
+    |}
+
+/// One wire as data, with its segments in ABSOLUTE coordinates - the geometry actually drawn,
+/// rather than the relative lengths the model stores.
+let private wireInspection (wire: DrawModelType.BusWireT.Wire) =
+    let (ConnectionId id) = wire.WId
+    let (InputPortId toPort) = wire.InputPort
+    let (OutputPortId fromPort) = wire.OutputPort
+    {|
+        Id = id
+        FromPort = fromPort
+        ToPort = toPort
+        Width = wire.Width
+        InitialOrientation = string wire.InitialOrientation
+        Segments =
+            BlockHelpers.getAbsSegments wire
+            |> List.map (fun aSeg ->
+                {|
+                    Index = aSeg.Segment.Index
+                    StartX = aSeg.Start.X
+                    StartY = aSeg.Start.Y
+                    EndX = aSeg.End.X
+                    EndY = aSeg.End.Y
+                    Mode = string aSeg.Segment.Mode
+                    Draggable = aSeg.Segment.Draggable
+                |})
+            |> Array.ofList
+    |}
+
+/// Everything the draw block is showing on the open sheet, as data. Computed on demand, not on
+/// every render: MainView publishes a function that calls this.
+let canvasInspection (model: Model) =
+    let sheet = model.Sheet
+    {|
+        Sheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName) |> Option.defaultValue ""
+        Zoom = sheet.Zoom
+        ScrollX = sheet.ScreenScrollPos.X
+        ScrollY = sheet.ScreenScrollPos.Y
+        Selected = sheet.SelectedComponents |> List.map (fun (ComponentId id) -> id) |> Array.ofList
+        Symbols = sheet.Wire.Symbol.Symbols |> Map.toArray |> Array.map (snd >> symbolInspection)
+        Wires = sheet.Wire.Wires |> Map.toArray |> Array.map (snd >> wireInspection)
+    |}

@@ -690,6 +690,104 @@ let renameSheetBeforeImportPopup oldPath model dispatch =
 /// Duplicate the named sheet of the current project under a new name typed by the user.
 /// If that sheet is the open one it is saved to disk first when dirty, since the copy is made
 /// from the file rather than from the canvas.
+/// Save a sheet, and every sheet it uses, as components of a library.
+///
+/// The chosen sheet is offered in the catalogue; the sheets below it are written too but NOT
+/// offered, since they exist only to serve it. That distinction used to be worked out by parsing
+/// every sheet of a library to see which were instantiated by others; it is now simply recorded,
+/// which is the point of having an authored header.
+///
+/// The body of each .ldgm is the text of the sheet's .dgm read straight off disk, so a library
+/// component contains exactly what was saved. A sheet with unsaved changes is therefore refused
+/// rather than quietly written in its last-saved state.
+let saveAsLibraryComponent (sheetName: string) (model: Model) dispatch =
+    match model.CurrentProj with
+    | None -> JSHelpers.log "A project must be open to save a sheet as a library component"
+    | Some project ->
+        let byName = project.LoadedComponents |> List.map (fun ldc -> ldc.Name, ldc) |> Map.ofList
+
+        /// the sheets this one uses, directly or not, itself included
+        let rec closure (seen: string list) (name: string) =
+            match List.contains name seen, Map.tryFind name byName with
+            | true, _ | _, None -> seen
+            | false, Some ldc ->
+                let seen = seen @ [name]
+                ComponentLibraries.customSheetsUsedBy ldc |> List.fold closure seen
+        let sheets = closure [] sheetName
+
+        let unsaved =
+            sheets
+            |> List.filter (fun name ->
+                match Map.tryFind name byName with
+                | Some ldc -> ldc.LoadedComponentIsOutOfDate
+                | None -> false)
+            |> List.append (if sheetName = project.OpenFileName && model.SavedSheetIsOutOfDate then [sheetName] else [])
+            |> List.distinct
+
+        match unsaved with
+        | _ :: _ ->
+            displayFileErrorNotification
+                $"""Save {String.concat ", " unsaved} before making a library component: what is written is what is on disk."""
+                dispatch
+        | [] ->
+
+        let title = $"Save {sheetName} as a library component"
+        let body =
+            dialogPopupBodyTwoTexts
+                ((fun _ -> div [] [str "Library to put it in (an existing library, or a new name):"]), "example: adders")
+                ((fun _ -> div [] [str "What does this component do? This is what the catalogue shows:"]),
+                 "example: ripple-carry adder, width set by a parameter")
+                dispatch
+
+        let buttonAction (model': Model) =
+            let libName = getText model'.PopupDialogData
+            let description = getText2 model'.PopupDialogData
+            let write libPath =
+                sheets
+                |> List.map (fun name ->
+                    let ldc = byName[name]
+                    match tryReadFileSync ldc.FilePath with
+                    | Error msg -> Error $"{name} could not be read: {msg}"
+                    | Ok body ->
+                        let header: ComponentLibraries.LibraryHeader = {
+                            FormatVersion = ComponentLibraries.Constants.currentFormatVersion
+                            Name = name
+                            Description =
+                                match name = sheetName with
+                                | true -> description
+                                | false -> ldc.Description |> Option.defaultValue name
+                            Section = ComponentLibraries.Constants.defaultSection
+                            // only the sheet the user chose is a component in its own right
+                            OfferedInCatalogue = name = sheetName
+                            Requires = ComponentLibraries.customSheetsUsedBy ldc
+                        }
+                        ComponentLibraries.writeComponentFile libPath header body
+                        |> Result.mapError (fun msg -> $"{name} could not be written: {msg}"))
+                |> List.choose (function | Error msg -> Some msg | Ok () -> None)
+
+            match ComponentLibraries.tryUserLibrariesDirectory () |> Result.bind (fun root -> tryEnsureDirectory (pathJoin [| root; libName |])) with
+            | Error msg -> displayFileErrorNotification msg dispatch
+            | Ok libPath ->
+                match write libPath with
+                | [] ->
+                    // the catalogue lists libraries found at startup, so a new one must be added now
+                    dispatch <| UpdateModel (fun m -> {m with ComponentLibraries = ComponentLibraries.findLibraries ()})
+                    let alsoSaved =
+                        match List.length sheets with
+                        | 1 -> ""
+                        | n -> $" with {n - 1} sheet(s) it uses"
+                    dispatch <| SetFilesNotification (
+                        Notifications.successNotification $"{sheetName} saved to library {libName}{alsoSaved}." CloseFilesNotification)
+                | problems -> displayFileErrorNotification (String.concat " " problems) dispatch
+            dispatch ClosePopup
+
+        // a library component must have a name to go under and something the catalogue can say
+        // about it: a component nobody can tell apart from another is worse than no component
+        let isDisabled (model': Model) =
+            getText model'.PopupDialogData = "" || getText2 model'.PopupDialogData = ""
+
+        dialogPopup title body "Save to library" buttonAction isDisabled [] dispatch
+
 let duplicateSheet (sheetName: string) model dispatch =
     match model.CurrentProj with
     | None -> JSHelpers.log "Current project must be open for a sheet to be duplicated"

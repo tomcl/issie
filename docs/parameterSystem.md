@@ -155,21 +155,23 @@ here is derived display state and consented repair.
   and grey out sheets outside its tree (only when the project uses parameters at all). When
   several candidate tops disagree about the sheet being opened and none is chosen, a
   non-blocking choice popup fires once (`ParameterView.topSheetChoiceCheck`).
-- **Bind-to-top offers** (`findBindOffers` / `ParameterView.bindToTopOfferCheck`): where an
-  instance's parameter is unbound and a same-named parameter exists on an ancestor sheet along
-  the instance path under the top (the evidence gate), a popup offers to materialise the chain -
-  ordinary parameters and explicit `PParameter` bindings along every instance path from that
-  ancestor down. Offers fire at the three events that can create a qualifying chain: custom
-  component added (placement/paste commit, detected in `UpdateHelpers.sheetMsg` as the
-  `DragAndDrop -> Idle` transition, with the new instance's subtree scanned too), parameter
-  added (`ParameterView.addParameterBox`), and top sheet changed. Accepting
-  (`ParameterView.applyBindOffers`) updates both stores of each binding (parent-sheet
-  `CustomCompParam` slot and the instance's `ParameterBindings`), syncs open-sheet symbols via
-  `ChangeCustom`, and writes modified sheets through to disk; the open sheet is only marked
-  dirty so unrelated canvas edits are never silently committed.
-- **Placement** (`CatalogueView.makeCustom`/`makeVerilog`) no longer copies the parent sheet's
-  default bindings into new instances as frozen values; new instances are unbound and resolve
-  at their sheet's defaults, with the offer as the consented way to link them upward. An unbound
+- **Placement** (`CatalogueView.startPlacingCustomComponent`): placing an instance of a sheet that
+  declares parameters raises `ParameterView.customComponentParamPopup`, which asks for a value for
+  each one, showing its description. Placing without asking would silently freeze the child
+  sheet's defaults into the instance, which is the stale-chain problem; asking makes the choice
+  explicit. Where the sheet being placed on declares a parameter of the same name, a button binds
+  to it instead of taking a literal value. The instance's ports are sized at the chosen bindings
+  before it is created, and `addParamComponents` records its slots once it has an id.
+- **Bind-to-top button** (`findBindOffers` / `ParameterView.applyBindOffers`): where an instance's
+  parameter is unbound and a same-named parameter exists on an ancestor sheet along the instance
+  path under the top (the evidence gate), a button in that instance's properties materialises the
+  chain - ordinary parameters and explicit `PParameter` bindings along every instance path from
+  that ancestor down. It is a button rather than a popup so the user meets it when they look at
+  the instance, and nothing has to guess when to interrupt them; it is hidden while a simulation
+  is open, since accepting changes the design being simulated. Applying updates both stores of
+  each binding (parent-sheet `CustomCompParam` slot and the instance's `ParameterBindings`), syncs
+  open-sheet symbols via `ChangeCustom`, and writes modified sheets through to disk; the open
+  sheet is only marked dirty so unrelated canvas edits are never silently committed. An unbound
   parameter is annotated "(default; unbound)" in the instance's properties.
 
 ### Validation Layer (`CanvasStateAnalyser.fs`)
@@ -558,8 +560,8 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> (Msg -> unit) -> R
 ## Developer Notes (Files & Responsibilities)
 
 - `src/Renderer/Common/ParameterTypes.fs`: Types (`ParamExpression`, `ParamConstraint`, `ParamSlot`, `ParameterDefs`), parser (`parseExpression`), evaluator (`evaluateParamExpression`), renderer (`renderParamExpression`).
-- `src/Renderer/Common/ParameterAnalysis.fs`: Design-time instance-tree analysis under a top sheet (`analyseUnderTop`, `displayValues`), top-sheet inference (`effectiveTopSheet`, `instanceForestRoots`), and bind-to-top offer computation (`findBindOffers`, `offersInScope`).
-- `src/Renderer/UI/ParameterView.fs`: Sheet defaults and slot bindings CRUD, constraint checking, component updates, parameter UI fields/popups, display-value annotations, and the bind-to-top / top-choice popups (`bindToTopOfferCheck`, `applyBindOffers`, `topSheetChoiceCheck`).
+- `src/Renderer/Common/ParameterAnalysis.fs`: Design-time instance-tree analysis under a top sheet (`analyseUnderTop`, `displayValues`), top-sheet inference (`effectiveTopSheet`, `instanceForestRoots`), and bind-to-top chain computation (`findBindOffers`).
+- `src/Renderer/UI/ParameterView.fs`: Sheet defaults and slot bindings CRUD, constraint checking, component updates, parameter UI fields/popups, display-value annotations, the placement popup (`customComponentParamPopup`), the bind-to-top button action (`applyBindOffers`), and the top-choice popup (`topSheetChoiceCheck`).
 - `src/Renderer/UI/CatalogueView.fs`: Merges parent sheet defaults with sub-sheet defaults, resolves canvas before extracting `InputLabels`/`OutputLabels`, sets `ParameterBindings` on instances.
 - `src/Renderer/Simulator/GraphMerger.fs`: Two-stage resolution during merge; instance bindings first, then sheet defaults; recursion into nested custom components.
 - `src/Renderer/Simulator/CanvasStateAnalyser.fs`: Lightweight parameter resolution for port label validation.

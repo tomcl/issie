@@ -427,20 +427,6 @@ let update (msg : Msg) oldModel =
         CustomCompPorts.updateProjectFiles false update model
         |> withNoMsg
 
-    | CheckBindToTopOffers scope ->
-        // never displace a popup that is already open: the offer will be raised again by a
-        // later qualifying event, or is visible as an unbound-parameter note in properties
-        match model.PopupViewFunc with
-        | Some _ -> model |> withNoMsg
-        | None ->
-            match ParameterView.bindToTopOfferCheck scope model with
-            | None -> model |> withNoMsg
-            | Some popup ->
-                evilUIState <- EvilUIPopup
-                model
-                |> set popupViewFunc_ (Some popup)
-                |> withNoMsg
-
     | CheckTopSheetChoice ->
         match model.PopupViewFunc with
         | Some _ -> model |> withNoMsg

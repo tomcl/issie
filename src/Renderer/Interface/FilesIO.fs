@@ -53,7 +53,16 @@ let staticDir() =
 /// NB this path is not fixed (even as relative path) between
 /// production and dev builds, so this must be used to access static
 /// assets.
-let staticFileDirectory = staticDir()
+/// This is a module-level binding, so it is evaluated the first time anything in this file is
+/// touched. staticDir() is an Electron notion and would throw on .NET, taking the whole of FilesIO
+/// with it, so code that runs on .NET - the tests, and Tools/LibraryIndex - gets an empty path and
+/// must be given the directory it works on explicitly.
+let staticFileDirectory =
+    #if FABLE_COMPILER
+    staticDir()
+    #else
+    ""
+    #endif
 
 let pathJoin (args: string array) =
     #if FABLE_COMPILER
@@ -87,7 +96,9 @@ let exists (filePath: string) =
     #if FABLE_COMPILER
     fs.existsSync (U2.Case1 filePath)
     #else
-    File.Exists filePath
+    // a directory exists too: File.Exists alone is false for one, which made every directory
+    // read fail when this code is hosted on .NET (the tests, Tools/LibraryIndex)
+    File.Exists filePath || Directory.Exists filePath
     #endif
 
 /// True when the path exists and is a directory. False for a file, and for a path that is not
@@ -152,31 +163,43 @@ let modifiedTimeMs (filePath: string) : float option =
         Some (File.GetLastWriteTimeUtc filePath - System.DateTime(1970, 1, 1)).TotalMilliseconds
         #endif
 
-/// The per-user, writable Issie directory, created if it is not there.
+/// Make a directory if it is not there, saying why if that could not be done. Creating a
+/// directory can genuinely fail - a read-only or full disk, a permissions policy - and the
+/// callers here are all able to carry on without it.
+let tryEnsureDirectory (dPath: string) : Result<string, string> =
+    try
+        ensureDirectory dPath
+        match exists dPath with
+        | true -> Ok dPath
+        | false -> Error $"could not create the directory {dPath}"
+    with e ->
+        Error $"could not create the directory {dPath}: {e.Message}"
+
+/// The per-user, writable Issie directory.
 ///
-/// Everything Issie creates for the user - demo working copies, component libraries - belongs
-/// here and NOT beside the installation. On macOS the app bundle is signed and notarised, so
-/// writing inside it invalidates the signature and Gatekeeper can then refuse to launch it. On
-/// Windows the installation is usually under Program Files, which needs administrator rights to
-/// write. Both fail only for installed users, never in a development build, which is exactly the
-/// kind of bug that ships.
-let userDataDirectory () =
-    let dir = electronRemote.app.getPath AppGetPath.UserData
-    ensureDirectory dir
-    dir
+/// Anything Issie writes for the user - demo working copies, imported component libraries, the
+/// indexes it generates - belongs here and NOT beside the installation. On macOS the app bundle
+/// is signed and notarised, so writing inside it invalidates the signature and Gatekeeper can
+/// then refuse to launch it. On Windows the installation is usually under Program Files, which
+/// needs administrator rights to write. Both fail only for installed users, never in a
+/// development build, which is exactly the kind of bug that ships.
+let tryUserDataDirectory () : Result<string, string> =
+    try
+        electronRemote.app.getPath AppGetPath.UserData |> tryEnsureDirectory
+    with e ->
+        Error $"could not find the user data directory: {e.Message}"
+
+let private tryUserSubdirectory (name: string) : Result<string, string> =
+    tryUserDataDirectory ()
+    |> Result.bind (fun root -> tryEnsureDirectory (pathJoin [| root; name |]))
 
 /// Where a demo project is copied so that the user can edit it.
-let userDemosDirectory () =
-    let dir = pathJoin [| userDataDirectory (); "demos" |]
-    ensureDirectory dir
-    dir
+let tryUserDemosDirectory () : Result<string, string> = tryUserSubdirectory "demos"
 
-/// Where component libraries live: those shipped with Issie, copied here on first use, and any
-/// the user imports later.
-let userLibrariesDirectory () =
-    let dir = pathJoin [| userDataDirectory (); "libraries" |]
-    ensureDirectory dir
-    dir
+/// Where libraries the user adds live, along with the indexes generated for them. The libraries
+/// shipped with Issie are NOT copied here: they stay read-only under the installation with the
+/// indexes generated for them at build time.
+let tryUserLibrariesDirectory () : Result<string, string> = tryUserSubdirectory "libraries"
 
 let pathWithoutExtension filePath =
     let ext = extName filePath
@@ -218,8 +241,9 @@ let tryReadFileSync fPath =
 /// Create file if it does not exist.
 let writeFile (path: string) (data: string) =
     try
-        let options = createObj ["encoding" ==> "utf8"] |> Some
         #if FABLE_COMPILER
+        // createObj is a Fable binding: building it outside this branch threw on .NET
+        let options = createObj ["encoding" ==> "utf8"] |> Some
         fs.writeFileSync(path, data, options)
         #else
         File.WriteAllText(path, data, System.Text.ASCIIEncoding.UTF8)

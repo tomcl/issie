@@ -57,8 +57,14 @@ let globalGC : unit->unit = jsNative
 [<Emit("typeof $0")>]
 let jsType (var: obj) : unit = jsNative
 
+#if FABLE_COMPILER
 [<Emit("console.log($0)")>]
 let log msg : unit = jsNative
+#else
+/// Shared code is also hosted on .NET (the tests, Tools/LibraryIndex), where a Fable binding
+/// throws. Logging must never be the thing that brings a build tool down.
+let log msg : unit = printfn "%A" msg
+#endif
 
 let logString msg : unit =
     log <| sprintf "%A" msg

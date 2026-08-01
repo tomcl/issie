@@ -3,154 +3,135 @@ module ComponentLibraries
 (*
     ComponentLibraries.fs
 
-    Reusable parameterised components shipped with Issie, placed from the catalogue and
-    materialised into a project on use.
+    Reusable parameterised components, offered in the catalogue and materialised into a project on
+    use.
 
-    On disk a library is a directory of ordinary sheets:
+    On disk a library is a directory of .ldgm files, one per component:
 
-        static/libraries/<libname>/index.json
-        static/libraries/<libname>/<compname>.dgm
+        <libraries>/<libname>/<compname>.ldgm
 
-    The index exists so that the catalogue and the placement popup can be shown without opening a
-    single .dgm: reading every sheet of every library at startup does not scale. It is derived
-    data - `indexOfLibraryDirectory` rebuilds it from the sheets themselves - so it can be
-    regenerated whenever the sheets change, and a library with no index is still usable, just
-    slower to open.
+    An .ldgm is a serialised (LibraryHeader * string): a small authored header, and the component's
+    sheet as the exact text of a .dgm. Two things follow from that shape, and they are the whole
+    design:
+
+    - Listing a library reads headers only. The body is one JSON string token, so nothing builds a
+      canvas: no LoadedComponent, no width inference, no id regeneration. Those cost far more than
+      reading the bytes do.
+    - Materialising a component writes the body string out as a .dgm and hands it to the ordinary
+      sheet loader. There is one canvas format in Issie, not two, and nothing here understands it.
+
+    Nothing is derived, so nothing can go stale. An earlier design generated an index of each
+    library and had to work out when that index was out of date. The header is authored instead, by
+    the "save as library component" command - which is also what settles whether a component is
+    offered in the catalogue, a question that otherwise needs every sheet in the library parsed to
+    answer.
 *)
 
 open Fable.SimpleJson
 open CommonTypes
 open FilesIO
-open ParameterTypes
 
 module Constants =
     /// directory under static/ holding the libraries shipped with Issie
     let librariesDirectory = "libraries"
-    let indexFile = "index.json"
-    /// catalogue section used when a component's sheet does not name one
+    let componentExtension = ".ldgm"
+    /// catalogue section used when a component does not name one
     let defaultSection = "Components"
-    /// How far a library directory's modification time may be after its index before the index is
-    /// treated as stale. Writing index.json into the directory it describes can leave the
-    /// directory a moment newer than the file, and packaging through a zip rounds times to the
-    /// nearest two seconds, so a strict comparison would rebuild every index on every startup.
-    let indexStaleMarginMs = 10000.0
+    /// Written into every header and checked when one is read. The format is expected to grow - a
+    /// header is cheap to extend - and a file from a later Issie should be refused with something
+    /// better than a decoding error. .dgm has no version field, which is why loading one is three
+    /// decode attempts in sequence; this is the one chance not to repeat that.
+    let currentFormatVersion = 1
 
 //------------------------------------------------------------------------------------------------//
-//------------------------------------------ The index -------------------------------------------//
+//------------------------------------- The .ldgm format -----------------------------------------//
 //------------------------------------------------------------------------------------------------//
 
-/// One parameter of a library component, copied out of the sheet's declarations so that the
-/// placement popup can ask for a value without the sheet being read.
-type LibraryParam = {
+/// What the catalogue needs to know about a component without reading its sheet.
+///
+/// Deliberately does NOT carry the component's parameters, ports, or anything else derived from
+/// the sheet. All of that is read from the body, once, just before it is needed - which is why
+/// this cannot drift from the sheet it describes.
+type LibraryHeader = {
+    FormatVersion: int
+    /// what the user sees, and the base name of the file within the library directory
     Name: string
-    Description: string
-    Default: int
-}
-
-/// One component offered by a library. `Name` is both what the user sees and the base name of the
-/// sheet's .dgm within the library directory.
-type LibraryComponent = {
-    Name: string
-    /// shown as the catalogue tooltip; this is the sheet's own Description
+    /// the catalogue tooltip
     Description: string
     /// catalogue section this component is grouped under
     Section: string
-    InputLabels: string list
-    OutputLabels: string list
-    Params: LibraryParam list
+    /// False for a sheet that exists only to be used by another component of the same library.
+    /// Authored, not inferred: working it out meant parsing every sheet of the library to find
+    /// which of them were instantiated by others.
+    OfferedInCatalogue: bool
+    /// Other components OF THE SAME LIBRARY that this one instantiates, by name. Referenced rather
+    /// than embedded, so two components sharing a sub-sheet do not each carry a copy of it. A
+    /// dependency is materialised alongside the component that needs it.
+    Requires: string list
 }
 
-/// A library as offered in the catalogue.
+/// A component file: its header, and its sheet as the exact text of a .dgm.
+/// The body is a string, not a parsed canvas, so that reading a header never builds one and
+/// materialising is a file write followed by the ordinary loader.
+type LibraryFile = LibraryHeader * string
+
+/// A library as offered in the catalogue: a name and a directory. Its components are read when the
+/// user opens it, never at startup.
 type ComponentLibrary = {
     Name: string
-    Components: LibraryComponent list
-    /// absolute path of the directory holding the .dgm files
+    /// absolute path of the directory holding the .ldgm files
     Path: string
 }
 
-/// The parameters a sheet declares, in index form.
-let private paramsOfSheet (ldc: LoadedComponent) : LibraryParam list =
-    let defs =
-        ldc.LCParameterSlots
-        |> Option.map (fun ps -> ps.DefaultBindings)
-        |> Option.defaultValue Map.empty
-    defs
-    |> Map.toList
-    |> List.map (fun (ParamName name, definition) ->
-        let value =
-            evaluateParamExpression (bindingsOf defs) definition.Expression
-            |> Result.toOption
-            |> Option.defaultValue 1
-        {Name = name; Description = definition.Description; Default = value})
+/// One component of an opened library, as listed.
+type LibraryListing = {
+    Header: LibraryHeader
+    /// absolute path of the .ldgm
+    Path: string
+}
 
-/// The index entry for one sheet of a library.
-/// A sheet with no description still appears, described by its own name: a library component
-/// without a tooltip is worse than a dull one.
-let private componentOfSheet (ldc: LoadedComponent) : LibraryComponent =
-    {
-        Name = ldc.Name
-        Description = ldc.Description |> Option.defaultValue ldc.Name
-        Section = Constants.defaultSection
-        InputLabels = ldc.InputLabels |> List.map fst
-        OutputLabels = ldc.OutputLabels |> List.map fst
-        Params = paramsOfSheet ldc
-    }
+/// What opening a library found: the components it can offer, and anything that would not read.
+/// A file that will not read costs that component, never the library.
+type OpenedLibrary = {
+    Name: string
+    Path: string
+    Components: LibraryListing list
+    Problems: string list
+}
 
-/// Build a library's index by reading every sheet in its directory. This is what the index file
-/// caches, and what is used when there is no index file.
-/// A sheet instantiated by another sheet of the same library is part of that component rather
-/// than a component in its own right, so it is not offered separately.
-let indexOfLibraryDirectory (libPath: string) : LibraryComponent list =
-    let sheets =
-        readFilesFromDirectoryWithExtn libPath ".dgm"
-        |> List.choose (fun name ->
-            match tryLoadComponentFromPath (pathJoin [| libPath; name |]) with
-            | Ok ldc -> Some ldc
-            | Error msg ->
-                JSHelpers.log $"Skipping library sheet {name}: {msg}"
-                None)
-    let instantiatedWithin =
-        sheets
-        |> List.collect (fun ldc ->
-            fst ldc.CanvasState
-            |> List.choose (fun comp ->
-                match comp.Type with
-                | Custom cc -> Some cc.Name
-                | _ -> None))
-        |> Set.ofList
-    sheets
-    |> List.filter (fun ldc -> not (Set.contains ldc.Name instantiatedWithin))
-    |> List.map componentOfSheet
-    |> List.sortBy (fun comp -> comp.Name)
+let componentPath (libPath: string) (name: string) =
+    pathJoin [| libPath; name + Constants.componentExtension |]
 
-/// Read one library. The index file is used if it parses; otherwise the directory is scanned and
-/// a warning logged, so a missing or stale index degrades speed rather than function.
-let private readLibrary (librariesPath: string) (libName: string) : ComponentLibrary option =
-    let libPath = pathJoin [| librariesPath; libName |]
-    let fromIndex =
-        match tryReadFileSync (pathJoin [| libPath; Constants.indexFile |]) with
-        | Error _ -> None
-        | Ok contents ->
-            match Json.tryParseAs<LibraryComponent list> contents with
-            | Ok comps -> Some comps
-            | Error msg ->
-                JSHelpers.log $"Library {libName}: could not read {Constants.indexFile} ({msg}); reading its sheets instead"
-                None
-    let components = fromIndex |> Option.defaultWith (fun () -> indexOfLibraryDirectory libPath)
-    match components with
-    | [] -> None
-    | _ -> Some {Name = libName; Components = components; Path = libPath}
+/// Read one .ldgm. The body comes back as text: there is little to gain from decoding less, since
+/// it is a single JSON string token either way.
+let tryReadComponentFile (path: string) : Result<LibraryFile, string> =
+    match tryReadFileSync path with
+    | Error msg -> Error msg
+    | Ok contents ->
+        match Json.tryParseAs<LibraryFile> contents with
+        | Error msg -> Error $"{baseName path} is not a readable library component ({msg})"
+        | Ok (header, body) ->
+            match header.FormatVersion > Constants.currentFormatVersion with
+            | true ->
+                Error $"{baseName path} was written by a later version of Issie: it uses library format {header.FormatVersion} and this version reads {Constants.currentFormatVersion}"
+            | false -> Ok (header, body)
 
-/// Write a library's index from its sheets. Called when the index is missing or stale, and by a
-/// library author directly after editing sheets in place - see refreshIndex for why that case
-/// cannot be detected.
-let writeLibraryIndex (libPath: string) : Result<unit, string> =
-    indexOfLibraryDirectory libPath
-    |> Json.stringify
-    |> writeFile (pathJoin [| libPath; Constants.indexFile |])
+/// The header of one component.
+let tryReadHeader (path: string) : Result<LibraryHeader, string> =
+    tryReadComponentFile path |> Result.map fst
+
+/// Write a component file. Used by "save as library component". `body` must be the text of a .dgm
+/// exactly as the sheet was saved, since that is what is written back out when it is used.
+let writeComponentFile (libPath: string) (header: LibraryHeader) (body: string) : Result<unit, string> =
+    Json.stringify ((header, body): LibraryFile)
+    |> writeFile (componentPath libPath header.Name)
+
+//------------------------------------------------------------------------------------------------//
+//--------------------------------------- Finding them -------------------------------------------//
+//------------------------------------------------------------------------------------------------//
 
 /// The names of the subdirectories of `path`. Anything that is not a directory - a README, say -
-/// is not a library and is skipped here rather than further in, since reading a file as though it
+/// is not a library, and is skipped here rather than further in, since reading a file as though it
 /// were a directory logs a warning even though the answer is correctly "no components".
 let private subdirectoriesOf (path: string) : string list =
     match exists path with
@@ -159,60 +140,54 @@ let private subdirectoriesOf (path: string) : string list =
         readFilesFromDirectory path
         |> List.filter (fun name -> isDirectory (pathJoin [| path; name |]))
 
-/// Copy the libraries shipped with Issie into the user's library directory, which is where they
-/// are read from and where an imported library will also go. A library already there is left
-/// alone: it may have been changed, and the shipped copy is only a starting point.
-/// This means a library changed by a new Issie version does not replace one already copied. That
-/// is the right way round while libraries are user-editable; a version check can be added when
-/// there is something to check.
-let private seedShippedLibraries (userPath: string) : unit =
-    let shippedPath = pathJoin [| staticFileDirectory; Constants.librariesDirectory |]
-    subdirectoriesOf shippedPath
-    |> List.iter (fun name ->
-        let target = pathJoin [| userPath; name |]
-        match exists target with
-        | true -> ()
-        | false ->
-            ensureDirectory target
-            let source = pathJoin [| shippedPath; name |]
-            readFilesFromDirectory source
-            |> List.filter (fun f -> hasExtn ".dgm" f || f = Constants.indexFile)
-            |> List.iter (fun f -> copyFile (pathJoin [| source; f |]) (pathJoin [| target; f |])))
-
-/// Rewrite a library's index if it is missing or older than the directory it describes.
-///
-/// A directory's modification time changes when a sheet is added to it, removed from it or
-/// renamed, which covers importing a library, deleting a component, and a fresh checkout. It does
-/// NOT change when a sheet already there is rewritten in place, so a library author who edits a
-/// sheet with Issie must regenerate the index with writeLibraryIndex. Watching every file for that
-/// one case is not worth it: the index is derived data, and regenerating it is one call.
-let private refreshIndex (libPath: string) : unit =
-    let stale =
-        match modifiedTimeMs (pathJoin [| libPath; Constants.indexFile |]), modifiedTimeMs libPath with
-        | None, _ -> true
-        | Some indexTime, Some dirTime -> dirTime > indexTime + Constants.indexStaleMarginMs
-        | Some _, None -> false
-    match stale with
-    | false -> ()
-    | true ->
-        match writeLibraryIndex libPath with
-        | Ok () -> ()
-        // a library that cannot be indexed is still usable, just slower to open, so this must not
-        // be allowed to stop the application starting
-        | Error msg -> JSHelpers.log $"Could not write the index of library {libPath}: {msg}"
-
-/// Every component library available. Read once when the application starts: the index files make
-/// this cheap, and the catalogue is a pure render function so it cannot read them itself.
-/// Libraries are read from the user's writable directory, not from the installation: see
-/// FilesIO.userDataDirectory for why nothing may be written beside the installation.
-let readLibraries () : ComponentLibrary list =
-    let librariesPath = userLibrariesDirectory ()
-    seedShippedLibraries librariesPath
-    let libraries = subdirectoriesOf librariesPath
-    libraries |> List.iter (fun name -> refreshIndex (pathJoin [| librariesPath; name |]))
-    libraries
-    |> List.choose (readLibrary librariesPath)
+/// The libraries available. Directory names only - no file is opened - so this is cheap enough for
+/// startup, which it has to be: the catalogue is a pure render function and cannot read the disk
+/// itself. Everything about a component is read later, when its library is opened.
+let findLibraries () : ComponentLibrary list =
+    let librariesPath = pathJoin [| staticFileDirectory; Constants.librariesDirectory |]
+    subdirectoriesOf librariesPath
+    |> List.map (fun name -> {Name = name; Path = pathJoin [| librariesPath; name |]})
     |> List.sortBy (fun lib -> lib.Name)
+
+/// Read the headers of a library's components. Done when the user opens the library, and not kept:
+/// it is one small read per component, on an action the user took, and keeping it would mean
+/// deciding when it had gone wrong.
+let openLibrary (library: ComponentLibrary) : OpenedLibrary =
+    let read =
+        readFilesFromDirectoryWithExtn library.Path Constants.componentExtension
+        |> List.map (fun fileName ->
+            let path = pathJoin [| library.Path; fileName |]
+            path, tryReadHeader path)
+    {
+        Name = library.Name
+        Path = library.Path
+        Components =
+            read
+            |> List.choose (fun (path, header) ->
+                match header with
+                | Ok header when header.OfferedInCatalogue -> Some {Header = header; Path = path}
+                | _ -> None)
+            |> List.sortBy (fun listing -> listing.Header.Name)
+        Problems =
+            read
+            |> List.choose (fun (_, header) -> match header with | Error msg -> Some msg | Ok _ -> None)
+    }
+
+/// A component and everything it needs, dependencies first - the order they must be written in.
+/// Dependencies are named rather than embedded, so they are read from the same library here. A
+/// name that is not there is an error rather than a silent omission: the component would otherwise
+/// be placed holding a custom component that refers to a sheet which does not exist.
+let readComponentAndDependencies (libPath: string) (name: string) : Result<LibraryFile list, string> =
+    let rec read (got: LibraryFile list) (name: string) : Result<LibraryFile list, string> =
+        match got |> List.exists (fun (header, _) -> header.Name = name) with
+        | true -> Ok got        // shared sub-sheet reached twice: a diamond, not a problem
+        | false ->
+            tryReadComponentFile (componentPath libPath name)
+            |> Result.bind (fun (header, body) ->
+                (Ok got, header.Requires)
+                ||> List.fold (fun acc required -> acc |> Result.bind (fun got -> read got required))
+                |> Result.map (fun got -> got @ [header, body]))
+    read [] name
 
 //------------------------------------------------------------------------------------------------//
 //--------------------------- Naming library sheets within a project -----------------------------//
@@ -255,9 +230,9 @@ let prefixFor (libraryIndex: int) = $"L{libraryIndex}_"
 /// contain underscores, so a project can already hold a sheet called L1_Anything, and letting a
 /// library share a prefix with an unrelated sheet would be confusing even where nothing actually
 /// collides. A prefix in use is skipped rather than anything being renamed or refused.
-let libraryIndexFor (ldcs: LoadedComponent list) (library: ComponentLibrary) : int =
+let libraryIndexFor (ldcs: LoadedComponent list) (libraryName: string) : int =
     let existing = ldcs |> List.choose libraryOfSheet
-    match existing |> List.tryFind (fun (libName, _) -> libName = library.Name) with
+    match existing |> List.tryFind (fun (libName, _) -> libName = libraryName) with
     | Some (_, n) -> n
     | None ->
         let takenIndices = existing |> List.map snd |> Set.ofList

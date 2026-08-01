@@ -745,28 +745,34 @@ let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch
                 
             ] 
 
+/// The properties field for the SECOND integer of a BusSelection or a BusCompare: where the
+/// selection starts, and what the comparison is against. Both go in an IO parameter slot, because
+/// Buswidth is already taken by the component's own width.
+///
+/// Only those two component types have such a field. BusCompare1 does not belong here even though
+/// it also has a comparison value: makeBusCompareDialog edits that one. This used to accept it
+/// when working out the prompt and then fail on a second match when building the field, so a
+/// caller that believed the first match would have crashed the properties pane. One match now, so
+/// the accepted types cannot drift apart again.
 let private makeLsbBitNumberField model (comp:Component) dispatch =
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let lsbPos, infoText =
-        match comp.Type with 
-        | BusSelection(width,lsb) -> bigint lsb, "Least Significant Bit number selected: lsb"
-        | BusCompare(width,cVal) -> cVal, "Compare with"
-        | BusCompare1(width,cVal,text) -> cVal, "Compare with"
-        | _ -> failwithf "makeLsbBitNumberfield called from %A" comp.Type
-
-    match comp.Type with
-    | BusCompare(width, _) -> 
-        let constraints = [
-            MinVal (PInt 0, "Comparison value must be non-negative")
-            MaxVal (PInt ((1 <<< width) - 1), $"Comparison value must fit in {width} bits")
-        ]
-        ParameterView.paramInputField model infoText 0 (Some (int lsbPos)) constraints (Some comp) (IO comp.Label) dispatch
-    | BusSelection(width, lsb) ->
-        let constraints = [
-            MinVal (PInt 0, "LSB position must be non-negative")
-        ]
-        ParameterView.paramInputField model infoText 0 (Some (int lsbPos)) constraints (Some comp) (IO comp.Label) dispatch
-    | _ -> failwithf "What? invalid component for lsbpos in properties"
+    let infoText, value, constraints =
+        match comp.Type with
+        | BusSelection (_, lsb) ->
+            "Least Significant Bit number selected: lsb",
+            lsb,
+            [ MinVal (PInt 0, "LSB position must be non-negative") ]
+        | BusCompare (width, cVal) ->
+            "Compare with",
+            int cVal,
+            [ MinVal (PInt 0, "Comparison value must be non-negative")
+              // 1 <<< width wraps at 32 bits, so a wide bus cannot be range-checked here; an
+              // out-of-range value is caught by simulation width checking, as in
+              // makeDefaultValueField
+              if width < 31 then
+                  MaxVal (PInt ((1 <<< width) - 1), $"Comparison value must fit in {width} bits") ]
+        | _ ->
+            failwithf $"makeLsbBitNumberField called on {comp.Type}, which has no such field"
+    ParameterView.paramInputField model infoText 0 (Some value) constraints (Some comp) (IO comp.Label) dispatch
 
 
 

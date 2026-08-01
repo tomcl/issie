@@ -596,6 +596,14 @@ let copyParamSlotsToPastedComponents (pairs: (string * string) list) (model: Mod
     // whose expression names a parameter this sheet does not declare - the instance then
     // elaborates that parameter at the child sheet's default, which is the whole point of the
     // default. Without this a paste into another sheet leaves a binding referring to nothing.
+    /// what a pasted instance loses, so that it can be reported rather than just happening
+    let droppedFrom (sym: SymbolT.Symbol) (bindings: ParamBindings) (kept: ParamBindings) =
+        bindings
+        |> Map.toList
+        |> List.map fst
+        |> List.filter (fun name -> not (Map.containsKey name kept))
+        |> List.map (fun (ParamName name) -> sym.Component.Label, name)
+
     let pruneBindings _ (sym: SymbolT.Symbol) =
         match Set.contains sym.Component.Id pastedIds, sym.Component.Type with
         | true, Custom cc ->
@@ -604,12 +612,33 @@ let copyParamSlotsToPastedComponents (pairs: (string * string) list) (model: Mod
                 bindings
                 |> Map.filter (fun _ expr -> ParameterTypes.paramNamesOfExpr expr |> List.forall isDeclaredHere)
             match Map.count kept = Map.count bindings with
-            | true -> sym
+            | true -> sym, []
             | false ->
                 let cc' = {cc with ParameterBindings = if Map.isEmpty kept then None else Some kept}
-                {sym with Component = {sym.Component with Type = Custom cc'}}
-        | _ -> sym
-    withSlots |> Optic.map modelToSymbols (Map.map pruneBindings)
+                {sym with Component = {sym.Component with Type = Custom cc'}}, droppedFrom sym bindings kept
+        | _ -> sym, []
+
+    let pruned = withSlots |> get modelToSymbols |> Map.map pruneBindings
+    let dropped = pruned |> Map.toList |> List.collect (snd >> snd)
+    let model' = withSlots |> set modelToSymbols (pruned |> Map.map (fun _ (sym, _) -> sym))
+
+    // Losing a binding changes what the instance means - it falls back to the default of the sheet
+    // inside it - so say so. Silently is how a pasted copy ends up quietly describing different
+    // hardware from the one it was copied from.
+    match dropped with
+    | [] -> model'
+    | _ ->
+        let described =
+            dropped
+            |> List.groupBy fst
+            |> List.map (fun (label, entries) ->
+                $"""{label} ({entries |> List.map snd |> String.concat ", "})""")
+            |> String.concat "; "
+        let sheetName = model.CurrentProj |> Option.map (fun p -> p.OpenFileName) |> Option.defaultValue "this sheet"
+        let message =
+            $"Pasted here, these components lost parameter bindings that {sheetName} does not \
+              declare, and now use the default values of the sheets inside them: {described}."
+        model' |> set (notifications_ >-> fromDiagram_) (Some (Notifications.warningNotification message CloseDiagramNotification))
 
 
 /// Updates the LCParameterSlots DefaultParams section.

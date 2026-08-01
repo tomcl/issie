@@ -90,6 +90,15 @@ let exists (filePath: string) =
     File.Exists filePath
     #endif
 
+/// True when the path exists and is a directory. False for a file, and for a path that is not
+/// there at all, so it is safe to use as a filter before reading a directory's contents.
+let isDirectory (filePath: string) =
+    #if FABLE_COMPILER
+    fs.existsSync (U2.Case1 filePath) && fs.lstatSync(U2.Case1 filePath).isDirectory ()
+    #else
+    Directory.Exists filePath
+    #endif
+
 let extName (filePath: string) =
     #if FABLE_COMPILER
     path.extname filePath

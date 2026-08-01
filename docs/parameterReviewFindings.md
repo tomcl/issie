@@ -109,11 +109,26 @@ live on the source sheet, so nothing ever matches. `CopiedSymbols` survives a sh
 (`SymbolUpdate.loadComponents`, `:527-535`, preserves it), so this is a real path. The doc comment
 implies the declared-here check is the only restriction.
 
+**Partly addressed.** A paste that drops a custom component instance's parameter bindings now says
+so, in a warning over the canvas naming the instances and the parameters. That covers the case the
+user can act on. The underlying loss is NOT fixed: a pasted non-custom component whose width was
+parameterised still freezes silently at its resolved value, and nothing can report it, because
+neither `Model.Clipboard` nor `SymbolT.Model.CopiedSymbols` records which sheet the copy came from.
+Fixing it properly means recording that, or copying the slot expressions at copy time rather than
+looking them up at paste time.
+
 ### 7. `makeLsbBitNumberField` can `failwithf` on a type its own first match handles
 
 `SelectedComponentView.fs:754` reads `BusCompare1`, but the second match (`:757-769`) has no
 `BusCompare1` case and falls to `failwithf`. Unreachable today only because `makeBusCompareDialog`
 handles `BusCompare1` separately.
+
+**Fixed.** Checked first: it is not reachable, as the only two callers match on `BusSelection` and
+`BusCompare` and `BusCompare1` is routed to `makeBusCompareDialog`. The hazard was the two matches
+listing different types, so a future caller trusting the first one would crash the properties pane.
+They are now a single match over the two types that really are supported. The
+`(1 <<< width) - 1` bound in the same expression also gained the width < 31 guard that
+`makeDefaultValueField` already had.
 
 ## Low
 
@@ -122,6 +137,9 @@ handles `BusCompare1` separately.
   drift they had already accumulated is exactly what finding 2 was.
 - `MiscMenuView.fs:299-301` computes `ComponentLibraries.reservedPrefixOf` twice and then uses
   `.Value`.
+- ~~`ComponentLibraries.readLibraries` reads every entry of the libraries directory as though it
+  were a directory, so the README logs an `ENOTDIR` warning on every startup.~~ **Fixed** with a
+  `FilesIO.isDirectory` filter. The result was always correct; only the noise was the problem.
 - Three different silent fallbacks for the same "cannot evaluate" condition:
   `ComponentLibraries.paramsOfSheet` (`:78`) and `ParameterView.childDefaultValue` (`:1686`)
   default to `1`; `ParameterAnalysis.displayValuesOfSheet` (`:242`) defaults to `0`.

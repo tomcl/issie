@@ -234,14 +234,37 @@ let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (sho
 //------------------------------------------------------------------------------------------------------//
 
 
+/// True when the component sits inside an instance of a library sheet.
+/// A library component is opaque: its innards are no more offered here than its sheet is offered
+/// in the Sheets menu. The instance's own ports are unaffected - they belong to the sheet it was
+/// placed on, and appear like any other custom component's, as sheet.L<n>_Comp1.port.
+/// AccessPath is the chain of custom component instances the component sits within, so the test
+/// is whether any of them is an instance of a library sheet.
+let private isInsideLibraryComponent (fs: FastSimulation) (librarySheets: Set<string>) (fc: FastComponent) =
+    match Set.isEmpty librarySheets with
+    | true -> false
+    | false ->
+        fc.AccessPath
+        |> List.mapi (fun i cid -> cid, fc.AccessPath[0 .. i - 1])
+        |> List.exists (fun fid ->
+            match Map.tryFind fid fs.FCustomComps with
+            | Some customComp ->
+                match customComp.FType with
+                | Custom cc -> Set.contains cc.Name librarySheets
+                | _ -> false
+            | None -> false)
+
 /// Get all simulatable waves from CanvasState. Includes top-level Input and Output ports.
 /// Waves contain info which will be used later to create the SVGs for those waves actually
 /// selected. Init value of these from this function is None.
-let getWaves (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
+/// `librarySheets` names the sheets that came from a component library, whose innards are not
+/// offered - see isInsideLibraryComponent.
+let getWaves (librarySheets: Set<string>) (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
     let start = TimeHelpers.getTimeMs ()
     //printfn $"{fs.WaveIndex.Length} possible waves"
     fs.WaveIndex
     |> TimeHelpers.instrumentInterval "getAllPorts" start
+    |> Array.filter (fun wi -> not (isInsideLibraryComponent fs librarySheets fs.WaveComps[wi.Id]))
     |> Array.map (fun wi -> wi, makeWave ws fs wi)
     //|> fun x -> printfn $"Made waves!";x
     |> Map.ofArray

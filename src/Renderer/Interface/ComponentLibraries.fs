@@ -187,32 +187,40 @@ let libraryOfSheet (ldc: LoadedComponent) : (string * int) option =
         | _ -> None
     | _ -> None
 
+/// The prefix owned by a library index.
+let prefixFor (libraryIndex: int) = $"L{libraryIndex}_"
+
 /// The index to use for a library in this project: the one it already has if any of its sheets
 /// are present, otherwise the lowest free index.
-/// An index is free when no other library holds it AND none of the names it would produce clashes
-/// with an existing sheet - user sheet names may themselves contain underscores, so a project can
-/// already hold a sheet called L1_Adder. A clashing index is skipped rather than anything being
-/// renamed or refused.
+/// An index is free when no other library holds it and NO existing sheet begins with its prefix -
+/// not merely none of the names this library would produce. User sheet names may themselves
+/// contain underscores, so a project can already hold a sheet called L1_Anything, and letting a
+/// library share a prefix with an unrelated sheet would be confusing even where nothing actually
+/// collides. A prefix in use is skipped rather than anything being renamed or refused.
 let libraryIndexFor (ldcs: LoadedComponent list) (library: ComponentLibrary) : int =
     let existing = ldcs |> List.choose libraryOfSheet
     match existing |> List.tryFind (fun (libName, _) -> libName = library.Name) with
     | Some (_, n) -> n
     | None ->
         let takenIndices = existing |> List.map snd |> Set.ofList
-        let existingNames = ldcs |> List.map (fun ldc -> ldc.Name) |> Set.ofList
-        let clashes n =
-            library.Components
-            |> List.exists (fun comp -> Set.contains (sheetNameFor n comp.Name) existingNames)
+        let names = ldcs |> List.map (fun ldc -> ldc.Name)
+        let prefixInUse n = names |> List.exists (fun name -> name.StartsWith (prefixFor n))
         Seq.initInfinite (fun i -> i + 1)
-        |> Seq.find (fun n -> not (Set.contains n takenIndices) && not (clashes n))
+        |> Seq.find (fun n -> not (Set.contains n takenIndices) && not (prefixInUse n))
 
-/// The prefix a registered library owns in this project. A user sheet may not be named into one
-/// of these, or a component of that library added later would have nowhere to go.
+/// The prefixes the libraries used by this project own. Once a library holds a prefix no sheet may
+/// be named into it, or a component of that library added later would have nowhere to go.
 let reservedPrefixes (ldcs: LoadedComponent list) : string list =
     ldcs
     |> List.choose libraryOfSheet
-    |> List.map (fun (_, n) -> $"L{n}_")
+    |> List.map (snd >> prefixFor)
     |> List.distinct
+
+/// The reserved prefix a proposed sheet name would intrude on, if any.
+/// Used to refuse the name when a sheet is created or renamed.
+let reservedPrefixOf (ldcs: LoadedComponent list) (sheetName: string) : string option =
+    reservedPrefixes ldcs
+    |> List.tryFind (fun prefix -> sheetName.StartsWith prefix)
 
 //------------------------------------------------------------------------------------------------//
 //---------------------------------------- Cleaning up -------------------------------------------//

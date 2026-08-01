@@ -284,7 +284,12 @@ let waveSelectBreadcrumbs
     | None -> div [] [ str "No project open" ]
     | Some project ->
         let fs = Simulator.getFastSim()
-        let updatedProject = ModelHelpers.getUpdatedLoadedComponents project model
+        // A library component is opaque here as it is in the Sheets menu: its sheet is not a place
+        // the user navigates to, and none of its innards are offered as waves, so it must not
+        // appear in the design hierarchy either.
+        let updatedProject =
+            let p = ModelHelpers.getUpdatedLoadedComponents project model
+            {p with LoadedComponents = p.LoadedComponents |> List.filter (ComponentLibraries.isLibrarySheet >> not)}
         let updatedModel = { model with CurrentProj = Some updatedProject }
         // Extract sheet names from wave names.
         let sheetCounts =

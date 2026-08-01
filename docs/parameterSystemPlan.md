@@ -226,9 +226,11 @@ deviations from the plan text below:
 - **Multi-sheet components** are recognised but not placed: a sheet instantiated by another sheet
   of the same library is correctly kept out of the catalogue, but only the component's own sheet is
   copied into the project, so such a component would arrive incomplete.
-- The **prefix reservation** discussed under naming (stopping a user naming a sheet into a
-  registered library's `L<n>_` prefix) is computed by `reservedPrefixes` but not yet enforced by
-  sheet-name validation.
+Library components are opaque in the waveform simulator as they are in the Sheets menu: the
+instance's own ports appear like any custom component's (`sheet.L<n>_Comp1.port`), but nothing
+inside it is offered as a wave and its sheet does not appear in the design hierarchy.
+`WaveSimSVGs.getWaves` is the single choke point that filters them, testing each component's
+`AccessPath` for an instance of a library sheet.
 
 ### UI
 

@@ -81,8 +81,16 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     /// The validation may be done more than once because this function is recursive, but that is OK.
     /// validateSimparas is idempotent unless model changes.
     let wsModel =
+        let librarySheets =
+            model.CurrentProj
+            |> Option.map (fun proj ->
+                proj.LoadedComponents
+                |> List.filter ComponentLibraries.isLibrarySheet
+                |> List.map (fun ldc -> ldc.Name)
+                |> Set.ofList)
+            |> Option.defaultValue Set.empty
         let createWaves (wsModel: WaveSimModel) =
-            {wsModel with AllWaves = WaveSimSVGs.getWaves wsModel (Simulator.getFastSim())}
+            {wsModel with AllWaves = WaveSimSVGs.getWaves librarySheets wsModel (Simulator.getFastSim())}
         validateSimParas wsModel
         |> if newSimulation then createWaves else id
 

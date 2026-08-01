@@ -766,11 +766,13 @@ type Model = {
     /// Projects whose top-sheet choice popup the user has cancelled. Cancelling opens the sheet
     /// at default parameter values; the question is not asked again for that project.
     TopSheetChoiceDeclined : Set<string>
-    /// The component libraries shipped with Issie, read once at startup. The catalogue is a pure
-    /// render function, so it cannot read them itself.
+    /// The component libraries available: names and directories only, found once at startup. No
+    /// library file is opened until the user opens a library. The catalogue is a pure render
+    /// function, so it cannot look for them itself.
     ComponentLibraries : ComponentLibraries.ComponentLibrary list
-    /// Which library the catalogue is showing instead of its own contents, if any.
-    OpenLibrary : string option
+    /// The library the catalogue is showing instead of its own contents, if any, with the
+    /// component headers read when it was opened.
+    OpenLibrary : ComponentLibraries.OpenedLibrary option
     /// the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
     /// function to create popup pane if present

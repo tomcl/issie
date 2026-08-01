@@ -301,11 +301,12 @@ let loadDemoProject model dispatch basename =
         // The working copy goes in the user's own directory. It used to go beside the
         // installation - "." on Windows and Linux, next to the bundle on macOS - which is not
         // reliably writable: see FilesIO.userDataDirectory.
-        let newDir = pathJoin [| FilesIO.userDemosDirectory (); basename |]
         let sourceDir = pathJoin [| FilesIO.staticDir (); "demos"; basename |]
+        match FilesIO.tryUserDemosDirectory () |> Result.bind (fun d -> tryEnsureDirectory (pathJoin [| d; basename |])) with
+        | Error msg ->
+            displayFileErrorNotification $"The demo could not be opened: {msg}" dispatch
+        | Ok newDir ->
         printf "%s" $"loading demo {sourceDir} into {newDir}"
-
-        ensureDirectory newDir
 
         readFilesFromDirectory newDir
         |> List.iter (fun path -> unlink <| pathJoin[|newDir; path|])

@@ -116,47 +116,91 @@ let private makeCustom styles model dispatch (loadedComponent: LoadedComponent) 
 //---------------------------------- Shipped component libraries ---------------------------------//
 //------------------------------------------------------------------------------------------------//
 
-/// Copy a library component's sheet into the project, unless it is already there, and return the
-/// LoadedComponent to instantiate. The sheet is copied with fresh ids so that two projects using
-/// the same library share nothing, and named L<n>_<comp> so that it cannot clash with a user
-/// sheet - see ComponentLibraries for how n is chosen.
-let private materialiseLibrarySheet
-        (library: ComponentLibraries.ComponentLibrary)
-        (comp: ComponentLibraries.LibraryComponent)
+/// Materialise a library component and everything it needs into the project, and return the
+/// LoadedComponent to instantiate - the last one, since dependencies come first.
+///
+/// Three things happen to each sheet on the way in, and all of them are needed:
+///   - it is renamed to L<n>_<name>, so it cannot clash with a user sheet
+///   - its ids are regenerated, so two projects using the same library share nothing
+///   - every custom component in it that names another component OF THIS LIBRARY is repointed at
+///     that component's new name. Dependencies are referenced by name, so without this a
+///     multi-sheet component would be placed holding instances of sheets that are not there.
+let private materialiseLibraryComponent
+        (libName: string)
+        (files: ComponentLibraries.LibraryFile list)
         (project: Project)
         : Result<LoadedComponent, string> =
-    let index = ComponentLibraries.libraryIndexFor project.LoadedComponents library
-    let sheetName = ComponentLibraries.sheetNameFor index comp.Name
-    match project.LoadedComponents |> List.tryFind (fun ldc -> ldc.Name = sheetName) with
-    | Some existing -> Ok existing
-    | None ->
-        let sourcePath = pathJoin [| library.Path; comp.Name + ".dgm" |]
-        let destPath = pathJoin [| project.ProjectPath; sheetName + ".dgm" |]
-        copySheetWithNewIds sourcePath destPath
-        match tryLoadComponentFromPath destPath with
-        | Error msg -> Error $"Could not add {comp.Name} from library {library.Name}: {msg}"
-        | Ok ldc ->
-            // the sheet is a library sheet from now on: hidden from the Sheets menu, and carrying
-            // where it came from so the catalogue can name it properly
-            let ldc = {ldc with Name = sheetName; Form = Some (Library (library.Name, comp.Name))}
-            writeComponentToFile ldc |> ignore
-            Ok ldc
+    let index = ComponentLibraries.libraryIndexFor project.LoadedComponents libName
+    let inLibrary = files |> List.map (fun (header, _) -> header.Name) |> Set.ofList
+    let renameDependencies (ldc: LoadedComponent) =
+        let comps, conns = ldc.CanvasState
+        let comps =
+            comps
+            |> List.map (fun comp ->
+                match comp.Type with
+                | Custom cc when Set.contains cc.Name inLibrary ->
+                    {comp with Type = Custom {cc with Name = ComponentLibraries.sheetNameFor index cc.Name}}
+                | _ -> comp)
+        {ldc with CanvasState = comps, conns}
 
-/// Place an instance of a library component, adding its sheet to the project first if needed.
-let private startPlacingLibraryComponent library comp model dispatch =
+    let materialiseOne (existing: LoadedComponent list) ((header, body): ComponentLibraries.LibraryFile) =
+        let sheetName = ComponentLibraries.sheetNameFor index header.Name
+        match existing |> List.tryFind (fun ldc -> ldc.Name = sheetName) with
+        | Some already -> Ok already
+        | None ->
+            let destPath = pathJoin [| project.ProjectPath; sheetName + ".dgm" |]
+            // the body IS a .dgm, so it goes to disk verbatim and comes back through the ordinary
+            // loader: nothing here has to understand the canvas format
+            match writeFile destPath body with
+            | Error msg -> Error $"Could not write {sheetName}: {msg}"
+            | Ok () ->
+                match tryLoadComponentFromPath destPath with
+                | Error msg -> Error $"Could not add {header.Name} from library {libName}: {msg}"
+                | Ok ldc ->
+                    let ldc =
+                        {Helpers.RegenerateIds.regenerateSheetIds ldc with
+                            Name = sheetName
+                            Form = Some (Library (libName, header.Name))}
+                        |> renameDependencies
+                    writeComponentToFile ldc |> ignore
+                    Ok ldc
+
+    (Ok [], files)
+    ||> List.fold (fun acc file ->
+        acc |> Result.bind (fun got ->
+            materialiseOne (project.LoadedComponents @ got) file |> Result.map (fun ldc -> got @ [ldc])))
+    |> Result.bind (fun ldcs ->
+        match List.tryLast ldcs with
+        | Some ldc -> Ok ldc
+        | None -> Error $"Library {libName} has no component to place")
+
+/// Place an instance of a library component, adding its sheet - and any it needs - to the project
+/// first. The .ldgm files are read here, when the user asks for the component, not when the
+/// library was listed: listing reads headers only.
+let private startPlacingLibraryComponent
+        (library: ComponentLibraries.OpenedLibrary)
+        (listing: ComponentLibraries.LibraryListing)
+        model
+        dispatch =
     match model.CurrentProj with
     | None -> ()
     | Some project ->
-        match materialiseLibrarySheet library comp project with
+        let placed =
+            ComponentLibraries.readComponentAndDependencies library.Path listing.Header.Name
+            |> Result.bind (fun files -> materialiseLibraryComponent library.Name files project)
+        match placed with
         | Error msg -> dispatch <| SetFilesNotification (Notifications.errorFilesNotification msg)
         | Ok ldc ->
-            // the project gains a sheet, so the model must know about it before the instance that
-            // refers to it is created
+            // the project gains sheets, so the model must know about them before the instance that
+            // refers to one is created
             dispatch <| UpdateModel (fun m ->
                 match m.CurrentProj with
-                | Some p when p.LoadedComponents |> List.exists (fun c -> c.Name = ldc.Name) -> m
-                | Some p -> {m with CurrentProj = Some {p with LoadedComponents = p.LoadedComponents @ [ldc]}}
-                | None -> m)
+                | None -> m
+                | Some p ->
+                    let known = p.LoadedComponents |> List.map (fun c -> c.Name) |> Set.ofList
+                    match Set.contains ldc.Name known with
+                    | true -> m
+                    | false -> {m with CurrentProj = Some {p with LoadedComponents = p.LoadedComponents @ [ldc]}})
             dispatch <| ExecFuncInMessage ((fun model' dispatch' ->
                 startPlacingCustomComponent ldc model' dispatch'), dispatch)
 
@@ -1141,23 +1185,27 @@ let viewCatalogue model dispatch =
                             "Ready-made parameterised components. Choosing one adds its sheet to \
                              this project and asks for the values its parameters should take."
                             (libraries |> List.map (fun lib ->
+                                // the components are read HERE, when the library is opened. This
+                                // is an event handler, not the render function, so it may read the
+                                // disk; startup knows only that the library exists.
                                 menuItem styles lib.Name (fun _ ->
-                                    dispatch <| UpdateModel (Optics.Optic.set openLibrary_ (Some lib.Name)))))
+                                    let opened = ComponentLibraries.openLibrary lib
+                                    dispatch <| UpdateModel (Optics.Optic.set openLibrary_ (Some opened)))))
                     ]
 
-        /// The catalogue body replaced by one library's components, grouped into sections as the
-        /// catalogue itself is. Back returns to the catalogue.
-        let viewLibrary (library: ComponentLibraries.ComponentLibrary) = fun (model: Model) ->
+        /// The catalogue body replaced by one opened library's components, grouped into sections
+        /// as the catalogue itself is. Back returns to the catalogue.
+        let viewLibrary (library: ComponentLibraries.OpenedLibrary) = fun (model: Model) ->
             let styles =
                 match model.Sheet.Action with
                 | SheetT.InitialisedCreateComponent _ -> [Cursor "grabbing"]
                 | _ -> []
-            let componentItem (comp: ComponentLibraries.LibraryComponent) =
+            let componentItem (listing: ComponentLibraries.LibraryListing) =
                 div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
-                      Tooltip.dataTooltip comp.Description
+                      Tooltip.dataTooltip listing.Header.Description
                       Style styles ]
-                    [ menuItem styles comp.Name (fun _ ->
-                        dispatchAsFunc (startPlacingLibraryComponent library comp)) ]
+                    [ menuItem styles listing.Header.Name (fun _ ->
+                        dispatchAsFunc (startPlacingLibraryComponent library listing)) ]
             Menu.menu [Props [Class "py-1"; Style ([Height "calc(100vh - 200px)"; OverflowY OverflowOptions.Auto] @ styles)]] [
                 div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; JustifyContent "space-between"; MarginBottom "6px"]] [
                     b [] [str $"{library.Name} library"]
@@ -1166,17 +1214,21 @@ let viewCatalogue model dispatch =
                         Button.OnClick (fun _ -> dispatch <| UpdateModel (Optics.Optic.set openLibrary_ None))
                     ] [str "Back"]
                 ]
+                // a component that will not read costs that component, not the library: the rest
+                // are still offered, and the trouble is said out loud rather than swallowed
+                match library.Problems with
+                | [] -> null
+                | problems ->
+                    div [Style [Color "red"; FontSize "11px"; MarginBottom "6px"]]
+                        (problems |> List.map (fun problem -> div [] [str problem]))
                 yield!
                     library.Components
-                    |> List.groupBy (fun comp -> comp.Section)
+                    |> List.groupBy (fun listing -> listing.Header.Section)
                     |> List.sortBy fst
                     |> List.map (fun (section, comps) ->
                         makeMenuGroup section (comps |> List.map componentItem))
             ]
 
-        let openLibrary =
-            model.OpenLibrary
-            |> Option.bind (fun name -> model.ComponentLibraries |> List.tryFind (fun lib -> lib.Name = name))
-        match openLibrary with
+        match model.OpenLibrary with
         | Some library -> viewLibrary library model
         | None -> viewCatOfModel model

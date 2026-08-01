@@ -355,7 +355,7 @@ let makeFixedROM addr data mem =
     | _ -> failwithf $"addr={addr}, data={data}, int={mem.Init} not allowed in makeFixedROM"
 
 let jsonStringToMem (jsonString : string) =
-     Json.tryParseAs<Map<bigint,bigint>> jsonString
+     Json.tryParseNativeAs<Map<bigint,bigint>> jsonString
 
 
 

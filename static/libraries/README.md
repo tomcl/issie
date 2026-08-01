@@ -14,6 +14,17 @@ that declare parameters are the point of the mechanism: placing one asks the use
 each parameter, using the parameter descriptions, so write those to be read by someone who has
 never seen the sheet.
 
+## Where libraries live at runtime
+
+The libraries here are shipped inside the installation, which is **not writable**: on macOS the app
+bundle is signed and notarised, so writing into it breaks the signature, and on Windows the
+installation is normally under `Program Files`. So on first use each library directory is copied to
+the user's own Issie directory (Electron's `userData`, e.g. `%APPDATA%/Issie/libraries`), and that
+copy is what the catalogue reads. An imported library will go in the same place.
+
+A library already in the user's directory is left alone, so a library changed by a new Issie release
+does not overwrite one the user already has.
+
 ## What happens on placement
 
 The sheet is copied into the user's project as `L<n>_<compname>`, where `n` identifies this library
@@ -37,6 +48,11 @@ only single-sheet components are placed correctly.
 matters once a library has many components. It is **optional**: with no index the directory is
 scanned instead, which is slower but produces the same result.
 
-It is derived data, so do not hand-edit it — regenerate it with
-`ComponentLibraries.writeLibraryIndex <path to the library directory>` whenever the sheets change.
-A hand-maintained index would go stale, and a stale index is worse than none.
+It is derived data, so do not hand-edit it. Issie regenerates it at startup when it is missing, or
+when the library directory's modification time is later than the index's — which covers a sheet
+being added, removed or renamed, so importing a library indexes it automatically.
+
+**One case it cannot detect**: rewriting a sheet that is already there does not change the
+directory's modification time. If you edit a library sheet in place, regenerate the index yourself
+with `ComponentLibraries.writeLibraryIndex <path to the library directory>`. Watching every file for
+that one case is not worth the complication; regenerating is one call.

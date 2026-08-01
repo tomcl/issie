@@ -298,14 +298,13 @@ let addFileToProject model dispatch =
 /// load demo project into Issie executables
 let loadDemoProject model dispatch basename =
     warnAppWidth dispatch (fun _ ->
-        let isMac = Node.Api.``process``.platform = Node.Base.Darwin
-        let homeDir = if isMac then pathJoin [|FilesIO.staticDir(); ".."; ".."|] else "."
-
-        let newDir = homeDir + "/demos/" + basename
-        let sourceDir = FilesIO.staticDir() + "/demos/" + basename
+        // The working copy goes in the user's own directory. It used to go beside the
+        // installation - "." on Windows and Linux, next to the bundle on macOS - which is not
+        // reliably writable: see FilesIO.userDataDirectory.
+        let newDir = pathJoin [| FilesIO.userDemosDirectory (); basename |]
+        let sourceDir = pathJoin [| FilesIO.staticDir (); "demos"; basename |]
         printf "%s" $"loading demo {sourceDir} into {newDir}"
 
-        ensureDirectory (homeDir + "/demos/")
         ensureDirectory newDir
 
         readFilesFromDirectory newDir

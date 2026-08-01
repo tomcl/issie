@@ -457,6 +457,17 @@ let addParamComponent
     updateParamSlot slot exprSpec |> UpdateModel |> dispatch
 
 
+/// Add the parameter information from several slots of one newly created component.
+/// Used when a custom component instance is placed: it binds every parameter its sheet declares
+/// at once, so one hook has to create all of their slots.
+let addParamComponents
+    (newCompSpecs: NewParamCompSpec list)
+    (dispatch: Msg -> Unit)
+    (compId: CommonTypes.ComponentId)
+    : Unit =
+    newCompSpecs |> List.iter (fun spec -> addParamComponent spec dispatch compId)
+
+
 /// Create a generic input field which accepts and parses parameter expressions
 /// Validity of inputs is checked by parser
 /// Specific constraints can be passed by callee
@@ -841,8 +852,8 @@ let addParameterBox model dispatch =
                 // Close popup window
                 ClosePopup |> dispatch
                 // a new parameter may be the missing ancestor that lets unbound same-named
-                // parameters in the sheets below be bound to it
-                dispatch <| CheckBindToTopOffers (ParameterAnalysis.NewParam (project.OpenFileName, ParamName newParamName))
+                // parameters in the sheets below be bound to it; that now shows up as a bind
+                // button in those instances' properties rather than as a popup raised here
 
         // Parameter names can only be made out of letters and numbers, and every parameter must
         // be described: the description is what instances of this sheet show when asking for a value
@@ -1410,202 +1421,6 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 /// UI component for custom component definition of parameter bindings
-let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentType) dispatch =
-    let ccParams = 
-        match custom.ParameterBindings with
-        | Some bindings -> bindings
-        | None -> Map.empty
-    
-    let lcDefaultParams =
-        match model.CurrentProj with
-        | Some proj -> 
-            let lcName = List.tryFind (fun c -> custom.Name = c.Name) proj.LoadedComponents
-            match lcName with
-            | Some lc -> getDefaultParams lc
-            | None -> Map.empty
-        | None -> Map.empty
-
-    let mergedParamBindings : ParamBindings =
-        lcDefaultParams
-        |> Map.map (fun key value -> 
-            match Map.tryFind key ccParams with
-            | Some ccValue -> ccValue // Overwrite if key exists in cc
-            | None -> value // use loaded component value if key does not exist in cc
-            )
-    
-    // Get the parameter slots from the current sheet to find expressions
-    let slots = model |> getCurrentSheet |> getParamSlots
-
-    match mergedParamBindings.IsEmpty with
-    | true ->
-        div [] [
-            Label.label [] [ str "Parameters" ]
-            p [] [str "This component does not use any parameters." ]
-        ]   
-    | false ->
-        div [] [
-            Label.label [] [str "Parameters"]
-            p [] [str "This component uses the following parameters." ]
-            br []
-            Table.table [
-                        Table.IsBordered
-                        Table.IsNarrow
-                        Table.IsStriped
-                        ] [
-                thead [] [
-                    tr [] [
-                        th [] [str "Parameter"]
-                        th [] [str "Value"]
-                        th [] [str "Action"]
-                    ]
-                ]
-                tbody [] (
-                    mergedParamBindings |> Map.toList |> List.map (fun (key, value) ->
-                        let paramName =
-                            match key with 
-                            | ParameterTypes.ParamName s -> s
-                        
-                        // Look for the expression in the parameter slots
-                        let paramValStr =
-                            let slotKey = {CompId = comp.Id; CompSlot = CustomCompParam paramName}
-                            match Map.tryFind slotKey slots, Map.containsKey key ccParams with
-                            | Some constrainedExpr, _ ->
-                                // If there's an expression, render it as a string
-                                ParameterTypes.renderParamExpression constrainedExpr.Expression 0
-                            | None, true ->
-                                // Otherwise show the evaluated value
-                                match value with
-                                | ParameterTypes.PInt i -> string i
-                                | x -> string x
-                            | None, false ->
-                                // nothing binds this parameter on this instance: the sheet
-                                // inside elaborates with its declared default
-                                match value with
-                                | ParameterTypes.PInt i -> $"{i} (default; unbound)"
-                                | x -> $"{x} (default; unbound)"
-                        
-                        let paramValInt = 
-                            match value with
-                            | ParameterTypes.PInt i -> i
-                            | _ -> 0
-                        
-                        tr [] [
-                            td [] [str paramName]
-                            td [] [str paramValStr]
-                            td [] [
-                                Button.button
-                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model paramName paramValInt comp custom dispatch)
-                                      Fulma.Button.Color IsInfo
-                                    ] 
-                                    [str "Edit"]
-                            ]
-                        ]
-                    )
-                )
-            ]
-        ]
-
-/// Generate component slots view for design sheet properties panel
-/// This is read-only.
-let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispatch = 
-    let sheetParamsSlots = getParamsSlot comp
-
-    // Define a function to display PConstraint<int>
-    let constraintExpression (constraint': ParamConstraint) =
-        match constraint' with
-        | MaxVal (expr, err) ->
-            div [] [str ("Max: " + ParameterTypes.renderParamExpression expr 0)]
-        | MinVal (expr, err) ->
-            div [] [str ("Min: " + ParameterTypes.renderParamExpression expr 0)]
-    
-    let constraintMessage (constraint': ParamConstraint) =
-        match constraint' with
-            | MaxVal (_, err)  | MinVal (_, err) -> err
-
-
-    /// UI component to display a single parameterised Component slot definition.
-    /// This is read-only.
-    let renderSlotSpec (slot: ParamSlot) (expr: ConstrainedExpr) =
-        let slotNameStr =
-            match slot.CompSlot with
-            | Buswidth -> "Buswidth"
-            | IO label -> $"Input/output {label}"
-            | SplitNWidth idx -> $"SplitN output {idx} width"
-            | SplitNLSB idx -> $"SplitN output {idx} LSB"
-            | CustomCompParam paramName -> $"Custom parameter {paramName}"
-            | InputDefault -> "Default value"
-        
-        let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
-                        string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label
-                    else
-                        // slots are pruned when the sheet is saved or left, so this should not persist
-                        "[Nonexistent]"
-        tr [] [
-            td [] [
-                b [] [str name] 
-                br [] 
-                str slotNameStr
-            ]
-            td [] [str (ParameterTypes.renderParamExpression expr.Expression 0)]
-            td [
-                Class (Tooltip.ClassName + " " + Tooltip.IsTooltipLeft)
-                Tooltip.dataTooltip (List.map constraintMessage expr.Constraints |> String.concat "\n")
-            ] (List.map constraintExpression expr.Constraints)
-        ]
-
-    /// UI component to display parametrised Component slot definitions 
-    /// on the properties panel of a design sheet.
-    /// This is read-only - changes can be made via the priperties of the component.
-    let slotView (slotMap: ComponentSlotExpr) =
-        div [Class "component-slots"] [ 
-            label [Class "label"] [ str "Parameterised Components"]
-            // br []
-            p [] [str "This sheet contains the following parameterised components"]
-            br []
-            Table.table [
-                Table.IsBordered
-                Table.IsNarrow
-                Table.IsStriped
-                ] [
-                thead [] [
-                    tr [] [
-                        th [] [str "Component"]
-                        th [] [str "Expression"]
-                        th [] [str "Constraint"]
-                    ]
-                ]
-                tbody [] (
-                        // slots |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr
-                        slotMap |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr)
-                    )
-                ]
-        ]
-
-    match sheetParamsSlots with
-        |None ->
-            div [] [
-                Label.label [] [ str "Parameterised Components" ]
-                p [] [str "This sheet does not contain any parameterised." ]    
-                ]
-        |Some sheetParamsSlots -> slotView sheetParamsSlots
-
-/// UI interface for viewing the parameter expressions of a component
-let viewParameters (model: ModelType.Model) dispatch =
-    
-    match model.Sheet.SelectedComponents with
-    | [ compId ] ->
-        let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
-        div [Key comp.Id] [p [] [str $"Currently no parameters added into {comp.Label} sheet." ]    ]    
-    | _ -> 
-        match model.CurrentProj with
-        |Some proj ->
-            let sheetName = proj.OpenFileName
-            let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
-            div [] [
-            makeParamsField model sheetLdc dispatch
-            br []
-            makeSlotsField model sheetLdc dispatch]
-        |None -> null
 
 //------------------------------------------------------------------------------------------------//
 //------------------------------------- Bind-to-top offers ---------------------------------------//
@@ -1733,70 +1548,358 @@ let applyBindOffers (offers: ParameterAnalysis.BindOffer list) (model: Model) (d
         let sheetDispatch sMsg = dispatch (Sheet sMsg)
         model.Sheet.DoBusWidthInference sheetDispatch
 
-/// The bind-to-top offers an event should surface. Offers are suppressed while a simulation is
-/// open, because accepting one changes the parameters of the design being simulated.
-let private offersForScope (scope: ParameterAnalysis.BindOfferScope) (model: Model) : ParameterAnalysis.BindOffer list =
-    match model.CurrentProj with
-    | None -> []
-    | Some _ when ModelHelpers.simulationIsOpen model -> []
-    | Some proj ->
-        let ldcs = (ModelHelpers.getUpdatedLoadedComponents proj model).LoadedComponents
-        match ParameterAnalysis.effectiveTopSheet ldcs with
-        | None -> []
-        | Some top ->
-            ParameterAnalysis.findBindOffers ldcs top None
-            |> ParameterAnalysis.offersInScope ldcs scope
 
-/// A popup offering to bind qualifying unbound instance parameters to the same-named parameter
-/// of an ancestor sheet, materialising the chain of parameters and bindings if accepted.
-/// Returns None when the event's scope surfaces nothing, which is almost always.
-let bindToTopOfferCheck (scope: ParameterAnalysis.BindOfferScope) (model: Model) : ((Msg -> unit) -> Model -> ReactElement) option =
-    match offersForScope scope model with
-    | [] -> None
-    | offers ->
-        let sheets = offers |> List.collect ParameterAnalysis.sheetsModifiedByOffer |> List.distinct
-        let describeOffer (offer: ParameterAnalysis.BindOffer) =
-            let (ParamName name) = offer.Param
-            li [] [
-                str $"{offer.InstanceLabel} on sheet {offer.OnSheet}: bind parameter "
-                b [] [str name]
-                str $" to {offer.BindsTo}:{name}"
-            ]
-        let body =
-            div [] [
-                str "A parameter of the same name is defined on a sheet above these component \
-                     instances, but nothing binds them together. Binding keeps them in step: \
-                     changing the value near the top of the design changes them too. Instances \
-                     that already have their own explicit bindings are left unchanged."
-                br []; br []
-                ul [Style [MarginLeft "20px"; ListStyleType "disc"]] (List.map describeOffer offers)
-                br []
-                str ("Parameters and bindings will be created in sheets: " + String.concat ", " sheets + ". \
-                     The modified sheets are saved. Declining leaves each parameter at its default \
-                     value, noted in the instance's properties.")
-            ]
-        let foot (dispatch: Msg -> unit) (_: Model) =
-            Level.level [Level.Level.Props [Style [Width "100%"]]] [
-                Level.left [] []
-                Level.right [] [
-                    Level.item [] [
-                        Button.button [
-                            Button.Color IsLight
-                            Button.OnClick (fun _ -> dispatch ClosePopup)
-                        ] [str "Keep defaults"]
-                    ]
-                    Level.item [] [
-                        Button.button [
-                            Button.Color IsPrimary
-                            Button.OnClick (fun _ ->
-                                dispatch <| ExecFuncInMessage(applyBindOffers offers, dispatch)
-                                dispatch ClosePopup)
-                        ] [str "Create bindings"]
+let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentType) dispatch =
+    let ccParams = 
+        match custom.ParameterBindings with
+        | Some bindings -> bindings
+        | None -> Map.empty
+    
+    let lcDefaultParams =
+        match model.CurrentProj with
+        | Some proj -> 
+            let lcName = List.tryFind (fun c -> custom.Name = c.Name) proj.LoadedComponents
+            match lcName with
+            | Some lc -> getDefaultParams lc
+            | None -> Map.empty
+        | None -> Map.empty
+
+    let mergedParamBindings : ParamBindings =
+        lcDefaultParams
+        |> Map.map (fun key value -> 
+            match Map.tryFind key ccParams with
+            | Some ccValue -> ccValue // Overwrite if key exists in cc
+            | None -> value // use loaded component value if key does not exist in cc
+            )
+    
+    // Get the parameter slots from the current sheet to find expressions
+    let slots = model |> getCurrentSheet |> getParamSlots
+
+    /// Offers to bind an unbound parameter of THIS instance up to a same-named parameter on an
+    /// ancestor sheet, materialising the chain of parameters and bindings along the way.
+    /// Offered as a button rather than raised as a popup: the user meets it when they look at the
+    /// instance, so nothing has to guess the moment at which to interrupt them.
+    /// Suppressed while a simulation is open, as accepting one changes the design being simulated.
+    let bindOffers =
+        match model.CurrentProj with
+        | None -> []
+        | Some _ when ModelHelpers.simulationIsOpen model -> []
+        | Some proj ->
+            let ldcs = (ModelHelpers.getUpdatedLoadedComponents proj model).LoadedComponents
+            match ParameterAnalysis.effectiveTopSheet ldcs with
+            | None -> []
+            | Some top ->
+                ParameterAnalysis.findBindOffers ldcs top (Some proj.OpenFileName)
+                |> List.filter (fun offer -> offer.InstanceId = comp.Id)
+
+    match mergedParamBindings.IsEmpty with
+    | true ->
+        div [] [
+            Label.label [] [ str "Parameters" ]
+            p [] [str "This component does not use any parameters." ]
+        ]   
+    | false ->
+        div [] [
+            Label.label [] [str "Parameters"]
+            p [] [str "This component uses the following parameters." ]
+            br []
+            Table.table [
+                        Table.IsBordered
+                        Table.IsNarrow
+                        Table.IsStriped
+                        ] [
+                thead [] [
+                    tr [] [
+                        th [] [str "Parameter"]
+                        th [] [str "Value"]
+                        th [] [str "Action"]
                     ]
                 ]
-            ]
-        Some (buildPopup "Bind parameters to the top sheet?" (fun _ _ -> body) foot (fun dispatch _ -> dispatch ClosePopup) [])
+                tbody [] (
+                    mergedParamBindings |> Map.toList |> List.map (fun (key, value) ->
+                        let paramName =
+                            match key with 
+                            | ParameterTypes.ParamName s -> s
+                        
+                        // Look for the expression in the parameter slots
+                        let paramValStr =
+                            let slotKey = {CompId = comp.Id; CompSlot = CustomCompParam paramName}
+                            match Map.tryFind slotKey slots, Map.containsKey key ccParams with
+                            | Some constrainedExpr, _ ->
+                                // If there's an expression, render it as a string
+                                ParameterTypes.renderParamExpression constrainedExpr.Expression 0
+                            | None, true ->
+                                // Otherwise show the evaluated value
+                                match value with
+                                | ParameterTypes.PInt i -> string i
+                                | x -> string x
+                            | None, false ->
+                                // nothing binds this parameter on this instance: the sheet
+                                // inside elaborates with its declared default
+                                match value with
+                                | ParameterTypes.PInt i -> $"{i} (default; unbound)"
+                                | x -> $"{x} (default; unbound)"
+                        
+                        let paramValInt = 
+                            match value with
+                            | ParameterTypes.PInt i -> i
+                            | _ -> 0
+                        
+                        let bindButton =
+                            match bindOffers |> List.tryFind (fun offer -> offer.Param = key) with
+                            | None -> null
+                            | Some offer ->
+                                Button.button
+                                    [ Fulma.Button.OnClick(fun _ ->
+                                        dispatch <| ExecFuncInMessage(applyBindOffers [offer], dispatch))
+                                      Fulma.Button.Color IsSuccess
+                                      Fulma.Button.IsLight
+                                    ]
+                                    [str $"Bind to {offer.BindsTo}"]
 
+                        tr [] [
+                            td [] [str paramName]
+                            td [] [str paramValStr]
+                            td [] [
+                                Button.button
+                                    [ Fulma.Button.OnClick(fun _ -> editParameterBindingPopup model paramName paramValInt comp custom dispatch)
+                                      Fulma.Button.Color IsInfo
+                                    ]
+                                    [str "Edit"]
+                                bindButton
+                            ]
+                        ]
+                    )
+                )
+            ]
+        ]
+
+//------------------------------------------------------------------------------------------------//
+//------------------------- Asking for parameters when an instance is placed ---------------------//
+//------------------------------------------------------------------------------------------------//
+
+/// The value a parameter of `childLdc` takes when the sheet is viewed on its own.
+let private childDefaultValue (childDefs: ParamDefinitions) (name: ParamName) : ParamInt =
+    Map.tryFind name childDefs
+    |> Option.map (fun def -> ParameterTypes.evaluateParamExpression (bindingsOf childDefs) def.Expression)
+    |> Option.bind Result.toOption
+    |> Option.defaultValue 1
+
+/// A popup asking for a value for every parameter the sheet inside a custom component declares,
+/// raised when an instance is placed.
+/// Placing an instance without asking would silently freeze the child sheet's defaults into it -
+/// the stale-chain problem - so the choice is made explicitly instead. Where the sheet the
+/// instance is being placed on declares a parameter of the same name, a button binds to that
+/// parameter rather than entering a value, and the two then stay in step.
+/// `place` receives the bindings to put on the instance and the slots to create for it.
+let customComponentParamPopup
+        (childLdc: LoadedComponent)
+        (place: ParamBindings -> NewParamCompSpec list -> unit)
+        (model: Model)
+        (dispatch: Msg -> unit)
+        : unit =
+    let childDefs = getDefaultParamDefs childLdc
+    let parentDefs = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
+    let parentBindings = bindingsOf parentDefs
+    let parentSheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName) |> Option.defaultValue ""
+
+    let slotOf (ParamName nameStr) = CustomCompParam nameStr
+
+    /// the spec a parameter starts at: its child-sheet default, entered as a literal
+    let literalSpec name : NewParamCompSpec =
+        let value = childDefaultValue childDefs name
+        {CompSlot = slotOf name; Expression = PInt value; Constraints = []; Value = value}
+
+    /// the spec for a parameter bound to the same-named parameter of the parent sheet
+    let boundSpec name : NewParamCompSpec =
+        let value =
+            ParameterTypes.evaluateParamExpression parentBindings (PParameter name)
+            |> Result.toOption
+            |> Option.defaultValue (childDefaultValue childDefs name)
+        {CompSlot = slotOf name; Expression = PParameter name; Constraints = []; Value = value}
+
+    // every parameter starts at its default, so confirming without touching anything places the
+    // instance exactly as the sheet would be viewed standalone
+    childDefs
+    |> Map.toList
+    |> List.iter (fun (name, _) -> dispatch <| AddPopupDialogParamSpec (slotOf name, Ok (literalSpec name)))
+
+    let specOf (model': Model) name =
+        model'.PopupDialogData.DialogState
+        |> Option.defaultValue Map.empty
+        |> Map.tryFind (slotOf name)
+
+    let body (model': Model) =
+        let renderParam (name: ParamName, definition: ParamDefinition) =
+            let (ParamName nameStr) = name
+            let isBoundToParent =
+                match specOf model' name with
+                | Some (Ok spec) -> spec.Expression = PParameter name
+                | _ -> false
+            let canBindToParent = Map.containsKey name parentDefs
+            let valueEntry =
+                match isBoundToParent with
+                | true ->
+                    div [Style [Color "grey"]] [str $"takes the value of {parentSheet}.{nameStr}"]
+                | false ->
+                    paramInputField model' $"Value for {nameStr}"
+                        (childDefaultValue childDefs name) None [] None (slotOf name) dispatch
+            let bindButton =
+                match canBindToParent with
+                | false -> null
+                | true ->
+                    let label, spec =
+                        match isBoundToParent with
+                        | true -> "Enter a value instead", literalSpec name
+                        | false -> $"Bind to {parentSheet}.{nameStr}", boundSpec name
+                    Button.button [
+                        Button.Color IsInfo
+                        Button.IsLight
+                        Button.OnClick (fun _ -> dispatch <| AddPopupDialogParamSpec (slotOf name, Ok spec))
+                    ] [str label]
+            div [Key nameStr; Style [MarginBottom "12px"]] [
+                b [] [str nameStr]
+                p [Style [FontSize "11px"; Color "grey"]] [str definition.Description]
+                valueEntry
+                bindButton
+            ]
+        div [] [
+            str $"{childLdc.Name} has parameters. Give each one a value for this instance, or bind \
+                 it to a parameter of {parentSheet} so that the two stay in step."
+            br []; br []
+            div [] (childDefs |> Map.toList |> List.map renderParam)
+        ]
+
+    let buttonAction (model': Model) =
+        let specs =
+            childDefs
+            |> Map.toList
+            |> List.choose (fun (name, _) ->
+                match specOf model' name with
+                | Some (Ok spec) -> Some spec
+                | _ -> None)
+        let bindings =
+            (Map.empty, childDefs |> Map.toList)
+            ||> List.fold (fun acc (name, _) ->
+                match specOf model' name with
+                | Some (Ok spec) -> Map.add name spec.Expression acc
+                | _ -> acc)
+        place bindings specs
+        dispatch ClosePopup
+
+    // any parameter whose expression does not parse or breaks a constraint blocks placement
+    let isDisabled (model': Model) =
+        childDefs
+        |> Map.toList
+        |> List.exists (fun (name, _) ->
+            match specOf model' name with
+            | Some (Ok _) -> false
+            | _ -> true)
+
+    dialogPopup $"Parameters for {childLdc.Name}" body "Place" buttonAction isDisabled [] dispatch
+
+
+/// Generate component slots view for design sheet properties panel
+/// This is read-only.
+let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispatch =
+    let sheetParamsSlots = getParamsSlot comp
+
+    // Define a function to display PConstraint<int>
+    let constraintExpression (constraint': ParamConstraint) =
+        match constraint' with
+        | MaxVal (expr, err) ->
+            div [] [str ("Max: " + ParameterTypes.renderParamExpression expr 0)]
+        | MinVal (expr, err) ->
+            div [] [str ("Min: " + ParameterTypes.renderParamExpression expr 0)]
+    
+    let constraintMessage (constraint': ParamConstraint) =
+        match constraint' with
+            | MaxVal (_, err)  | MinVal (_, err) -> err
+
+
+    /// UI component to display a single parameterised Component slot definition.
+    /// This is read-only.
+    let renderSlotSpec (slot: ParamSlot) (expr: ConstrainedExpr) =
+        let slotNameStr =
+            match slot.CompSlot with
+            | Buswidth -> "Buswidth"
+            | IO label -> $"Input/output {label}"
+            | SplitNWidth idx -> $"SplitN output {idx} width"
+            | SplitNLSB idx -> $"SplitN output {idx} LSB"
+            | CustomCompParam paramName -> $"Custom parameter {paramName}"
+            | InputDefault -> "Default value"
+        
+        let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
+                        string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label
+                    else
+                        // slots are pruned when the sheet is saved or left, so this should not persist
+                        "[Nonexistent]"
+        tr [] [
+            td [] [
+                b [] [str name] 
+                br [] 
+                str slotNameStr
+            ]
+            td [] [str (ParameterTypes.renderParamExpression expr.Expression 0)]
+            td [
+                Class (Tooltip.ClassName + " " + Tooltip.IsTooltipLeft)
+                Tooltip.dataTooltip (List.map constraintMessage expr.Constraints |> String.concat "\n")
+            ] (List.map constraintExpression expr.Constraints)
+        ]
+
+    /// UI component to display parametrised Component slot definitions 
+    /// on the properties panel of a design sheet.
+    /// This is read-only - changes can be made via the priperties of the component.
+    let slotView (slotMap: ComponentSlotExpr) =
+        div [Class "component-slots"] [ 
+            label [Class "label"] [ str "Parameterised Components"]
+            // br []
+            p [] [str "This sheet contains the following parameterised components"]
+            br []
+            Table.table [
+                Table.IsBordered
+                Table.IsNarrow
+                Table.IsStriped
+                ] [
+                thead [] [
+                    tr [] [
+                        th [] [str "Component"]
+                        th [] [str "Expression"]
+                        th [] [str "Constraint"]
+                    ]
+                ]
+                tbody [] (
+                        // slots |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr
+                        slotMap |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr)
+                    )
+                ]
+        ]
+
+    match sheetParamsSlots with
+        |None ->
+            div [] [
+                Label.label [] [ str "Parameterised Components" ]
+                p [] [str "This sheet does not contain any parameterised." ]    
+                ]
+        |Some sheetParamsSlots -> slotView sheetParamsSlots
+
+/// UI interface for viewing the parameter expressions of a component
+let viewParameters (model: ModelType.Model) dispatch =
+    
+    match model.Sheet.SelectedComponents with
+    | [ compId ] ->
+        let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
+        div [Key comp.Id] [p [] [str $"Currently no parameters added into {comp.Label} sheet." ]    ]    
+    | _ -> 
+        match model.CurrentProj with
+        |Some proj ->
+            let sheetName = proj.OpenFileName
+            let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
+            div [] [
+            makeParamsField model sheetLdc dispatch
+            br []
+            makeSlotsField model sheetLdc dispatch]
+        |None -> null
 //------------------------------------------------------------------------------------------------//
 //----------------------------------- Top sheet choice on open -----------------------------------//
 //------------------------------------------------------------------------------------------------//
@@ -1845,9 +1948,8 @@ let topSheetChoiceCheck (model: Model) : ((Msg -> unit) -> Model -> ReactElement
                             Button.OnClick (fun _ ->
                                 dispatch <| UpdateModel (MenuHelpers.setTopSheetState root)
                                 dispatch ClosePopup
-                                // the top has (for display purposes) just changed: re-run the
-                                // bind-to-top check under it and redraw at the new values
-                                dispatch <| CheckBindToTopOffers ParameterAnalysis.WholeDesign
+                                // the top has (for display purposes) just changed: redraw the
+                                // open sheet at the values it now takes
                                 dispatch ApplyComputedDisplayValues)
                         ] [str root]
                     ]

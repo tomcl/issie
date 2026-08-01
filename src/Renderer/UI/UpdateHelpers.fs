@@ -219,7 +219,6 @@ let shortDisplayMsg (msg:Msg) =
     | ExecCmdAsynch _ -> Some "ExecCmdAsynch"
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
     | CodeEditorMsg _ -> Some "CodeEditorMsg"
-    | CheckBindToTopOffers _ -> Some "CheckBindToTopOffers"
     | CheckTopSheetChoice -> Some "CheckTopSheetChoice"
     | ApplyComputedDisplayValues -> Some "ApplyComputedDisplayValues"
 
@@ -451,12 +450,12 @@ let processContextMenuClick
         withNoCmd model
 
     | SheetMenuBreadcrumb(sheet,_), "Set as top" ->
-        // changing the top changes which ancestor parameters exist above every sheet, so the
-        // bind-to-top check is re-run for the whole design under the new top, and the open sheet
-        // is redrawn at whatever values it now takes
+        // changing the top changes the values every sheet displays with, so the open one is
+        // redrawn. Which ancestor parameters exist above a sheet changes too, but that is now
+        // surfaced by the bind button in an instance's properties rather than by a popup.
         model
         |> setTopSheetState sheet.SheetName
-        |> withMsgs [CheckBindToTopOffers ParameterAnalysis.WholeDesign; ApplyComputedDisplayValues]
+        |> withMsg ApplyComputedDisplayValues
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock" ->
         //printfn "locking %s" sheet.SheetName
@@ -900,18 +899,15 @@ let sheetMsg sMsg model =
                     None
             model' |> set pendingDragAddition_ pending, Cmd.none
         | SheetT.DragAndDrop, SheetT.Idle ->
-            let pending = model'.PendingDragAddition
-            let added =
-                match pending with
-                | Some (PlacedFromCatalogue ids) | Some (PastedFromClipboard ids) -> ids
-                | None -> []
             // A pasted component keeps the parameterisation of the one it was copied from.
             // pasteSymbols creates its new symbols from copiedSymbolsInPasteOrder and returns
             // their ids in that same order, so the two lists pair up positionally; if that ever
             // stops holding, the length check leaves the copies unparameterised rather than
             // giving them the wrong expressions.
+            // A catalogue placement needs nothing here: its parameters were asked for before the
+            // component was created.
             let pasteCmd =
-                match pending with
+                match model'.PendingDragAddition with
                 | Some (PastedFromClipboard pastedIds) ->
                     let sourceIds = BlockHelpers.getCopiedSymbols model'.Sheet.Wire.Symbol
                     match List.length sourceIds = List.length pastedIds with
@@ -923,21 +919,7 @@ let sheetMsg sMsg model =
                         |> UpdateModel
                         |> Cmd.ofMsg
                 | _ -> Cmd.none
-            let offerCmd =
-                match model'.CurrentProj with
-                | None -> Cmd.none
-                | Some proj ->
-                    let placedCustomIds =
-                        added
-                        |> List.filter (fun cid ->
-                            match Map.tryFind cid model'.Sheet.Wire.Symbol.Symbols with
-                            | Some symbol -> (match symbol.Component.Type with | Custom _ -> true | _ -> false)
-                            | None -> false)
-                        |> List.map (fun (ComponentId idStr) -> idStr)
-                    match placedCustomIds with
-                    | [] -> Cmd.none
-                    | ids -> Cmd.ofMsg (CheckBindToTopOffers (ParameterAnalysis.NewInstances (proj.OpenFileName, ids)))
-            model' |> set pendingDragAddition_ None, Cmd.batch [pasteCmd; offerCmd]
+            model' |> set pendingDragAddition_ None, pasteCmd
         | _ -> model', Cmd.none
     model'', Cmd.batch [sCmd; placementCmd]
 

@@ -544,9 +544,6 @@ type Msg =
     | SetPopupDialogIntList2 of int list option
     | AddPopupDialogParamSpec of (CompSlotName * Result<NewParamCompSpec, ParamError>)
     | ClearPopupDialogParamSpec of CompSlotName
-    /// Check for qualifying unbound custom component parameters after an event that can create
-    /// them, and offer to materialise the binding chains (see ParameterAnalysis.BindOfferScope).
-    | CheckBindToTopOffers of ParameterAnalysis.BindOfferScope
     /// After a sheet is opened: ask the user to choose a top sheet, but only when several
     /// top-level sheets exist, none is chosen, and they disagree about the values the opened
     /// sheet displays with. Never blocks opening.

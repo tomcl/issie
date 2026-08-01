@@ -39,9 +39,15 @@ open Fulma.Extensions.Wikiki
 // Lenses & Prisms for accessing sheet parameter information
 
 
-let lcParameterInfoOfModel_ = openLoadedComponentOfModel_ >?> lcParameterSlots_ 
+let lcParameterInfoOfModel_ = openLoadedComponentOfModel_ >?> lcParameterSlots_
 let paramSlotsOfModel_ = lcParameterInfoOfModel_ >?> paramSlots_
+/// The open sheet's parameter DECLARATIONS (defaults with descriptions).
+/// Use paramBindingsOfModel below where an evaluation environment is wanted.
 let defaultBindingsOfModel_ = lcParameterInfoOfModel_ >?> defaultBindings_
+
+/// The open sheet's default bindings as an evaluation environment.
+let paramBindingsOfModel (model: Model) : ParamBindings =
+    model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty |> bindingsOf
 
 let modelToSymbols = sheet_ >-> SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
 
@@ -284,11 +290,15 @@ let getCurrentSheet model =
        | None -> failwithf "No loaded component with same name as open sheet"
 
 
-/// Get default parameter bindings for LoadedComponent 
-let getDefaultParams loadedComponent =
+/// Get the parameter declarations (defaults and descriptions) for a LoadedComponent
+let getDefaultParamDefs loadedComponent : ParamDefinitions =
     match loadedComponent.LCParameterSlots with
     | Some paramSlots -> paramSlots.DefaultBindings
     | None -> Map.empty
+
+/// Get default parameter bindings for LoadedComponent, for use as an evaluation environment
+let getDefaultParams loadedComponent : ParamBindings =
+    getDefaultParamDefs loadedComponent |> bindingsOf
 
 
 /// Get default parameter slots for LoadedComponent 
@@ -464,11 +474,8 @@ let paramInputField
     (dispatch: Msg -> unit)
     : ReactElement =
 
-    let onChange inputExpr = 
-        let paramBindings =
-            model
-            |> get defaultBindingsOfModel_
-            |> Option.defaultValue Map.empty
+    let onChange inputExpr =
+        let paramBindings = paramBindingsOfModel model
 
         // Only return first violated constraint
         let checkConstraints expr =
@@ -597,28 +604,32 @@ let updateComponents
     
 
 /// Updates the LCParameterSlots DefaultParams section.
-type UpdateInfoSheetChoise = 
-    | DefaultParams of string * int * bool
+type UpdateInfoSheetChoise =
+    | DefaultParams of Name: string * Value: int * Description: string * Delete: bool
     | ParamSlots of ParamSlot * ParameterTypes.ParamExpression * ParamConstraint list
 
 
-let updateInfoSheetDefaultParams (currentSheetInfo:option<ParameterTypes.ParameterDefs>) (paramName: string) (value: int) (delete:bool)=
+let updateInfoSheetDefaultParams
+        (currentSheetInfo: option<ParameterTypes.ParameterDefs>)
+        (paramName: string)
+        (value: int)
+        (description: string)
+        (delete: bool) =
+    let name = ParamName paramName
     if delete then
         match currentSheetInfo with
-        | Some infoSheet -> 
-            let newDefaultParams = infoSheet.DefaultBindings |> Map.remove (ParamName paramName)
-            let currentSheetInfo = {infoSheet with DefaultBindings = newDefaultParams}
-            Some currentSheetInfo
+        | Some infoSheet ->
+            let newDefaultParams = infoSheet.DefaultBindings |> Map.remove name
+            Some {infoSheet with DefaultBindings = newDefaultParams}
         | None -> None
     else
+    let definition = {Expression = PInt value; Description = description}
     match currentSheetInfo with
-    | Some infoSheet -> 
-        let newDefaultParams = infoSheet.DefaultBindings|> Map.add (ParamName paramName) (PInt value)
-        let currentSheetInfo = {infoSheet with DefaultBindings = newDefaultParams}
-        Some currentSheetInfo
-    | None -> 
-        let currentSheetInfo = {DefaultBindings= Map.ofList [(ParamName paramName, PInt value)]; ParamSlots= Map.empty}
-        Some currentSheetInfo
+    | Some infoSheet ->
+        let newDefaultParams = infoSheet.DefaultBindings |> Map.add name definition
+        Some {infoSheet with DefaultBindings = newDefaultParams}
+    | None ->
+        Some {DefaultBindings = Map.ofList [name, definition]; ParamSlots = Map.empty}
 
 
 let updateInfoSheetParamSlots (currentSheetInfo:option<ParameterTypes.ParameterDefs>) (paramSlot: ParameterTypes.ParamSlot) (expression: ParameterTypes.ParamExpression) (constraints: ParameterTypes.ParamConstraint list) =
@@ -651,7 +662,7 @@ let modifyInfoSheet (project: CommonTypes.Project) (choise: UpdateInfoSheetChois
                                    |> List.find (fun lc -> lc.Name = project.OpenFileName)
     let updatedSheet = {currentSheet with LCParameterSlots = 
                                                         match choise with
-                                                            | DefaultParams (paramName, value, delete) -> updateInfoSheetDefaultParams currentSheet.LCParameterSlots paramName value delete
+                                                            | DefaultParams (paramName, value, description, delete) -> updateInfoSheetDefaultParams currentSheet.LCParameterSlots paramName value description delete
                                                             | ParamSlots (paramSlot, expression, constraints) -> updateInfoSheetParamSlots currentSheet.LCParameterSlots paramSlot expression constraints}
     let updatedComponents = project.LoadedComponents
                             |> List.map (
@@ -669,7 +680,7 @@ let addParameterBox model dispatch =
     | None -> JSHelpers.log "Warning: testAddParameterBox called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
-        let title = "Set parameter value"
+        let title = "Add parameter"
 
         let textPrompt =
             fun _ ->
@@ -677,40 +688,53 @@ let addParameterBox model dispatch =
                     [
                         str "Specify the parameter name:"
                         br []
-                        //str $"(current value is {model.ParameterValue})"
+                    ]
+
+        let descriptionPrompt =
+            fun _ ->
+                div []
+                    [
+                        str "What does this parameter mean?"
+                        br []
                     ]
 
         let intPrompt =
             fun _ ->
                 div []
                     [
-                        str "New value for the parameter:"
+                        str "Default value for the parameter:"
                         br []
-                        //str $"(current value is {model.ParameterValue})"
                     ]
 
         let defaultVal = 1
-        let body = dialogPopupBodyTextAndInt textPrompt "example: x" intPrompt defaultVal dispatch
-        let buttonText = "Set value"
+        let body =
+            dialogPopupBodyTextDescriptionAndInt
+                textPrompt "example: x"
+                descriptionPrompt "example: width of the data bus in bits"
+                intPrompt defaultVal dispatch
+        let buttonText = "Add parameter"
 
         // Update the parameter value then close the popup
         let buttonAction =
             fun (model': Model) ->
                 let newParamName = getText model'.PopupDialogData
                 let newValue = getInt model'.PopupDialogData
+                let newDescription = getText2 model'.PopupDialogData
 
-                modifyInfoSheet (project) (DefaultParams (newParamName, newValue, false)) dispatch
+                modifyInfoSheet (project) (DefaultParams (newParamName, newValue, newDescription, false)) dispatch
                 // Close popup window
                 ClosePopup |> dispatch
                 // a new parameter may be the missing ancestor that lets unbound same-named
                 // parameters in the sheets below be bound to it
                 dispatch <| CheckBindToTopOffers (ParameterAnalysis.NewParam (project.OpenFileName, ParamName newParamName))
 
-        // Parameter Names can only be made out of letters and numbers
-        let isDisabled = 
-            fun (model': Model) -> 
-                 let newParamName =  getText model'.PopupDialogData
+        // Parameter names can only be made out of letters and numbers, and every parameter must
+        // be described: the description is what instances of this sheet show when asking for a value
+        let isDisabled =
+            fun (model': Model) ->
+                 let newParamName = getText model'.PopupDialogData
                  not (Regex.IsMatch(newParamName, "^[a-zA-Z0-9]+$"))
+                 || getText2 model'.PopupDialogData = ""
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
@@ -723,15 +747,24 @@ let editParameterBox model parameterName dispatch   =
         // Prepare dialog popup.
         let currentSheet = project.LoadedComponents
                                    |> List.find (fun lc -> lc.Name = project.OpenFileName)
-        let title = "Edit parameter value"
-        match getDefaultParams currentSheet |> Map.tryFind (ParamName parameterName) with
+        let title = "Edit parameter"
+        match getDefaultParamDefs currentSheet |> Map.tryFind (ParamName parameterName) with
         | None ->
             // the row was rendered from an older model in which the parameter still existed
             JSHelpers.log $"Cannot edit parameter {parameterName}: it is not defined on this sheet"
-        | Some (PParameter _ | PAdd _ | PSubtract _ | PMultiply _ | PDivide _ | PRemainder _) ->
+        | Some {Expression = (PParameter _ | PAdd _ | PSubtract _ | PMultiply _ | PDivide _ | PRemainder _)} ->
             dispatch <| SetPropertiesNotification (Notifications.errorPropsNotification
                 $"Parameter {parameterName} is bound to an expression. Only integer parameter values can be edited here.")
-        | Some currentValue ->
+        | Some currentDef ->
+        let currentValue = currentDef.Expression
+        let descriptionPrompt =
+            fun _ ->
+                div []
+                    [
+                        str $"What does {parameterName} mean?"
+                        br []
+                    ]
+
         let intPrompt =
             fun _ ->
                 div []
@@ -746,45 +779,44 @@ let editParameterBox model parameterName dispatch   =
             | PInt intVal -> intVal
             | _ -> 1 // non-integer bindings are rejected above
 
-        let body = dialogPopupBodyOnlyInt intPrompt defaultVal dispatch
+        // the existing description is seeded into the dialog so that editing the value alone
+        // does not silently blank it
+        dispatch <| SetPopupDialogText2 (Some currentDef.Description)
+        let body = dialogPopupBodyDescriptionAndInt descriptionPrompt currentDef.Description intPrompt defaultVal dispatch
         let buttonText = "Set value"
+
+        /// the declarations of this sheet with the edited parameter replaced, as an evaluation
+        /// environment
+        let editedBindings (model': Model) =
+            model'
+            |> getLCParamInfo
+            |> (fun info -> info.DefaultBindings)
+            |> Map.add (ParamName parameterName) {Expression = PInt (getInt model'.PopupDialogData); Description = getText2 model'.PopupDialogData}
+            |> bindingsOf
 
         // Update the parameter value then close the popup
         let buttonAction =
-            fun (model': Model) -> 
-                let newParamName =  parameterName 
+            fun (model': Model) ->
                 let newValue = getInt model'.PopupDialogData
-                modifyInfoSheet project (DefaultParams (newParamName,newValue,false)) dispatch
-                let newBindings =
-                    model'
-                    |> getLCParamInfo
-                    |> (fun info -> info.DefaultBindings)
-                    |> Map.add (ParamName newParamName) (PInt newValue) 
+                let newDescription = getText2 model'.PopupDialogData
+                modifyInfoSheet project (DefaultParams (parameterName, newValue, newDescription, false)) dispatch
 
                 // Value must meet constraints if able to click button
-                updateComponents newBindings model dispatch 
+                updateComponents (editedBindings model') model dispatch
                 dispatch <| ClosePopup
 
-        // Disabled if any constraints are violated
-        let isDisabled = 
+        // Disabled if the description has been emptied or any constraints are violated
+        let isDisabled =
             fun (model': Model) ->
-                let newParamName =  parameterName 
-                let newValue = getInt model'.PopupDialogData
-                let newBindings =
-                    model'
-                    |> getLCParamInfo 
-                    |> (fun info -> info.DefaultBindings)
-                    |> Map.add (ParamName newParamName) (PInt newValue) 
-
-                let exprSpecs = 
+                let exprSpecs =
                     model'
                     |> get paramSlotsOfModel_
                     |> Option.defaultValue Map.empty
                     |> Map.toList
                     |> List.map snd
 
-                evaluateConstraints newBindings exprSpecs dispatch
-                |> Result.isError
+                getText2 model'.PopupDialogData = ""
+                || (evaluateConstraints (editedBindings model') exprSpecs dispatch |> Result.isError)
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
@@ -857,7 +889,7 @@ let deleteParameterBox model parameterName dispatch  =
             |> List.filter (fun (slot, _) -> Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols)
         match users with
         | [] ->
-            modifyInfoSheet project (DefaultParams (parameterName, 0, true)) dispatch
+            modifyInfoSheet project (DefaultParams (parameterName, 0, "", true)) dispatch
             dispatch <| UpdateModel (removeParamFromInstances sheet.Name name)
         | _ ->
             let body =
@@ -875,7 +907,7 @@ let deleteParameterBox model parameterName dispatch  =
 /// UI to display and manage parameters for a design sheet.
 /// TODO: add structural abstraction.
 let private makeParamsField model (comp:LoadedComponent) dispatch =
-    let sheetDefaultParams = getDefaultParams comp
+    let sheetDefaultParams = getDefaultParamDefs comp
     // parameters create dependencies across the whole design, so changing them under a running
     // simulation would leave it describing hardware that no longer exists
     let simIsOpen = ModelHelpers.simulationIsOpen model
@@ -945,22 +977,24 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                 thead [] [
                     tr [] [
                         th [] [str "Parameter"]
+                        th [] [str "Means"]
                         th [] [str "Value"]
                         th [] [str "Action"]
                     ]
                 ]
                 tbody [] (
-                    sheetDefaultParams |> Map.toList |> List.map (fun (key, value) ->
+                    sheetDefaultParams |> Map.toList |> List.map (fun (key, definition) ->
                         let paramName =
                             match key with
                             | ParameterTypes.ParamName s -> s
                         let defaultVal =
-                            match value with
+                            match definition.Expression with
                             |ParameterTypes.PInt i -> string i
                             | x -> string x
                         let paramVal, note = annotate key defaultVal
                         tr [] [
                             td [] [str paramName]
+                            td [Style [FontSize "12px"]] [str definition.Description]
                             td [] (
                                 [str paramVal]
                                 @ (match note with
@@ -1113,7 +1147,7 @@ let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedCompon
         let (comps, conns) = loadedComponent.CanvasState
         let resolvedComps = 
             comps |> List.map (fun comp ->
-                match resolveParametersForComponent paramSlots.DefaultBindings paramSlots.ParamSlots comp with
+                match resolveParametersForComponent (bindingsOf paramSlots.DefaultBindings) paramSlots.ParamSlots comp with
                 | Ok resolvedComp -> resolvedComp
                 | Error _ -> comp // Keep original on error
             )
@@ -1162,7 +1196,7 @@ let editParameterBindingPopup model parameterName currValue comp (custom: Custom
                 match Map.tryFind compSlotName paramSpecs with
                 | Some (Ok paramSpec) ->
                     // Parse and evaluate the parameter expression from the spec
-                    let paramBindings = model' |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
+                    let paramBindings = paramBindingsOfModel model'
                     match ParameterTypes.evaluateParamExpression paramBindings paramSpec.Expression with
                     | Ok newValue ->
                         let newBindings =
@@ -1431,12 +1465,13 @@ let private emptyParamDefs : ParameterDefs = {DefaultBindings = Map.empty; Param
 /// sheet, and the ParameterBindings of the instance component in the parent's canvas.
 let private applyChainActionToLdc (action: ParameterAnalysis.ChainAction) (ldc: LoadedComponent) : LoadedComponent =
     match action with
-    | ParameterAnalysis.AddSheetParam (sheet, name, defVal) when sheet = ldc.Name ->
+    | ParameterAnalysis.AddSheetParam (sheet, name, defVal, description) when sheet = ldc.Name ->
         let defs = Option.defaultValue emptyParamDefs ldc.LCParameterSlots
         match Map.containsKey name defs.DefaultBindings with
         | true -> ldc
         | false ->
-            {ldc with LCParameterSlots = Some {defs with DefaultBindings = Map.add name (PInt defVal) defs.DefaultBindings}}
+            let definition = {Expression = PInt defVal; Description = description}
+            {ldc with LCParameterSlots = Some {defs with DefaultBindings = Map.add name definition defs.DefaultBindings}}
     | ParameterAnalysis.BindInstance (sheet, instId, _, _, name) when sheet = ldc.Name ->
         let (ParamName nameStr) = name
         let defs = Option.defaultValue emptyParamDefs ldc.LCParameterSlots
@@ -1494,7 +1529,7 @@ let applyBindOffers (offers: ParameterAnalysis.BindOffer list) (model: Model) (d
             ldcs'
             |> List.tryFind (fun ldc -> ldc.Name = openName)
             |> Option.bind (fun ldc -> ldc.LCParameterSlots)
-            |> Option.map (fun defs -> defs.DefaultBindings)
+            |> Option.map (fun defs -> bindingsOf defs.DefaultBindings)
             |> Option.defaultValue Map.empty
         actions
         |> List.choose (fun action ->

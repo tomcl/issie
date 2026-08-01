@@ -45,6 +45,7 @@ let makeLdc (name: string) (paramDefs: ParameterTypes.ParameterDefs option) (can
       LCParameterSlots = paramDefs
       Form = Some User
       LoadedComponentIsOutOfDate = false
+      IsTopSheet = false
       Description = None }
 
 /// A custom component type instantiating `ldc`, with explicit port widths (which must

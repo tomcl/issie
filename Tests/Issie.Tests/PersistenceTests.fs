@@ -9,7 +9,7 @@ open Helpers.JsonHelpers
 open CanvasBuilder
 
 let private sheetInfo: SheetInfo =
-    { Form = Some User; Description = None; ParameterDefinitions = None }
+    { Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = Some false }
 
 let tests =
     testList "Persistence" [

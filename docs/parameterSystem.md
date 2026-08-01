@@ -61,11 +61,32 @@ a plain number in Properties.
 
 #### Sheet-Level Definitions
 ```fsharp
+/// What an INSTANCE binds: no description, because the description belongs to the declaration
+type ParamBindings = Map<ParamName, ParamExpression>
+
+/// The DECLARATION of one parameter on a sheet
+type ParamDefinition = {
+    Expression: ParamExpression     // its default value
+    Description: string             // compulsory: see below
+}
+type ParamDefinitions = Map<ParamName, ParamDefinition>
+
 type ParameterDefs = {
-    DefaultBindings: ParamBindings  // Parameter name to expression mappings
-    ParamSlots: ComponentSlotExpr   // Component slots bound to expressions
+    DefaultBindings: ParamDefinitions // the parameters this sheet declares
+    ParamSlots: ComponentSlotExpr     // component slots bound to expressions
 }
 ```
+
+A parameter **must** carry a description. It is what the user reads when a custom component
+instance of the sheet asks them for a value, so a parameter without one cannot be explained at the
+point it has to be understood. `addParameterBox` and `editParameterBox` both refuse to commit an
+empty description.
+
+`ParameterTypes.bindingsOf : ParamDefinitions -> ParamBindings` drops the descriptions, and is how
+every evaluation environment is derived from a sheet's declarations —
+`ParameterAnalysis.declaredParams`, `ParameterView.getDefaultParams` and
+`GraphMerger.defaultBindingsOfSheet` all go through it. Use `declaredParamDefs` /
+`getDefaultParamDefs` where the description itself is wanted.
 
 ### UI Layer (`ParameterView.fs`)
 

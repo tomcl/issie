@@ -319,7 +319,7 @@ let private defaultBindingsOfSheet (loadedDependencies: LoadedComponent list) (s
     loadedDependencies
     |> List.tryFind (fun (lc: LoadedComponent) -> lc.Name = sheetName)
     |> Option.bind (fun lc -> lc.LCParameterSlots)
-    |> Option.map (fun ps -> ps.DefaultBindings)
+    |> Option.map (fun ps -> ParameterTypes.bindingsOf ps.DefaultBindings)
     |> Option.defaultValue Map.empty
 
 /// The bindings a sheet is resolved with inside one instance of it: the instance's bindings

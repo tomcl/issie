@@ -107,7 +107,13 @@ type FastComponent =
       /// The last element is the SimSheetName of the sheet the component is in.
       /// It is used by the Wave Selector to determine which waves are subsheets of a given Wave.SheetId.
       SimSheetNamePath: string list
-      /// Unique name of sheet as design sheet path to root of simulation
+      /// The component's full path in the simulation: the LABELS of the custom component
+      /// instances it sits within, from the root of the simulation, followed by its own label.
+      /// All upper-cased. Built by GatherData.getFullSimPath.
+      /// Despite the name these are component labels, NOT sheet names - a component on the top
+      /// sheet has a single-element path holding its own label. For sheets use SimSheetName (the
+      /// sheet this component is in) or SimSheetNamePath (that sheet's path from the root).
+      /// SubSheet below drops the last element to give just the enclosing instances.
       SheetName: string list
       // these fields are used only to determine component ordering for correct evaluation
       mutable Touched: bool // legacy field
@@ -140,6 +146,9 @@ type FastComponent =
     member inline this.PutOutputFData (epoch) (OutputPortNumber n) dat =
         this.Outputs[n].FDataStep[ epoch ] <- dat
     member inline this.Id = this.SimComponent.Id
+    /// The labels of the custom component instances this component sits within, outermost first.
+    /// Empty for a component on the sheet being simulated. This is SheetName without the
+    /// component's own label, so like it these are component labels, not sheet names.
     member inline this.SubSheet = this.SheetName[0 .. this.SheetName.Length - 2]
 
 /// Convenience array used so that waveform simulation can access
@@ -294,6 +303,9 @@ and GatherData =
             (ap @ [ cid ])
         |> String.concat "."
 
+    /// The same path as getFullSimName, upper-cased and as a list rather than dot-separated.
+    /// These are component labels, not sheet names: it becomes FastComponent.SheetName, whose
+    /// name is misleading.
     member this.getFullSimPath((cid, ap):FComponentId) =
         List.map
             (fun cid ->

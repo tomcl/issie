@@ -246,7 +246,10 @@ let writeFile (path: string) (data: string) =
         let options = createObj ["encoding" ==> "utf8"] |> Some
         fs.writeFileSync(path, data, options)
         #else
-        File.WriteAllText(path, data, System.Text.ASCIIEncoding.UTF8)
+        // UTF8Encoding(false), not Encoding.UTF8: the latter emits a byte order mark, and
+        // fs.writeFileSync on the Fable side does not. A .dgm written from .NET with a BOM is
+        // rejected by the app's JSON parser with "Unexpected token '?'".
+        File.WriteAllText(path, data, System.Text.UTF8Encoding false)
         #endif
         Ok ()
     with

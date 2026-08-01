@@ -357,9 +357,22 @@ let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =
             |> Result.map (fun conns -> layout comps conns, conns))
 
 /// Write the description out as a .dgm in `folder`, named after the sheet.
+/// A .dgm on its own is a sheet, not a project - use saveProject to make a directory Issie can
+/// open.
 let saveSheet (folder: string) (sheet: SheetDescription) : Result<unit, string> =
     toCanvasState sheet
     |> Result.bind (fun canvas ->
         let sheetInfo: SheetInfo =
             { Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = Some false }
         FilesIO.saveStateToFile folder sheet.Name (canvas, None, Some sheetInfo))
+
+/// Write a whole project: every sheet, plus the empty .dprj marker that makes the directory a
+/// project rather than a directory that happens to contain sheets. Issie will not offer a
+/// directory without one, and drops it from the recent list.
+let saveProject (folder: string) (sheets: SheetDescription list) : Result<unit, string> =
+    match FilesIO.tryEnsureDirectory folder with
+    | Error msg -> Error msg
+    | Ok folder ->
+        let marker = FilesIO.pathJoin [| folder; FilesIO.baseName folder + ".dprj" |]
+        (FilesIO.writeFile marker "", sheets)
+        ||> List.fold (fun acc sheet -> acc |> Result.bind (fun () -> saveSheet folder sheet))

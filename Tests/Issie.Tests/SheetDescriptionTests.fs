@@ -150,6 +150,31 @@ let tests =
             Expect.equal (outputs |> List.map fst) [ "S" ] "output order matches declaration"
         }
 
+        test "saving and reloading gives a sheet with routed wires" {
+            // the whole point: a description written here becomes a .dgm that Issie loads, and the
+            // load path is what supplies the wire geometry the description never had
+            let folder =
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"issie-dsl-{System.Guid.NewGuid()}")
+            System.IO.Directory.CreateDirectory folder |> ignore
+            try
+                SheetLayout.saveSheet folder adderSheet |> expectOk
+                let path = System.IO.Path.Combine(folder, "adder.dgm")
+                Expect.isTrue (System.IO.File.Exists path) "the .dgm was written"
+                match FilesIO.tryLoadComponentFromPath path with
+                | Error e -> failtest $"the generated sheet would not load: {e}"
+                | Ok ldc ->
+                    let comps, conns = ldc.CanvasState
+                    Expect.equal (List.length comps) 4 "components survive the round trip"
+                    Expect.equal (List.length conns) 3 "connections survive the round trip"
+                    Expect.equal (ldc.InputLabels |> List.map fst) [ "A"; "B" ] "port order survives"
+                    // positions must survive: they are what makes the sheet readable
+                    Expect.isTrue
+                        (comps |> List.forall (fun c -> c.X > 0. && c.Y > 0.))
+                        "every component kept a real position"
+            finally
+                try System.IO.Directory.Delete(folder, true) with _ -> ()
+        }
+
         test "the generated canvas simulates" {
             let canvas = SheetLayout.toCanvasState adderSheet |> expectOk
             let ldc = CanvasBuilder.makeLdc "adder" None canvas

@@ -4,7 +4,8 @@
 
     Read what Issie's draw block is showing, from outside the app.
 
-        node scripts/inspect-canvas.js model            what the MODEL says is drawn
+        node scripts/inspect-canvas.js raw              the whole draw block model, faithfully
+        node scripts/inspect-canvas.js model            a readable summary of the same thing
         node scripts/inspect-canvas.js geometry         what the SVG actually contains
         node scripts/inspect-canvas.js shot out.png     screenshot the renderer window
         node scripts/inspect-canvas.js eval expr.js     evaluate a file's contents in the page
@@ -12,10 +13,11 @@
     Issie must be running under `npm run dev` (or `npm run debug`), which starts Electron with
     --remote-debugging-port. Set ISSIE_DEBUG_PORT to match if it was changed from 9222.
 
-    `model` is the authoritative answer and needs a debug build, since MainView only publishes
-    window.issie when JSHelpers.debugLevel > 0. `geometry` reads the DOM instead, so it works
-    against any build but describes the rendered output rather than the state behind it -
-    useful precisely when the two are suspected of disagreeing.
+    `raw` and `model` both need a debug build, since MainView only publishes window.issie when
+    JSHelpers.debugLevel > 0. `raw` is the authoritative answer; `model` is the same state cut down
+    to one line per symbol. `geometry` reads the DOM instead, so it works against any build but
+    describes the rendered output rather than the state behind it - useful precisely when the two
+    are suspected of disagreeing.
 
     No dependencies: Node 22 has a global fetch and WebSocket, which is all the Chrome DevTools
     Protocol needs.
@@ -73,11 +75,21 @@ async function evaluate(cdp, expression) {
     return r.result.value;
 }
 
-// What the model says. See ModelHelpers.canvasInspection for the shape of the result.
+const NOT_PUBLISHED =
+    "{ error: 'window.issie is not published - is this a debug build? (JSHelpers.debugLevel > 0)' }";
+
+// A readable summary. See ModelHelpers.canvasInspection for the shape of the result.
 const MODEL = `(() => {
-    if (!window.issie || !window.issie.canvas)
-        return { error: 'window.issie is not published - is this a debug build? (JSHelpers.debugLevel > 0)' };
+    if (!window.issie || !window.issie.canvas) return ${NOT_PUBLISHED};
     return window.issie.canvas();
+})()`;
+
+// The whole draw block model, serialised by the library that writes .dgm files, so it round-trips.
+// Comes back as a JSON string, which the caller re-parses to pretty-print.
+// See ModelHelpers.canvasRaw.
+const RAW = `(() => {
+    if (!window.issie || !window.issie.raw) return JSON.stringify(${NOT_PUBLISHED});
+    return window.issie.raw();
 })()`;
 
 // What the SVG contains, in diagram coordinates.
@@ -129,7 +141,7 @@ const GEOMETRY = `(() => {
 (async () => {
     const [, , cmd, arg] = process.argv;
     if (!cmd || ['-h', '--help', 'help'].includes(cmd)) {
-        console.log('usage: inspect-canvas.js model | geometry | shot <out.png> | eval <expr.js>');
+        console.log('usage: inspect-canvas.js raw | model | geometry | shot <out.png> | eval <expr.js>');
         return;
     }
     const target = await pageTarget(DEFAULT_PORT);
@@ -139,6 +151,14 @@ const GEOMETRY = `(() => {
             case 'model':
                 console.log(JSON.stringify(await evaluate(cdp, MODEL), null, 1));
                 break;
+            case 'raw': {
+                const json = await evaluate(cdp, RAW);
+                // print it back as text if it is not valid JSON, so a serialisation failure is
+                // readable rather than a parse error about it
+                try { console.log(JSON.stringify(JSON.parse(json), null, 1)); }
+                catch (e) { console.log(json); }
+                break;
+            }
             case 'geometry':
                 console.log(JSON.stringify(await evaluate(cdp, GEOMETRY), null, 1));
                 break;

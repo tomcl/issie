@@ -496,17 +496,16 @@ let resimulateWaveSimForErrors (model: Model) : Result<SimulationData, Simulatio
 //------------------------------------------------------------------------------------------------//
 
 (*
-    A view of what the draw block is showing, reduced to data.
+    What the draw block is showing, made readable from outside the app.
 
-    MainView.displayView publishes this as `window.issie` in debug builds, and
-    scripts/inspect-canvas.js reads it over the Chrome DevTools Protocol. It answers questions the
-    rendered SVG can only be used to guess at: where a symbol really is, how a wire is really
-    routed, and whether a symbol is being drawn at a computed parameter value.
+    MainView.displayView publishes both of the functions below as `window.issie` in debug builds,
+    and scripts/inspect-canvas.js reads them over the Chrome DevTools Protocol. They answer
+    questions the rendered SVG can only be used to guess at: where a symbol really is, how a wire
+    is really routed, and whether a symbol is being drawn at a computed parameter value.
 
-    The Model cannot cross the interop boundary itself - it holds F# maps, closures and React
-    elements, none of which survive JSON.stringify. So everything here is arrays, numbers, strings
-    and bools: F# lists are linked lists in JavaScript, so arrays are used throughout, and options
-    are resolved to a value or a flag rather than passed on.
+    canvasRaw is the complete answer and canvasInspection the legible one. Prefer canvasRaw when
+    the question is "what is actually in there"; the summary exists because a whole BusWireT.Model
+    is thousands of lines and most questions are answered by one line per symbol.
 *)
 
 /// One symbol as data: what it is, where it is, how big it is, how it is oriented, and where its
@@ -579,3 +578,30 @@ let canvasInspection (model: Model) =
         Symbols = sheet.Wire.Symbol.Symbols |> Map.toArray |> Array.map (snd >> symbolInspection)
         Wires = sheet.Wire.Wires |> Map.toArray |> Array.map (snd >> wireInspection)
     |}
+
+module private RawDump =
+    open Fable.SimpleJson
+    let ofDrawBlock (wire: DrawModelType.BusWireT.Model) =
+        Json.serialize<DrawModelType.BusWireT.Model> wire
+
+/// The complete drawing state, serialised with the same library that writes .dgm files.
+///
+/// SimpleJson round-trips F# maps - including the ones keyed by a record or a single-case DU,
+/// which it writes as an array of [key, value] pairs rather than as a JSON object - along with
+/// sets, options and bigints. So there is no need to reduce anything by hand: this is every
+/// symbol, wire, port and port map exactly as the model holds it.
+///
+/// BusWireT.Model is the largest part of the model that contains no functions at all. SheetT.Model
+/// above it holds PopupViewFunc and a ChildProcess, and its undo and redo lists are whole models,
+/// which would multiply the dump by the undo depth.
+///
+/// Returns a message rather than throwing if serialisation fails, so that a type SimpleJson cannot
+/// represent degrades to a readable error instead of breaking the caller. Fable only: SimpleJson's
+/// reflection does not work under .NET, which does not matter for renderer debug code.
+let canvasRaw (model: Model) : string =
+    try
+        // scoped open, as in Helpers.JsonHelpers: unqualified `Json` is SimpleJson's DU type, and
+        // it is the module of the same name that carries serialize
+        RawDump.ofDrawBlock model.Sheet.Wire
+    with e ->
+        $"""{{"error": "serialisation failed: {e.Message}"}}"""

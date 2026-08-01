@@ -322,7 +322,10 @@ let displayView model dispatch =
     // A function rather than the data, so that nothing is computed unless something asks: all
     // this costs per render is one closure and one object.
     if JSHelpers.debugLevel > 0 then
-        window?issie <- createObj [ "canvas" ==> (fun () -> ModelHelpers.canvasInspection model) ]
+        window?issie <- createObj [
+            "canvas" ==> (fun () -> ModelHelpers.canvasInspection model)
+            "raw" ==> (fun () -> ModelHelpers.canvasRaw model)
+        ]
     //JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight

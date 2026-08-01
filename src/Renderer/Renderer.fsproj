@@ -35,6 +35,7 @@
     <Compile Include="Common\ParameterTypes.fs" />
     <Compile Include="Common\CommonTypes.fs" />
     <Compile Include="Common\ComponentSlots.fs" />
+    <Compile Include="Common\SheetDescription.fs" />
     <Compile Include="Common\DrawHelpers.fs" />
     <Compile Include="Common\Helpers.fs" />
     <Compile Include="Common\ParameterAnalysis.fs" />
@@ -90,6 +91,7 @@
     <Compile Include="DrawBlock\SymbolHelpers.fs" />
     <Compile Include="DrawBlock\PopupHelpers.fs" />
     <Compile Include="DrawBlock\Symbol.fs" />
+    <Compile Include="DrawBlock\SheetLayout.fs" />
 	<Compile Include="DrawBlock\SymbolView.fs" />
 	<Compile Include="DrawBlock\SymbolPortHelpers.fs" />
     <Compile Include="DrawBlock\SymbolResizeHelpers.fs" />

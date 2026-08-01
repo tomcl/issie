@@ -13,5 +13,6 @@ let main argv =
         ComponentSemantics.tests
         GoldenModel.tests
         PersistenceTests.tests
+        SheetDescriptionTests.tests
     ]
     |> runTestsWithCLIArgs [ Sequenced ] argv

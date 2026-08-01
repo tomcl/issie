@@ -1095,8 +1095,11 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             )
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
-        let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
+        // the properties pane shows what is on screen, which under a top sheet may be a computed
+        // parameter value rather than the declared one; computedValueNote says so where they differ
+        let comp = SymbolUpdate.displayedComponent model.Sheet.Wire.Symbol compId
         div [Key comp.Id] [
+            ParameterView.computedValueNote model comp
             // let label' = extractLabelBase comp.Label
             // TODO: normalise labels so they only contain allowed chars all uppercase
             let defaultText = 

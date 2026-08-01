@@ -333,87 +333,84 @@ let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBin
         { comp with Type = Custom updatedCustom }
     | _ -> comp
 
-/// Use sheet component update functions to perform updates
-let updateComponent dispatch model slot (value:int) =
+/// Push the values of the parameterised slots of ONE component onto the canvas.
+/// All of a component's slots are applied together because two of the messages replace a whole
+/// field of the component type - a SplitN's width and LSB lists, a custom component's parameter
+/// bindings - and are built here from `model`, which is a snapshot: issued one slot at a time
+/// they would overwrite each other, leaving all but the last slot at its old value.
+/// (ChangeWidth and ChangeInputValue read the live symbol and so do not have this problem.)
+let updateComponentSlots dispatch (model: Model) (compIdStr: string) (slotValues: (CompSlotName * int) list) =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
 
-    let comp = model.Sheet.GetComponentById <| ComponentId slot.CompId
+    let comp = model.Sheet.GetComponentById <| ComponentId compIdStr
     let compId = ComponentId comp.Id
+    let valueOf slot = slotValues |> List.tryPick (fun (s, v) -> if s = slot then Some v else None)
 
-    // Update component slot value
-    match comp.Type, slot.CompSlot with
-    | BusSelection _, IO _ -> model.Sheet.ChangeLSB sheetDispatch compId (bigint value)
-    | _, Buswidth | _, IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value
-    | _, InputDefault ->
-        match comp.Type with
-        | Input1 _ -> model.Sheet.ChangeInputValue sheetDispatch compId (bigint value)
-        | _ -> failwithf $"Default value cannot be set on {comp.Type}"
-    | _, SplitNWidth idx ->
-        match comp.Type with
-        | SplitN (n, widths, lsbs) ->
-            if idx < 0 || idx >= List.length widths then failwithf $"SplitNWidth index %d{idx} out of range"
-            let newWidths = widths |> List.mapi (fun i w -> if i = idx then value else w)
-            model.Sheet.ChangeSplitN sheetDispatch compId n newWidths lsbs
-        | _ -> failwithf $"SplitNWidth cannot be applied to {comp.Type}"
-    | _, SplitNLSB idx ->
-        match comp.Type with
-        | SplitN (n, widths, lsbs) ->
-            if idx < 0 || idx >= List.length lsbs then failwithf $"SplitNLSB index %d{idx} out of range"
-            let newLsbs = lsbs |> List.mapi (fun i l -> if i = idx then value else l)
-            model.Sheet.ChangeSplitN sheetDispatch compId n widths newLsbs
-        | _ -> failwithf $"SplitNLSB cannot be applied to {comp.Type}"
-    | _, CustomCompParam paramName ->
-        // For custom component parameters, we need to update the parameter bindings
-        match comp.Type with
-        | Custom customComp ->
-            let newBindings = 
-                match customComp.ParameterBindings with
-                | Some bindings -> Map.add (ParamName paramName) (PInt value) bindings
-                | None -> Map.ofList [(ParamName paramName, PInt value)]
-            
-            // Get the custom component's loaded component to find parameter slot definitions
-            match model.CurrentProj with
-            | Some project ->
-                let currentSheet = 
-                    project.LoadedComponents
-                    |> List.tryFind (fun lc -> lc.Name = customComp.Name)
-                
-                // Calculate updated label widths based on parameter evaluations
-                let labelToEval = 
-                    match currentSheet with
-                    | Some sheet ->
-                        match sheet.LCParameterSlots with
-                        | Some sheetInfo ->
-                            sheetInfo.ParamSlots
-                            |> Map.toSeq
-                            |> Seq.choose (fun (paramSlot, constrainedExpr) -> 
-                                match paramSlot.CompSlot with
-                                | IO label -> 
-                                    let evaluatedValue = 
-                                        match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
-                                        | Ok expr -> expr
-                                        | Error _ -> 0
-                                    Some (label, evaluatedValue)
-                                | _ -> None 
-                            )
-                            |> Map.ofSeq
-                        | None -> Map.empty
-                    | None -> Map.empty
-                
-                // Update the custom component with new parameter bindings and updated port widths
-                let updatedCustom = updateCustomComponent labelToEval newBindings comp
-                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, updatedCustom.Type))))
-            | None ->
-                // Fallback to just updating bindings if no project context
-                let newCustomComp = { customComp with ParameterBindings = Some newBindings }
-                dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, Custom newCustomComp))))
-        | _ -> failwithf $"CustomCompParam can only be used with Custom components"
+    match comp.Type with
+    | SplitN (n, widths, lsbs) ->
+        let newWidths = widths |> List.mapi (fun i w -> valueOf (SplitNWidth i) |> Option.defaultValue w)
+        let newLsbs = lsbs |> List.mapi (fun i l -> valueOf (SplitNLSB i) |> Option.defaultValue l)
+        model.Sheet.ChangeSplitN sheetDispatch compId n newWidths newLsbs
+
+    | Custom customComp ->
+        let newBindings =
+            (customComp.ParameterBindings |> Option.defaultValue Map.empty, slotValues)
+            ||> List.fold (fun bindings (slot, value) ->
+                match slot with
+                | CustomCompParam paramName -> Map.add (ParamName paramName) (PInt value) bindings
+                | _ -> bindings)
+
+        match model.CurrentProj with
+        | Some project ->
+            // the instance's port widths at the new bindings, from the child sheet's IO slots
+            let labelToEval =
+                project.LoadedComponents
+                |> List.tryFind (fun lc -> lc.Name = customComp.Name)
+                |> Option.bind (fun sheet -> sheet.LCParameterSlots)
+                |> Option.map (fun sheetInfo ->
+                    sheetInfo.ParamSlots
+                    |> Map.toSeq
+                    |> Seq.choose (fun (paramSlot, constrainedExpr) ->
+                        match paramSlot.CompSlot with
+                        | IO label ->
+                            let evaluatedValue =
+                                match ParameterTypes.evaluateParamExpression newBindings constrainedExpr.Expression with
+                                | Ok expr -> expr
+                                | Error _ -> 0
+                            Some (label, evaluatedValue)
+                        | _ -> None)
+                    |> Map.ofSeq)
+                |> Option.defaultValue Map.empty
+
+            let updatedCustom = updateCustomComponent labelToEval newBindings comp
+            dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, updatedCustom.Type))))
+        | None ->
+            // Fallback to just updating bindings if no project context
+            let newCustomComp = { customComp with ParameterBindings = Some newBindings }
+            dispatch <| Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.ChangeCustom (compId, comp, Custom newCustomComp))))
+
+    | _ ->
+        slotValues
+        |> List.iter (fun (slot, value) ->
+            match comp.Type, slot with
+            | BusSelection _, IO _ -> model.Sheet.ChangeLSB sheetDispatch compId (bigint value)
+            | _, Buswidth | _, IO _ -> model.Sheet.ChangeWidth sheetDispatch compId value
+            | Input1 _, InputDefault -> model.Sheet.ChangeInputValue sheetDispatch compId (bigint value)
+            | _, InputDefault -> failwithf $"Default value cannot be set on {comp.Type}"
+            | _, (SplitNWidth _ | SplitNLSB _) -> failwithf $"SplitN slots cannot be applied to {comp.Type}"
+            | _, CustomCompParam _ -> failwithf $"CustomCompParam can only be used with Custom components")
 
     // Update most recent bus width
-    match slot.CompSlot, comp.Type with
-    | Buswidth, SplitWire _ | Buswidth, BusSelection _ | Buswidth, Constant1 _ -> ()
-    | Buswidth, _ | IO _, _ -> dispatch <| ReloadSelectedComponent value
-    | _ -> ()
+    slotValues
+    |> List.iter (fun (slot, value) ->
+        match slot, comp.Type with
+        | Buswidth, SplitWire _ | Buswidth, BusSelection _ | Buswidth, Constant1 _ -> ()
+        | Buswidth, _ | IO _, _ -> dispatch <| ReloadSelectedComponent value
+        | _ -> ())
+
+/// Use sheet component update functions to perform an update to a single slot.
+let updateComponent dispatch model (slot: ParamSlot) (value:int) =
+    updateComponentSlots dispatch model slot.CompId [slot.CompSlot, value]
 
 
 // exprContainsParams has been moved to ParameterTypes module
@@ -597,11 +594,106 @@ let updateComponents
     model
     |> get paramSlotsOfModel_
     |> Option.defaultValue Map.empty
-    |> Map.iter (fun slot exprSpec ->
-        match liveSlotValue slot exprSpec with
-        | Some value -> updateComponent dispatch model slot value
-        | None -> ())
-    
+    |> Map.toList
+    |> List.choose (fun (slot, exprSpec) ->
+        liveSlotValue slot exprSpec |> Option.map (fun value -> slot.CompId, (slot.CompSlot, value)))
+    // a component's slots must go together: see updateComponentSlots
+    |> List.groupBy fst
+    |> List.iter (fun (compIdStr, entries) ->
+        updateComponentSlots dispatch model compIdStr (List.map snd entries))
+
+
+//------------------------------------------------------------------------------------------------//
+//------------------------------ Drawing at computed parameter values ----------------------------//
+//------------------------------------------------------------------------------------------------//
+
+/// The values the open sheet's parameters take under the current top sheet, for display.
+/// A parameter is included only where every instance of the sheet under the top agrees on a known
+/// value (ParamDisplayValue.ExactValue); anything else - instances disagreeing, a value that could
+/// not be evaluated, or a sheet not instantiated under the top - keeps the declared default,
+/// because it is not a fact about the sheet and must not be drawn as one.
+let computedBindingsForOpenSheet (model: Model) : ParamBindings =
+    let declared = paramBindingsOfModel model
+    match model.CurrentProj with
+    | None -> declared
+    | Some proj ->
+        let ldcs = (ModelHelpers.getUpdatedLoadedComponents proj model).LoadedComponents
+        match ParameterAnalysis.effectiveTopSheet ldcs with
+        | None -> declared
+        | Some top ->
+            (declared, ParameterAnalysis.displayValues ldcs top proj.OpenFileName)
+            ||> Map.fold (fun bindings name display ->
+                match display with
+                | ParameterAnalysis.ExactValue v -> Map.add name (PInt v) bindings
+                | ParameterAnalysis.DefaultValue _
+                | ParameterAnalysis.MultipleValues _ -> bindings)
+
+/// Put every symbol back to its declared component, then stash the declared component of those
+/// about to display something different. Running the restore first is what makes this safe to
+/// repeat: on a later call `Component` may already hold values computed for a previous top sheet,
+/// and stashing that would record a computed component as if it were the declaration.
+let private stashDeclaredComponents (changed: Set<ComponentId>) (model: Model) : Model =
+    let restoreThenStash cid (sym: SymbolT.Symbol) =
+        let declared = {sym with Component = SymbolUpdate.declaredComponent sym; SavedComponent = None}
+        match Set.contains cid changed with
+        | true -> {declared with SavedComponent = Some declared.Component}
+        | false -> declared
+    model |> Optic.map modelToSymbols (Map.map restoreThenStash)
+
+/// Draw the open sheet at the values its parameters take under the current top sheet.
+/// What is saved is unaffected: the declared component of every symbol that displays something
+/// different is kept in SavedComponent, which SymbolUpdate.extractComponent hands back.
+/// Values are pushed through the same symbol-change path the properties pane uses, so symbol
+/// size, ports and geometry are recomputed rather than patched.
+let applyComputedDisplayValues (model: Model) (dispatch: Msg -> unit) : unit =
+    let declared = paramBindingsOfModel model
+    let computed = computedBindingsForOpenSheet model
+    let slots = model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
+    // a slot whose displayed value differs from its declared one is what makes a symbol need
+    // its declaration remembering
+    let changed =
+        slots
+        |> Map.toList
+        |> List.filter (fun (_, exprSpec) ->
+            match
+                ParameterTypes.evaluateParamExpression declared exprSpec.Expression,
+                ParameterTypes.evaluateParamExpression computed exprSpec.Expression
+                with
+            | Ok declaredValue, Ok computedValue -> declaredValue <> computedValue
+            | _ -> false)
+        |> List.map (fun (slot, _) -> ComponentId slot.CompId)
+        |> Set.ofList
+    // the stash is dispatched first so that it is applied before the value changes that follow
+    dispatch <| UpdateModel (stashDeclaredComponents changed)
+    updateComponents computed model dispatch
+
+
+/// Give each pasted component the parameter slot expressions of the component it was copied from,
+/// so that a pasted copy stays parameterised rather than freezing at whatever value it was
+/// showing. Slots are keyed by component id, and a paste mints new ids, so without this the
+/// parameterisation is silently lost.
+/// A slot is only copied when every parameter it refers to is declared on this sheet: pasting
+/// into a sheet that does not declare them would otherwise leave a slot referring to nothing,
+/// which breaks the invariant that every parameter used on a sheet is defined on it.
+let copyParamSlotsToPastedComponents (pairs: (string * string) list) (model: Model) : Model =
+    let slots = model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
+    let declared = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
+    let copyable (exprSpec: ConstrainedExpr) =
+        ParameterTypes.paramNamesOfSlot exprSpec
+        |> List.forall (fun name -> Map.containsKey name declared)
+    let copied =
+        pairs
+        |> List.collect (fun (sourceId, pastedId) ->
+            slots
+            |> Map.toList
+            |> List.filter (fun (slot, exprSpec) -> slot.CompId = sourceId && copyable exprSpec)
+            |> List.map (fun (slot, exprSpec) -> {slot with CompId = pastedId}, exprSpec))
+    match copied with
+    | [] -> model
+    | _ ->
+        let slots' = (slots, copied) ||> List.fold (fun acc (slot, exprSpec) -> Map.add slot exprSpec acc)
+        set paramSlotsOfModel_ slots' model
+
 
 /// Updates the LCParameterSlots DefaultParams section.
 type UpdateInfoSheetChoise =
@@ -903,6 +995,43 @@ let deleteParameterBox model parameterName dispatch  =
                       str "Give each of them a value that does not use this parameter, then delete it." ]
             closablePopup $"Cannot delete parameter {parameterName}" body (div [] []) [] dispatch
 
+
+/// A note for the properties pane of one component: for each of its parameterised slots whose
+/// displayed value differs from what this sheet declares, the value shown and the declared one.
+/// Nothing at all unless the sheet is being drawn at values computed for the current top sheet.
+let computedValueNote (model: Model) (comp: Component) : ReactElement =
+    let isDisplayingComputedValues =
+        Map.tryFind (ComponentId comp.Id) model.Sheet.Wire.Symbol.Symbols
+        |> Option.bind (fun sym -> sym.SavedComponent)
+        |> Option.isSome
+    match isDisplayingComputedValues with
+    | false -> null
+    | true ->
+        let declared = paramBindingsOfModel model
+        let computed = computedBindingsForOpenSheet model
+        let differing =
+            model
+            |> get paramSlotsOfModel_
+            |> Option.defaultValue Map.empty
+            |> Map.toList
+            |> List.filter (fun (slot, _) -> slot.CompId = comp.Id)
+            |> List.choose (fun (slot, exprSpec) ->
+                match
+                    ParameterTypes.evaluateParamExpression declared exprSpec.Expression,
+                    ParameterTypes.evaluateParamExpression computed exprSpec.Expression
+                    with
+                | Ok declaredValue, Ok shownValue when declaredValue <> shownValue ->
+                    Some (describeSlot model slot, shownValue, declaredValue)
+                | _ -> None)
+        match differing with
+        | [] -> null
+        | _ ->
+            let describe (name, shownValue, declaredValue) =
+                li [] [str $"{name}: {shownValue} (declared {declaredValue})"]
+            div [Style [FontSize "11px"; Color "grey"]] [
+                str "Shown at the values this sheet's parameters take in the current design:"
+                ul [Style [MarginLeft "20px"; ListStyleType "disc"]] (List.map describe differing)
+            ]
 
 /// UI to display and manage parameters for a design sheet.
 /// TODO: add structural abstraction.
@@ -1648,18 +1777,15 @@ let bindToTopOfferCheck (scope: ParameterAnalysis.BindOfferScope) (model: Model)
 //----------------------------------- Top sheet choice on open -----------------------------------//
 //------------------------------------------------------------------------------------------------//
 
-/// Project paths whose top-sheet choice popup the user has cancelled this session. Cancelling
-/// opens the sheet displaying defaults; the question is not asked again until the project is
-/// next opened, so the popup can never nag.
-let mutable private topChoiceDeclinedFor: Set<string> = Set.empty
-
 /// A popup asking the user to choose the top sheet, or None. It fires only when several
 /// top-level sheets exist, none has been chosen, and they disagree about the parameter values
 /// the opened sheet displays with - roughly once per project. It never blocks opening.
+/// Cancelling records the project in Model.TopSheetChoiceDeclined and the question is not asked
+/// for it again, so the popup can never nag.
 let topSheetChoiceCheck (model: Model) : ((Msg -> unit) -> Model -> ReactElement) option =
     match model.CurrentProj with
     | None -> None
-    | Some proj when Set.contains proj.ProjectPath topChoiceDeclinedFor -> None
+    | Some proj when Set.contains proj.ProjectPath model.TopSheetChoiceDeclined -> None
     | Some proj when proj.LoadedComponents |> List.exists (fun ldc -> ldc.IsTopSheet) -> None
     | Some proj ->
         let ldcs = proj.LoadedComponents
@@ -1675,7 +1801,7 @@ let topSheetChoiceCheck (model: Model) : ((Msg -> unit) -> Model -> ReactElement
         | _ when (rootsContaining |> List.map shownValues |> List.distinct |> List.length) <= 1 -> None
         | _ ->
             let decline (dispatch: Msg -> unit) =
-                topChoiceDeclinedFor <- Set.add proj.ProjectPath topChoiceDeclinedFor
+                dispatch <| UpdateModel (Optic.map topSheetChoiceDeclined_ (Set.add proj.ProjectPath))
                 dispatch ClosePopup
             let body =
                 div [] [
@@ -1696,8 +1822,9 @@ let topSheetChoiceCheck (model: Model) : ((Msg -> unit) -> Model -> ReactElement
                                 dispatch <| UpdateModel (MenuHelpers.setTopSheetState root)
                                 dispatch ClosePopup
                                 // the top has (for display purposes) just changed: re-run the
-                                // bind-to-top check under it
-                                dispatch <| CheckBindToTopOffers ParameterAnalysis.WholeDesign)
+                                // bind-to-top check under it and redraw at the new values
+                                dispatch <| CheckBindToTopOffers ParameterAnalysis.WholeDesign
+                                dispatch ApplyComputedDisplayValues)
                         ] [str root]
                     ]
                 Level.level [Level.Level.Props [Style [Width "100%"]]] [

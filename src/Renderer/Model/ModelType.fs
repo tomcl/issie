@@ -551,6 +551,10 @@ type Msg =
     /// top-level sheets exist, none is chosen, and they disagree about the values the opened
     /// sheet displays with. Never blocks opening.
     | CheckTopSheetChoice
+    /// Draw the open sheet at the values its parameters take under the current top sheet, rather
+    /// than at its declared defaults. Sent when a sheet is opened and when the top sheet changes.
+    /// What is saved is unaffected - see SymbolT.Symbol.SavedComponent.
+    | ApplyComputedDisplayValues
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option
@@ -691,6 +695,15 @@ type RunData = {
     FnToRun: ((Msg -> unit) -> (Model -> Model))
 }
 
+/// How the components of an in-progress drag came to exist, if they were added at all.
+/// DragAndDrop is also entered when moving EXISTING components that end up overlapping, and by
+/// undo snapshots, so the drag settling back to idle does not by itself mean "components added".
+/// A paste is distinguished from a catalogue placement because its components must inherit the
+/// parameter slots of the ones they were copied from.
+type DragAddition =
+    | PlacedFromCatalogue of ComponentId list
+    | PastedFromClipboard of ComponentId list
+
 type Model = {
     /// remember from last mouse movement which side of grey divider it is on.
     MousePointerIsOnRightSection: bool
@@ -750,6 +763,12 @@ type Model = {
     LastCreatedComponent : Component option 
     /// used to enable "SAVE" button
     SavedSheetIsOutOfDate : bool
+    /// How the components of an in-progress drag were added, if they were. Set when the drag
+    /// starts and consumed when it settles; None the rest of the time.
+    PendingDragAddition : DragAddition option
+    /// Projects whose top-sheet choice popup the user has cancelled. Cancelling opens the sheet
+    /// at default parameter values; the question is not asked again for that project.
+    TopSheetChoiceDeclined : Set<string>
     /// the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
     /// function to create popup pane if present
@@ -802,6 +821,8 @@ let selectedComponent_ = Lens.create (fun a -> a.SelectedComponent) (fun s a -> 
 let userData_ = Lens.create (fun a -> a.UserData) (fun s a -> {a with UserData = s})
 let uISheetTrail_ = Lens.create (fun a -> a.UISheetTrail) (fun s a -> {a with UISheetTrail = s})
 let savedSheetIsOutOfDate_ = Lens.create (fun a -> a.SavedSheetIsOutOfDate) (fun s a -> {a with SavedSheetIsOutOfDate = s})
+let pendingDragAddition_ = Lens.create (fun a -> a.PendingDragAddition) (fun s a -> {a with PendingDragAddition = s})
+let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (fun s a -> {a with TopSheetChoiceDeclined = s})
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_

@@ -221,6 +221,7 @@ let shortDisplayMsg (msg:Msg) =
     | CodeEditorMsg _ -> Some "CodeEditorMsg"
     | CheckBindToTopOffers _ -> Some "CheckBindToTopOffers"
     | CheckTopSheetChoice -> Some "CheckTopSheetChoice"
+    | ApplyComputedDisplayValues -> Some "ApplyComputedDisplayValues"
 
 
 
@@ -451,10 +452,11 @@ let processContextMenuClick
 
     | SheetMenuBreadcrumb(sheet,_), "Set as top" ->
         // changing the top changes which ancestor parameters exist above every sheet, so the
-        // bind-to-top check is re-run for the whole design under the new top
+        // bind-to-top check is re-run for the whole design under the new top, and the open sheet
+        // is redrawn at whatever values it now takes
         model
         |> setTopSheetState sheet.SheetName
-        |> withMsg (CheckBindToTopOffers ParameterAnalysis.WholeDesign)
+        |> withMsgs [CheckBindToTopOffers ParameterAnalysis.WholeDesign; ApplyComputedDisplayValues]
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock" ->
         //printfn "locking %s" sheet.SheetName
@@ -873,51 +875,73 @@ let getLastMouseMsg msgQueue =
     | [] -> None
     | lst -> Some lst.Head //First item in the list was the last to be added (most recent)
 
-/// The components created by an in-progress catalogue placement or paste, if any.
-/// DragAndDrop is also entered when moving EXISTING components that end up overlapping, and by
-/// undo snapshots, so the DragAndDrop -> Idle settle alone does not mean "components added":
-/// this remembers whether the drag started from a creation or a paste, and with which ids.
-let mutable private pendingAddedComponents: ComponentId list option = None
-
 let sheetMsg sMsg model =
     let sModel, sCmd = SheetUpdate.update sMsg model
     let model' = {sModel with SavedSheetIsOutOfDate = currentSheetIsOutOfDate sModel}
     // A placement or paste is committed when the drag-and-drop action settles back to idle:
     // the one funnel through which every way of adding components passes. Custom component
-    // instances added this way may have unbound parameters worth offering to bind to the top.
-    let placementCmd =
+    // instances added this way may have unbound parameters worth offering to bind to the top,
+    // and pasted ones must inherit the parameter slots of the components they were copied from.
+    // What is in flight is remembered in Model.PendingDragAddition - see DragAddition.
+    let model'', placementCmd =
         match model.Sheet.Action, model'.Sheet.Action with
         | SheetT.InitialisedCreateComponent _, SheetT.DragAndDrop ->
             // a catalogue component has just been created and is following the mouse
-            pendingAddedComponents <- Some model'.Sheet.SelectedComponents
+            model' |> set pendingDragAddition_ (Some (PlacedFromCatalogue model'.Sheet.SelectedComponents)),
             Cmd.none
         | previous, SheetT.DragAndDrop when (match previous with | SheetT.DragAndDrop -> false | _ -> true) ->
-            match sMsg with
-            | SheetT.KeyPress SheetT.KeyboardMsg.CtrlV ->
-                pendingAddedComponents <- Some model'.Sheet.SelectedComponents
-            | _ ->
-                // an existing selection re-entered drag-and-drop (error revert, undo snapshot):
-                // whatever settles from here was not added
-                pendingAddedComponents <- None
-            Cmd.none
+            let pending =
+                match sMsg with
+                | SheetT.KeyPress SheetT.KeyboardMsg.CtrlV ->
+                    Some (PastedFromClipboard model'.Sheet.SelectedComponents)
+                | _ ->
+                    // an existing selection re-entered drag-and-drop (error revert, undo
+                    // snapshot): whatever settles from here was not added
+                    None
+            model' |> set pendingDragAddition_ pending, Cmd.none
         | SheetT.DragAndDrop, SheetT.Idle ->
-            let added = pendingAddedComponents |> Option.defaultValue []
-            pendingAddedComponents <- None
-            match model'.CurrentProj with
-            | None -> Cmd.none
-            | Some proj ->
-                let placedCustomIds =
-                    added
-                    |> List.filter (fun cid ->
-                        match Map.tryFind cid model'.Sheet.Wire.Symbol.Symbols with
-                        | Some symbol -> (match symbol.Component.Type with | Custom _ -> true | _ -> false)
-                        | None -> false)
-                    |> List.map (fun (ComponentId idStr) -> idStr)
-                match placedCustomIds with
-                | [] -> Cmd.none
-                | ids -> Cmd.ofMsg (CheckBindToTopOffers (ParameterAnalysis.NewInstances (proj.OpenFileName, ids)))
-        | _ -> Cmd.none
-    model', Cmd.batch [sCmd; placementCmd]
+            let pending = model'.PendingDragAddition
+            let added =
+                match pending with
+                | Some (PlacedFromCatalogue ids) | Some (PastedFromClipboard ids) -> ids
+                | None -> []
+            // A pasted component keeps the parameterisation of the one it was copied from.
+            // pasteSymbols creates its new symbols from copiedSymbolsInPasteOrder and returns
+            // their ids in that same order, so the two lists pair up positionally; if that ever
+            // stops holding, the length check leaves the copies unparameterised rather than
+            // giving them the wrong expressions.
+            let pasteCmd =
+                match pending with
+                | Some (PastedFromClipboard pastedIds) ->
+                    let sourceIds =
+                        SymbolUpdate.copiedSymbolsInPasteOrder model'.Sheet.Wire.Symbol
+                        |> List.map (fun sym -> sym.Id)
+                    match List.length sourceIds = List.length pastedIds with
+                    | false -> Cmd.none
+                    | true ->
+                        List.zip sourceIds pastedIds
+                        |> List.map (fun (ComponentId src, ComponentId pasted) -> src, pasted)
+                        |> ParameterView.copyParamSlotsToPastedComponents
+                        |> UpdateModel
+                        |> Cmd.ofMsg
+                | _ -> Cmd.none
+            let offerCmd =
+                match model'.CurrentProj with
+                | None -> Cmd.none
+                | Some proj ->
+                    let placedCustomIds =
+                        added
+                        |> List.filter (fun cid ->
+                            match Map.tryFind cid model'.Sheet.Wire.Symbol.Symbols with
+                            | Some symbol -> (match symbol.Component.Type with | Custom _ -> true | _ -> false)
+                            | None -> false)
+                        |> List.map (fun (ComponentId idStr) -> idStr)
+                    match placedCustomIds with
+                    | [] -> Cmd.none
+                    | ids -> Cmd.ofMsg (CheckBindToTopOffers (ParameterAnalysis.NewInstances (proj.OpenFileName, ids)))
+            model' |> set pendingDragAddition_ None, Cmd.batch [pasteCmd; offerCmd]
+        | _ -> model', Cmd.none
+    model'', Cmd.batch [sCmd; placementCmd]
 
 let executePendingMessagesF n model =
     if n = (List.length model.Pending)

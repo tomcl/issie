@@ -101,16 +101,22 @@ open System.Text.RegularExpressions
             | e ->
                 Error $"JSON serialisation of the sheet failed, so it was not saved: {e.Message}"
 
+        /// NB tryParseNativeAs, not tryParseAs. Both are SimpleJson and both end in the same
+        /// AST-to-value conversion; they differ only in how the AST is built. tryParseAs uses
+        /// Fable.Parsimmon parser combinators over the whole file and measured ~8x slower than the
+        /// native JSON.parse variant - 59ms against 7ms on a 108KB sheet - and this function tries
+        /// up to three types in turn, so it paid that cost more than once per sheet loaded.
+        /// The two were checked to agree on every demo sheet, for each of the three types below.
         let jsonStringToState (jsonString : string) =
             #if FABLE_COMPILER
-            Json.tryParseAs<LegacyCanvasState> jsonString
+            Json.tryParseNativeAs<LegacyCanvasState> jsonString
             |> (function
                 | Ok state -> Ok (CanvasOnly state)
                 | Error _ ->
-                    match Json.tryParseAs<SavedInfo> jsonString with
+                    match Json.tryParseNativeAs<SavedInfo> jsonString with
                     | Ok state -> Ok state
                     | Error str -> 
-                        match Json.tryParseAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
+                        match Json.tryParseNativeAs<SavedCanvasUnknownWaveInfo<obj>> jsonString with
                         | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
                             Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)                               
                         | Error str -> 

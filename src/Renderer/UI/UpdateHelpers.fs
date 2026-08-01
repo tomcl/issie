@@ -676,7 +676,7 @@ let readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
         try
             let jsonRes = tryReadFileSync <| pathJoin [|userAppDir;"IssieSettings.json"|]
             jsonRes
-            |> Result.bind (fun json -> Json.tryParseAs<UserData> json)
+            |> Result.bind (fun json -> Json.tryParseNativeAs<UserData> json)
             |> Result.bind (fun (data: UserData) -> Ok {model with UserData = data})
             |> (function | Ok model -> model | Error _ -> printfn "Error reading user data" ; model)
             |> addAppDirToUserData 

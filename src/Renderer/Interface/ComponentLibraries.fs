@@ -108,7 +108,7 @@ let tryReadComponentFile (path: string) : Result<LibraryFile, string> =
     match tryReadFileSync path with
     | Error msg -> Error msg
     | Ok contents ->
-        match Json.tryParseAs<LibraryFile> contents with
+        match Json.tryParseNativeAs<LibraryFile> contents with
         | Error msg -> Error $"{baseName path} is not a readable library component ({msg})"
         | Ok (header, body) ->
             match header.FormatVersion > Constants.currentFormatVersion with

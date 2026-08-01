@@ -142,14 +142,19 @@ let initCopiedPorts (oldSymbol:Symbol) (newComp: Component): PortMaps =
 /// Interface function to paste symbols. Is a function instead of a message because we want an output.
 /// Currently drag-and-drop.
 /// Pastes a list of symbols into the model and returns the new model and the id of the pasted modules.
+/// The copied symbols in the order pasteSymbols creates new symbols from them. The ids it returns
+/// are in this same order, so the two can be zipped to pair each pasted component with the one it
+/// was copied from - which is how the pasted copy inherits its parameter slots.
+let copiedSymbolsInPasteOrder (model: Model) : Symbol list =
+    model.CopiedSymbols
+    |> Map.toList
+    |> List.map snd
+    |> List.sortBy (fun sym -> sym.Pos.Y)
+
 let pasteSymbols (model: Model) (wireMap:Map<ConnectionId,DrawModelType.BusWireT.Wire>) (newBasePos: XYPos) : (Model * ComponentId list) =
-    
-    let oldSymbolsList =
-            model.CopiedSymbols
-            |> Map.toList
-            |> List.map snd
-            |> List.sortBy (fun sym -> sym.Pos.Y)
-    
+
+    let oldSymbolsList = copiedSymbolsInPasteOrder model
+
     let addNewSymbol (basePos: XYPos) ((currSymbolModel, pastedIdsList) : Model * ComponentId List) (oldSymbol: Symbol): Model * ComponentId List =
         
         let newId = JSHelpers.uuid()
@@ -470,6 +475,8 @@ let createSymbolRecord ldcs theme comp =
             }
             Id = ComponentId comp.Id
             Component = {comp with H=h ; W = w}
+            // loaded from file, so at declared values: display values are pushed on afterwards
+            SavedComponent = None
             Annotation = None
             Moving = false
             InWidth0 = None
@@ -877,10 +884,39 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
 
 // ----------------------interface to Issie----------------------------- //
-let extractComponent (symModel: Model) (sId:ComponentId) : Component = 
-    let symbol = symModel.Symbols[sId]
-    let symWithInfo = storeLayoutInfoInComponent () symbol
-    symWithInfo.Component
+/// The symbol's component as DECLARED, with any computed parameter display values undone.
+/// Only the declared Type and the H/W that belong to it are taken from the stashed copy, since
+/// symbol size is derived from the parameter value. Everything identifying or positioning the
+/// component comes from the live symbol: those are user edits which must survive whatever is
+/// being displayed, and taking identity from the live symbol is also what makes a pasted copy
+/// correct, as it inherits SavedComponent from the symbol it was copied from.
+let declaredComponent (symbol: Symbol) : Component =
+    let live = symbol.Component
+    match symbol.SavedComponent with
+    | None -> live
+    | Some saved ->
+        { saved with
+            Id = live.Id
+            Label = live.Label
+            X = live.X
+            Y = live.Y
+            InputPorts = live.InputPorts
+            OutputPorts = live.OutputPorts
+            SymbolInfo = live.SymbolInfo }
+
+/// The component as it is DRAWN, including any parameter values computed for the current top
+/// sheet. This is what the properties pane should show; use extractComponent for anything that
+/// is saved or compared against what was saved.
+let displayedComponent (symModel: Model) (sId:ComponentId) : Component =
+    (storeLayoutInfoInComponent () symModel.Symbols[sId]).Component
+
+/// The component as it must be SAVED. This is the sole path from symbols to saved state
+/// (extractComponents -> Sheet.GetCanvasState -> both save paths, the backup write, and
+/// currentSheetIsOutOfDate), so it is the one place that has to know about display values.
+let extractComponent (symModel: Model) (sId:ComponentId) : Component =
+    symModel.Symbols[sId]
+    |> storeLayoutInfoInComponent ()
+    |> declaredComponent
 
 let extractComponents (symModel: Model) : Component list =
     symModel.Symbols

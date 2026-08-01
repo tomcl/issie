@@ -453,6 +453,10 @@ let update (msg : Msg) oldModel =
                 |> set popupViewFunc_ (Some popup)
                 |> withNoMsg
 
+    | ApplyComputedDisplayValues ->
+        // the push works by dispatching symbol-change messages, so it needs a dispatch of its own
+        model, Cmd.ofEffect (fun dispatch -> ParameterView.applyComputedDisplayValues model dispatch)
+
     | ShowPopup popup ->
         evilUIState <- EvilUIPopup
         model

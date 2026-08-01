@@ -661,6 +661,10 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
             // FinishUICmd overwrites any popup, so this must come after it.
             CheckTopSheetChoice
 
+            // draw the sheet at the parameter values it takes under that top sheet rather than at
+            // its declared defaults. Must follow the choice above, which can change the top.
+            ApplyComputedDisplayValues
+
             //printfn "Check 6..."
         ]
     //INFO - Currently the spinner will ALWAYS load after 'SetTopMenu x', probably it is the last command in a chain

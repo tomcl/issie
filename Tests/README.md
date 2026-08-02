@@ -1,241 +1,102 @@
-# Issie Test Suite
+# Issie tests
 
-Comprehensive testing framework for the Issie digital circuit designer and simulator.
-
-## Overview
-
-The test suite provides comprehensive coverage for all major components of Issie:
-- **Simulator Engine**: Circuit simulation, bus width inference, synchronous components
-- **DrawBlock Components**: Symbol rendering, wire routing, canvas management  
-- **Common Utilities**: Helper functions, extensions, optics
-- **Verilog Integration**: Parsing, error checking, conversion to Issie components
-
-## Test Framework
-
-- **Framework**: Expecto 8.13.1 (F# testing framework)
-- **Style**: Functional, pure tests with no side effects
-- **Parallelization**: Tests run in parallel for faster execution
-- **Coverage**: Unit tests, integration tests, property-based tests
-
-## Running Tests
-
-### Local Development
-
-#### Windows
 ```bash
-# Run all tests
-.\run-tests.cmd
-
-# Or use dotnet directly
-dotnet run --project Tests\Tests.fsproj
+npm run test        # the whole suite: ~129 tests, ~20s
 ```
 
-#### Linux/Mac
+That runs `dotnet run --project Tests/Issie.Tests -c Release`. It is `dotnet run`, not
+`dotnet test`: the suite is an Expecto executable, and `dotnet test` will not find it.
+
+Running one group is much quicker than running everything, and is how to iterate:
+
 ```bash
-# Run all tests
-./run-tests.sh
-
-# Or use dotnet directly
-dotnet run --project Tests/Tests.fsproj
+dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock
+dotnet run --project Tests/Issie.Tests -c Release -- --filter-test-case Register --summary
 ```
 
-### GitHub Actions
+The suite references `Renderer.fsproj` directly, so it reaches all of the application code —
+simulation, parameter resolution, persistence, the draw block and UI-module helpers — under plain
+.NET, with no Electron, no browser and no Fable step.
 
-Tests automatically run on:
-- Every push to `master`, `main`, `develop`, or `test*` branches
-- All pull requests
-- Manual workflow dispatch
+## What is here
 
-The CI pipeline tests on multiple configurations:
-- **OS**: Ubuntu, Windows, macOS
-- **.NET**: 6.0, 7.0, 8.0
-- **Node.js**: 18.x, 20.x
+| File | Tests | Covers |
+|---|---|---|
+| `ComponentSemantics.fs` | 42 | Every component type simulated in a minimal circuit and compared against an independent reference. Exhaustive over all inputs at width 3. |
+| `AlgebraTests.fs` | 32 | Truth-table algebraic simulation: the `evalExp` simplifier, append handling, and symbolic simulation end to end. |
+| `SheetDescriptionTests.fs` | 18 | The sheet-description DSL and the layout that realises it — port resolution, error messages, placement, parameters, and a save/reload round trip. |
+| `ParameterScenarios.fs` | 15 | Parameterised sheets instantiated at different bindings and simulated: per-instance resolution, propagation down a hierarchy, and error reporting. |
+| `Properties.fs` | 11 | FsCheck properties: the parameter expression language against a reference evaluator and through render/parse, number conversions, and the >32-bit bigint simulation paths. |
+| `DrawBlockTests.fs` | 5 | Symbols built and wires routed with nothing running, plus the .NET text-width reconstruction checked against widths recorded from a real browser. |
+| `GoldenModel.fs` | 3 | Whole fixture projects simulated for many cycles, every output and clocked value compared against a stored golden file. |
+| `LibraryTests.fs` | 2 | What a library sheet shows of itself in the sheet trees. |
+| `PersistenceTests.fs` | 1 | A canvas through the `.dgm` save path and back in through the load path. |
 
-## Test Structure
+Support files, which hold no tests: `TestFixtures.fs` loads fixture projects from disk (it
+reimplements the few file primitives it needs, because `FilesIO` initialisation requires Electron);
+`CanvasBuilder.fs` builds canvases, loaded components and symbols programmatically; `Main.fs` is the
+entry point and the list of test groups.
 
-```
-Tests/
-├── README.md                    # This file
-├── Tests.fsproj                 # Project file
-├── Tests.fs                     # Main test runner
-├── TestLib.fs                   # Test utilities
-│
-├── CanvasStates*.fs            # Test data for canvas states
-├── SimulatorTests.fs           # Simulator unit tests
-├── SimulatorSyncTests.fs       # Synchronous component tests
-├── SimulatorMemoriesTests.fs   # Memory component tests
-├── WidthInfererTests.fs        # Bus width inference tests
-│
-├── CommonTests.fs              # NEW: Common utilities tests
-├── DrawBlockTests.fs           # NEW: Visual component tests
-└── VerilogTests.fs            # NEW: Verilog integration tests
-```
+## Adding a test
 
-## Test Categories
+Two edits, and missing either fails silently rather than loudly:
 
-### 1. Simulator Tests
-Tests the core simulation engine:
-- Combinatorial logic (AND, OR, NOT, XOR, etc.)
-- Multiplexers and demultiplexers
-- Bus operations (merge, split)
-- Error detection (cycles, unconnected ports)
-- Custom components
+1. Add the file to `Tests/Issie.Tests/Issie.Tests.fsproj`. **Compile order matters** — F# compiles
+   in listed order, so a file must come after anything it uses.
+2. Add its `tests` value to the list in `Main.fs`.
 
-### 2. Synchronous Tests
-Tests clocked components:
-- D flip-flops
-- Registers
-- Counters
-- State machines
-- Clock cycle simulation
+Tests run `Sequenced`. That is deliberate: building a `FastSimulation` is not re-entrant, because
+`FastCreate.stepArrayIndex` is a module-level mutable, so tests that simulate cannot run in
+parallel.
 
-### 3. Memory Tests
-Tests memory components:
-- ROM functionality
-- RAM read/write operations
-- Address decoding
-- Large memory arrays
+Building a circuit by hand is rarely the best way to write a test. Either use `CanvasBuilder`, or
+describe the sheet with the DSL in `SheetDescription`/`SheetLayout` and let it lay the sheet out —
+see [../docs/dev/sheetDescriptionDsl.md](../docs/dev/sheetDescriptionDsl.md).
 
-### 4. Width Inference Tests
-Tests automatic bus width calculation:
-- Width propagation
-- Width conflicts detection
-- Partial connections
-- Complex bus merging
+## Golden tests and their fixtures
 
-### 5. DrawBlock Tests (NEW)
-Tests visual components:
-- **Symbol Module**: Component creation, port positioning, sizing
-- **BusWire Module**: Wire routing, auto-routing, selection
-- **Sheet Module**: Canvas operations, selection, copy/paste
+`Tests/fixtures/` holds three whole Issie projects — `1fulladder`, `adder4` and `3cpu`, the last an
+18-sheet CPU. `GoldenModel.fs` simulates each with a deterministic stimulus and writes out every
+output, viewer and clocked value on every cycle, plus final memory contents, then compares that
+against the `.golden` file beside the project.
 
-### 6. Common Tests (NEW)
-Tests utility functions:
-- **Helpers**: Data manipulation, map operations
-- **EEExtensions**: List extensions, string utilities
-- **Optics**: Lens and prism operations
-- **Position**: Coordinate calculations
-
-### 7. Verilog Tests (NEW)
-Tests Verilog integration:
-- **Parsing**: Module parsing, port extraction
-- **Error Checking**: Undeclared wires, width mismatches
-- **Conversion**: Verilog to Issie component mapping
-
-## Writing New Tests
-
-### Test Template
-```fsharp
-module MyModuleTests
-
-open Expecto
-open MyModule
-
-let testData = [
-    "Test description",
-    fun () ->
-        let input = createTestInput()
-        let result = functionUnderTest input
-        Expect.equal result expectedValue "Error message"
-]
-
-[<Tests>]
-let tests = 
-    testList "MyModule Tests" (
-        testData |> List.map (fun (name, test) ->
-            testCase name test
-        )
-    )
+```bash
+ISSIE_UPDATE_GOLDEN=1 npm run test     # rewrites every golden file
 ```
 
-### Best Practices
-1. Keep tests pure and deterministic
-2. Use descriptive test names
-3. Test both success and failure cases
-4. Group related tests together
-5. Use property-based testing for complex invariants
+**That rewrites the goldens wholesale, with no review.** A golden failure usually means a real
+change in simulation behaviour, so read the diff the failure prints and understand it before
+regenerating. Regenerating to make a failure go away destroys the only record of what the simulator
+used to do.
 
-## Coverage Goals
+## Draw-block tests and text measurement
 
-### Current Coverage
-- ✅ Simulator: ~90% coverage
-- ✅ Width Inferer: ~80% coverage
-- ✅ Synchronous Components: ~85% coverage
-- ✅ Memory Components: ~75% coverage
-- ⚠️ DrawBlock: ~30% coverage (new tests added)
-- ⚠️ Common Utilities: ~40% coverage (new tests added)
-- ⚠️ Verilog: ~25% coverage (new tests added)
+Symbol geometry is sized from measured text widths, which in the browser comes from a canvas.
+Outside the browser `DrawHelpers.getTextWidthInPixels` reconstructs the width from per-character
+advance widths instead, so the draw block can be tested at all. `DrawBlockTests.fs` holds that
+reconstruction to widths recorded from a real browser, currently within 1%.
 
-### Target Coverage
-- All critical paths: 100%
-- Core modules: >80%
-- UI components: >60%
-- Helper functions: >70%
+Assert draw-block *structure* — port counts and edges, overlap, orthogonality, ordering — rather
+than pixel widths, which are only ever as good as that table. Anything about how a sheet actually
+*looks* needs the running app: see [../docs/dev/inspectingTheCanvas.md](../docs/dev/inspectingTheCanvas.md).
 
-## Continuous Integration
+## What is not run
 
-The GitHub Actions workflow (`test.yml`) provides:
-- Multi-platform testing (Windows, Linux, macOS)
-- Multiple .NET and Node.js versions
-- Parallel test execution
-- Test result artifacts
-- Code coverage reports
-- Linting and formatting checks
+- **`Tests/Tests.fsproj` and the `Tests/*.fs` beside it are dead.** The project targets
+  `netcoreapp3.1` and lists three files that do not exist — `Tests/CommonTests.fs`,
+  `Tests/DrawBlockTests.fs` and `Tests/VerilogTests.fs` — so it fails to build with `FS0225`.
+  (`Tests/Issie.Tests/DrawBlockTests.fs`, in the live suite, is a different and unrelated file.)
+  Nothing references the legacy project. Its `CanvasStates*.fs`
+  and `WidthInfererTests.fs` do still hold hand-built canvases for cases the current suite does not
+  cover — width-inference failures, partially connected components, non-inferrable loops — and are
+  worth mining before the directory is removed.
+- **`simulator_tests/js`** no longer compiles: its fsproj references `SimulatorTypes.fs`, which has
+  since been split into `SimGraphTypes.fs` and `SimTypes.fs`.
+- **CI does not run this suite**, on any platform. `.github/workflows/tests.yml` runs a Fable
+  compile on Windows and reports that. Run the tests locally before opening a PR.
 
-## Troubleshooting
+## Not covered
 
-### Common Issues
-
-1. **Paket restore fails**
-   ```bash
-   dotnet tool restore
-   dotnet paket install
-   ```
-
-2. **Fable compilation errors**
-   ```bash
-   dotnet fable clean
-   npm run compile:parallel
-   ```
-
-3. **Test discovery issues**
-   ```bash
-   dotnet build Tests/Tests.fsproj
-   ```
-
-4. **Missing dependencies**
-   ```bash
-   npm install
-   dotnet restore
-   ```
-
-## Contributing
-
-When adding new features:
-1. Write tests BEFORE implementing the feature (TDD)
-2. Ensure all existing tests still pass
-3. Add integration tests for complex features
-4. Update this README if adding new test categories
-
-## Performance Testing
-
-For performance-critical code:
-```fsharp
-let performanceTest() =
-    let stopwatch = System.Diagnostics.Stopwatch.StartNew()
-    // Run operation many times
-    for i in 1..10000 do
-        operationUnderTest()
-    stopwatch.Stop()
-    Expect.isLessThan stopwatch.ElapsedMilliseconds 1000L 
-        "Operation should complete in under 1 second"
-```
-
-## Future Improvements
-
-- [ ] Add property-based testing with FsCheck
-- [ ] Implement visual regression testing for UI
-- [ ] Add performance benchmarks
-- [ ] Create mutation testing
-- [ ] Add test coverage badges
-- [ ] Implement snapshot testing for complex outputs
+Worth knowing before you assume a change is safe. There are no tests for the Verilog subsystem
+(`src/Renderer/VerilogComponent/`, over 10,000 lines), the waveform simulator, the truth-table UI,
+or the Elmish update loop. Wire routing is covered only for the simple cases in `DrawBlockTests.fs`.

@@ -1,106 +1,54 @@
 #!/bin/bash
 
-# Issie Test Runner Script
-# Run all tests locally with proper setup
+# Run the Issie test suite and type-check the renderer.
+#
+# This is a convenience wrapper. The suite itself is just:
+#     npm run test          (dotnet run --project Tests/Issie.Tests -c Release)
+# and, much quicker while iterating, one group at a time:
+#     dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock
+#
+# Neither this script nor CI compiles the #if FABLE_COMPILER branches. If you have changed code
+# inside one, run `npm run compile:parallel` as well - nothing else will check it.
 
-set -e
+set -u
 
-echo "========================================="
-echo "      Issie Comprehensive Test Suite     "
-echo "========================================="
-echo ""
-
-# Colors for output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'
+NC='\033[0m'
 
-# Function to print colored output
-print_status() {
-    if [ $1 -eq 0 ]; then
-        echo -e "${GREEN}✓${NC} $2"
+fail=0
+
+step() { echo ""; echo "== $1"; }
+
+report() {
+    if [ "$1" -eq 0 ]; then
+        echo -e "${GREEN}ok${NC}   $2"
     else
-        echo -e "${RED}✗${NC} $2"
+        echo -e "${RED}FAIL${NC} $2"
+        fail=1
     fi
 }
 
-# Check prerequisites
-echo "Checking prerequisites..."
-command -v dotnet >/dev/null 2>&1 || { echo -e "${RED}Error: dotnet CLI is not installed.${NC}" >&2; exit 1; }
-command -v node >/dev/null 2>&1 || { echo -e "${RED}Error: Node.js is not installed.${NC}" >&2; exit 1; }
-command -v npm >/dev/null 2>&1 || { echo -e "${RED}Error: npm is not installed.${NC}" >&2; exit 1; }
+for tool in dotnet node npm; do
+    command -v $tool >/dev/null 2>&1 || { echo -e "${RED}$tool is not installed.${NC}" >&2; exit 1; }
+done
 
-echo -e "${GREEN}✓${NC} All prerequisites installed"
+step "Restoring dependencies"
+dotnet tool restore && dotnet paket restore
+report $? "dependencies restored"
+
+step "Running tests"
+dotnet run --project Tests/Issie.Tests -c Release
+report $? "test suite"
+
+step "Type checking"
+dotnet build src/Renderer/Renderer.fsproj --nologo --verbosity quiet
+report $? "renderer type checks"
+
 echo ""
-
-# Restore dependencies
-echo "Restoring dependencies..."
-echo "  - Restoring .NET tools..."
-dotnet tool restore
-print_status $? "  .NET tools restored"
-
-echo "  - Restoring Paket dependencies..."
-dotnet paket restore
-print_status $? "  Paket dependencies restored"
-
-echo "  - Installing npm packages..."
-npm install --silent
-print_status $? "  npm packages installed"
-echo ""
-
-# Build the project
-echo "Building project..."
-echo "  - Building Main..."
-dotnet fable src/Main --noCache
-print_status $? "  Main built"
-
-echo "  - Building Renderer..."
-dotnet fable src/Renderer --noCache
-print_status $? "  Renderer built"
-
-echo "  - Building Tests..."
-dotnet build Tests/Tests.fsproj --configuration Release --nologo --verbosity quiet
-print_status $? "  Tests built"
-echo ""
-
-# Run unit tests
-echo "Running unit tests..."
-dotnet run --project Tests/Tests.fsproj --configuration Release --no-build
-TEST_RESULT=$?
-print_status $TEST_RESULT "Unit tests completed"
-echo ""
-
-# Run type checking
-echo "Running type checking..."
-dotnet build src/Renderer/Renderer.fsproj --no-restore --nologo --verbosity quiet
-print_status $? "Type checking completed"
-echo ""
-
-# Run simulator tests if they exist
-if [ -d "simulator_tests/js" ]; then
-    echo "Running simulator tests..."
-    cd simulator_tests/js
-    if [ -f "package.json" ]; then
-        npm install --silent
-        npm test
-        print_status $? "Simulator tests completed"
-    else
-        echo -e "${YELLOW}  Simulator tests skipped (no package.json)${NC}"
-    fi
-    cd ../..
-    echo ""
-fi
-
-# Summary
-echo "========================================="
-echo "           Test Summary                  "
-echo "========================================="
-
-if [ $TEST_RESULT -eq 0 ]; then
-    echo -e "${GREEN}All tests passed successfully!${NC}"
-    exit 0
+if [ $fail -eq 0 ]; then
+    echo -e "${GREEN}All checks passed.${NC}"
 else
-    echo -e "${RED}Some tests failed. Please check the output above.${NC}"
-    exit 1
+    echo -e "${RED}Something failed - see above.${NC}"
 fi
+exit $fail

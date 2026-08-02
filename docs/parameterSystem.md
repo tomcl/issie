@@ -396,10 +396,14 @@ Parameter data is stored across multiple locations:
 
 ### Adding Parameter Support to New Components
 
-1. Add case to `compSlot_` lens in ParameterView.fs
-2. Update component type in CommonTypes.fs
-3. Add UI support in component properties
-4. Handle in simulation resolution
+1. Update the component type in `CommonTypes.fs` if the field is not there yet
+2. Add a case to `ComponentSlots.trySetSlotValue`, which is the only place that knows how a
+   `CompSlotName` maps onto a field of a `ComponentType`. The properties pane, elaboration and the
+   sheet-description DSL all go through it, and `slotApplies` — which decides whether a slot may be
+   written at all — is derived from the same match, so there is nothing else to keep in step
+3. Add a case to `ParameterView.updateComponentSlots` saying which sheet message writes the field
+   on the canvas
+4. Add UI support in the component's properties, via `ParameterView.paramInputField`
 
 ## Usage Examples
 
@@ -555,11 +559,13 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> (Msg -> unit) -> R
 - UI evaluation: `ParameterTypes.evaluateParamExpression` performs recursive substitution and constant-folding with detailed errors. Used by `ParameterView` for validation and preview.
 - Graph evaluation: `GraphMerger.resolveParametersInSimulationGraph` walks the sheet tree with `resolveSheet`, evaluating each slot with `evaluateParamExpression` and writing concrete values into `SimulationGraph` component types with `applySlotValue`; any failure is a `SimulationError`.
 - Validation evaluation: `CanvasStateAnalyser.checkCustomComponentForOkIOs` embeds a minimal evaluator supporting only `PInt` and `PParameter` to resolve port widths quickly for label checking.
-- Slot access: Lenses `ParameterView.compSlot_` and `ParameterView.modelToSlot_` provide strongly typed access into `Component.Type` for `Buswidth` and `IO label`.
+- Slot access: `ComponentSlots.trySetSlotValue : CompSlotName -> int -> ComponentType -> ComponentType option` is the single mapping from a slot to a field of `Component.Type`, returning `None` where the component has no such slot. `setSlotValue` is the total version used by the paths that must not fail on an old file; `slotApplies` is the predicate used to refuse a bad slot where it is written.
 
 ## Developer Notes (Files & Responsibilities)
 
-- `src/Renderer/Common/ParameterTypes.fs`: Types (`ParamExpression`, `ParamConstraint`, `ParamSlot`, `ParameterDefs`), parser (`parseExpression`), evaluator (`evaluateParamExpression`), renderer (`renderParamExpression`).
+- `src/Renderer/Common/ParameterTypes.fs`: Types (`ParamExpression`, `ParamConstraint`, `ParamSlot`, `ParameterDefs`), parser (`parseExpression`), evaluator (`evaluateParamExpression`), renderer (`renderParamExpression`), and `bindingsOf`, which every evaluation environment is derived through.
+- `src/Renderer/Common/ComponentSlots.fs`: the one mapping from a `CompSlotName` to a field of a `ComponentType`, used by the properties pane, by elaboration and by the sheet-description DSL. Three copies of this mapping used to exist and had drifted apart.
+- `src/Renderer/Common/SheetDescription.fs`, `src/Renderer/DrawBlock/SheetLayout.fs`: sheets written as data - components, logical connections, parameters and slots - laid out and saved without Issie running. See [dev/sheetDescriptionDsl.md](dev/sheetDescriptionDsl.md).
 - `src/Renderer/Common/ParameterAnalysis.fs`: Design-time instance-tree analysis under a top sheet (`analyseUnderTop`, `displayValues`), top-sheet inference (`effectiveTopSheet`, `instanceForestRoots`), and bind-to-top chain computation (`findBindOffers`).
 - `src/Renderer/UI/ParameterView.fs`: Sheet defaults and slot bindings CRUD, constraint checking, component updates, parameter UI fields/popups, display-value annotations, the placement popup (`customComponentParamPopup`), the bind-to-top button action (`applyBindOffers`), and the top-choice popup (`topSheetChoiceCheck`).
 - `src/Renderer/UI/CatalogueView.fs`: Merges parent sheet defaults with sub-sheet defaults, resolves canvas before extracting `InputLabels`/`OutputLabels`, sets `ParameterBindings` on instances.

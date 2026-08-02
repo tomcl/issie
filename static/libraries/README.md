@@ -71,5 +71,10 @@ Components are copied with fresh ids, so nothing is shared between projects, and
 component naming another component of the same library is repointed at that component's new name —
 without which a multi-sheet component would arrive holding instances of sheets that are not there.
 
-Library sheets are hidden from the Sheets menu and cannot be opened. When the last instance of one
-is deleted and the project is saved, the sheet is removed again.
+Library sheets are hidden from the Sheets menu, so a component looks like one thing rather than a
+sheet with innards. A library author can see them: **Play → Toggle Showing Library Sheets** in the
+developer menu (debug builds only, off at startup) puts them back, along with the subsheets under
+them. They are never shown in the waveform simulator, whatever that is set to.
+
+When the last instance of a library component is deleted and the project is saved, its sheets are
+removed again.

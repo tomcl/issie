@@ -57,8 +57,15 @@ describeSheet "adder" comps conns
 Expressions are read by `ParameterTypes.parseExpression` — the properties-pane parser — so they
 mean here what they mean typed into a properties box. The generated sheet carries both the
 resolved integer in the component and the expression in `ParameterDefinitions`, which is what
-Issie itself writes. A slot naming an undeclared parameter, an unparseable expression, or a
-component that is not on the sheet is an `Error`, not a silently skipped slot.
+Issie itself writes.
+
+Four things are refused rather than silently skipped: a slot naming an undeclared parameter, an
+expression that will not parse, an expression that will not evaluate, and a component that has no
+such slot. That last one is `ComponentSlots.slotApplies`, and it is why a `GateN` or a `MergeN`
+cannot be parameterised at all — their integer is an input count, and a parameter records a value,
+not a change of shape. A `SplitN` is the mixed case: its number of outputs is a shape, but the
+width and bit position of a given output are values, so `SplitNWidth i`/`SplitNLSB i` work for the
+outputs that exist and are refused past the end.
 
 ## Layout
 

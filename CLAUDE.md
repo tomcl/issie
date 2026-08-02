@@ -32,7 +32,7 @@ nothing running. Use it for test schematics rather than building canvases by han
 See [docs/dev/sheetDescriptionDsl.md](docs/dev/sheetDescriptionDsl.md).
 
 `npm run test` runs the Expecto suite under `Tests/Issie.Tests` (`dotnet run`, not `dotnet test`).
-It works and is fast — around 100 tests in 16s — and it reaches the whole of `Renderer.fsproj`, so
+It works and is fast — around 120 tests in 20s — and it reaches the whole of `Renderer.fsproj`, so
 simulation, parameter resolution and even UI-module helpers can all be tested. Use it: a fix to
 simulation or parameter behaviour can be pinned by a test rather than argued about.
 

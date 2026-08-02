@@ -37,8 +37,11 @@ this is about module-level state.
 | `Simulator.fs` | `simCache`, `simCacheWS` |
 | `FastSim/FastCreate.fs` | `stepArrayIndex` |
 | `UI/TruthTable/TruthTableView.fs` | `selCache` |
-| `Common/Helpers.fs` | `lastKey` / `lastValue` memo pair |
 | `Common/TimeHelpers.fs`, `Common/EEEHelpers.fs` | `executionStats`, `instrumentation` |
+
+`Common/Helpers.fs` has a `lastKey` / `lastValue` pair inside `memoizeBy`. It is local to each
+memoised function rather than module-level, so it is out of scope here — noted only because it
+looks like the exception and is not one.
 
 ### Justified: not model state
 
@@ -50,6 +53,8 @@ this is about module-level state.
 | `Renderer.fs` | `firstPress` — keyboard event handler |
 | `Interface/JSHelpers.fs` | `debugLevel`, `debugTraceUI`, `loggingMemory`, `memSize` |
 | `Simulator/GraphBuilder.fs` | `simTrace` |
+| `Simulator/CanvasExtractor.fs` | `debugChangedConnections` — records what a change check saw, for tracing only |
+| `Playground.fs` | `Memory.modelCopy` — memory-leak investigation; never read, and its only writer is commented out in `Renderer.fs` |
 | `UI/Update.fs`, `UI/UpdateHelpers.fs` | `uiStartTime`, `updateTimeTotal`, `lastMemoryUpdateCheck` — timing instrumentation |
 | `UI/MainView.fs` | `lastDragModeOn`, `lastMemoryCheckTime` — view-time bookkeeping |
 | `UI/ModelHelpers.fs` | `asyncJobs` — async job queue |

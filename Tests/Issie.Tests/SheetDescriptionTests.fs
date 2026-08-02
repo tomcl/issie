@@ -214,54 +214,6 @@ let tests =
                 try System.IO.Directory.Delete(folder, true) with _ -> ()
         }
 
-        // TEMPORARY: writes a two-sheet project to turn into a library by hand.
-        test "GENERATE library source project" {
-            let halfAdd =
-                describeSheet "halfAdd" [
-                    comp "A" (Input1(1, None))
-                    comp "B" (Input1(1, None))
-                    comp "X" (GateN(Xor, 2))
-                    comp "N" (GateN(And, 2))
-                    comp "SUM" (Output 1)
-                    comp "CARRY" (Output 1)
-                ] [
-                    "A" ==> "X/0"; "B" ==> "X/1"
-                    "A" ==> "N/0"; "B" ==> "N/1"
-                    "X/0" ==> "SUM"; "N/0" ==> "CARRY"
-                ]
-            let halfAddInstance =
-                Custom {
-                    Name = "halfAdd"
-                    InputLabels = [ "A", 1; "B", 1 ]
-                    OutputLabels = [ "SUM", 1; "CARRY", 1 ]
-                    Form = Some User
-                    ParameterBindings = None
-                    Description = Some "one-bit half adder"
-                }
-            let fullAdd =
-                describeSheet "fullAdd" [
-                    comp "A" (Input1(1, None))
-                    comp "B" (Input1(1, None))
-                    comp "CIN" (Input1(1, None))
-                    comp "HA1" halfAddInstance
-                    comp "HA2" halfAddInstance
-                    comp "ORC" (GateN(Or, 2))
-                    comp "SUM" (Output 1)
-                    comp "COUT" (Output 1)
-                ] [
-                    "A" ==> "HA1/A"; "B" ==> "HA1/B"
-                    "HA1/SUM" ==> "HA2/A"; "CIN" ==> "HA2/B"
-                    "HA1/CARRY" ==> "ORC/0"; "HA2/CARRY" ==> "ORC/1"
-                    "HA2/SUM" ==> "SUM"; "ORC/0" ==> "COUT"
-                ]
-            let folder =
-                System.IO.Path.Combine(
-                    System.Environment.GetFolderPath System.Environment.SpecialFolder.ApplicationData,
-                    "Issie", "libsrc")
-            SheetLayout.saveProject folder [ halfAdd; fullAdd ] |> expectOk
-            Expect.isTrue (System.IO.File.Exists (System.IO.Path.Combine(folder, "fullAdd.dgm"))) "written"
-        }
-
         test "the generated canvas simulates" {
             let canvas = SheetLayout.toCanvasState adderSheet |> expectOk
             let ldc = CanvasBuilder.makeLdc "adder" None canvas

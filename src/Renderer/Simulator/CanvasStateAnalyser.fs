@@ -689,7 +689,7 @@ let checkCustomComponentsOk ((comps, _): CanvasState) (sheets: LoadedComponent l
     |> List.collect (function
         | { Type = Custom args } as c -> [ checkCustomComponentForOkIOs c args sheets ]
         | _ -> [])
-    |> Helpers.tryFindError
+    |> Helpers.ResultList.sequence
     |> function
         | Ok _ -> None
         | Error(c, NoSheet cName) ->

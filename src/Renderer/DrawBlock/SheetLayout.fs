@@ -454,14 +454,6 @@ let private layout (comps: Component list) (conns: Connection list) : Component 
 //------------------------------------------ Output ----------------------------------------------//
 //------------------------------------------------------------------------------------------------//
 
-let private allOk (results: Result<'a, string> list) : Result<'a list, string> =
-    (Ok [], results)
-    ||> List.fold (fun acc result ->
-        match acc, result with
-        | Error e, _ -> Error e
-        | _, Error e -> Error e
-        | Ok got, Ok value -> Ok (got @ [ value ]))
-
 /// The sheet's parameter declarations and slots, as Issie stores them.
 ///
 /// Slot expressions go through ParameterTypes.parseExpression - the same parser the properties
@@ -469,16 +461,22 @@ let private allOk (results: Result<'a, string> list) : Result<'a list, string> =
 /// A slot naming a component that is not on the sheet, or an expression that will not parse, is an
 /// error rather than something silently dropped.
 let paramDefsOf (sheet: SheetDescription) : Result<ParameterDefs option, string> =
-    let known = sheet.Comps |> List.map (fun c -> c.Name) |> Set.ofList
+    let known = sheet.Comps |> List.map (fun c -> c.Name, c.Type) |> Map.ofList
     let declarations =
         sheet.Params
         |> List.map (fun p ->
             ParamName p.Name, { Expression = PInt p.Default; Description = p.Description })
         |> Map.ofList
     let slot (spec: SlotSpec) : Result<ParamSlot * ConstrainedExpr, string> =
-        match Set.contains spec.Comp known with
-        | false -> Error $"slot on {spec.Comp}, which is not a component of {sheet.Name}"
-        | true ->
+        match Map.tryFind spec.Comp known with
+        | None -> Error $"slot on {spec.Comp}, which is not a component of {sheet.Name}"
+        // A slot the component does not have would be recorded, shown in the properties pane, and
+        // do nothing: ComponentSlots leaves a type it has no case for alone. Refuse it here, where
+        // the mistake was made. GateN and MergeN have no slots at all, since their integer is an
+        // input count; a SplitN output index past the end of the lists is no slot either.
+        | Some compType when not (ComponentSlots.slotApplies spec.Slot compType) ->
+            Error $"{spec.Comp} is a {compType} and has no {spec.Slot} slot, so no parameter can drive one"
+        | Some _ ->
             ParameterTypes.parseExpression spec.Expression
             |> Result.mapError (fun e -> $"slot expression '{spec.Expression}' on {spec.Comp}: {e}")
             |> Result.bind (fun expr ->
@@ -494,8 +492,8 @@ let paramDefsOf (sheet: SheetDescription) : Result<ParameterDefs option, string>
     match sheet.Params, sheet.Slots with
     | [], [] -> Ok None
     | _ ->
-        (Ok [], sheet.Slots)
-        ||> List.fold (fun acc spec -> acc |> Result.bind (fun got -> slot spec |> Result.map (fun s -> got @ [s])))
+        sheet.Slots
+        |> Helpers.ResultList.traverse slot
         |> Result.map (fun slots ->
             Some { DefaultBindings = declarations; ParamSlots = Map.ofList slots })
 
@@ -511,18 +509,16 @@ let private applySlotValues (defs: ParameterDefs option) (comps: Component list)
     | None -> Ok comps
     | Some defs ->
         let bindings = bindingsOf defs.DefaultBindings
-        (Ok comps, defs.ParamSlots |> Map.toList)
-        ||> List.fold (fun acc (slot, exprSpec) ->
-            acc
-            |> Result.bind (fun comps ->
-                ParameterTypes.evaluateParamExpression bindings exprSpec.Expression
-                |> Result.mapError (fun e -> $"slot on {slot.CompId}: {e}")
-                |> Result.map (fun value ->
-                    comps
-                    |> List.map (fun comp ->
-                        match comp.Id = slot.CompId with
-                        | false -> comp
-                        | true -> { comp with Type = ComponentSlots.setSlotValue slot.CompSlot value comp.Type }))))
+        (comps, defs.ParamSlots |> Map.toList)
+        ||> Helpers.ResultList.fold (fun comps (slot, exprSpec) ->
+            ParameterTypes.evaluateParamExpression bindings exprSpec.Expression
+            |> Result.mapError (fun e -> $"slot on {slot.CompId}: {e}")
+            |> Result.map (fun value ->
+                comps
+                |> List.map (fun comp ->
+                    match comp.Id = slot.CompId with
+                    | false -> comp
+                    | true -> { comp with Type = ComponentSlots.setSlotValue slot.CompSlot value comp.Type })))
 
 /// The description as a laid-out canvas: real positions, no wire geometry.
 let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =
@@ -535,8 +531,7 @@ let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =
     | _ :: _ -> Error $"""these component names are used more than once: {String.concat ", " duplicates}"""
     | [] ->
         sheet.Comps
-        |> List.map (buildComponent sheet.Name)
-        |> allOk
+        |> Helpers.ResultList.traverse (buildComponent sheet.Name)
         |> Result.bind (fun comps ->
             // keyed by the name the description uses, which is the id minus the sheet prefix
             let byName =
@@ -544,11 +539,11 @@ let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =
                 |> List.map (fun (spec, comp) -> spec.Name, comp)
                 |> Map.ofList
             sheet.Conns
-            |> List.mapi (fun i conn ->
+            |> List.indexed
+            |> Helpers.ResultList.traverse (fun (i, conn) ->
                 match resolvePort byName true conn.From, resolvePort byName false conn.To with
                 | Ok source, Ok target -> Ok (buildConnection i source target)
                 | Error e, _ | _, Error e -> Error e)
-            |> allOk
             |> Result.bind (fun conns ->
                 paramDefsOf sheet
                 |> Result.bind (fun defs -> applySlotValues defs comps)
@@ -605,8 +600,8 @@ let saveLibraryComponent
             ComponentLibraries.writeComponentFile libPath header body)
     FilesIO.tryEnsureDirectory libPath
     |> Result.bind (fun libPath ->
-        (Ok (), dependencies)
-        ||> List.fold (fun acc dep -> acc |> Result.bind (fun () -> write false dep))
+        dependencies
+        |> Helpers.ResultList.iter (write false)
         |> Result.bind (fun () -> write true sheet))
 
 /// Write a whole project: every sheet, plus the empty .dprj marker that makes the directory a
@@ -617,5 +612,5 @@ let saveProject (folder: string) (sheets: SheetDescription list) : Result<unit, 
     | Error msg -> Error msg
     | Ok folder ->
         let marker = FilesIO.pathJoin [| folder; FilesIO.baseName folder + ".dprj" |]
-        (FilesIO.writeFile marker "", sheets)
-        ||> List.fold (fun acc sheet -> acc |> Result.bind (fun () -> saveSheet folder sheet))
+        FilesIO.writeFile marker ""
+        |> Result.bind (fun () -> sheets |> Helpers.ResultList.iter (saveSheet folder))

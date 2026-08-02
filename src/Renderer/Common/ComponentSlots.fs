@@ -21,64 +21,84 @@ module ComponentSlots
 open ParameterTypes
 open CommonTypes
 
-/// Apply `value` to the named slot of `compType`, returning the type unchanged where the slot
-/// does not apply to that kind of component.
+/// The type with `value` put into the named slot, or None when the component has no such slot.
 ///
 /// `Buswidth` is a component's own width. `IO` is the width of an Input or an Output - and also
 /// the LSB of a BusSelection and the comparison value of a BusCompare, because on those two the
 /// width has already taken `Buswidth` and the properties pane needs a second slot for a second
 /// field (see SelectedComponentView.makeLsbBitNumberField). That overloading is unfortunate but
 /// it is what is stored in existing sheets.
-let setSlotValue (slot: CompSlotName) (value: int) (compType: ComponentType) : ComponentType =
+///
+/// Some integers of a component are deliberately absent, because a parameter records a value and
+/// not a change of shape:
+///   - the input count of a GateN or a MergeN sets how many ports the component has, so there is
+///     no CompSlotName for it and neither component can be parameterised at all;
+///   - the output count of a SplitN is the same thing, so it has no slot - but the width and the
+///     bit position of a GIVEN output are ordinary values, and SplitNWidth/SplitNLSB name them.
+///     Those two are the only slots that can be out of range, and an index past the end of the
+///     lists is no slot rather than a silently ignored one.
+let trySetSlotValue (slot: CompSlotName) (value: int) (compType: ComponentType) : ComponentType option =
     match slot, compType with
     // the component's own width
-    | Buswidth, Viewer _ -> Viewer value
-    | Buswidth, BusCompare1 (_, cv, dt) -> BusCompare1 (value, cv, dt)
-    | Buswidth, BusCompare (_, cv) -> BusCompare (value, cv)
-    | Buswidth, BusSelection (_, lsb) -> BusSelection (value, lsb)
-    | Buswidth, Constant1 (_, cv, dt) -> Constant1 (value, cv, dt)
-    | Buswidth, Constant (_, cv) -> Constant (value, cv)
-    | Buswidth, NbitsAdder _ -> NbitsAdder value
-    | Buswidth, NbitsAdderNoCin _ -> NbitsAdderNoCin value
-    | Buswidth, NbitsAdderNoCout _ -> NbitsAdderNoCout value
-    | Buswidth, NbitsAdderNoCinCout _ -> NbitsAdderNoCinCout value
-    | Buswidth, NbitsXor (_, op) -> NbitsXor (value, op)
-    | Buswidth, NbitsAnd _ -> NbitsAnd value
-    | Buswidth, NbitsNot _ -> NbitsNot value
-    | Buswidth, NbitsOr _ -> NbitsOr value
-    | Buswidth, NbitSpreader _ -> NbitSpreader value
-    | Buswidth, SplitWire _ -> SplitWire value
-    | Buswidth, Register _ -> Register value
-    | Buswidth, RegisterE _ -> RegisterE value
-    | Buswidth, Counter _ -> Counter value
-    | Buswidth, CounterNoLoad _ -> CounterNoLoad value
-    | Buswidth, CounterNoEnable _ -> CounterNoEnable value
-    | Buswidth, CounterNoEnableLoad _ -> CounterNoEnableLoad value
+    | Buswidth, Viewer _ -> Some (Viewer value)
+    | Buswidth, BusCompare1 (_, cv, dt) -> Some (BusCompare1 (value, cv, dt))
+    | Buswidth, BusCompare (_, cv) -> Some (BusCompare (value, cv))
+    | Buswidth, BusSelection (_, lsb) -> Some (BusSelection (value, lsb))
+    | Buswidth, Constant1 (_, cv, dt) -> Some (Constant1 (value, cv, dt))
+    | Buswidth, Constant (_, cv) -> Some (Constant (value, cv))
+    | Buswidth, NbitsAdder _ -> Some (NbitsAdder value)
+    | Buswidth, NbitsAdderNoCin _ -> Some (NbitsAdderNoCin value)
+    | Buswidth, NbitsAdderNoCout _ -> Some (NbitsAdderNoCout value)
+    | Buswidth, NbitsAdderNoCinCout _ -> Some (NbitsAdderNoCinCout value)
+    | Buswidth, NbitsXor (_, op) -> Some (NbitsXor (value, op))
+    | Buswidth, NbitsAnd _ -> Some (NbitsAnd value)
+    | Buswidth, NbitsNot _ -> Some (NbitsNot value)
+    | Buswidth, NbitsOr _ -> Some (NbitsOr value)
+    | Buswidth, NbitSpreader _ -> Some (NbitSpreader value)
+    | Buswidth, SplitWire _ -> Some (SplitWire value)
+    | Buswidth, Register _ -> Some (Register value)
+    | Buswidth, RegisterE _ -> Some (RegisterE value)
+    | Buswidth, Counter _ -> Some (Counter value)
+    | Buswidth, CounterNoLoad _ -> Some (CounterNoLoad value)
+    | Buswidth, CounterNoEnable _ -> Some (CounterNoEnable value)
+    | Buswidth, CounterNoEnableLoad _ -> Some (CounterNoEnableLoad value)
     // the SHIFT input width follows the bus width
-    | Buswidth, Shift (_, _, st) -> Shift (value, shifterWidthFor value, st)
-    | Buswidth, Input _ -> Input value
-    | Buswidth, Input1 (_, dv) -> Input1 (value, dv)
-    | Buswidth, Output _ -> Output value
+    | Buswidth, Shift (_, _, st) -> Some (Shift (value, shifterWidthFor value, st))
+    | Buswidth, Input _ -> Some (Input value)
+    | Buswidth, Input1 (_, dv) -> Some (Input1 (value, dv))
+    | Buswidth, Output _ -> Some (Output value)
     // an IO port's width
-    | IO _, Input1 (_, dv) -> Input1 (value, dv)
-    | IO _, Output _ -> Output value
+    | IO _, Input1 (_, dv) -> Some (Input1 (value, dv))
+    | IO _, Output _ -> Some (Output value)
     // the two fields that share the IO slot for want of anywhere else
-    | IO _, BusSelection (w, _) -> BusSelection (w, value)
-    | IO _, BusCompare (w, _) -> BusCompare (w, bigint value)
+    | IO _, BusSelection (w, _) -> Some (BusSelection (w, value))
+    | IO _, BusCompare (w, _) -> Some (BusCompare (w, bigint value))
     // the value an input takes when undriven
-    | InputDefault, Input1 (w, _) -> Input1 (w, Some (bigint value))
+    | InputDefault, Input1 (w, _) -> Some (Input1 (w, Some (bigint value)))
     // one output of a SplitN
     | SplitNWidth idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length widths ->
-        SplitN (n, widths |> List.mapi (fun i w -> if i = idx then value else w), lsbs)
+        Some (SplitN (n, widths |> List.mapi (fun i w -> if i = idx then value else w), lsbs))
     | SplitNLSB idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length lsbs ->
-        SplitN (n, widths, lsbs |> List.mapi (fun i l -> if i = idx then value else l))
+        Some (SplitN (n, widths, lsbs |> List.mapi (fun i l -> if i = idx then value else l)))
     // a parameter of the sheet inside a custom component, bound by this instance. Applying it
     // here is what carries a parameter down the sheet tree: elaboration descends using the
     // bindings of the component as processed.
     | CustomCompParam paramName, Custom cc ->
         let bindings = cc.ParameterBindings |> Option.defaultValue Map.empty
-        Custom { cc with ParameterBindings = Some (Map.add (ParamName paramName) (PInt value) bindings) }
-    | _ -> compType
+        Some (Custom { cc with ParameterBindings = Some (Map.add (ParamName paramName) (PInt value) bindings) })
+    | _ -> None
+
+/// True when the component has the named slot, so that a slot can be rejected where it is written
+/// rather than quietly doing nothing where it is applied. The value is irrelevant: whether a slot
+/// exists depends on the component's type and, for a SplitN output, on the index.
+let slotApplies (slot: CompSlotName) (compType: ComponentType) : bool =
+    trySetSlotValue slot 0 compType |> Option.isSome
+
+/// Apply `value` to the named slot, leaving the type alone where the component has no such slot.
+/// Callers that can report a bad slot should use trySetSlotValue; this is for the paths that
+/// cannot, where a slot recorded in an old file must not stop a sheet loading or simulating.
+let setSlotValue (slot: CompSlotName) (value: int) (compType: ComponentType) : ComponentType =
+    trySetSlotValue slot value compType |> Option.defaultValue compType
 
 /// Apply every slot value in the map. Used to put a symbol back to its declared values, and to
 /// resolve a component for elaboration.

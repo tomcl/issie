@@ -166,10 +166,9 @@ let private materialiseLibraryComponent
                     Ok ldc
 
     // every sheet, dependencies first, with the component to instantiate last
-    (Ok [], files)
-    ||> List.fold (fun acc file ->
-        acc |> Result.bind (fun got ->
-            materialiseOne (project.LoadedComponents @ got) file |> Result.map (fun ldc -> got @ [ldc])))
+    (([]: LoadedComponent list), files)
+    ||> Helpers.ResultList.fold (fun got file ->
+        materialiseOne (project.LoadedComponents @ got) file |> Result.map (fun ldc -> got @ [ldc]))
     |> Result.bind (fun ldcs ->
         match ldcs with
         | [] -> Error $"Library {libName} has no component to place"

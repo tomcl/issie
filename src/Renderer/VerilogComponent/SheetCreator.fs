@@ -1950,7 +1950,6 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                         [sliceCircuit currCircuit (bits.LSB) 0]
                     else [] // add logic to make sure this is not splitting off width 0!
                 let newCircuit = joinWithMerge' (LSBs @ [circuit] @ MSBs)
-                printfn "newCircuit %A" newCircuit
                 Map.add outPort newCircuit currCircuits, currArrayCircuits
 
             // array constant word and constant bits select - returns the array element
@@ -2254,25 +2253,6 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                             Map.add param.Identifier.Name (evalExpr param.Value) map
                         )
 
-                    let modInstVerilog = 
-                        match loadedComp.Form with
-                        | Some (Verilog name) -> 
-                            let folderPath = project.ProjectPath
-                            let path = pathJoin [| folderPath; name + ".v" |]
-                            let code = 
-                                match tryReadFileSync path with
-                                |Ok text -> text
-                                |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" name
-                            let parsedCodeNearley = parseFromFile code
-                            let output = Json.parseAs<ParserOutput> parsedCodeNearley
-                            let result = Option.get output.Result
-                            let fixedAST = fix result
-                            let parsedAST = fixedAST |> Json.parseAs<VerilogTypes.VerilogInput>
-                            // failwithf "failing at %s" fixedAST 
-                            parsedAST
-                        | _ -> failwithf "Loaded component doesn't have a form - Only verilog modules supported currently"
-
-                    
                     let paramsOverriden = 
                         overrideMap 
                         |> Map.toList
@@ -2280,65 +2260,87 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                     
                     let original_name = modInst.Module.Name
                     let name = modInst.Module.Name + "_P_" + String.concat "_" paramsOverriden
-                    // failwithf "name: %s" name
 
-                    let folderPath = project.ProjectPath
-                    let oldPath = pathJoin [| folderPath; original_name + ".v" |]
-                    let code = 
-                        match tryReadFileSync oldPath with
-                        |Ok text -> text
-                        |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" original_name
-                    
-                    let path = pathJoin [| folderPath; name + ".v" |]
-                    let path2 = pathJoin [| folderPath; name + ".dgm" |]
-                    
-                    match writeFile path code with
-                    | Ok _ -> ()
-                    | Error _ -> failwithf "Writing verilog file FAILED"
+                    // see if specific override has already been used
+                    match List.tryFind (fun comp -> comp.Name = name) project.LoadedComponents with
+                    | Some comp -> 
+                        comp, name
+                    | _ ->
+                        let modInstVerilog = 
+                            match loadedComp.Form with
+                            | Some (Verilog name) -> 
+                                let folderPath = project.ProjectPath
+                                let path = pathJoin [| folderPath; name + ".v" |]
+                                let code = 
+                                    match tryReadFileSync path with
+                                    |Ok text -> text
+                                    |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" name
+                                let parsedCodeNearley = parseFromFile code
+                                let output = Json.parseAs<ParserOutput> parsedCodeNearley
+                                let result = Option.get output.Result
+                                let fixedAST = fix result
+                                let parsedAST = fixedAST |> Json.parseAs<VerilogTypes.VerilogInput>
+                                parsedAST
+                            | _ -> failwithf "Loaded component doesn't have a form - Only verilog modules supported currently"
 
-                    // replicating createSheet
-                    let input = convertModule modInstVerilog.Module
-                    
-                    let items = input.ModuleItems.ItemList |> Array.toList
-                    
-                    let varToCompMap, ioToCompMap, varSizeMap, initialCircuits, initialArrayCircuits, ioVars, arraySizeMap, arrayToCompMap = getInitialMapAndCircuits modInstVerilog project overrideMap
-                    // failwithf "param override: %A" overrideMap
 
-                    let perItemCircuits, _ =
-                        compileModule (VerilogInput modInstVerilog) varToCompMap ioToCompMap varSizeMap overrideMap arraySizeMap arrayToCompMap initialCircuits initialArrayCircuits project compName model dispatch
-                    let perItemCircuits =
-                        perItemCircuits
-                        |> Map.toList
-                        |> List.sortBy (fun (s,c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=s) ioVars)) 
-                    // failwithf "per item circuits: %A" perItemCircuits
+                        let folderPath = project.ProjectPath
+                        let oldPath = pathJoin [| folderPath; original_name + ".v" |]
+                        let code = 
+                            match tryReadFileSync oldPath with
+                            |Ok text -> text
+                            |Error _ -> sprintf "Error: file {%s.v} has been deleted from the project directory" original_name
+                        
+                        let path = pathJoin [| folderPath; name + ".v" |]
+                        let path2 = pathJoin [| folderPath; name + ".dgm" |]
+                        
+                        match writeFile path code with
+                        | Ok _ -> ()
+                        | Error _ -> failwithf "Writing verilog file FAILED"
 
-                    let csList = 
-                        perItemCircuits
-                        |> List.map (fun (portName,circuit) ->
-                            
-                            attachToOutput varToCompMap ioToCompMap circuit portName
-                        )
-                    let v =
-                        List.map (fun cs -> 
-                            cs
-                        ) csList
+                        // replicating createSheet
+                        let input = convertModule modInstVerilog.Module
+                        
+                        let items = input.ModuleItems.ItemList |> Array.toList
+                        
+                        let varToCompMap, ioToCompMap, varSizeMap, initialCircuits, initialArrayCircuits, ioVars, arraySizeMap, arrayToCompMap = getInitialMapAndCircuits modInstVerilog project overrideMap
+                        // failwithf "param override: %A" overrideMap
 
-                    let finalCanvasState =
-                        match List.isEmpty csList with
-                        | true ->
-                            (collectInputAndWireComps varToCompMap,[])
-                        |false -> 
-                            csList
-                            |> List.reduce (fun cs1 cs2 -> concatenateCanvasStates cs1 cs2)
-                            |> concatenateCanvasStates (collectInputAndWireComps varToCompMap,[])
+                        let perItemCircuits, _ =
+                            compileModule (VerilogInput modInstVerilog) varToCompMap ioToCompMap varSizeMap overrideMap arraySizeMap arrayToCompMap initialCircuits initialArrayCircuits project compName model dispatch
+                        let perItemCircuits =
+                            perItemCircuits
+                            |> Map.toList
+                            |> List.sortBy (fun (s,c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=s) ioVars)) 
+                        // failwithf "per item circuits: %A" perItemCircuits
 
-                    let components = 
-                        fst finalCanvasState
-                        |> List.sortBy (fun (c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=c.Label) ioVars))
-                    let finalCanvasState = 
-                        (components, snd finalCanvasState)
-                        |> fixCanvasState
-                    // failwithf "Final Canvas State: %A" finalCanvasState
+                        let csList = 
+                            perItemCircuits
+                            |> List.map (fun (portName,circuit) ->
+                                
+                                attachToOutput varToCompMap ioToCompMap circuit portName
+                            )
+                        let v =
+                            List.map (fun cs -> 
+                                cs
+                            ) csList
+
+                        let finalCanvasState =
+                            match List.isEmpty csList with
+                            | true ->
+                                (collectInputAndWireComps varToCompMap,[])
+                            |false -> 
+                                csList
+                                |> List.reduce (fun cs1 cs2 -> concatenateCanvasStates cs1 cs2)
+                                |> concatenateCanvasStates (collectInputAndWireComps varToCompMap,[])
+
+                        let components = 
+                            fst finalCanvasState
+                            |> List.sortBy (fun (c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=c.Label) ioVars))
+                        let finalCanvasState = 
+                            (components, snd finalCanvasState)
+                            |> fixCanvasState
+                        // failwithf "Final Canvas State: %A" finalCanvasState
 
 
                     let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (finalCanvasState, None, Some {
@@ -2358,37 +2360,37 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                             |Error _ -> failwithf "failed to load the created Verilog file"
                         // printf "initial project: %A" project
 
-                        let updateParentCanvasStates (project: Project) (parentName: string) (oldName: string) (newName: string) =
-                            let updateComp (comp: Component) =
-                                let isOldInstance (ct: CustomComponentType) =
-                                    isSameModuleIgnoringParams ct.Name oldName
-                                match comp.Type with
-                                | Custom ct when isOldInstance ct || ct.Name = oldName ->
-                                    { comp with Type = Custom { ct with Name = newName } }
-                                | _ -> comp
-                            let updateCanvasState (cs: CanvasState) =
-                                (fst cs |> List.map updateComp, snd cs)
-                            { project with
-                                LoadedComponents =
-                                    project.LoadedComponents
-                                    |> List.map (fun ldc ->
-                                        if ldc.Name = parentName then
-                                            { ldc with CanvasState = updateCanvasState ldc.CanvasState }
-                                        else ldc)
-                            }
+                            let updateParentCanvasStates (project: Project) (parentName: string) (oldName: string) (newName: string) =
+                                let updateComp (comp: Component) =
+                                    let isOldInstance (ct: CustomComponentType) =
+                                        isSameModuleIgnoringParams ct.Name oldName
+                                    match comp.Type with
+                                    | Custom ct when isOldInstance ct || ct.Name = oldName ->
+                                        { comp with Type = Custom { ct with Name = newName } }
+                                    | _ -> comp
+                                let updateCanvasState (cs: CanvasState) =
+                                    (fst cs |> List.map updateComp, snd cs)
+                                { project with
+                                    LoadedComponents =
+                                        project.LoadedComponents
+                                        |> List.map (fun ldc ->
+                                            if ldc.Name = parentName then
+                                                { ldc with CanvasState = updateCanvasState ldc.CanvasState }
+                                            else ldc)
+                                }
 
-                        let updatedProject =
-                            {project with LoadedComponents = nestedComponent :: project.LoadedComponents}
-                        let updatedProject =
-                            updateParentCanvasStates updatedProject compName modInst.Module.Name name
-                            
-                        // printf "updated project: %A" updatedProject.LoadedComponents
-                        openFileInProject project.OpenFileName updatedProject model dispatch
-                        // failwithf "nested comp %A" nestedComponent
-                        // failwithf "project: %A" project
-                        // failwithf "Loaded component: %A, name: %s" nestedComponent name
-                        nestedComponent, name
-                    | Error _ -> failwithf "Writing .dgm file FAILED"
+                            let updatedProject =
+                                {project with LoadedComponents = nestedComponent :: project.LoadedComponents}
+                            let updatedProject =
+                                updateParentCanvasStates updatedProject compName modInst.Module.Name name
+                                
+                            // printf "updated project: %A" updatedProject.LoadedComponents
+                            openFileInProject project.OpenFileName updatedProject model dispatch
+                            // failwithf "nested comp %A" nestedComponent
+                            // failwithf "project: %A" project
+                            // failwithf "Loaded component: %A, name: %s" nestedComponent name
+                            nestedComponent, name
+                        | Error _ -> failwithf "Writing .dgm file FAILED"
 
                 | None -> loadedComp, modInst.Module.Name
 

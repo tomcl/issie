@@ -87,6 +87,28 @@ let getWireSizeMap (items: ItemDU list) paramMap =
     |> Map.ofList
 
 
+let getPrimaryWidth portSizeMap (primary: PrimaryDU) =
+    match primary with
+    | Identifier id ->
+        match Map.tryFind id.Name portSizeMap with
+        | Some w -> w
+        | _ -> 1
+    | IdentifierBit _ -> 1
+    | IdentifierArray (_, _, bStart, bEnd) ->
+        // let bStart = evalExpr bStart
+        // let bEnd = evalExpr bEnd
+        bStart - bEnd + 1
+    | IdentifierBits (_, bStart, bEnd) ->
+        // let bStart = evalExpr start
+        // let bEnd = evalExpr end_
+        bStart - bEnd + 1
+    | IdentifierBitsSelect (_, _, width, _) -> width
+    | VariableArrayBitSel (id, _, expr)
+    | VariableBitSelect (id, expr) ->
+        match Map.tryFind id.Name portSizeMap with
+        | Some w -> w
+        | _ -> 1
+
 /// return line number based on location
 let getLineNumber
     (linesLocations: int list)

@@ -34,6 +34,24 @@ let private adderSheet =
         "ADD/SUM" ==> "S"
     ]
 
+/// an instance of a sheet called "child", with the given port labels
+let private customWith inLabels outLabels =
+    Custom
+        { Name = "child"
+          InputLabels = inLabels
+          OutputLabels = outLabels
+          Form = Some User
+          ParameterBindings = None
+          Description = None }
+
+/// the laid-out Component for one custom instance, alone on a sheet
+let private customComponent compType =
+    describeSheet "host" [ comp "C" compType; comp "O" (Output 1) ] []
+    |> SheetLayout.toCanvasState
+    |> expectOk
+    |> fst
+    |> List.find (fun c -> c.Id = SheetLayout.componentId "host" "C")
+
 let tests =
     testList "SheetDescription" [
 
@@ -309,6 +327,62 @@ let tests =
                         "the body is the text of a .dgm"
             finally
                 try System.IO.Directory.Delete(folder, true) with _ -> ()
+        }
+
+        // A Custom component reports no size of its own: Symbol.autoScaleHAndW widens it to fit
+        // its port labels, which means measuring text. That used to need a browser, so the layout
+        // guessed - and always guessed the minimum width, so a sheet using a custom component with
+        // long port names was spaced as though it were narrow. It now goes through the same
+        // createSymbolRecord the app uses on load.
+        //
+        // Sizes are asserted by relation rather than in pixels: the text width behind them is
+        // reconstructed outside the browser, and DrawBlockTests is where that reconstruction is
+        // held to what the browser measures. The one absolute check available agrees - the halfAdd
+        // instance Issie itself wrote into static/libraries/arithmetic/fullAdd.ldgm is 120 x 110,
+        // which is what this code computes for that name and those port labels.
+
+        test "a custom component is sized to fit its port labels" {
+            let narrow = customComponent (customWith [ "A", 1 ] [ "B", 1 ])
+            let wide =
+                customComponent (customWith [ "CARRY_IN_FROM_PREVIOUS", 1 ] [ "SUM_OUT_TO_NEXT", 1 ])
+            Expect.isGreaterThan wide.W narrow.W
+                "long port labels make a wider symbol - the guess this replaced returned the same
+                 minimum width whatever the labels said"
+            // the minimum is 4 grid squares, and both keep the same height: one port a side
+            Expect.isGreaterThanOrEqual narrow.W (4. * SheetLayout.Constants.grid)
+                "even a narrow custom component is at least the minimum width"
+            Expect.equal wide.H narrow.H "height counts ports, which these share"
+        }
+
+        test "a custom component grows in height with its ports" {
+            let onePort = customComponent (customWith [ "A", 1 ] [ "B", 1 ])
+            let fourPorts =
+                customComponent (customWith [ "A", 1; "B", 1; "C", 1; "D", 1 ] [ "E", 1 ])
+            Expect.isGreaterThan fourPorts.H onePort.H "more ports on a side means a taller symbol"
+        }
+
+        test "a sheet using a custom component lays out without overlaps" {
+            // the size feeds straight into placement, so a wrong one shows up as symbols on top
+            // of each other rather than as a wrong number
+            let wide = customWith [ "CARRY_IN_FROM_PREVIOUS", 1 ] [ "SUM_OUT_TO_NEXT", 1 ]
+            let sheet =
+                describeSheet "uses" [
+                    comp "IN" (Input1(1, None))
+                    comp "C1" wide
+                    comp "C2" wide
+                    comp "OUT" (Output 1)
+                ] [ "IN" ==> "C1/0"; "C1/0" ==> "C2/0"; "C2/0" ==> "OUT" ]
+            let comps, conns = SheetLayout.toCanvasState sheet |> expectOk
+            Expect.equal (List.length conns) 3 "the custom instances wire up by port index"
+            let boxes =
+                comps
+                |> List.map (fun c ->
+                    c.Id, ({ TopLeft = { X = c.X; Y = c.Y }; W = c.W; H = c.H }: BoundingBox))
+            let overlaps =
+                List.allPairs boxes boxes
+                |> List.filter (fun ((idA, a), (idB, b)) -> idA < idB && BlockHelpers.overlap2DBox a b)
+                |> List.map (fun ((idA, _), (idB, _)) -> $"{idA}/{idB}")
+            Expect.isEmpty overlaps $"""overlapping symbols: {String.concat ", " overlaps}"""
         }
 
         test "the generated canvas simulates" {

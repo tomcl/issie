@@ -21,12 +21,13 @@ module SheetLayout
     smartAutoroute on each wire, and the sheet-open sequence then runs the global separation pass.
     Both stages of the draw block's own wire creation therefore happen, on load, for free.
 
-    Component sizes come from Symbol.getComponentProperties, so blocks are spaced by what will
-    actually be drawn rather than by a guess.
+    Component sizes come from SymbolUpdate.createSymbolRecord - the same function the app uses when
+    it loads a sheet - so blocks are spaced by what will actually be drawn rather than by a guess.
 *)
 
 open CommonTypes
 open ParameterTypes
+open DrawModelType
 open SheetDescription
 
 module Constants =
@@ -59,13 +60,6 @@ let componentId (sheetName: string) (compName: string) = $"{sheetName}-{compName
 
 let private labelOf (spec: CompSpec) = spec.Label |> Option.defaultValue spec.Name
 
-/// Custom components report no size of their own - Symbol.autoScaleHAndW works it out later from
-/// text widths, which needs a browser. Approximate it the same way so that layout has something to
-/// space by; the app recomputes H and W on load regardless.
-let private customSize (nIn: int) (nOut: int) =
-    let h = Constants.grid + 40. * float (max nIn nOut)
-    max (4. * Constants.grid) (2. * Constants.grid), max (2. * Constants.grid) h
-
 /// Build the Component for one description entry.
 ///
 /// Ids are readable and deterministic rather than uuids, both because a generated sheet is far
@@ -74,6 +68,13 @@ let private customSize (nIn: int) (nOut: int) =
 /// across a project - only labels are per-sheet. Ids unique per sheet alone are the legacy
 /// convention, and Issie greets a project full of them with a "duplicate sheet ids corrected"
 /// popup on load.
+///
+/// The size is whatever the app will give the component when it opens the sheet, because it is
+/// worked out by the same function: SymbolUpdate.createSymbolRecord, which takes the type's
+/// nominal size from getComponentProperties and then lets autoScaleHAndW widen a Custom component
+/// to fit its port labels. Measuring those labels used to need a browser, so this had to guess at
+/// a Custom component's width and always guessed the minimum; blocks around a wide one were then
+/// spaced as though it were narrow.
 let private buildComponent (sheetName: string) (spec: CompSpec) : Result<Component, string> =
     let id = componentId sheetName spec.Name
     let makePorts n portType =
@@ -84,11 +85,7 @@ let private buildComponent (sheetName: string) (spec: CompSpec) : Result<Compone
               HostId = id } ]
     try
         let nIn, nOut, h, w = Symbol.getComponentProperties spec.Type (labelOf spec)
-        let w, h =
-            match spec.Type with
-            | Custom _ -> customSize nIn nOut
-            | _ -> w, h
-        Ok {
+        let comp = {
             Id = id
             Type = spec.Type
             Label = labelOf spec
@@ -101,6 +98,11 @@ let private buildComponent (sheetName: string) (spec: CompSpec) : Result<Compone
             SymbolInfo = None
             SlotInfo = None
         }
+        // no LoadedComponents to hand: they decide only whether a Custom component counts as
+        // clocked, which colours it and leaves its size alone. Nor does the theme, which is
+        // colour only.
+        let sized = SymbolUpdate.createSymbolRecord [] SymbolT.ThemeType.Colourful comp
+        Ok { comp with H = sized.Component.H; W = sized.Component.W }
     with e ->
         // getComponentProperties throws on the legacy ROM/RAM/Input types
         Error $"{spec.Name}: {spec.Type} cannot be placed on a sheet ({e.Message})"

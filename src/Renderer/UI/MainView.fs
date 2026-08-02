@@ -325,6 +325,7 @@ let displayView model dispatch =
         window?issie <- createObj [
             "canvas" ==> (fun () -> ModelHelpers.canvasInspection model)
             "raw" ==> (fun () -> ModelHelpers.canvasRaw model)
+            "saveLib" ==> (fun (sheet: string) -> MiscMenuView.saveAsLibraryComponent sheet model dispatch)
         ]
     //JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =

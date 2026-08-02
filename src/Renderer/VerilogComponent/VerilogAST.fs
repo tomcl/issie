@@ -715,9 +715,6 @@ let getPrimaryRange (p: PrimaryDU) paramMap =
             | PlusWidth -> bStart + width - 1
             | MinusWidth -> bStart - width + 1
         Some (bStart, bEnd)
-    | ParamNumber (p, width) ->
-        let pVal = evalExprWithParams (ExpressionDU.Unary p) paramMap
-        Some (pVal, pVal + width - 1)
 
 let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:StatementDU) : StatementDU =
     let rec substLoopExpr (loopVarName:string) (value:int) (width:int) (expr:ExpressionDU) : ExpressionDU =
@@ -736,6 +733,7 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
             | UnaryDU.Number _ -> unary
             | UnaryDU.Parenthesis e -> UnaryDU.Parenthesis (substLoopExpr loopVarName value width e)
             | UnaryDU.Concat e -> UnaryDU.Concat (e |> Array.map (substLoopExpr loopVarName value width))
+            | UnaryDU.ParamNumber (p, bits) -> UnaryDU.ParamNumber (substLoopPrimary loopVarName value p, bits)
         match expr with
         | LogicalOr (a, b) -> LogicalOr (substLoopExpr loopVarName value width a, substLoopExpr loopVarName value width b)
         | LogicalAnd (a, b) -> LogicalAnd (substLoopExpr loopVarName value width a, substLoopExpr loopVarName value width b)

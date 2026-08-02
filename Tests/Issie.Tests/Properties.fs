@@ -80,6 +80,26 @@ let tests =
                 | Error _, Error _ -> true
                 | _ -> false
 
+        // A name that does not resolve is nearly always one of two mistakes, and the message has to
+        // tell the user which one: they reached for a parameter that exists under another name, or
+        // they did not know a value has to be declared as a parameter before it can be used.
+        test "undefined parameter names the parameters that are in scope" {
+            let bindings = Map [ ParamName "WIDTH", PInt 8; ParamName "DEPTH", PInt 4 ]
+            match evaluateParamExpression bindings (PParameter(ParamName "WITDH")) with
+            | Ok v -> failtest $"expected an error, got {v}"
+            | Error e ->
+                Expect.stringContains e "WITDH" "names the parameter that did not resolve"
+                Expect.stringContains e "DEPTH, WIDTH" "lists the parameters of the sheet, sorted"
+        }
+
+        test "undefined parameter where the sheet declares none says the value must be numeric" {
+            match evaluateParamExpression Map.empty (PParameter(ParamName "WIDTH")) with
+            | Ok v -> failtest $"expected an error, got {v}"
+            | Error e ->
+                Expect.stringContains e "must be numeric" "says what to type instead"
+                Expect.stringContains e "added to the sheet" "says how to get a parameter"
+        }
+
         testPropertyWithConfig config "wire data round-trip"
         <| fun (width: int) (value: bigint) ->
             let width = 1 + abs width % 64

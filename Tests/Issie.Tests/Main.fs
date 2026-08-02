@@ -1,4 +1,4 @@
-module Main
+﻿module Main
 
 open Expecto
 
@@ -16,5 +16,6 @@ let main argv =
         SheetDescriptionTests.tests
         DrawBlockTests.tests
         LibraryTests.tests
+        ParameterUI.tests
     ]
     |> runTestsWithCLIArgs [ Sequenced ] argv

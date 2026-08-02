@@ -270,6 +270,134 @@ let sheetsUnderTop (ldcs: LoadedComponent list) (topSheet: string) : Set<string>
     analyseUnderTop ldcs topSheet |> Map.keys |> Set.ofSeq
 
 //------------------------------------------------------------------------------------------------//
+//------------------------------ How much of the feature to show ---------------------------------//
+//------------------------------------------------------------------------------------------------//
+
+(*
+    Parameters are an advanced feature, and there are three levels of use. A user at one level must
+    not have to understand the next, so the UI turns on in two stages rather than all at once:
+
+      1. no parameters at all - library components do not count
+      2. parameters with a single settled value throughout
+      3. a parameter bound to different values in different instances
+
+    Gate A separates 1 from 2-3, and governs whether the vocabulary appears anywhere. Gate B
+    separates 2 from 3, and governs the top sheet and everything that hangs off it. They were
+    previously one structural test, which was right for neither.
+*)
+
+/// Whether a sheet came from a component library. ComponentLibraries.isLibrarySheet says the same
+/// thing, but that module is compiled after this one; the fact lives on ldc.Form either way.
+let private isFromLibrary (ldc: LoadedComponent) =
+    match ldc.Form with
+    | Some (Library _) -> true
+    | _ -> false
+
+/// Gate A: does this project use parameters at all?
+///
+/// Library sheets do not count. Their parameters arrived with the library rather than being
+/// declared by the user, and on a library component instance they are presented as ordinary
+/// settings - so placing one must not turn the parameter vocabulary on across the whole project.
+let projectDeclaresParams (ldcs: LoadedComponent list) : bool =
+    ldcs
+    |> List.filter (isFromLibrary >> not)
+    |> List.exists (fun ldc -> not (Map.isEmpty (declaredParamDefs ldc)))
+
+/// Give every instance of `sheetName` a binding for a parameter just declared on it.
+///
+/// Every instance binds every parameter its sheet declares. Placing one establishes that, but a
+/// parameter added to a sheet that ALREADY has instances would leave all of them binding nothing,
+/// and an unbound parameter is a state the design deliberately does not have: it elaborates at the
+/// sheet's own declared value, which is a fact about the sheet rather than about the instance, and
+/// it makes "default" into a concept the user has to reason about.
+///
+/// The value bound is the one just declared, so the design is unchanged - that is exactly what an
+/// unbound parameter elaborated to. What changes is that the binding exists, can be seen and
+/// edited, and, being a literal, is what findBindOffers fires on.
+///
+/// No slot is created: a literal needs none, as updateParamSlot has it. A sheet cannot instantiate
+/// itself, so the sheet gaining the parameter is skipped.
+let bindParamOnInstances
+        (sheetName: string)
+        (name: ParamName)
+        (value: ParamInt)
+        (ldcs: LoadedComponent list)
+        : LoadedComponent list =
+    let addToSheet (ldc: LoadedComponent) =
+        let comps, conns = ldc.CanvasState
+        let addBinding (comp: Component) =
+            match comp.Type with
+            | Custom custom when custom.Name = sheetName ->
+                let bindings = custom.ParameterBindings |> Option.defaultValue Map.empty
+                match Map.containsKey name bindings with
+                | true -> comp
+                | false ->
+                    {comp with
+                        Type = Custom {custom with ParameterBindings = Some (Map.add name (PInt value) bindings)}}
+            | _ -> comp
+        let ldc' = {ldc with CanvasState = List.map addBinding comps, conns}
+        match ldc'.CanvasState = ldc.CanvasState with
+        | true -> ldc
+        | false -> {ldc' with LoadedComponentIsOutOfDate = true}
+    ldcs
+    |> List.map (fun ldc -> if ldc.Name = sheetName then ldc else addToSheet ldc)
+
+/// Whether every instance of every sheet binds every parameter that sheet declares.
+/// The invariant bindParamOnInstances and the placement popup exist to keep; false only for a
+/// project saved before it was required, or one edited by hand.
+let everyInstanceBindsEveryParam (ldcs: LoadedComponent list) : bool =
+    let byName = ldcs |> List.map (fun ldc -> ldc.Name, ldc) |> Map.ofList
+    ldcs
+    |> List.forall (fun parentLdc ->
+        customInstances parentLdc
+        |> List.forall (fun (comp, cc) ->
+            match Map.tryFind cc.Name byName with
+            | None -> true
+            | Some childLdc ->
+                let bound = instanceBindingExprs (sheetParamSlots parentLdc) comp cc
+                declaredParams childLdc
+                |> Map.forall (fun name _ -> Map.containsKey name bound)))
+
+/// Gate B: does this project need a top sheet?
+///
+/// A top sheet exists to settle WHICH VALUES a sheet is drawn at when its instances disagree. The
+/// presence of a parameter is not that question: a sheet with one instance, or whose instances all
+/// agree, or which is not instantiated at all, has nothing to settle, and none of the top-sheet
+/// apparatus should appear for it.
+///
+/// Only sheets the user can open are asked the question. A library sheet is never displayed, so
+/// there is no value to choose for it - but a library instance whose parameter is bound to an
+/// expression rather than a literal takes its value from the parent sheet, so when the parent
+/// varies the PARENT is ambiguous and is caught here on its own account. Nothing needs to
+/// special-case libraries beyond not asking about them.
+///
+/// Computed over every root of the instance forest rather than one chosen top: a project may hold
+/// several independent designs, and if two of them use a sheet at different widths then opening
+/// that sheet is genuinely ambiguous.
+let projectHasAmbiguousDisplay (ldcs: LoadedComponent list) : bool =
+    let instancesBySheet =
+        instanceForestRoots ldcs
+        |> List.map (analyseUnderTop ldcs)
+        |> List.fold
+            (fun acc sheetInstances ->
+                (acc, sheetInstances)
+                ||> Map.fold (fun acc name instances ->
+                    Map.tryFind name acc
+                    |> Option.defaultValue []
+                    |> (fun existing -> Map.add name (existing @ instances) acc)))
+            Map.empty
+    ldcs
+    |> List.filter (isFromLibrary >> not)
+    |> List.exists (fun ldc ->
+        Map.tryFind ldc.Name instancesBySheet
+        |> Option.defaultValue []
+        |> displayValuesOfSheet ldc
+        |> Map.exists (fun _ display ->
+            match display with
+            | MultipleValues _ -> true
+            | ExactValue _ | DefaultValue _ -> false))
+
+//------------------------------------------------------------------------------------------------//
 //----------------------------------- The bind-to-top offer --------------------------------------//
 //------------------------------------------------------------------------------------------------//
 
@@ -397,7 +525,12 @@ let private chainActionsForInstance
             |> Option.bind (Map.tryFind name)
             |> Option.map (fun def -> def.Description)
             |> Option.defaultValue ""
-        let bindingExists (link: InstancePathLink) =
+        /// Whether this link already passes the parameter down, rather than pinning it to a number.
+        /// Merely HAVING a binding is not enough: every instance binds every parameter now, so a
+        /// link bound to a literal is exactly the one that has to be rebound for the chain to carry
+        /// a value from the ancestor. Testing for the binding's existence instead left every chain
+        /// with no actions to take, and the offer was dropped as empty.
+        let bindsToParameter (link: InstancePathLink) =
             match Map.tryFind link.ParentSheet byName with
             | None -> false
             | Some parentLdc ->
@@ -407,7 +540,8 @@ let private chainActionsForInstance
                     match comp.Type with
                     | Custom cc -> Some (instanceBindingExprs (sheetParamSlots parentLdc) comp cc)
                     | _ -> None)
-                |> Option.map (Map.containsKey name)
+                |> Option.bind (Map.tryFind name)
+                |> Option.map exprContainsParams
                 |> Option.defaultValue false
         // parameters created on intermediate sheets take the value and meaning of a declaring
         // ancestor, so those sheets remain viewable and simulatable standalone
@@ -425,7 +559,7 @@ let private chainActionsForInstance
             |> List.map (fun sheetName -> AddSheetParam (sheetName, name, rootDefault, rootDescription))
         let bindActions =
             chainEdges
-            |> List.filter (bindingExists >> not)
+            |> List.filter (bindsToParameter >> not)
             |> List.map (fun e -> BindInstance (e.ParentSheet, e.InstanceId, e.InstanceLabel, e.ChildSheet, name))
         Some (declarers, List.distinct (paramActions @ bindActions))
 
@@ -439,8 +573,22 @@ let findBindOffers (ldcs: LoadedComponent list) (topSheet: string) (onSheet: str
     let underTop = analyseUnderTop ldcs topSheet |> Map.keys |> Set.ofSeq
     let edges = edgesUnderTop byName underTop
 
-    /// unbound declared parameters of one instance
-    let unboundParams (parentLdc: LoadedComponent) (comp: Component) (cc: CustomComponentType) =
+    /// The parameters of one instance that a chain could usefully be offered for: those bound to a
+    /// plain number.
+    ///
+    /// This used to be the parameters bound to nothing at all. Every instance now binds every
+    /// parameter its sheet declares - placing one asks for each, and so does adding a parameter to
+    /// a sheet that already has instances - so that set is always empty and the offer would never
+    /// fire again.
+    ///
+    /// A literal is the right trigger in its own right, not merely a replacement. The offer exists
+    /// to help a user follow an outer parameter of the same name, and typing that name into the box
+    /// by hand fails whenever a sheet in between does not declare it: parameter scoping is single
+    /// level. Materialising the chain is the thing the user cannot easily do themselves, and an
+    /// instance given a literal before the design-wide parameter existed needs it just as much as
+    /// one that was never bound. The evidence gate below is what keeps this quiet: an ancestor must
+    /// already declare the name.
+    let literalBoundParams (parentLdc: LoadedComponent) (comp: Component) (cc: CustomComponentType) =
         match Map.tryFind cc.Name byName with
         | None -> []
         | Some childLdc ->
@@ -448,7 +596,12 @@ let findBindOffers (ldcs: LoadedComponent list) (topSheet: string) (onSheet: str
             declaredParams childLdc
             |> Map.toList
             |> List.map fst
-            |> List.filter (fun name -> not (Map.containsKey name bound))
+            |> List.filter (fun name ->
+                match Map.tryFind name bound with
+                // still offered where nothing binds it: projects saved before totality was
+                // required, and hand-edited files, can still reach this state
+                | None -> true
+                | Some expr -> not (exprContainsParams expr))
 
     underTop
     |> Set.toList
@@ -459,7 +612,7 @@ let findBindOffers (ldcs: LoadedComponent list) (topSheet: string) (onSheet: str
         | Some parentLdc ->
             customInstances parentLdc
             |> List.collect (fun (comp, cc) ->
-                unboundParams parentLdc comp cc
+                literalBoundParams parentLdc comp cc
                 |> List.choose (fun name ->
                     let link = {
                         ParentSheet = sheetName

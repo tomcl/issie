@@ -214,7 +214,9 @@ let tests =
             let ldc = makeLdc "perr1" (Some defs) ([ a; s ], [ conn a 0 s 0 ])
             match run ldc [] (Map [ "A", 1I ]) with
             | Ok _ -> failtest "expected a simulation error"
-            | Error e -> Expect.stringContains $"%A{e}" "not defined" "names the missing parameter"
+            // the sheet declares nothing, so the message says what to do rather than listing a
+            // scope that is empty; the name still reaches the user through the expression text
+            | Error e -> Expect.stringContains $"%A{e}" "NOPE" "names the missing parameter"
         }
 
         test "division by zero is an informative simulation error" {

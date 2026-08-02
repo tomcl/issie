@@ -1,4 +1,4 @@
-(*
+﻿(*
     SelectedComponentView.fs
 
     View for the selected component in the right tab.
@@ -36,15 +36,6 @@ module Constants =
     
 
 
-let private readOnlyFormField name body =
-    Field.div [] [
-        Label.label [] [ str name ]
-        body
-    ]
-
-
-
-
 let private textFormField isRequired name defaultValue isBad onChange onDeleteAtEnd =
     let onDelete (ev: Browser.Types.KeyboardEvent) =
         if ev.key = "Delete" then  
@@ -68,8 +59,8 @@ let private textFormField isRequired name defaultValue isBad onChange onDeleteAt
                 Style [ Width "200px"]; 
                 OnKeyDown onDelete]
             Input.DefaultValue defaultValue
-            Input.CustomClass "www"
-            Input.Placeholder (if isRequired then "Name (required)" else "Name (optional)")
+            // the field is labelled, so the placeholder says the one thing the label does not
+            Input.Placeholder (if isRequired then "required" else "optional")
             Input.OnChange (getTextEventValue >> onChange)
         ]
         br []
@@ -125,8 +116,81 @@ let private floatFormField name (width:string) defaultValue minValue onChange =
         ]
     ]
 
-let private gateTypeDropdown =
-    ()
+/// The one sentence eight clocked components used to repeat word for word.
+let private clockNote = "Implicitly connected to the global clock."
+
+/// The kind of component this is, in the words a user would use for it.
+///
+/// Not Symbol.getComponentLegend, which is the text drawn inside the symbol: that bakes in bit
+/// counts and rotation, and the pane shows the width in its own box right below.
+/// Legacy types are named rather than refused. This renders above everything else in the pane, so
+/// a component that cannot be named must not take the whole pane down with it.
+let componentTypeName (ct: ComponentType) : string =
+    match ct with
+    | Input1 _ | Input _ -> "Input"
+    | Output _ -> "Output"
+    | Viewer _ -> "Viewer"
+    | IOLabel -> "Wire label"
+    | NotConnected -> "Not connected"
+    | Constant1 _ | Constant _ -> "Constant"
+    | BusSelection _ -> "Bus selection"
+    | BusCompare _ | BusCompare1 _ -> "Bus compare"
+    | Not -> "Not gate"
+    | GateN (gateType, n) ->
+        let gate = $"{gateType}"
+        $"{n}-input {gate[0..0].ToUpper() + gate[1..]} gate"
+    | Decode4 -> "Decoder"
+    | Mux2 | Mux4 | Mux8 -> "Multiplexer"
+    | Demux2 | Demux4 | Demux8 -> "Demultiplexer"
+    | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ -> "Adder"
+    | NbitsXor (_, Some Multiply) -> "Multiplier"
+    | NbitsXor _ -> "Xor-N block"
+    | NbitsAnd _ -> "And-N block"
+    | NbitsOr _ -> "Or-N block"
+    | NbitsNot _ -> "Not-N block"
+    | NbitSpreader _ -> "Bus spreader"
+    | MergeWires | MergeN _ -> "Merge"
+    | SplitWire _ | SplitN _ -> "Split"
+    | DFF -> "D flip-flop"
+    | DFFE -> "D flip-flop with enable"
+    | Register _ -> "Register"
+    | RegisterE _ -> "Register with enable"
+    | Counter _ | CounterNoLoad _ | CounterNoEnable _ | CounterNoEnableLoad _ -> "Counter"
+    | AsyncROM1 _ | AsyncROM _ -> "Asynchronous ROM"
+    | ROM1 _ | ROM _ -> "Synchronous ROM"
+    | RAM1 _ | RAM _ -> "Synchronous RAM"
+    | AsyncRAM1 _ -> "Asynchronous-read RAM"
+    | Shift (_, _, LSL) -> "Shift left"
+    | Shift (_, _, LSR) -> "Shift right"
+    | Shift (_, _, ASR) -> "Arithmetic shift right"
+    | Custom custom -> custom.Name
+
+/// The identity line at the top of the pane: what this component is, and where it came from.
+///
+/// A library component is named by the component and library its author gave it, not by the
+/// L<n>_ sheet the project keeps it in. That sheet cannot be opened, so its name is an
+/// implementation detail; showing it here named the one thing the user can never look at.
+let private makeComponentHeader (comp: Component) =
+    let name, origin =
+        match comp.Type with
+        | Custom custom ->
+            match custom.Form with
+            | Some (Library (libName, compName)) -> compName, Some $"library · {libName}"
+            | Some (Verilog vName) -> vName, Some "Verilog"
+            | _ -> custom.Name, Some "instance of sheet"
+        | ct -> componentTypeName ct, None
+    div [Style [
+            Display DisplayOptions.Flex
+            AlignItems AlignItemsOptions.Baseline
+            JustifyContent "space-between"
+            MarginBottom "12px"]] [
+        span [Style [FontWeight "bold"; FontSize "15px"]] [str name]
+        (match origin with
+         | None -> null
+         | Some tag ->
+            span [Style [FontSize "11px"; Color "grey"; MarginLeft "8px"; WhiteSpace WhiteSpaceOptions.Nowrap]]
+                 [str tag])
+    ]
 
 
 let getInitSource (mem: Memory1) (model:Model)=
@@ -143,7 +207,7 @@ let getInitSource (mem: Memory1) (model:Model)=
         if FilesIO.fileExistsWithExtn ".ram" path name then 
             match initialiseMem mem path with
             | Ok _ -> Ok $"From '{name}.ram' file"
-            | Error s -> Error $"From '{name}.ram' file. WARNING - this file exists but has a read error: 's'"
+            | Error s -> Error $"From '{name}.ram' file. WARNING - this file exists but has a read error: {s}"
         else
             Error $"From '{name}.ram' file in folder '{path}'. WARNING - this file does not exist"
    
@@ -151,86 +215,71 @@ let getInitSource (mem: Memory1) (model:Model)=
 let getDialogMemorySetup (mem: Memory1) =
     mem.AddressWidth,mem.WordWidth,mem.Init, match mem.Init with | FromFile n -> Some n | _ -> None
 
-let private makeMemoryInfo descr mem compId cType model dispatch =
-    let setup = getDialogMemorySetup mem
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let mem1 = match cType with | Memory mem -> mem | _ -> failwithf "What? makememoryinfo called with non-memory"
-    let reloadMemoryContent mem compId model dispatch =
-        () // *** To be implemented
-    let printMemorySource() =
+/// What a memory component holds, as facts: shape, and where its initial contents come from.
+/// Prose and figures only - everything here belongs behind the About disclosure, and nothing in it
+/// does anything.
+let private memoryFacts (mem1: Memory1) cType model : ReactElement list =
+    let sourceLine =
         let isError, msgEnd =
             match getInitSource mem1 model with Error txt -> true, txt | Ok txt -> false, txt
         let msgStart =
-            match cType with 
+            match cType with
             | RAM1 _ | AsyncRAM1 _ -> "Initial "
             | ROM1 _ | AsyncROM1 _ -> ""
             | _ -> failwithf $"What - wrong component type ({cType}) here"
-        let msg = sprintf $"{msgStart}Data Source: {msgEnd}"  
-        if isError then 
-            Fulma.Label.label [Label.Size IsSmall; Label.Modifiers [Modifier.TextColor IsDanger]] [str msg]
-        else
-            Fulma.Label.label [] [str msg]
+        let msg = $"{msgStart}data source: {msgEnd}"
+        match isError with
+        | true -> Fulma.Label.label [Label.Size IsSmall; Label.Modifiers [Modifier.TextColor IsDanger]] [str msg]
+        | false -> Fulma.Label.label [] [str msg]
+    [
+        bSpan $"Address width: {mem1.AddressWidth} bit(s)"
+        br []
+        bSpan $"Number of elements: {1UL <<< mem1.AddressWidth}"
+        br []
+        bSpan $"Word width: {mem1.WordWidth} bit(s)"
+        br []
+        sourceLine
+    ]
+
+/// The things a memory component can be asked to DO. These are the reason for selecting a RAM, so
+/// they stay in the body of the pane rather than going behind the About disclosure with the prose.
+let private memoryActions mem compId cType model dispatch =
+    let setup = getDialogMemorySetup mem
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let mem1 = match cType with | Memory mem -> mem | _ -> failwithf "What? memoryActions called with non-memory"
     if model.PopupDialogData.MemorySetup = None then
         dispatch <| SetPopupDialogMemorySetup (Some setup)
     let projectPath = (Option.get model.CurrentProj).ProjectPath
-    match setup with
-    | (_,_,mem,_) ->
-        div [] [
-            str descr
-            br []; br []
-            bSpan $"Address width: {mem1.AddressWidth} bit(s)" 
-            br []
-            bSpan $"Number of elements: {1UL <<< mem1.AddressWidth}" 
-            br []
-            bSpan $"Word width: {mem1.WordWidth}bit(s)" 
-            br []
+    div [] [
+        Button.button [
+            Button.Color IsPrimary
+            Button.OnClick (fun _ -> dispatch <| Msg.ExecFuncInMessage(
+                    (fun model _ -> openMemoryEditor mem1 compId model dispatch), dispatch))
+        ] [str "View/Edit memory content"]
+        (memPropsInfoButton dispatch)
+        br []
+        Button.button [
+            Button.Color IsPrimary
+            Button.OnClick (fun _ ->
+                FilesIO.openWriteDialogAndWriteMemory mem1 projectPath
+                |> (function
+                        | None -> ()
+                        | Some path ->
+                            let note = successPropertiesNotification $"Memory content written to '{path}'"
+                            dispatch <| SetPropertiesNotification note))
+        ] [str "Export memory initial data to file"]
+        br []
+        (makePopupButton
+            "Memory Initial Data Source"
+            (MenuHelpers.makeSourceMenu
+                model
+                (model.Sheet.UpdateMemory sheetDispatch)
+                compId
+                dispatch)
+            "Change data source"
+            dispatch)
+    ]
 
-            //makeSourceMenu model (Option.get model.CurrentProj) mem dispatch
-            br [];
-        
-            div [] [
-                Button.button [
-                    Button.Color IsPrimary
-                    Button.OnClick (fun _ -> dispatch <| Msg.ExecFuncInMessage(
-                            (fun model _ -> openMemoryEditor mem1 compId model dispatch), dispatch))
-                ] [str "View/Edit memory content"]
-                (memPropsInfoButton dispatch)
-                br []
-                hr []
-
-                Button.button [
-                    Button.Color IsPrimary
-                    Button.OnClick (fun _ -> 
-                        FilesIO.openWriteDialogAndWriteMemory mem1 projectPath
-                        |> (function
-                                | None -> ()
-                                | Some path ->
-                                    let note = successPropertiesNotification $"Memory content written to '{path}'"
-                                    dispatch <| SetPropertiesNotification note))
-                ] [str "Export memory initial data to file"]
-
-                
-                br []; 
-                br [];
-
-                (printMemorySource())
-                   
-                
-                (makePopupButton
-                    "Memory Initial Data Source"
-                    (MenuHelpers.makeSourceMenu 
-                        model
-                        (model.Sheet.UpdateMemory sheetDispatch) 
-                        compId 
-                        dispatch)
-                    "Change Memory Data Source"
-                    dispatch )
-                hr []
-                ]                
-            ]   
-
-
-    
 
 let makeVerilogEditButton model (custom:CustomComponentType) dispatch : ReactElement = 
     
@@ -449,7 +498,7 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
             fun (newWidth) ->
                 if newWidth < 0.0
                 then
-                    let props = errorPropsNotification "Invalid number of bits."
+                    let props = errorPropsNotification "A scale factor cannot be negative."
                     dispatch <| SetPropertiesNotification props
                 else
                     model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Horizontal
@@ -459,7 +508,7 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
             fun (newWidth) ->
                 if newWidth < 0.0
                 then
-                    let props = errorPropsNotification "Invalid number of bits."
+                    let props = errorPropsNotification "A scale factor cannot be negative."
                     dispatch <| SetPropertiesNotification props
                 else
                     model.Sheet.ChangeScale sheetDispatch (ComponentId comp.Id) newWidth Vertical
@@ -469,22 +518,25 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
 
 
 let private makeNumberOfBitsField model (comp: Component) text dispatch =    
+    // One phrasing, not seven. These prompts said "Number of bits", "Bus width", "Width of output
+    // bus", "Number of bits in the wire", "Number of bits selected: width" and two more, all for
+    // the same idea; only the two that qualify WHICH width still differ.
     let title, width, slot =
         match comp.Type with
-        | Input1 (w, _) | Output w -> "Number of bits", w, IO comp.Label
+        | Input1 (w, _) | Output w -> "Width (bits)", w, IO comp.Label
         | NbitsAdder w | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
-        | NbitsXor (w, _) | NbitsAnd w | NbitsOr w |NbitsNot w 
+        | NbitsXor (w, _) | NbitsAnd w | NbitsOr w |NbitsNot w
         | Register w | RegisterE w
         | Counter w | CounterNoEnable w | CounterNoEnableLoad w |CounterNoLoad w
-        | Viewer w -> "Number of bits", w, Buswidth
-        | NbitSpreader w -> "Width of output bus", w, Buswidth
-        | SplitWire w -> "Number of bits in the top (LSB) wire", w, Buswidth
-        | BusSelection (w, _) -> "Number of bits selected: width", w, Buswidth
-        | BusCompare (w, _) -> "Bus width", w, Buswidth
-        | BusCompare1 (w, _, _) -> "Bus width", w, Buswidth
-        | Constant1 (w, _, _) -> "Number of bits in the wire", w, Buswidth
+        | Viewer w -> "Width (bits)", w, Buswidth
+        | NbitSpreader w -> "Output width (bits)", w, Buswidth
+        | SplitWire w -> "Top (LSB) output width (bits)", w, Buswidth
+        | BusSelection (w, _) -> "Width (bits)", w, Buswidth
+        | BusCompare (w, _) -> "Width (bits)", w, Buswidth
+        | BusCompare1 (w, _, _) -> "Width (bits)", w, Buswidth
+        | Constant1 (w, _, _) -> "Width (bits)", w, Buswidth
         // the SHIFT input width follows the bus width (see shifterWidthFor)
-        | Shift (w, _, _) -> "Number of bits in the IN and OUT busses", w, Buswidth
+        | Shift (w, _, _) -> "Width (bits)", w, Buswidth
         | c -> failwithf $"makeNumberOfBitsField called with invalid component: {c}"
 
     let constraints = [MinVal (PInt 1, $"{title} must be positive")]
@@ -776,209 +828,160 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
 
 
 
-let private makeDescription (comp:Component) model dispatch =
-    let gateDescription (numInputs: int) (gateType: GateComponentType) =
-        let gType = $"{gateType}"
-        let gTypeName = gType[0..0].ToUpper() + gType[1..gType.Length-1]
-        $"{numInputs} input {gTypeName} gate."
-        
-    let gateNDescription (numInputs: int) (gateType: GateComponentType) =
-        let gType = $"{gateType}"
-        let gTypeName = gType[0..0].ToUpper() + gType[1..gType.Length-1]
-        $"{gTypeName}-N block. {numInputs} {gTypeName} gates used one for each bit of the {numInputs}-bit input and output busses."
+/// Prose about a component: what is left of the old Description field once everything the header,
+/// the value boxes and the symbol itself already say has been taken out of it.
+///
+/// Empty for most components. A one-word gloss restating the type name was the pane's most
+/// prominent text while saying nothing, and the catalogue already carries a full tooltip for every
+/// built-in (CatalogueView.catTip1), so this is a second copy of that text and not the only one.
+/// Widths are never quoted here: the value is in the box below and, when it comes from an
+/// expression, beside it as well.
+let private describeComponent (comp:Component) model : ReactElement list =
+    let nGateNote (gateName: string) =
+        $"One {gateName} gate per bit of the input and output busses."
     match comp.Type with
-    | ROM _ | RAM _ | AsyncROM _ -> 
+    | ROM _ | RAM _ | AsyncROM _ ->
         failwithf "What? Legacy RAM component types should never occur"
     | Input _ -> failwithf "Legacy Input component types should never occur"
-    | Input1 _ -> str "Input."
-    | Constant1 _ | Constant _ -> str "Constant Wire."
-    | Output _ -> str "Output."
-    | Viewer _ -> str "Viewer."
-    | NotConnected -> str "Not connected."
-    | BusCompare _ | BusCompare1 _ -> str "The output is one if the bus unsigned binary value is equal to the integer specified. \
-                                           This will display in hex on the design sheet. Busses of greater than 32 bits are not supported"
-    | BusSelection _ -> div [] [
-                str "Bus Selection."
-                br []
-                str "The output is the subrange [width+lsb-1..lsb] of the input bits. If width = 1 this selects one bit. \
-                     Error if the input has less than width + lsb bits."
-                br []
-                br []
-                str "Note that the output bit(s) are numbered from 0 even if the input range has LS bit number > 0. \
-                     The input range selected for output is displayed in brackets on the symbol."
-        ]
-    | IOLabel -> div [] [
-        str "Label on Wire or Bus. Labels with the same name connect wires. Each label has input on left and output on right. \
-            No output connection is required from a set of labels. Since a set represents one wire of bus, exactly one input connection is required. \
-            Labels can be used:"  
-        br [] ;
-        str "To name wires and document designs."; br []
-        str "To join inputs and outputs without wires."; br []
-        str "To prevent an unused output from giving an error."
-        ]
-    | Not ->
-        div [] [ str <| sprintf "%A gate." comp.Type ]
-    | GateN (gateType, n) ->
-        div [] [ str <| gateDescription n gateType ]
-    | Mux2 -> div [] [ 
-        str "Multiplexer with two inputs and one output." 
-        br []
-        br []
-        Button.button [
-            Button.Color IsPrimary
-            Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
-                (fun model _ -> model.Sheet.ChangeReversedInputs (Sheet >> dispatch) (ComponentId comp.Id)),dispatch))
-            ] 
-            [str "Reverse Inputs"]
-        ]
-    | Mux4 -> div [] [ str "Multiplexer with four inputs and one output." ]
-    | Mux8 -> div [] [ str "Multiplexer with eight inputs and one output." ]
-    | Demux2 -> div [] [ str "Demultiplexer with one input and two outputs." ]
-    | Demux4 -> div [] [ str "Demultiplexer with one input and four outputs." ]
-    | Demux8 -> div [] [ str "Demultiplexer with one input and eight outputs." ]
-    | MergeWires -> div [] [ str "Merge two busses of width n and m into a single bus of width n+m. \
-                                  The bit numbers of the whole and each branch are shown when the component is connected." ]
-    | MergeN _ -> div [] [ str "Merge N busses of various widths into a single bus. \
-                                  The bit numbers of the whole and each branch are shown when the component is connected." ]
-    | SplitWire _ -> div [] [ str "Split a bus of width n+m exactly into two non-overlapping busses of width n and m. \
-                                   The bit numbers of the whole and each branch are shown when the component is connected."]
-    | SplitN _ -> div [] [ str "Split a bus into N output busses of various widths. The output busses may overlap. \
-                                The output busses need not include all of the input bits"]
-    | NbitsAdder numberOfBits 
-    | NbitsAdderNoCin numberOfBits 
-    | NbitsAdderNoCout numberOfBits 
-    | NbitsAdderNoCinCout numberOfBits 
-        -> div [] [ str <| sprintf "%d bit(s) adder." numberOfBits ]
-    | NbitsXor( numberOfBits, typ)  -> 
-        match typ with
-        | None -> gateNDescription numberOfBits Xor
-        | Some Multiply -> $"{numberOfBits}X{numberOfBits}->{numberOfBits} Multiply block. This \
-                              returns bits ({numberOfBits}:0) of the result. \
-                              For these bits, signed and unsigned multiplication are identical"
-        |> (fun text -> div [] [str <| text])
-    | NbitsAnd numberOfBits  -> div [] [ str <| gateNDescription numberOfBits And]
-    | NbitsOr numberOfBits  -> div [] [ str <| gateNDescription numberOfBits Or]
-    | NbitsNot numberOfBits  -> div [] [ str <|
-        $"Not-N block. {numberOfBits} Not gates used one for each bit of the {numberOfBits}-bit input and output busses."]
-    | NbitSpreader numberOfBits  -> div [] [ str <| sprintf "Bus Spreader: every bit in the %d-bit output wire is the same as the 1-bit input. \
-                                                            Used to implement sign extension and shift operations." numberOfBits]
-    | Decode4 -> div [] [ str <| "4 bit decoder: Data is output on the Sel output, all other outputs are 0."]
-    | Custom custom ->
-        let styledSpan styles txt = span [Style styles] [str <| txt]
-        let boldSpan txt = styledSpan [FontWeight "bold"] txt
-        let italicSpan txt = styledSpan [FontStyle "italic"] txt
-
-        let toHTMLList =
-            List.map (fun (label, width) -> li [] [str <| sprintf "%s: %d bit(s)" label width])
-        
-        let symbolExplanation =
-            match custom.Form with
-            |Some (Verilog _) -> ": Verilog Component."
-            |_ -> ": user defined (custom) component."
-            //TODO: remaining
-
-        //let origLdc =
-        //    match model.CurrentProj with
-        //    |Some p -> p.LoadedComponents |> List.find (fun ldc -> ldc.Name = custom.Name)
-        //    |None -> failwithf "What? current project cannot be None at this point in finding custom component description"
-        let sheetDescription = 
-            match custom.Description with
-            |Some sheetDescription-> 
-                div [] [
-                    p [] [str "----------------"]
-                    p [] [str sheetDescription]
-                    p [] [str "----------------"]
-                ]
-            |None -> 
-                br []
-        let portOrderExplanation =
-            match custom.Form with
-            |Some (Verilog _) -> $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
-                    port definition order in the original Verilog file."
-            |_ -> $"Input or Output ports are displayed on the '{custom.Name}' symbol sorted by the \
-                    vertical position on the design sheet of the Input or Output components at the time the symbol is added."
-            //TODO: remaining
-        
-        // let listmodel = model.CurrentProj.LoadedComponents
-
-        div [] [
-            boldSpan $"{custom.Name}"
-            span [] [str <| symbolExplanation]
-            sheetDescription
-            makeVerilogEditButton model custom dispatch
-            makeVerilogDeleteButton model custom dispatch
-            br []
-            p [  Style [ FontStyle "italic"; FontSize "12px"; LineHeight "1.1"]] [
-                str <| portOrderExplanation]
-            br []
-            span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Inputs"]
-            ul [] (toHTMLList custom.InputLabels)
-            br []
-            span [Style [FontWeight "bold"; FontSize "15px"]] [str <| "Outputs"]
-            ul [] (toHTMLList custom.OutputLabels)
-            br []
-            makeScaleAdjustmentField model comp dispatch
-            br []
-            ParameterView.makeParamBindingEntryBoxes model comp custom dispatch
-        ]
-    | DFF -> div [] [ str "D-flip-flop. The component is implicitly connected to the global clock." ]
-    | DFFE -> div [] [
-        str "D-flip-flop with enable. If the enable signal is high the state of
-             the D-flip-flop will be updated at the next clock cycle.
-             The component is implicitly connected to the global clock." ]
-    | Register _  -> div [] [ str "Register. The component is implicitly connected to the global clock." ]
+    // the header names these, and there is nothing further worth saying
+    | Input1 _ | Output _ | Viewer _ | NotConnected | Constant1 _ | Constant _
+    | Not | GateN _ | Decode4
+    | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
+    | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ -> []
+    | BusCompare _ | BusCompare1 _ ->
+        [str "The output is one if the bus unsigned binary value is equal to the integer specified. \
+              This will display in hex on the design sheet. Busses of greater than 32 bits are not \
+              supported"]
+    | BusSelection _ ->
+        [ str "The output is the subrange [width+lsb-1..lsb] of the input bits. If width = 1 this \
+               selects one bit. Error if the input has less than width + lsb bits."
+          br []; br []
+          str "Note that the output bit(s) are numbered from 0 even if the input range has LS bit \
+               number > 0. The input range selected for output is displayed in brackets on the \
+               symbol." ]
+    | IOLabel ->
+        [ str "Labels with the same name connect wires. Each label has input on left and output on \
+               right. No output connection is required from a set of labels. Since a set represents \
+               one wire of bus, exactly one input connection is required. Labels can be used:"
+          br []
+          str "To name wires and document designs."; br []
+          str "To join inputs and outputs without wires."; br []
+          str "To prevent an unused output from giving an error." ]
+    | MergeWires ->
+        [str "Merge two busses of width n and m into a single bus of width n+m. The bit numbers of \
+              the whole and each branch are shown when the component is connected."]
+    | MergeN _ ->
+        [str "Merge N busses of various widths into a single bus. The bit numbers of the whole and \
+              each branch are shown when the component is connected."]
+    | SplitWire _ ->
+        [str "Split a bus of width n+m exactly into two non-overlapping busses of width n and m. \
+              The bit numbers of the whole and each branch are shown when the component is \
+              connected."]
+    | SplitN _ ->
+        [str "Split a bus into N output busses of various widths. The output busses may overlap. \
+              The output busses need not include all of the input bits"]
+    | NbitsXor (_, Some Multiply) ->
+        [str "Returns the low bits of the product - as many as the busses are wide. For those bits, \
+              signed and unsigned multiplication are identical."]
+    | NbitsXor _ -> [str (nGateNote "Xor")]
+    | NbitsAnd _ -> [str (nGateNote "And")]
+    | NbitsOr _ -> [str (nGateNote "Or")]
+    | NbitsNot _ -> [str (nGateNote "Not")]
+    | NbitSpreader _ ->
+        [str "Every bit of the output bus is the same as the 1-bit input. Used to implement sign \
+              extension and shift operations."]
+    | DFF -> [str clockNote]
+    | DFFE ->
+        [str $"If the enable signal is high the state of the D-flip-flop will be updated at the \
+               next clock cycle. {clockNote}"]
+    | Register _ -> [str clockNote]
     | RegisterE _ ->
-        div [] [ str "Register with enable. If the enable signal is high the
-                      state of the Register will be updated at the next clock
-                      cycle. The component is implicitly connected to the global
-                      clock." ]
-    | Counter _ |CounterNoEnable _ |CounterNoEnableLoad _ |CounterNoLoad _ ->
-        div [] [ str "Counter with enable and load options. If the enable signal is high the
-                      state of the counter will be updated at the next clock
-                      cycle taking either the value of input d (when load is enabled)
-                      or the value of out+1 (if load is disabled). 
-                      The component is implicitly connected to the global clock." ]
+        [str $"If the enable signal is high the state of the Register will be updated at the next \
+               clock cycle. {clockNote}"]
+    | Counter _ | CounterNoEnable _ | CounterNoEnableLoad _ | CounterNoLoad _ ->
+        [str $"If the enable signal is high the state of the counter will be updated at the next \
+               clock cycle, taking either the value of input d (when load is enabled) or the value \
+               of out+1 (if load is disabled). {clockNote}"]
     | AsyncROM1 mem ->
-        let descr = "Asynchronous ROM: the output is updated as soon as the address changes."
-        makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
+        str "The output is updated as soon as the address changes." :: br [] :: br []
+        :: memoryFacts mem comp.Type model
     | ROM1 mem ->
-        let descr = "Synchronous ROM: the output is updated only after a clock tick. The component is implicitly connected to the global clock."
-        makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
+        str $"The output is updated only after a clock tick. {clockNote}" :: br [] :: br []
+        :: memoryFacts mem comp.Type model
     | RAM1 mem ->
-        let descr =
-            "synchronous read and write RAM memory. 
-            At every clock tick, the RAM can read and optionally write
-            the content of the memory location selected by the address. If the
-            write signal is high, the content of the selected memory location
-            is set to the value of data-in. In cycle 0 data-out is 0, otherwise
-            data-out is the contents of the memory location addressed in the
-            previous cycle, before any optional write.
-            The component is implicitly connected to the global clock."
-        makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
+        str $"At every clock tick the RAM can read and optionally write the content of the memory \
+              location selected by the address. If the write signal is high, the content of the \
+              selected location is set to the value of data-in. In cycle 0 data-out is 0, otherwise \
+              data-out is the contents of the location addressed in the previous cycle, before any \
+              optional write. {clockNote}"
+        :: br [] :: br [] :: memoryFacts mem comp.Type model
     | AsyncRAM1 mem ->
-        let descr =
-            "Asynchronous read, synchronous write RAM memory. 
-            At every clock tick, optionally write
-            the content of the memory location selected by the address. If the
-            write signal is high, the content of the selected memory location
-            is set to the value of data-in. data-out is the contents of the memory 
-            location addressed by the current cycle addres.
-            The component is implicitly connected to the global clock."
-        makeMemoryInfo descr mem (ComponentId comp.Id) comp.Type model dispatch
+        str $"At every clock tick, optionally write the content of the memory location selected by \
+              the address. If the write signal is high, the content of the selected location is set \
+              to the value of data-in. data-out is the contents of the location addressed by the \
+              current cycle address. {clockNote}"
+        :: br [] :: br [] :: memoryFacts mem comp.Type model
     | Shift (_, shifterWidth, shiftType) ->
         let kindName, kind =
             match shiftType with
             | LSL -> "LSL (logical shift left)", "bits shifted in are zero."
             | LSR -> "LSR (logical shift right)", "bits shifted in are zero."
             | ASR -> "ASR (arithmetic shift right)", "the sign bit is replicated into the bits shifted in."
-        div [] [
-            b [] [str $"Shift kind: {kindName}."]
-            br []; br []
-            str <| $"Shifts the IN bus by the number of positions given on the {shifterWidth} bit \
-                    SHIFT input: {kind} Shifting by the bus width or more clears the output, \
-                    or fills it with the sign bit for an arithmetic shift."]
-        
+        [ b [] [str $"Shift kind: {kindName}."]
+          br []; br []
+          str $"Shifts the IN bus by the number of positions given on the {shifterWidth} bit SHIFT \
+                input: {kind} Shifting by the bus width or more clears the output, or fills it with \
+                the sign bit for an arithmetic shift." ]
+    | Custom custom ->
+        let sheetDescription =
+            match custom.Description with
+            // The description belongs to the SHEET and was copied onto the instance when it was
+            // placed, so say whose it is rather than letting it read as the instance's own.
+            | Some description ->
+                [ p [Style [Color "grey"; FontSize "11px"]] [str $"Description of sheet {custom.Name}:"]
+                  p [] [str description] ]
+            | None -> []
+        let portOrder =
+            match custom.Form with
+            // A library component's sheet cannot be opened, so an explanation given in terms of
+            // where things sit on that sheet tells the user nothing they can act on.
+            | Some (Library _) -> []
+            | Some (Verilog _) ->
+                [p [Style [FontStyle "italic"]] [
+                    str $"Ports are displayed on the symbol sorted by the port definition order in \
+                          the original Verilog file."]]
+            | _ ->
+                [p [Style [FontStyle "italic"]] [
+                    str $"Ports are displayed on the symbol sorted by the vertical position, on the \
+                          design sheet, of the Input or Output components at the time the symbol is \
+                          added."]]
+        sheetDescription @ portOrder
 
+/// The ports of a custom component instance, and their widths.
+/// Kept in the body of the pane rather than behind the About disclosure: on a parameterised
+/// component these widths move whenever a value moves, so they are the first thing to check after
+/// an edit.
+let private makePortSummary (custom:CustomComponentType) =
+    let group name (labels: (string * int) list) =
+        match labels with
+        | [] -> null
+        | _ ->
+            div [Style [Display DisplayOptions.Flex; MarginBottom "2px"]] [
+                span [Style [Width "34px"; Color "grey"; FontSize "11px"; Flex "0 0 auto"]] [str name]
+                span [Style [FontSize "12px"]]
+                     [str (labels |> List.map (fun (l, w) -> $"{l} {w}") |> String.concat "   ")]
+            ]
+    match custom.InputLabels, custom.OutputLabels with
+    | [], [] -> null
+    | ins, outs ->
+        div [Style [MarginBottom "10px"]] [
+            Label.label [] [str "Ports"]
+            group "in" ins
+            group "out" outs
+        ]
+
+/// The editable fields and the actions of one component: everything in the pane that DOES
+/// something, as against the prose that explains it.
 let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
     match comp.Type with
     | Input1 _ ->
@@ -992,7 +995,7 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
             [
                 makeNumberOfInputsField model comp dispatch
             ]
-    | MergeN _ -> 
+    | MergeN _ ->
         div []
             [
                 changeMergeN model comp dispatch
@@ -1020,25 +1023,79 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
                 makeNumberOfBitsField model comp text dispatch
                 changeCounterType model comp dispatch
             ]
-    | BusSelection _ -> 
+    | BusSelection _ ->
         div [] [
             makeNumberOfBitsField model comp text dispatch
             makeLsbBitNumberField model comp dispatch
             ]
-    | BusCompare _ -> 
+    | BusCompare _ ->
         div [] [
             makeNumberOfBitsField model comp text dispatch
             makeLsbBitNumberField model comp dispatch
             ]
-
     |BusCompare1 _ ->
         makeBusCompareDialog model comp text dispatch
-    | Constant1 _ ->         
+    | Constant1 _ ->
              makeConstantDialog model comp text dispatch
+    // Reversing the inputs is an action, so it belongs here with the other controls rather than
+    // buried in the read-only prose that used to carry it.
+    | Mux2 ->
+        Button.button [
+            Button.Color IsPrimary
+            Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
+                (fun model _ -> model.Sheet.ChangeReversedInputs (Sheet >> dispatch) (ComponentId comp.Id)),dispatch))
+            ] [str "Reverse Inputs"]
+    // The memory buttons are the reason for selecting a RAM, so they stay in the body of the pane
+    // while the shape and data source of the memory go to About with the rest of the prose.
+    | AsyncROM1 mem | ROM1 mem | RAM1 mem | AsyncRAM1 mem ->
+        memoryActions mem (ComponentId comp.Id) comp.Type model dispatch
+    // A custom component had no case here at all: everything it could be asked to do lived inside
+    // the read-only description. Its parameter values are now edited exactly as a built-in width is.
+    | Custom custom ->
+        // Being able to go to the sheet is the plainest way of saying that this component IS an
+        // instance of one. Absent for a library component, whose sheet cannot be opened.
+        let openSheetButton =
+            match custom.Form with
+            | Some (Library _) -> null
+            | _ ->
+                Button.button [
+                    Button.Color IsInfo
+                    Button.IsLight
+                    Button.OnClick (fun _ ->
+                        dispatch <| ExecFuncInMessage((fun model dispatch ->
+                            match model.CurrentProj with
+                            | Some proj ->
+                                MenuHelpers.openFileInProject custom.Name proj model dispatch
+                                dispatch <| UpdateUISheetTrail (fun trail -> proj.OpenFileName :: trail)
+                            | None -> ()), dispatch))
+                ] [str $"Open sheet {custom.Name}"]
+        div [] [
+            ParameterView.makeParamBindingEntryBoxes model comp custom dispatch
+            makePortSummary custom
+            openSheetButton
+            makeVerilogEditButton model custom dispatch
+            makeVerilogDeleteButton model custom dispatch
+        ]
     | _ -> div [] []
 
-
-
+/// The collapsed "About this component" disclosure at the foot of the pane: the prose, and the
+/// appearance controls - neither of which is needed in order to use the component.
+/// Renders nothing at all when there would be nothing in it.
+let private makeAboutSection model (comp:Component) dispatch =
+    let appearance =
+        match comp.Type with
+        // A library component's dimensions are settled by whoever authored it, so scaling an
+        // instance is not something to offer: the fields are absent rather than disabled.
+        | Custom {Form = Some (Library _)} -> []
+        | Custom _ -> [makeScaleAdjustmentField model comp dispatch]
+        | _ -> []
+    match describeComponent comp model @ appearance with
+    | [] -> null
+    | content ->
+        details [Open false; Style [MarginTop "15px"]] [
+            summary [DiagramStyle.menuLabelStyle] [str "About this component"]
+            div [Style [FontSize "12px"; LineHeight "1.35"]] content
+        ]
 
 
 let viewSelectedComponent (model: ModelType.Model) dispatch =
@@ -1104,40 +1161,47 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
         // the properties pane shows what is on screen, which under a top sheet may be a computed
         // parameter value rather than the declared one; computedValueNote says so where they differ
         let comp = SymbolUpdate.displayedComponent model.Sheet.Wire.Symbol compId
+        // let label' = extractLabelBase comp.Label
+        // TODO: normalise labels so they only contain allowed chars all uppercase
+        let defaultText =
+            match model.PopupDialogData.Text with
+            | None -> comp.Label
+            | Some text -> text
+        let label' = formatLabelText defaultText compId // No formatting atm
+        let labelText = match label' with Ok s -> s | Error e -> defaultText
+        let required =
+            match comp.Type with
+            | SplitWire _ | MergeWires | BusSelection _ | NotConnected -> false | _ -> true
+        let isBad =
+            if model.PopupDialogData.BadLabel then
+                match label' with
+                | Ok _ -> None
+                | Error msg -> Some msg
+            else    None
+        // Identity first, then the things that can be changed, then - closed - the things that
+        // only explain. The name used to sit at the bottom, below a wall of prose and every value
+        // box, although it is what the user most often came here to change.
+        let nameLabel =
+            match comp.Type with
+            // naming it an instance says, where the user can act on it, that the sheet and this
+            // thing on the canvas are different objects. A library component is not presented as
+            // an instance of anything, so it keeps the plain word.
+            | Custom {Form = Some (Library _)} -> "Name"
+            | Custom _ -> "Instance name"
+            | _ -> "Name"
         div [Key comp.Id] [
-            ParameterView.computedValueNote model comp
-            // let label' = extractLabelBase comp.Label
-            // TODO: normalise labels so they only contain allowed chars all uppercase
-            let defaultText = 
-                match model.PopupDialogData.Text with
-                | None -> comp.Label
-                | Some text -> text
-            let label' = formatLabelText defaultText compId // No formatting atm
-            let labelText = match label' with Ok s -> s | Error e -> defaultText
-            readOnlyFormField "Description" <| makeDescription comp model dispatch
-            makeExtraInfo model comp labelText  dispatch
-            let required = 
-                match comp.Type with 
-                | SplitWire _ | MergeWires | BusSelection _ | NotConnected -> false | _ -> true
-            let isBad = 
-                if model.PopupDialogData.BadLabel then 
-                    match label' with 
-                    | Ok _ -> None
-                    | Error msg -> Some msg
-                else    None
-
-            //printfn $"{comp.Label}:{label'} - {isBad} - {label'}"
-            textFormField 
-                required 
-                "Component Name" 
-                defaultText 
-                isBad 
+            makeComponentHeader comp
+            textFormField
+                required
+                nameLabel
+                defaultText
+                isBad
                 (fun text -> // onChange
                     match formatLabelText text compId with
                     | Error errorMess ->
                         dispatch <| SetPopupDialogBadLabel (true)
                         dispatch <| SetPopupDialogText (Some text)
-                    | Ok label -> 
+                    | Ok label ->
                         MenuHelpers.setComponentLabel model sheetDispatch comp label
                         dispatch <| SetPopupDialogText (Some label)
                         dispatch <| SetPopupDialogBadLabel (false)
@@ -1146,48 +1210,42 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                     let sheetDispatch sMsg = dispatch (Sheet sMsg)
                     let dispatchKey = SheetT.KeyPress >> sheetDispatch
                     dispatchKey SheetT.KeyboardMsg.DEL)
-        ]    
-    | _ -> 
+            ParameterView.computedValueNote model comp
+            makeExtraInfo model comp labelText dispatch
+            makeAboutSection model comp dispatch
+        ]
+    // Nothing selected: this is the OPEN SHEET's properties, not a component's. The two used to be
+    // written out twice over, differing only by whether a description existed.
+    | _ ->
         match model.CurrentProj with
         |Some proj ->
             let sheetName = proj.OpenFileName
             let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
             let sheetDescription = sheetLdc.Description
-            match sheetDescription with
-            |None ->
-                div [] [
-                    p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]    
-                    br []
-                    Label.label [] [str "Sheet Description"]
+            let descriptionButton =
+                match sheetDescription with
+                | None ->
                     Button.button
-                        [ 
-                            Button.Color IsSuccess
-                            Button.OnClick (fun _ ->
-                                dispatchWithModel (fun model _ -> createSheetDescriptionPopup model None sheetName dispatch))
-                        ]
+                        [ Button.Color IsSuccess
+                          Button.OnClick (fun _ ->
+                            dispatchWithModel (fun model _ -> createSheetDescriptionPopup model None sheetName dispatch)) ]
                         [str "Add Description"]
-                    br []
-                    br []
-                    ParameterView.viewParameters model dispatch
-                    ]
-            |Some descr ->
-                div [] [
-                    p [] [str "Select a component in the diagram to view or change its properties, for example number of bits." ]    
-                    br []
-                    Label.label [] [str "Sheet Description"]
-                    p [] [str descr]
-                    br []
+                | Some _ ->
                     Button.button
-                        [
-                            Button.Color IsInfo
-                            Button.OnClick (fun _ ->
-                                dispatchWithModel((fun model _ -> createSheetDescriptionPopup model sheetDescription sheetName dispatch))
-                            )
-                        ]
+                        [ Button.Color IsInfo
+                          Button.OnClick (fun _ ->
+                            dispatchWithModel (fun model _ -> createSheetDescriptionPopup model sheetDescription sheetName dispatch)) ]
                         [str "Edit Description"]
-                    br []
-                    br []
-                    ParameterView.viewParameters model dispatch
-                    ]
+            div [] [
+                Label.label [] [str "Sheet Description"]
+                (match sheetDescription with
+                 | None -> null
+                 | Some descr -> p [] [str descr])
+                br []
+                descriptionButton
+                br []
+                br []
+                ParameterView.viewParameters model dispatch
+                ]
         |None -> null
     |> (fun react -> div [Style [Height "calc(100vh - 150px)"; OverflowY OverflowOptions.Auto]] [react])

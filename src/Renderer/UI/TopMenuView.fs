@@ -607,13 +607,13 @@ let viewTopMenu model dispatch =
                         let p = Option.get model.CurrentProj
                         openFileInProject (sheet.SheetName) p model dispatch), dispatch)
 
-            // The top sheet is only surfaced when the project uses parameters: users who never
-            // touch parameters must see no change anywhere.
-            let projectUsesParams =
-                updatedProject.LoadedComponents
-                |> List.exists (fun ldc -> not (Map.isEmpty (ParameterAnalysis.declaredParams ldc)))
+            // The top sheet exists to settle which values a sheet is drawn at when its instances
+            // disagree, so it is surfaced only when some sheet actually does. Testing instead for
+            // the mere presence of a parameter turned the whole apparatus on for a design with one
+            // instance of one parameterised sheet, where there is nothing to settle - and turned it
+            // on for a library component too, whose sheet is never displayed at all.
             let topSheet =
-                match projectUsesParams with
+                match ParameterAnalysis.projectHasAmbiguousDisplay updatedProject.LoadedComponents with
                 | true -> ParameterAnalysis.effectiveTopSheet updatedProject.LoadedComponents
                 | false -> None
             /// sheets in the instance tree under the top: computed from the sheet trees already

@@ -172,8 +172,34 @@ let private  viewRightTab canvasState model dispatch =
         ]
         
     | Properties ->
+        // This pane shows one of three different things, and used to head all of them "Component
+        // properties" - including the case where nothing is selected and what is shown is the open
+        // SHEET. The heading and the line under it say which of the three it is, so that a sheet
+        // and an instance of a sheet cannot be mistaken for one another.
+        let heading, blurb =
+            match model.Sheet.SelectedComponents, model.CurrentProj with
+            | [], Some proj ->
+                $"Sheet properties — {proj.OpenFileName}",
+                Some "Properties of the open sheet. Select a component for its own properties."
+            | [], None -> "Sheet properties", None
+            | [compId], _ ->
+                let comp = SymbolUpdate.displayedComponent model.Sheet.Wire.Symbol compId
+                let blurb =
+                    match comp.Type with
+                    // A library component is not presented as an instance of a sheet: its sheet
+                    // cannot be opened, and naming it here would put back the L<n>_ name the
+                    // header deliberately leaves out.
+                    | Custom {Form = Some (Library _)} -> None
+                    | Custom custom ->
+                        Some $"One instance of sheet {custom.Name}. These values apply to this instance only."
+                    | _ -> None
+                "Component properties", blurb
+            | _ -> "Component properties", None
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
-            Heading.h4 [] [ str "Component properties" ]
+            Heading.h4 [] [ str heading ]
+            (match blurb with
+             | None -> null
+             | Some text -> div [ Style [MarginBottom "15px"; FontSize "12px"] ] [ str text ])
             SelectedComponentView.viewSelectedComponent model dispatch
         ]
 

@@ -32,9 +32,15 @@ nothing running. Use it for test schematics rather than building canvases by han
 See [docs/dev/sheetDescriptionDsl.md](docs/dev/sheetDescriptionDsl.md).
 
 `npm run test` runs the Expecto suite under `Tests/Issie.Tests` (`dotnet run`, not `dotnet test`).
-It works and is fast — around 120 tests in 20s — and it reaches the whole of `Renderer.fsproj`, so
-simulation, parameter resolution and even UI-module helpers can all be tested. Use it: a fix to
-simulation or parameter behaviour can be pinned by a test rather than argued about.
+It works and is fast — around 129 tests in 20s — and it reaches the whole of `Renderer.fsproj`, so
+simulation, parameter resolution, the draw block and even UI-module helpers can all be tested. Use
+it: a fix to simulation or parameter behaviour can be pinned by a test rather than argued about.
+`--filter Issie.<TestList>` runs one group, which is much quicker than the whole suite: `dotnet run
+--project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock`.
+
+Adding a test file takes two edits, and missing either fails silently: list it in
+`Tests/Issie.Tests/Issie.Tests.fsproj` (compile order matters) and add its `tests` value to the
+list in `Main.fs`.
 
 The JS simulator harness under `simulator_tests/js` is a different thing and no longer compiles:
 its fsproj references `src/Renderer/Simulator/SimulatorTypes.fs`, which has since been split into
@@ -93,6 +99,15 @@ defaults would teach the wrong pattern.
 - **Elmish timing**: some updates need `Cmd.OfAsyncImmediate` with a delay to stay in step with the
   UI.
 - **Wire routing** is a complex state machine — exercise edge cases when changing it.
+  `DrawBlockTests.fs` builds symbols and routes wires under plain .NET, so an edge case can be a
+  test rather than something to click at.
+- **Text is measured against a browser canvas**, which is why `DrawHelpers.getTextWidthInPixels`
+  creates that canvas on first use and not while the module loads — doing the latter made the whole
+  draw block throw `JS only` under .NET, since symbol sizing measures text. Under .NET it instead
+  reconstructs the width from a table of per-character advances, which `DrawBlockTests.fs` holds to
+  within 1% of widths recorded from a real browser. Measure through that function; do not reach for
+  a canvas of your own. Prefer asserting draw block *structure* — ports, edges, overlap,
+  orthogonality — since a pixel width is only ever as good as that table.
 - **Memory components** need special handling for RAM/ROM initialisation from `.ram` files.
 - **Debug tracing** is gated on `JSHelpers.debugTraceUI`; memory monitoring on the `CheckMemory`
   message.

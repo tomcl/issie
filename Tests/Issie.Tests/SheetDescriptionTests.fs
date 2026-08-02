@@ -260,6 +260,29 @@ let tests =
                 "a slot on a component that is not there is refused"
         }
 
+        test "a slot the component does not have is refused, not silently ignored" {
+            // it would otherwise be recorded, shown in the properties pane, and do nothing
+            let withSlotOn name compType slot =
+                describeSheet "p" [ comp name compType; comp "O" (Output 1) ] []
+                |> withParam "W" 4 "width"
+                |> withSlot name slot "W"
+                |> SheetLayout.toCanvasState
+            // an input count is a change of shape, not a value: these have no slots at all
+            Expect.stringContains (withSlotOn "G" (GateN(And, 2)) Buswidth |> expectError) "no Buswidth slot"
+                "a gate cannot be parameterised"
+            Expect.stringContains (withSlotOn "M" (MergeN 3) Buswidth |> expectError) "no Buswidth slot"
+                "nor can a MergeN"
+            // a SplitN's number of outputs is a shape too, but each output's width and position
+            // are values - so the slot exists exactly for the outputs that exist
+            let splitN = SplitN(2, [ 1; 3 ], [ 0; 1 ])
+            Expect.isOk (withSlotOn "S" splitN (SplitNWidth 1)) "the second output has a width"
+            Expect.isOk (withSlotOn "S" splitN (SplitNLSB 1)) "and a bit position"
+            Expect.stringContains (withSlotOn "S" splitN (SplitNWidth 2) |> expectError) "no SplitNWidth 2 slot"
+                "there is no third output"
+            Expect.stringContains (withSlotOn "S" splitN Buswidth |> expectError) "no Buswidth slot"
+                "the number of outputs is not a parameter"
+        }
+
         test "an .ldgm library is written and read back, with no Issie running" {
             // the whole point of the DSL being plain .NET: a library can be built by a program
             let halfAdd =

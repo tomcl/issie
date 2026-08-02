@@ -805,7 +805,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
                 }            
             | _ -> Ok []
         ) 
-        |> tryFindError
+        |> ResultList.sequence
         |> Result.map (List.concat >> Map.ofList)
 
     match mapLabels, mapPortIdToConnId with

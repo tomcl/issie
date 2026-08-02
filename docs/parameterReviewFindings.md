@@ -176,6 +176,9 @@ branch inherited; this one looks at what the branch wrote.
 Nothing here is a High. The largest single theme is repetition of small idioms rather than any
 structural problem.
 
+**Findings 8 and 12 are fixed**, each pinned by a test checked to fail without the fix. Finding 10
+was closed by the same change as 8. The rest stand.
+
 ## What holds up
 
 - **`ComponentSlots` as the single source of truth** for slot-to-field mapping. This was the fix
@@ -194,7 +197,7 @@ structural problem.
 
 ## Correctness
 
-### 8. A parameter slot the component type has no such field for is accepted and does nothing
+### 8. A parameter slot the component type has no such field for is accepted and does nothing — FIXED
 
 `SheetLayout.paramDefsOf` checks that the slot's component exists and that every parameter it uses
 is declared, but not that the slot means anything on that component.
@@ -209,9 +212,16 @@ The module documents the opposite intent — "never a slot quietly left alone" �
 expression that will not evaluate, so this is an inconsistency rather than a deliberate choice. The
 UI cannot reach it, because the properties pane only offers slots a component actually has.
 
-Fix: derive `appliesTo : CompSlotName -> ComponentType -> bool` from the same match, or make
-`setSlotValue` return `ComponentType option` and let each caller decide, and have `paramDefsOf`
-reject. `GraphMerger` would then also be able to report rather than silently skip.
+**Fixed.** The match now reads `trySetSlotValue : CompSlotName -> int -> ComponentType ->
+ComponentType option`, with `slotApplies` asking it whether the slot exists and `setSlotValue`
+keeping the old total behaviour for the paths that must not fail on an old file. There is still one
+match. `SheetLayout.paramDefsOf` refuses a slot the component does not have, naming the component,
+its type and the slot.
+
+The rejected cases are exactly the ones that are a change of shape rather than a value: `GateN` and
+`MergeN` have no slots at all, since their integer is an input count; a `SplitN`'s output count is
+the same thing, while the width and bit position of a given output are values and keep their slots
+for the outputs that exist.
 
 ### 9. `saveAsLibraryComponent` uses the typed library name as a directory name unchecked
 
@@ -219,7 +229,7 @@ reject. `GraphMerger` would then also be able to report rather than silently ski
 non-empty (`isDisabled`). A name containing a path separator or `..` writes outside the intended
 directory. Sheet names are validated by `maybeWarning`; library names are not.
 
-### 10. `ComponentSlots` has no `IO`/`BusCompare1` case, and the canvas path does
+### 10. `ComponentSlots` has no `IO`/`BusCompare1` case, and the canvas path does — FIXED by 8
 
 `ParameterView.updateComponentSlots` falls through to `ChangeWidth` for an `IO` slot on any type it
 does not name, while `setSlotValue` falls through to "unchanged". On a `BusCompare1` those
@@ -242,13 +252,17 @@ than when it was recorded.
 
 ## Duplication
 
-### 12. Five hand-rolled "sequence a list of Results"
+### 12. Five hand-rolled "sequence a list of Results" — FIXED
 
 `SheetLayout.allOk`, the fold in `paramDefsOf`, the fold in `saveLibraryComponent`, the fold in
 `saveProject`, `ComponentLibraries.readComponentAndDependencies` and
 `CatalogueView.materialiseLibraryComponent` all write out the same fold. Every one accumulates with
-`got @ [x]`, which is quadratic. One `traverse : ('a -> Result<'b,'e>) -> 'a list -> Result<'b
-list,'e>` in `Helpers` replaces all of them and fixes the complexity once.
+`got @ [x]`, which is quadratic.
+
+**Fixed** by `Helpers.ResultList`: `fold` threads a state and stops at the first Error, with
+`traverse`, `iter` and `sequence` on top of it. All six sites now name what they are doing. It also
+absorbed `Helpers.tryFindError`, which predates the branch, was the same function again, and needed
+two `failwith`s for cases its own types made impossible; its three callers use `sequence`.
 
 ### 13. `SheetLayout.saveSheet` and `sheetBody` are the same function twice
 

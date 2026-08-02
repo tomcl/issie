@@ -812,7 +812,7 @@ let loadAllComponentFiles (folderPath:string)  =
                         OkAuto autoComp |> Ok
                     | Error msg, _ -> Error msg
             )
-        |> tryFindError
+        |> ResultList.sequence
 
 /// Ask the user a new project path, with a dialog window.
 /// Return None if the user exits withouth selecting a path.

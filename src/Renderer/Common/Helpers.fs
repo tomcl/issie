@@ -219,15 +219,36 @@ let assertThat cond msg =
     if not cond
     then failwithf "what? assert failed: %s" msg
 
-/// Return the first error found in a list of results, or the list of Oks if
-/// there are none.
-let tryFindError (lst : Result<'a,'b> list) : Result<'a list, 'b> =
-    let isError el = match el with | Error _ -> true | Ok _ -> false
-    let extractOk el = match el with | Ok ok -> ok | Error _ -> failwith "what? Impossible case in tryFindError"
-    match List.tryFind isError lst with
-    | Some (Error err) -> Error err
-    | None -> List.map extractOk lst |> Ok
-    | _ -> failwith "what? Impossible case in tryFindError"
+/// Running a list of operations that can fail, stopping at the first Error.
+///
+/// Written out by hand this is a fold over Result whose accumulator is built with `got @ [x]`,
+/// which is quadratic and was repeated in half a dozen places. These are linear and are the only
+/// version.
+module ResultList =
+
+    /// Thread a state through `f` for each item in turn. The first Error stops the walk and is
+    /// returned; later items are not visited.
+    let fold (f: 's -> 'a -> Result<'s, 'e>) (state: 's) (items: 'a list) : Result<'s, 'e> =
+        let rec walk state items =
+            match items with
+            | [] -> Ok state
+            | item :: rest ->
+                match f state item with
+                | Error e -> Error e
+                | Ok state -> walk state rest
+        walk state items
+
+    /// Apply `f` to every item, collecting the results in order.
+    let traverse (f: 'a -> Result<'b, 'e>) (items: 'a list) : Result<'b list, 'e> =
+        fold (fun got item -> f item |> Result.map (fun value -> value :: got)) [] items
+        |> Result.map List.rev
+
+    /// Apply `f` to every item for its effect only.
+    let iter (f: 'a -> Result<unit, 'e>) (items: 'a list) : Result<unit, 'e> =
+        fold (fun () item -> f item) () items
+
+    /// The list of Oks, or the first Error.
+    let sequence (results: Result<'a, 'e> list) : Result<'a list, 'e> = traverse id results
 
 /// Return 2^exponent.
 let pow2 (exponent : int) : int =

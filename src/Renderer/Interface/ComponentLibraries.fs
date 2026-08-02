@@ -220,8 +220,8 @@ let readComponentAndDependencies (libPath: string) (name: string) : Result<Libra
         | false ->
             tryReadComponentFile (componentPath libPath name)
             |> Result.bind (fun (header, body) ->
-                (Ok got, header.Requires)
-                ||> List.fold (fun acc required -> acc |> Result.bind (fun got -> read got required))
+                (got, header.Requires)
+                ||> Helpers.ResultList.fold read
                 |> Result.map (fun got -> got @ [header, body]))
     read [] name
 

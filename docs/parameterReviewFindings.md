@@ -163,3 +163,147 @@ They are now a single match over the two types that really are supported. The
   piece" reads as if it were supported, and should say otherwise until it is.
 - `FastReduce.fs` handles the width-32 `1u <<< 32` hazard consistently in the adders, `NbitsXor`
   multiply, `NbitsNot`, `NbitSpreader` and `Shift`.
+
+---
+
+# Second review: the branch's own code
+
+Recorded 2026-08-02 against `parameter-display-values` at `01e45da91`, reading everything on the
+branch that is not on `master` — 57 files, ~4400 added lines — with three questions: is it correct,
+is it simple, and does it abstract rather than repeat. The first review above looked at code the
+branch inherited; this one looks at what the branch wrote.
+
+Nothing here is a High. The largest single theme is repetition of small idioms rather than any
+structural problem.
+
+## What holds up
+
+- **`ComponentSlots` as the single source of truth** for slot-to-field mapping. This was the fix
+  for findings 2 and 4 above and it did the job: `GraphMerger`, `SymbolUpdate.declaredComponent`
+  and `SheetLayout.applySlotValues` all go through one 50-line match.
+- **`ParameterTypes.bindingsOf`** as the one conversion from declarations to an evaluation
+  environment. Every evaluation site goes through it, so the "descriptions dropped" step cannot be
+  forgotten.
+- **The `.ldgm` shape** — an authored header plus the sheet as opaque text. Listing a library
+  parses no canvas; placing a component writes the text out and uses the ordinary loader. Nothing
+  is derived, so nothing can go stale.
+- **The `SheetDescription` / `SheetLayout` split** by dependency: the description has no draw block
+  and no Fable, so a description can be built anywhere. Neither file has a single `#if`.
+- **`DeclaredSlots` holding slot values rather than a whole component**, with the reasoning for
+  both that and for keeping the computed value inside `Component` written down where the field is.
+
+## Correctness
+
+### 8. A parameter slot the component type has no such field for is accepted and does nothing
+
+`SheetLayout.paramDefsOf` checks that the slot's component exists and that every parameter it uses
+is declared, but not that the slot means anything on that component.
+`ComponentSlots.setSlotValue` ends in `| _ -> compType`, so an inapplicable slot silently returns
+the type unchanged.
+
+Verified: `withSlot "G" Buswidth "W"` where `G` is a `GateN(And, 2)` gives `Ok`, leaves `G` as
+`GateN (And, 2)`, and records the slot in `ParamSlots`. The saved sheet then lists `G / Buswidth /
+W` under "Parametrised Components" in the properties pane, and changing `W` does nothing to `G`.
+
+The module documents the opposite intent — "never a slot quietly left alone" — and errors on an
+expression that will not evaluate, so this is an inconsistency rather than a deliberate choice. The
+UI cannot reach it, because the properties pane only offers slots a component actually has.
+
+Fix: derive `appliesTo : CompSlotName -> ComponentType -> bool` from the same match, or make
+`setSlotValue` return `ComponentType option` and let each caller decide, and have `paramDefsOf`
+reject. `GraphMerger` would then also be able to report rather than silently skip.
+
+### 9. `saveAsLibraryComponent` uses the typed library name as a directory name unchecked
+
+`MiscMenuView.fs:771` joins the user's text onto the libraries directory with no validation beyond
+non-empty (`isDisabled`). A name containing a path separator or `..` writes outside the intended
+directory. Sheet names are validated by `maybeWarning`; library names are not.
+
+### 10. `ComponentSlots` has no `IO`/`BusCompare1` case, and the canvas path does
+
+`ParameterView.updateComponentSlots` falls through to `ChangeWidth` for an `IO` slot on any type it
+does not name, while `setSlotValue` falls through to "unchanged". On a `BusCompare1` those
+disagree: the canvas width would change and the simulation would not. Not reachable through the
+properties pane — `makeLsbBitNumberField` deliberately excludes `BusCompare1`, which is finding 7
+above — but reachable from the DSL and from a hand-edited file. Fixing 8 closes this too.
+
+### 11. Dead branches that look like handled cases
+
+- `CatalogueView.startPlacingLibraryComponent`'s `| Ok [] -> ()`: `materialiseLibraryComponent`
+  already returns `Error` for the empty case, so this is unreachable.
+- `SheetLayout.paramDefsOf`'s `| _ -> Error "unreachable"`: `ParamName` is single-case, so the two
+  patterns above it are exhaustive. `List.tryHead` avoids the branch.
+
+### Still open from the first review
+
+`Set.minElement declarers` (Low, above) now chooses the parameter **description** copied onto
+intermediate sheets as well as the default, so the arbitrary choice has more visible consequences
+than when it was recorded.
+
+## Duplication
+
+### 12. Five hand-rolled "sequence a list of Results"
+
+`SheetLayout.allOk`, the fold in `paramDefsOf`, the fold in `saveLibraryComponent`, the fold in
+`saveProject`, `ComponentLibraries.readComponentAndDependencies` and
+`CatalogueView.materialiseLibraryComponent` all write out the same fold. Every one accumulates with
+`got @ [x]`, which is quadratic. One `traverse : ('a -> Result<'b,'e>) -> 'a list -> Result<'b
+list,'e>` in `Helpers` replaces all of them and fixes the complexity once.
+
+### 13. `SheetLayout.saveSheet` and `sheetBody` are the same function twice
+
+Both call `toCanvasState`, then `paramDefsOf`, then build an identical `SheetInfo`; they differ only
+in calling `saveStateToFile` versus `stateToJsonString`. Extract the shared part and have both use
+it. That also removes the double evaluation of `paramDefsOf`, which is computed once inside
+`toCanvasState` and again by each caller.
+
+### 14. Three copies of "the Custom components named in a canvas"
+
+`ComponentLibraries.customSheetsUsedBy`, the same `List.choose` inline in
+`ComponentLibraries.unusedLibrarySheets`, and `SheetLayout.saveLibraryComponent`'s `requiredBy`.
+The first two operate on the same type and should not both exist.
+
+### 15. `LibraryHeader` construction duplicated
+
+`MiscMenuView.saveAsLibraryComponent` and `SheetLayout.saveLibraryComponent` each build a header
+field by field with the same defaults. A `ComponentLibraries.makeHeader` would keep the two writers
+from drifting, which matters because the format is versioned.
+
+### 16. `GraphMerger.applySlotValue` is a one-line alias
+
+`let applySlotValue compType slot value = ComponentSlots.setSlotValue slot value compType` — a
+rename with a comment attached. Inline it and keep the comment at the call site.
+
+### 17. The set of library sheet names is computed in two places
+
+`WaveSimTop.refreshWaveSim` builds it inline; `WaveSimSelectHelpers` filters for the same predicate
+separately. A `ComponentLibraries.librarySheetNames` would serve both.
+
+## Simplicity
+
+### 18. `SheetLayout.floorplan`'s axis choice
+
+`match depthDiff > verticalDiff, verticalDiff > depthDiff with` is a three-way comparison encoded as
+a pair of booleans whose fourth case cannot occur. `compare depthDiff verticalDiff` says the same
+thing in one line. `depthSpread` on the line above nests `function [] -> 1. | ds -> List.max ds`
+inside a `max`, where `List.fold max 1.` is the whole of it.
+
+### 19. `MiscMenuView.maybeWarning` calls `reservedPrefixOf` twice and uses `.IsSome`/`.Value`
+
+Recorded as Low in the first review; the branch added a second such pair rather than fixing the
+first. A `match` binds the value once and matches the "no nulls, Option throughout" convention.
+
+### 20. `SheetLayout.applySlotValues` rebuilds the component list once per slot
+
+O(slots × components). Grouping the slots by `CompId` first and mapping once is both faster and
+shorter.
+
+## Dead code and stale comments
+
+- **`FilesIO.modifiedTimeMs` has no callers.** It was written for the library-index scheme that was
+  then dropped in favour of lazy reading. Delete it.
+- **Three comments refer to `Tools/LibraryIndex`**, which does not exist: `FilesIO.fs:58`,
+  `FilesIO.fs:100`, `JSHelpers.fs:64`. They should say "the tests".
+- **Two entries under "Checked and fine" above are now out of date**: multi-sheet library
+  components *are* supported (`readComponentAndDependencies` plus `Requires`), and
+  `materialiseLibrarySheet` no longer exists.

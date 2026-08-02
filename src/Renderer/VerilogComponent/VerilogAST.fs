@@ -698,6 +698,12 @@ let getPrimaryRange (p: PrimaryDU) paramMap =
             Some (idxVal, idxVal)
         with
         | _ -> None
+    | VariableArrayBitSel (_, _, idx) ->
+        try
+            let idxVal = evalExprWithParams idx paramMap
+            Some (idxVal, idxVal)
+        with
+        | _ -> None
     | IdentifierBit (_, idx) ->
         Some (idx, idx)
     | IdentifierBits (_, start, end_) ->
@@ -709,6 +715,9 @@ let getPrimaryRange (p: PrimaryDU) paramMap =
             | PlusWidth -> bStart + width - 1
             | MinusWidth -> bStart - width + 1
         Some (bStart, bEnd)
+    | ParamNumber (p, width) ->
+        let pVal = evalExprWithParams (ExpressionDU.Unary p) paramMap
+        Some (pVal, pVal + width - 1)
 
 let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:StatementDU) : StatementDU =
     let rec substLoopExpr (loopVarName:string) (value:int) (width:int) (expr:ExpressionDU) : ExpressionDU =

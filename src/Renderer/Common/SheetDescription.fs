@@ -17,6 +17,7 @@ module SheetDescription
 *)
 
 open CommonTypes
+open ParameterTypes
 
 /// One port of one component, written "COMP/PORT".
 ///
@@ -45,11 +46,31 @@ type CompSpec = {
     Label: string option
 }
 
+/// A parameter the sheet declares: a name, the value it takes when nothing binds it, and what it
+/// means. The description is compulsory here as it is everywhere else - it is what an instance of
+/// this sheet shows the user when asking them for a value.
+type ParamSpec = {
+    Name: string
+    Default: int
+    Description: string
+}
+
+/// One integer of one component driven by a parameter expression. The expression is written as
+/// text and read by the same parser the properties pane uses, so "W", "W*2" and "W-1" all mean
+/// here exactly what they mean when typed into a properties box.
+type SlotSpec = {
+    Comp: string
+    Slot: CompSlotName
+    Expression: string
+}
+
 /// A whole sheet, before it has any geometry.
 type SheetDescription = {
     Name: string
     Comps: CompSpec list
     Conns: ConnSpec list
+    Params: ParamSpec list
+    Slots: SlotSpec list
 }
 
 /// Read "COMP/PORT", or "COMP" for the only port in whichever direction it is used.
@@ -74,7 +95,19 @@ let connect (fromPort: string) (toPort: string) : ConnSpec =
 /// The order components are given in fixes the order of the sheet's own inputs and outputs, so
 /// declare Input and Output components in the order the sheet's ports should appear.
 let describeSheet (name: string) (comps: CompSpec list) (conns: ConnSpec list) : SheetDescription =
-    { Name = name; Comps = comps; Conns = conns }
+    { Name = name; Comps = comps; Conns = conns; Params = []; Slots = [] }
+
+/// Declare a parameter on the sheet. Pipeline style:
+///     describeSheet "adder" comps conns
+///     |> withParam "W" 4 "width of the data bus in bits"
+///     |> withSlot "ADD" Buswidth "W"
+let withParam (name: string) (defaultValue: int) (description: string) (sheet: SheetDescription) =
+    { sheet with Params = sheet.Params @ [ { Name = name; Default = defaultValue; Description = description } ] }
+
+/// Drive one integer of one component from a parameter expression, written as it would be typed
+/// into the properties pane.
+let withSlot (compName: string) (slot: CompSlotName) (expression: string) (sheet: SheetDescription) =
+    { sheet with Slots = sheet.Slots @ [ { Comp = compName; Slot = slot; Expression = expression } ] }
 
 /// NOT opened by `open SheetDescription` - it has to be asked for.
 ///

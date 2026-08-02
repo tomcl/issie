@@ -5,6 +5,7 @@ module SheetDescriptionTests
 
 open Expecto
 open CommonTypes
+open ParameterTypes
 open SimGraphTypes
 open SimTypes
 open SheetDescription
@@ -210,6 +211,79 @@ let tests =
                     Expect.isTrue
                         (comps |> List.forall (fun c -> c.X > 0. && c.Y > 0.))
                         "every component kept a real position"
+            finally
+                try System.IO.Directory.Delete(folder, true) with _ -> ()
+        }
+
+        test "a sheet parameter drives a slot, and the resolved value reaches the canvas" {
+            let sheet =
+                describeSheet "param" [
+                    comp "A" (Input1(1, None))
+                    comp "V" (Viewer 1)
+                ] [ "A" ==> "V" ]
+                |> withParam "W" 8 "width of the data bus in bits"
+                |> withSlot "V" Buswidth "W"
+                |> withSlot "A" (IO "A") "W-4"
+            let comps, _ = SheetLayout.toCanvasState sheet |> expectOk
+            let typeOf name =
+                comps |> List.find (fun c -> c.Id = SheetLayout.componentId "param" name) |> fun c -> c.Type
+            // the canvas carries the RESOLVED value, with the expression kept beside it
+            Expect.equal (typeOf "V") (Viewer 8) "Buswidth slot resolved to the parameter default"
+            Expect.equal (typeOf "A") (Input1(4, None)) "W-4 evaluated by the properties-pane parser"
+            match SheetLayout.paramDefsOf sheet |> expectOk with
+            | None -> failtest "expected parameter definitions"
+            | Some defs ->
+                Expect.equal (Map.count defs.DefaultBindings) 1 "one declaration"
+                Expect.equal (Map.count defs.ParamSlots) 2 "two slots"
+                Expect.equal
+                    (defs.DefaultBindings[ParamName "W"].Description)
+                    "width of the data bus in bits"
+                    "the description is kept"
+        }
+
+        test "bad parameter usage is refused with a useful message" {
+            let undeclared =
+                describeSheet "p1" [ comp "V" (Viewer 1) ] [] |> withSlot "V" Buswidth "W"
+            Expect.stringContains (SheetLayout.toCanvasState undeclared |> expectError) "does not declare"
+                "a slot using an undeclared parameter is refused"
+            let unparseable =
+                describeSheet "p2" [ comp "V" (Viewer 1) ] []
+                |> withParam "W" 4 "width"
+                |> withSlot "V" Buswidth "W +* 2"
+            Expect.stringContains (SheetLayout.toCanvasState unparseable |> expectError) "W +* 2"
+                "an expression that will not parse is refused, quoting it"
+            let missingComp =
+                describeSheet "p3" [ comp "V" (Viewer 1) ] []
+                |> withParam "W" 4 "width"
+                |> withSlot "GHOST" Buswidth "W"
+            Expect.stringContains (SheetLayout.toCanvasState missingComp |> expectError) "GHOST"
+                "a slot on a component that is not there is refused"
+        }
+
+        test "an .ldgm library is written and read back, with no Issie running" {
+            // the whole point of the DSL being plain .NET: a library can be built by a program
+            let halfAdd =
+                describeSheet "halfAdd" [
+                    comp "A" (Input1(1, None)); comp "B" (Input1(1, None))
+                    comp "X" (GateN(Xor, 2)); comp "N" (GateN(And, 2))
+                    comp "SUM" (Output 1); comp "CARRY" (Output 1)
+                ] [ "A" ==> "X/0"; "B" ==> "X/1"; "A" ==> "N/0"; "B" ==> "N/1"
+                    "X/0" ==> "SUM"; "N/0" ==> "CARRY" ]
+            let folder =
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"issie-lib-{System.Guid.NewGuid()}")
+            try
+                SheetLayout.saveLibraryComponent folder "one-bit half adder" [] halfAdd |> expectOk
+                let path = System.IO.Path.Combine(folder, "halfAdd.ldgm")
+                Expect.isTrue (System.IO.File.Exists path) "the .ldgm was written"
+                match ComponentLibraries.tryReadComponentFile path with
+                | Error e -> failtest $"the generated .ldgm would not read: {e}"
+                | Ok (header, body) ->
+                    Expect.equal header.Name "halfAdd" "name"
+                    Expect.equal header.Description "one-bit half adder" "description"
+                    Expect.isTrue header.OfferedInCatalogue "offered in the catalogue"
+                    Expect.isEmpty header.Requires "no dependencies"
+                    Expect.stringContains body "NewCanvasWithFileWaveSheetInfoAndNewConns"
+                        "the body is the text of a .dgm"
             finally
                 try System.IO.Directory.Delete(folder, true) with _ -> ()
         }

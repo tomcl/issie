@@ -27,6 +27,8 @@ open Optics
 
 type BreadcrumbConfig = {
     AllowDuplicateSheets: bool
+    /// whether sheets that came from a component library appear in the hierarchy
+    ShowLibrarySheets: bool
     BreadcrumbIdPrefix: string
     BreadcrumbText: (SheetTree -> string) option
     ColorFun: SheetTree -> IColor
@@ -49,6 +51,7 @@ module Constants =
 
     let defaultConfig: BreadcrumbConfig = {
         AllowDuplicateSheets = false
+        ShowLibrarySheets = false
         BreadcrumbIdPrefix = "BreadcrumbDefault"
         BreadcrumbText = None
         ColorFun = fun _ -> IColor.IsGreyDark
@@ -217,7 +220,7 @@ let hierarchyBreadcrumbs
         (model: Model) =
     mapOverProject (div [] []) model (fun p ->
         let root = Option.defaultValue p.OpenFileName model.WaveSimSheet
-        let sheetTreeMap = getSheetTrees cfg.AllowDuplicateSheets p
+        let sheetTreeMap = getSheetTreesFiltered cfg.ShowLibrarySheets cfg.AllowDuplicateSheets p
         makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch)
 
 
@@ -232,7 +235,7 @@ let hierarchyFromSheetBreadcrumbs
         (dispatch: Msg -> unit)
         (model: Model) =
     mapOverProject (div [] []) model (fun p ->
-        let sheetTreeMap = getSheetTrees cfg.AllowDuplicateSheets p
+        let sheetTreeMap = getSheetTreesFiltered cfg.ShowLibrarySheets cfg.AllowDuplicateSheets p
         makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid rootSheet) dispatch)
 
 /// Breadcrumbs of entire design hierarchy of every root sheet in project
@@ -244,7 +247,7 @@ let allRootHierarchiesFromProjectBreadcrumbs
         (dispatch: Msg -> unit)
         (model: Model) =
     mapOverProject ([div [] []]) model (fun p ->
-        let sheetTreeMap = getSheetTrees cfg.AllowDuplicateSheets p
+        let sheetTreeMap = getSheetTreesFiltered cfg.ShowLibrarySheets cfg.AllowDuplicateSheets p
         allRootSheets sheetTreeMap
         |> Set.toList
         |> List.map (fun root ->
@@ -282,7 +285,7 @@ let smallSimulationBreadcrumbs
         (model: Model)
              : ReactElement =
     mapOverProject (div [] []) model (fun p ->       
-        makeBreadcrumbsFromPositions (getSheetTrees cfg.AllowDuplicateSheets p) cfg (positionRootAndFocusChildrenInGrid rootName pathToFocus) dispatch)
+        makeBreadcrumbsFromPositions (getSheetTreesFiltered cfg.ShowLibrarySheets cfg.AllowDuplicateSheets p) cfg (positionRootAndFocusChildrenInGrid rootName pathToFocus) dispatch)
 
 //--------------------------------------------------------------------------------------------//
 //--------------------------------------------------------------------------------------------//

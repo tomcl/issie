@@ -129,7 +129,7 @@ let private materialiseLibraryComponent
         (libName: string)
         (files: ComponentLibraries.LibraryFile list)
         (project: Project)
-        : Result<LoadedComponent, string> =
+        : Result<LoadedComponent list, string> =
     let index = ComponentLibraries.libraryIndexFor project.LoadedComponents libName
     let inLibrary = files |> List.map (fun (header, _) -> header.Name) |> Set.ofList
     let renameDependencies (ldc: LoadedComponent) =
@@ -165,14 +165,15 @@ let private materialiseLibraryComponent
                     writeComponentToFile ldc |> ignore
                     Ok ldc
 
+    // every sheet, dependencies first, with the component to instantiate last
     (Ok [], files)
     ||> List.fold (fun acc file ->
         acc |> Result.bind (fun got ->
             materialiseOne (project.LoadedComponents @ got) file |> Result.map (fun ldc -> got @ [ldc])))
     |> Result.bind (fun ldcs ->
-        match List.tryLast ldcs with
-        | Some ldc -> Ok ldc
-        | None -> Error $"Library {libName} has no component to place")
+        match ldcs with
+        | [] -> Error $"Library {libName} has no component to place"
+        | _ -> Ok ldcs)
 
 /// Place an instance of a library component, adding its sheet - and any it needs - to the project
 /// first. The .ldgm files are read here, when the user asks for the component, not when the
@@ -190,19 +191,27 @@ let private startPlacingLibraryComponent
             |> Result.bind (fun files -> materialiseLibraryComponent library.Name files project)
         match placed with
         | Error msg -> dispatch <| SetFilesNotification (Notifications.errorFilesNotification msg)
-        | Ok ldc ->
-            // the project gains sheets, so the model must know about them before the instance that
-            // refers to one is created
+        | Ok [] -> ()
+        | Ok ldcs ->
+            // EVERY new sheet must reach the model, not just the one being instantiated: a
+            // multi-sheet component's dependencies were written to disk but left out of
+            // LoadedComponents, so simulating before the project was reloaded failed with
+            // DependencyNotFound on a sheet that was sitting right there in the directory.
             dispatch <| UpdateModel (fun m ->
                 match m.CurrentProj with
                 | None -> m
                 | Some p ->
-                    let known = p.LoadedComponents |> List.map (fun c -> c.Name) |> Set.ofList
-                    match Set.contains ldc.Name known with
-                    | true -> m
-                    | false -> {m with CurrentProj = Some {p with LoadedComponents = p.LoadedComponents @ [ldc]}})
+                    let added =
+                        (p.LoadedComponents, ldcs)
+                        ||> List.fold (fun known ldc ->
+                            match known |> List.exists (fun c -> c.Name = ldc.Name) with
+                            | true -> known
+                            | false -> known @ [ldc])
+                    {m with CurrentProj = Some {p with LoadedComponents = added}})
+            // the component itself is last; the sheets before it are what it needs
+            let toPlace = List.last ldcs
             dispatch <| ExecFuncInMessage ((fun model' dispatch' ->
-                startPlacingCustomComponent ldc model' dispatch'), dispatch)
+                startPlacingCustomComponent toPlace model' dispatch'), dispatch)
 
 let private makeCustomList styles model dispatch =
     match model.CurrentProj with

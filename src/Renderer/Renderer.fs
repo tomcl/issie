@@ -200,6 +200,9 @@ let fileMenu (dispatch) =
                     printfn $"Used Heap:%.2f{usedHeapSize}MB; Max Heap:%.2f{maxHeapSize}MB; Usage:%.2f{heapUsage}%%\n")
             makeDebugItem "Initialise" None
                 (fun _ -> dispatch <| ExecFuncInMessage(softInitialise, dispatch))
+            // for writing libraries: normally a component's sheets are not the user's business
+            makeDebugItem "Toggle Showing Library Sheets" None
+                (fun _ -> dispatch <| UpdateModel (fun m -> {m with ShowLibrarySheets = not m.ShowLibrarySheets}))
             makeDebugItem "Screen Reset" None
                 (fun _ ->
                     let usedHeapSize = () |> usedHeap |> float |> (fun v -> v / 1000000.)

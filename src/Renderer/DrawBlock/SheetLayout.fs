@@ -26,6 +26,7 @@ module SheetLayout
 *)
 
 open CommonTypes
+open ParameterTypes
 open SheetDescription
 
 module Constants =
@@ -461,6 +462,68 @@ let private allOk (results: Result<'a, string> list) : Result<'a list, string> =
         | _, Error e -> Error e
         | Ok got, Ok value -> Ok (got @ [ value ]))
 
+/// The sheet's parameter declarations and slots, as Issie stores them.
+///
+/// Slot expressions go through ParameterTypes.parseExpression - the same parser the properties
+/// pane uses - so an expression means here exactly what it would mean typed into a properties box.
+/// A slot naming a component that is not on the sheet, or an expression that will not parse, is an
+/// error rather than something silently dropped.
+let paramDefsOf (sheet: SheetDescription) : Result<ParameterDefs option, string> =
+    let known = sheet.Comps |> List.map (fun c -> c.Name) |> Set.ofList
+    let declarations =
+        sheet.Params
+        |> List.map (fun p ->
+            ParamName p.Name, { Expression = PInt p.Default; Description = p.Description })
+        |> Map.ofList
+    let slot (spec: SlotSpec) : Result<ParamSlot * ConstrainedExpr, string> =
+        match Set.contains spec.Comp known with
+        | false -> Error $"slot on {spec.Comp}, which is not a component of {sheet.Name}"
+        | true ->
+            ParameterTypes.parseExpression spec.Expression
+            |> Result.mapError (fun e -> $"slot expression '{spec.Expression}' on {spec.Comp}: {e}")
+            |> Result.bind (fun expr ->
+                match ParameterTypes.paramNamesOfExpr expr
+                      |> List.filter (fun n -> not (Map.containsKey n declarations)) with
+                | [] ->
+                    Ok ({ CompId = componentId sheet.Name spec.Comp; CompSlot = spec.Slot },
+                        { Expression = expr; Constraints = [] })
+                | (ParamName missing) :: _ ->
+                    // every parameter used on a sheet must be declared on it
+                    Error $"slot expression '{spec.Expression}' on {spec.Comp} uses '{missing}', which {sheet.Name} does not declare"
+                | _ -> Error "unreachable")
+    match sheet.Params, sheet.Slots with
+    | [], [] -> Ok None
+    | _ ->
+        (Ok [], sheet.Slots)
+        ||> List.fold (fun acc spec -> acc |> Result.bind (fun got -> slot spec |> Result.map (fun s -> got @ [s])))
+        |> Result.map (fun slots ->
+            Some { DefaultBindings = declarations; ParamSlots = Map.ofList slots })
+
+/// Put each parameterised slot's value into the component, as Issie does: the canvas holds the
+/// resolved integer and the slot expression is kept beside it. Without this a sheet would be saved
+/// with a slot saying W while the component still showed its unparameterised width.
+///
+/// An expression that cannot be evaluated is an error rather than a slot left alone: the sheet
+/// would otherwise be written with a component showing one width and a slot claiming another, and
+/// the disagreement would only surface when someone opened it.
+let private applySlotValues (defs: ParameterDefs option) (comps: Component list) : Result<Component list, string> =
+    match defs with
+    | None -> Ok comps
+    | Some defs ->
+        let bindings = bindingsOf defs.DefaultBindings
+        (Ok comps, defs.ParamSlots |> Map.toList)
+        ||> List.fold (fun acc (slot, exprSpec) ->
+            acc
+            |> Result.bind (fun comps ->
+                ParameterTypes.evaluateParamExpression bindings exprSpec.Expression
+                |> Result.mapError (fun e -> $"slot on {slot.CompId}: {e}")
+                |> Result.map (fun value ->
+                    comps
+                    |> List.map (fun comp ->
+                        match comp.Id = slot.CompId with
+                        | false -> comp
+                        | true -> { comp with Type = ComponentSlots.setSlotValue slot.CompSlot value comp.Type }))))
+
 /// The description as a laid-out canvas: real positions, no wire geometry.
 let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =
     let duplicates =
@@ -486,7 +549,10 @@ let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =
                 | Ok source, Ok target -> Ok (buildConnection i source target)
                 | Error e, _ | _, Error e -> Error e)
             |> allOk
-            |> Result.map (fun conns -> layout comps conns, conns))
+            |> Result.bind (fun conns ->
+                paramDefsOf sheet
+                |> Result.bind (fun defs -> applySlotValues defs comps)
+                |> Result.map (fun comps -> layout comps conns, conns)))
 
 /// Write the description out as a .dgm in `folder`, named after the sheet.
 /// A .dgm on its own is a sheet, not a project - use saveProject to make a directory Issie can
@@ -494,9 +560,54 @@ let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =
 let saveSheet (folder: string) (sheet: SheetDescription) : Result<unit, string> =
     toCanvasState sheet
     |> Result.bind (fun canvas ->
-        let sheetInfo: SheetInfo =
-            { Form = Some User; Description = None; ParameterDefinitions = None; IsTopSheet = Some false }
-        FilesIO.saveStateToFile folder sheet.Name (canvas, None, Some sheetInfo))
+        paramDefsOf sheet
+        |> Result.bind (fun defs ->
+            let sheetInfo: SheetInfo =
+                { Form = Some User; Description = None; ParameterDefinitions = defs; IsTopSheet = Some false }
+            FilesIO.saveStateToFile folder sheet.Name (canvas, None, Some sheetInfo)))
+
+/// The text a sheet would be saved as: exactly the body an .ldgm carries.
+let private sheetBody (sheet: SheetDescription) : Result<string, string> =
+    toCanvasState sheet
+    |> Result.bind (fun canvas ->
+        paramDefsOf sheet
+        |> Result.bind (fun defs ->
+            let sheetInfo: SheetInfo =
+                { Form = Some User; Description = None; ParameterDefinitions = defs; IsTopSheet = Some false }
+            Helpers.JsonHelpers.stateToJsonString (canvas, None, Some sheetInfo)))
+
+/// Write `sheet` into the library at `libPath` as a component offered in the catalogue, along with
+/// the sheets it uses, which are written too but not offered.
+///
+/// This runs under .NET as well as in the app: a library can be built by a program without Issie
+/// ever starting.
+let saveLibraryComponent
+        (libPath: string)
+        (description: string)
+        (dependencies: SheetDescription list)
+        (sheet: SheetDescription)
+        : Result<unit, string> =
+    let requiredBy (s: SheetDescription) =
+        s.Comps
+        |> List.choose (fun c -> match c.Type with | Custom cc -> Some cc.Name | _ -> None)
+        |> List.distinct
+    let write offered (s: SheetDescription) =
+        sheetBody s
+        |> Result.bind (fun body ->
+            let header: ComponentLibraries.LibraryHeader = {
+                FormatVersion = ComponentLibraries.Constants.currentFormatVersion
+                Name = s.Name
+                Description = if offered then description else s.Name
+                Section = ComponentLibraries.Constants.defaultSection
+                OfferedInCatalogue = offered
+                Requires = requiredBy s
+            }
+            ComponentLibraries.writeComponentFile libPath header body)
+    FilesIO.tryEnsureDirectory libPath
+    |> Result.bind (fun libPath ->
+        (Ok (), dependencies)
+        ||> List.fold (fun acc dep -> acc |> Result.bind (fun () -> write false dep))
+        |> Result.bind (fun () -> write true sheet))
 
 /// Write a whole project: every sheet, plus the empty .dprj marker that makes the directory a
 /// project rather than a directory that happens to contain sheets. Issie will not offer a

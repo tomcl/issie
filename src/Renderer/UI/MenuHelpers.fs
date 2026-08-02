@@ -338,12 +338,21 @@ let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> M
     
 
 /// Get the subsheet tree for all sheets in the current project.
-/// Returns a map from sheet name to tree of SheetTree nodes
-let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
-    let ldcMap = 
+/// Returns a map from sheet name to tree of SheetTree nodes.
+/// showLibrarySheets: when false, sheets that came from a component library are left out, and so
+/// are the instances that would put them in someone else's tree - a library component is one
+/// thing, not a sheet with innards. It has to be decided here rather than by filtering the project
+/// first: the tree is built by walking each sheet's canvas, so a sheet removed from
+/// LoadedComponents still leaves its instance making a node, with nothing in it.
+let getSheetTreesFiltered (showLibrarySheets: bool) (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
+    let ldcMap =
         p.LoadedComponents
         |> List.map (fun ldc -> ldc.Name,ldc)
         |> Map.ofList
+
+    let hidden (sheet: string) =
+        not showLibrarySheets
+        && (Map.tryFind sheet ldcMap |> Option.map ComponentLibraries.isLibrarySheet |> Option.defaultValue false)
 
     let rec subSheets (path: string list) (sheet: string) (labelPath: string list) (sheetPath: ComponentId list): SheetTree=
         let ldc = Map.tryFind sheet ldcMap
@@ -363,7 +372,7 @@ let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
             comps
             |> List.collect (fun comp -> 
                     match comp.Type with 
-                    | Custom ct when not <| List.contains ct.Name path -> 
+                    | Custom ct when not (List.contains ct.Name path) && not (hidden ct.Name) ->
                         [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [ComponentId comp.Id])] 
                     | _ -> 
                         [])
@@ -384,8 +393,13 @@ let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
         |> makeBreadcrumbNamesUnique
 
     p.LoadedComponents
+    |> List.filter (fun ldc -> not (hidden ldc.Name))
     |> List.map (fun ldc ->ldc.Name, subSheets [] ldc.Name [] [])
     |> Map.ofList
+
+/// Get the subsheet tree for all sheets in the current project, library sheets included.
+let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
+    getSheetTreesFiltered true allowAllInstances p
 
 
 

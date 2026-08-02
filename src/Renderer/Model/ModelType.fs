@@ -773,6 +773,13 @@ type Model = {
     /// The library the catalogue is showing instead of its own contents, if any, with the
     /// component headers read when it was opened.
     OpenLibrary : ComponentLibraries.OpenedLibrary option
+    /// Whether the sheets of placed library components appear in the Sheets menu. False at
+    /// startup and not settable from the ordinary UI: a library component is meant to be one
+    /// thing, and seeing its innards listed beside the user's own sheets is confusing rather
+    /// than informative. It is worth having for anyone writing a library, who does need to see
+    /// what a component brought with it. The waveform simulator ignores this: library sheets
+    /// are never offered there.
+    ShowLibrarySheets : bool
     /// the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
     /// function to create popup pane if present
@@ -828,6 +835,7 @@ let savedSheetIsOutOfDate_ = Lens.create (fun a -> a.SavedSheetIsOutOfDate) (fun
 let pendingDragAddition_ = Lens.create (fun a -> a.PendingDragAddition) (fun s a -> {a with PendingDragAddition = s})
 let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (fun s a -> {a with TopSheetChoiceDeclined = s})
 let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
+let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_

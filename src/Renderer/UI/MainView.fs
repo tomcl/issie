@@ -93,6 +93,7 @@ let init() = {
     TopSheetChoiceDeclined = Set.empty
     ComponentLibraries = ComponentLibraries.findLibraries ()
     OpenLibrary = None
+    ShowLibrarySheets = false
     PopupViewFunc = None
     PopupDialogData = {
         DialogState= None

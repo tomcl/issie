@@ -26,6 +26,11 @@ screenshot, or arbitrary JavaScript evaluated in the renderer (which can click t
 it instead of guessing when the drawing and the model might disagree.
 See [docs/dev/inspectingTheCanvas.md](docs/dev/inspectingTheCanvas.md).
 
+**You can make sheets from a program.** A list of components and logical connections, written as
+data, becomes a laid-out `.dgm`, project or `.ldgm` library component — from plain .NET, with
+nothing running. Use it for test schematics rather than building canvases by hand.
+See [docs/dev/sheetDescriptionDsl.md](docs/dev/sheetDescriptionDsl.md).
+
 `npm run test` runs the Expecto suite under `Tests/Issie.Tests` (`dotnet run`, not `dotnet test`).
 It works and is fast — around 100 tests in 16s — and it reaches the whole of `Renderer.fsproj`, so
 simulation, parameter resolution and even UI-module helpers can all be tested. Use it: a fix to

@@ -108,7 +108,16 @@ let tryReadComponentFile (path: string) : Result<LibraryFile, string> =
     match tryReadFileSync path with
     | Error msg -> Error msg
     | Ok contents ->
-        match Json.tryParseNativeAs<LibraryFile> contents with
+        #if FABLE_COMPILER
+        let parsed = Json.tryParseNativeAs<LibraryFile> contents
+        #else
+        // Thoth on the .NET side, as for writing. An .ldgm holds no discriminated unions - a
+        // record, a string, and a list of strings - which is the one case where the two libraries
+        // agree, so a file written by either can be read by either.
+        let parsed =
+            Thoth.Json.Net.Decode.Auto.fromString<LibraryFile> contents
+        #endif
+        match parsed with
         | Error msg -> Error $"{baseName path} is not a readable library component ({msg})"
         | Ok (header, body) ->
             match header.FormatVersion > Constants.currentFormatVersion with
@@ -123,8 +132,18 @@ let tryReadHeader (path: string) : Result<LibraryHeader, string> =
 /// Write a component file. Used by "save as library component". `body` must be the text of a .dgm
 /// exactly as the sheet was saved, since that is what is written back out when it is used.
 let writeComponentFile (libPath: string) (header: LibraryHeader) (body: string) : Result<unit, string> =
-    Json.stringify ((header, body): LibraryFile)
-    |> writeFile (componentPath libPath header.Name)
+    let file: LibraryFile = header, body
+    #if FABLE_COMPILER
+    let json = Json.stringify file
+    #else
+    // SimpleJson does not run on .NET - its converter is JS all the way down - so the .NET side
+    // writes with Thoth, as the .dgm path does. The two disagree about unions, but not about
+    // anything in an .ldgm: a tuple is an array and a record is an object in both. Fable reads
+    // what .NET writes because SimpleJson's reader takes either union encoding; the reverse does
+    // not hold, which is why tryReadComponentFile is still Fable only.
+    let json = Thoth.Json.Net.Encode.Auto.toString (0, file)
+    #endif
+    writeFile (componentPath libPath header.Name) json
 
 //------------------------------------------------------------------------------------------------//
 //--------------------------------------- Finding them -------------------------------------------//

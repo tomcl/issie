@@ -1167,8 +1167,18 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
         |> dispatch
         dispatch FinishUICmd
     | Some {Form=Some (ProtectedTopLevel | ProtectedSubSheet)} when debugLevel = 0 ->
-        SetFilesNotification <| errorFilesNotification 
+        SetFilesNotification <| errorFilesNotification
             $"Warning: The sheet '{name}' is protected and cannot be opened."
+        |> dispatch
+        dispatch FinishUICmd
+    // A library sheet is kept out of sight everywhere else - the Sheets menu, the design
+    // hierarchy, the waveform simulator - but the custom component context menu offers "Go to
+    // sheet" for any instance, which reached one anyway. The guard belongs here rather than at
+    // that one caller: this is the single funnel every way of opening a sheet passes through.
+    // The developer toggle still lets it through, as it does everywhere else.
+    | Some lc when ComponentLibraries.isLibrarySheet lc && not model.ShowLibrarySheets ->
+        SetFilesNotification <| errorFilesNotification
+            $"'{name}' is part of a component library, so it cannot be opened."
         |> dispatch
         dispatch FinishUICmd
     | Some lc ->

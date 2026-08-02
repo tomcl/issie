@@ -925,7 +925,17 @@ let sheetMsg sMsg model =
                 | _ -> Cmd.none
             model' |> set pendingDragAddition_ None, pasteCmd
         | _ -> model', Cmd.none
-    model'', Cmd.batch [sCmd; placementCmd]
+    // A parameter box keys its error text by slot name alone, not by the component the slot
+    // belongs to, so an error left behind by one component is shown against the same slot of the
+    // next one selected - two Registers share Buswidth, two instances of a sheet share each of its
+    // CustomCompParam slots. Selection belongs to the draw block and changes here, which is the
+    // only place that knows it happened; the pane itself cannot clear it without dispatching from
+    // a render.
+    let model''' =
+        match model.Sheet.SelectedComponents = model''.Sheet.SelectedComponents with
+        | true -> model''
+        | false -> model'' |> set (popupDialogData_ >-> paramCompSpec_) None
+    model''', Cmd.batch [sCmd; placementCmd]
 
 let executePendingMessagesF n model =
     if n = (List.length model.Pending)

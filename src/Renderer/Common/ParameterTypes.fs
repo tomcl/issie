@@ -183,7 +183,21 @@ let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpr
         | PParameter name ->
             match Map.tryFind name paramBindings with
             | Some boundExpr -> eval (name :: beingEvaluated) boundExpr
-            | None -> Error $"Parameter '{unwrapParamName name}' is not defined"
+            // A name that is not in scope is nearly always one of two mistakes, and they need
+            // different advice: reaching for a parameter that exists under another name, or not
+            // knowing that a value has to be declared as a parameter before it can be used. Saying
+            // only that the name is undefined helps with neither, so say which names there are -
+            // or, where there are none, what to do instead.
+            | None when Map.isEmpty paramBindings ->
+                Error "This value must be numeric: to use a parameter this must first be added to the sheet"
+            | None ->
+                let inScope =
+                    paramBindings
+                    |> Map.toList
+                    |> List.map (fst >> unwrapParamName)
+                    |> List.sort
+                    |> String.concat ", "
+                Error $"Parameter '{unwrapParamName name}' is not defined. Parameters of this sheet: {inScope}"
         | PAdd (left, right) -> binary (fun l r -> Ok (l + r)) left right
         | PSubtract (left, right) -> binary (fun l r -> Ok (l - r)) left right
         | PMultiply (left, right) -> binary (fun l r -> Ok (l * r)) left right

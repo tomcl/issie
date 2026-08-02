@@ -394,11 +394,16 @@ let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
 /// Calculate the necessary with of the naes column based on the longest name.
 let calcNamesColWidth (ws:WaveSimModel) : int =
     let cWidth =
-        // technical debt - could be replaced by proper call now?
-        DrawHelpers.canvasWidthContext.font <- String.concat " " ["10px"; Constants.columnFontFamily]; // e.g. "16px bold sans-serif";
+        // Measured at 10px and scaled, rather than at the configured size directly, so the column
+        // width stays proportional to the font size the user picked. defaultText's weight is
+        // "normal", which is what this shorthand meant when it left the weight out.
+        let refFont =
+            { DrawHelpers.defaultText with
+                FontSize = "10px"
+                FontFamily = Constants.columnFontFamily }
         let getWidth (txt:string) =
-            let sizeInPx = float (ws.WSConfig.FontSize)   
-            sizeInPx * DrawHelpers.canvasWidthContext.measureText(txt).width / 10.0
+            let sizeInPx = float (ws.WSConfig.FontSize)
+            sizeInPx * DrawHelpers.getTextWidthInPixels refFont txt / 10.0
         ws.SelectedWaves
         |> listCollectSomes (
             fun wi -> 

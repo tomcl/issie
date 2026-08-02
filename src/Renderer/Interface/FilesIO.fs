@@ -55,8 +55,8 @@ let staticDir() =
 /// assets.
 /// This is a module-level binding, so it is evaluated the first time anything in this file is
 /// touched. staticDir() is an Electron notion and would throw on .NET, taking the whole of FilesIO
-/// with it, so code that runs on .NET - the tests, and Tools/LibraryIndex - gets an empty path and
-/// must be given the directory it works on explicitly.
+/// with it, so code that runs on .NET - the tests - gets an empty path and must be given the
+/// directory it works on explicitly.
 let staticFileDirectory =
     #if FABLE_COMPILER
     staticDir()
@@ -97,7 +97,7 @@ let exists (filePath: string) =
     fs.existsSync (U2.Case1 filePath)
     #else
     // a directory exists too: File.Exists alone is false for one, which made every directory
-    // read fail when this code is hosted on .NET (the tests, Tools/LibraryIndex)
+    // read fail when this code is hosted on .NET (the tests)
     File.Exists filePath || Directory.Exists filePath
     #endif
 
@@ -177,8 +177,8 @@ let tryEnsureDirectory (dPath: string) : Result<string, string> =
 
 /// The per-user, writable Issie directory.
 ///
-/// Anything Issie writes for the user - demo working copies, imported component libraries, the
-/// indexes it generates - belongs here and NOT beside the installation. On macOS the app bundle
+/// Anything Issie writes for the user - demo working copies, component libraries the user makes or
+/// imports - belongs here and NOT beside the installation. On macOS the app bundle
 /// is signed and notarised, so writing inside it invalidates the signature and Gatekeeper can
 /// then refuse to launch it. On Windows the installation is usually under Program Files, which
 /// needs administrator rights to write. Both fail only for installed users, never in a
@@ -196,9 +196,8 @@ let private tryUserSubdirectory (name: string) : Result<string, string> =
 /// Where a demo project is copied so that the user can edit it.
 let tryUserDemosDirectory () : Result<string, string> = tryUserSubdirectory "demos"
 
-/// Where libraries the user adds live, along with the indexes generated for them. The libraries
-/// shipped with Issie are NOT copied here: they stay read-only under the installation with the
-/// indexes generated for them at build time.
+/// Where libraries the user makes or imports live. The libraries shipped with Issie are NOT copied
+/// here: they stay read-only under the installation, and are found there directly.
 let tryUserLibrariesDirectory () : Result<string, string> = tryUserSubdirectory "libraries"
 
 let pathWithoutExtension filePath =

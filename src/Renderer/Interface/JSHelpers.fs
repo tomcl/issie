@@ -61,7 +61,7 @@ let jsType (var: obj) : unit = jsNative
 [<Emit("console.log($0)")>]
 let log msg : unit = jsNative
 #else
-/// Shared code is also hosted on .NET (the tests, Tools/LibraryIndex), where a Fable binding
+/// Shared code is also hosted on .NET (the tests), where a Fable binding
 /// throws. Logging must never be the thing that brings a build tool down.
 let log msg : unit = printfn "%A" msg
 #endif

@@ -550,7 +550,7 @@ type Msg =
     | CheckTopSheetChoice
     /// Draw the open sheet at the values its parameters take under the current top sheet, rather
     /// than at its declared defaults. Sent when a sheet is opened and when the top sheet changes.
-    /// What is saved is unaffected - see SymbolT.Symbol.SavedComponent.
+    /// What is saved is unaffected - see SymbolT.Symbol.DeclaredSlots.
     | ApplyComputedDisplayValues
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option

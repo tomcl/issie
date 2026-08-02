@@ -161,10 +161,17 @@ For a given top sheet and a given displayed sheet, the parameters that have a de
 exactly the `ExactValue` cases of `ParameterAnalysis.displayValues` — every instance under the top
 agrees. Those, and only those, are pushed onto the canvas.
 
-### Two components per symbol
+### The computed component, and the declared values beside it
 
-`Symbol.Component` holds the **computed** component; a new field `Symbol.SavedComponent :
-Component option` holds the declared-default one, `Some` only where the two differ.
+`Symbol.Component` holds the **computed** component; a new field `Symbol.DeclaredSlots :
+Map<CompSlotName, int>` holds the DECLARED value of each parameterised slot the symbol is drawing
+differently, and is empty for almost every symbol.
+
+*As planned this was `Symbol.SavedComponent : Component option`, a whole declared component. That
+was wrong and was changed while implementing: reverting a whole component on save also reverted
+every edit made while computed values were on display — a constant's value, a memory's contents,
+the label. Only the slot values are stashed, so everything that is not a parameterised slot is
+saved as it stands.*
 
 The direction matters and is forced by React caching. `SymbolView.renderSymbol` is a
 `FunctionComponent.Of(..., "Symbol", equalsButFunctions)` whose memo key is the whole `Symbol`
@@ -177,19 +184,21 @@ values with no change.
 
 Computed components are produced through the existing `ParameterView.updateComponents` path
 (`ChangeWidth`, `ChangeSplitN`, …), not by patching `Component.Type`, so symbol size, ports and
-port geometry are all recomputed properly. The pre-change component is stashed in `SavedComponent`
-first.
+port geometry are all recomputed properly. The declared value of each slot about to be displayed
+differently is stashed in `DeclaredSlots` first, by `ParameterView.stashDeclaredSlots`.
 
 ### One funnel keeps the file unchanged
 
 `SymbolUpdate.extractComponent` is the sole path from symbols to saved state: `extractComponents`
 → `Sheet.GetCanvasState()` → both save paths, the backup write, and `currentSheetIsOutOfDate`.
-Preferring `SavedComponent` there makes saving, autosaving and the dirty flag all correct at once,
-with no normalise-on-save step and no invariant to maintain at boundaries.
+Putting the declared slot values back there (`SymbolUpdate.declaredComponent`) makes saving,
+autosaving and the dirty flag all correct at once, with no normalise-on-save step and no invariant
+to maintain at boundaries.
 
-It is a merge, not a substitution: `storeLayoutInfoInComponent` writes `SymbolInfo`, `X` and `Y`,
-which are user edits and must come from the live symbol, while `Type`, `H` and `W` must come from
-the saved copy because size is derived from the parameter value.
+It is a merge, not a substitution: `storeLayoutInfoInComponent` writes `SymbolInfo`, `X` and `Y`
+from the live symbol, and only the parameterised slots of `Type` are put back. `H` and `W` are left
+as drawn — they are recomputed on load from the type, so a saved size derived from a computed value
+does not survive to be wrong.
 
 ### Decisions
 
@@ -199,7 +208,7 @@ the saved copy because size is derived from the parameter value.
   number of inputs of a gate or merge is edited as a plain number in Properties.
 - **Properties pane** shows the symbol name and its viewed (computed) value, and the default as
   well when the two differ. The viewed value it already gets for free from `GetComponentById`; the
-  default is an added annotation read from `SavedComponent`.
+  default is an added annotation read from `DeclaredSlots`.
 - **Copy and paste preserve both components**, and the parameter linkage with them: pasted
   components get fresh ids, so their slot expressions must be duplicated into `ParamSlots` under
   those new ids. More work than dropping to a literal, but semantically correct — a pasted

@@ -91,12 +91,15 @@
     <Compile Include="DrawBlock\SymbolHelpers.fs" />
     <Compile Include="DrawBlock\PopupHelpers.fs" />
     <Compile Include="DrawBlock\Symbol.fs" />
-    <Compile Include="DrawBlock\SheetLayout.fs" />
 	<Compile Include="DrawBlock\SymbolView.fs" />
 	<Compile Include="DrawBlock\SymbolPortHelpers.fs" />
     <Compile Include="DrawBlock\SymbolResizeHelpers.fs" />
 	<Compile Include="DrawBlock\SymbolReplaceHelpers.fs" />
     <Compile Include="DrawBlock\SymbolUpdate.fs" />
+    <!-- after SymbolUpdate: sizes its components with the same createSymbolRecord the app uses
+         when it loads a sheet. Nothing in the draw block uses SheetLayout, so it sits wherever
+         its dependencies allow. -->
+    <Compile Include="DrawBlock\SheetLayout.fs" />
     <Compile Include="DrawBlock\BusWire.fs" />
 	<Compile Include="DrawBlock\BusWireUpdateHelpers.fs" />
 	<Compile Include="DrawBlock\BusWireRoutingHelpers.fs" />

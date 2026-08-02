@@ -1072,27 +1072,6 @@ let checkAlwaysCombRHS
         |> List.collect checkAlwaysComb
     errorList @ localErrors
 
-let getPrimaryWidth portSizeMap (primary: PrimaryDU) =
-    match primary with
-    | Identifier id ->
-        match Map.tryFind id.Name portSizeMap with
-        | Some w -> w
-        | _ -> 1
-    | IdentifierBit _ -> 1
-    | IdentifierArray (_, _, bStart, bEnd) ->
-        // let bStart = evalExpr bStart
-        // let bEnd = evalExpr bEnd
-        bStart - bEnd + 1
-    | IdentifierBits (_, bStart, bEnd) ->
-        // let bStart = evalExpr start
-        // let bEnd = evalExpr end_
-        bStart - bEnd + 1
-    | IdentifierBitsSelect (_, _, width, _) -> width
-    | VariableArrayBitSel (id, _, expr)
-    | VariableBitSelect (id, expr) ->
-        match Map.tryFind id.Name portSizeMap with
-        | Some w -> w
-        | _ -> 1
 
 /// Checks if module instantiation statements are correct:
 /// - Does a loaded component exist with the given name?
@@ -1241,32 +1220,17 @@ let checkModuleInstantiations
                     
                     createErrorMessage linesLocations modInst.Module.Location message (Array.append extraMessages replaceMsg) modInst.Module.Name
 
-            let portWidthErrors = 
+        
+            let otherErrors = 
                 match  List.filter (fun comp -> comp.Name = modInst.Module.Name)project.LoadedComponents with
                 | [] -> []
                 | [comp] ->
-                    modInst.Connections
-                    |> Array.toList
-                    |> List.collect (fun conn ->
-                        match List.tryFind (fun port' -> fst port' = conn.PortId.Name.ToUpper()) (comp.InputLabels@comp.OutputLabels) with
-                        | Some port -> 
-                            let w = getPrimaryWidth wireAndPortSizeMap conn.Primary
-                            if (snd port) <> w then
-                                let extraMessages=                    
-                                    [|
-                                        {Text=sprintf "Wrong port width for port %A in module %A: %A bits wide but expected %A bits" conn.PortId.Name modInst.Module.Name w (snd port); Copy=false;Replace=NoReplace};
-                                    |]
-                                let message = sprintf "Wrong port width"
-                                createErrorMessage linesLocations (getPrimaryLocation conn.Primary) message extraMessages (getPrimaryName conn.Primary)
-                            else []
-                        | _ ->
-                            []
-                        )
-                    |> List.append (getMissingPortErrors modInst comp)
+                    getMissingPortErrors modInst comp
                     |> List.append (getInputOutputPortErrors modInst comp)
                 | _ -> failwithf "There are multiple custom components with this name!"
+
             
-            moduleTypeErrors @ portWidthErrors
+            moduleTypeErrors
         )
 
     let duplicatePortErrors =

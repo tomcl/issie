@@ -12,17 +12,10 @@ module TestFonts =
     open Helpers
 
 
-    let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
-    let canvasWidthContext = testCanvas.getContext_2d()
-
-    let fontString (font:DrawHelpers.Text) = String.concat " " [ font.FontWeight; font.FontSize; font.FontFamily]
-
-    let textMeasureWidth (font:DrawHelpers.Text) (txt:string) =
-        let fontStr = fontString font
-        canvasWidthContext.font <- fontStr
-        //printf $"font = {font}\n\n '{fontStr}' -> {canvasWidthContext.font}\n\n"
-        //canvasWidthContext.textAlign <- font.TextAnchor
-        canvasWidthContext.measureText(txt).width
+    // The same measurement the draw block itself uses, so what this page reports is what
+    // symbol sizing will get. It used to keep a private canvas here, which meant this module
+    // touched the DOM as soon as it loaded.
+    let textMeasureWidth = DrawHelpers.getTextWidthInPixels
 
     // all lower case values
     let testedFonts = [

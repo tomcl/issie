@@ -99,18 +99,93 @@ type Text = {
     DominantBaseline: string
 }
 
-let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
-let canvasWidthContext = testCanvas.getContext_2d()
+#if FABLE_COMPILER
 
+/// The CSS font shorthand a Text describes, e.g. "500 16px Verdana".
+let private fontString (font: Text) =
+    String.concat " " [ font.FontWeight; font.FontSize; font.FontFamily ]
+
+/// The off-screen canvas text is measured against. Deferred rather than created when this
+/// module loads: `Browser.Dom.document` exists only in the browser, so measuring at module
+/// initialisation would make DrawHelpers - and with it the whole draw block, which sizes every
+/// symbol from text widths - throw under plain .NET, and so untestable outside Electron.
+let private measureContext =
+    lazy (
+        let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
+        testCanvas.getContext_2d())
+
+/// Width of `txt` in pixels, as the browser will draw it in `font`.
 /// To get this to work, note the fonts in the playground.fs test which work well.
 /// Add fonts there to test if you like.
-let getTextWidthInPixels (font:Text) (txt:string) =
-   let askedFont = String.concat " " [font.FontWeight; font.FontSize;  font.FontFamily]; // e.g. "16px bold sans-serif";
-   canvasWidthContext.font <- askedFont
-   //printf "Measururing '%s' -> '%s' with txt '%s' - fontSize=%s, sizeInpx = %.2f" askedFont canvasWidthContext.font txt font.FontSize sizeInPx
-   let textMetrics = canvasWidthContext.measureText(txt)
-   let ms = textMetrics.width 
-   ms
+let getTextWidthInPixels (font: Text) (txt: string) =
+    let context = measureContext.Force()
+    context.font <- fontString font // e.g. "16px bold sans-serif"
+    context.measureText(txt).width
+
+#else
+
+/// Advance width of each printable ASCII character as a fraction of the font size, read out of
+/// Chromium's own measureText for "500 100px Verdana" - the weight and family the draw block
+/// labels its symbols and ports with, and so the numbers the Fable build works from. (Verdana
+/// has no 500 face; the browser picks its regular one, which is what this measured.)
+///
+/// Summing these reproduces measureText of a whole string to better than 1% for the labels Issie
+/// uses. It is exact only because Verdana is barely kerned here: a pair like "To" is 9% narrower
+/// measured than summed. That error is in the safe direction - a symbol comes out slightly too
+/// wide rather than too narrow - and no Issie label is made of such pairs.
+let private asciiCharWidths = [|
+    //     !      "      #      $      %      &      '      (      )      *      +      ,      -      .      /
+    0.352; 0.394; 0.459; 0.818; 0.636; 1.076; 0.727; 0.269; 0.454; 0.454; 0.636; 0.818; 0.364; 0.454; 0.364; 0.454
+    // 0    1      2      3      4      5      6      7      8      9      :      ;      <      =      >      ?
+    0.636; 0.636; 0.636; 0.636; 0.636; 0.636; 0.636; 0.636; 0.636; 0.636; 0.454; 0.454; 0.818; 0.818; 0.818; 0.545
+    // @    A      B      C      D      E      F      G      H      I      J      K      L      M      N      O
+    1.000; 0.684; 0.686; 0.698; 0.771; 0.632; 0.575; 0.775; 0.751; 0.421; 0.455; 0.693; 0.557; 0.843; 0.748; 0.787
+    // P    Q      R      S      T      U      V      W      X      Y      Z      [      \      ]      ^      _
+    0.603; 0.787; 0.695; 0.684; 0.616; 0.732; 0.684; 0.989; 0.685; 0.615; 0.685; 0.454; 0.454; 0.454; 0.818; 0.636
+    // `    a      b      c      d      e      f      g      h      i      j      k      l      m      n      o
+    0.636; 0.601; 0.623; 0.521; 0.623; 0.596; 0.352; 0.623; 0.633; 0.274; 0.344; 0.592; 0.274; 0.973; 0.633; 0.607
+    // p    q      r      s      t      u      v      w      x      y      z      {      |      }      ~
+    0.623; 0.623; 0.427; 0.521; 0.394; 0.633; 0.592; 0.818; 0.592; 0.592; 0.525; 0.635; 0.454; 0.635; 0.818
+|]
+
+/// Verdana Bold runs about 12% wider than its regular face, measured the same way. Nothing whose
+/// geometry matters asks for bold - component and port labels are weight 500 - so one factor does.
+let private boldWidthRatio = 1.12
+
+/// Anything outside printable ASCII takes a middling width rather than none.
+let private relativeCharWidth (c: char) =
+    let i = int c - 32
+    if i >= 0 && i < asciiCharWidths.Length then asciiCharWidths[i] else 0.6
+
+/// Read the pixel size out of a CSS length. Every FontSize in Issie is written "<n>px".
+let private fontSizeInPixels (fontSize: string) =
+    let digits = fontSize.Replace("px", "").Trim()
+    match System.Double.TryParse(digits, System.Globalization.NumberStyles.Float,
+                                 System.Globalization.CultureInfo.InvariantCulture) with
+    | true, px -> px
+    | _ -> 10.0 // defaultText's size: a size we cannot read is better guessed than thrown on
+
+/// Width of `txt` in pixels, reconstructed from per-character advance widths rather than measured:
+/// there is no canvas to measure against outside the browser. It agrees with what the Fable build
+/// gets from measureText to better than 1% for Verdana, the draw block's font, and degrades for
+/// other families in proportion to how far their letterforms sit from Verdana's.
+///
+/// This exists so that the draw block can be exercised by `Tests/Issie.Tests` with nothing running
+/// - symbols built, wires routed, the separation pass run. Geometry that depends on it is
+/// recomputed whenever a sheet is loaded, so being a hair out costs a test nothing; a test should
+/// still assert structure - port counts, overlap, orthogonality, ordering - rather than a pixel
+/// width, which is only ever as good as the table above.
+let getTextWidthInPixels (font: Text) (txt: string) =
+    // a CSS font-weight is either a number or a keyword, and the keyword is case-insensitive:
+    // both "bold" and "Bold" appear in Issie, and the browser bolds for either
+    let boldness =
+        match System.Int32.TryParse font.FontWeight with
+        | true, weight -> if weight >= 600 then boldWidthRatio else 1.0
+        | _ -> if font.FontWeight.ToLowerInvariant().Contains "bold" then boldWidthRatio else 1.0
+    let relativeWidth = txt |> Seq.sumBy relativeCharWidth
+    boldness * fontSizeInPixels font.FontSize * relativeWidth
+
+#endif
 
 /// Default line, change this one to create new lines
 let defaultLine = {

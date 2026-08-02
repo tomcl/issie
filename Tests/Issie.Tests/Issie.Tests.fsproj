@@ -17,6 +17,7 @@
     <Compile Include="AlgebraTests.fs" />
     <Compile Include="PersistenceTests.fs" />
     <Compile Include="SheetDescriptionTests.fs" />
+    <Compile Include="DrawBlockTests.fs" />
     <Compile Include="LibraryTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>

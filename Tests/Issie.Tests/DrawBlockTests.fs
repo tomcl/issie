@@ -1,0 +1,187 @@
+/// The draw block, exercised with nothing running.
+///
+/// Symbol sizing measures text, and text used to be measured by creating a canvas as
+/// DrawHelpers loaded - which made every symbol, and so the whole draw block, unreachable
+/// outside Electron. DrawHelpers now defers that and reconstructs the width from per-character
+/// advances under .NET, so symbols can be built, wires routed and the separation pass run from a
+/// plain `dotnet run`.
+///
+/// That reconstruction is checked here against widths recorded from a real browser, since every
+/// piece of geometry below is only as trustworthy as it is. Everything else is asserted
+/// structurally: which ports exist and on which edge, that a routed wire is orthogonal and joins
+/// the two ports it names, and that the separation pass keeps both true.
+module DrawBlockTests
+
+open Expecto
+open CommonTypes
+open DrawModelType
+open BlockHelpers
+open SheetDescription
+open SheetDescription.Operators
+
+/// two 4-bit inputs into an adder, one output
+let private adderSheet =
+    describeSheet "adder" [
+        comp "A" (Input1(4, None))
+        comp "B" (Input1(4, None))
+        comp "ADD" (NbitsAdderNoCinCout 4)
+        comp "S" (Output 4)
+    ] [ "A" ==> "ADD/P"; "B" ==> "ADD/Q"; "ADD/SUM" ==> "S" ]
+
+let private canvasOf sheet =
+    match SheetLayout.toCanvasState sheet with
+    | Ok canvas -> canvas
+    | Error e -> failtest $"sheet would not build: {e}"
+
+/// A BusWire model holding every component of `canvas` as a symbol, and one unrouted wire per
+/// connection. This is what the app builds when it loads a sheet.
+let private modelOf (canvas: CanvasState) =
+    let comps, conns = canvas
+    let wireModel, _ = BusWireUpdate.init ()
+    let symbols = SymbolUpdate.loadComponents [] wireModel.Symbol comps
+    let wireOf (conn: Connection) : BusWireT.Wire =
+        { WId = ConnectionId conn.Id
+          InputPort = InputPortId conn.Target.Id
+          OutputPort = OutputPortId conn.Source.Id
+          Color = HighLightColor.Red
+          Width = 1
+          Segments = []
+          StartPos = { X = 0.; Y = 0. }
+          InitialOrientation = BusWireT.Horizontal }
+    { wireModel with
+        Symbol = symbols
+        Wires = conns |> List.map (fun c -> ConnectionId c.Id, wireOf c) |> Map.ofList }
+
+let private routeAll (model: BusWireT.Model) =
+    { model with Wires = model.Wires |> Map.map (fun _ w -> BusWireUpdateHelpers.autoroute model w) }
+
+let private symbolNamed (model: BusWireT.Model) (label: string) =
+    model.Symbol.Symbols
+    |> Map.toList
+    |> List.map snd
+    |> List.find (fun s -> s.Component.Label = label)
+
+/// Every wire runs from the port it names to the port it names, in right angles.
+///
+/// The ends come from getAbsSegments rather than from getStartAndEndWirePos, which returns the
+/// second-to-last vertex rather than the last and so stops a nub short of the input port.
+let private checkWiresAreOrthogonalAndConnected (model: BusWireT.Model) (context: string) =
+    model.Wires
+    |> Map.iter (fun (ConnectionId id) wire ->
+        let expectedEnd, expectedStart =
+            Symbol.getTwoPortLocations model.Symbol wire.InputPort wire.OutputPort
+        let segments = getAbsSegments wire
+        let actualStart = (List.head segments).Start
+        let actualEnd = (List.last segments).End
+        let closeTo (a: XYPos) (b: XYPos) = abs (a.X - b.X) < 0.001 && abs (a.Y - b.Y) < 0.001
+        Expect.isTrue (closeTo actualStart expectedStart)
+            $"{context}: wire {id} starts at %A{actualStart}, but its output port is at %A{expectedStart}"
+        Expect.isTrue (closeTo actualEnd expectedEnd)
+            $"{context}: wire {id} ends at %A{actualEnd}, but its input port is at %A{expectedEnd}"
+        // a segment is drawn along one axis only, so every corner is a right angle
+        segments
+        |> List.iter (fun seg ->
+            let horizontal = abs (seg.Start.Y - seg.End.Y) < 0.001
+            let vertical = abs (seg.Start.X - seg.End.X) < 0.001
+            Expect.isTrue (horizontal || vertical)
+                $"{context}: wire {id} segment {seg.Segment.Index} is diagonal: %A{seg.Start} to %A{seg.End}"))
+
+/// Widths Chromium's canvas measureText returns for "500 12px Verdana" - Symbol's
+/// componentPortStyle, the font whose measurements decide how wide a Custom symbol is drawn.
+/// Recorded from a real browser so that the .NET reconstruction can be checked against it.
+let private measuredAt12px =
+    [ "A", 8.203
+      "B", 8.227
+      "SUM", 27.100
+      "CARRY", 40.535
+      "CIN", 22.406
+      "COUT", 34.002
+      "CLK", 23.373
+      "EN", 16.564
+      "CARRY_IN_FROM_PREVIOUS", 175.102
+      "SUM_OUT_TO_NEXT", 124.336
+      "halfAdd", 45.469
+      "fullAdd", 41.555
+      "child", 27.908
+      "Reg16x8", 52.664
+      "(7:0)", 31.605
+      "1234567890", 76.289
+      "abcdefghij", 62.273
+      // the extremes of the alphabet, which a per-character table has to get right and a single
+      // average width cannot: Verdana's W is 3.6 times its i
+      "MMMMMMMMMM", 101.133
+      "iiiiiiiiii", 32.930 ]
+
+/// The same, for componentLabelStyle's "500 16px Verdana"
+let private measuredAt16px =
+    [ "A", 10.938
+      "SUM", 36.133
+      "CARRY", 54.047
+      "halfAdd", 60.625
+      "CARRY_IN_FROM_PREVIOUS", 233.469 ]
+
+let tests =
+    testList "DrawBlock" [
+
+        // Under .NET there is no canvas, so DrawHelpers reconstructs a text width from per-character
+        // advances. Everything the draw block draws is sized from that, so if it drifts away from
+        // what the browser measures, tests here stop describing the app.
+        test "the .NET text width matches what the browser measures" {
+            let check (style: DrawHelpers.Text) (label: string) (txt: string, measured: float) =
+                let estimated = DrawHelpers.getTextWidthInPixels style txt
+                let errorPct = abs (estimated - measured) / measured * 100.
+                Expect.isLessThan errorPct 1.0
+                    $"{label} '{txt}': browser measured {measured}, this gives %.3f{estimated} (%.2f{errorPct}%% out)"
+            measuredAt12px |> List.iter (check Symbol.Constants.componentPortStyle "port label")
+            measuredAt16px |> List.iter (check Symbol.Constants.componentLabelStyle "component label")
+        }
+
+        test "text width scales with font size and is zero for nothing" {
+            let at size = DrawHelpers.getTextWidthInPixels { DrawHelpers.defaultText with FontSize = size } "SUM"
+            Expect.equal (DrawHelpers.getTextWidthInPixels DrawHelpers.defaultText "") 0. "no text, no width"
+            Expect.floatClose Accuracy.high (at "20px") (2. * at "10px") "twice the size, twice the width"
+        }
+
+        test "symbols are built from a canvas with no browser" {
+            let comps, _ = canvasOf adderSheet
+            let model = modelOf (comps, [])
+            Expect.equal (Map.count model.Symbol.Symbols) 4 "one symbol per component"
+
+            let add = symbolNamed model "ADD"
+            Expect.equal (List.length add.Component.InputPorts) 2 "the adder has two inputs"
+            Expect.equal (List.length add.Component.OutputPorts) 1 "and one output"
+            // sizing runs through the text measurement that used to need a canvas
+            Expect.isGreaterThan add.Component.W 0. "the symbol has a width"
+            Expect.isGreaterThan add.Component.H 0. "and a height"
+
+            // inputs enter on the left, outputs leave on the right
+            let edgeOf (port: Port) = add.PortMaps.Orientation[port.Id]
+            Expect.equal (add.Component.InputPorts |> List.map edgeOf) [ Left; Left ]
+                "both inputs are on the left edge"
+            Expect.equal (add.Component.OutputPorts |> List.map edgeOf) [ Right ]
+                "the output is on the right edge"
+
+            Expect.equal (Map.count model.Symbol.Ports) 6 "every port is in the port map"
+        }
+
+        test "wires autoroute between the ports they name, at right angles" {
+            let model = canvasOf adderSheet |> modelOf |> routeAll
+            Expect.equal (Map.count model.Wires) 3 "one wire per connection"
+            model.Wires
+            |> Map.iter (fun (ConnectionId id) wire ->
+                Expect.isNonEmpty wire.Segments $"wire {id} was not given any segments")
+            checkWiresAreOrthogonalAndConnected model "after autoroute"
+        }
+
+        test "the separation pass leaves every wire connected and orthogonal" {
+            // separation is the pass that nudges parallel wires apart, and the one most likely
+            // to move a segment somewhere it should not go
+            let routed = canvasOf adderSheet |> modelOf |> routeAll
+            let separated =
+                BusWireSeparate.updateWireSegmentJumpsAndSeparations
+                    (routed.Wires |> Map.toList |> List.map fst)
+                    routed
+            Expect.equal (Map.count separated.Wires) 3 "no wire was lost"
+            checkWiresAreOrthogonalAndConnected separated "after separation"
+        }
+    ]

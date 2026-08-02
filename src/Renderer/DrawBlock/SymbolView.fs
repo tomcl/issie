@@ -244,15 +244,10 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | _, false -> ""
             | true, _ -> sprintf $"({msb})"
             | false, _ -> sprintf $"({msb}:{lsb})"
-        let testCanvas = Browser.Dom.document.createElement("canvas") :?> HTMLCanvasElement
-        let canvasWidthContext = testCanvas.getContext_2d()
-
-        let fontString (font:DrawHelpers.Text) = String.concat " " [ font.FontWeight; font.FontSize; font.FontFamily]
-
-        let textMeasureWidth (font:DrawHelpers.Text) (txt:string) =
-            let fontStr = fontString font
-            canvasWidthContext.font <- fontStr
-            canvasWidthContext.measureText(txt).width
+        // DrawHelpers.getTextWidthInPixels measures against one canvas kept for the purpose;
+        // this used to build a fresh one on every call, and so on every render of every
+        // MergeN/SplitN legend
+        let textMeasureWidth = DrawHelpers.getTextWidthInPixels
 
         let textStyle =
             {defaultText with TextAnchor = "middle"; FontWeight = "bold"; FontSize = Constants.mergeSplitTextSize}

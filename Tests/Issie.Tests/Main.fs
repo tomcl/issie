@@ -14,6 +14,7 @@ let main argv =
         GoldenModel.tests
         PersistenceTests.tests
         SheetDescriptionTests.tests
+        DrawBlockTests.tests
         LibraryTests.tests
     ]
     |> runTestsWithCLIArgs [ Sequenced ] argv

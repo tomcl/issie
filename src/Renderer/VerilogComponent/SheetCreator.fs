@@ -1065,21 +1065,37 @@ let mainExpressionCircuitBuilder (expr:ExpressionDU) ioAndWireToCompMap varSizeM
                     let (primaryComp: Component) = Map.find id.Name ioAndWireToCompMap
                     let primaryWidth = Map.find id.Name varSizeMap
                     let primaryCircuit = {Comps=[];Conns=[];Out=primaryComp.OutputPorts[0];OutWidth=primaryWidth}
-                    let bitCircuits =
-                        [0 .. primaryWidth - 1]
-                        |> List.map (fun bit ->
-                            let busSelComp = createComponent (BusSelection (1, bit)) ""
-                            let topCircuit = {Comps=[busSelComp]; Conns=[]; Out=busSelComp.OutputPorts[0]; OutWidth=1}
-                            joinCircuits [primaryCircuit] [busSelComp.InputPorts[0]] topCircuit
-                        )
-                    let paddedBitCircuits =
-                        let zeroCircuits =
-                            List.init (nextPowerOfTwo bitCircuits.Length - bitCircuits.Length) (fun _ ->
-                                createNumberCircuit (All (1, Binary, "0", 100))
-                            )
-                        bitCircuits @ zeroCircuits
-                    buildMuxTreeCircuit paddedBitCircuits index 1
+                    // let bitCircuits =
+                    //     [0 .. primaryWidth - 1]
+                    //     |> List.map (fun bit ->
+                    //         let busSelComp = createComponent (BusSelection (1, bit)) ""
+                    //         let topCircuit = {Comps=[busSelComp]; Conns=[]; Out=busSelComp.OutputPorts[0]; OutWidth=1}
+                    //         joinCircuits [primaryCircuit] [busSelComp.InputPorts[0]] topCircuit
+                    //     )
+                    // let paddedBitCircuits =
+                    //     let zeroCircuits =
+                    //         List.init (nextPowerOfTwo bitCircuits.Length - bitCircuits.Length) (fun _ ->
+                    //             createNumberCircuit (All (1, Binary, "0", 100))
+                    //         )
+                    //     bitCircuits @ zeroCircuits
+                    // buildMuxTreeCircuit paddedBitCircuits index 1
                     // match unary.Expression
+                    let index = buildExpressionCircuit expr expr.Width
+                    let (primaryComp: Component) = Map.find id.Name ioAndWireToCompMap
+                    //let primaryWidth = extractWidth primaryComp.Type
+                    let shiftLeft = createComponent (Shift (primaryWidth, expr.Width, LSL)) "sll" 
+                    let topCircuit = {Comps=[shiftLeft]; Conns=[]; Out=shiftLeft.OutputPorts[0]; OutWidth=primaryWidth}
+                    let const1 = createComponent (Constant1 (primaryWidth, (1I <<< primaryWidth) - 1I, "")) "const1"
+                    let const1Circuit = {Comps=[const1]; Conns=[]; Out=const1.OutputPorts[0]; OutWidth=primaryWidth}  
+                    let shiftLeftIthCircuit = joinCircuits [const1Circuit; index] [shiftLeft.InputPorts[0]; shiftLeft.InputPorts[1]] topCircuit
+                    let primaryCircuit = {Comps=[];Conns=[];Out=primaryComp.OutputPorts[0];OutWidth=primaryWidth}
+                    let andComp = createComponent (NbitsAnd primaryWidth) "and"
+                    let andCircuit = {Comps=[andComp]; Conns=[]; Out=andComp.OutputPorts[0]; OutWidth=primaryWidth}
+                    let andCircuit = joinCircuits [primaryCircuit; shiftLeftIthCircuit] [andComp.InputPorts[0]; andComp.InputPorts[1]] andCircuit
+                    let shiftRight = createComponent (Shift (primaryWidth, expr.Width, LSR)) "srl"
+                    let sllCircuit = {Comps=[shiftRight]; Conns=[]; Out=shiftRight.OutputPorts[0]; OutWidth=primaryWidth}
+                    let sllCircuit' = joinCircuits [andCircuit; index] [shiftRight.InputPorts[0]; shiftRight.InputPorts[1]] sllCircuit
+                    sliceCircuit sllCircuit' primaryWidth 0
                 | _ -> createPrimaryCircuit (Option.get unary.Primary) ioAndWireToCompMap varSizeMap paramMap
         | UNumber ->
             createNumberCircuit (Option.get unary.Number)
@@ -1110,35 +1126,35 @@ let mainExpressionCircuitBuilder (expr:ExpressionDU) ioAndWireToCompMap varSizeM
         let c1 = buildExpressionCircuit (Option.get tail.Head) targetWidth |> extendCircuit targetWidth
         let c2 = buildExpressionCircuit (Option.get tail.Tail) targetWidth |> extendCircuit targetWidth
         (c1,c2)
-    and buildVariableShiftCircuit (expr:ExpressionCompilable) targetWidth =
-        let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) targetWidth |> extendCircuit targetWidth
-        let (c2:Circuit) = buildExpressionCircuit (Option.get expr.Tail) (Option.get expr.Tail).Width
-        let c1Source = {c1 with Comps=[]; Conns=[]}
-        let c2Source = {c2 with Comps=[]; Conns=[]}
-        let shiftType = 
-            match (Option.get expr.Operator) with
-            | Sll -> LSL
-            | Sra -> ASR
-            | _ -> LSR
-        let shiftedCircuits =
-            [0 .. nextPowerOfTwo c1.OutWidth - 1]
-            |> List.map (fun shiftNo -> buildFixedShiftCircuit c1Source shiftNo shiftType)
-        let shiftedCircuit = buildMuxTreeCircuit shiftedCircuits c2Source c1.OutWidth
-        {shiftedCircuit with Comps = c1.Comps @ c2.Comps @ shiftedCircuit.Comps; Conns = c1.Conns @ c2.Conns @ shiftedCircuit.Conns}
-
     // and buildVariableShiftCircuit (expr:ExpressionCompilable) targetWidth =
     //     let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) targetWidth |> extendCircuit targetWidth
     //     let (c2:Circuit) = buildExpressionCircuit (Option.get expr.Tail) (Option.get expr.Tail).Width
-        
+    //     let c1Source = {c1 with Comps=[]; Conns=[]}
+    //     let c2Source = {c2 with Comps=[]; Conns=[]}
     //     let shiftType = 
     //         match (Option.get expr.Operator) with
     //         | Sll -> LSL
     //         | Sra -> ASR
     //         | _ -> LSR
+    //     let shiftedCircuits =
+    //         [0 .. nextPowerOfTwo c1.OutWidth - 1]
+    //         |> List.map (fun shiftNo -> buildFixedShiftCircuit c1Source shiftNo shiftType)
+    //     let shiftedCircuit = buildMuxTreeCircuit shiftedCircuits c2Source c1.OutWidth
+    //     {shiftedCircuit with Comps = c1.Comps @ c2.Comps @ shiftedCircuit.Comps; Conns = c1.Conns @ c2.Conns @ shiftedCircuit.Conns}
 
-    //     let topComp = createComponent (Shift (c1.OutWidth,c2.OutWidth,shiftType)) "SHIFT"
-    //     let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
-    //     joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
+    and buildVariableShiftCircuit (expr:ExpressionCompilable) targetWidth =
+        let (c1:Circuit) = buildExpressionCircuit (Option.get expr.Head) targetWidth |> extendCircuit targetWidth
+        let (c2:Circuit) = buildExpressionCircuit (Option.get expr.Tail) (Option.get expr.Tail).Width
+        
+        let shiftType = 
+            match (Option.get expr.Operator) with
+            | Sll -> LSL
+            | Sra -> ASR
+            | _ -> LSR
+
+        let topComp = createComponent (Shift (c1.OutWidth,c2.OutWidth,shiftType)) "SHIFT"
+        let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
+        joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
     
     and buildShiftCircuit (expr:ExpressionCompilable) targetWidth = 
         let operator = (Option.get expr.Operator)
@@ -1982,20 +1998,33 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                 newArrayCircuits
                 // currCircuits, Map.add outPort newArrayCircuits currArrayCircuits
          
-            // makes mux for variable bit select
-            let compileVarSelCircuits outWidth rhsSource currSource =
-                [0 .. nextPowerOfTwo outWidth - 1]
-                |> List.map (fun bit ->
-                    if bit < outWidth then
-                        let lsbs =
-                            if bit > 0 then [sliceCircuit currSource bit 0]
-                            else []
-                        let msbs =
-                            if outWidth - bit - 1 > 0 then [sliceCircuit currSource (outWidth - bit - 1) (bit + 1)]
-                            else []
-                        joinWithMerge' (lsbs @ [rhsSource] @ msbs)
-                    else currSource
-                )
+            // updates a single selected bit via shift-and-mask instead of a mux tree
+            let compileVarSelCircuits outWidth rhsSource currSource indexSource =
+                let rhsSource' = extendCircuit outWidth rhsSource
+                let shiftedRhs =
+                    let shifter = createComponent (Shift (outWidth, indexSource.OutWidth, LSL)) "SHIFT"
+                    let topCircuit = {Comps=[shifter];Conns=[];Out=shifter.OutputPorts[0];OutWidth=outWidth}
+                    joinCircuits [rhsSource'; indexSource] [shifter.InputPorts[0]; shifter.InputPorts[1]] topCircuit
+
+                let one = createNumberCircuit (All (outWidth, Decimal, "1", 100))
+                let mask =
+                    let shifter = createComponent (Shift (outWidth, indexSource.OutWidth, LSL)) "SHIFT"
+                    let topCircuit = {Comps=[shifter];Conns=[];Out=shifter.OutputPorts[0];OutWidth=outWidth}
+                    joinCircuits [one; indexSource] [shifter.InputPorts[0]; shifter.InputPorts[1]] topCircuit
+
+                let invertedMask =
+                    let notComp = createComponent (NbitsNot outWidth) "NOT"
+                    let topCircuit = {Comps=[notComp];Conns=[];Out=notComp.OutputPorts[0];OutWidth=outWidth}
+                    joinCircuits [mask] [notComp.InputPorts[0]] topCircuit
+
+                let clearedCurr =
+                    let andComp = createComponent (NbitsAnd outWidth) "AND"
+                    let topCircuit = {Comps=[andComp];Conns=[];Out=andComp.OutputPorts[0];OutWidth=outWidth}
+                    joinCircuits [currSource; invertedMask] [andComp.InputPorts[0]; andComp.InputPorts[1]] topCircuit
+
+                let orComp = createComponent (NbitsOr outWidth) "OR"
+                let topCircuit = {Comps=[orComp];Conns=[];Out=orComp.OutputPorts[0];OutWidth=outWidth}
+                joinCircuits [clearedCurr; shiftedRhs] [orComp.InputPorts[0]; orComp.InputPorts[1]] topCircuit
 
             let buildIndexSelector (indexSource:Circuit) (indexValue:int) : Circuit =
                 let cmp = createComponent (BusCompare (indexSource.OutWidth, bigint (int64 indexValue))) "CMP"
@@ -2021,8 +2050,7 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                 let currSource = {currCircuit with Comps=[]; Conns=[]}
                 let rhsSource = {rhsCircuit with Comps=[]; Conns=[]}
                 let indexSource = {indexCircuit with Comps=[]; Conns=[]}
-                let updatedBitCircuits = compileVarSelCircuits outWidth rhsSource currSource
-                let updatedCircuit = buildMuxTreeCircuit updatedBitCircuits indexSource outWidth
+                let updatedCircuit = compileVarSelCircuits outWidth rhsSource currSource indexSource
                 let updatedCircuit =
                     {updatedCircuit with
                         Comps = currCircuit.Comps @ rhsCircuit.Comps @ indexCircuit.Comps @ updatedCircuit.Comps
@@ -2108,8 +2136,7 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                 let bitIndexSource = {bitIndexCircuit with Comps=[]; Conns=[]}
                 let updatedArrayCircuits =
                     compileVarSelArray outDim outWidth currSources arrayIndexSource (fun currSource ->
-                        let updatedBitCircuits = compileVarSelCircuits outWidth rhsSource currSource
-                        buildMuxTreeCircuit updatedBitCircuits bitIndexSource outWidth
+                        compileVarSelCircuits outWidth rhsSource currSource bitIndexSource
                     )
                 updatedArrayCircuits
 
@@ -2249,7 +2276,6 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                     let overrideMap =
                         (Map.empty, parameters)
                         ||> Array.fold (fun map param ->
-                        // TODO: add check that param matches module def
                             Map.add param.Identifier.Name (evalExpr param.Value) map
                         )
 
@@ -2343,22 +2369,22 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                         // failwithf "Final Canvas State: %A" finalCanvasState
 
 
-                    let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (finalCanvasState, None, Some {
-                                    Form = Some (Verilog name);
-                                    Description=None;
-                                    ParameterDefinitions = None
-                                    IsTopSheet = None})
+                        let toSaveCanvasState = Helpers.JsonHelpers.stateToJsonString (finalCanvasState, None, Some {
+                                        Form = Some (Verilog name);
+                                        Description=None;
+                                        ParameterDefinitions = None
+                                        IsTopSheet = None})
                     // failwithf "cs: %A" toSaveCanvasState
                     // failwithf "path2 = %s" path2
 
-                    match toSaveCanvasState |> Result.bind (writeFile path2) with
-                    | Ok _ ->
-                        // failwithf "path2 = %s" path2
-                        let nestedComponent = 
-                            match tryLoadComponentFromPath path2 with
-                            |Ok comp -> comp
-                            |Error _ -> failwithf "failed to load the created Verilog file"
-                        // printf "initial project: %A" project
+                        match toSaveCanvasState |> Result.bind (writeFile path2) with
+                        | Ok _ ->
+                            // failwithf "path2 = %s" path2
+                            let nestedComponent = 
+                                match tryLoadComponentFromPath path2 with
+                                |Ok comp -> comp
+                                |Error _ -> failwithf "failed to load the created Verilog file"
+                            // printf "initial project: %A" project
 
                             let updateParentCanvasStates (project: Project) (parentName: string) (oldName: string) (newName: string) =
                                 let updateComp (comp: Component) =

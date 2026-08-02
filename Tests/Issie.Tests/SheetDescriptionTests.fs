@@ -55,7 +55,10 @@ let tests =
             // and by name, on a type that has names
             let comps, conns = SheetLayout.toCanvasState adderSheet |> expectOk
             Expect.equal (List.length conns) 3 "named ports resolved"
-            let addInputs = comps |> List.find (fun c -> c.Id = "ADD") |> fun c -> c.InputPorts
+            let addInputs =
+                comps
+                |> List.find (fun c -> c.Id = SheetLayout.componentId "adder" "ADD")
+                |> fun c -> c.InputPorts
             let pPort = addInputs |> List.item 0
             Expect.isTrue
                 (conns |> List.exists (fun c -> c.Target.Id = pPort.Id))
@@ -133,9 +136,45 @@ let tests =
             Expect.isEmpty overlaps $"""overlapping symbols: {String.concat ", " overlaps}"""
         }
 
+        test "blocks are ordered so inputs sit near what they drive" {
+            // four independent bit-slices. Bisection finds the slices, but on its own it does not
+            // know where the I/O columns are, so it could put the slice fed by A3 above the one
+            // fed by A1 and send both sets of wires the height of the sheet.
+            let slice i =
+                [ comp $"A{i}" (Input1(1, None)); comp $"B{i}" (Input1(1, None))
+                  comp $"AND{i}" (GateN(And, 2)); comp $"XOR{i}" (GateN(Xor, 2))
+                  comp $"OR{i}" (GateN(Or, 2)); comp $"S{i}" (Output 1) ]
+            let sliceConns i =
+                [ connect $"A{i}" $"AND{i}/0"; connect $"B{i}" $"AND{i}/1"
+                  connect $"A{i}" $"XOR{i}/0"; connect $"B{i}" $"XOR{i}/1"
+                  connect $"AND{i}/0" $"OR{i}/0"; connect $"XOR{i}/0" $"OR{i}/1"
+                  connect $"OR{i}/0" $"S{i}" ]
+            let sheet =
+                describeSheet "slices"
+                    ([ 1 .. 4 ] |> List.collect slice)
+                    ([ 1 .. 4 ] |> List.collect sliceConns)
+            let comps, conns = SheetLayout.toCanvasState sheet |> expectOk
+            let centreY (c: Component) = c.Y + c.H / 2.
+            let byId =
+                comps |> List.map (fun c -> c.Id, c) |> Map.ofList
+            let at name = byId[SheetLayout.componentId "slices" name]
+            let height =
+                (comps |> List.map (fun c -> c.Y + c.H) |> List.max)
+                - (comps |> List.map (fun c -> c.Y) |> List.min)
+            // every gate should sit nearer its own slice's input than the sheet is tall by half
+            let worst =
+                [ 1 .. 4 ]
+                |> List.collect (fun i ->
+                    [ $"AND{i}"; $"XOR{i}"; $"OR{i}" ]
+                    |> List.map (fun g -> abs (centreY (at g) - centreY (at $"A{i}"))))
+                |> List.max
+            Expect.isLessThan worst (height / 2.)
+                $"every gate sits within half the sheet height of its own input                   (worst {worst}, sheet height {height}). Without the axis choice in floorplan                   the four slices land in a 2x2 grid that a single input column cannot match,                   and this measures 457.5 against a 337.5 bound."
+        }
+
         test "inputs go left, outputs go right, in declaration order" {
             let comps, _ = SheetLayout.toCanvasState adderSheet |> expectOk
-            let at name = comps |> List.find (fun c -> c.Id = name)
+            let at name = comps |> List.find (fun c -> c.Id = SheetLayout.componentId "adder" name)
             Expect.isLessThan ((at "A").X) ((at "ADD").X) "inputs are left of the body"
             Expect.isLessThan ((at "ADD").X) ((at "S").X) "outputs are right of the body"
             Expect.isLessThan ((at "A").Y) ((at "B").Y) "inputs keep declaration order top to bottom"
@@ -173,6 +212,54 @@ let tests =
                         "every component kept a real position"
             finally
                 try System.IO.Directory.Delete(folder, true) with _ -> ()
+        }
+
+        // TEMPORARY: writes a two-sheet project to turn into a library by hand.
+        test "GENERATE library source project" {
+            let halfAdd =
+                describeSheet "halfAdd" [
+                    comp "A" (Input1(1, None))
+                    comp "B" (Input1(1, None))
+                    comp "X" (GateN(Xor, 2))
+                    comp "N" (GateN(And, 2))
+                    comp "SUM" (Output 1)
+                    comp "CARRY" (Output 1)
+                ] [
+                    "A" ==> "X/0"; "B" ==> "X/1"
+                    "A" ==> "N/0"; "B" ==> "N/1"
+                    "X/0" ==> "SUM"; "N/0" ==> "CARRY"
+                ]
+            let halfAddInstance =
+                Custom {
+                    Name = "halfAdd"
+                    InputLabels = [ "A", 1; "B", 1 ]
+                    OutputLabels = [ "SUM", 1; "CARRY", 1 ]
+                    Form = Some User
+                    ParameterBindings = None
+                    Description = Some "one-bit half adder"
+                }
+            let fullAdd =
+                describeSheet "fullAdd" [
+                    comp "A" (Input1(1, None))
+                    comp "B" (Input1(1, None))
+                    comp "CIN" (Input1(1, None))
+                    comp "HA1" halfAddInstance
+                    comp "HA2" halfAddInstance
+                    comp "ORC" (GateN(Or, 2))
+                    comp "SUM" (Output 1)
+                    comp "COUT" (Output 1)
+                ] [
+                    "A" ==> "HA1/A"; "B" ==> "HA1/B"
+                    "HA1/SUM" ==> "HA2/A"; "CIN" ==> "HA2/B"
+                    "HA1/CARRY" ==> "ORC/0"; "HA2/CARRY" ==> "ORC/1"
+                    "HA2/SUM" ==> "SUM"; "ORC/0" ==> "COUT"
+                ]
+            let folder =
+                System.IO.Path.Combine(
+                    System.Environment.GetFolderPath System.Environment.SpecialFolder.ApplicationData,
+                    "Issie", "libsrc")
+            SheetLayout.saveProject folder [ halfAdd; fullAdd ] |> expectOk
+            Expect.isTrue (System.IO.File.Exists (System.IO.Path.Combine(folder, "fullAdd.dgm"))) "written"
         }
 
         test "the generated canvas simulates" {

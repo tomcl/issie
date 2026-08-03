@@ -555,8 +555,153 @@ let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
                     OverflowY OverflowOptions.Auto
                     OverflowX OverflowOptions.Auto
                 ]
-            ] 
+            ]
             r]
+
+
+//-------------------------------------------------------------------------------------------------//
+//-------------------------------------EDIT AND VIEW MENUS-----------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+
+// These hold what used to be on the Electron Edit and View menus. Everything reachable only from
+// those menus has to have a home here before they can be deleted, since an Electron menu is the
+// only thing registering their keyboard accelerators and both go at once.
+//
+// Every item shows its own shortcut, read from KeyTypes rather than written out here, so the menu
+// documents the keys and cannot drift from what actually fires.
+
+/// global. because an opened module here shadows the Node namespace
+let private isMacPlatform = global.Node.Api.``process``.platform = global.Node.Base.Darwin
+
+/// A dropdown item labelled with the keyboard shortcut that also invokes it.
+let private itemWithKey (label: string) (id: KeyTypes.ShortcutId) (action: unit -> unit) =
+    Navbar.Item.a
+        [ Navbar.Item.Props
+            [ OnClick(fun _ -> action ())
+              Style [ Display DisplayOptions.Flex; JustifyContent "space-between" ] ] ]
+        [ str label
+          span
+              [ Style [ MarginLeft "2.5em"; Opacity "0.5"; FontSize "90%"; WhiteSpace WhiteSpaceOptions.Nowrap ] ]
+              [ str (KeyTypes.idLabel isMacPlatform id) ] ]
+
+/// A non-clickable heading grouping the items under it. Bulma's navbar has no nested dropdown, so
+/// what were submenus on the Electron menus are flat groups here.
+let private itemGroupHeading (label: string) =
+    Navbar.Item.div
+        [ Navbar.Item.Props
+            [ Style [ FontSize "85%"; Opacity "0.55"; PaddingBottom "0"; Cursor "default" ] ] ]
+        [ str label ]
+
+/// The dropdown, shown only when this is the open one.
+let private dropdown (isOpen: bool) (items: ReactElement list) =
+    Navbar.Dropdown.div
+        [ Navbar.Dropdown.Props
+            [ Style [ Display(if isOpen then DisplayOptions.Block else DisplayOptions.None) ] ] ]
+        items
+
+/// A top-level entry on the renderer menu bar which toggles its own dropdown.
+let private topMenuEntry (name: string) (thisMenu: TopMenu) (openState: TopMenu) dispatch items =
+    Navbar.Item.div
+        [ Navbar.Item.HasDropdown
+          Navbar.Item.Props
+              [ OnClick(fun _ ->
+                  (if openState = thisMenu then Closed else thisMenu) |> SetTopMenu |> dispatch) ] ]
+        [ Navbar.Link.a [] [ str name ]
+          dropdown (openState = thisMenu) items ]
+
+let private editMenuItems dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let keyDispatch = SheetT.KeyPress >> sheetDispatch
+    let wireOf (f: ComponentId list -> BusWireT.Model -> BusWireT.Model) =
+        dispatch
+        <| UpdateModel(fun m -> m |> Optic.map (sheet_ >-> SheetT.wire_) (f m.Sheet.SelectedComponents))
+
+    [ itemWithKey "Undo" KeyTypes.ScUndo (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlZ)
+      itemWithKey "Redo" KeyTypes.ScRedo (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlY)
+      Navbar.divider [] []
+      itemWithKey "Select all" KeyTypes.ScSelectAll (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlA)
+      itemWithKey "Copy" KeyTypes.ScCopy (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlC)
+      itemWithKey "Paste" KeyTypes.ScPaste (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlV)
+      itemWithKey "Delete" KeyTypes.ScDelete (fun () -> keyDispatch SheetT.KeyboardMsg.DEL)
+      Navbar.divider [] []
+      itemWithKey "Rotate clockwise" KeyTypes.ScRotateClockwise (fun () ->
+          sheetDispatch (SheetT.Rotate CommonTypes.Degree90))
+      itemWithKey "Rotate anticlockwise" KeyTypes.ScRotateAnticlockwise (fun () ->
+          sheetDispatch (SheetT.Rotate CommonTypes.Degree270))
+      itemWithKey "Flip vertically" KeyTypes.ScFlipVertical (fun () ->
+          sheetDispatch (SheetT.Flip SymbolT.FlipVertical))
+      itemWithKey "Flip horizontally" KeyTypes.ScFlipHorizontal (fun () ->
+          sheetDispatch (SheetT.Flip SymbolT.FlipHorizontal))
+      itemWithKey "Align" KeyTypes.ScAlign (fun () ->
+          sheetDispatch (SheetT.Arrangement SheetT.AlignSymbols))
+      itemWithKey "Distribute" KeyTypes.ScDistribute (fun () ->
+          sheetDispatch (SheetT.Arrangement SheetT.DistributeSymbols))
+      itemWithKey "Rotate label" KeyTypes.ScRotateLabel (fun () -> sheetDispatch SheetT.RotateLabels)
+      Navbar.divider [] []
+      itemWithKey "Separate wires from selection" KeyTypes.ScSeparateWires (fun () ->
+          wireOf BusWireSeparate.reSeparateWiresFrom)
+      itemWithKey "Reroute wires from selection" KeyTypes.ScRerouteWires (fun () ->
+          wireOf BusWireSeparate.reRouteWiresFrom)
+      Navbar.divider [] []
+      itemWithKey "How to move component ports" KeyTypes.ScMovePortsHelp (fun () ->
+          dispatch
+          <| ShowStaticInfoPopup(
+              "How to move component ports",
+              SymbolPortHelpers.moveCustomPortsPopup (),
+              dispatch)) ]
+
+let private viewMenuItems dispatch =
+    let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    let keyDispatch = SheetT.KeyPress >> sheetDispatch
+    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
+    let symbolDispatch msg = busWireDispatch (BusWireT.Msg.Symbol msg)
+    let setTheme theme =
+        dispatch <| SetThemeUserData theme
+        symbolDispatch (SymbolT.Msg.SetTheme theme)
+    // The Electron roles these replace acted on the *zoom level*, stepping by 0.5, so match that
+    // rather than scaling a factor - otherwise the steps feel different from what users had.
+    let stepAppZoom delta =
+        let wc = JSHelpers.electronRemote.getCurrentWebContents ()
+        wc.setZoomLevel (max -9.0 (min 9.0 (wc.getZoomLevel () + delta)))
+
+    [ itemWithKey "Enter/exit fullscreen" KeyTypes.ScFullScreen (fun () ->
+          let w = JSHelpers.electronRemote.getCurrentWindow ()
+          w.setFullScreen (not (w.isFullScreen ())))
+      Navbar.divider [] []
+      itemWithKey "Zoom application in" KeyTypes.ScAppZoomIn (fun () -> stepAppZoom 0.5)
+      itemWithKey "Zoom application out" KeyTypes.ScAppZoomOut (fun () -> stepAppZoom -0.5)
+      itemWithKey "Zoom application reset" KeyTypes.ScAppZoomReset (fun () ->
+          JSHelpers.electronRemote.getCurrentWebContents().setZoomLevel 0.0)
+      Navbar.divider [] []
+      itemWithKey "Zoom diagram in" KeyTypes.ScDiagramZoomIn (fun () ->
+          keyDispatch SheetT.KeyboardMsg.ZoomIn)
+      itemWithKey "Zoom diagram out" KeyTypes.ScDiagramZoomOut (fun () ->
+          keyDispatch SheetT.KeyboardMsg.ZoomOut)
+      itemWithKey "Zoom diagram to fit" KeyTypes.ScDiagramZoomToFit (fun () ->
+          keyDispatch SheetT.KeyboardMsg.CtrlW)
+      Navbar.divider [] []
+      itemWithKey "Show/hide grid" KeyTypes.ScToggleGrid (fun () -> sheetDispatch SheetT.Msg.ToggleGrid)
+      itemWithKey "Show/hide wire arrows" KeyTypes.ScToggleWireArrows (fun () ->
+          busWireDispatch BusWireT.Msg.ToggleArrowDisplay)
+      Navbar.divider [] []
+      itemGroupHeading "Wire style"
+      itemWithKey "Jump" KeyTypes.ScWireTypeJump (fun () ->
+          sheetDispatch (SheetT.WireType SheetT.WireTypeMsg.Jump))
+      itemWithKey "Radiussed" KeyTypes.ScWireTypeRadiussed (fun () ->
+          sheetDispatch (SheetT.WireType SheetT.WireTypeMsg.Radiussed))
+      itemWithKey "Modern" KeyTypes.ScWireTypeModern (fun () ->
+          sheetDispatch (SheetT.WireType SheetT.WireTypeMsg.Modern))
+      Navbar.divider [] []
+      itemGroupHeading "Theme"
+      itemWithKey "Colourful" KeyTypes.ScThemeDefault (fun () -> setTheme SymbolT.ThemeType.Colourful)
+      itemWithKey "Light" KeyTypes.ScThemeLight (fun () -> setTheme SymbolT.ThemeType.Light)
+      itemWithKey "Grayscale" KeyTypes.ScThemeGrayscale (fun () -> setTheme SymbolT.ThemeType.White)
+      Navbar.divider [] []
+      itemWithKey "Show/hide build tab" KeyTypes.ScToggleBuildTab (fun () ->
+          dispatch ChangeBuildTabVisibility)
+      itemWithKey "Show/hide app memory display" KeyTypes.ScToggleMemoryDisplay (fun () ->
+          JSHelpers.loggingMemory <- not JSHelpers.loggingMemory
+          printfn $"""Memory display is now {if JSHelpers.loggingMemory then "on" else "off"}.""") ]
 
 
 let viewTopMenu model dispatch =
@@ -745,12 +890,24 @@ let viewTopMenu model dispatch =
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| fun _ -> dispatch <| FileCommand (FileOpenProject true, dispatch)] ]
                                       [ str "Open project" ]
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| fun _ -> dispatch <| FileCommand (FileCloseProject, dispatch) ] ]
-                                      [ str "Close project" ] ] ]
+                                      [ str "Close project" ]
+                                  // whole-project operations, homeless once the Electron Sheet
+                                  // menu goes. They act on the project, not the open sheet, so
+                                  // they belong here rather than on Sheets - whose dropdown has
+                                  // the sheet tree below it and no room to spare.
+                                  Navbar.divider [] []
+                                  itemWithKey "Save project in new format" KeyTypes.ScSaveProjectNewFormat
+                                      (fun () -> dispatch <| MenuAction(MenuSaveProjectInNewFormat, dispatch))
+                                  itemWithKey "Write design as Verilog" KeyTypes.ScWriteVerilog
+                                      (fun () -> dispatch <| MenuAction(MenuVerilogOutput, dispatch)) ] ]
 
                       // Sheets menu. Second on the bar, but its dropdown is still pinned to the
                       // left edge of the app - see fileTab, which holds the sheet tree and wants
                       // every pixel of width it can get.
                       fileTab model
+
+                      topMenuEntry "Edit" Edit topMenuOpenState dispatch (editMenuItems dispatch)
+                      topMenuEntry "View" View topMenuOpenState dispatch (viewMenuItems dispatch)
 
                       // make the path in the navbar responsive
                       let hidePath = numPathChars < Constants.numCharsHidePath

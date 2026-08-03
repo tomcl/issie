@@ -8,8 +8,14 @@ open Browser.Dom
 module Constants =
     let dividerBarWidth = 10
 
-let headerHeight = "72px"
-let private headerHeightWithBorderOffset = "74px"
+/// Where the canvas starts, which must equal where the top menu bar ends.
+///
+/// The bar's height is driven by its content: a 40px button inside a navbar-item with 8px of
+/// padding above and below is 56px, and the bar starts 2px down from the window's top border.
+/// Keep this in step with that. It was 72px from when each button sat inside two nested
+/// navbar-items rather than one, and the 14px left over showed as an empty white strip between
+/// the line under the menu bar and the line above the canvas.
+let headerHeight = "58px"
 /// Small right section.
 let private rightSectionWidthS = "400px"
 /// Large right section.

@@ -195,7 +195,7 @@ let private  viewRightTab canvasState model dispatch =
                     | _ -> None
                 "Component properties", blurb
             | _ -> "Component properties", None
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+        div [ HTMLAttr.Id "PropertiesPane"; Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
             Heading.h4 [] [ str heading ]
             (match blurb with
              | None -> null

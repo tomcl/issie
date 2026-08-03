@@ -857,9 +857,11 @@ let viewTopMenu model dispatch =
         [ Navbar.navbar
             [ Navbar.Props
                 [  Style
+                    // no BorderBottom: what is directly below - the canvas, and the right pane's
+                    // tab body - already draws a 2px BorderTop, and with the bar and the canvas
+                    // now flush the two abutted into one 4px line
                     [ Height "100%"
-                      Width "100%" 
-                      BorderBottom "2px solid lightgray"]
+                      Width "100%" ]
                    ] ]
             [ Navbar.Brand.div
                   [ Props

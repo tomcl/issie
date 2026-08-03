@@ -91,3 +91,17 @@ th, td {
   padding-left: 0.6em;
   padding-right: 0.6em;
 }
+
+/* ---------------------------------------------------------------------------
+   Properties pane button spacing.
+
+   Buttons there are stacked with <br> between them, which breaks the line but
+   adds no space, and Bulma gives .button no margin at all - so a column of
+   buttons touches, edge to edge. A margin here rather than at each call site,
+   since every one of them would otherwise have to remember it. Scoped to the
+   properties pane: the top bar packs its buttons tight on purpose, and the
+   wave simulator's toolbars are laid out to fixed widths.
+   --------------------------------------------------------------------------- */
+#PropertiesPane .button {
+  margin: 0.2rem 0.4rem 0.2rem 0;
+}

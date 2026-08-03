@@ -804,11 +804,11 @@ let viewTopMenu model dispatch =
                           |> SetTopMenu
                           |> dispatch)
                         // Bulma positions .navbar-dropdown against this item, which would start
-                        // the sheet tree wherever the "Sheets" label happens to sit. Taking the
+                        // the sheet tree wherever the "Sheet" label happens to sit. Taking the
                         // item out of the positioning chain hands that job to the nearest
                         // positioned ancestor - #TopMenu, whose left edge is the app's left edge.
                         Style [ Position PositionOptions.Static ] ] ]
-                [ Navbar.Link.a [] [ str "Sheets" ]
+                [ Navbar.Link.a [] [ str "Sheet" ]
                   Navbar.Dropdown.div
                       [ Navbar.Dropdown.Props
                           [ Style
@@ -818,7 +818,7 @@ let viewTopMenu model dispatch =
                                       DisplayOptions.Block
                                    else
                                       DisplayOptions.None)
-                                // left of #TopMenu rather than of the "Sheets" item. Bulma also
+                                // left of #TopMenu rather than of the "Sheet" item. Bulma also
                                 // sets min-width to 100% of the same box, which is now the whole
                                 // bar rather than one item - far wider than the tree needs, so it
                                 // is dropped and the width left to the content and to the

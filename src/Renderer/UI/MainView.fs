@@ -54,7 +54,7 @@ let viewOnDiagramButtons model dispatch =
 
 
 let init() = {
-    MousePointerIsOnRightSection = false
+    KeyFocusPane = LeftPane
     RunAfterRenderWithSpinner = None
     SpinnerPayload = None
     Spinner = None
@@ -392,8 +392,6 @@ let displayView model dispatch =
             dispatch <| SetDragMode DragModeOff
             dispatch <| SetViewerWidth w 
         | _ -> ()
-        if ev.buttons = 0 then
-            dispatch <| UpdateModel (fun model -> {model with MousePointerIsOnRightSection = ev.clientX > float (windowX - wsViewerWidth)})
 
     let headerHeight = getHeaderHeight
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
@@ -463,8 +461,14 @@ let displayView model dispatch =
             // transient popups
             UIPopups.viewPopup model dispatch  
 
+            /// Which pane the keyboard follows, changed only by clicking in one.
+            let claimKeyFocus pane =
+                if model.KeyFocusPane <> pane then
+                    dispatch <| UpdateModel(fun m -> { m with KeyFocusPane = pane })
+
             if model.PopupDialogData.Progress = None then
-                div [ 
+                div [
+                    OnMouseDown (fun _ -> claimKeyFocus LeftPane)
                     OnWheel (fun (e: Browser.Types.WheelEvent) ->
                         if e.ctrlKey || e.metaKey then
                             e.preventDefault()
@@ -501,6 +505,7 @@ let displayView model dispatch =
                 div [
                     HTMLAttr.Id "RightSection";
                     rightSectionStyle model;
+                    OnMouseDown (fun _ -> claimKeyFocus RightPane);
                     OnMouseMove wavesimSbMouseMoveHandler;
                     OnMouseUp wavesimSbMouseUpHandler ]
                       // vertical and draggable divider bar

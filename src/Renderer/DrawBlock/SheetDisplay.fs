@@ -114,6 +114,10 @@ let displaySvgWithZoom
     let attrs : IHTMLProp list =
         [
               HTMLAttr.Id "Canvas"
+              // Focusable, so that "which keys go where" is visible rather than implied: clicking
+              // the canvas takes focus off any input box, Tab reaches it as an ordinary stop, and
+              // the focus ring says where the keyboard is pointing.
+              HTMLAttr.TabIndex 0
               Ref canvasRef.Value
               //Key cursorText // force cursor change to be rendered
               Style ( CSSProp.Cursor cursorText :: style)

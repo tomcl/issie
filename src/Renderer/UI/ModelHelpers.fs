@@ -425,7 +425,9 @@ let inputBigint
         | _ -> ()
             
     Input.text [
-        Input.Props (props @ [OnPaste PopupHelpers.preventDefault; AutoFocus true; SpellCheck false])
+        // caller's props go last so they win: these defaults used to be appended after them, which
+        // silently overrode an explicit AutoFocus false at the one call site that asked for it
+        Input.Props ([OnPaste PopupHelpers.preventDefault; AutoFocus true; SpellCheck false] @ props)
         Input.Placeholder placeholder
         Input.DefaultValue (model |> Optics.Optic.get locs.TextOptic_)
         Input.OnChange (JSHelpers.getTextEventValue >> parseInput)

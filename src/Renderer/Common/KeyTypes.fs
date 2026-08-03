@@ -392,8 +392,10 @@ let shortcuts: ShortcutSpec list =
       // ------------------------------------------------------------------ gestures (help only)
       spec GsCtrlWheelZoom (Gesture("Control + mouse wheel", "Command-mouse wheel")) []
           "Zoom the diagram" CatGesture
+      // Doc is empty so this stays out of the shortcut table: the mouse-gesture table above it
+      // already covers scrolling, and more fully - it has the touchpad and touchscreen ways too.
       spec GsShiftDragPan (Gesture("Shift + drag on canvas", "Shift-drag on canvas")) []
-          "Scroll the diagram" CatGesture
+          "" CatGesture
       spec GsCtrlHoldPorts (Gesture("Hold Control over a custom component", "Hold Command over a custom component")) []
           "Show the ports and resize corners that can be dragged" CatGesture
       spec GsTabBetweenBoxes (Gesture("Tab / Shift + Tab", "Tab / Shift-Tab")) []

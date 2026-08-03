@@ -39,27 +39,39 @@ module Constants =
     let boxMaxChars = 34
     let ncPortDist = 30.
 
-/// save verilog file
+/// Write one sheet, and everything below it, as a Verilog file beside the project.
+///
+/// The sheet is a parameter rather than always the open one, so any sheet can be written from its
+/// pill in the sheet menu. Verilog output was already rooted at a single sheet and flattened over
+/// its subtree - buildFastSimulation inlines custom components, and getVerilog emits one module
+/// called main - so this only makes explicit which sheet is the root.
+///
 /// TODO: the simulation error display here is shared with step simulation and also waveform simulation -
 /// maybe it should be a subfunction.
-let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) =
-    printfn "Verilog output"
-    match MenuHelpers.updateProjectFromCanvas model dispatch, model.Sheet.GetCanvasState() with
-        | Some proj, state ->
+let verilogOutputForSheet (sheetName: string) (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) =
+    match MenuHelpers.updateProjectFromCanvas model dispatch with
+        | Some proj ->
             match model.UIState with  //TODO should this be its own UI operation?
             | Some _ ->
                 () // do nothing if in middle of I/O operation
             | None ->
-                startCircuitSimulation 2 proj.OpenFileName (state) proj.LoadedComponents
-                |> (function 
-                    | Ok sim -> 
-                        let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
-                        printfn "writing %s" proj.ProjectPath
-                        try 
+                // updateProjectFromCanvas has just refreshed the open sheet's saved state from the
+                // canvas, so reading the chosen sheet's LoadedComponent is current whether or not
+                // it is the sheet on screen.
+                match proj.LoadedComponents |> List.tryFind (fun lc -> lc.Name = sheetName) with
+                | None ->
+                    Error $"Cannot write Verilog: there is no sheet called '{sheetName}' in this project."
+                    |> Notifications.displayAlertOnError dispatch
+                | Some ldc ->
+                startCircuitSimulation 2 sheetName ldc.CanvasState proj.LoadedComponents
+                |> (function
+                    | Ok sim ->
+                        let path = FilesIO.pathJoin [| proj.ProjectPath; sheetName + ".v" |]
+                        try
                             let code = (Verilog.getVerilog vType sim.FastSim Verilog.CompilationProfile.Release)
                             FilesIO.writeFile path code
                         with
-                        | e -> 
+                        | e ->
                             printfn $"Error in Verilog output: {e.Message}"
                             Error e.Message
                         |> Notifications.displayAlertOnError dispatch
@@ -69,10 +81,10 @@ let verilogOutput (vType: Verilog.VMode) (model: Model) (dispatch: Msg -> Unit) 
                     | Error simError ->
                        printfn $"Error in simulation prevents verilog output {(errMsg simError.ErrType)}"
                        dispatch <| ChangeRightTab Simulation
-                       if simError.InDependency.IsNone then
-                           // Highlight the affected components and connection only if
-                           // the error is in the current diagram and not in a
-                           // dependency.
+                       // Highlight the affected components and connections only when they are on
+                       // the sheet being displayed: the error may be in a sheet the user cannot
+                       // see, in which case highlighting would mark unrelated components.
+                       if simError.InDependency.IsNone && sheetName = proj.OpenFileName then
                            (simError.ComponentsAffected, simError.ConnectionsAffected)
                            |> SetHighlighted |> dispatch
                        Error simError

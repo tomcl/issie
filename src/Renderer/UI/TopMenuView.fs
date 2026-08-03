@@ -898,10 +898,11 @@ let viewTopMenu model dispatch =
                                   // they belong here rather than on Sheets - whose dropdown has
                                   // the sheet tree below it and no room to spare.
                                   Navbar.divider [] []
+                                  // Writing Verilog is per-sheet, so it lives on the sheet's own
+                                  // pill in the Sheets menu rather than here, where it could only
+                                  // ever have meant whichever sheet happened to be open.
                                   itemWithKey "Save project in new format" KeyTypes.ScSaveProjectNewFormat
-                                      (fun () -> dispatch <| MenuAction(MenuSaveProjectInNewFormat, dispatch))
-                                  itemWithKey "Write design as Verilog" KeyTypes.ScWriteVerilog
-                                      (fun () -> dispatch <| MenuAction(MenuVerilogOutput, dispatch)) ] ]
+                                      (fun () -> dispatch <| MenuAction(MenuSaveProjectInNewFormat, dispatch)) ] ]
 
                       // Sheets menu. Second on the bar, but its dropdown is still pinned to the
                       // left edge of the app - see fileTab, which holds the sheet tree and wants

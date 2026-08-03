@@ -282,6 +282,60 @@ let updateAllMemoryCompsIfNeeded (model:Model) =
         model
 
 
+let verilogOutputPage sheet fPath  =
+    div [] [
+        str $"You can write sheet '{sheet}' (and its subsheets) in either simulation or synthesis format. The output will be written to:"
+        Text.div [ 
+            Modifiers [ Modifier.TextWeight TextWeight.Bold]
+            Props [Style [TextAlign TextAlignOptions.Center; CSSProp.Padding "10px"; FontFamily "monospace"; FontSize "15px"]]] [str $"%s{Helpers.cropToLength 55 false fPath}.v"]
+        Columns.columns [ ]
+            [ Column.column [ ]
+                [ Panel.panel [ Panel.Color IsInfo ]
+                    [ Panel.heading [ ] [ str "Simulation output"]
+                      Panel.Block.div [] [ str "Simulation output will run on an online synthesis tool such as Icarus v10 to check that Issie's Verilog output is working"]
+                      Panel.Block.div [] 
+                        [ Button.button 
+                            [   Button.Color IsSuccess
+                               
+                                Button.IsFullWidth
+                                Button.OnClick <| openInBrowser "https://www.tutorialspoint.com/compile_verilog_online.php"
+                            ]
+                            [ str "Icarus v10 Verilog simulator"]
+                        ]
+                    ]
+                ]
+              Column.column [ ]
+                [ Panel.panel [ Panel.Color IsInfo ]
+                    [ Panel.heading [ ] [ str "Synthesis output"]
+                      Panel.Block.div [] [str "Synthesis output can be used as input to FPGA synthesis tools." ]
+                      Panel.Block.div [] 
+                        [ Button.button 
+                            [   Button.Color IsSuccess                          
+                                Button.IsFullWidth
+                                Button.OnClick <| openInBrowser "https://github.com/edstott/issie-synth"
+                            ]
+                            [ str "Instructions for synthesis work-flow"] 
+                        ]
+                      
+                         ] ] ] ] 
+
+/// Ask which Verilog flavour to write for a sheet, then write it.
+/// Reached from the sheet's pill in the sheet menu, so it names the sheet rather than assuming
+/// whichever one happens to be open.
+let verilogOutputPopup (sheetName: string) (model: Model) (dispatch: Msg -> Unit) =
+    mapOverProject () model (fun p ->
+        let fPath = FilesIO.pathJoin [| p.ProjectPath; sheetName |]
+        choicePopup
+            "Verilog Output"
+            (verilogOutputPage sheetName fPath)
+            "Write Synthesis Verilog"
+            "Write Simulation Verilog"
+            (fun forSim _ ->
+                let vType = if forSim then Verilog.ForSynthesis else Verilog.ForSimulation
+                SimulationView.verilogOutputForSheet sheetName vType model dispatch
+                dispatch ClosePopup)
+            dispatch)
+
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------CONTEXT MENUS-----------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -470,6 +524,10 @@ let processContextMenuClick
         model
         |> setTopSheetState sheet.SheetName
         |> withMsg ApplyComputedDisplayValues
+
+    | SheetMenuBreadcrumb(sheet,_), "Write design as Verilog" ->
+        verilogOutputPopup sheet.SheetName model dispatch
+        withNoCmd model
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock" ->
         //printfn "locking %s" sheet.SheetName
@@ -760,43 +818,6 @@ let getSimulationDataOrFail model msg =
         | Error _ -> failwithf "what? Getting simulation data when could not start because of error: %s" msg
         | Ok simData -> simData
 
-let verilogOutputPage sheet fPath  =
-    div [] [
-        str $"You can write sheet '{sheet}' (and its subsheets) in either simulation or synthesis format. The output will be written to:"
-        Text.div [ 
-            Modifiers [ Modifier.TextWeight TextWeight.Bold]
-            Props [Style [TextAlign TextAlignOptions.Center; CSSProp.Padding "10px"; FontFamily "monospace"; FontSize "15px"]]] [str $"%s{Helpers.cropToLength 55 false fPath}.v"]
-        Columns.columns [ ]
-            [ Column.column [ ]
-                [ Panel.panel [ Panel.Color IsInfo ]
-                    [ Panel.heading [ ] [ str "Simulation output"]
-                      Panel.Block.div [] [ str "Simulation output will run on an online synthesis tool such as Icarus v10 to check that Issie's Verilog output is working"]
-                      Panel.Block.div [] 
-                        [ Button.button 
-                            [   Button.Color IsSuccess
-                               
-                                Button.IsFullWidth
-                                Button.OnClick <| openInBrowser "https://www.tutorialspoint.com/compile_verilog_online.php"
-                            ]
-                            [ str "Icarus v10 Verilog simulator"]
-                        ]
-                    ]
-                ]
-              Column.column [ ]
-                [ Panel.panel [ Panel.Color IsInfo ]
-                    [ Panel.heading [ ] [ str "Synthesis output"]
-                      Panel.Block.div [] [str "Synthesis output can be used as input to FPGA synthesis tools." ]
-                      Panel.Block.div [] 
-                        [ Button.button 
-                            [   Button.Color IsSuccess                          
-                                Button.IsFullWidth
-                                Button.OnClick <| openInBrowser "https://github.com/edstott/issie-synth"
-                            ]
-                            [ str "Instructions for synthesis work-flow"] 
-                        ]
-                      
-                         ] ] ] ] 
-
 /// handle Menu actions that may need Model data
 let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
     match act with
@@ -813,22 +834,8 @@ let getMenuView (act: MenuCommand) (model: Model) (dispatch: Msg -> Unit) =
         
     | MenuExit ->
         FileUpdate.doActionWithSaveFileDialog "Exit ISSIE" CloseApp model dispatch ()
-    | MenuVerilogOutput ->
-        mapOverProject () model (fun p ->
-            let sheet = p.OpenFileName
-            let fPath = FilesIO.pathJoin [|p.ProjectPath ; sheet|]
-            choicePopup
-                "Verilog Output"
-                (verilogOutputPage sheet fPath)
-                "Write Synthesis Verilog"
-                "Write Simulation Verilog"
-                (fun forSim _ -> 
-                    match forSim with
-                    | true -> SimulationView.verilogOutput Verilog.ForSynthesis model dispatch
-                    | false -> SimulationView.verilogOutput Verilog.ForSimulation model dispatch
-                    dispatch ClosePopup)
-                dispatch)
-            
+    // Verilog output is no longer a menu command: it is per-sheet, and reached by right-clicking
+    // that sheet's pill in the sheet menu. See verilogOutputPopup above.
     | _ -> ()
     model
 

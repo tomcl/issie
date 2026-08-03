@@ -36,28 +36,22 @@ module Constants =
     
 
 
-let private textFormField isRequired name defaultValue isBad onChange onDeleteAtEnd =
-    let onDelete (ev: Browser.Types.KeyboardEvent) =
-        if ev.key = "Delete" then  
-            let textEl: Browser.Types.HTMLInputElement = unbox (Browser.Dom.document.getElementById "labelInputElement")
-            let length = textEl.value.Length
-            let start = textEl.selectionStart
-            if length = start then
-                // Delete pressed at end of input box should go to draw block as
-                // a single component DELETE action - since that was probably wanted.
-                // NB it will only happen if just one component is highlighted
-                onDeleteAtEnd()
-            
+/// The name box.
+///
+/// Delete pressed with the caret at the end of this box used to delete the selected component,
+/// because there was no other way to get the keyboard back to the schematic without the mouse.
+/// Return now does that properly - see KeyTypes.ScLeaveTextBox - so one key no longer means two
+/// things depending on where the caret happens to be.
+let private textFormField isRequired name defaultValue isBad onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.text [
-            Input.Props [ 
-                Id "labelInputElement"; 
-                OnPaste preventDefault; 
-                SpellCheck false; 
-                Name name; 
-                Style [ Width "200px"]; 
-                OnKeyDown onDelete]
+            Input.Props [
+                Id "labelInputElement";
+                OnPaste preventDefault;
+                SpellCheck false;
+                Name name;
+                Style [ Width "200px"] ]
             Input.DefaultValue defaultValue
             // the field is labelled, so the placeholder says the one thing the label does not
             Input.Placeholder (if isRequired then "required" else "optional")
@@ -71,7 +65,10 @@ let private textFormFieldSimple name defaultValue onChange =
     Field.div [] [
         Label.label [] [ str name ]
         Input.text [
-            Input.Props [ OnPaste preventDefault; SpellCheck false; Name name; AutoFocus true; Style [ Width "200px"]]
+            // no AutoFocus: selecting a component must leave the keyboard on the schematic, or
+            // every canvas shortcut dies the moment you click a Constant. You click into a box to
+            // type in it, and press Return to leave.
+            Input.Props [ OnPaste preventDefault; SpellCheck false; Name name; Style [ Width "200px"]]
             Input.DefaultValue defaultValue
             Input.Type Input.Text
             Input.OnChange (getTextEventValue >> onChange)
@@ -1206,10 +1203,6 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         dispatch <| SetPopupDialogText (Some label)
                         dispatch <| SetPopupDialogBadLabel (false)
                     dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component
-                ( fun () -> // onDeleteAtEndOfBox
-                    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-                    let dispatchKey = SheetT.KeyPress >> sheetDispatch
-                    dispatchKey SheetT.KeyboardMsg.DEL)
             ParameterView.computedValueNote model comp
             makeExtraInfo model comp labelText dispatch
             makeAboutSection model comp dispatch

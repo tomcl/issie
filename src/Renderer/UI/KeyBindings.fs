@@ -43,10 +43,7 @@ let contextOfModel (m: Model) : KeyContext =
         m.RightPaneTabVisible = RightTab.Simulation
         && m.SimSubTabVisible = SimSubTab.WaveSim
         && (getWSModel m).State = WaveSimState.Success
-        // TODO: MousePointerIsOnRightSection is a mouse-position proxy, stale whenever the pointer
-        // has not moved and measured against the wrong edge for non-wavesim tabs. It is replaced
-        // by a click-driven KeyFocusPane when the old mechanisms are removed.
-        && m.MousePointerIsOnRightSection
+        && m.KeyFocusPane = RightPane
     then
         WaveSim
     else

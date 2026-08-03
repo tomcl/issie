@@ -268,52 +268,63 @@ let viewInfoPopup dispatch =
                     td [] [makeKeyStrSpan macosKeyList "-"]
                 ]
 
-            let keyData: List<String*List<String>*List<String>> = 
-                [
-                    "Create new sheet", ["Control"; "N"], ["Command"; "N"];
-                    "Save current sheet", ["Control"; "S"], ["Command"; "S"];
-                    "Save project in new format", [], ["Command"; "Shift"; "S"];
-                    "Open about/help window", [], ["Command"; "H"];
-                    "Quit application", [], ["Command"; "Q"];
+            /// Generated from the shortcut table rather than written out here, so it cannot drift
+            /// from what actually fires - which the hand-maintained list it replaces had already
+            /// done: it claimed a developer-tools shortcut that release builds do not have, and
+            /// omitted Ctrl+wheel zoom, the waveform cursor keys and Shift+drag scrolling
+            /// entirely. Rows are grouped, with a heading row between groups.
+            let keyRows: ReactElement list =
+                let categoryName c =
+                    match c with
+                    | KeyTypes.CatFile -> "Project and sheets"
+                    | KeyTypes.CatEdit -> "Editing the schematic"
+                    | KeyTypes.CatView -> "View"
+                    | KeyTypes.CatWaveSim -> "Waveform simulator"
+                    | KeyTypes.CatTextEntry -> "Typing in a box"
+                    | KeyTypes.CatGesture -> "Mouse and gestures"
+                    | KeyTypes.CatDev -> "Development"
 
-                    "Enter/Exit fullscreen", ["F11"], ["Command"; "Control"; "F"];
-                    "Zoom application in", ["Control"; "Plus (+)"], ["Command"; "Plus sign (+)"];
-                    "Zoom application out", ["Control"; "Minus (-)"], ["Command"; "Minus sign (-)"];
-                    "Zoom application reset", ["Control"; "0"], ["Command"; "0"];
-                    "Zoom diagram in", ["Alt"; "Up arrow"], ["Command"; "Option"; "Plus sign (+)"];
-                    "Zoom diagram out", ["Alt"; "Down arrow"], ["Command"; "Option"; "Minus sign (-)"];
-                    "Zoom circuit to fit in screen", ["Control"; "W"], ["Command"; "Option"; "0"];
-                    "Show/Hide grid lines", [], ["Command"; "Option"; "G"];
-                    "Show/Hide wire arrows", [], ["Command"; "Option"; "W"];
-                    "Show/Hide browser developer tools", ["Control"; "Shift"; "I"], ["Command"; "Option"; "I"];
+                let order c =
+                    match c with
+                    | KeyTypes.CatFile -> 0
+                    | KeyTypes.CatEdit -> 1
+                    | KeyTypes.CatView -> 2
+                    | KeyTypes.CatWaveSim -> 3
+                    | KeyTypes.CatTextEntry -> 4
+                    | KeyTypes.CatGesture -> 5
+                    | KeyTypes.CatDev -> 6
 
-                    "Copy selected items", ["Control"; "C"], ["Command"; "C"];
-                    "Paste items", ["Control"; "V"], ["Command"; "V"];
-                    "Select all items", ["Control"; "A"], ["Command"; "A"];
-                    "Delete items", ["Delete"], ["Backspace"];
-                    "Rotate items clockwise/anticlockwise",
-                        ["Control"; "Left/Right arrows"],
-                        ["Command"; "Option"; "Left/Right arrow"];
-                    "Flip items horizontally/vertically",
-                        ["Control"; "Up/Down arrows"],
-                        ["Command"; "Option"; "Up/Down arrow"];
-                    "Align items", ["Control"; "Shift"; "A"], ["Command"; "Option"; "A"];
-                    "Distribute items", ["Control"; "Shift"; "D"], ["Command"; "Option"; "D"];
-                    "Rotate label of item", ["Control"; "Shift"; "Right arrow"], ["Command"; "Option"; "R"];
-                    "Undo diagram action", ["Control"; "Z"], ["Command"; "Z"];
-                    "Redo diagram action", ["Control"; "Y"], ["Command"; "Shift"; "Z"];
-                    "Cancel action", ["Escape"], ["Escape"];
-                ]
+                /// only the first chord is shown: later ones are alternatives, not extra keys
+                let partsFor isMac (s: KeyTypes.ShortcutSpec) =
+                    match s.Trigger with
+                    | KeyTypes.Gesture(win, mac) -> [ if isMac then mac else win ]
+                    | KeyTypes.Chords _ ->
+                        KeyTypes.chordsFor isMac s
+                        |> List.tryHead
+                        |> Option.map (KeyTypes.chordParts isMac)
+                        |> Option.defaultValue []
+
+                KeyTypes.shortcuts
+                |> List.filter (fun s ->
+                    s.Doc <> "" && not (s.DevOnly && JSHelpers.debugLevel = 0))
+                |> List.groupBy (fun s -> s.Category)
+                |> List.sortBy (fst >> order)
+                |> List.collect (fun (cat, specs) ->
+                    let heading =
+                        tr [] [ th [Scope "Row"; ColSpan 3; Style [PaddingTop "1em"]]
+                                   [str (categoryName cat)] ]
+                    heading
+                    :: (specs |> List.map (fun s ->
+                            makeKeyTableRow s.Doc (partsFor false s) (partsFor true s))))
+
 
             let head =
                 ["Action"; "Windows/Linux"; "macOS"]
                 |> List.map (fun s -> th [Scope "Col"] [str s])
                 |> (fun l -> [tr [] l])
-            let body = keyData |> List.map (fun (a, wkl, mkl) -> makeKeyTableRow a wkl mkl)
-            
             Table.table [] [
                 thead [] head
-                tbody [] body
+                tbody [] keyRows
             ]
 
 
@@ -348,10 +359,13 @@ let viewInfoPopup dispatch =
             makeH "Keyboard Shortcuts:"
             div
                 [Style [FontStyle "Italic"]]
-                [str "Note: keyboard shortcuts available on top menus and right-click context menus too."]
+                [str "Note: the same actions are on the Edit and View menus and on right-click \
+                      context menus."]
             div
                 [Style [FontStyle "Italic"]]
-                [str "Note: keyboard shortcuts are limited by operating system and Chromium/Electron."]
+                [str "Note: a shortcut acts on whatever has the keyboard. In a text box the \
+                      editing keys edit the text; press Return to hand the keyboard back to the \
+                      schematic."]
             keyTable
         ]
 

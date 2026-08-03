@@ -702,9 +702,16 @@ type DragAddition =
     | PlacedFromCatalogue of ComponentId list
     | PastedFromClipboard of ComponentId list
 
+/// Which half of the window the keyboard is pointing at.
+type Pane = | LeftPane | RightPane
+
 type Model = {
-    /// remember from last mouse movement which side of grey divider it is on.
-    MousePointerIsOnRightSection: bool
+    /// Which pane last received a mouse-down, and so where unmodified keys go.
+    /// Set on mouse-down only - never on mouse-move - so it cannot change under the user's hand
+    /// while they are typing. It replaces a flag set from the pointer's position on every mouse
+    /// move, which was stale whenever the pointer had not moved and measured against the wave
+    /// simulator's divider whichever tab was actually showing.
+    KeyFocusPane: Pane
     /// Function to be run after rendering to update the model
     RunAfterRenderWithSpinner: RunData option
     /// User data for the application

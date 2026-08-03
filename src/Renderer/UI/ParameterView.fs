@@ -443,7 +443,7 @@ let paramInputField
                         OnPaste preventDefault
                         SpellCheck false
                         Name prompt
-                        AutoFocus true
+                        // no AutoFocus - see the name box in SelectedComponentView
                         Style [Width "200px"]
                     ]
                     Input.DefaultValue <| inputString

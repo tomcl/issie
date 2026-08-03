@@ -562,33 +562,10 @@ let processContextMenuClick
               DispatchDelayed (Constants.copiedPathNotificationTime, CloseFilesNotification) ]
 
     | ProjectPathBreadcrumb path, "Open directory" ->
-        // Windows opens the folder window *behind* whatever holds the foreground, and nothing on
-        // this side can lift it: the window belongs to the already-running explorer.exe, which has
-        // no right to take the foreground away from Issie. A process launched by the foreground
-        // process does have that right and passes it on, so spawning explorer.exe opens the window
-        // in front. Measured on Windows 11: through shell.openPath the window lands immediately
-        // below Issie and Issie keeps focus, through the spawn immediately above it and focused.
-        // Every other platform raises it already, and shell.openPath is the portable route there.
         let openDirectory (dispatch: Msg -> unit) =
-            let failed reason =
+            FilesIO.openFolderInFileManager path (fun reason ->
                 dispatch <| SetFilesNotification
-                    (Notifications.errorFilesNotification $"Could not open {path}: {reason}")
-            // global. because an opened module here shadows the Node namespace
-            match global.Node.Api.``process``.platform with
-            | global.Node.Base.Win32 ->
-                // explorer.exe exits non-zero even when it succeeds, and for a path that is not
-                // there it silently opens a default folder rather than reporting anything - so
-                // there is no result worth reading back, and the path is checked up front instead.
-                if isDirectory path then
-                    let options = {| detached = true; stdio = "ignore"; shell = false |} |> toPlainJsObj
-                    global.Node.Api.childProcess.spawn ("explorer.exe", ResizeArray [path], options) |> ignore
-                else
-                    failed "the directory is no longer there"
-            | _ ->
-                // shell.openPath reports failure by resolving with a non-empty message rather than
-                // by rejecting, so saying nothing here would make a failure look like success.
-                electron.shell.openPath path
-                |> Promise.iter (fun error -> if error <> "" then failed error)
+                    (Notifications.errorFilesNotification $"Could not open {path}: {reason}"))
         model, Cmd.ofEffect openDirectory
 
     | DBCustomComp(sym,_), "Move ports"

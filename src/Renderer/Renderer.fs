@@ -177,6 +177,18 @@ let reRouteWires dispatch =
 /// Edit and View in TopMenuView - or in a context menu.
 let devMenu (dispatch) =
     makeMenuGen (debugLevel > 0) false "Development" [
+        // The writable half of the component libraries, under userData - where "save as library
+        // component" puts things. The libraries shipped with Issie are elsewhere, read-only under
+        // the installation, so this is the one that changes as the app is used.
+        makeDebugItem "Open User Library Directory" None (fun _ ->
+            match ComponentLibraries.tryUserLibrariesDirectory () with
+            | Ok path ->
+                FilesIO.openFolderInFileManager path (fun reason ->
+                    dispatch <| SetFilesNotification
+                        (Notifications.errorFilesNotification $"Could not open {path}: {reason}"))
+            | Error e ->
+                dispatch <| SetFilesNotification
+                    (Notifications.errorFilesNotification $"No user library directory: {e}"))
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart Issie" None MenuItemRole.ForceReload
         makeWinDebugItem "Trace All" None (fun _ -> debugTraceUI <- Set.ofList ["update"; "view"])
         makeWinDebugItem "Trace View Function" None (fun _ -> debugTraceUI <- Set.ofList ["view"])

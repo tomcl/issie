@@ -200,6 +200,35 @@ let tryUserDemosDirectory () : Result<string, string> = tryUserSubdirectory "dem
 /// here: they stay read-only under the installation, and are found there directly.
 let tryUserLibrariesDirectory () : Result<string, string> = tryUserSubdirectory "libraries"
 
+/// Show a directory in the platform's file manager.
+///
+/// On Windows this launches explorer.exe rather than calling shell.openPath, because the folder
+/// window is created by the already-running explorer.exe, which has no right to take the
+/// foreground away from Issie - so shell.openPath opens it *behind* the app. A process launched by
+/// the foreground process does have that right and passes it on. Measured on Windows 11: through
+/// shell.openPath the window lands immediately below Issie and Issie keeps focus, through the
+/// spawn immediately above it and focused. Every other platform raises it already, and
+/// shell.openPath is the portable route there.
+///
+/// onError is given a readable reason when the directory cannot be shown. On platforms other than
+/// Windows it is called asynchronously, since shell.openPath reports failure by resolving with a
+/// non-empty message rather than by rejecting - so saying nothing would make a failure look like
+/// success.
+let openFolderInFileManager (path: string) (onError: string -> unit) : unit =
+    match Node.Api.``process``.platform with
+    | Node.Base.Win32 ->
+        // explorer.exe exits non-zero even when it succeeds, and for a path that is not there it
+        // silently opens a default folder rather than reporting anything - so there is no result
+        // worth reading back, and the path is checked up front instead.
+        if isDirectory path then
+            let options = {| detached = true; stdio = "ignore"; shell = false |} |> toPlainJsObj
+            Node.Api.childProcess.spawn ("explorer.exe", ResizeArray [ path ], options) |> ignore
+        else
+            onError "the directory is no longer there"
+    | _ ->
+        electron.shell.openPath path
+        |> Promise.iter (fun error -> if error <> "" then onError error)
+
 let pathWithoutExtension filePath =
     let ext = extName filePath
     filePath 

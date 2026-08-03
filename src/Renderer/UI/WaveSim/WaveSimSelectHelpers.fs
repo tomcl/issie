@@ -336,7 +336,10 @@ let waveSelectBreadcrumbs
                 $"Design hierarchy: filtered by {sheet} without subsheets"
 
         let breadcrumbs = [
-            div [Style [Display DisplayOptions.Flex; FlexDirection "column"; AlignItems AlignItemsOptions.Center]] [
+            // Heading and tree share the panel, as in the Sheet menu - the same tree should not
+            // sit on two different backgrounds depending on where it is shown.
+            div [ HTMLAttr.ClassName "treePanel"
+                  Style [Display DisplayOptions.Flex; FlexDirection "column"; AlignItems AlignItemsOptions.Center]] [
                 div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ; FontWeight 600; PaddingBottom "10px"] ] [
                     str hierarchyText
                     ]

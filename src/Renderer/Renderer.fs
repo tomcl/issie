@@ -163,28 +163,20 @@ let reRouteWires dispatch =
     )
 
 //-----------------------------------------------------------------------------------------------------------//
-//-----------------------------------------------FILE MENU---------------------------------------------------//
+//-------------------------------------------DEVELOPMENT MENU------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------------//
 
-let fileMenu (dispatch) =
-    let newSheetKeyOp = Some (if isMac then "Cmd+n" else "CmdOrCtrl+n")
-    let saveSheetKeyOp = Some (if isMac then "Cmd+s" else "CmdOrCtrl+s")
-    let saveProjectKeyOp = if isMac then Some "Cmd+Shift+s" else None
-    let aboutIssieKeyOp = if isMac then Some "Cmd+h" else None
-    let quitIssieKeyOp = if isMac then Some "Cmd+q" else None
-    let testEditorKeyOp = Some (if isMac then "Cmd+e" else "CmdOrCtrl+q")
-    makeMenu false "Sheet" [
-        makeItem "New Sheet" newSheetKeyOp (fun ev -> dispatch (MenuAction(MenuNewFile, dispatch)))
-        makeItem "Save Sheet" saveSheetKeyOp (fun ev -> dispatch (MenuAction(MenuSaveFile, dispatch)))
-        makeItem "Save Project in New Format" saveProjectKeyOp 
-            (fun ev -> dispatch (MenuAction(MenuSaveProjectInNewFormat, dispatch)))
-        //makeItem "Print Sheet" (Some "CmdOrCtrl+P") (fun ev -> dispatch (MenuAction(MenuPrint, dispatch)))
-        menuSeparator
-        makeItem "Write Design as Verilog" None (fun ev -> dispatch (MenuAction(MenuVerilogOutput, dispatch)))
-        menuSeparator
-        makeItem ("About Issie "+Version.VersionString) aboutIssieKeyOp (fun ev -> UIPopups.viewInfoPopup dispatch)
-        makeItem "Quit Issie" quitIssieKeyOp (fun ev -> dispatch (MenuAction(MenuExit, dispatch)))
-        menuSeparator
+/// The only Electron menu Issie still has, and only in debug builds.
+///
+/// Nothing here carries an accelerator, and nothing here should. Electron registers a menu item's
+/// accelerator globally and unconditionally, which is why the Sheet, Edit and View menus had to
+/// go: they took the key before anything could ask whether it made sense in that context. A menu
+/// with no accelerators takes nothing, so it can coexist with KeyBindings.
+///
+/// Everything users need from the old menus is on the renderer's own menu bar - Project, Sheets,
+/// Edit and View in TopMenuView - or in a context menu.
+let devMenu (dispatch) =
+    makeMenuGen (debugLevel > 0) false "Development" [
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart Issie" None MenuItemRole.ForceReload
         makeWinDebugItem "Trace All" None (fun _ -> debugTraceUI <- Set.ofList ["update"; "view"])
         makeWinDebugItem "Trace View Function" None (fun _ -> debugTraceUI <- Set.ofList ["view"])
@@ -232,7 +224,7 @@ let fileMenu (dispatch) =
                     Playground.Memory.printProcessMemory()
                     dispatch SaveModel)
             makeDebugItem "Test Fonts" None (fun _ -> Playground.TestFonts.makeTextPopup dispatch)
-            makeDebugItem "Test Editor" testEditorKeyOp (fun _ -> Playground.Misc.makeEditorPopup dispatch)
+            makeDebugItem "Test Editor" None (fun _ -> Playground.Misc.makeEditorPopup dispatch)
             makeWinDebugItem "Run Performance Check" None (fun _ -> Playground.MiscTests.testMaps())
             makeWinDebugItem "Print Names of Static Asset Files" None (fun _ -> Playground.MiscTests.testAssets())
             makeWinDebugItem "Test Breadcrumbs" None
@@ -246,7 +238,7 @@ let fileMenu (dispatch) =
                 (fun _ -> Playground.WebWorker.testWorkers Playground.WebWorker.Constants.workerTestConfig)
 
         ]
-        makeMenu false "Verilog" [
+        makeMenuGen (debugLevel > 0) false "Verilog" [
             makeDebugItem "Run Verilog Tests" None (fun _ ->
                 runCompilerTests ()
                 printfn "Compiler tests done")
@@ -259,152 +251,35 @@ let fileMenu (dispatch) =
         ]
     ]
 
-//-----------------------------------------------------------------------------------------------------------//
-//-----------------------------------------------VIEW MENU---------------------------------------------------//
-//-----------------------------------------------------------------------------------------------------------//
-
-
-let viewMenu dispatch =
-    let maindispatch = dispatch
-    let sheetDispatch sMsg = dispatch (Sheet sMsg)
-    let dispatch = SheetT.KeyPress >> sheetDispatch
-    let wireTypeDispatch = SheetT.WireType >> sheetDispatch
-    let interfaceDispatch = SheetT.IssieInterface >> sheetDispatch
-    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)    
-    let symbolDispatch msg = busWireDispatch (BusWireT.Msg.Symbol msg)
-
-    let fullscreenKeyOp = Some (if isMac then "Cmd+Ctrl+F" else "F11")
-    let webZoomInKeyOp = Some (if isMac then "Cmd+Plus" else "CmdOrCtrl+Plus")
-    let webZoomOutKeyOp = Some (if isMac then "Cmd+-" else "CmdOrCtrl+-")
-    let webZoomResetKeyOp = Some (if isMac then "Cmd+0" else "CmdOrCtrl+0")
-    let diagramZoomInKeyOp = Some (if isMac then "Cmd+Option+Plus" else "Alt+Up")
-    let diagramZoomOutKeyOp = Some (if isMac then "Cmd+Option+-" else "Alt+Down")
-    let diagramZoomResetKeyOp = Some (if isMac then "Cmd+Option+0" else "CmdOrCtrl+w")
-    let toggleGridKeyOp = if isMac then Some "Cmd+Option+g" else None
-    let toggleWireKeyOp = if isMac then Some "Cmd+Option+w" else None
-    let devtoolsKeyOp = Some (if isMac then "Cmd+Option+i" else "Ctrl+Shift+i")
-    makeMenu false "View" [
-        makeRoleItem "Enter/Exit Fullscreen" fullscreenKeyOp MenuItemRole.Togglefullscreen
-        menuSeparator
-        makeRoleItem "Zoom In" webZoomInKeyOp MenuItemRole.ZoomIn
-        makeRoleItem "Zoom Out" webZoomOutKeyOp MenuItemRole.ZoomOut
-        makeRoleItem "Zoom Reset" webZoomResetKeyOp MenuItemRole.ResetZoom
-        menuSeparator
-        makeItem "Diagram Zoom In" diagramZoomInKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.ZoomIn)
-        makeItem "Diagram Zoom Out" diagramZoomOutKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.ZoomOut)
-        makeItem "Diagram Zoom to Fit" diagramZoomResetKeyOp (fun ev -> dispatch SheetT.KeyboardMsg.CtrlW)
-        menuSeparator
-        makeItem "Show/Hide Grid" toggleGridKeyOp (fun ev -> sheetDispatch SheetT.Msg.ToggleGrid)
-        makeItem "Show/Hide Wire Arrows" toggleWireKeyOp (fun ev -> busWireDispatch (BusWireT.Msg.ToggleArrowDisplay))
-        makeMenu false "Wire Type" [
-            makeItem "Jump Wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Jump)
-            makeItem "Radiussed Wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Radiussed)
-            makeItem "Modern Wires" None (fun ev -> wireTypeDispatch SheetT.WireTypeMsg.Modern)
-        ]
-        makeMenu false "Theme" [
-            makeItem "Default" None (fun ev -> 
-                maindispatch <| SetThemeUserData SymbolT.ThemeType.Colourful
-                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Colourful))
-            makeItem "Light" None (fun ev -> 
-                maindispatch <| SetThemeUserData SymbolT.ThemeType.Light
-                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.Light))
-            makeItem "Grayscale" None (fun ev -> 
-                maindispatch <| SetThemeUserData SymbolT.ThemeType.White
-                symbolDispatch (SymbolT.Msg.SetTheme SymbolT.ThemeType.White))
-        ]
-        menuSeparator
-        makeItem "Show/Hide Build Tab" None (fun ev -> maindispatch (ChangeBuildTabVisibility))
-        makeItem "Show/Hide App Memory Display" None (fun ev ->
-                    JSHelpers.loggingMemory <- not JSHelpers.loggingMemory
-                    let state = if loggingMemory then "on" else "off"
-                    printfn $"Memory display is now {state}.")
-        //makeItem "Benchmark" (Some "Ctrl+Shift+B") (fun ev -> maindispatch Benchmark) // does this work?
-        menuSeparator
-        makeCondItem (JSHelpers.debugLevel <> 0) "Show/Hide Developer Tools" devtoolsKeyOp (fun _ ->
-            renderer.ipcRenderer.send("toggle-dev-tools", [||]) |> ignore)
-    ]
-
-//-----------------------------------------------------------------------------------------------------------//
-//-----------------------------------------------EDIT MENU---------------------------------------------------//
-//-----------------------------------------------------------------------------------------------------------//
-
-// Editor Keybindings (also items on Edit menu)
-// Use Elmish subscriptions to attach external source of events such as keyboard
-// shortcuts. According to electron documentation, the way to configure keyboard
-// shortcuts is by creating a menu.
-let editMenu dispatch' =
-    let sheetDispatch sMsg = dispatch' (Sheet sMsg)
-    let dispatch = SheetT.KeyPress >> sheetDispatch
-    let rotateDispatch = SheetT.Rotate >> sheetDispatch
-    let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
-
-    let copyKey = if isMac then "Cmd+c" else "CmdOrCtrl+c"
-    let pasteKey = if isMac then "Cmd+v" else "CmdOrCtrl+v"
-    let selectAllKey = if isMac then "Cmd+a" else "CmdOrCtrl+a"
-    let delteKey = if isMac then "Backspace" else "Delete"
-    let rotAnticlockKey = if isMac then "Cmd+Option+Left" else "CmdOrCtrl+Left"
-    let rotClockKey = if isMac then "Cmd+Option+Right" else "CmdOrCtrl+Right"
-    let flipVertKey = if isMac then "Cmd+Option+Up" else "CmdOrCtrl+Up"
-    let flipHoriKey = if isMac then "Cmd+Option+Down" else "CmdOrCtrl+Down"
-    let alignKey = if isMac then "Cmd+Option+a" else "CmdOrCtrl+Shift+a"
-    let distKey = if isMac then "Cmd+Option+d" else "CmdOrCtrl+Shift+d"
-    let rotLabelClockKey = if isMac then "Cmd+Option+r" else "CmdOrCtrl+Shift+Right"
-    let undoKey = if isMac then "Cmd+z" else "CmdOrCtrl+z"
-    let redoKey = if isMac then "Cmd+Shift+z" else "CmdOrCtrl+y"
-    let cancelKey = if isMac then "Esc" else "Esc"
-    jsOptions<MenuItemConstructorOptions> <| fun invisibleMenu ->
-        invisibleMenu.``type`` <- Some MenuItemType.Submenu
-        invisibleMenu.label <- Some "Edit"
-        invisibleMenu.visible <- Some true
-        invisibleMenu.submenu <-
-            [|
-                makeElmItem "Copy" copyKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlC)
-                makeElmItem "Paste" pasteKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlV)
-                makeElmItem "Select All" selectAllKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlA)
-                makeElmItem "Delete" delteKey (fun () -> dispatch SheetT.KeyboardMsg.DEL)
-                menuSeparator
-                makeElmItem "Rotate Anticlockwise" rotAnticlockKey (fun () -> rotateDispatch CommonTypes.Degree270)
-                makeElmItem "Rotate Clockwise" rotClockKey (fun () -> rotateDispatch CommonTypes.Degree90)
-                makeElmItem "Flip Vertically" flipVertKey (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipVertical)
-                makeElmItem "Flip Horizontally" flipHoriKey (fun () -> sheetDispatch <| SheetT.Flip SymbolT.FlipHorizontal)
-                makeElmItem "Align Components" alignKey (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.AlignSymbols)
-                makeElmItem "Distribute Components" distKey (fun ev -> sheetDispatch <| SheetT.Arrangement SheetT.DistributeSymbols)
-                menuSeparator
-                makeElmItem "Rotate Label Clockwise" rotLabelClockKey (fun ev -> sheetDispatch <| SheetT.RotateLabels)
-                makeItem "Move Component Ports" None
-                    (fun _ -> dispatch' <| ShowStaticInfoPopup("How to move component ports", 
-                                                               SymbolPortHelpers.moveCustomPortsPopup(), dispatch'))
-                menuSeparator
-                makeElmItem "Undo Action" undoKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlZ)
-                makeElmItem "Redo Action" redoKey (fun () -> dispatch SheetT.KeyboardMsg.CtrlY)
-                makeElmItem "Cancel" cancelKey (fun () -> dispatch SheetT.KeyboardMsg.ESC)
-                menuSeparator
-                makeItem "Separate Wires from Selected Components" None (fun _ -> reSeparateWires dispatch')
-                makeItem "Reroute Wires from Selected Components" None  (fun _ -> reRouteWires dispatch')
-            |]
-            |> ResizeArray
-            |> U2.Case1
-            |> Some
-
-
 /// One-shot application setup, run as an Elmish subscription so it receives dispatch:
-/// build and attach the Electron menus, attach the exit handler, read the user data.
-/// There is nothing to tear down - the menus live as long as the app.
+/// attach the Electron menu, the exit handler, and read the user data.
+/// There is nothing to tear down - what it attaches lives as long as the app.
 let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
-    let menu:Menu =
-        [|
+    let template =
+        [ if isMac then
+              // macOS keeps its application menu, which cannot be hidden and which the system
+              // expects: it is where Cmd+Q, Cmd+H and Cmd+M come from. Those are OS-reserved
+              // chords that Issie does not want for anything, so it takes no keys from us.
+              yield makeRoleItem "Issie" None MenuItemRole.AppMenu
+          if debugLevel > 0 then
+              yield devMenu dispatch ]
 
-            fileMenu dispatch
+    dispatch
+    <| Msg.ExecFuncInMessage(
+        (fun _ _ ->
+            // None removes the menu bar entirely on Windows and Linux. Every key it used to
+            // register is now resolved by KeyBindings against the context the user is in.
+            electronRemote.app.applicationMenu <-
+                match template with
+                | [] -> None
+                | items ->
+                    items
+                    |> List.map U2.Case1
+                    |> Array.ofList
+                    |> electronRemote.Menu.buildFromTemplate
+                    |> Some),
+        dispatch)
 
-            editMenu dispatch
-
-            viewMenu dispatch
-        |]
-        |> Array.map U2.Case1
-        |> electronRemote.Menu.buildFromTemplate   //Help? How do we call buildfromtemplate
-    menu.items[0].visible <- true
-    dispatch <| Msg.ExecFuncInMessage((fun _ _ ->
-        electronRemote.app.applicationMenu <- Some menu), dispatch)
     attachExitHandler dispatch
     KeyBindings.publishKeyLog()
     let userAppDir = getUserAppDir()
@@ -432,15 +307,10 @@ let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
 
 let update msg model =
     let model', cmd = Update.update msg model
-    if Option.isSome model'.CodeEditorState && Option.isSome model'.PopupViewFunc then
-        Update.evilUIState <- Update.EvilCodeEditor
-    elif Option.isSome model'.PopupViewFunc then
-        Update.evilUIState <- Update.EvilUIPopup
-    else
-        Update.evilUIState <- Update.EvilNoState
-    // The keyboard context, derived here for the same reason evilUIState is: a DOM handler cannot
-    // see the model, and preventDefault has to be decided synchronously inside the handler.
-    // evilUIState goes when the old key mechanisms do; for now both are kept in step.
+    // The keyboard context, derived here because a DOM handler cannot see the model and
+    // preventDefault has to be decided synchronously inside the handler. This replaces
+    // evilUIState, which held a three-case approximation of the same thing for the sole purpose
+    // of deciding whether to swallow the space bar.
     KeyBindings.setContextFromModel model'
     model',cmd
 
@@ -455,8 +325,6 @@ let view' model dispatch =
         else
             view)
 
-let mutable firstPress = true
-
 /// A DOM event listener as an Elmish 4 subscription: attach on subscribe, detach on dispose.
 let private domListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (Browser.Types.Event -> unit)) =
     fun (dispatch: Msg -> unit) ->
@@ -465,45 +333,25 @@ let private domListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (B
         { new System.IDisposable with
             member _.Dispose() = Browser.Dom.document.removeEventListener(eventName, handler) }
 
+/// As domListenerSub, but on the window: focus events do not reach document.
+let private windowListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (Browser.Types.Event -> unit)) =
+    fun (dispatch: Msg -> unit) ->
+        let handler = makeHandler dispatch
+        Browser.Dom.window.addEventListener(eventName, handler)
+        { new System.IDisposable with
+            member _.Dispose() = Browser.Dom.window.removeEventListener(eventName, handler) }
+
 /// The application's subscriptions, in Elmish 4 form: a constant set of identified
 /// subscriptions, each returning its teardown. The set does not depend on the model, so each
 /// subscription is started exactly once, as with Elmish 3's Cmd.ofSub.
-/// Used to listen for pressing down of Ctrl for selection toggle.
-/// Also for the code editor keys.
-/// TODO: use this for global key press info throughout Issie
 let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
-    let subDown =
-        domListenerSub "keydown" (fun dispatch e ->
-            let ke: KeyboardEvent = downcast e
-            if (jsToBool ke.ctrlKey || jsToBool ke.metaKey) && firstPress then
-                firstPress <- false
-                //printf "Ctrl-Meta Key down (old method)"
-                dispatch <| Sheet(SheetT.PortMovementStart)
-            else
-                ()
-            dispatch <| AnyKeyPress {
-                                KeyString = ke?key
-                                AltKey = ke?altKey
-                                ControlKey = ke?ctrlKey
-                                MetaKey = ke?metaKey
-                                ShiftKey = ke?shiftKey
-                            }
-            // prevent unwanted default processing of " " key as scrolling
-            // NB - input boxes in popups require default processing to work
-            // it seems that input boxes in properties pane do not require " ".
-            // TODO: sort out key processing consistently allowing " " for input boxes
-            // TODO: See also OTHER hacks doing key processing ManualKeyUp etc. Unify these.
-            // NB - electron menus need to be able to process many control keys.
-            match Update.evilUIState with
-            | Update.EvilCodeEditor | Update.EvilNoState when ke?key = " "  ->
-                e.preventDefault()
-            | _ -> () //e.preventDefault()
-            )
-    let subUp =
-        domListenerSub "keyup" (fun dispatch _e ->
-            firstPress <- true
-            //printf "Any Key up (old method)"
-            dispatch <| Sheet(SheetT.PortMovementEnd))
+    /// Every key in Issie arrives here and nowhere else.
+    let subDown = domListenerSub "keydown" KeyBindings.onKeyDown
+    let subUp = domListenerSub "keyup" KeyBindings.onKeyUp
+    /// Ctrl held while the window loses focus never produces a keyup, so without this the draw
+    /// block would think Ctrl was still down - which is what the old decaying list of held keys
+    /// existed to paper over.
+    let subBlur = windowListenerSub "blur" KeyBindings.onWindowBlur
     /// unfinished code
     /// add hook in main function to display a context menu
     /// create menu as shown in main.fs
@@ -528,20 +376,14 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
     // let periodicMemoryCheckCommand dispatch =
     //     JSHelpers.periodicDispatch dispatch UpdateHelpers.Constants.memoryUpdateCheckTime CheckMemory |> ignore
 
-    /// Resolves each key press against the new table and records what it *would* have done,
-    /// without preventing the default or running the action. It runs beside the mechanisms that
-    /// really handle keys, so every context can be walked through and the decisions read back -
-    /// via window.issieKeys() - before anything depends on them. Debug builds only.
-    let subKeyShadow = domListenerSub "keydown" KeyBindings.shadowKeyDown
-
     [
         ["menus"], attachMenusAndKeyShortcuts
         ["keydown"], subDown
         ["keyup"], subUp
+        ["blur"], subBlur
         ["contextmenu"], subRightClick
         ["ipc"; "context-menu-command"], subContextMenuCommand
     ]
-    @ (if JSHelpers.debugLevel > 0 then [ ["keydown"; "shadow"], subKeyShadow ] else [])
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"

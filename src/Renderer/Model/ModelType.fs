@@ -168,8 +168,8 @@ type TopMenu = | Closed | Project | Files | Edit | View | TransientClosed
 
 
 // Messages that will be triggered on key combinations.
-type KeyboardShortcutMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL
+// KeyboardShortcutMsg was an abandoned attempt at a shortcut system: never dispatched, never
+// handled, swallowed by the catch-all in Update. Superseded by KeyTypes and KeyBindings.
 
 type UICommandType =
     | CloseProject
@@ -482,7 +482,6 @@ type Msg =
     | SheetBackAction of (Msg -> unit)
     | SynchroniseCanvas
     | JSDiagramMsg of JSDiagramMsg
-    | KeyboardShortcutMsg of KeyboardShortcutMsg
     | Benchmark
     | StartSimulation of Result<SimulationData, SimulationError>
     /// Add WaveSimModel to Model.WaveSim map.

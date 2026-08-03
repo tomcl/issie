@@ -494,9 +494,12 @@ module SheetT =
 
 
 
-    /// For Keyboard messages
+    /// For Keyboard messages.
+    /// These name draw block *actions*, not keys - KeyTypes decides which chord reaches which.
+    /// AltC, AltV, AltZ and AltShiftZ used to be here with no dispatcher, and CtrlS with a handler
+    /// that added a square for a demo.
     type KeyboardMsg =
-        | CtrlS | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | AltC | AltV | AltZ | AltShiftZ | ZoomIn | ZoomOut | DEL | ESC
+        | CtrlC | CtrlV | CtrlZ | CtrlY | CtrlA | CtrlW | ZoomIn | ZoomOut | DEL | ESC
 
     type WireTypeMsg =
         | Jump | Radiussed | Modern
@@ -545,8 +548,6 @@ module SheetT =
         | UpdateScrollPos of XYPos
         | UpdateScrollPosFromCanvas of XYPos
         | AddNotConnected of (LoadedComponent list) * port:Port * pos:XYPos * rotation:Rotation
-        | ManualKeyUp of string // For manual key-press checking, e.g. CtrlC
-        | ManualKeyDown of string // For manual key-press checking, e.g. CtrlC
         | CheckAutomaticScrolling
         | DoNothing
         // ------------------- Popup Dialog Management Messages----------------------//
@@ -635,7 +636,6 @@ module SheetT =
         LastValidSymbol: SymbolT.Symbol option
         SnapSymbols: SnapXY
         SnapSegments: SnapXY
-        CurrentKeyPresses: (string*float) list // For manual key-press checking, e.g. CtrlC. The float is the key down time.
         /// how X,Y coordinates throughout draw block are scaled into screen pixels.
         /// All unscaled dimensions (screen pixels) have Screen prepended to name.
         Zoom: float

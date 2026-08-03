@@ -157,7 +157,9 @@ let badLabel_ = Lens.create (fun a -> a.BadLabel) (fun s a -> {a with BadLabel =
 let intlist_ = Lens.create (fun a -> a.IntList) (fun s a -> {a with IntList = s})
 let intlist2_ = Lens.create (fun a -> a.IntList2) (fun s a -> {a with IntList2 = s})
 let paramCompSpec_ = Lens.create (fun a -> a.DialogState) (fun s a -> {a with DialogState = s})
-type TopMenu = | Closed | Project | Files |TransientClosed
+/// Which dropdown on the renderer's own menu bar is open.
+/// Edit and View hold what used to be on the Electron menus of the same names.
+type TopMenu = | Closed | Project | Files | Edit | View | TransientClosed
 
 //==========//
 // Messages //

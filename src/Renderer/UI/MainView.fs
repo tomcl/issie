@@ -358,9 +358,12 @@ let displayView model dispatch =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
-        if topMenu = Project then
-            printf "Setting Top menu closed from processappclick"
+        // Files is left out on purpose: its dropdown holds the sheet tree, which the user browses
+        // rather than picks a single item from, so it closes only by clicking Sheets again.
+        match topMenu with
+        | Project | Edit | View ->
             dispatch <| Msg.SetTopMenu Closed
+        | Closed | Files | TransientClosed -> ()
     /// used only to make the divider bar draggable
     let dividerDragMode = model.DividerDragMode
     let wsViewerWidth = model.WaveSimViewerWidth

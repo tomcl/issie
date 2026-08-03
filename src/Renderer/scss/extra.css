@@ -1,2 +1,64 @@
 @keyframes codeEditorBlink { to {opacity: 0;}}
 
+/* ---------------------------------------------------------------------------
+   Moved here from the tail of main.css, where it had been hand-edited into the
+   generated Bulma output since 2022. main.css is vendored and regenerates from
+   nothing; this is the file to edit.
+   --------------------------------------------------------------------------- */
+.hide {
+  display: none;
+}
+
+.error:hover + .hide {
+  display:inline-block;
+  position: absolute;
+  margin-left: 10px;
+  padding: 3px 10px;
+  color: white;
+  font-weight: normal;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Added in 2022 for the Verilog error table, but unscoped, so these are in fact
+   the app's table styling everywhere: truth tables, the memory editor, the wave
+   sim RAM views, parameter view, the Info popup. Scoping them to the error table
+   would restyle all of those, so they are left global deliberately. */
+tbody tr:nth-child(odd){
+  background-color: #f0f0f0;
+}
+
+th, td {
+  border-style: groove;
+  border-right: none;
+  border-left: none;
+}
+
+
+
+.info::before { content: "\1f6c8"; }
+
+.is-pink {
+  background-color: hotpink;
+}
+
+.is-darkslategrey {
+    background-color: #596673; /*roughly slategrey*/
+    color: white;
+}
+
+.is-lightslategrey {
+  background-color: #9aa6b1;
+  color: black;
+}
+
+/* sheet-menu pill colours for the parameter system's top sheet:
+   the top of the design, and the sheets outside its instance tree */
+.is-darkgreen {
+  background-color: #1f7a3f;
+  color: white;
+}
+
+.is-grey {
+  background-color: #7a848e;
+  color: white;
+}

@@ -1,4 +1,9 @@
 @charset "UTF-8";
+
+/* GENERATED FILE - compiled Font Awesome 4.7 + Bulma 0.9. Do not edit.
+   Issie's own CSS lives in extra.css, which is imported straight after this
+   file (Renderer.fs) and so wins on equal specificity. There is no sass step:
+   this file is committed as-is and nothing regenerates it. */
 /*!
  *  Font Awesome 4.7.0 by @davegandy - http://fontawesome.io - @fontawesome
  *  License - http://fontawesome.io/license (Font: SIL OFL 1.1, CSS: MIT License)
@@ -11552,59 +11557,4 @@ input::-webkit-inner-spin-button {
 
 .zoomButRight {
   border-top-right-radius: 4px;
-  border-bottom-right-radius: 4px; }
-
-
-.hide {
-  display: none;
-}
-
-.error:hover + .hide {
-  display:inline-block;
-  position: absolute;
-  margin-left: 10px;
-  padding: 3px 10px;
-  color: white;
-  font-weight: normal;
-  background-color: rgba(0, 0, 0, 0.7);
-}
-
-tbody tr:nth-child(odd){
-  background-color: #f0f0f0;
-}
-
-th, td {
-  border-style: groove;
-  border-right: none;
-  border-left: none;
-}
-
-
-
-.info::before { content: "\1f6c8"; }
-
-.is-pink {
-  background-color: hotpink;
-}
-
-.is-darkslategrey {
-    background-color: #596673; /*roughly slategrey*/
-    color: white;
-}
-
-.is-lightslategrey {
-  background-color: #9aa6b1;
-  color: black;
-}
-
-/* sheet-menu pill colours for the parameter system's top sheet:
-   the top of the design, and the sheets outside its instance tree */
-.is-darkgreen {
-  background-color: #1f7a3f;
-  color: white;
-}
-
-.is-grey {
-  background-color: #7a848e;
-  color: white;
-}
+  border-bottom-right-radius: 4px; }

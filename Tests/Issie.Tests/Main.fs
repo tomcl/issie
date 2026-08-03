@@ -18,5 +18,6 @@ let main argv =
         LibraryTests.tests
         ParameterUI.tests
         KeyBindingTests.tests
+        VerilogOutput.tests
     ]
     |> runTestsWithCLIArgs [ Sequenced ] argv

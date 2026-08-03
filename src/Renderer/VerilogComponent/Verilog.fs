@@ -12,30 +12,29 @@ open NumberHelpers
 type VMode = ForSynthesis | ForSimulation
 type CompilationProfile = Release | Debug
 
+/// longest identifier this module will emit. Verilog itself allows more, but short names keep
+/// the output readable and stay within the limits of some synthesis tools.
+let private maxIdentifierLength = 50
+
+/// Truncate to maxIdentifierLength, keeping the start of the name.
+/// Keeping the start rather than the end means the result still cannot begin with a digit or '$'
+/// when the input could not, so it stays a legal Verilog identifier. Truncation may make two names
+/// equal; disambiguate (below) runs afterwards and separates them again.
+let private capLength (s: string) =
+    if s.Length > maxIdentifierLength then s[.. maxIdentifierLength - 1] else s
+
 /// take FullName and convert it into a verilog compatible form
 /// this is not 1-1, so outputs may not be unique, that is OK
 let verilogNameConvert (maxChars:int) (s: string) =
-    let maxIdentifierLength = 50
-
-    let baseName =
-        EEExtensions.String.split [| '(' |] s
-        |> Array.toList
-        |> function
-        | h :: _ -> h
-        | [] -> "x"
-        |> Seq.map (function | ch when System.Char.IsLetterOrDigit ch || ch = '_' -> string ch | _ -> "")
-        |> Seq.truncate maxChars
-        |> String.concat ""
-
-
-    let extraLength = baseName.Length - maxIdentifierLength
-
-    if extraLength > 0 then
-        baseName[extraLength..]
-        |> Seq.map string
-        |> string
-    else
-        baseName
+    EEExtensions.String.split [| '(' |] s
+    |> Array.toList
+    |> function
+    | h :: _ -> h
+    | [] -> "x"
+    |> Seq.map (function | ch when System.Char.IsLetterOrDigit ch || ch = '_' -> string ch | _ -> "")
+    |> Seq.truncate maxChars
+    |> String.concat ""
+    |> capLength
 
 /// simple way to assign to each component and component output a unique verilog compatible name.
 /// outputs will become reg or wire signals in the Verilog
@@ -60,8 +59,10 @@ let writeVerilogNames (fs: FastSimulation) =
 
         match fc.fId with
         | (_,[]) -> verilogNameConvert 20 cLabel
-        | (_,path) -> verilogNameConvert 20 cLabel + "$" + getShortPath path
- 
+        // the cap has to be applied again here: verilogNameConvert caps each part, but a deep
+        // sheet hierarchy can make label + path long even when both parts are short enough
+        | (_,path) -> capLength (verilogNameConvert 20 cLabel + "$" + getShortPath path)
+
     // keep array of components and base names in well defined order
     let namesWithFC = 
         fs.FComps
@@ -101,6 +102,15 @@ let writeVerilogNames (fs: FastSimulation) =
 
  
         
+
+/// Name of the module generated for a memory component. Distinct from the component's own name,
+/// which is already in use as the net driven by the instance: a module and a net sharing an
+/// identifier is legal in some tools and rejected by others.
+let memModuleName (fc: FastComponent) = $"{fc.VerilogComponentName}_mem"
+
+/// Name of the single instance of that module. Derived from the component name, which
+/// writeVerilogNames has already made unique, so instances cannot collide either.
+let memInstanceName (fc: FastComponent) = $"{fc.VerilogComponentName}_inst"
 
 let makeAsyncRomModule (moduleName: string) (mem: Memory1) =
     let aMax = mem.AddressWidth - 1
@@ -223,8 +233,7 @@ let makeAsyncRamModule (moduleName: string) (mem: Memory1) =
         $"""
 
     module %s{moduleName}(q, a, d, we, clk);
-    output reg [%d{dMax}:0];
-    output q [%d{dMax}:0];
+    output [%d{dMax}:0] q;
     input [%d{dMax}:0] d;
     input [%d{aMax}:0] a;
     input we, clk;
@@ -233,8 +242,8 @@ let makeAsyncRamModule (moduleName: string) (mem: Memory1) =
          if (we)
              ram[a] <= d;
      end
-    q <= ram[a];
-
+    // asynchronous read: q follows the addressed word without waiting for a clock edge
+    assign q = ram[a];
 
     integer i;
     initial
@@ -252,12 +261,12 @@ let makeAsyncRamModule (moduleName: string) (mem: Memory1) =
 
 /// get all the RAM and ROM modules used
 /// NB at the moment each instance is made a separately named module, for simplicity
-let getInstantiatedModules (fs: FastSimulation) =
+let getInstantiatedModules (profile: CompilationProfile) (fs: FastSimulation) =
     fs.FComps
     |> Map.toArray
     |> Array.collect
         (fun (fid, fc) ->
-            let name = fc.VerilogComponentName
+            let name = memModuleName fc
 
             match fc.FType with
             | RAM1 mem -> [| makeRamModule name mem |]
@@ -265,7 +274,12 @@ let getInstantiatedModules (fs: FastSimulation) =
             | ROM1 mem -> [| makeRomModule name mem |]
             | AsyncROM1 mem -> [| makeAsyncRomModule name mem |]
             | _ -> [||])
-    |> Array.append [|"`include \"cores/osdvu/uart.v\""|]
+    // only the debug controller instantiates a uart, and including a file that is not there
+    // stops the output compiling at all
+    |> Array.append (
+        match profile with
+        | Debug -> [| "`include \"cores/osdvu/uart.v\"" |]
+        | Release -> [||])
 
 let removeHybridComps (fa: FastComponent array) =
     Array.filter (fun fc -> not (isHybridComponent fc.FType)) fa
@@ -274,53 +288,34 @@ let activeComps (fs: FastSimulation) =
     [ fs.FClockedComps; removeHybridComps fs.FOrderedComps ]
     |> Array.concat
 
-let makeAccessPathIndex (fs: FastSimulation) =
-    let apArr =
-        Array.append
-            [| [] |]
-            (activeComps fs
-             |> Array.map (fun fc -> fc.AccessPath))
+/// The bitwise operator a gate combines its inputs with, before any inversion.
+/// Gate inputs are always one bit wide, so the bitwise operators are the right ones.
+let getVerilogGateOp gateType =
+    match gateType with
+    | And | Nand -> "&"
+    | Or | Nor -> "|"
+    | Xor | Xnor -> "^"
 
-    apArr
-    |> Array.distinct
-    |> Array.sortBy (fun ap -> List.length ap)
-    |> Array.indexed
-    |> Array.map (fun (index, ap) -> ap, index)
-    |> Map.ofArray
-
-
-
-
-/// generate an instance of a module named block
-let getInstanceOf (block: string) (instanceName: string) (ports: string array) =
-    let portNames = ports |> String.concat ","
-    sprintf $"%s{block} %s{instanceName} (%s{portNames});\n"
-
-/// implement binary operator for two-input gate
-let getVerilogBinaryOp gType op1 op2 =
-    let bin opS = sprintf "%s %s %s" op1 opS op2
-    let not exp = sprintf "!(%s)" exp
-
-    match gType with
-    | And -> bin "&&"
-    | Or -> bin "||"
-    | Nand -> not <| bin "&&"
-    | Nor -> not <| bin "||"
-    | Xor -> sprintf "((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
-    | Xnor -> sprintf "!((%s && !%s) || (!%s) && %s)" op1 op2 op1 op2
-
-/// implement binary operator for multi-input gate
+/// Implement an n-input gate.
+/// The inputs are combined with the un-negated operator and the result inverted once, which is
+/// what an n-input NAND/NOR/XNOR gate means, and what getNInpBinaryGateReducer in FastReduce does.
+/// Folding the negated operator pairwise instead would give different logic for n > 2.
 let getVerilogNInputBinaryOp cType portConversionFn =
     match cType with
     | GateN (gateType, n) ->
-        List.init n portConversionFn
-        |> List.reduce (getVerilogBinaryOp gateType)
+        let terms =
+            List.init n portConversionFn
+            |> String.concat $" {getVerilogGateOp gateType} "
+        if isNegated gateType then $"!({terms})" else terms
     | _ -> failwithf "operator %A not defined" cType
 
 /// get valid Verilog constant for bus of given width (may be 1)
-let makeBits w (c: bigint) = 
+/// NB the digits must be hex, since they follow a 'h prefix: %A or %d would print the value in
+/// decimal and Verilog would then read those digits as hex, giving a different (and too wide)
+/// number. printf "%x" does not work on bigints, hence hexBignum.
+let makeBits w (c: bigint) =
     let c = c &&& ((1I <<< w) - 1I)
-    sprintf $"%d{w}'h%A{c}"
+    sprintf $"%d{w}'h%s{(hexBignum c)[1..]}"
 
 /// get output port name
 let getVPortOut (fc: FastComponent) (OutputPortNumber opn) = fc.VerilogOutputName[opn]
@@ -340,8 +335,6 @@ let getVPortOutWithSlice (fc: FastComponent) (opn: OutputPortNumber) =
 
 /// Get string corresponding to name of signal that drives component input port
 let getVPortInput (fs: FastSimulation) (fc: FastComponent) (InputPortNumber ipn) : string =
-    let labBase = fc.FullName
-
     match fc.InputDrivers[ipn] with
     | Some (fid, opn) -> getVPortOut fs.FComps[fid] opn
     | None -> failwithf "Can't find input driver for %A port %d" fc.FullName ipn
@@ -382,11 +375,6 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
     let ins i = getVPortInput fs fc (InputPortNumber i)
     let outs i = getVPortOut fc (OutputPortNumber i)
     let name = fc.VerilogComponentName
-    let idNum =
-        name
-        |> String.split [|'_'|]
-        |> Array.last
-        
 
     let outW i =
         match fc.OutputWidth i with
@@ -412,7 +400,6 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         -> failwithf "What? cannot call getVerilogComponent to find code for global Input"
     | Viewer _
     | Output _
-    | Viewer _
     | IOLabel
     | Input1 _ -> sprintf $"assign %s{outs 0} = %s{ins 0};\n"
 
@@ -492,7 +479,9 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         let xor = outs 0
         match op with
         | None -> $"assign {xor} = {a} ^ {b};\n"
-        | Some Multiply -> $"assign {xor} = ({a} * {b})[n-1:0];\n"
+        // no slice needed: assigning to the n-bit output truncates the product to n bits, which is
+        // what the simulation does. A bit-select on a parenthesised expression is not legal Verilog.
+        | Some Multiply -> $"assign {xor} = {a} * {b};\n"
     | NbitsAnd n ->
         let a = ins 0
         let b = ins 1
@@ -548,9 +537,10 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
                 $"assign %s{outs index} = %s{ins 0}[%d{msb}:%d{lsb}];\n"
         ) [0..n-1] outputWidths lsBits
         |> List.fold (fun accstr outstr -> accstr+outstr) ""
-    | AsyncROM1 mem -> sprintf $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0});\n"
-    | ROM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, clk);\n"
-    | RAM1 mem | AsyncRAM1 mem -> $"%s{name} I{idNum} (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
+    | AsyncROM1 mem -> $"{memModuleName fc} {memInstanceName fc} (%s{outs 0}, %s{ins 0});\n"
+    | ROM1 mem -> $"{memModuleName fc} {memInstanceName fc} (%s{outs 0}, %s{ins 0}, clk);\n"
+    | RAM1 mem | AsyncRAM1 mem ->
+        $"{memModuleName fc} {memInstanceName fc} (%s{outs 0}, %s{ins 0}, %s{ins 1}, %s{ins 2}, clk);\n"
     | Custom _ -> failwithf "What? custom components cannot exist in fast Simulation data structure"
     | Input _
     | AsyncROM _ | RAM _ | ROM _ ->
@@ -562,7 +552,9 @@ let getVerilogComponent (fs: FastSimulation) (fc: FastComponent) =
         match tp with
         |LSL -> $"assign %s{output} = %s{input} << %s{shifter};\n"
         |LSR -> $"assign %s{output} = %s{input} >> %s{shifter};\n"
-        |ASR -> $"assign %s{output} = %s{input} >>> %s{shifter};\n"
+        // >>> only shifts arithmetically when its left operand is signed, and every signal here is
+        // an unsigned wire or reg: without $signed it would be an ordinary logical shift
+        |ASR -> $"assign %s{output} = $signed(%s{input}) >>> %s{shifter};\n"
 /// return the header of the main verilog module with hardware inputs and outputs in header.
 let getMainHeader (vType:VMode) (profile: CompilationProfile) (fs: FastSimulation) =
     Array.append
@@ -586,7 +578,9 @@ let getMainHeader (vType:VMode) (profile: CompilationProfile) (fs: FastSimulatio
                 | (ForSimulation, _) -> ""
                 | (ForSynthesis, Release) -> "input clk;"
                 | (ForSynthesis, Debug) -> "input debug_clk;\ninput RS232_Rx_TTL;\noutput RS232_Tx_TTL;"
-            $"module main (\n\t{header});\n{clock}")
+            // a sheet with no inputs or outputs would otherwise give "module main (\n\t);"
+            let ports = if header = "" then "" else $" (\n\t{header})"
+            $"module main{ports};\n{clock}")
     |> fun s -> [| s |]
 
 /// return the wire and reg definitions needed to make the verilog design work.
@@ -604,43 +598,27 @@ let getMainSignalDefinitions (vType: VMode) (profile: CompilationProfile) (fs: F
                      | (ForSynthesis, Release) -> [||]
                      | (ForSynthesis, Debug) -> [| "wire clk;\n" |])
 
-/// get the module definitions (one per RAM instance) that define RAMs used
-/// TODO: make output more compact by using multiple instances of one module where possible.
-/// NB. Initial statement is used to initialise RAM as per simulation: should work with Quartus.
-/// NB - there is some inconsistency between this definition and current simulation, which will output
-/// ram[0] contents in clock 0 on q. the simulation is incompatible with FPGA tools and should change so
-/// that initial ram output is always 0.
-let extractRamDefinitions (fs: FastSimulation) =
-    fs.FOrderedComps
-    |> Array.collect (
-        (fun fc ->
-            match fc.FType with
-            | ROM1 mem
-            | RAM1 mem
-            | AsyncRAM1 mem
-            | AsyncROM1 mem -> [| fc.VerilogComponentName, fc.FType |]
-            | _ -> [||])
-    )
-
 /// get the verilog statements output from each component
+/// NB a hybrid component (AsyncRAM1) is in both FClockedComps and FOrderedComps, since it has both
+/// clocked and combinational behaviour. Its Verilog describes the whole component, so it must be
+/// written once: activeComps drops the hybrid copy from the combinational half.
 let getMainHardware (fs: FastSimulation) =
-    let hardware =
-        [| fs.FClockedComps; fs.FOrderedComps |]
-        |> Array.concat
-
-    Array.map (getVerilogComponent fs) hardware
+    activeComps fs
+    |> Array.map (getVerilogComponent fs)
 
 /// make a simple testbench which displays module outputs for the first 30 clock cycles
 let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
     
+    // a plain procedural assignment, not "assign": inputs are regs, so a procedural continuous
+    // assignment would pin them to zero for the whole run and leave nothing for the user to drive
     let inDefs =
         fs.FGlobalInputComps
         |> Array.map
             (fun fc ->
                 let width = fc.OutputWidth 0
                 let sigName = fc.VerilogOutputName[0]
-                $"assign {sigName} = {makeBits width 0I};")
-        |> String.concat "\n"
+                $"{sigName} = {makeBits width 0I};")
+        |> String.concat "\n                    "
 
     let outNames, (outFormat, outVars) =
         fs.FComps
@@ -658,7 +636,6 @@ let getInitialSimulationBlock (vType:VMode) (fs: FastSimulation) =
                     if w <= 0 then failwithf $"Unexpected width ({w})in verilog output for {fc.FullName}"
                     (w - 1) / 4 + 1
 
-                let (ComponentLabel heading) = fc.SimComponent.Label
                 let heading = fc.VerilogComponentName
                 let padding = max 0 (hexWidth - heading.Length)
                 let heading = (String.replicate padding " ") + heading
@@ -807,10 +784,9 @@ end
 /// there are any.
 let getVerilog (vType: VMode) (fs: FastSimulation) (profile: CompilationProfile) =
     // make sure we have Ok names to use for output
-    printfn $"getVerilog"
     writeVerilogNames fs
-    
-    [| getInstantiatedModules fs
+
+    [| getInstantiatedModules profile fs
        getMainHeader vType profile fs
        getMainSignalDefinitions vType profile fs
        getMainHardware fs

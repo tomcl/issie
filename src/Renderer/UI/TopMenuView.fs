@@ -739,7 +739,13 @@ let viewTopMenu model dispatch =
 
                       // make the path in the navbar responsive
                       let hidePath = numPathChars < Constants.numCharsHidePath
-                      let pathItem = Breadcrumb.item [] [ str <| if hidePath then "" else cropToLength numPathChars false projectPath]
+                      // the id is what the right-click handler matches on to offer the path menu:
+                      // the text here is cropped to fit the bar, so the menu reads the real path
+                      // from the model rather than from what is displayed.
+                      let pathItem =
+                          Breadcrumb.item
+                              [ Breadcrumb.Item.Props [ Id "ProjectPath" ] ]
+                              [ str <| if hidePath then "" else cropToLength numPathChars false projectPath]
                       let nameItem = Breadcrumb.item [] [ span [ Style [ FontWeight "bold" ] ] [ str fileName ] ]
                       let tip = $"{projectPath}:{fileName}"
                       Navbar.Item.div []

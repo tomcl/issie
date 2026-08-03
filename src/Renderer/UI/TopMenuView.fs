@@ -763,53 +763,48 @@ let viewTopMenu model dispatch =
                               [ str <| if hidePath then "" else cropToLength numPathChars false projectPath]
                       let nameItem = Breadcrumb.item [] [ span [ Style [ FontWeight "bold" ] ] [ str fileName ] ]
                       let tip = $"{projectPath}:{fileName}"
+                      // one Navbar.Item.div each, not two: a nested pair renders two navbar-items,
+                      // and each one adds 0.75rem of padding a side. The inner ones cost 24px
+                      // apiece and did nothing else.
                       Navbar.Item.div []
-                          [ Navbar.Item.div []
                              [ div [
                                     HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsTooltipBottom}"
                                     Tooltip.dataTooltip tip
                                 ]
                              [ Breadcrumb.breadcrumb
                                    [ Breadcrumb.HasArrowSeparator ]
-                                   (if hidePath then [nameItem] else [pathItem ; nameItem])]]]                                     
-                                        
+                                   (if hidePath then [nameItem] else [pathItem ; nameItem])]]
+
                       Navbar.Item.div []
-                          [ Navbar.Item.div []
                                 [ Fulma.Button.button
-                                    ((if model.SavedSheetIsOutOfDate  then 
+                                    ((if model.SavedSheetIsOutOfDate  then
                                         []
                                       else
                                         [ Fulma.Button.Color IsLight ]) @
                                     [
-                                      Fulma.Button.Color IsSuccess  
-                                      
-                                      Fulma.Button.OnClick(fun _ -> 
+                                      Fulma.Button.Color IsSuccess
+
+                                      Fulma.Button.OnClick(fun _ ->
                                         dispatch (StartUICmd SaveSheet)
                                         dispatch <| FileCommand(FileSaveOpenFile,dispatch)
                                         dispatch <| Sheet(SheetT.DoNothing) //To update the savedsheetisoutofdate send a sheet message
-                                        ) ]) [ str "Save" ] ] ]
+                                        ) ]) [ str "Save" ] ]
                       Navbar.Item.div []
-                          [ Navbar.Item.div []
-                                [ Fulma.Button.button 
-                                    [ Fulma.Button.OnClick(fun _ -> UIPopups.viewInfoPopup dispatch) 
+                                [ Fulma.Button.button
+                                    [ Fulma.Button.OnClick(fun _ -> UIPopups.viewInfoPopup dispatch)
                                       Fulma.Button.Color IsInfo
-                                    ] 
-                                    [ str "Info" ] 
-                                  
+                                    ]
+                                    [ str "Info" ]
                                 ]
-                            ]
                       Navbar.Item.div []
                           (if model.UISheetTrail = [] then
                                 []
                           else
-                                [ Navbar.Item.div []
-                                    [ Fulma.Button.button 
-                                        [   Fulma.Button.OnClick(fun _ -> dispatch <| SheetBackAction dispatch) 
-                                            Fulma.Button.Color IsSuccess
-                                        ] 
-                                        [ str "Back" ] 
-                                  
+                                [ Fulma.Button.button
+                                    [   Fulma.Button.OnClick(fun _ -> dispatch <| SheetBackAction dispatch)
+                                        Fulma.Button.Color IsSuccess
                                     ]
+                                    [ str "Back" ]
                                 ])
                       Navbar.End.div [] [                               
                             div [                                    

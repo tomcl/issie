@@ -62,3 +62,32 @@ th, td {
   background-color: #7a848e;
   color: white;
 }
+
+/* ---------------------------------------------------------------------------
+   Top menu bar density.
+
+   Issie has to stay usable in a small window, and the bar was mostly padding:
+   measured at a 724px window, its items took 530px of which only about 190px
+   was text. Bulma reserves 2.5em on the right of every dropdown label to house
+   the arrow, and 1em each side of a button. These pull that in without
+   changing a component, a colour or a font, so the look is unaltered.
+
+   Everything is scoped to #TopMenu, and the button rule to buttons that are a
+   direct child of a navbar-item, so the sheet tree's breadcrumb buttons inside
+   the Sheets dropdown keep their own spacing.
+   --------------------------------------------------------------------------- */
+
+/* the arrow stays, it just sits closer to the word: 2.5em -> 1.4em */
+#TopMenu .navbar-link:not(.is-arrowless) {
+  padding-right: 1.4em;
+}
+
+#TopMenu .navbar-link:not(.is-arrowless)::after {
+  right: 0.55em;
+}
+
+/* Save, Info and Back: 1em -> 0.6em a side */
+#TopMenu .navbar-item > .button {
+  padding-left: 0.6em;
+  padding-right: 0.6em;
+}

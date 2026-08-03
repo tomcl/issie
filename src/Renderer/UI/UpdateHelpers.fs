@@ -33,6 +33,9 @@ module Constants =
     /// time between checks in ms
     let memoryUpdateCheckTime = 500
 
+    /// how long the "copied the project path" confirmation stays up, in ms
+    let copiedPathNotificationTime = 2500
+
 //-------------------------------------------------------------------------------------------------//
 //-------------------------------------MESSAGE TRACING---------------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -306,6 +309,7 @@ type RightClickElement =
     | DBOutputPort of string
     | IssieElement of string
     | SheetMenuBreadcrumb of Sheet: SheetTree * IsSubSheet: bool
+    | ProjectPathBreadcrumb of Path: string
     | WaveSimHelp
     | NoMenu
     
@@ -341,6 +345,11 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | _, "selectRamButton", _
         | _, "startEndButton", _ ->
             WaveSimHelp
+        | _, "ProjectPath", _ ->
+            // no project means the bar is showing placeholder text, which is not worth copying
+            model.CurrentProj
+            |> Option.map (fun p -> ProjectPathBreadcrumb p.ProjectPath)
+            |> Option.defaultValue NoMenu
         | _, elId, _ when String.startsWith "SheetMenuBreadcrumb:" elId ->
             let nameParts = elId.Split(":",System.StringSplitOptions.RemoveEmptyEntries)
             //printfn "NameParts: %A"nameParts
@@ -399,6 +408,8 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     match rightClickElement with
     | SheetMenuBreadcrumb _ ->
         if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumb"
+    | ProjectPathBreadcrumb _ ->
+        "ProjectPath"
     | DBScalingBox _ -> 
         "ScalingBox"
     | DBCustomComp _->        
@@ -484,6 +495,44 @@ let processContextMenuClick
         model
         |> changeSubtreeLockState isSubSheet sheet (fun _ -> Unlocked)
         |> withNoCmd 
+
+    | ProjectPathBreadcrumb path, "Copy path" ->
+        // the bar shows a cropped path, so confirm what actually reached the clipboard
+        electron.clipboard.writeText path
+        model
+        |> withMsgs
+            [ SetFilesNotification (Notifications.successNotification $"Copied {path}" CloseFilesNotification)
+              DispatchDelayed (Constants.copiedPathNotificationTime, CloseFilesNotification) ]
+
+    | ProjectPathBreadcrumb path, "Open directory" ->
+        // Windows opens the folder window *behind* whatever holds the foreground, and nothing on
+        // this side can lift it: the window belongs to the already-running explorer.exe, which has
+        // no right to take the foreground away from Issie. A process launched by the foreground
+        // process does have that right and passes it on, so spawning explorer.exe opens the window
+        // in front. Measured on Windows 11: through shell.openPath the window lands immediately
+        // below Issie and Issie keeps focus, through the spawn immediately above it and focused.
+        // Every other platform raises it already, and shell.openPath is the portable route there.
+        let openDirectory (dispatch: Msg -> unit) =
+            let failed reason =
+                dispatch <| SetFilesNotification
+                    (Notifications.errorFilesNotification $"Could not open {path}: {reason}")
+            // global. because an opened module here shadows the Node namespace
+            match global.Node.Api.``process``.platform with
+            | global.Node.Base.Win32 ->
+                // explorer.exe exits non-zero even when it succeeds, and for a path that is not
+                // there it silently opens a default folder rather than reporting anything - so
+                // there is no result worth reading back, and the path is checked up front instead.
+                if isDirectory path then
+                    let options = {| detached = true; stdio = "ignore"; shell = false |} |> toPlainJsObj
+                    global.Node.Api.childProcess.spawn ("explorer.exe", ResizeArray [path], options) |> ignore
+                else
+                    failed "the directory is no longer there"
+            | _ ->
+                // shell.openPath reports failure by resolving with a non-empty message rather than
+                // by rejecting, so saying nothing here would make a failure look like success.
+                electron.shell.openPath path
+                |> Promise.iter (fun error -> if error <> "" then failed error)
+        model, Cmd.ofEffect openDirectory
 
     | DBCustomComp(_,ct), "Go to sheet" ->
         let p = Option.get model.CurrentProj

@@ -23,6 +23,7 @@ open ElectronAPI
 let contextMenus = [
         "SheetMenuBreadcrumbDev", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Save as library component"; "Lock"; "Unlock"; "Lock Subtree"; "Unlock Subtree"]
         "SheetMenuBreadcrumb", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Save as library component"]
+        "ProjectPath", ["Copy path"; "Open directory"]
         "CustomComponent", ["Go to sheet" ; "Properties"]
         "ScalingBox", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)"; "Delete Box (DEL)"; "Copy Box (Ctrl+C)"; "Move Box (Drag any component)"]
         "Component", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Properties"]

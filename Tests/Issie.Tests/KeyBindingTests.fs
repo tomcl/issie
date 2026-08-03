@@ -89,7 +89,6 @@ let tests =
                   ScRedo,                 "Ctrl+Y",            "Cmd+Shift+Z"
                   ScNewSheet,             "Ctrl+N",            "Cmd+N"
                   ScSaveSheet,            "Ctrl+S",            "Cmd+S"
-                  ScSaveProjectNewFormat, "",                  "Cmd+Shift+S"
                   ScAbout,                "",                  "Cmd+H"
                   ScQuit,                 "",                  "Cmd+Q"
                   ScFullScreen,           "F11",               "Cmd+Ctrl+F"

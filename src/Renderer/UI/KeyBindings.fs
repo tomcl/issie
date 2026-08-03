@@ -228,14 +228,10 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     | ScThemeLight -> setTheme SymbolT.ThemeType.Light
     | ScThemeGrayscale -> setTheme SymbolT.ThemeType.White
     | ScToggleBuildTab -> dispatch ChangeBuildTabVisibility
-    | ScToggleMemoryDisplay ->
-        JSHelpers.loggingMemory <- not JSHelpers.loggingMemory
-        printfn $"""Memory display is now {if JSHelpers.loggingMemory then "on" else "off"}."""
 
     // ---- file ----
     | ScNewSheet -> dispatch <| MenuAction(MenuNewFile, dispatch)
     | ScSaveSheet -> dispatch <| MenuAction(MenuSaveFile, dispatch)
-    | ScSaveProjectNewFormat -> dispatch <| MenuAction(MenuSaveProjectInNewFormat, dispatch)
     | ScAbout -> UIPopups.viewInfoPopup dispatch
     | ScQuit -> dispatch <| MenuAction(MenuExit, dispatch)
 

@@ -154,15 +154,27 @@ let moveCustomPortsPopup() : ReactElement =
             li [] [str "Custom components (sheets inserted as components) can have ports moved \
                         to any side of the symbol and reordered."]
             
-            li [] [ 
+            li [] [
                     str "To move custom component ports:"
                     ul [Style [ListStyle "circle"; MarginLeft "30px"]]
-                        [   
-                            li [] [str "Press CTRL and use a mouse to drag \
-                                        a port to another position on the outline of the symbol."] 
-                            li [] [str "You can reorder ports and place them on any symbol edge including top and bottom." ]           
+                        [
+                            li [] [str "Right-click the component and choose "; bSpan "Move ports"; str ". \
+                                        Its draggable ports turn blue."]
+                            li [] [str "Drag a port to another position on the outline of the symbol."]
+                            li [] [str "You can reorder ports and place them on any symbol edge including top and bottom." ]
                             li [] [str "The symbol will resize itself if you change the edge of a port."]
-                            li [] [str "If default sizing makes port legends overlap you can scale the custom component dragging its corners"]
+                            li [] [str "Click anywhere off the component when you have finished."]
+                        ]
+                ]
+
+            li [] [
+                    str "To resize a custom component, when default sizing makes port legends overlap:"
+                    ul [Style [ListStyle "circle"; MarginLeft "30px"]]
+                        [
+                            li [] [str "Right-click the component and choose "; bSpan "Resize symbol"; str ". \
+                                        Blue handles appear on its corners."]
+                            li [] [str "Drag any corner to scale the symbol."]
+                            li [] [str "Click anywhere off the component when you have finished."]
                         ]
                 ]
             ]

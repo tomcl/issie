@@ -137,11 +137,9 @@ type ShortcutId =
     | ScThemeLight
     | ScThemeGrayscale
     | ScToggleBuildTab
-    | ScToggleMemoryDisplay
     // ---- file ----
     | ScNewSheet
     | ScSaveSheet
-    | ScSaveProjectNewFormat
     | ScAbout
     | ScQuit
     // ---- waveform simulator ----
@@ -344,13 +342,10 @@ let shortcuts: ShortcutSpec list =
       spec ScThemeLight (both []) sheet "" CatView
       spec ScThemeGrayscale (both []) sheet "" CatView
       spec ScToggleBuildTab (both []) appWide "" CatView
-      spec ScToggleMemoryDisplay (both []) appWide "" CatView
 
       // ------------------------------------------------------------------ file
       spec ScNewSheet (both [ ch Mods.prim (letter 'N') ]) appWide "Create new sheet" CatFile
       spec ScSaveSheet (both [ ch Mods.prim (letter 'S') ]) appWide "Save current sheet" CatFile
-      spec ScSaveProjectNewFormat (macOnly [ ch Mods.primShift (letter 'S') ]) appWide
-          "Save project in new format" CatFile
       spec ScAbout (macOnly [ ch Mods.prim (letter 'H') ]) appWide
           "Open about/help window" CatFile
       spec ScQuit (macOnly [ ch Mods.prim (letter 'Q') ]) appWide "Quit application" CatFile

@@ -91,15 +91,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                     symbolCmd (SymbolT.DeleteSymbols model.SelectedComponents)
                     sheetCmd UpdateBoundingBoxes
                   ]
-    | KeyPress CtrlS -> // For Demo, Add a new square in upper left corner
-        { model with BoundingBoxes = Symbol.getBoundingBoxes model.Wire.Symbol; UndoList = appendUndoList model.UndoList model ; RedoList = []},
-        Cmd.batch [ sheetCmd UpdateBoundingBoxes; symbolCmd SymbolT.SaveSymbols ] // Need to update bounding boxes after adding a symbol.
-    // HLP 23: AUTHOR Khoury & Ismagilov
-    // Gets bounding box dimentions and creates the necessary symbol buttons
-
-    | KeyPress AltShiftZ ->
-        TimeHelpers.printStats()
-        model, Cmd.none
     | KeyPress CtrlC ->
         model,
         Cmd.batch [
@@ -148,12 +139,12 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 |n when n < 500 -> model_in :: redoList
                 | _ -> model_in :: (removeLast redoList)
 
-            {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst; CurrentKeyPresses = []}, Cmd.batch [sheetCmd DoNothing]
+            {prevModel with RedoList = appendRedoList model.RedoList model; UndoList = lst}, Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlY ->
         match model.RedoList with
         | [] -> model , Cmd.none
-        | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst; CurrentKeyPresses = []} , Cmd.batch [sheetCmd DoNothing]
+        | newModel :: lst -> { newModel with UndoList = model :: model.UndoList; RedoList = lst} , Cmd.batch [sheetCmd DoNothing]
 
     | KeyPress CtrlA ->
         let symbols = model.Wire.Symbol.Symbols |> Map.keysL
@@ -299,32 +290,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         canvas.scrollTop <- canvas.scrollTop + requiredOffset.Y * model.Zoom
         model, Cmd.none
 
-    | ManualKeyDown key -> // Needed for e.g. Ctrl + C and Ctrl + V as they are not picked up by Electron
-        let containsKey key  = List.exists (fun (key',time) -> key'=key)
-        let newPressedKeys = (key.ToUpper(), TimeHelpers.getTimeMs()) :: getActivePressedKeys model  // Make it fully upper case to remove CAPS dependency
-        let newCmd =
-            match containsKey "CONTROL" newPressedKeys || containsKey "META" newPressedKeys with
-            | true ->
-                if containsKey "C" newPressedKeys then
-                    sheetCmd (KeyPress CtrlC)
-                elif containsKey "V" newPressedKeys then
-                    sheetCmd (KeyPress CtrlV)
-                elif containsKey "A" newPressedKeys then
-                    sheetCmd (KeyPress CtrlA)
-                elif containsKey "W" newPressedKeys then
-                    sheetCmd (KeyPress CtrlW)
-                else
-                    Cmd.none
-            | false -> Cmd.none
-
-
-        { model with CurrentKeyPresses = newPressedKeys }, newCmd
-
-    | ManualKeyUp key ->
-        /// remove all (key,timestamp) elements matching key
-        let removeAllKeys key =
-            List.filter (fun (k,t) -> k <> key)
-        { model with CurrentKeyPresses = removeAllKeys (key.ToUpper()) model.CurrentKeyPresses}, Cmd.none
+    // ManualKeyDown/Up used to live here, synthesising Ctrl+C/V/A/W by keeping a list of held
+    // keys and discarding entries older than a second, because keyup was unreliable. KeyBindings
+    // resolves those chords directly from the event, and a window blur handler covers the case the
+    // timeout was working around.
 
     | CheckAutomaticScrolling ->
         let canvas = document.getElementById "Canvas"
@@ -511,7 +480,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             SnapSegments = emptySnap
             //ScrollPos = { X = 0.0; Y = 0.0 } Fix for scroll bug on changing sheets
             LastValidPos = { X = 0.0; Y = 0.0 }
-            CurrentKeyPresses = []
             UndoList = []
             RedoList = []
             TmpModel = None
@@ -898,7 +866,6 @@ let init () =
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }
         LastValidSymbol = None
-        CurrentKeyPresses = []
         UndoList = []
         RedoList = []
         TmpModel = None

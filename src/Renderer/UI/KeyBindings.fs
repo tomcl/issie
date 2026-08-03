@@ -33,9 +33,8 @@ let private platformTable = KeyTypes.table isMac
 ///
 /// First match wins, so the order is the priority order.
 let contextOfModel (m: Model) : KeyContext =
-    // CodeEditorState is only ever set, never cleared, so on its own it latches on for the rest of
-    // the session. Pairing it with PopupViewFunc is the only sound test until the editor's close
-    // clears it - which it should.
+    // The code editor lives inside a popup and both fields are cleared together by ClosePopup, so
+    // requiring both is the accurate test rather than a defence against one of them latching.
     if m.CodeEditorState.IsSome && m.PopupViewFunc.IsSome then
         CodeEditor
     elif m.PopupViewFunc.IsSome || m.SpinnerPayload.IsSome || m.PopupDialogData.Progress.IsSome then
@@ -298,19 +297,66 @@ let publishKeyLog () =
     if JSHelpers.debugLevel > 0 then
         Browser.Dom.window?issieKeys <- (fun () -> keyLog |> List.toArray)
 
-/// Resolve a key event without acting on it: no preventDefault, no action. Used while the old
-/// mechanisms are still in place, so that every context can be walked through and the resolutions
-/// read back before anything depends on them.
-let shadowKeyDown (_dispatch: Msg -> unit) (e: Browser.Types.Event) =
+/// Whether Ctrl (or Cmd) is currently held.
+///
+/// The draw block shows a custom component's draggable ports and resize corners while it is, so
+/// this has to follow the physical key. It is tracked here rather than in the model because the
+/// only interesting transitions are the edges, and it must survive the window losing focus.
+let mutable private ctrlHeld = false
+
+let private isModifierKey (key: string) =
+    key = "Control" || key = "Meta" || key = "Alt" || key = "Shift"
+
+/// The one key handler in Issie.
+let onKeyDown (dispatch: Msg -> unit) (e: Browser.Types.Event) =
     let ev: Browser.Types.KeyboardEvent = unbox e
-    // a modifier pressed on its own is not a chord
-    match ev.key with
-    | "Control"
-    | "Meta"
-    | "Alt"
-    | "Shift" -> ()
-    | _ ->
-        let ctx = currentContext ()
-        let chord = chordOf ev
-        let resolved = lookup platformTable ctx chord |> Option.map (fun s -> s.Id)
-        record chord ctx resolved
+    // an IME composing a character sends keydown with keyCode 229; those keys belong to the input
+    if not (jsToBool ev?isComposing) && ev?keyCode <> 229 then
+        if not (isModifierKey ev.key) then
+            let ctx = currentContext ()
+            let chord = chordOf ev
+            let resolved = lookup platformTable ctx chord
+            if JSHelpers.debugLevel > 0 then
+                record chord ctx (resolved |> Option.map (fun s -> s.Id))
+            match resolved with
+            | Some s when s.DevOnly && JSHelpers.debugLevel = 0 -> ()
+            | Some s when jsToBool ev?repeat && not s.AllowRepeat ->
+                // swallow the repeat rather than letting it through: a held Delete should not
+                // start deleting whatever the browser thinks is focused
+                if s.PreventDefault then ev.preventDefault ()
+            | Some s ->
+                if s.PreventDefault then ev.preventDefault ()
+                actionOf s.Id dispatch
+            | None when ctx = CodeEditor ->
+                // The code editor renders its own text and reconstructs typing from the raw key,
+                // so it wants every key that is not a shortcut rather than the focused element.
+                dispatch
+                <| AnyKeyPress
+                    { KeyString = ev.key
+                      AltKey = ev.altKey
+                      ControlKey = ev.ctrlKey
+                      MetaKey = ev.metaKey
+                      ShiftKey = ev.shiftKey }
+            | None ->
+                // Unbound: let it reach the focused element. This is what makes typing, caret
+                // movement and native text editing work without any per-input code.
+                ()
+
+        // Ctrl held is a state, not a chord, so it is tracked separately from the table
+        if (ev.key = "Control" || ev.key = "Meta") && not ctrlHeld then
+            ctrlHeld <- true
+            dispatch <| Sheet SheetT.PortMovementStart
+
+let onKeyUp (dispatch: Msg -> unit) (e: Browser.Types.Event) =
+    let ev: Browser.Types.KeyboardEvent = unbox e
+    // only Ctrl/Meta going up ends the mode. This used to fire on *any* keyup, so releasing some
+    // other key while Ctrl was held left the model thinking Ctrl was up when it was not.
+    if (ev.key = "Control" || ev.key = "Meta") && ctrlHeld then
+        ctrlHeld <- false
+        dispatch <| Sheet SheetT.PortMovementEnd
+
+/// Ctrl released while the window is not focused produces no keyup at all.
+let onWindowBlur (dispatch: Msg -> unit) (_: Browser.Types.Event) =
+    if ctrlHeld then
+        ctrlHeld <- false
+        dispatch <| Sheet SheetT.PortMovementEnd

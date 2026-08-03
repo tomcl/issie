@@ -12,18 +12,6 @@ open Operators
 open Sheet
 open SheetSnap
 
-module Constants =
-    let KeyPressPersistTimeMs = 1000.
-
-/// Hack to deal with possible Ctrl Key up when window is not focussed.
-/// This will not register as a keyup and so will stay in CurrentKeyPresses forever.
-/// Use the fact that keys auto-repeat, and time-stamp each KeyDown.
-/// If the mots recent keydown is longer than some cutoff time assume key is no longer pressed.
-let getActivePressedKeys model =
-    let timeNow = TimeHelpers.getTimeMs()
-    List.filter (fun (_,time) -> timeNow - time < Constants.KeyPressPersistTimeMs) model.CurrentKeyPresses
-
-
 /// This actually writes to the DOM a new scroll position.
 /// In the special case that DOM has not yet been created it does nothing.
 let writeCanvasScroll (scrollPos:XYPos) =
@@ -76,16 +64,10 @@ let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Mod
         Y = (ev.pageY - headerHeight + sheetModel.ScreenScrollPos.Y) / sheetModel.Zoom
     }
 
-let wheelUpdate (ev: Types.WheelEvent) model dispatch =
-    if List.exists (fun (k,_) -> k = "CONTROL") (getActivePressedKeys model) then
-        // ev.preventDefault()
-        if ev.deltaY > 0.0 then // Wheel Down
-            dispatch <| KeyPress ZoomOut
-        else
-            dispatch <| KeyPress ZoomIn
-    else () // Scroll normally if Ctrl is not held down
-
-let wheelUpdateMsg (ev: Types.WheelEvent) dispatch = Msg.ExecFuncInSheetMessage (fun model -> wheelUpdate ev model dispatch)
+// Ctrl+wheel zoom used to be handled here as well as on the wrapper div in MainView. Both fired
+// on the same bubbled event, so one wheel notch zoomed twice. MainView's is the one kept: it reads
+// the modifier off the event itself rather than off a decaying list of held keys, and it is the
+// one that suppresses the browser's own page zoom.
 
 /// Is the mouse button currently down?
 let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
@@ -110,18 +92,8 @@ let displaySvgWithZoom
             : ReactElement=
 
     let zoom = model.Zoom
-    // Hacky way to get keypresses such as Ctrl+C to work since Electron does not pick them up.
-    document.onkeydown <- (fun key ->
-        //printf "%s" $"Down {key.key} ({model.CurrentKeyPresses})"
-        if key.key = " " then// Check for spacebar
-            //key.preventDefault() // Disable scrolling with spacebar
-            dispatch <| (ManualKeyDown key.key)
-        else
-            dispatch <| (ManualKeyDown key.key) )
-    document.onkeyup <- (fun key ->
-        //printf "%s" $"Up {key.key} ({model.CurrentKeyPresses})"
-        dispatch <| (ManualKeyUp key.key))
-
+    // Keys used to be picked up here, by reassigning document.onkeydown on every render. They are
+    // now handled once, in KeyBindings.
 
     let sizeInPixels = sprintf "%.2fpx" ((model.CanvasSize * model.Zoom))
 
@@ -158,7 +130,6 @@ let displaySvgWithZoom
               match not firstView, scrollOpt with
                 | true, Some scroll ->putScrollProps scroll |> ignore
                 | _ -> ()
-              OnWheel (fun ev -> dispatch <| wheelUpdateMsg ev dispatch)
         ]
     div (scrollAttrL @  attrs)
         [

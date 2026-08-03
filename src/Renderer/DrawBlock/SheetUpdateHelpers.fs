@@ -828,7 +828,11 @@ let mMoveUpdate
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
         
         // HLP23 AUTHOR: BRYAN TAN
-        let ctrlPressed = List.exists (fun (k,_) -> k = "CONTROL") (SheetDisplay.getActivePressedKeys model)
+        // CtrlKeyDown is now the single record of whether Ctrl is held, maintained by KeyBindings
+        // from real keydown/keyup plus a window blur. It used to be read from a separate list of
+        // timestamped key presses which discarded entries after a second, so this and the
+        // mouse-down handler - which always read CtrlKeyDown - could disagree.
+        let ctrlPressed = model.CtrlKeyDown
         let newCursor =
             match model.CursorType, model.Action with
             | Spinner,_ -> Spinner

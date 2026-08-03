@@ -27,16 +27,9 @@ open Optics.Operators
 
 let mutable uiStartTime: float = 0.
 
-type EvilUIState =
-    | EvilCodeEditor
-    | EvilUIPopup
-    | EvilNoState
-
-/// This is a hack to determine how global keys are processed.
-/// Default processing of " "
-/// this is not wanted for draw block, or code editor.
-/// however for input boxes "v " muist be correctly processed
-let mutable evilUIState = EvilNoState
+// EvilUIState was a mutable global holding a three-case approximation of the UI context, read
+// only to decide whether to swallow the space bar. KeyBindings derives the real context from the
+// model in the same place, and space is now an ordinary row in the shortcut table.
 
     
 
@@ -142,32 +135,27 @@ let update (msg : Msg) oldModel =
         model, Cmd.none
 
     | Sheet sMsg ->
-        match sMsg, model.PopupViewFunc with
-        | SheetT.ToggleNet canvas, _ ->
+        // There used to be two gates here. One dropped every KeyPress while a popup was open,
+        // which covered only KeyPress and so let Rotate, Flip, Arrangement and RotateLabels
+        // through into popups. The other stripped the arrow keys out and redirected them to the
+        // waveform simulator, in every context. Both are gone: a shortcut now states the contexts
+        // it is live in, and a second guard saying the same thing is how the two come to disagree.
+        match sMsg with
+        | SheetT.ToggleNet canvas ->
             model, Cmd.none
-        | SheetT.KeyPress _, Some _ -> 
-            // do not allow keys to affect Sheet when popup is on.
-            model, Cmd.none
-        | SheetT.ManualKeyDown s, _ when s = "ArrowLeft" || s = "ArrowRight" ->
-            // intercept these keys and send them to the wave simulator
-            // needed because electron does not propagate onkeydown events through the DOM
-            // so we can't use the normal Elmish keydown handling
-            model, Cmd.ofMsg (WaveSimKeyPress s)
         | _ -> sheetMsg sMsg model
 
     | WaveSimKeyPress s ->
-        // These keys implement navigation in teh Waveform simulator
+        // Navigation in the waveform simulator. Only reachable from the WaveSim key context, which
+        // already establishes that the wave simulator has the keyboard and is running.
         let wsModel = getWSModel model
-        let moveCursorMsg num  = WaveSimNavigation.setClkCycleMsg wsModel (wsModel.CursorExactClkCycle + num)
-        if model.MousePointerIsOnRightSection then
-            let cmd =
-                match wsModel.State, s with
-                |Success, "ArrowLeft" -> Cmd.ofMsg (moveCursorMsg -1)
-                |Success, "ArrowRight" -> Cmd.ofMsg (moveCursorMsg 1)
-                | _ -> Cmd.none
-            model, cmd
-        else
-            model, Cmd.none
+        let moveCursorMsg num = WaveSimNavigation.setClkCycleMsg wsModel (wsModel.CursorExactClkCycle + num)
+        let cmd =
+            match s with
+            | "ArrowLeft" -> Cmd.ofMsg (moveCursorMsg -1)
+            | "ArrowRight" -> Cmd.ofMsg (moveCursorMsg 1)
+            | _ -> Cmd.none
+        model, cmd
 
 
     | SynchroniseCanvas ->
@@ -434,7 +422,6 @@ let update (msg : Msg) oldModel =
             match ParameterView.topSheetChoiceCheck model with
             | None -> model |> withNoMsg
             | Some popup ->
-                evilUIState <- EvilUIPopup
                 model
                 |> set popupViewFunc_ (Some popup)
                 |> withNoMsg
@@ -444,7 +431,6 @@ let update (msg : Msg) oldModel =
         model, Cmd.ofEffect (fun dispatch -> ParameterView.applyComputedDisplayValues model dispatch)
 
     | ShowPopup popup ->
-        evilUIState <- EvilUIPopup
         model
         |> set popupViewFunc_ (Some popup)
         |> withNoMsg
@@ -456,7 +442,6 @@ let update (msg : Msg) oldModel =
         |> withNoMsg
 
     | ClosePopup ->
-        evilUIState <- EvilNoState
         { model with
             PopupViewFunc = None;
             CodeEditorState = None
@@ -729,7 +714,7 @@ let update (msg : Msg) oldModel =
     | DoNothing -> //Acts as a placeholder to propagate the ExecutePendingMessages message in a Cmd
         model, cmd
 
-    | JSDiagramMsg _ | KeyboardShortcutMsg _ -> // catch all messages not otherwise processed. Should remove this?
+    | JSDiagramMsg _ -> // catch all messages not otherwise processed. Should remove this?
         model, Cmd.none
 
     // post-processing of update function (Model * Cmd<Msg>)

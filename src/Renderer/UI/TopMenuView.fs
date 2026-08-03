@@ -698,10 +698,7 @@ let private viewMenuItems dispatch =
       itemWithKey "Grayscale" KeyTypes.ScThemeGrayscale (fun () -> setTheme SymbolT.ThemeType.White)
       Navbar.divider [] []
       itemWithKey "Show/hide build tab" KeyTypes.ScToggleBuildTab (fun () ->
-          dispatch ChangeBuildTabVisibility)
-      itemWithKey "Show/hide app memory display" KeyTypes.ScToggleMemoryDisplay (fun () ->
-          JSHelpers.loggingMemory <- not JSHelpers.loggingMemory
-          printfn $"""Memory display is now {if JSHelpers.loggingMemory then "on" else "off"}.""") ]
+          dispatch ChangeBuildTabVisibility) ]
 
 
 let viewTopMenu model dispatch =
@@ -830,14 +827,12 @@ let viewTopMenu model dispatch =
                                 CSSProp.MinWidth "0"
                                 ] ]
                       ]
-                          ([ Navbar.Item.a [ Navbar.Item.Props 
-                                [ OnClick(fun _ -> 
-                                    dispatch (StartUICmd AddSheet)
-                                    dispatch <| FileCommand(FileAddFile,dispatch)) ]]
-                                    [ str "New Sheet" ]
+                          ([ itemWithKey "New Sheet" KeyTypes.ScNewSheet (fun () ->
+                                 dispatch (StartUICmd AddSheet)
+                                 dispatch <| FileCommand(FileAddFile,dispatch))
                              Navbar.divider [] []
-                             Navbar.Item.a [ Navbar.Item.Props 
-                                [ OnClick(fun _ -> 
+                             Navbar.Item.a [ Navbar.Item.Props
+                                [ OnClick(fun _ ->
                                     dispatch (StartUICmd ImportSheet)
                                     dispatch <| FileCommand(FileImportSheet,dispatch)) ] ]
                                      [ str "Import Sheet" ]
@@ -893,16 +888,12 @@ let viewTopMenu model dispatch =
                                       [ str "Open project" ]
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| fun _ -> dispatch <| FileCommand (FileCloseProject, dispatch) ] ]
                                       [ str "Close project" ]
-                                  // whole-project operations, homeless once the Electron Sheet
-                                  // menu goes. They act on the project, not the open sheet, so
-                                  // they belong here rather than on Sheets - whose dropdown has
-                                  // the sheet tree below it and no room to spare.
-                                  Navbar.divider [] []
                                   // Writing Verilog is per-sheet, so it lives on the sheet's own
                                   // pill in the Sheets menu rather than here, where it could only
                                   // ever have meant whichever sheet happened to be open.
-                                  itemWithKey "Save project in new format" KeyTypes.ScSaveProjectNewFormat
-                                      (fun () -> dispatch <| MenuAction(MenuSaveProjectInNewFormat, dispatch)) ] ]
+                                  Navbar.divider [] []
+                                  itemWithKey "Exit Issie" KeyTypes.ScQuit
+                                      (fun () -> dispatch <| MenuAction(MenuExit, dispatch)) ] ]
 
                       // Sheets menu. Second on the bar, but its dropdown is still pinned to the
                       // left edge of the app - see fileTab, which holds the sheet tree and wants

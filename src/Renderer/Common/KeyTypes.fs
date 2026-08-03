@@ -142,7 +142,6 @@ type ShortcutId =
     | ScNewSheet
     | ScSaveSheet
     | ScSaveProjectNewFormat
-    | ScWriteVerilog
     | ScAbout
     | ScQuit
     // ---- waveform simulator ----
@@ -352,7 +351,6 @@ let shortcuts: ShortcutSpec list =
       spec ScSaveSheet (both [ ch Mods.prim (letter 'S') ]) appWide "Save current sheet" CatFile
       spec ScSaveProjectNewFormat (macOnly [ ch Mods.primShift (letter 'S') ]) appWide
           "Save project in new format" CatFile
-      spec ScWriteVerilog (both []) appWide "" CatFile
       spec ScAbout (macOnly [ ch Mods.prim (letter 'H') ]) appWide
           "Open about/help window" CatFile
       spec ScQuit (macOnly [ ch Mods.prim (letter 'Q') ]) appWide "Quit application" CatFile

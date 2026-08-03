@@ -236,7 +236,6 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     | ScNewSheet -> dispatch <| MenuAction(MenuNewFile, dispatch)
     | ScSaveSheet -> dispatch <| MenuAction(MenuSaveFile, dispatch)
     | ScSaveProjectNewFormat -> dispatch <| MenuAction(MenuSaveProjectInNewFormat, dispatch)
-    | ScWriteVerilog -> dispatch <| MenuAction(MenuVerilogOutput, dispatch)
     | ScAbout -> UIPopups.viewInfoPopup dispatch
     | ScQuit -> dispatch <| MenuAction(MenuExit, dispatch)
 

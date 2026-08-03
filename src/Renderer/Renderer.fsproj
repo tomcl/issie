@@ -148,6 +148,7 @@
     <Compile Include="UI\WaveSim\WaveSimTop.fs" />
     <Compile Include="UI\MainView.fs" />
     <Compile Include="UI\ContextMenus.fs" />
+    <Compile Include="UI\KeyBindings.fs" />
     <Compile Include="UI\FileUpdate.fs" />
     <Compile Include="UI\UpdateHelpers.fs" />
     <Compile Include="UI\Update.fs" />

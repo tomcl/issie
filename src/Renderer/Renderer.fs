@@ -406,6 +406,7 @@ let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
     dispatch <| Msg.ExecFuncInMessage((fun _ _ ->
         electronRemote.app.applicationMenu <- Some menu), dispatch)
     attachExitHandler dispatch
+    KeyBindings.publishKeyLog()
     let userAppDir = getUserAppDir()
     dispatch <| ReadUserData userAppDir
     { new System.IDisposable with member _.Dispose() = () }
@@ -432,11 +433,15 @@ let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
 let update msg model =
     let model', cmd = Update.update msg model
     if Option.isSome model'.CodeEditorState && Option.isSome model'.PopupViewFunc then
-        Update.evilUIState <- Update.EvilCodeEditor 
+        Update.evilUIState <- Update.EvilCodeEditor
     elif Option.isSome model'.PopupViewFunc then
         Update.evilUIState <- Update.EvilUIPopup
     else
         Update.evilUIState <- Update.EvilNoState
+    // The keyboard context, derived here for the same reason evilUIState is: a DOM handler cannot
+    // see the model, and preventDefault has to be decided synchronously inside the handler.
+    // evilUIState goes when the old key mechanisms do; for now both are kept in step.
+    KeyBindings.setContextFromModel model'
     model',cmd
 
 //printfn "Starting renderer..."
@@ -523,6 +528,12 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
     // let periodicMemoryCheckCommand dispatch =
     //     JSHelpers.periodicDispatch dispatch UpdateHelpers.Constants.memoryUpdateCheckTime CheckMemory |> ignore
 
+    /// Resolves each key press against the new table and records what it *would* have done,
+    /// without preventing the default or running the action. It runs beside the mechanisms that
+    /// really handle keys, so every context can be walked through and the decisions read back -
+    /// via window.issieKeys() - before anything depends on them. Debug builds only.
+    let subKeyShadow = domListenerSub "keydown" KeyBindings.shadowKeyDown
+
     [
         ["menus"], attachMenusAndKeyShortcuts
         ["keydown"], subDown
@@ -530,6 +541,7 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
         ["contextmenu"], subRightClick
         ["ipc"; "context-menu-command"], subContextMenuCommand
     ]
+    @ (if JSHelpers.debugLevel > 0 then [ ["keydown"; "shadow"], subKeyShadow ] else [])
 
 Program.mkProgram init update view'
 |> Program.withReactBatched "app"

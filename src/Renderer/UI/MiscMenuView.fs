@@ -41,13 +41,18 @@ type BreadcrumbConfig = {
     }
 
 module Constants =
-    let gridBoxSeparation = "5px"
+    /// Row gap is zero on purpose. The line joining a parent to its children runs down the column
+    /// gap and has to be unbroken, and it is assembled from a segment contributed by each child -
+    /// so any row gap would show as a break in it. Vertical spacing comes from the buttons' own
+    /// margins instead (see .treeCell in extra.css).
+    let gridBoxSeparation = "0 20px"
 
-    let colArrayStyle = Style [
-                BorderColor "white";
-                BorderWidth "10px";
-                BorderStyle "solid";
-                Padding "50px"]
+    /// Width of the column gap, which is where the connectors are drawn. Passed to the CSS as a
+    /// variable so the lines and the gap cannot drift apart.
+    let treeGap = "20px"
+
+    /// Space between one root hierarchy and the next, where a project has more than one.
+    let rootHierarchyStyle = Style [ MarginBottom "30px" ]
 
     let defaultConfig: BreadcrumbConfig = {
         AllowDuplicateSheets = false
@@ -57,13 +62,10 @@ module Constants =
         ColorFun = fun _ -> IColor.IsGreyDark
         ClickAction = fun _ _ -> ()
         ElementProps = [ ]
-        ElementStyleProps = [           
-            Border "2px"            
-            BorderColor "LightGrey"
-            BorderRightColor "DarkGrey"
-            BorderStyle "Solid"
-            Background "LightGrey"
-            Padding "5px"]
+        // A node with children used to be a grey block spanning their rows, which is how the tree
+        // showed what belonged to what. Lines between parent and child say the same thing without
+        // painting over the space they run through, so there is nothing left for this to do.
+        ElementStyleProps = [ Padding "5px" ]
         ButtonOptions = [
                 Button.Size IsSmall
                 Button.IsOutlined
@@ -81,7 +83,11 @@ module Constants =
 //--------------------------------------------------------------------------------------------//
 
 let gridBox (gap:string) s =
-    div [Style [Display DisplayOptions.InlineGrid; GridGap gap; JustifyContent "Start"]] s
+    div [Style [
+            Display DisplayOptions.InlineGrid
+            GridGap gap
+            JustifyContent "Start"
+            CSSProp.Custom("--tree-gap", Constants.treeGap) ]] s
 
 
 let rec gridArea (gridPos: CSSGridPos): string =
@@ -147,6 +153,37 @@ let positionRootAndFocusChildrenInGrid (root: string) (pathToFocus:string list) 
     children
     |> List.mapi (fun i sheet -> PosAreaSpan(sheetsInPath.Length + 1, 1, 1, children.Length),sheet)
       
+/// Column, first row, and number of rows spanned.
+let private gridSpan (pos: CSSGridPos) =
+    match pos with
+    | PosElement(x, y) -> x, y, 1
+    | PosAreaAbsolute(x1, y1, _, y2) -> x1, y1, y2 - y1 + 1
+    | PosAreaSpan(x, y, _, spanY) -> x, y, spanY
+
+/// Classes that tell the CSS how to draw a node's connector back to its parent.
+///
+/// Worked out from the grid positions alone, so the layout functions need not know about it: a
+/// parent occupies the column to the left and spans exactly the rows of its children, so a child
+/// whose rows start where its parent's do is the first, and one whose rows end where the parent's
+/// end is the last. First and last contribute half a trunk each, the ones between contribute a
+/// whole one, and together they draw a single line from the first child to the last.
+let private connectorClasses (posL: (CSSGridPos * SheetTree) list) (pos: CSSGridPos) : string =
+    let x, y, h = gridSpan pos
+    if x <= 1 then
+        "treeCell"      // a root has no parent to connect to
+    else
+        posL
+        |> List.map (fst >> gridSpan)
+        |> List.tryFind (fun (px, py, ph) -> px = x - 1 && py <= y && py + ph >= y + h)
+        |> function
+           | None -> "treeCell"
+           | Some (_, py, ph) ->
+               match py = y, py + ph = y + h with
+               | true, true -> "treeCell treeNode treeOnly"
+               | true, false -> "treeCell treeNode treeFirst"
+               | false, true -> "treeCell treeNode treeLast"
+               | false, false -> "treeCell treeNode treeMiddle"
+
 let makeGridFromSheetsWithPositions
         (cfg: BreadcrumbConfig)
         (dispatch: Msg -> unit)
@@ -159,7 +196,7 @@ let makeGridFromSheetsWithPositions
             let number = cfg.NoWaves sheet
             gridElement
                 crumbId
-                cfg.ElementProps
+                (cfg.ElementProps @ [ HTMLAttr.ClassName(connectorClasses posL pos) ])
                 (extraStyle)
                 pos
                 (Button.button [
@@ -252,10 +289,12 @@ let allRootHierarchiesFromProjectBreadcrumbs
         |> Set.toList
         |> List.map (fun root ->
             makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch))
-        |> List.mapi (fun i el ->
-            tr [ Constants.colArrayStyle
-                ] [ td [CellSpacing "50px"] [el]])
-        |> fun rows -> table [] [tbody [] rows]
+        // Plain divs, not a table. Each root hierarchy is just stacked under the last, and a table
+        // dragged in the app-wide th/td and odd-row styling - which is where the grey wash behind
+        // the tree came from. It read as though it were saying something about the hierarchy; it
+        // was the striping meant for the Verilog error table.
+        |> List.map (fun el -> div [ Constants.rootHierarchyStyle ] [ el ])
+        |> fun rows -> div [] rows
 
 /// is there a duplicate sheet name anywhere in hierarchy?
 let hierarchiesHaveDuplicates (model: Model) =

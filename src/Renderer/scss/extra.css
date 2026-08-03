@@ -152,6 +152,67 @@ th, td {
 }
 
 /* ---------------------------------------------------------------------------
+   Sheet hierarchy tree connectors.
+
+   The tree is a CSS grid: depth is the column, and a node with children spans
+   exactly the rows its children occupy. That used to be shown by painting a
+   node with children as a grey block behind them, which said what belonged to
+   what but filled the space the eye needs to follow the structure.
+
+   Instead each child draws its own connector into the column gap to its left:
+   an elbow across to the node, and half or all of a vertical trunk. The first
+   child draws from its centre down, the last from the top to its centre, and
+   the ones between draw the whole height, so together they form one unbroken
+   line from the first child to the last, flush against the parent's edge. An
+   only child needs no trunk - the elbow alone reaches its parent, whose centre
+   is at the same height.
+
+   This works only because the grid has no row gap: see gridBoxSeparation in
+   MiscMenuView, which also passes the column width in as --tree-gap so the
+   lines cannot drift away from the space they are drawn in.
+   --------------------------------------------------------------------------- */
+.treeCell {
+  position: relative;
+}
+
+/* what the missing row gap would have given */
+.treeCell > .button {
+  margin-top: 3px;
+  margin-bottom: 3px;
+}
+
+/* the elbow, from the trunk across to the node */
+.treeNode::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--tree-gap, 20px));
+  width: var(--tree-gap, 20px);
+  top: 50%;
+  border-top: 1px solid #b5b5b5;
+}
+
+/* the trunk, standing in the column gap */
+.treeNode::after {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--tree-gap, 20px));
+  border-left: 1px solid #b5b5b5;
+}
+
+.treeFirst::after  { top: 50%; bottom: 0; }
+.treeMiddle::after { top: 0;   bottom: 0; }
+.treeLast::after   { top: 0;   height: 50%; }
+.treeOnly::after   { content: none; }
+
+/* A tree of any size makes its dropdown far wider than the ordinary items above
+   it, and those items put their shortcut against the right edge - so New Sheet's
+   Ctrl+N would end up an arm's length from the words. Cap them: it costs nothing
+   in the menus that have no tree, which are narrower than this anyway. */
+#TopMenu .navbar-dropdown:has(.treeCell) > .navbar-item {
+  max-width: 20em;
+}
+
+/* ---------------------------------------------------------------------------
    Properties pane button spacing.
 
    Buttons there are stacked with <br> between them, which breaks the line but

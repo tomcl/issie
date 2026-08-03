@@ -660,7 +660,12 @@ let viewTopMenu model dispatch =
                           //printfn "OnClick - inverting TopMenuOpenState when current state is: %A" model.TopMenuOpenState
                           if topMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
-                          |> dispatch) ] ]
+                          |> dispatch)
+                        // Bulma positions .navbar-dropdown against this item, which would start
+                        // the sheet tree wherever the "Sheets" label happens to sit. Taking the
+                        // item out of the positioning chain hands that job to the nearest
+                        // positioned ancestor - #TopMenu, whose left edge is the app's left edge.
+                        Style [ Position PositionOptions.Static ] ] ]
                 [ Navbar.Link.a [] [ str "Sheets" ]
                   Navbar.Dropdown.div
                       [ Navbar.Dropdown.Props
@@ -671,6 +676,13 @@ let viewTopMenu model dispatch =
                                       DisplayOptions.Block
                                    else
                                       DisplayOptions.None)
+                                // left of #TopMenu rather than of the "Sheets" item. Bulma also
+                                // sets min-width to 100% of the same box, which is now the whole
+                                // bar rather than one item - far wider than the tree needs, so it
+                                // is dropped and the width left to the content and to the
+                                // addVerticalScrollBars cap below.
+                                CSSProp.Left "0"      // CSSProp. because Edge.Left is also in scope
+                                CSSProp.MinWidth "0"
                                 ] ]
                       ]
                           ([ Navbar.Item.a [ Navbar.Item.Props 
@@ -710,8 +722,6 @@ let viewTopMenu model dispatch =
                           [ Height "100%"
                             Width "100%" ] ] ]
                     [
-                      // Sheets menu
-                      fileTab model
                       let topMenuOpenState = model.TopMenuOpenState
                       // Projects menu
                       Navbar.Item.div
@@ -736,6 +746,11 @@ let viewTopMenu model dispatch =
                                       [ str "Open project" ]
                                   Navbar.Item.a [ Navbar.Item.Props [ OnClick <| fun _ -> dispatch <| FileCommand (FileCloseProject, dispatch) ] ]
                                       [ str "Close project" ] ] ]
+
+                      // Sheets menu. Second on the bar, but its dropdown is still pinned to the
+                      // left edge of the app - see fileTab, which holds the sheet tree and wants
+                      // every pixel of width it can get.
+                      fileTab model
 
                       // make the path in the navbar responsive
                       let hidePath = numPathChars < Constants.numCharsHidePath

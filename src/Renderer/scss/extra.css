@@ -181,6 +181,26 @@ th, td {
   margin-bottom: 3px;
 }
 
+/* The panel the tree sits on, heading included so the words share its background
+   with no join between them. Sepia rather than a neutral grey, and darker than
+   the schematic canvas showing through the menu behind it, so the tree reads as
+   its own object rather than as a lighter patch of the same thing. */
+.treePanel {
+  background-color: #efe6d6;
+  border-radius: 6px;
+  padding: 14px 18px;
+}
+
+/* Space between one root hierarchy and the next - but not under the last, where
+   it would show as a band of bare panel below the tree. */
+.treeRoot {
+  margin-bottom: 30px;
+}
+
+.treeRoot:last-child {
+  margin-bottom: 0;
+}
+
 /* The trunk stands midway across the column gap, so there is room for a stub out
    of the parent on one side and an elbow into the child on the other. Those two
    meet the pills themselves: the cells have no padding, so a cell edge is a pill

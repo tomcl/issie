@@ -789,10 +789,14 @@ let viewTopMenu model dispatch =
                     BreadcrumbIdPrefix = "SheetMenuBreadcrumb"
                 }
 
+            // Heading and tree share one panel, so the words sit on the tree's background rather
+            // than on the menu's with a join between them.
             let breadcrumbs = [
-                    div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"]] [str "Sheets with Design Hierarchy"]
-                    MiscMenuView.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch updatedModel
-                    ]
+                    div [ HTMLAttr.ClassName "treePanel" ] [
+                        div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"; PaddingBottom "10px"]]
+                            [str "Sheets with Design Hierarchy"]
+                        MiscMenuView.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch updatedModel
+                    ]]
             let topMenuOpenState = model.TopMenuOpenState
             Navbar.Item.div
                 [ Navbar.Item.HasDropdown

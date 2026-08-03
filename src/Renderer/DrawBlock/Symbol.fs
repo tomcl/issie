@@ -86,7 +86,7 @@ module Constants =
     /// Used to make labels equidistant on all sides of symbol.
     let labelCorrection = {X= 0.; Y= 0.}
 
-    let customComponentHint = ["Press Ctrl and drag to"; "move ports or resize symbol"]
+    let customComponentHint = ["Right-click to move its"; "ports or resize it"]
     
     
 //------------------------GET BOUNDING BOXES FUNCS--------------------------------used by sheet.

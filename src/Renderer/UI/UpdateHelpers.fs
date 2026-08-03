@@ -591,6 +591,30 @@ let processContextMenuClick
                 |> Promise.iter (fun error -> if error <> "" then failed error)
         model, Cmd.ofEffect openDirectory
 
+    | DBCustomComp(sym,_), "Move ports"
+    | DBCustomComp(sym,_), "Resize symbol" ->
+        // Selecting the component is part of entering the mode, not a nicety: a selected symbol is
+        // drawn lightgreen, which is what the blue of the draggable ports and corners reads
+        // against. Without it the mode would be invisible on a clocked custom component, which is
+        // lightblue itself.
+        let mode = if item = "Move ports" then SheetT.EditPorts else SheetT.EditSize
+        // Set the whole appearance, not just the part being turned on: switching straight from one
+        // mode to the other would otherwise leave the previous mode's affordance showing until the
+        // next mouse move.
+        let show =
+            match mode with
+            | SheetT.EditPorts ->
+                [ SymbolT.ShowCustomOnlyPorts [sym.Id]; SymbolT.HideCustomCorners [sym.Id] ]
+            | SheetT.EditSize ->
+                [ SymbolT.ShowPorts []; SymbolT.ShowCustomCorners [sym.Id] ]
+        model
+        |> set (sheet_ >-> SheetT.symbolEdit_) (Some(sym.Id, mode))
+        |> set (sheet_ >-> SheetT.selectedWires_) []
+        |> set (sheet_ >-> SheetT.selectedComponents_) [sym.Id]
+        |> withMsgs
+            (Sheet(SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.SelectSymbols [sym.Id])))
+             :: (show |> List.map (fun m -> Sheet(SheetT.Msg.Wire(BusWireT.Msg.Symbol m)))))
+
     | DBCustomComp(_,ct), "Go to sheet" ->
         let p = Option.get model.CurrentProj
         openFileInProject ct.Name p model dispatch

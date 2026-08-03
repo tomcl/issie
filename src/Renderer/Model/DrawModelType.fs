@@ -465,6 +465,18 @@ module SheetT =
         | ComponentCorner of CommonTypes.ComponentId * XYPos * int
         | Canvas
 
+    /// What a right-click has made draggable on one custom component.
+    ///
+    /// These used to be reached by holding Ctrl, which meant the affordance appeared on every
+    /// custom component at once, vanished if the key was released or the window lost focus, and
+    /// was undiscoverable. A mode entered from the component's own menu applies to that component
+    /// alone and stays until the user clicks away.
+    type SymbolEditMode =
+        /// drag a port along the symbol's edges
+        | EditPorts
+        /// drag a corner to resize the symbol
+        | EditSize
+
     /// Keeps track of the current action that the user is doing
     type CurrentAction =
         | Selecting
@@ -634,6 +646,12 @@ module SheetT =
         LastValidPos: XYPos
         // HLP23 AUTHOR: BRYAN TAN
         LastValidSymbol: SymbolT.Symbol option
+        /// The custom component whose ports or size the user is currently able to drag, and which
+        /// of the two. Entered from that component's right-click menu and left until the user
+        /// clicks away, so the affordance stays put rather than depending on a key being held.
+        /// None is the ordinary state, which is why there is no case for it: a mode without a
+        /// symbol to apply to would mean nothing.
+        SymbolEdit: (CommonTypes.ComponentId * SymbolEditMode) option
         SnapSymbols: SnapXY
         SnapSegments: SnapXY
         /// how X,Y coordinates throughout draw block are scaled into screen pixels.
@@ -689,3 +707,4 @@ module SheetT =
     let zoom_ = Lens.create (fun m -> m.Zoom) (fun w m -> {m with Zoom = w})
 
     let scalingBox_ = Lens.create (fun m -> m.ScalingBox) (fun w m -> {m with ScalingBox = w})
+    let symbolEdit_ = Lens.create (fun m -> m.SymbolEdit) (fun w m -> {m with SymbolEdit = w})

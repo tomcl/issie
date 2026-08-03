@@ -237,7 +237,9 @@ let portCircleTarget= { defaultCircle with R = 8.0; Stroke = "DodgerBlue"; Strok
 
 /// HLP23 AUTHOR: BRYAN TAN
 /// Custom component corner circle
-let cornerCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "1.0px"; Fill = "Red"}
+/// Resize handles on a custom component. Blue, matching the draggable ports, so that "you can drag
+/// this" is one colour throughout - it used to be red, which elsewhere means something is wrong.
+let cornerCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth = "1.0px"; Fill = "DodgerBlue"}
 
 
 //--------------------------------------------------------------------------//

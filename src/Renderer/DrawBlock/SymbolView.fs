@@ -66,9 +66,13 @@ let addLegendText (pos: XYPos) (name:string) alignment weight size =
 
 /// Generate circles on ports
 let inline private portCircles (pos: XYPos) (show:ShowPorts)= 
-    let circle = 
+    let circle =
         match show with
-        |ShowBothForPortMovement |ShowOneTouching _ -> {portCircle with Fill="SkyBlue";}
+        // DodgerBlue rather than the old SkyBlue: the symbol is selected while its ports are
+        // draggable, and so drawn lightgreen, against which a pale blue barely registers. Blue and
+        // not orange because red already means "this port is not on an edge" during the drag, and
+        // orange next to red is the one pair that would be hard to tell apart at this size.
+        |ShowBothForPortMovement |ShowOneTouching _ -> {portCircle with Fill="DodgerBlue";}
         |ShowOneNotTouching _ -> {portCircle with Fill="Red"}
         |ShowTarget -> portCircleTarget
         |_ -> portCircle

@@ -158,27 +158,17 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | KeyPress CtrlW ->
         fitCircuitToScreenUpdate model
     
+    // Ctrl is now only a selection modifier - holding it toggles items in and out of the
+    // selection. It used to also reveal the draggable ports and resize corners of every custom
+    // component at once; that is now a mode entered from one component's right-click menu, so
+    // these no longer touch how symbols are drawn.
     | PortMovementStart ->
         match model.Action with
-        | Idle -> 
-            {model with CtrlKeyDown = true}, 
-            Cmd.batch 
-                [
-                    symbolCmd (SymbolT.ShowCustomOnlyPorts model.NearbyComponents)
-                    symbolCmd (SymbolT.ShowCustomCorners model.NearbyComponents)
-                ]
+        | Idle -> {model with CtrlKeyDown = true}, Cmd.none
         | _ -> model, Cmd.none
 
     | PortMovementEnd ->
-        match model.Action with
-        | Idle -> 
-            {model with CtrlKeyDown = false}, 
-            Cmd.batch 
-                [
-                    symbolCmd (SymbolT.ShowPorts model.NearbyComponents)
-                    symbolCmd (SymbolT.HideCustomCorners model.NearbyComponents)
-                ]
-        | _ -> {model with CtrlKeyDown = false}, Cmd.none
+        {model with CtrlKeyDown = false}, Cmd.none
 
     | MouseMsgOrig(mEv, mouseOp, headerHeight) ->
         
@@ -866,6 +856,7 @@ let init () =
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
         LastValidPos = { X = 0.0; Y = 0.0 }
         LastValidSymbol = None
+        SymbolEdit = None
         UndoList = []
         RedoList = []
         TmpModel = None

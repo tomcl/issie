@@ -257,6 +257,32 @@ let appendUndoList (undoList: Model List) (model_in: Model): Model List =
         model_in :: (removeLast undoList)
 
 
+/// True when this port belongs to the symbol whose ports the user has asked to move.
+/// Ports of every other symbol keep their normal behaviour of starting a wire.
+let portIsEditable (model: Model) (portIdStr: string) =
+    match model.SymbolEdit with
+    | Some (compId, EditPorts) ->
+        Map.tryFind portIdStr model.Wire.Symbol.Ports
+        |> Option.map (fun port -> CommonTypes.ComponentId port.HostId = compId)
+        |> Option.defaultValue false
+    | _ -> false
+
+/// Whether a mouse-down at this point leaves a symbol edit mode running.
+/// Clicking the symbol itself, or one of its ports or corners, is part of using the mode; anything
+/// else is the user moving on, which is what ends it.
+let clickKeepsSymbolEdit (model: Model) (mouseOnResult: MouseOn) =
+    match model.SymbolEdit with
+    | None -> true
+    | Some (compId, _) ->
+        match mouseOnResult with
+        | Component cId | Label cId -> cId = compId
+        | ComponentCorner (cId, _, _) -> cId = compId
+        | InputPort (InputPortId p, _) | OutputPort (OutputPortId p, _) ->
+            Map.tryFind p model.Wire.Symbol.Ports
+            |> Option.map (fun port -> CommonTypes.ComponentId port.HostId = compId)
+            |> Option.defaultValue false
+        | _ -> false
+
 /// Mouse Down Update, Can have clicked on: Label, InputPort / OutputPort / Component / Wire / Canvas. Do correct action for each.
 let mDownUpdate 
         (model: Model) 
@@ -291,7 +317,22 @@ let mDownUpdate
                                     wireCmd (BusWireT.SelectWires model.SelectedWires)
                                     wireCmd (BusWireT.ResetJumps [])])
     | _ ->
-        match (mouseOn model mMsg.Pos) with
+        let clickedOn = mouseOn model mMsg.Pos
+        // A symbol edit mode ends when the user clicks away from the symbol it belongs to. Done
+        // before the click is acted on, so the click itself still does its ordinary job.
+        let model, editEndedCmd =
+            if clickKeepsSymbolEdit model clickedOn then
+                model, Cmd.none
+            else
+                match model.SymbolEdit with
+                | Some (compId, _) ->
+                    Optic.set symbolEdit_ None model,
+                    Cmd.batch [ symbolCmd (SymbolT.ShowPorts [])
+                                symbolCmd (SymbolT.HideCustomCorners [compId]) ]
+                | None -> model, Cmd.none
+        let withEditEnded (m, cmd) = m, Cmd.batch [editEndedCmd; cmd]
+        withEditEnded <|
+        match clickedOn with
         | Canvas when mMsg.ShiftKeyDown ->
             // Start Panning with drag, setting up offset to calculate scroll poistion during drag.
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
@@ -301,31 +342,35 @@ let mDownUpdate
                 sheetCmd (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SelectSymbols [compId])))
                 
         | InputPort (portId, portLoc) ->
-            if not model.CtrlKeyDown then
+            if portIsEditable model (match portId with InputPortId x -> x) then
+                let  portIdstr = match portId with | InputPortId x -> x
+                {model with Action = MovingPort portIdstr},
+                symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
+            else
                 {model with Action = ConnectingInput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
                 symbolCmd SymbolT.ShowAllOutputPorts
-            else
-                let  portIdstr = match portId with | InputPortId x -> x
-                {model with Action = MovingPort portIdstr}, 
-                symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
 
         | OutputPort (portId, portLoc) ->
-            if not model.CtrlKeyDown then
-                {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
-                symbolCmd SymbolT.ShowAllInputPorts
-            else
+            if portIsEditable model (match portId with OutputPortId x -> x) then
                 let portIdstr = match portId with | OutputPortId x -> x
                 {model with Action = MovingPort portIdstr}
                 , symbolCmd (SymbolT.MovePort (portIdstr, mMsg.Pos))
+            else
+                {model with Action = ConnectingOutput portId; ConnectPortsLine = portLoc, mMsg.Pos; TmpModel=Some model},
+                symbolCmd SymbolT.ShowAllInputPorts
         // HLP23 AUTHOR: BRYAN TAN
         | ComponentCorner (compId, fixedCornerLoc, _) ->
-            if not model.CtrlKeyDown then
-                model, Cmd.none
-            else
+            if model.SymbolEdit = Some (compId, EditSize) then
                 let symbolMap = Optic.get symbols_ model
                 let symbol = symbolMap[compId]
-                {model with Action = ResizingSymbol (compId, fixedCornerLoc); LastValidSymbol = Some symbol}, 
+                {model with Action = ResizingSymbol (compId, fixedCornerLoc); LastValidSymbol = Some symbol},
                 symbolCmd (SymbolT.ResizeSymbol (compId, fixedCornerLoc, mMsg.Pos))
+            else
+                // Corners are hit-tested on every custom component whether or not a resize mode is
+                // running, and take priority over the component itself, so a click within a few
+                // pixels of one does nothing. That was true of the Ctrl version too and is left
+                // alone here, but it is the reason a corner click can feel unresponsive.
+                model, Cmd.none
         // HLP 23: AUTHOR Khoury & Ismagilov
         // Modified and added parts to deal with the scaling box functions
         | Component compId ->
@@ -828,11 +873,10 @@ let mMoveUpdate
         let nearbyComponents = findNearbyComponents model mMsg.Pos 50 // TODO Group Stage: Make this more efficient, update less often etc, make a counter?
         
         // HLP23 AUTHOR: BRYAN TAN
-        // CtrlKeyDown is now the single record of whether Ctrl is held, maintained by KeyBindings
-        // from real keydown/keyup plus a window blur. It used to be read from a separate list of
-        // timestamped key presses which discarded entries after a second, so this and the
-        // mouse-down handler - which always read CtrlKeyDown - could disagree.
-        let ctrlPressed = model.CtrlKeyDown
+        let resizingSymbol =
+            match model.SymbolEdit with
+            | Some (compId, EditSize) -> Some compId
+            | _ -> None
         let newCursor =
             match model.CursorType, model.Action with
             | Spinner,_ -> Spinner
@@ -846,7 +890,7 @@ let mMoveUpdate
                     match model.Wire.Symbol.Symbols[compId].Annotation with 
                     | Some ScaleButton -> ResizeNESW
                     | _ -> GrabSymbol
-                | ComponentCorner (_,_,idx) when ctrlPressed -> 
+                | ComponentCorner (cId,_,idx) when resizingSymbol = Some cId ->
                     match (idx % 2) with
                     | 0 -> ResizeNWSE
                     | _ -> ResizeNESW
@@ -857,9 +901,16 @@ let mMoveUpdate
                 CursorType = newCursor;
                 LastMousePos = mMsg.Pos;
                 ScrollingLastMousePos = {Pos=mMsg.Pos; Move=mMsg.ScreenMovement} } 
-        if ctrlPressed then
-            newModel , Cmd.batch [symbolCmd (SymbolT.ShowCustomOnlyPorts nearbyComponents); symbolCmd (SymbolT.ShowCustomCorners nearbyComponents)]
-        else 
+        // While a symbol edit mode is running its affordance stays on that one symbol, and no
+        // other symbol shows ports: the mouse moving near something else must not take the mode's
+        // display away, which is exactly what happened when this followed a held key instead.
+        match model.SymbolEdit with
+        | Some (compId, EditPorts) ->
+            newModel, symbolCmd (SymbolT.ShowCustomOnlyPorts [compId])
+        | Some (compId, EditSize) ->
+            newModel, Cmd.batch [ symbolCmd (SymbolT.ShowPorts [])
+                                  symbolCmd (SymbolT.ShowCustomCorners [compId]) ]
+        | None ->
             newModel, symbolCmd (SymbolT.ShowPorts nearbyComponents) // Show Ports of nearbyComponents
 
 let getVisibleScreenCentre (model : Model) : XYPos =

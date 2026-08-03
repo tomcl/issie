@@ -429,8 +429,11 @@ let viewWaveInfoPopup dispatch feature =
                 li [] [str "The waveform viewer can show waveforms selected from "; bSpan  " any sheet"; str " in the design being simulated."]         
                 li [] [str "Choose the top sheet you want to simulate. Press"; bSpan " Start"; str " to start the viewer. Then press the";
                        bSpan " Select Waves "; str " button to select or change which waveforms are viewed. See the selection popup info button for more info."]                    
+                // The Schematic Editor zoom keys differ between Windows and macOS, so name the one
+                // place that always has them right rather than writing one platform's keys here.
                 li [] [str "Use Ctrl/Shift/- and Ctrl/Shift/+ buttons to resize the viewer so you can comfortably see the correct number of \
-                            waveforms." ; str " Use Alt/UpArrow and Alt/DownArrow to zoom the Schematic Editor canvas."]      
+                            waveforms." ; str " The Schematic Editor canvas can be zoomed from the View menu, or with the keyboard - the "
+                       bSpan "Info"; str " button lists the keys for your platform under "; bSpan "Keyboard Shortcuts"; str "."]
                 li [] [str "Drag the"; bSpan " grey horizontal divider bar "; str " to make the waveform viewer wider."] 
             ]
 

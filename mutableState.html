@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Global mutable state: policy and cleanup list
+" />
+    <meta property="og:url" content="/issie/mutableState.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Global mutable state: policy and cleanup list
+">
+    
+    <title>Global mutable state: policy and cleanup list
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System Documentation
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System Documentation
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Global-mutable-state-policy-and-cleanup-list" class="anchor" href="#Global-mutable-state-policy-and-cleanup-list">Global mutable state: policy and cleanup list</a></h1>
+<p>Issie's model code is immutable: state lives in the Elmish <code>Model</code>, updates go through
+lens/prism composition, and there are no <code>for</code> loops or side effects. Module-level
+<code>let mutable</code> is a deliberate exception, not a shortcut.</p>
+<h2><a name="When-a-global-mutable-is-allowed" class="anchor" href="#When-a-global-mutable-is-allowed">When a global mutable is allowed</a></h2>
+<p>Only two reasons count:</p>
+<ol>
+<li>
+<strong>Performance.</strong> Going through the model would cost something measurable — a cache on a hot
+path, or state written far more often than the model is rebuilt. Simulation caches and
+fast-simulation internals are the clear cases.
+</li>
+<li>
+<strong>It genuinely is not model state.</strong> DOM references, scroll positions read inside browser
+event handlers, Electron main-process state, and debug flags set once at startup have no
+sensible place in an Elmish model.
+</li>
+</ol>
+<p>Everything else belongs in <code>Model</code>. A global mutable used as "somewhere to put this value until
+the next message arrives" is the pattern to avoid: it survives project close, it is invisible to
+undo, and it makes the update function's behaviour depend on history that is not in the model.</p>
+<p><strong>Before adding one, check the performance claim rather than assuming it.</strong> <code>ModelHelpers.reduce</code>
+and <code>reduceApprox</code> enumerate fields explicitly rather than comparing whole records, so adding a
+<code>Model</code> field costs nothing for view memoisation. An update function that already rebuilds the
+model record pays nothing for one more field. Both of the mutables removed in the parameter-system
+work turned out to have no performance argument at all.</p>
+<h2><a name="Audit" class="anchor" href="#Audit">Audit</a></h2>
+<p>Function-local <code>let mutable</code> inside a loop is an implementation detail and is not covered here —
+this is about module-level state.</p>
+<h3><a name="Justified-caches-and-hot-paths" class="anchor" href="#Justified-caches-and-hot-paths">Justified: caches and hot paths</a></h3>
+<table>
+<thead>
+<tr class="header">
+<th><p>Where</p></th>
+<th><p>What</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>Simulator.fs</code></p></td>
+<td><p><code>simCache</code>, <code>simCacheWS</code></p></td>
+</tr>
+<tr class="even">
+<td><p><code>FastSim/FastCreate.fs</code></p></td>
+<td><p><code>stepArrayIndex</code></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>UI/TruthTable/TruthTableView.fs</code></p></td>
+<td><p><code>selCache</code></p></td>
+</tr>
+<tr class="even">
+<td><p><code>Common/TimeHelpers.fs</code>, <code>Common/EEEHelpers.fs</code></p></td>
+<td><p><code>executionStats</code>, <code>instrumentation</code></p></td>
+</tr>
+</tbody>
+</table>
+
+<p><code>Common/Helpers.fs</code> has a <code>lastKey</code> / <code>lastValue</code> pair inside <code>memoizeBy</code>. It is local to each
+memoised function rather than module-level, so it is out of scope here — noted only because it
+looks like the exception and is not one.</p>
+<h3><a name="Justified-not-model-state" class="anchor" href="#Justified-not-model-state">Justified: not model state</a></h3>
+<table>
+<thead>
+<tr class="header">
+<th><p>Where</p></th>
+<th><p>What</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>DrawBlock/SheetDisplay.fs</code></p></td>
+<td><p><code>mountedCanvas</code>, <code>modelScrollPos</code> — DOM refs</p></td>
+</tr>
+<tr class="even">
+<td><p><code>DrawBlock/Sheet.fs</code></p></td>
+<td><p><code>recentProgrammaticScrollPos</code>, <code>scrollSequence</code>, <code>viewIsAfterUpdateScroll</code> — scroll bookkeeping driven by DOM events</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Main/Main.fs</code></p></td>
+<td><p><code>mainWindow</code>, <code>closeAfterSave</code> — Electron main process, no Elmish model there</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Renderer.fs</code></p></td>
+<td><p><code>firstPress</code> — keyboard event handler</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Interface/JSHelpers.fs</code></p></td>
+<td><p><code>debugLevel</code>, <code>debugTraceUI</code>, <code>loggingMemory</code>, <code>memSize</code></p></td>
+</tr>
+<tr class="even">
+<td><p><code>Simulator/GraphBuilder.fs</code></p></td>
+<td><p><code>simTrace</code></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Simulator/CanvasExtractor.fs</code></p></td>
+<td><p><code>debugChangedConnections</code> — records what a change check saw, for tracing only</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Playground.fs</code></p></td>
+<td><p><code>Memory.modelCopy</code> — memory-leak investigation; never read, and its only writer is commented out in <code>Renderer.fs</code></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>UI/Update.fs</code>, <code>UI/UpdateHelpers.fs</code></p></td>
+<td><p><code>uiStartTime</code>, <code>updateTimeTotal</code>, <code>lastMemoryUpdateCheck</code> — timing instrumentation</p></td>
+</tr>
+<tr class="even">
+<td><p><code>UI/MainView.fs</code></p></td>
+<td><p><code>lastDragModeOn</code>, <code>lastMemoryCheckTime</code> — view-time bookkeeping</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>UI/ModelHelpers.fs</code></p></td>
+<td><p><code>asyncJobs</code> — async job queue</p></td>
+</tr>
+</tbody>
+</table>
+
+<h3><a name="To-clean-up-probably-should-be-in" class="anchor" href="#To-clean-up-probably-should-be-in">To clean up: probably should be in <code>Model</code></a></h3>
+<p>These look like UI state that leaked into globals. None has a stated performance reason, and each
+would need the same judgement applied before moving: confirm the write frequency, then move it.</p>
+<ul>
+<li>
+*<em><code>UI/UpdateHelpers.fs</code> — <code>rightClickElement: RightClickElement</code>.*</em> Which element was
+right-clicked, set in an event handler and read when the menu action fires. Cross-message
+bookkeeping of exactly the kind that belongs in <code>Model</code>. Check first whether it is written on
+every mouse event or only on right-click; if the latter, there is no performance argument.
+</li>
+<li>
+*<em><code>UI/Update.fs</code> — <code>evilUIState</code>.*</em> Popup/UI state, named by whoever wrote it as the problem it
+is. Entangled with <code>PopupViewFunc</code>, so moving it means understanding that interaction first.
+</li>
+<li>
+*<em><code>UI/MemoryEditorView.fs</code> — <code>dynamicMem: Memory1</code>.*</em> Working state of the memory editor dialog.
+<code>PopupDialogData</code> already holds dialog state and is the obvious home. Note this one may be
+written per keystroke in a large memory table, so measure before moving.
+</li>
+</ul>
+<h3><a name="Done" class="anchor" href="#Done">Done</a></h3>
+<ul>
+<li>
+<code>UI/ParameterView.fs</code> — <code>topChoiceDeclinedFor</code> → <code>Model.TopSheetChoiceDeclined</code>. Read once per
+sheet open; as a global it also survived closing and reopening a project, which was a latent bug.
+</li>
+<li>
+<code>UI/UpdateHelpers.fs</code> — <code>pendingAddedComponents</code> → <code>Model.PendingDragAddition</code>. Read and written
+in <code>sheetMsg</code>, which already rebuilds the model record, so the move was free.
+</li>
+</ul>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Global-mutable-state-policy-and-cleanup-list">
+      Global mutable state: policy and cleanup list
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#When-a-global-mutable-is-allowed">
+      When a global mutable is allowed
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Audit">
+      Audit
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Justified-caches-and-hot-paths">
+      Justified: caches and hot paths
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Justified-not-model-state">
+      Justified: not model state
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Done">
+      Done
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Inspecting the draw block from outside the app
+" />
+    <meta property="og:url" content="/issie/dev/inspectingTheCanvas.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Inspecting the draw block from outside the app
+">
+    
+    <title>Inspecting the draw block from outside the app
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System Documentation
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System Documentation
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Inspecting-the-draw-block-from-outside-the-app" class="anchor" href="#Inspecting-the-draw-block-from-outside-the-app">Inspecting the draw block from outside the app</a></h1>
+<p>Issie's canvas can be read, and screenshotted, while the app is running — without adding print
+statements or clicking anything. This is for debugging symbol geometry, wire routing, and anything
+where what is drawn might disagree with what the model says.</p>
+<h2><a name="Getting-a-connection" class="anchor" href="#Getting-a-connection">Getting a connection</a></h2>
+<p><code>npm run dev</code> starts Electron with <code>--remote-debugging-port</code> (<code>scripts/start.js</code>; default 9222,
+override with <code>ISSIE_DEBUG_PORT</code>), which exposes the Chrome DevTools Protocol on the renderer.
+Development only — that script is not used by <code>npm run build</code> or by a packaged app, so no released
+build ever listens on the port.</p>
+<p><code>scripts/inspect-canvas.js</code> speaks that protocol. It has no dependencies: Node 22 provides a global
+<code>fetch</code> and <code>WebSocket</code>, which is all CDP needs.</p>
+<h2><a name="Commands" class="anchor" href="#Commands">Commands</a></h2>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">node scripts/inspect-canvas.js raw              # the whole draw block model, faithfully
+node scripts/inspect-canvas.js model            # a readable summary of the same thing
+node scripts/inspect-canvas.js geometry         # what the SVG actually contains
+node scripts/inspect-canvas.js shot out.png     # screenshot the renderer window
+node scripts/inspect-canvas.js eval expr.js     # evaluate a file's contents in the page
+</code></pre></td></tr></table>
+<p><code>raw</code> and <code>model</code> need a debug build: <code>MainView.displayView</code> publishes <code>window.issie</code> only when
+<code>JSHelpers.debugLevel &gt; 0</code>, which <code>npm run dev</code> gives you. <code>geometry</code>, <code>shot</code> and <code>eval</code> work
+against any build with the port open.</p>
+<p>Both are published as functions rather than as data, so nothing is computed unless something asks.
+A render costs one closure and one object.</p>
+<h3><a name="raw" class="anchor" href="#raw">raw</a></h3>
+<p>The authoritative answer, and the one to reach for first. <code>ModelHelpers.canvasRaw</code> serialises
+<code>model.Sheet.Wire</code> — the whole <code>BusWireT.Model</code> — with <code>Fable.SimpleJson</code>, the library that writes
+<code>.dgm</code> files.</p>
+<p><strong>SimpleJson round-trips F# maps.</strong> It has a <code>TypeInfo.Map</code> case and writes maps two ways
+(<code>Json.Converter.fs:786</code>): primitive or enum keys become a JSON object, anything else becomes an
+array of <code>[key, value]</code> pairs. Both forms are read back (<code>:501</code>, <code>:567</code>). Sets are handled the same
+way, and <code>bigint</code> becomes a quoted string. This is not theoretical — every <code>.dgm</code> save goes through
+<code>Json.serialize&lt;SavedInfo&gt;</code>, and <code>SheetInfo.ParameterDefinitions</code> holds two maps keyed by a
+single-case DU and by a record.</p>
+<p>So nothing has to be reduced by hand. A <code>fulladder</code> dump is around 1500 lines and includes things a
+summary would drop: <code>IntersectOrJumpList</code> on each segment, <code>PortMaps.Order</code> as well as
+<code>Orientation</code>, <code>Appearance</code>, <code>LabelBoundingBox</code>, <code>DeclaredSlots</code>.</p>
+<p><code>BusWireT.Model</code> is the target because it is the largest part of the model containing <strong>no functions
+at all</strong> — it and <code>SymbolT.Model</code> are pure data. Above it, <code>SheetT.Model</code> holds <code>PopupViewFunc</code> and
+a <code>ChildProcess</code>, its <code>Action</code> transiently carries a lambda (<code>InitialisedCreateComponent</code>), and its
+undo and redo lists are whole models, which would multiply the dump by the undo depth. The top-level
+<code>Model</code> adds <code>Spinner</code>, <code>PopupViewFunc</code> and <code>Pending: Msg list</code>. Those few fields are the only
+genuine obstacles; everything else is representable.</p>
+<p>Serialisation failures are returned as <code>{"error": ...}</code> rather than thrown, so a type SimpleJson
+cannot represent degrades to a message. Note that the dump is only ever <em>written</em> here — the
+deserialisation direction is exercised by the <code>.dgm</code> and <code>.ram</code> load paths, not by this tool.</p>
+<h3><a name="model" class="anchor" href="#model">model</a></h3>
+<p><code>ModelHelpers.canvasInspection</code>: the same state cut down to one line per symbol, because 1500 lines
+of faithful JSON is the wrong shape for most questions. Per symbol, position, size, scale, rotation,
+flip, port edges, and <code>DisplaysComputedValues</code>/<code>DeclaredSlots</code> — the latter being
+<code>SymbolT.Symbol.DeclaredSlots</code>, the declared value of each slot the symbol is currently drawing
+differently. Per wire, its segments converted to <strong>absolute</strong> coordinates, which <code>raw</code> does not do:
+the model stores relative lengths.</p>
+<p>It is a convenience, not a workaround. If a field you want is missing, either add it here or use
+<code>raw</code>.</p>
+<h3><a name="geometry" class="anchor" href="#geometry">geometry</a></h3>
+<p>Reads the DOM instead, so it works against any build — but it describes rendered output rather than
+the state behind it. That is exactly what you want when the two are suspected of disagreeing.</p>
+<p>Two traps, both handled inside the script, both worth knowing if you write your own probe:</p>
+<ul>
+<li>
+<strong>Do not read the bounding box of <code>#DrawBlockSVGTop</code>.</strong> It sits outside the zoom transform, so its
+box comes back multiplied by the zoom. Use <code>drawnBBox</code>, which is taken inside the transform and is
+therefore in diagram units, the same ones the model uses.
+</li>
+<li>
+<strong>Do not assume how deep the wrapping goes.</strong> Today it is <code>svg#DrawBlockSVGTop &gt; g[scale(zoom)] &gt;
+g &gt; items</code>, where each item is one symbol or one wire. The script descends through single-child
+<code>&lt;g&gt;</code>s until the node that actually branches, so an extra layer does not silently turn 16 items
+into 1.
+</li>
+</ul>
+<h3><a name="eval" class="anchor" href="#eval">eval</a></h3>
+<p>Runs arbitrary JavaScript in the renderer and returns the result as JSON. Useful for a projection
+narrower than <code>model</code> gives, for reading the DOM tree structure, and for driving the UI: React
+handlers respond to <code>element.click()</code>, which is how you can open a project or a menu without touching
+the mouse. Native Electron dialogs — the file-open dialog — cannot be driven this way; the demo
+projects under <strong>Open demo project</strong> can, and they are copied into the gitignored <code>demos/</code> directory
+rather than opened in place, so nothing in the repository is touched.</p>
+<h2><a name="Worked-example" class="anchor" href="#Worked-example">Worked example</a></h2>
+<p>With the <code>fulladder</code> demo open:</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="o">$</span> <span class="id">node</span> <span class="id">scripts</span><span class="o">/</span><span class="id">inspect</span><span class="o">-</span><span class="id">canvas</span><span class="pn">.</span><span class="id">js</span> <span class="id">model</span>
+  <span class="id">Sheet</span> <span class="s">&quot;fulladd&quot;</span><span class="pn">,</span> <span class="id">zoom</span> <span class="n">1.4946201411198472</span><span class="pn">,</span> <span class="n">8</span> <span class="id">symbols</span><span class="pn">,</span> <span class="n">8</span> <span class="id">wires</span>
+  <span class="id">HALFADD2</span>  <span class="id">Custom</span>  <span class="id">x</span><span class="o">=</span><span class="n">1751</span> <span class="id">y</span><span class="o">=</span><span class="n">1746</span>  <span class="n">157.56614843750003</span> <span class="id">x</span> <span class="n">110</span>  <span class="id">rot</span><span class="o">=</span><span class="id">Degree0</span>
+
+<span class="o">$</span> <span class="id">node</span> <span class="id">scripts</span><span class="o">/</span><span class="id">inspect</span><span class="o">-</span><span class="id">canvas</span><span class="pn">.</span><span class="id">js</span> <span class="id">geometry</span>
+  <span class="id">zoomTransform</span> <span class="id">matrix</span><span class="pn">(</span><span class="n">1.49462</span><span class="pn">,</span> <span class="o">..</span><span class="pn">.</span><span class="pn">)</span><span class="pn">,</span> <span class="n">16</span> <span class="id">groups</span>
+  <span class="id">HALFADD2</span> <span class="id">group</span> <span class="id">bbox</span> <span class="id">w</span><span class="o">=</span><span class="n">157.57</span>
+</code></pre>
+<p>The two agreeing to that many decimal places is the check that the canvas is drawing what the model
+holds. When they disagree, the disagreement is the bug.</p>
+<h2><a name="Limits" class="anchor" href="#Limits">Limits</a></h2>
+<ul>
+<li><code>raw</code> and <code>model</code> need a debug build; <code>geometry</code>, <code>shot</code> and <code>eval</code> do not.</li>
+<li>One renderer window only — the script takes the first <code>page</code> target.</li>
+<li>Native dialogs are outside the page and cannot be driven.</li>
+</ul>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Inspecting-the-draw-block-from-outside-the-app">
+      Inspecting the draw block from outside the app
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Getting-a-connection">
+      Getting a connection
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Commands">
+      Commands
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#raw">
+      raw
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#model">
+      model
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#geometry">
+      geometry
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#eval">
+      eval
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Worked-example">
+      Worked example
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Limits">
+      Limits
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Review findings: parameter, library and simulator code
+" />
+    <meta property="og:url" content="/issie/parameterReviewFindings.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Review findings: parameter, library and simulator code
+">
+    
+    <title>Review findings: parameter, library and simulator code
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System Documentation
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Process Optimization Guide
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System Documentation
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Review-findings-parameter-library-and-simulator-code" class="anchor" href="#Review-findings-parameter-library-and-simulator-code">Review findings: parameter, library and simulator code</a></h1>
+<p>Recorded 2026-08-01 against the <code>parameter-display-values</code> branch (<code>11ff44b70</code>), from an objective
+read of the parameter system
+(<code>ParameterTypes</code>, <code>ParameterAnalysis</code>, <code>ParameterView</code>), the component library layer
+(<code>ComponentLibraries</code>, <code>CatalogueView</code>, <code>MenuHelpers</code>), and the simulator's parameter path
+(<code>GraphMerger</code>), plus the display-value plumbing in <code>SymbolUpdate</code>/<code>DrawModelType</code>.</p>
+<p><strong>All three High findings, and the Medium that shared a cause with one of them, are now fixed</strong>,
+each pinned by a test in <code>Tests/Issie.Tests/ParameterScenarios.fs</code> that was checked to fail without
+the fix. The rest stand. Line numbers are as of the original commit and will have drifted; the
+named functions will not.</p>
+<h2><a name="High" class="anchor" href="#High">High</a></h2>
+<h3><a name="1-Instance-port-widths-are-evaluated-in-the-wrong-environment-and-silently-become-0" class="anchor" href="#1-Instance-port-widths-are-evaluated-in-the-wrong-environment-and-silently-become-0">1. Instance port widths are evaluated in the wrong environment, and silently become 0</a></h3>
+<p><code>ParameterView.updateComponentSlots</code> (Custom branch, ~<code>ParameterView.fs:366-383</code>) and
+<code>ParameterView.editParameterBindingPopup</code> (~<code>:1378-1397</code>) build <code>labelToEval</code> by evaluating the
+CHILD sheet's <code>IO</code> slot expressions against <code>newBindings</code> — the instance's stored
+<code>ParameterBindings</code> overridden by whichever slots are being written. Two ways that is wrong:</p>
+<ul>
+<li>
+A parameter the instance does not bind is absent from <code>newBindings</code>, so the child's expression
+fails to evaluate. <code>Error _ -&gt; 0</code> then makes <code>updateCustomComponent</code> write a port width of <strong>0</strong>.
+</li>
+<li>
+A binding produced by "bind to parent" is <code>PParameter name</code>, an expression in the PARENT's
+namespace. In the common same-name case, evaluating the child's <code>PParameter w</code> against
+<code>{w -&gt; PParameter w}</code> trips the self-reference guard in <code>evaluateParamExpression</code>
+(<code>ParameterTypes.fs:176</code>) — <code>Parameter 'w' is defined in terms of itself</code> — and again gives 0.
+</li>
+</ul>
+<p>Reachable whenever an instance has two or more parameters and one is edited
+(<code>editParameterBindingPopup</code> writes a single slot), or when any binding has been dropped, e.g. by
+<code>copyParamSlotsToPastedComponents</code>'s pruning.</p>
+<p>The right environment is the child's declared defaults overridden by the instance bindings
+evaluated in the parent. Two correct implementations already exist to copy:
+<code>applyBindOffers</code>'s <code>childEffective</code> (~<code>ParameterView.fs:1524-1544</code>) and
+<code>GraphMerger.effectiveBindings</code> (<code>GraphMerger.fs:329-332</code>).</p>
+<p><strong>Fixed.</strong> <code>ParameterView.portWidthsOfInstance</code> now builds that environment once and all three call
+sites use it. A width that cannot be worked out leaves the port alone instead of setting it to 0.</p>
+<h3><a name="2-A-parameterised-LSB-is-ignored-by-the-simulator" class="anchor" href="#2-A-parameterised-LSB-is-ignored-by-the-simulator">2. A parameterised <code>BusSelection</code> LSB is ignored by the simulator</a></h3>
+<p><code>SelectedComponentView.makeLsbBitNumberField</code> (~<code>:768</code>) creates an <code>IO comp.Label</code> slot for the
+BusSelection LSB field, and the canvas honours it (<code>ParameterView.fs:396</code> -&gt; <code>ChangeLSB</code>). But
+<code>GraphMerger.applySlotValue</code> has only <code>IO _, Input1</code> and <code>IO _, Output</code>
+(<code>GraphMerger.fs:433-434</code>); a BusSelection falls through to <code>| _ -&gt; compType</code>. At any instance
+whose binding differs from the sheet default, the simulation uses the LSB saved in the canvas
+while the drawn sheet shows another, and <code>rebuildWidths</code> width-checks against the stale LSB.</p>
+<p>Easy to miss because <code>resolveParametersForComponent</code> DOES handle it (<code>ioPortPrism</code>,
+<code>ParameterView.fs:1245-1255</code>): the catalogue/port-label path is right and the simulation path is
+not. The same gap applies to <code>BusCompare</code>/<code>BusCompare1</code> compare-values, which
+<code>SelectedComponentView.fs:763</code> also puts in an <code>IO</code> slot.</p>
+<p>Root cause is the overloading of <code>CompSlotName.IO</code>: documented as an input's width, but used for
+three unrelated fields.</p>
+<p><strong>Fixed.</strong> <code>ComponentSlots.setSlotValue</code> handles all three, and elaboration calls it rather than
+carrying its own copy. Finding 4 below was the same confusion on the canvas side and went with it.</p>
+<h3><a name="3-discards-non-parameter-edits-to-a-symbol-s-type" class="anchor" href="#3-discards-non-parameter-edits-to-a-symbol-s-type">3. <code>SavedComponent</code> discards non-parameter edits to a symbol's type</a></h3>
+<p><code>SymbolUpdate.extractComponent</code> (<code>:908-911</code>) is the sole path to saved state and returns
+<code>declaredComponent</code>, which takes <code>Type</code>/<code>H</code>/<code>W</code> from the stash and only
+<code>Id</code>/<code>Label</code>/<code>X</code>/<code>Y</code>/ports/<code>SymbolInfo</code> from the live symbol (<code>:885-899</code>). Nothing ever updates or
+clears <code>SavedComponent</code>: it is written only by <code>Symbol.fs:706</code>, <code>SymbolUpdate.fs:471</code> and
+<code>ParameterView.stashDeclaredComponents</code> (<code>:646-652</code>).</p>
+<p>So while a symbol displays a computed value, an edit to any OTHER field of its <code>ComponentType</code> is
+lost on save — a <code>Constant1</code>'s value, a <code>BusCompare1</code>'s compare value, an <code>Input1</code>'s default when
+only the width is parameterised, <code>Shift</code>'s type, memory contents. The edit lands in
+<code>Symbol.Component</code>; the stash still holds the old type; the <code>.dgm</code> gets the old type. Re-running
+<code>applyComputedDisplayValues</code> also reverts such an edit on screen, since <code>stashDeclaredComponents</code>
+restores every symbol from the stash first.</p>
+<p><strong>Fixed</strong>, by making the stash per-slot. <code>Symbol.SavedComponent</code> is now
+<code>Symbol.DeclaredSlots: Map&lt;CompSlotName, int&gt;</code>, and <code>extractComponent</code> puts just those slot values
+back, so every other field is saved as it stands. This is what motivated extracting
+<code>ComponentSlots</code>: <code>SymbolUpdate</code> is compiled long before <code>ParameterView</code> and <code>GraphMerger</code>, which
+between them held three divergent copies of the slot-to-field mapping.</p>
+<h2><a name="Medium" class="anchor" href="#Medium">Medium</a></h2>
+<h3><a name="4-applies-an-slot-as-a-bus-width-for-non-Input-Output-types" class="anchor" href="#4-applies-an-slot-as-a-bus-width-for-non-Input-Output-types">4. <code>updateComponentSlots</code> applies an <code>IO</code> slot as a bus width for non-Input/Output types</a></h3>
+<p><code>ParameterView.fs:397</code>: <code>| _, Buswidth | _, IO _ -&gt; ChangeWidth</code>. Only <code>BusSelection</code> is
+special-cased, on line 396. For a <code>BusCompare</code> — whose <code>IO</code> slot is the compare value, see
+finding 2 — this writes the comparison value into the bus width. The
+<code>ReloadSelectedComponent value</code> at line 408 likewise feeds an LSB or compare value into "most
+recent bus width".</p>
+<p><strong>Fixed</strong> alongside finding 2: <code>ChangeLSB</code> already handled <code>BusCompare</code>, so routing it there was
+two lines, and leaving it would have made the canvas disagree with the now-corrected simulator.
+The <code>ReloadSelectedComponent</code> oddity stands.</p>
+<h3><a name="5-dispatches-from-inside-a-render-time-predicate" class="anchor" href="#5-dispatches-from-inside-a-render-time-predicate">5. <code>evaluateConstraints</code> dispatches from inside a render-time predicate</a></h3>
+<p>It calls <code>dispatch &lt;| SetPopupDialogText ...</code> inside the <code>List.filter</code> predicate
+(<code>ParameterView.fs:246</code>, <code>:253</code>, <code>:260</code>), and <code>editParameterBox</code>'s <code>isDisabled</code> calls it during
+popup render (<code>:946</code>). Whenever a constraint expression fails to evaluate, every render dispatches
+a model update that triggers another render.</p>
+<h3><a name="6-Cross-sheet-paste-always-loses-parameterisation" class="anchor" href="#6-Cross-sheet-paste-always-loses-parameterisation">6. Cross-sheet paste always loses parameterisation</a></h3>
+<p><code>copyParamSlotsToPastedComponents</code> (<code>ParameterView.fs:690</code>) reads <code>paramSlotsOfModel_</code> — the
+DESTINATION sheet's slots — then filters on <code>slot.CompId = sourceId</code>. The source components' slots
+live on the source sheet, so nothing ever matches. <code>CopiedSymbols</code> survives a sheet change
+(<code>SymbolUpdate.loadComponents</code>, <code>:527-535</code>, preserves it), so this is a real path. The doc comment
+implies the declared-here check is the only restriction.</p>
+<p><strong>Partly addressed.</strong> A paste that drops a custom component instance's parameter bindings now says
+so, in a warning over the canvas naming the instances and the parameters. That covers the case the
+user can act on. The underlying loss is NOT fixed: a pasted non-custom component whose width was
+parameterised still freezes silently at its resolved value, and nothing can report it, because
+neither <code>Model.Clipboard</code> nor <code>SymbolT.Model.CopiedSymbols</code> records which sheet the copy came from.
+Fixing it properly means recording that, or copying the slot expressions at copy time rather than
+looking them up at paste time.</p>
+<h3><a name="7-can-on-a-type-its-own-first-match-handles" class="anchor" href="#7-can-on-a-type-its-own-first-match-handles">7. <code>makeLsbBitNumberField</code> can <code>failwithf</code> on a type its own first match handles</a></h3>
+<p><code>SelectedComponentView.fs:754</code> reads <code>BusCompare1</code>, but the second match (<code>:757-769</code>) has no
+<code>BusCompare1</code> case and falls to <code>failwithf</code>. Unreachable today only because <code>makeBusCompareDialog</code>
+handles <code>BusCompare1</code> separately.</p>
+<p><strong>Fixed.</strong> Checked first: it is not reachable, as the only two callers match on <code>BusSelection</code> and
+<code>BusCompare</code> and <code>BusCompare1</code> is routed to <code>makeBusCompareDialog</code>. The hazard was the two matches
+listing different types, so a future caller trusting the first one would crash the properties pane.
+They are now a single match over the two types that really are supported. The
+<code>(1 &lt;&lt;&lt; width) - 1</code> bound in the same expression also gained the width &lt; 31 guard that
+<code>makeDefaultValueField</code> already had.</p>
+<h2><a name="Low" class="anchor" href="#Low">Low</a></h2>
+<ul>
+<li>
+~~<code>ParameterView.compSlot_</code> / <code>modelToSlot_</code> are dead and out of step.~~ <strong>Deleted</strong> as part of
+the <code>ComponentSlots</code> extraction: they were a third copy of the slot-to-field mapping, and the
+drift they had already accumulated is exactly what finding 2 was.
+</li>
+<li>
+<code>MiscMenuView.fs:299-301</code> computes <code>ComponentLibraries.reservedPrefixOf</code> twice and then uses
+<code>.Value</code>.
+</li>
+<li>
+~~<code>ComponentLibraries.readLibraries</code> reads every entry of the libraries directory as though it
+were a directory, so the README logs an <code>ENOTDIR</code> warning on every startup.~~ <strong>Fixed</strong> with a
+<code>FilesIO.isDirectory</code> filter. The result was always correct; only the noise was the problem.
+</li>
+<li>
+Three different silent fallbacks for the same "cannot evaluate" condition:
+<code>ComponentLibraries.paramsOfSheet</code> (<code>:78</code>) and <code>ParameterView.childDefaultValue</code> (<code>:1686</code>)
+default to <code>1</code>; <code>ParameterAnalysis.displayValuesOfSheet</code> (<code>:242</code>) defaults to <code>0</code>.
+</li>
+<li>
+<code>ParameterTypes.parseExpression</code> has no unary minus: <code>-5</code> tokenises to <code>["-"; "5"]</code> and reports
+<code>Unexpected characters at end of expression: 5</code>. Also <code>12abc</code> becomes a single token and is
+accepted as a parameter name.
+</li>
+<li>
+<code>ParameterAnalysis.chainActionsForInstance</code> calls <code>Set.minElement declarers</code> <code>rootDeclarer</code>
+(<code>:414</code>). That is the alphabetically first sheet, not the outermost, so the default and
+description copied onto intermediate sheets come from an arbitrary declarer.
+</li>
+<li>
+<code>MenuHelpers.sweepUnusedLibrarySheets</code> (<code>:441</code>) removes the <code>.dgm</code> but leaves the sheet's files
+under <code>backup/</code>.
+</li>
+</ul>
+<h2><a name="Checked-and-fine" class="anchor" href="#Checked-and-fine">Checked and fine</a></h2>
+<ul>
+<li>
+Removing the <code>NGateInputs</code> slot case and changing <code>CCForm.Library</code> to carry fields cannot break
+existing files: nothing in <code>master</code> ever constructed either value, and no demo <code>.dgm</code> contains
+one.
+</li>
+<li>
+Multi-sheet library components are documented as unsupported in <code>static/libraries/README.md</code>, so
+<code>materialiseLibrarySheet</code> copying a single <code>.dgm</code> is a known limitation, not a defect. The
+comment on <code>ComponentLibraries.unusedLibrarySheets</code> about a multi-sheet component "going in one
+piece" reads as if it were supported, and should say otherwise until it is.
+</li>
+<li>
+<code>FastReduce.fs</code> handles the width-32 <code>1u &lt;&lt;&lt; 32</code> hazard consistently in the adders, <code>NbitsXor</code>
+multiply, <code>NbitsNot</code>, <code>NbitSpreader</code> and <code>Shift</code>.
+</li>
+</ul>
+<hr />
+<h1><a name="Second-review-the-branch-s-own-code" class="anchor" href="#Second-review-the-branch-s-own-code">Second review: the branch's own code</a></h1>
+<p>Recorded 2026-08-02 against <code>parameter-display-values</code> at <code>01e45da91</code>, reading everything on the
+branch that is not on <code>master</code> — 57 files, ~4400 added lines — with three questions: is it correct,
+is it simple, and does it abstract rather than repeat. The first review above looked at code the
+branch inherited; this one looks at what the branch wrote.</p>
+<p>Nothing here is a High. The largest single theme is repetition of small idioms rather than any
+structural problem.</p>
+<p><strong>Findings 8 and 12 are fixed</strong>, each pinned by a test checked to fail without the fix. Finding 10
+was closed by the same change as 8. The rest stand.</p>
+<h2><a name="What-holds-up" class="anchor" href="#What-holds-up">What holds up</a></h2>
+<ul>
+<li>
+*<em><code>ComponentSlots</code> as the single source of truth*</em> for slot-to-field mapping. This was the fix
+for findings 2 and 4 above and it did the job: <code>GraphMerger</code>, <code>SymbolUpdate.declaredComponent</code>
+and <code>SheetLayout.applySlotValues</code> all go through one 50-line match.
+</li>
+<li>
+*<em><code>ParameterTypes.bindingsOf</code>*</em> as the one conversion from declarations to an evaluation
+environment. Every evaluation site goes through it, so the "descriptions dropped" step cannot be
+forgotten.
+</li>
+<li>
+<strong>The <code>.ldgm</code> shape</strong> — an authored header plus the sheet as opaque text. Listing a library
+parses no canvas; placing a component writes the text out and uses the ordinary loader. Nothing
+is derived, so nothing can go stale.
+</li>
+<li>
+<strong>The <code>SheetDescription</code> / <code>SheetLayout</code> split</strong> by dependency: the description has no draw block
+and no Fable, so a description can be built anywhere. Neither file has a single <code>#if</code>.
+</li>
+<li>
+*<em><code>DeclaredSlots</code> holding slot values rather than a whole component*</em>, with the reasoning for
+both that and for keeping the computed value inside <code>Component</code> written down where the field is.
+</li>
+</ul>
+<h2><a name="Correctness" class="anchor" href="#Correctness">Correctness</a></h2>
+<h3><a name="8-A-parameter-slot-the-component-type-has-no-such-field-for-is-accepted-and-does-nothing-FIXED" class="anchor" href="#8-A-parameter-slot-the-component-type-has-no-such-field-for-is-accepted-and-does-nothing-FIXED">8. A parameter slot the component type has no such field for is accepted and does nothing — FIXED</a></h3>
+<p><code>SheetLayout.paramDefsOf</code> checks that the slot's component exists and that every parameter it uses
+is declared, but not that the slot means anything on that component.
+<code>ComponentSlots.setSlotValue</code> ends in <code>| _ -&gt; compType</code>, so an inapplicable slot silently returns
+the type unchanged.</p>
+<p>Verified: <code>withSlot "G" Buswidth "W"</code> where <code>G</code> is a <code>GateN(And, 2)</code> gives <code>Ok</code>, leaves <code>G</code> as
+<code>GateN (And, 2)</code>, and records the slot in <code>ParamSlots</code>. The saved sheet then lists <code>G / Buswidth /
+W</code> under "Parametrised Components" in the properties pane, and changing <code>W</code> does nothing to <code>G</code>.</p>
+<p>The module documents the opposite intent — "never a slot quietly left alone" — and errors on an
+expression that will not evaluate, so this is an inconsistency rather than a deliberate choice. The
+UI cannot reach it, because the properties pane only offers slots a component actually has.</p>
+<p><strong>Fixed.</strong> The match now reads <code>trySetSlotValue : CompSlotName -&gt; int -&gt; ComponentType -&gt;
+ComponentType option</code>, with <code>slotApplies</code> asking it whether the slot exists and <code>setSlotValue</code>
+keeping the old total behaviour for the paths that must not fail on an old file. There is still one
+match. <code>SheetLayout.paramDefsOf</code> refuses a slot the component does not have, naming the component,
+its type and the slot.</p>
+<p>The rejected cases are exactly the ones that are a change of shape rather than a value: <code>GateN</code> and
+<code>MergeN</code> have no slots at all, since their integer is an input count; a <code>SplitN</code>'s output count is
+the same thing, while the width and bit position of a given output are values and keep their slots
+for the outputs that exist.</p>
+<h3><a name="9-uses-the-typed-library-name-as-a-directory-name-unchecked" class="anchor" href="#9-uses-the-typed-library-name-as-a-directory-name-unchecked">9. <code>saveAsLibraryComponent</code> uses the typed library name as a directory name unchecked</a></h3>
+<p><code>MiscMenuView.fs:771</code> joins the user's text onto the libraries directory with no validation beyond
+non-empty (<code>isDisabled</code>). A name containing a path separator or <code>..</code> writes outside the intended
+directory. Sheet names are validated by <code>maybeWarning</code>; library names are not.</p>
+<h3><a name="10-has-no-case-and-the-canvas-path-does-FIXED-by-8" class="anchor" href="#10-has-no-case-and-the-canvas-path-does-FIXED-by-8">10. <code>ComponentSlots</code> has no <code>IO</code>/<code>BusCompare1</code> case, and the canvas path does — FIXED by 8</a></h3>
+<p><code>ParameterView.updateComponentSlots</code> falls through to <code>ChangeWidth</code> for an <code>IO</code> slot on any type it
+does not name, while <code>setSlotValue</code> falls through to "unchanged". On a <code>BusCompare1</code> those
+disagree: the canvas width would change and the simulation would not. Not reachable through the
+properties pane — <code>makeLsbBitNumberField</code> deliberately excludes <code>BusCompare1</code>, which is finding 7
+above — but reachable from the DSL and from a hand-edited file. Fixing 8 closes this too.</p>
+<h3><a name="11-Dead-branches-that-look-like-handled-cases" class="anchor" href="#11-Dead-branches-that-look-like-handled-cases">11. Dead branches that look like handled cases</a></h3>
+<ul>
+<li>
+<code>CatalogueView.startPlacingLibraryComponent</code>'s <code>| Ok [] -&gt; ()</code>: <code>materialiseLibraryComponent</code>
+already returns <code>Error</code> for the empty case, so this is unreachable.
+</li>
+<li>
+<code>SheetLayout.paramDefsOf</code>'s <code>| _ -&gt; Error "unreachable"</code>: <code>ParamName</code> is single-case, so the two
+patterns above it are exhaustive. <code>List.tryHead</code> avoids the branch.
+</li>
+</ul>
+<h3><a name="Still-open-from-the-first-review" class="anchor" href="#Still-open-from-the-first-review">Still open from the first review</a></h3>
+<p><code>Set.minElement declarers</code> (Low, above) now chooses the parameter <strong>description</strong> copied onto
+intermediate sheets as well as the default, so the arbitrary choice has more visible consequences
+than when it was recorded.</p>
+<h2><a name="Duplication" class="anchor" href="#Duplication">Duplication</a></h2>
+<h3><a name="12-Five-hand-rolled-sequence-a-list-of-Results-FIXED" class="anchor" href="#12-Five-hand-rolled-sequence-a-list-of-Results-FIXED">12. Five hand-rolled "sequence a list of Results" — FIXED</a></h3>
+<p><code>SheetLayout.allOk</code>, the fold in <code>paramDefsOf</code>, the fold in <code>saveLibraryComponent</code>, the fold in
+<code>saveProject</code>, <code>ComponentLibraries.readComponentAndDependencies</code> and
+<code>CatalogueView.materialiseLibraryComponent</code> all write out the same fold. Every one accumulates with
+<code>got @ [x]</code>, which is quadratic.</p>
+<p><strong>Fixed</strong> by <code>Helpers.ResultList</code>: <code>fold</code> threads a state and stops at the first Error, with
+<code>traverse</code>, <code>iter</code> and <code>sequence</code> on top of it. All six sites now name what they are doing. It also
+absorbed <code>Helpers.tryFindError</code>, which predates the branch, was the same function again, and needed
+two <code>failwith</code>s for cases its own types made impossible; its three callers use <code>sequence</code>.</p>
+<h3><a name="13-and-are-the-same-function-twice" class="anchor" href="#13-and-are-the-same-function-twice">13. <code>SheetLayout.saveSheet</code> and <code>sheetBody</code> are the same function twice</a></h3>
+<p>Both call <code>toCanvasState</code>, then <code>paramDefsOf</code>, then build an identical <code>SheetInfo</code>; they differ only
+in calling <code>saveStateToFile</code> versus <code>stateToJsonString</code>. Extract the shared part and have both use
+it. That also removes the double evaluation of <code>paramDefsOf</code>, which is computed once inside
+<code>toCanvasState</code> and again by each caller.</p>
+<h3><a name="14-Three-copies-of-the-Custom-components-named-in-a-canvas" class="anchor" href="#14-Three-copies-of-the-Custom-components-named-in-a-canvas">14. Three copies of "the Custom components named in a canvas"</a></h3>
+<p><code>ComponentLibraries.customSheetsUsedBy</code>, the same <code>List.choose</code> inline in
+<code>ComponentLibraries.unusedLibrarySheets</code>, and <code>SheetLayout.saveLibraryComponent</code>'s <code>requiredBy</code>.
+The first two operate on the same type and should not both exist.</p>
+<h3><a name="15-construction-duplicated" class="anchor" href="#15-construction-duplicated">15. <code>LibraryHeader</code> construction duplicated</a></h3>
+<p><code>MiscMenuView.saveAsLibraryComponent</code> and <code>SheetLayout.saveLibraryComponent</code> each build a header
+field by field with the same defaults. A <code>ComponentLibraries.makeHeader</code> would keep the two writers
+from drifting, which matters because the format is versioned.</p>
+<h3><a name="16-is-a-one-line-alias" class="anchor" href="#16-is-a-one-line-alias">16. <code>GraphMerger.applySlotValue</code> is a one-line alias</a></h3>
+<p><code>let applySlotValue compType slot value = ComponentSlots.setSlotValue slot value compType</code> — a
+rename with a comment attached. Inline it and keep the comment at the call site.</p>
+<h3><a name="17-The-set-of-library-sheet-names-is-computed-in-two-places" class="anchor" href="#17-The-set-of-library-sheet-names-is-computed-in-two-places">17. The set of library sheet names is computed in two places</a></h3>
+<p><code>WaveSimTop.refreshWaveSim</code> builds it inline; <code>WaveSimSelectHelpers</code> filters for the same predicate
+separately. A <code>ComponentLibraries.librarySheetNames</code> would serve both.</p>
+<h2><a name="Simplicity" class="anchor" href="#Simplicity">Simplicity</a></h2>
+<h3><a name="18-s-axis-choice" class="anchor" href="#18-s-axis-choice">18. <code>SheetLayout.floorplan</code>'s axis choice</a></h3>
+<p><code>match depthDiff &gt; verticalDiff, verticalDiff &gt; depthDiff with</code> is a three-way comparison encoded as
+a pair of booleans whose fourth case cannot occur. <code>compare depthDiff verticalDiff</code> says the same
+thing in one line. <code>depthSpread</code> on the line above nests <code>function [] -&gt; 1. | ds -&gt; List.max ds</code>
+inside a <code>max</code>, where <code>List.fold max 1.</code> is the whole of it.</p>
+<h3><a name="19-calls-twice-and-uses" class="anchor" href="#19-calls-twice-and-uses">19. <code>MiscMenuView.maybeWarning</code> calls <code>reservedPrefixOf</code> twice and uses <code>.IsSome</code>/<code>.Value</code></a></h3>
+<p>Recorded as Low in the first review; the branch added a second such pair rather than fixing the
+first. A <code>match</code> binds the value once and matches the "no nulls, Option throughout" convention.</p>
+<h3><a name="20-rebuilds-the-component-list-once-per-slot" class="anchor" href="#20-rebuilds-the-component-list-once-per-slot">20. <code>SheetLayout.applySlotValues</code> rebuilds the component list once per slot</a></h3>
+<p>O(slots × components). Grouping the slots by <code>CompId</code> first and mapping once is both faster and
+shorter.</p>
+<h2><a name="Dead-code-and-stale-comments" class="anchor" href="#Dead-code-and-stale-comments">Dead code and stale comments</a></h2>
+<ul>
+<li>
+*<em><code>FilesIO.modifiedTimeMs</code> has no callers.*</em> It was written for the library-index scheme that was
+then dropped in favour of lazy reading. Delete it.
+</li>
+<li>
+<strong>Three comments refer to <code>Tools/LibraryIndex</code></strong>, which does not exist: <code>FilesIO.fs:58</code>,
+<code>FilesIO.fs:100</code>, <code>JSHelpers.fs:64</code>. They should say "the tests".
+</li>
+<li>
+<strong>Two entries under "Checked and fine" above are now out of date</strong>: multi-sheet library
+components <em>are</em> supported (<code>readComponentAndDependencies</code> plus <code>Requires</code>), and
+<code>materialiseLibrarySheet</code> no longer exists.
+</li>
+</ul>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Review-findings-parameter-library-and-simulator-code">
+      Review findings: parameter, library and simulator code
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#High">
+      High
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#1-Instance-port-widths-are-evaluated-in-the-wrong-environment-and-silently-become-0">
+      1. Instance port widths are evaluated in the wrong environment, and silently become 0
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Medium">
+      Medium
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#6-Cross-sheet-paste-always-loses-parameterisation">
+      6. Cross-sheet paste always loses parameterisation
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Low">
+      Low
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Checked-and-fine">
+      Checked and fine
+    </a>
+  </li>
+  <li class="level-1">
+    <a href="#Second-review-the-branch-s-own-code">
+      Second review: the branch's own code
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-holds-up">
+      What holds up
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Correctness">
+      Correctness
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#8-A-parameter-slot-the-component-type-has-no-such-field-for-is-accepted-and-does-nothing-FIXED">
+      8. A parameter slot the component type has no such field for is accepted and does nothing — FIXED
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#11-Dead-branches-that-look-like-handled-cases">
+      11. Dead branches that look like handled cases
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Still-open-from-the-first-review">
+      Still open from the first review
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Duplication">
+      Duplication
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#12-Five-hand-rolled-sequence-a-list-of-Results-FIXED">
+      12. Five hand-rolled "sequence a list of Results" — FIXED
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#14-Three-copies-of-the-Custom-components-named-in-a-canvas">
+      14. Three copies of "the Custom components named in a canvas"
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#17-The-set-of-library-sheet-names-is-computed-in-two-places">
+      17. The set of library sheet names is computed in two places
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Simplicity">
+      Simplicity
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Dead-code-and-stale-comments">
+      Dead code and stale comments
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

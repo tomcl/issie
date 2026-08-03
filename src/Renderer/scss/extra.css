@@ -83,11 +83,11 @@ th, td {
 }
 
 /* Sits nearer the right edge than Bulma's 1.125em, which leaves a bigger gap between the
-   word and the arrow inside the same tightened padding. At 0.55em the two nearly touched:
-   the arrow is about 0.625em across, so that left only 0.225em of clear space, where Bulma's
-   untightened default gives 0.75em. */
+   word and the arrow inside the same tightened padding. Chosen for a 6px gap: the arrow is
+   about 0.625em across, so this and the 1.4em padding above set the clear space between the
+   word and the arrow. At 0.55em they nearly touched. */
 #TopMenu .navbar-link:not(.is-arrowless)::after {
-  right: 0.3em;
+  right: 0.4em;
 }
 
 /* Save, Info and Back: 1em -> 0.6em a side */

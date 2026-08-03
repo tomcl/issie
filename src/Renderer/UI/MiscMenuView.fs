@@ -65,7 +65,9 @@ module Constants =
         // A node with children used to be a grey block spanning their rows, which is how the tree
         // showed what belonged to what. Lines between parent and child say the same thing without
         // painting over the space they run through, so there is nothing left for this to do.
-        ElementStyleProps = [ Padding "5px" ]
+        // No padding either: the connectors are drawn from the cell's edges, and padding would
+        // leave them stopping short of the pill they are meant to reach.
+        ElementStyleProps = [ ]
         ButtonOptions = [
                 Button.Size IsSmall
                 Button.IsOutlined
@@ -87,6 +89,10 @@ let gridBox (gap:string) s =
             Display DisplayOptions.InlineGrid
             GridGap gap
             JustifyContent "Start"
+            // an off-white panel so the tree reads as one thing, distinct from the menu around it
+            BackgroundColor "#f7f7f4"
+            BorderRadius "6px"
+            Padding "14px 18px"
             CSSProp.Custom("--tree-gap", Constants.treeGap) ]] s
 
 
@@ -101,7 +107,7 @@ let rec gridArea (gridPos: CSSGridPos): string =
 
 
 /// a Grid item centre justified and occupying given area
-let gridElement reactElementId props styleProps (pos: CSSGridPos) (x: ReactElement) =
+let gridElement reactElementId props styleProps (pos: CSSGridPos) (contents: ReactElement list) =
     div ( props @ [
         Id reactElementId
         Style (styleProps @ [
@@ -113,7 +119,7 @@ let gridElement reactElementId props styleProps (pos: CSSGridPos) (x: ReactEleme
             JustifyContent "center"
             Width "100%"
             Height "100%"
-            GridArea (gridArea pos) ])]) [x]
+            GridArea (gridArea pos) ])]) contents
 
 let positionDesignHierarchyInGrid (rootSheet: string) (trees: Map<string,SheetTree>) =
     let tree = trees[rootSheet]
@@ -192,14 +198,24 @@ let makeGridFromSheetsWithPositions
     posL
     |> List.map (fun (pos, sheet) ->
             let crumbId = cfg.BreadcrumbIdPrefix + ":" + sheet.SheetName + ":" + String.concat ":" sheet.LabelPath
-            let extraStyle = match sheet.SubSheets with | [] -> [BackgroundColor "white"; BorderWidth "0px"] | _ -> cfg.ElementStyleProps
+            // Every cell is styled the same. A leaf used to get a white background and no padding
+            // while a node with children got padding, which made the pills in one column different
+            // widths - the padding came off the button, not the column.
+            let extraStyle = cfg.ElementStyleProps
             let number = cfg.NoWaves sheet
+            // The short line out of a parent's right edge, meeting the trunk that runs down to its
+            // children. With one child there is no trunk, and this plus the child's elbow make the
+            // single line between them.
+            let parentStub =
+                match sheet.SubSheets with
+                | [] -> []
+                | _ -> [ div [ HTMLAttr.ClassName "treeStub" ] [] ]
             gridElement
                 crumbId
                 (cfg.ElementProps @ [ HTMLAttr.ClassName(connectorClasses posL pos) ])
                 (extraStyle)
                 pos
-                (Button.button [
+                (parentStub @ [Button.button [
                     Button.Props [Id crumbId]
                     Button.Color (cfg.ColorFun sheet)
                     Button.Modifiers [Modifier.TextColor IColor.IsLight]
@@ -231,7 +247,7 @@ let makeGridFromSheetsWithPositions
                             ] [str $"{number}"]
                         else
                             null
-                    ]))             
+                    ]]))             
 
     |> gridBox Constants.gridBoxSeparation 
     

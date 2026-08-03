@@ -181,28 +181,48 @@ th, td {
   margin-bottom: 3px;
 }
 
-/* the elbow, from the trunk across to the node */
+/* The trunk stands midway across the column gap, so there is room for a stub out
+   of the parent on one side and an elbow into the child on the other. Those two
+   meet the pills themselves: the cells have no padding, so a cell edge is a pill
+   edge. */
+.treeCell {
+  --tree-half: calc(var(--tree-gap, 20px) / 2);
+  --tree-line: 2px solid #9aa0a6;
+}
+
+/* the elbow, from the trunk across to the child */
 .treeNode::before {
   content: "";
   position: absolute;
-  left: calc(-1 * var(--tree-gap, 20px));
-  width: var(--tree-gap, 20px);
+  left: calc(-1 * var(--tree-half));
+  width: var(--tree-half);
   top: 50%;
-  border-top: 1px solid #b5b5b5;
+  border-top: var(--tree-line);
 }
 
-/* the trunk, standing in the column gap */
+/* the trunk, joining the first child to the last */
 .treeNode::after {
   content: "";
   position: absolute;
-  left: calc(-1 * var(--tree-gap, 20px));
-  border-left: 1px solid #b5b5b5;
+  left: calc(-1 * var(--tree-half));
+  border-left: var(--tree-line);
 }
 
 .treeFirst::after  { top: 50%; bottom: 0; }
 .treeMiddle::after { top: 0;   bottom: 0; }
 .treeLast::after   { top: 0;   height: 50%; }
+/* an only child has no siblings to join, so its parent's stub and its own elbow
+   meet in the middle of the gap and make one straight line */
 .treeOnly::after   { content: none; }
+
+/* out of the parent's right edge, as far as the trunk */
+.treeStub {
+  position: absolute;
+  right: calc(-1 * var(--tree-half));
+  width: var(--tree-half);
+  top: 50%;
+  border-top: var(--tree-line);
+}
 
 /* A tree of any size makes its dropdown far wider than the ordinary items above
    it, and those items put their shortcut against the right edge - so New Sheet's

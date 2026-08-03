@@ -17,5 +17,6 @@ let main argv =
         DrawBlockTests.tests
         LibraryTests.tests
         ParameterUI.tests
+        KeyBindingTests.tests
     ]
     |> runTestsWithCLIArgs [ Sequenced ] argv

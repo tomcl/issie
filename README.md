@@ -180,7 +180,6 @@ Additionally, the section `"scripts"`:
     "pack": "npm run compile && npm run build && electron-builder --dir",
     "dist": "npm run compile && npm run build && electron-builder",
     "buildonly": "electron-builder",
-    "compile-sass": "cd src/renderer/scss && node-sass main.scss main.css",
     "testcompiler": "cd src/Renderer/VerilogComponent/test && dotnet fable --noCache && node testParser.fs.js"
   }
 ```

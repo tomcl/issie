@@ -33,7 +33,6 @@
     "predist": "npm run audit:prod",
     "dist": "npm run compile:parallel && npm run build && electron-builder",
     "buildonly": "electron-builder",
-    "compile-sass": "cd src/renderer/scss && node-sass main.scss main.css",
     "test": "dotnet run --project Tests/Issie.Tests -c Release",
     "testcompiler": "cd src/Renderer/VerilogComponent/test && dotnet fable --noCache && node testParser.fs.js",
     "typecheck": "dotnet build src/Renderer/Renderer.fsproj --no-restore",

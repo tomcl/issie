@@ -51,8 +51,10 @@ module Constants =
     /// variable so the lines and the gap cannot drift apart.
     let treeGap = "20px"
 
-    /// Space between one root hierarchy and the next, where a project has more than one.
-    let rootHierarchyStyle = Style [ MarginBottom "30px" ]
+    /// Space between one root hierarchy and the next, where a project has more than one. The
+    /// spacing is a CSS class rather than an inline style so it can be dropped from the last one -
+    /// a margin under the last root shows as a band of panel below the tree.
+    let rootHierarchyClass = HTMLAttr.ClassName "treeRoot"
 
     let defaultConfig: BreadcrumbConfig = {
         AllowDuplicateSheets = false
@@ -89,10 +91,6 @@ let gridBox (gap:string) s =
             Display DisplayOptions.InlineGrid
             GridGap gap
             JustifyContent "Start"
-            // an off-white panel so the tree reads as one thing, distinct from the menu around it
-            BackgroundColor "#f7f7f4"
-            BorderRadius "6px"
-            Padding "14px 18px"
             CSSProp.Custom("--tree-gap", Constants.treeGap) ]] s
 
 
@@ -309,7 +307,7 @@ let allRootHierarchiesFromProjectBreadcrumbs
         // dragged in the app-wide th/td and odd-row styling - which is where the grey wash behind
         // the tree came from. It read as though it were saying something about the hierarchy; it
         // was the striping meant for the Verilog error table.
-        |> List.map (fun el -> div [ Constants.rootHierarchyStyle ] [ el ])
+        |> List.map (fun el -> div [ Constants.rootHierarchyClass ] [ el ])
         |> fun rows -> div [] rows
 
 /// is there a duplicate sheet name anywhere in hierarchy?

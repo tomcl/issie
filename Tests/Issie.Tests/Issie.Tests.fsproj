@@ -21,6 +21,7 @@
     <Compile Include="LibraryTests.fs" />
     <Compile Include="ParameterUI.fs" />
     <Compile Include="KeyBindingTests.fs" />
+    <Compile Include="VerilogOutput.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

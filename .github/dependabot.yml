@@ -1,22 +1,26 @@
 version: 2
 
+# These target the default branch. They used to target dependabot-integration,
+# which drifted 119 commits behind master, so the updates were being proposed
+# against a manifest that no longer existed - electron 35, react 17, and
+# dependencies master had already dropped. Every such PR was unmergeable by
+# construction, and the versions being "bumped to" were in several cases older
+# than what master already locked.
+
 updates:
   - package-ecosystem: "npm"
-    target-branch: "dependabot-integration"
     directory: "/"
     schedule:
       interval: "daily"
     assignees:
       - "samuelpswang"
   - package-ecosystem: "dotnet-sdk"
-    target-branch: "dependabot-integration"
     directory: "/"
     schedule:
       interval: "daily"
     assignees:
       - "samuelpswang"
   - package-ecosystem: "nuget"
-    target-branch: "dependabot-integration"
     directory: "/"
     schedule:
       interval: "daily"

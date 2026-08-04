@@ -134,8 +134,8 @@ let topRowButtonStyle isRightSide= Style [
     FontSize "16px"
     Flex "0 0.5"
     if isRightSide then MarginLeft "auto" else AlignSelf AlignSelfOptions.FlexStart
-    MarginRight 5
-    MarginLeft 5
+    MarginRight Constants.topRowButtonMargin
+    MarginLeft Constants.topRowButtonMargin
 ]
 
 let infoButtonProps color = [
@@ -734,6 +734,11 @@ let topHalfStyle = Style [
     CSSProp.Top 0
     BackgroundColor "white"
     ZIndex 10000
+    // Line the right-hand edge of the controls up with the right-hand edge of the waveform
+    // table below them, rather than letting them run on to the edge of the window. The
+    // buttons and the control row each carry a margin of their own, so only the rest of the
+    // table's gap is needed here.
+    MarginRight (Constants.waveTableRightGap - Constants.topRowButtonMargin)
 ]
 
 //---------------------------Code for selector details state----------------------------------//

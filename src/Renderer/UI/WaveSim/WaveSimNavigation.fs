@@ -74,9 +74,9 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     let wsModel = getWSModel model
     let namesColWidth = calcNamesColWidth wsModel
 
-    /// The extra is probably because of some unnacounted for padding etc (there is a weird 2px spacer to right of the divider)
-    /// It also allows space for a scroll bar (about 6 px)
-    let otherDivWidths = Constants.leftMargin + Constants.rightMargin + DiagramStyle.Constants.dividerBarWidth + Constants.scrollBarWidth + 8
+    /// Everything to the left and right of the three columns: the margins and the divider
+    /// bar on the left, and on the right the scroll bar plus a little unaccounted-for padding.
+    let otherDivWidths = Constants.leftMargin + Constants.rightMargin + DiagramStyle.Constants.dividerBarWidth + Constants.waveTableRightGap
 
     /// This is what the overall waveform width must be
     let valuesColumnWidth,_ = valuesColumnSize wsModel

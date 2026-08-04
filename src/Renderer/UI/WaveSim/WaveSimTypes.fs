@@ -25,6 +25,15 @@ module Constants =
     /// Width of right margin of waveform simulator
     let rightMargin = 0
 
+    /// The waveform table stops this far short of the right-hand edge of the viewer:
+    /// room for the scroll bar down the wave column, plus the couple of pixels of padding
+    /// that updateViewerWidthInWaveSim has always allowed for. The controls above the
+    /// table are indented to match, so that both end on the same line.
+    let waveTableRightGap = scrollBarWidth + 8
+
+    /// Margin carried by each button on the two control rows above the waveform table.
+    let topRowButtonMargin = 5
+
     /// Height of each row in name and value columns.
     /// Same as SVG ViewBox Height.
     let rowHeight = 30

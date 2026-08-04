@@ -90,8 +90,6 @@ than pixel widths, which are only ever as good as that table. Anything about how
   and `WidthInfererTests.fs` do still hold hand-built canvases for cases the current suite does not
   cover — width-inference failures, partially connected components, non-inferrable loops — and are
   worth mining before the directory is removed.
-- **`simulator_tests/js`** no longer compiles: its fsproj references `SimulatorTypes.fs`, which has
-  since been split into `SimGraphTypes.fs` and `SimTypes.fs`.
 - **CI does not run this suite**, on any platform. `.github/workflows/tests.yml` runs a Fable
   compile on Windows and reports that. Run the tests locally before opening a PR.
 

@@ -19,8 +19,6 @@ CLAUDE.md is right: this file is a summary, and a summary drifts.
 - `scripts/`: build and dev helpers for Electron and Webpack, plus `inspect-canvas.js`.
 - `public/`, `static/`: icons, HTML, demo projects, component libraries and other assets.
 - `docs/`: user and developer documentation; `docs/dev/` is written for people changing the code.
-- `simulator_tests/js/`: a dead JS simulator harness. It no longer compiles — its fsproj references
-  `SimulatorTypes.fs`, which has since been split into `SimGraphTypes.fs` and `SimTypes.fs`.
 
 ## Build, Test, and Development Commands
 - `npm run dev`: hot-reload development (parallel Fable watch + Electron).

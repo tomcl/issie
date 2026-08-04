@@ -218,13 +218,6 @@ jobs:
 #         dotnet paket restore
 #         npm ci
     
-#     - name: Run simulator tests
-#       run: |
-#         cd simulator_tests/js
-#         npm install
-#         npm test
-#       continue-on-error: true
-    
 #     - name: Build production bundle
 #       run: |
 #         npm run compile

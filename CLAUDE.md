@@ -51,10 +51,6 @@ Adding a test file takes two edits, and missing either fails silently: list it i
 `Tests/Issie.Tests/Issie.Tests.fsproj` (compile order matters) and add its `tests` value to the
 list in `Main.fs`.
 
-The JS simulator harness under `simulator_tests/js` is a different thing and no longer compiles:
-its fsproj references `src/Renderer/Simulator/SimulatorTypes.fs`, which has since been split into
-`SimGraphTypes.fs` and `SimTypes.fs`.
-
 ## Things the code will not tell you
 
 **Canvas is not the simulation graph.** `CanvasExtractor.fs` bridges them, stripping visual layout

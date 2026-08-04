@@ -531,90 +531,6 @@
             <div>
               <code onmouseout="hideTip(event, '2406', 2406)" onmouseover="showTip(event, '2406', 2406)">
                 <p>
-                  <a id="extractRamDefinitions">
-                    <a href="#extractRamDefinitions">
-                      <code><span>extractRamDefinitions&#32;<span>fs</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="2406">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>extractRamDefinitions&#32;<span>fs</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        fs
-                      </b>
-                      :
-                      <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span><span>(<span>string&#32;*&#32;<a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></span>)</span>&#32;array</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Verilog.extractRamDefinitions`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.extractRamDefinitions\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L613-613" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     get the module definitions (one per RAM instance) that define RAMs used
- TODO: make output more compact by using multiple instances of one module where possible.
- NB. Initial statement is used to initialise RAM as per simulation: should work with Quartus.
- NB - there is some inconsistency between this definition and current simulation, which will output
- ram[0] contents in clock 0 on q. the simulation is incompatible with FPGA tools and should change so
- that initial ram output is always 0.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    fs
-                  </span>
-                  :
-                  <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><span><span>(<span>string&#32;*&#32;<a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></span>)</span>&#32;array</span></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '2407', 2407)" onmouseover="showTip(event, '2407', 2407)">
-                <p>
                   <a id="fastOutputDefinition">
                     <a href="#fastOutputDefinition">
                       <code><span>fastOutputDefinition&#32;<span>vType&#32;fc&#32;opn</span></span></code>
@@ -622,7 +538,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2407">
+              <div class="fsdocs-tip" id="2406">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fastOutputDefinition&#32;<span>vType&#32;fc&#32;opn</span></span></code>
@@ -675,7 +591,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.fastOutputDefinition\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L358-358" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L351-351" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -724,7 +640,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2408', 2408)" onmouseover="showTip(event, '2408', 2408)">
+              <code onmouseout="hideTip(event, '2407', 2407)" onmouseover="showTip(event, '2407', 2407)">
                 <p>
                   <a id="getDebugController">
                     <a href="#getDebugController">
@@ -733,7 +649,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2408">
+              <div class="fsdocs-tip" id="2407">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getDebugController&#32;<span>profile&#32;fs</span></span></code>
@@ -801,7 +717,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2409', 2409)" onmouseover="showTip(event, '2409', 2409)">
+              <code onmouseout="hideTip(event, '2408', 2408)" onmouseover="showTip(event, '2408', 2408)">
                 <p>
                   <a id="getInitialSimulationBlock">
                     <a href="#getInitialSimulationBlock">
@@ -810,7 +726,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2409">
+              <div class="fsdocs-tip" id="2408">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getInitialSimulationBlock&#32;<span>vType&#32;fs</span></span></code>
@@ -855,7 +771,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getInitialSimulationBlock\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L634-634" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L610-610" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -896,134 +812,31 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2410', 2410)" onmouseover="showTip(event, '2410', 2410)">
-                <p>
-                  <a id="getInstanceOf">
-                    <a href="#getInstanceOf">
-                      <code><span>getInstanceOf&#32;<span>block&#32;instanceName&#32;ports</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="2410">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>getInstanceOf&#32;<span>block&#32;instanceName&#32;ports</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        block
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        instanceName
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        ports
-                      </b>
-                      :
-                      <code><span>string&#32;array</span></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>string</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Verilog.getInstanceOf`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getInstanceOf\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L295-295" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     generate an instance of a module named block
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    block
-                  </span>
-                  :
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    instanceName
-                  </span>
-                  :
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    ports
-                  </span>
-                  :
-                  <code><span>string&#32;array</span></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '2411', 2411)" onmouseover="showTip(event, '2411', 2411)">
+              <code onmouseout="hideTip(event, '2409', 2409)" onmouseover="showTip(event, '2409', 2409)">
                 <p>
                   <a id="getInstantiatedModules">
                     <a href="#getInstantiatedModules">
-                      <code><span>getInstantiatedModules&#32;<span>fs</span></span></code>
+                      <code><span>getInstantiatedModules&#32;<span>profile&#32;fs</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2411">
+              <div class="fsdocs-tip" id="2409">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>getInstantiatedModules&#32;<span>fs</span></span></code>
+                  <code><span>getInstantiatedModules&#32;<span>profile&#32;fs</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
+                    <span>
+                      <b>
+                        profile
+                      </b>
+                      :
+                      <code><a href="/issie/reference/verilog-compilationprofile.html">CompilationProfile</a></code>
+                    </span>
+                    <br/>
                     <span>
                       <b>
                         fs
@@ -1053,7 +866,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getInstantiatedModules\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L255-255" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L264-264" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1063,6 +876,14 @@
                 </div>
               </summary>
               <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    profile
+                  </span>
+                  :
+                  <code><a href="/issie/reference/verilog-compilationprofile.html">CompilationProfile</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
                     fs
@@ -1087,7 +908,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2412', 2412)" onmouseover="showTip(event, '2412', 2412)">
+              <code onmouseout="hideTip(event, '2410', 2410)" onmouseover="showTip(event, '2410', 2410)">
                 <p>
                   <a id="getMainHardware">
                     <a href="#getMainHardware">
@@ -1096,7 +917,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2412">
+              <div class="fsdocs-tip" id="2410">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getMainHardware&#32;<span>fs</span></span></code>
@@ -1133,11 +954,14 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getMainHardware\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L626-626" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L605-605" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      get the verilog statements output from each component
+ NB a hybrid component (AsyncRAM1) is in both FClockedComps and FOrderedComps, since it has both
+ clocked and combinational behaviour. Its Verilog describes the whole component, so it must be
+ written once: activeComps drops the hybrid copy from the combinational half.
                   </p>
                 </div>
               </summary>
@@ -1166,7 +990,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2413', 2413)" onmouseover="showTip(event, '2413', 2413)">
+              <code onmouseout="hideTip(event, '2411', 2411)" onmouseover="showTip(event, '2411', 2411)">
                 <p>
                   <a id="getMainHeader">
                     <a href="#getMainHeader">
@@ -1175,7 +999,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2413">
+              <div class="fsdocs-tip" id="2411">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getMainHeader&#32;<span>vType&#32;profile&#32;fs</span></span></code>
@@ -1228,7 +1052,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getMainHeader\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L567-567" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L559-559" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1277,7 +1101,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2414', 2414)" onmouseover="showTip(event, '2414', 2414)">
+              <code onmouseout="hideTip(event, '2412', 2412)" onmouseover="showTip(event, '2412', 2412)">
                 <p>
                   <a id="getMainSignalDefinitions">
                     <a href="#getMainSignalDefinitions">
@@ -1286,7 +1110,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2414">
+              <div class="fsdocs-tip" id="2412">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getMainSignalDefinitions&#32;<span>vType&#32;profile&#32;fs</span></span></code>
@@ -1339,7 +1163,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getMainSignalDefinitions\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L593-593" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L587-587" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1388,7 +1212,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2415', 2415)" onmouseover="showTip(event, '2415', 2415)">
+              <code onmouseout="hideTip(event, '2413', 2413)" onmouseover="showTip(event, '2413', 2413)">
                 <p>
                   <a id="getVPortInput">
                     <a href="#getVPortInput">
@@ -1397,7 +1221,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2415">
+              <div class="fsdocs-tip" id="2413">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getVPortInput&#32;<span>fs&#32;fc&#32;arg3</span></span></code>
@@ -1450,7 +1274,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getVPortInput\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L342-342" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L337-337" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1499,7 +1323,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2416', 2416)" onmouseover="showTip(event, '2416', 2416)">
+              <code onmouseout="hideTip(event, '2414', 2414)" onmouseover="showTip(event, '2414', 2414)">
                 <p>
                   <a id="getVPortOut">
                     <a href="#getVPortOut">
@@ -1508,7 +1332,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2416">
+              <div class="fsdocs-tip" id="2414">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getVPortOut&#32;<span>fc&#32;arg2</span></span></code>
@@ -1553,7 +1377,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getVPortOut\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L326-326" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L321-321" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1594,7 +1418,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2417', 2417)" onmouseover="showTip(event, '2417', 2417)">
+              <code onmouseout="hideTip(event, '2415', 2415)" onmouseover="showTip(event, '2415', 2415)">
                 <p>
                   <a id="getVPortOutWithSlice">
                     <a href="#getVPortOutWithSlice">
@@ -1603,7 +1427,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2417">
+              <div class="fsdocs-tip" id="2415">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getVPortOutWithSlice&#32;<span>fc&#32;opn</span></span></code>
@@ -1648,7 +1472,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getVPortOutWithSlice\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L332-332" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L327-327" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1691,7 +1515,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2418', 2418)" onmouseover="showTip(event, '2418', 2418)">
+              <code onmouseout="hideTip(event, '2416', 2416)" onmouseover="showTip(event, '2416', 2416)">
                 <p>
                   <a id="getVerilog">
                     <a href="#getVerilog">
@@ -1700,7 +1524,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2418">
+              <div class="fsdocs-tip" id="2416">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getVerilog&#32;<span>vType&#32;fs&#32;profile</span></span></code>
@@ -1753,7 +1577,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getVerilog\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L808-808" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L785-785" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1807,118 +1631,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2419', 2419)" onmouseover="showTip(event, '2419', 2419)">
-                <p>
-                  <a id="getVerilogBinaryOp">
-                    <a href="#getVerilogBinaryOp">
-                      <code><span>getVerilogBinaryOp&#32;<span>gType&#32;op1&#32;op2</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="2419">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>getVerilogBinaryOp&#32;<span>gType&#32;op1&#32;op2</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        gType
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-gatecomponenttype.html">GateComponentType</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        op1
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        op2
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>string</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Verilog.getVerilogBinaryOp`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getVerilogBinaryOp\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L300-300" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     implement binary operator for two-input gate
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    gType
-                  </span>
-                  :
-                  <code><a href="/issie/reference/commontypes-gatecomponenttype.html">GateComponentType</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    op1
-                  </span>
-                  :
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    op2
-                  </span>
-                  :
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '2420', 2420)" onmouseover="showTip(event, '2420', 2420)">
+              <code onmouseout="hideTip(event, '2417', 2417)" onmouseover="showTip(event, '2417', 2417)">
                 <p>
                   <a id="getVerilogComponent">
                     <a href="#getVerilogComponent">
@@ -1927,7 +1640,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2420">
+              <div class="fsdocs-tip" id="2417">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getVerilogComponent&#32;<span>fs&#32;fc</span></span></code>
@@ -1972,7 +1685,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getVerilogComponent\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L381-381" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L374-374" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2013,7 +1726,87 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2421', 2421)" onmouseover="showTip(event, '2421', 2421)">
+              <code onmouseout="hideTip(event, '2418', 2418)" onmouseover="showTip(event, '2418', 2418)">
+                <p>
+                  <a id="getVerilogGateOp">
+                    <a href="#getVerilogGateOp">
+                      <code><span>getVerilogGateOp&#32;<span>gateType</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2418">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>getVerilogGateOp&#32;<span>gateType</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        gateType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-gatecomponenttype.html">GateComponentType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Verilog.getVerilogGateOp`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getVerilogGateOp\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L293-293" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The bitwise operator a gate combines its inputs with, before any inversion.
+ Gate inputs are always one bit wide, so the bitwise operators are the right ones.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    gateType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-gatecomponenttype.html">GateComponentType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2419', 2419)" onmouseover="showTip(event, '2419', 2419)">
                 <p>
                   <a id="getVerilogNInputBinaryOp">
                     <a href="#getVerilogNInputBinaryOp">
@@ -2022,7 +1815,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2421">
+              <div class="fsdocs-tip" id="2419">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getVerilogNInputBinaryOp&#32;<span>cType&#32;portConversionFn</span></span></code>
@@ -2067,11 +1860,14 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getVerilogNInputBinaryOp\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L313-313" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L303-303" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     implement binary operator for multi-input gate
+                     Implement an n-input gate.
+ The inputs are combined with the un-negated operator and the result inverted once, which is
+ what an n-input NAND/NOR/XNOR gate means, and what getNInpBinaryGateReducer in FastReduce does.
+ Folding the negated operator pairwise instead would give different logic for n > 2.
                   </p>
                 </div>
               </summary>
@@ -2108,7 +1904,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2422', 2422)" onmouseover="showTip(event, '2422', 2422)">
+              <code onmouseout="hideTip(event, '2420', 2420)" onmouseover="showTip(event, '2420', 2420)">
                 <p>
                   <a id="getZeros">
                     <a href="#getZeros">
@@ -2117,7 +1913,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2422">
+              <div class="fsdocs-tip" id="2420">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getZeros&#32;<span>width</span></span></code>
@@ -2154,7 +1950,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.getZeros\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L352-352" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L345-345" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2188,68 +1984,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2423', 2423)" onmouseover="showTip(event, '2423', 2423)">
-                <p>
-                  <a id="makeAccessPathIndex">
-                    <a href="#makeAccessPathIndex">
-                      <code><span>makeAccessPathIndex&#32;<span>fs</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="2423">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>makeAccessPathIndex&#32;<span>fs</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        fs
-                      </b>
-                      :
-                      <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span>,&#32;int</span>&gt;</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  fs
-                </span>
-                :
-                <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>&#32;list</span>,&#32;int</span>&gt;</span></code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '2424', 2424)" onmouseover="showTip(event, '2424', 2424)">
+              <code onmouseout="hideTip(event, '2421', 2421)" onmouseover="showTip(event, '2421', 2421)">
                 <p>
                   <a id="makeAsyncRamModule">
                     <a href="#makeAsyncRamModule">
@@ -2258,7 +1993,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2424">
+              <div class="fsdocs-tip" id="2421">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeAsyncRamModule&#32;<span>moduleName&#32;mem</span></span></code>
@@ -2326,7 +2061,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2425', 2425)" onmouseover="showTip(event, '2425', 2425)">
+              <code onmouseout="hideTip(event, '2422', 2422)" onmouseover="showTip(event, '2422', 2422)">
                 <p>
                   <a id="makeAsyncRomModule">
                     <a href="#makeAsyncRomModule">
@@ -2335,7 +2070,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2425">
+              <div class="fsdocs-tip" id="2422">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeAsyncRomModule&#32;<span>moduleName&#32;mem</span></span></code>
@@ -2403,7 +2138,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2426', 2426)" onmouseover="showTip(event, '2426', 2426)">
+              <code onmouseout="hideTip(event, '2423', 2423)" onmouseover="showTip(event, '2423', 2423)">
                 <p>
                   <a id="makeBits">
                     <a href="#makeBits">
@@ -2412,7 +2147,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2426">
+              <div class="fsdocs-tip" id="2423">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeBits&#32;<span>w&#32;c</span></span></code>
@@ -2457,11 +2192,14 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.makeBits\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L321-321" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L316-316" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      get valid Verilog constant for bus of given width (may be 1)
+ NB the digits must be hex, since they follow a 'h prefix: %A or %d would print the value in
+ decimal and Verilog would then read those digits as hex, giving a different (and too wide)
+ number. printf "%x" does not work on bigints, hence hexBignum.
                   </p>
                 </div>
               </summary>
@@ -2498,7 +2236,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2427', 2427)" onmouseover="showTip(event, '2427', 2427)">
+              <code onmouseout="hideTip(event, '2424', 2424)" onmouseover="showTip(event, '2424', 2424)">
                 <p>
                   <a id="makeRamModule">
                     <a href="#makeRamModule">
@@ -2507,7 +2245,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2427">
+              <div class="fsdocs-tip" id="2424">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeRamModule&#32;<span>moduleName&#32;mem</span></span></code>
@@ -2575,7 +2313,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2428', 2428)" onmouseover="showTip(event, '2428', 2428)">
+              <code onmouseout="hideTip(event, '2425', 2425)" onmouseover="showTip(event, '2425', 2425)">
                 <p>
                   <a id="makeRomModule">
                     <a href="#makeRomModule">
@@ -2584,7 +2322,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2428">
+              <div class="fsdocs-tip" id="2425">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeRomModule&#32;<span>moduleName&#32;mem</span></span></code>
@@ -2652,7 +2390,168 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2429', 2429)" onmouseover="showTip(event, '2429', 2429)">
+              <code onmouseout="hideTip(event, '2426', 2426)" onmouseover="showTip(event, '2426', 2426)">
+                <p>
+                  <a id="memInstanceName">
+                    <a href="#memInstanceName">
+                      <code><span>memInstanceName&#32;<span>fc</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2426">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>memInstanceName&#32;<span>fc</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        fc
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Verilog.memInstanceName`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.memInstanceName\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L113-113" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Name of the single instance of that module. Derived from the component name, which
+ writeVerilogNames has already made unique, so instances cannot collide either.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    fc
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2427', 2427)" onmouseover="showTip(event, '2427', 2427)">
+                <p>
+                  <a id="memModuleName">
+                    <a href="#memModuleName">
+                      <code><span>memModuleName&#32;<span>fc</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2427">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>memModuleName&#32;<span>fc</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        fc
+                      </b>
+                      :
+                      <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Verilog.memModuleName`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.memModuleName\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L109-109" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Name of the module generated for a memory component. Distinct from the component's own name,
+ which is already in use as the net driven by the instance: a module and a net sharing an
+ identifier is legal in some tools and rejected by others.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    fc
+                  </span>
+                  :
+                  <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2428', 2428)" onmouseover="showTip(event, '2428', 2428)">
                 <p>
                   <a id="removeHybridComps">
                     <a href="#removeHybridComps">
@@ -2661,7 +2560,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2429">
+              <div class="fsdocs-tip" id="2428">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>removeHybridComps&#32;<span>fa</span></span></code>
@@ -2713,7 +2612,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2430', 2430)" onmouseover="showTip(event, '2430', 2430)">
+              <code onmouseout="hideTip(event, '2429', 2429)" onmouseover="showTip(event, '2429', 2429)">
                 <p>
                   <a id="verilogNameConvert">
                     <a href="#verilogNameConvert">
@@ -2722,7 +2621,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2430">
+              <div class="fsdocs-tip" id="2429">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>verilogNameConvert&#32;<span>maxChars&#32;s</span></span></code>
@@ -2767,7 +2666,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.verilogNameConvert\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L17-17" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L28-28" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2809,7 +2708,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2431', 2431)" onmouseover="showTip(event, '2431', 2431)">
+              <code onmouseout="hideTip(event, '2430', 2430)" onmouseover="showTip(event, '2430', 2430)">
                 <p>
                   <a id="writeVerilogNames">
                     <a href="#writeVerilogNames">
@@ -2818,7 +2717,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2431">
+              <div class="fsdocs-tip" id="2430">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeVerilogNames&#32;<span>fs</span></span></code>
@@ -2850,7 +2749,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Verilog.writeVerilogNames\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L42-42" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/VerilogComponent/Verilog.fs#L41-41" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

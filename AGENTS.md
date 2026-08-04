@@ -40,10 +40,13 @@ by an actual Fable run, so compile with Fable before trusting a change to one.
 
 ## Testing Guidelines
 - Expecto, with FsCheck for property tests. Run with `dotnet run`, **not** `dotnet test`.
-- `npm run test` runs about 129 tests in roughly 20 seconds and reaches all of `Renderer.fsproj`:
+- `npm run test` runs about 209 tests in roughly a minute and reaches all of `Renderer.fsproj`:
   simulation, parameter resolution, the draw block, and UI-module helpers.
-- One group at a time is much quicker:
+- **Run one group, not the suite** — seconds instead of a minute; timings per group are in
+  `Tests/README.md`:
   `dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock`
+- `Issie.VerilogCompiler` needs node and is ~2/3 of the suite's runtime; it is skipped when the
+  `CI` env var is set, so `CI=true npm run test` is the fast everything-else run (~10s).
 - Adding a test file takes two edits and missing either fails silently: list it in
   `Tests/Issie.Tests/Issie.Tests.fsproj` (compile order matters) and add its `tests` value to the
   list in `Main.fs`.

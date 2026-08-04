@@ -19,6 +19,10 @@ let main argv =
         ParameterUI.tests
         KeyBindingTests.tests
         VerilogOutput.tests
-        VerilogCompiler.tests
+        // The VerilogCompiler group spawns node for every parse (the real nearley parser) and
+        // takes most of the suite's runtime, so it runs locally only, not on CI runners.
+        // GitHub Actions (and most CI systems) set CI=true.
+        if System.String.IsNullOrEmpty(System.Environment.GetEnvironmentVariable "CI") then
+            VerilogCompiler.tests
     ]
     |> runTestsWithCLIArgs [ Sequenced ] argv

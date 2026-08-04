@@ -1,18 +1,44 @@
 # Issie tests
 
 ```bash
-npm run test        # the whole suite: ~129 tests, ~20s
+npm run test        # the whole suite: ~209 tests, ~60s (~20s with VerilogCompiler excluded)
 ```
 
 That runs `dotnet run --project Tests/Issie.Tests -c Release`. It is `dotnet run`, not
 `dotnet test`: the suite is an Expecto executable, and `dotnet test` will not find it.
 
-Running one group is much quicker than running everything, and is how to iterate:
+**Run one group, not the suite** — a group answers most questions in a couple of seconds:
 
 ```bash
 dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock
 dotnet run --project Tests/Issie.Tests -c Release -- --filter-test-case Register --summary
 ```
+
+## Runtimes, and what to run
+
+Group runtimes (Release, warm build; add ~4s of startup per invocation):
+
+| Group (`--filter Issie.<name>`) | Tests | Time |
+|---|---:|---:|
+| `VerilogCompiler` | 11 | **39s** |
+| `ComponentSemantics` | 42 | 9s |
+| `GoldenModel` | 3 | 3.4s |
+| `Properties` | 13 | 1.3s |
+| `VerilogOutput` | 45 | 1.1s |
+| `SheetDescription` | 18 | 1.0s |
+| everything else (`Algebra`, `DrawBlock`, `KeyBindings`, `Library`, `ParameterScenarios`, `ParameterUI`, `Persistence`) | 78 | < 1s each |
+
+`VerilogCompiler` dominates: it spawns **node** for every parse (the real nearley parser, the
+same one the editor runs), so it needs node on PATH and costs ~2/3 of the suite. Because of
+that it is **skipped whenever the `CI` environment variable is set** (GitHub Actions sets
+`CI=true`) — see `Main.fs`. To skip it locally the same way:
+
+```bash
+CI=true npm run test          # 198 tests, ~10s of test time
+```
+
+Run `Issie.VerilogCompiler` explicitly when touching anything under
+`src/Renderer/VerilogComponent/`; otherwise the fast groups cover the change.
 
 The suite references `Renderer.fsproj` directly, so it reaches all of the application code —
 simulation, parameter resolution, persistence, the draw block and UI-module helpers — under plain

@@ -41,11 +41,17 @@ nothing running. Use it for test schematics rather than building canvases by han
 See [docs/dev/sheetDescriptionDsl.md](docs/dev/sheetDescriptionDsl.md).
 
 `npm run test` runs the Expecto suite under `Tests/Issie.Tests` (`dotnet run`, not `dotnet test`).
-It works and is fast — around 129 tests in 20s — and it reaches the whole of `Renderer.fsproj`, so
-simulation, parameter resolution, the draw block and even UI-module helpers can all be tested. Use
-it: a fix to simulation or parameter behaviour can be pinned by a test rather than argued about.
-`--filter Issie.<TestList>` runs one group, which is much quicker than the whole suite: `dotnet run
---project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock`.
+It reaches the whole of `Renderer.fsproj`, so simulation, parameter resolution, the draw block and
+even UI-module helpers can all be tested. Use it: a fix to simulation or parameter behaviour can
+be pinned by a test rather than argued about.
+
+**Don't run the whole suite by default — it is ~60s, and one group is seconds.** Per-group
+timings and what to run when are in [Tests/README.md](Tests/README.md); `--filter Issie.<Group>`
+runs one group: `dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock`.
+Two-thirds of the suite's time is `Issie.VerilogCompiler`, which spawns node per parse — run it
+when touching `src/Renderer/VerilogComponent/`, and note it is skipped automatically when the
+`CI` environment variable is set (so CI runners never pay for it, and `CI=true npm run test` is
+the fast full-suite run locally, ~10s).
 
 Adding a test file takes two edits, and missing either fails silently: list it in
 `Tests/Issie.Tests/Issie.Tests.fsproj` (compile order matters) and add its `tests` value to the

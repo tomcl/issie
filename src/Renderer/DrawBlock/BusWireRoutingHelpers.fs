@@ -430,7 +430,7 @@ let moveSegment (index: int) (posDelta: float) (wire: Wire) =
 /// P is X or Y according to ori.
 let moveLine (ori: Orientation) (newP: float) (line: Line) (wires: Map<ConnectionId, Wire>) =
     match line.Seg1 with
-    | None -> failwithf "Can't move Line {line} - it is not a segment"
+    | None -> failwithf $"Can't move Line %A{line} - it is not a segment"
     | Some seg ->
         let oldP =
             match ori with

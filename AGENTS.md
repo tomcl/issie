@@ -13,9 +13,6 @@ CLAUDE.md is right: this file is a summary, and a summary drifts.
 - `src/Renderer/`: UI, draw block and simulator (F#, Elmish, small JS helpers).
 - `Tests/Issie.Tests/`: the test suite — unit, property and golden tests (Expecto/FsCheck).
 - `Tests/fixtures/`: whole Issie projects the golden tests simulate, with their `.golden` files.
-- `Tests/*.fs` and `Tests/Tests.fsproj`: a legacy suite. **It does not build** — it targets
-  `netcoreapp3.1` and lists three source files that are not in the repository. Nothing runs it. Its
-  `CanvasStates*.fs` still hold hand-built canvases worth mining for cases.
 - `scripts/`: build and dev helpers for Electron and Webpack, plus `inspect-canvas.js`.
 - `public/`, `static/`: icons, HTML, demo projects, component libraries and other assets.
 - `docs/`: user and developer documentation; `docs/dev/` is written for people changing the code.
@@ -46,7 +43,7 @@ by an actual Fable run, so compile with Fable before trusting a change to one.
   `Tests/README.md`:
   `dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock`
 - `Issie.VerilogCompiler` needs node and is ~2/3 of the suite's runtime; it is skipped when the
-  `CI` env var is set, so `CI=true npm run test` is the fast everything-else run (~10s).
+  `CI` env var is set, so `CI=true npm run test` is the fast everything-else run (~20s).
 - Adding a test file takes two edits and missing either fails silently: list it in
   `Tests/Issie.Tests/Issie.Tests.fsproj` (compile order matters) and add its `tests` value to the
   list in `Main.fs`.

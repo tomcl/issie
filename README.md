@@ -105,9 +105,10 @@ the npm scripts directly - they are much faster:
 * `npm run dev:once` - compile once and start the app, with no watcher: the fastest way to just
   run Issie from source.
 * `npm run debug` - dev mode with runtime assertions enabled; noticeably slower.
-* `npm run test` - the Expecto test suite: ~130 tests in ~20 s covering simulation, parameter
-  resolution and the draw block, all under plain .NET with no Electron.
-  `npm run test -- --filter Issie.<GroupName>` runs one group.
+* `npm run test` - the Expecto test suite: ~209 tests in about a minute, covering simulation,
+  parameter resolution, the Verilog subsystem and the draw block, all under plain .NET with no
+  Electron. `npm run test -- --filter Issie.<GroupName>` runs one group, which is usually a couple
+  of seconds - see [Tests/README.md](Tests/README.md) for the per-group timings.
 * `npm run typecheck` - type-check the renderer under .NET without Fable: the quickest way to
   find out whether a change compiles, with better error messages than Fable's.
 * `npm run dist` - production binaries for your platform, under `dist/`.
@@ -208,12 +209,23 @@ Additionally, the section `"scripts"`:
     "start": "cross-env NODE_ENV=development node scripts/start.js",
     "build": "cross-env NODE_ENV=production ELECTRON_ENABLE_LOGGING=true node scripts/build.js",
     "pack": "npm run compile && npm run build && electron-builder --dir",
+    "audit:prod": "npm audit --omit=dev",
+    "predist": "npm run audit:prod",
     "dist": "npm run compile && npm run build && electron-builder",
     "buildonly": "electron-builder",
-    "testcompiler": "cd src/Renderer/VerilogComponent/test && dotnet fable --noCache && node testParser.fs.js"
+    "preversion": "node scripts/sync-version.js --preflight",
+    "version": "node scripts/sync-version.js && git add src/Renderer/Interface/Version.fs",
+    "postversion": "git push origin master --follow-tags",
+    "test": "dotnet run --project Tests/Issie.Tests -c Release",
+    "typecheck": "dotnet build src/Renderer/Renderer.fsproj --no-restore"
   }
 ```
 Defines the in-project shortcut commands as a set of `<key> : <value>` lines, so that when we use `npm run <script_key>` it is equivalent to calling `<script_value>`.
+
+The `pre`/`post` prefixes are npm's own: `predist` runs before `dist`, and `preversion`,
+`version` and `postversion` are the three hooks npm runs around `npm version`, which is what makes
+a release one command. `npm run test` and `npm run typecheck` are the two checks to run before a
+PR, since CI runs neither (it only checks that the app still compiles).
 
 `npm run dev` runs [dev.js](scripts/dev.js), which starts `dotnet fable watch` for the main and
 renderer processes *in parallel*, transpiling the F# to javascript and watching the F# files for
@@ -291,7 +303,7 @@ If you've built the docs and want to access the server again, you can run `dotne
 
 ### `Tests` folder
 
-The Expecto test suite: `npm run test` (which runs `dotnet run --project Tests/Issie.Tests -c Release` — Expecto uses `dotnet run`, **not** `dotnet test`). It compiles the whole renderer project under .NET, so simulation, parameter resolution, the draw block and UI helpers are all testable without Electron or a browser — around 130 tests in about 20 seconds. To add a test file, list it in `Tests/Issie.Tests/Issie.Tests.fsproj` **and** add its `tests` value to the list in `Main.fs`; missing either fails silently.
+The Expecto test suite: `npm run test` (which runs `dotnet run --project Tests/Issie.Tests -c Release` — Expecto uses `dotnet run`, **not** `dotnet test`). It compiles the whole renderer project under .NET, so simulation, parameter resolution, the draw block and UI helpers are all testable without Electron or a browser — around 209 tests in about a minute, of which two thirds is the `Issie.VerilogCompiler` group (it spawns node per parse, and is skipped when the `CI` environment variable is set). To add a test file, list it in `Tests/Issie.Tests/Issie.Tests.fsproj` **and** add its `tests` value to the list in `Main.fs`; missing either fails silently.
 
 
 ### `Static` folder

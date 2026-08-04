@@ -584,8 +584,6 @@ Key commits that shaped the current system (from `git log`):
 - edf61e87 Parameter System Support
   - Integrates `ParameterTypes.fs`, updates merger/validation, and adds comprehensive documentation.
 
-For a side-by-side comparison with an earlier streamlined approach, see `PARAMETER_SYSTEM_COMPARISON.md`.
-
 ## Known Limitations
 
 - Integer-only parameters today (`ParamInt = int`); very large constants may require future `bigint`.

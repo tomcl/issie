@@ -24,7 +24,7 @@ let inline extractBit (fd_: FData) : uint32 =
 #endif
         match fd.Dat with
         | Word n -> n
-        | BigWord _ -> failwithf "Can't extract 1 bit from BigWord data {wireData}"
+        | BigWord _ -> failwithf $"Can't extract 1 bit from BigWord data %A{fd}"
 
 let inline packBit (bit: uint32) : FData =
     if bit = 0u then

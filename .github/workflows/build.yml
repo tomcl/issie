@@ -212,7 +212,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-linux
     steps:
-    - name: Set macOS badge to passing
+    - name: Set Linux badge to passing
       uses: RubbaBoy/BYOB@v1.3.0
       with:
         NAME: build-linux

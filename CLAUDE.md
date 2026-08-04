@@ -51,7 +51,7 @@ runs one group: `dotnet run --project Tests/Issie.Tests -c Release -- --filter I
 Two-thirds of the suite's time is `Issie.VerilogCompiler`, which spawns node per parse — run it
 when touching `src/Renderer/VerilogComponent/`, and note it is skipped automatically when the
 `CI` environment variable is set (so CI runners never pay for it, and `CI=true npm run test` is
-the fast full-suite run locally, ~10s).
+the fast full-suite run locally, ~20s).
 
 Adding a test file takes two edits, and missing either fails silently: list it in
 `Tests/Issie.Tests/Issie.Tests.fsproj` (compile order matters) and add its `tests` value to the

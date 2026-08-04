@@ -638,7 +638,7 @@ let renderJumpSegment (a:ASegment) : string list=
     let dir = if rightTravel then 1.0 else -1.0
     let makePartArc d1 d2 =
         if abs d1 > jR || abs d2 > jR then
-            failwithf "d1={d1}, d2={d2}, jR={jR}"
+            failwithf $"d1={d1}, d2={d2}, jR={jR}"
         let h1 = sqrt (max 0. (jR*jR-d1*d1))
         let h2 = sqrt (max 0. (jR*jR-d2*d2))
         makePartArcAttr jR h1 d1 h2 d2

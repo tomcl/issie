@@ -48,7 +48,6 @@
 
 	  <!-- simulator -->
     <Compile Include="Simulator\SimGraphTypes.fs" />
-    <Compile Include="Simulator\BiBits.fs" />
     <Compile Include="Simulator\SimTypes.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />
     <Compile Include="Simulator\NumberHelpers.fs" />

@@ -24,7 +24,7 @@ let inline getHashDigit n (h:string) =
         int ch - charCodeF + 10
     elif ch = '-' then 0           
     else
-        failwithf "Hash to digit conversion failed on n={n}, char={ch}"
+        failwithf $"Hash to digit conversion failed on n={n}, char={ch}"
 
 let getFastHash (sha:string) =
     sha 

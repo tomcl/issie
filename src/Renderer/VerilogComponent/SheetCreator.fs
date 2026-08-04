@@ -252,6 +252,10 @@ let rec evalExprWithVarsAndParams (expr: ExpressionDU) (paramMap: Map<string, in
         let l = evalExprWithVarsAndParams lhs paramMap varSizeMap
         let r = evalExprWithVarsAndParams rhs paramMap varSizeMap
         l ^^^ r
+    | BitwiseXnor (lhs, rhs) ->
+        let l = evalExprWithVarsAndParams lhs paramMap varSizeMap
+        let r = evalExprWithVarsAndParams rhs paramMap varSizeMap
+        ~~~(l ^^^ r)
     | _ -> failwith "Expression does not evaluate to a constant integer or parameter reference"
 
 let sliceFromWordArray (lhs:AssignmentLHS) (varSizeMap: Map<string, int>) (arraySizeMap: Map<string, int * int array>) = 

@@ -445,7 +445,7 @@ module ReduceKeys =
                 |> Some
             | "C" | "W" | "P" when longId[0] = typ[0] ->
                 None                
-            | s -> failwithf "{s} is not a valid key type: 'C','W','P' are required for Component, Wire, or Port"
+            | s -> failwithf $"{s} is not a valid key type: 'C','W','P' are required for Component, Wire, or Port"
 
         member this.Reduce (typ: string) (longId:string) =
             this.ReduceID typ longId

@@ -266,6 +266,12 @@ let rec evalExprWithParams (paramExpr: ExpressionDU) (paramMap: Map<string, int>
         let l = evalExprWithParams lhs paramMap
         let r = evalExprWithParams rhs paramMap
         l ^^^ r
+    | BitwiseXnor (lhs, rhs) ->
+        // ~^ is the complement of xor, over the unsized constant's 32 bits. A negative result is
+        // no more of a problem than any other nonsensical bound: the [X:0] check rejects it.
+        let l = evalExprWithParams lhs paramMap
+        let r = evalExprWithParams rhs paramMap
+        ~~~(l ^^^ r)
     | _ -> failwith "Expression does not evaluate to a constant integer or parameter reference"
 
 
@@ -310,6 +316,10 @@ let rec evalExpr (expr: ExpressionDU) : int =
         let l = evalExpr lhs
         let r = evalExpr rhs
         l ^^^ r
+    | BitwiseXnor (lhs, rhs) ->
+        let l = evalExpr lhs
+        let r = evalExpr rhs
+        ~~~(l ^^^ r)
     | _ -> failwith "Expression does not evaluate to a constant integer"
 
 

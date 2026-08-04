@@ -50,7 +50,7 @@ looks like the exception and is not one.
 | `DrawBlock/SheetDisplay.fs` | `mountedCanvas`, `modelScrollPos` — DOM refs |
 | `DrawBlock/Sheet.fs` | `recentProgrammaticScrollPos`, `scrollSequence`, `viewIsAfterUpdateScroll` — scroll bookkeeping driven by DOM events |
 | `Main/Main.fs` | `mainWindow`, `closeAfterSave` — Electron main process, no Elmish model there |
-| `Renderer.fs` | `firstPress` — keyboard event handler |
+| `UI/KeyBindings.fs` | `modelContext` — a cached projection of the model for DOM handlers, which cannot see it and must decide `preventDefault` synchronously; `ctrlHeld` — physical modifier state, wanted on its edges and across focus loss; `keyLog` — debug-only log of what the dispatcher decided |
 | `Interface/JSHelpers.fs` | `debugLevel`, `debugTraceUI`, `loggingMemory`, `memSize` |
 | `Simulator/GraphBuilder.fs` | `simTrace` |
 | `Simulator/CanvasExtractor.fs` | `debugChangedConnections` — records what a change check saw, for tracing only |
@@ -68,8 +68,6 @@ would need the same judgement applied before moving: confirm the write frequency
   right-clicked, set in an event handler and read when the menu action fires. Cross-message
   bookkeeping of exactly the kind that belongs in `Model`. Check first whether it is written on
   every mouse event or only on right-click; if the latter, there is no performance argument.
-- **`UI/Update.fs` — `evilUIState`.** Popup/UI state, named by whoever wrote it as the problem it
-  is. Entangled with `PopupViewFunc`, so moving it means understanding that interaction first.
 - **`UI/MemoryEditorView.fs` — `dynamicMem: Memory1`.** Working state of the memory editor dialog.
   `PopupDialogData` already holds dialog state and is the obvious home. Note this one may be
   written per keystroke in a large memory table, so measure before moving.
@@ -80,3 +78,9 @@ would need the same judgement applied before moving: confirm the write frequency
   sheet open; as a global it also survived closing and reopening a project, which was a latent bug.
 - `UI/UpdateHelpers.fs` — `pendingAddedComponents` → `Model.PendingDragAddition`. Read and written
   in `sheetMsg`, which already rebuilds the model record, so the move was free.
+- `UI/Update.fs` — `evilUIState`, and `Renderer.fs` — `firstPress`. Both were absorbed by the
+  keyboard dispatcher in `UI/KeyBindings.fs`. `evilUIState` held a three-case approximation of the
+  UI context for the sole purpose of deciding whether to swallow the space bar, and got that wrong
+  in text entry; `modelContext` is the real thing, derived from the model rather than maintained by
+  hand. `firstPress` marked the Ctrl/Cmd key-down edge and is now `ctrlHeld`. Neither moved into
+  `Model`: the problem both were solving is that a DOM handler cannot read one.

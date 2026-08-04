@@ -1178,7 +1178,7 @@ let viewCatalogue model dispatch =
                     makeMenuGroupWithTip
                         styles
                         "Verilog"
-                        "Write combinational logic in Verilog and use it as a Custom Component.
+                        "Write combinational or synchronous logic in Verilog and use it as a Custom Component.
                          To edit/delete a verilog component add it in a sheet and click on 'properties'"
                         (List.append
                             [menuItem styles "New Verilog Component" (

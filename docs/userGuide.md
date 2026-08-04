@@ -252,7 +252,7 @@ You can also select your inputs to be **algebraic values** to get an expression 
 
 ## Verilog Component
 
-Last but not least, ISSIE allows you to create combinational custom components by defining the logic in Verilog. Click on `Verilog` -> `New Verilog Component` (Catalogue) and write the logic of your decoder in Verilog.
+Last but not least, ISSIE allows you to create custom components by defining their logic in Verilog — combinational logic, and also synchronous logic using `always_ff @(posedge clk)`. The supported language subset is documented on the [Verilog Components](verilogComp.html) page. Click on `Verilog` -> `New Verilog Component` (Catalogue) and write the logic of your decoder in Verilog — note that port declarations need the `bit` keyword, e.g. `input bit [15:0] instr;`.
 
 ![](img/userGuide/verilog1.png)
 

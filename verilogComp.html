@@ -132,6 +132,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
@@ -299,6 +305,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
@@ -357,114 +369,264 @@
         
 <h1><a name="ISSIE-Verilog-Components" class="anchor" href="#ISSIE-Verilog-Components">ISSIE Verilog Components</a></h1>
 <h3><a name="Introduction" class="anchor" href="#Introduction">Introduction</a></h3>
-<p>Issie allows a component defined by Verilog source code to be placed
-on any sheet from the Catalog. The component behaviour is defined by
-its synthesisable Verilog which can be opened and edited from Properties. The editor provides syntax highlighting and error checking.</p>
-<h3><a name="Syntax" class="anchor" href="#Syntax">Syntax</a></h3>
-<p>Both old and new style syntax are supported.</p>
-<h4><a name="Old-style-example" class="anchor" href="#Old-style-example">Old style example</a></h4>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">module decoder(instr,carry,negative,jump,mux1_sel,mux2_sel);
-    input [15:0] instr;
-    input carry,negative;
-    output jump,mux1_sel,mux2_sel;
-
-    wire [3:0] opc = instr[15:12];
-
-    assign jump = opc[0] ? c|n : c&amp;n|op[1]; 
-    assign mux1_sel = (&amp;op[3:2]);
-    assign mux2_sel = negative;
-
+<p>An ISSIE component can be defined by Verilog source instead of a schematic. The component can then
+be placed on any sheet from the Catalogue, like any custom component. Create one with
+<code>Verilog</code> -&gt; <code>New Verilog Component</code> in the Catalogue; edit an existing one from its Properties
+pane (the component's name cannot change once created). The editor has syntax highlighting and
+checks the code as you type: the Save button stays disabled until the code compiles, and many
+errors come with a one-click fix.</p>
+<p>The accepted language is a subset of <strong>SystemVerilog</strong>: combinational logic (<code>assign</code>,
+<code>always_comb</code>) <em>and</em> synchronous logic (<code>always_ff @(posedge clk)</code>), plus parameters, arrays,
+<code>if</code>/<code>case</code>/<code>for</code>, and instantiation of other project components. Behind the scenes the code is
+compiled to an ordinary ISSIE sheet built from standard components, so a Verilog component
+simulates exactly like the equivalent schematic.</p>
+<p>This page documents what is implemented, exactly. Anything not listed here is not supported —
+notably there are <strong>no</strong> <code>initial</code> blocks, no <code>always @(...)</code> (use <code>always_comb</code>/<code>always_ff</code>), no
+<code>reg</code>/<code>logic</code> declarations (use <code>bit</code>/<code>wire</code>), no <code>casez</code>/<code>casex</code>, no functions, tasks or
+<code>generate</code>, no <code>/</code>, <code>%</code> or <code>**</code> operators, no tri-state logic, no <code>$</code>-system tasks, no
+<code>`</code>-directives, only <code>//</code> comments (not <code>/* */</code>), and one module per file.</p>
+<h3><a name="Module-declaration" class="anchor" href="#Module-declaration">Module declaration</a></h3>
+<p>Both old-style and new-style (ANSI) headers are supported. Port declarations <strong>must include the
+<code>bit</code> keyword</strong> — <code>input [15:0] instr;</code> is rejected, <code>input bit [15:0] instr;</code> is required.</p>
+<p>Old style — ports named in the header, declared in the body:</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">module decoder(instr, carry, negative, jump, mux1_sel, mux2_sel);
+input bit [15:0] instr;
+input bit carry;
+input bit negative;
+output bit jump;
+output bit mux1_sel;
+output bit mux2_sel;
+wire [3:0] opc;
+assign opc = instr[15:12];
+assign jump = opc[0] ? carry | negative : carry &amp; negative | opc[1];
+assign mux1_sel = (&amp;opc) &amp; carry;
+assign mux2_sel = jump | instr[3];
 endmodule
 </code></pre></td></tr></table>
-<h4><a name="New-style-example" class="anchor" href="#New-style-example">New style example</a></h4>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">module decoder(
-    input [15:0] instr,
-    input carry,negative,
-    output jump,mux1_sel,mux2_sel
-);
-
-    wire [3:0] opc = instr[15:12];
-
-    assign jump = opc[0] ? c|n : c&amp;n|op[1]; 
-    assign mux1_sel = (&amp;op[3:2]);
-    assign mux2_sel = negative;
-
+<p>New style — ports declared in the header; this is also the only form that can take a parameter
+list:</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">module decoder2 #(parameter W = 16)(input bit [W-1:0] instr, input bit carry, output bit jump);
+always_comb begin
+    if (carry) jump = instr[0];
+    else jump = instr[1];
+end
 endmodule
 </code></pre></td></tr></table>
+<p>Rules that the checker enforces:</p>
+<ul>
+<li>Every port must be declared as <code>input</code> or <code>output</code>, exactly once, and every input must be used.</li>
+<li>
+Bus ranges must be of the form <code>[N-1:0]</code> (i.e. ending at 0, MSB first). Range bounds may be
+expressions of parameters.
+</li>
+<li>
+Every bit of every output must be assigned, on every path (no accidental latches), and no bit
+may be driven twice.
+</li>
+</ul>
+<h3><a name="Identifiers" class="anchor" href="#Identifiers">Identifiers</a></h3>
+<p>Standard Verilog rules: a letter or underscore first, then letters, digits, <code>_</code> and <code>$</code>
+(so <code>_state</code> and <code>count$next</code> are fine; a leading <code>$</code> is reserved for system tasks, which are
+not supported).</p>
+<h3><a name="Declarations" class="anchor" href="#Declarations">Declarations</a></h3>
+<ul>
+<li>
+Internal signals: <code>wire x;</code>, <code>bit x;</code>, <code>wire [7:0] y;</code>, <code>bit [7:0] y;</code> — <code>wire</code> and <code>bit</code> are
+treated identically. Declare before use.
+</li>
+<li>
+Declaration with initial value uses <code>bit</code>: <code>bit [3:0] opc = instr[15:12];</code> (this is a
+continuous assignment, not a reset value).
+</li>
+<li>
+Arrays (memories): <code>bit [7:0] mem [15:0];</code> — at most 2 dimensions, not allowed as ports.
+Arrays compile to one register (or wire) per word, so they are for small structures like
+register files, not large RAMs.
+</li>
+<li>
+<code>parameter N = 4;</code> in the body, or <code>#(parameter N = 4, M = 2)</code> in a new-style header.
+<code>localparam</code> is not supported.
+</li>
+</ul>
 <h3><a name="Numbers" class="anchor" href="#Numbers">Numbers</a></h3>
-<p>Numbers are given in the form: <code>{width}'{radix}{value}</code>, where radix = <code>'b</code> or <code>'d</code> or <code>'h</code></p>
-<p>e.g. 16'h3fa5 , 4'b0101, 16'd154</p>
-<h3><a name="Operators" class="anchor" href="#Operators">Operators</a></h3>
-<p>Operators perform an operation on one or more operands within an expression. An expression combines operands with appropriate operators to produce the desired functional expression.</p>
-<p>The table shows the operators in descending order of precedence. Operators with equal precedence are shown grouped.</p>
+<p>Numbers can be written in binary, hexadecimal or decimal form, sized or unsized:</p>
 <table>
 <thead>
 <tr class="header">
-<th align="center"><p>Verilog Operator</p></th>
-<th align="center"><p>Name</p></th>
-<th align="center"><p>Notes and example</p></th>
+<th align="center"><p>Form</p></th>
+<th align="left"><p>Meaning</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="center"><p>[ ]</p></td>
-<td align="center"><p>bit-select or part-select</p></td>
-<td align="center"><p>Used to select specific bits of a bus signal. Example: <code>instr[15:8]</code></p></td>
+<td align="center"><p><code>16'h3fa5</code></p></td>
+<td align="left"><p>16-bit hexadecimal</p></td>
 </tr>
 <tr class="even">
-<td align="center"><p>( )</p></td>
-<td align="center"><p>parenthesis</p></td>
-<td align="center"><p>Used to define the order of operations. Example: <code> (a &verbar; b) &amp; c</code></p></td>
+<td align="center"><p><code>4'b0101</code></p></td>
+<td align="left"><p>4-bit binary</p></td>
 </tr>
 <tr class="odd">
-<td align="center"><p>! <br> ~ <br> (&amp;) <br> (\|) <br> (~&amp;) <br> (~\|)</p></td>
-<td align="center"><p>logical negation <br> negation <br> reduction AND <br> reduction OR <br> reduction NAND <br> reduction NOR</p></td>
-<td align="center"><p>The Verilog reduction operators are used to convert vectors to scalars. They operate on all of the bits in a vector to convert the answer to a single bit. <br> AND Reduction of 4'b1101 is: 0 <br> AND Reduction of 4'b1111 is: 1 <br> OR Reduction of 4'b1101 is: 1 <br> OR Reduction of 4'b0000 is: 0 <br> Example: <code>assign out = (&amp;a);</code></p></td>
+<td align="center"><p><code>16'd154</code></p></td>
+<td align="left"><p>16-bit decimal</p></td>
 </tr>
 <tr class="even">
-<td align="center"><p>{ }</p></td>
-<td align="center"><p>concatenation</p></td>
-<td align="center"><p>Example: <code>{a[2:0],b[3:2],2'b01}</code> -&gt; result is 7 bits</p></td>
+<td align="center"><p><code>42</code></p></td>
+<td align="left"><p>unsized decimal, treated as 32 bits</p></td>
 </tr>
 <tr class="odd">
-<td align="center"><p>+ <br> –</p></td>
-<td align="center"><p>binary plus <br> binary minus</p></td>
-<td align="center"><p>The two operands must be of equal width N. The result is also N bits.</p></td>
-</tr>
-<tr class="even">
-<td align="center"><< <br> >> <br> >>></td>
-<td align="center"><p>logical shift left <br> logical shift right <br> arithmetic shift right</p></td>
-<td align="center"><p>The second operand of a shift is an unsigned integer. Example: <code>assign out[5:0] = in[5:0] << 3;</code> The result has the width of the input.</p></td>
-</tr>
-<tr class="odd">
-<td align="center"><p>&amp;</p></td>
-<td align="center"><p>bit-wise AND</p></td>
-<td align="center"><p>The two operands must have the same width.</p></td>
-</tr>
-<tr class="even">
-<td align="center"><p>^ <br> ~^ or ^~</p></td>
-<td align="center"><p>bit-wise XOR <br> bit-wise XNOR</p></td>
-<td align="center"><p>As above.</p></td>
-</tr>
-<tr class="odd">
-<td align="center"><p>\|</p></td>
-<td align="center"><p>bit-wise OR</p></td>
-<td align="center"><p>As above.</p></td>
-</tr>
-<tr class="even">
-<td align="center"><p>&amp;&amp;</p></td>
-<td align="center"><p>logical AND</p></td>
-<td align="center"><p>Logical means that 0-&gt;false, anything else -&gt; true. Operands can have different width.</p></td>
-</tr>
-<tr class="odd">
-<td align="center"><p>\|\|</p></td>
-<td align="center"><p>logical OR</p></td>
-<td align="center"><p>As above.</p></td>
+<td align="center"><p><code>4'd(N)</code></p></td>
+<td align="left"><p>parameter-valued constant (parameter <code>N</code>)</p></td>
 </tr>
 </tbody>
 </table>
 
-<p>| ? : | conditional | Like an if-statement, corresponds to a MUX. Example: <code>assign jump = opc[0] ? c|n : c&amp;n|op[1];</code> |</p>
+<p>No <code>x</code>/<code>z</code> values, no <code>_</code> separators, no octal, no signed literals. A sized number must fit its
+stated width, and widths must be consistent: the checker verifies that the right-hand side of
+every assignment fits the left-hand side.</p>
+<h3><a name="Operators" class="anchor" href="#Operators">Operators</a></h3>
+<p>In descending order of precedence (operators in one row have equal precedence):</p>
+<table>
+<thead>
+<tr class="header">
+<th align="center"><p>Operator</p></th>
+<th align="left"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center"><p><code>[ ]</code></p></td>
+<td align="left"><p>bit select <code>x[3]</code>, part select <code>x[7:4]</code> (constant or variable index)</p></td>
+</tr>
+<tr class="even">
+<td align="center"><p><code>( )</code></p></td>
+<td align="left"><p>grouping</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p><code>~</code>, <code>(&amp;a)</code>, <code>(\|a)</code>, <code>(~&amp;a)</code>, <code>(~\|a)</code>, <code>(!a)</code></p></td>
+<td align="left"><p>bitwise NOT; reduction AND/OR/NAND/NOR and logical NOT, which must be written <strong>in parentheses</strong></p></td>
+</tr>
+<tr class="even">
+<td align="center"><p><code>*</code></p></td>
+<td align="left"><p>multiply (result truncated to operand width)</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p><code>+</code>  <code>-</code></p></td>
+<td align="left"><p>add, subtract; operands must have equal width N, result is N bits</p></td>
+</tr>
+<tr class="even">
+<td align="center"><p><code>&lt;&lt;</code>  <code>&gt;&gt;</code>  <code>&gt;&gt;&gt;</code></p></td>
+<td align="left"><p>shift left / right / arithmetic right; shift amount is an unsigned constant or variable</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p><code>&lt;</code>  <code>&lt;=</code>  <code>&gt;</code>  <code>&gt;=</code></p></td>
+<td align="left"><p>comparison (unsigned), 1-bit result</p></td>
+</tr>
+<tr class="even">
+<td align="center"><p><code>==</code>  <code>!=</code></p></td>
+<td align="left"><p>equality, 1-bit result</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p><code>&amp;</code></p></td>
+<td align="left"><p>bitwise AND (equal widths)</p></td>
+</tr>
+<tr class="even">
+<td align="center"><p><code>^</code>  <code>~^</code>  <code>^~</code></p></td>
+<td align="left"><p>bitwise XOR / XNOR (equal widths)</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p><code>\|</code></p></td>
+<td align="left"><p>bitwise OR (equal widths)</p></td>
+</tr>
+<tr class="even">
+<td align="center"><p><code>&amp;&amp;</code></p></td>
+<td align="left"><p>logical AND (operands may differ in width; 0 is false)</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p><code>\|\|</code></p></td>
+<td align="left"><p>logical OR</p></td>
+</tr>
+<tr class="even">
+<td align="center"><p><code>? :</code></p></td>
+<td align="left"><p>conditional — compiles to a multiplexer</p></td>
+</tr>
+<tr class="odd">
+<td align="center"><p><code>{ }</code></p></td>
+<td align="left"><p>concatenation, e.g. <code>{a[2:0], b[3:2], 2'b01}</code> — right-hand side only</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Notable restrictions:</p>
+<ul>
+<li>There is no division <code>/</code>, modulus <code>%</code>, power <code>**</code>, or unary minus.</li>
+<li>
+Logical NOT and the reductions exist only in parenthesised form: <code>(!a)</code>, <code>(&amp;a)</code> — a bare <code>!a</code>
+is a syntax error.
+</li>
+<li>
+A conditional cannot nest inside another conditional's arms; use an intermediate signal or an
+<code>if</code>/<code>else</code> chain in an <code>always_comb</code> block instead.
+</li>
+<li>Concatenation is not allowed on the left-hand side of an assignment.</li>
+</ul>
+<h3><a name="Continuous-assignment" class="anchor" href="#Continuous-assignment">Continuous assignment</a></h3>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">assign out = expression;
+</code></pre></td></tr></table>
+<p>One assignment per statement. The left-hand side may be a whole signal, a bit (<code>out[3] = …</code>,
+including a variable index) or a part select (<code>out[7:4] = …</code>); assigning bits or slices
+separately is fine as long as every output bit ends up assigned exactly once.</p>
+<h3><a name="Procedural-blocks" class="anchor" href="#Procedural-blocks">Procedural blocks</a></h3>
+<p>Two forms only:</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">always_comb begin ... end                    // combinational: blocking assignments (=) only
+always_ff @(posedge clk) begin ... end       // synchronous: non-blocking assignments (&lt;=) only
+</code></pre></td></tr></table>
+<p>Signals assigned in an <code>always_ff</code> become registers. The clock is special: it must be an input
+port named exactly <code>clk</code>, of width 1, and it may not be used in any expression — it can only
+appear in <code>@(posedge clk)</code>. Sheets built from a Verilog component share ISSIE's single global
+clock, like every other clocked ISSIE component.</p>
+<p>Inside a block you can use:</p>
+<ul>
+<li>
+<code>if (cond) ... else if (...) ... else ...</code> — compiles to multiplexers. In <code>always_comb</code> every
+variable assigned anywhere must be assigned on every path (else the checker reports a possible
+latch); in <code>always_ff</code> a missing branch means "hold value", as usual.
+</li>
+<li>
+<code>case (expr) ... endcase</code> — labels must be numeric literals of the same width as the
+expression, with no duplicates; multiple labels per item (<code>2'd0, 2'd1:</code>) and a <code>default</code> (last)
+are supported. <code>casez</code>/<code>casex</code> are not.
+</li>
+<li>
+<code>for (i = 0; i &lt; N; i = i + 1) ...</code> — bounds must be compile-time constants; the loop is fully
+unrolled at compile time, and the unrolled size is capped (around 500 components) to keep the
+generated sheet manageable. The loop variable needs no declaration and creates no hardware.
+</li>
+<li>
+A variable read in <code>always_comb</code> must not be written later in the same block, and combinational
+dependency cycles across the design are rejected.
+</li>
+</ul>
+<h3><a name="Module-instantiation" class="anchor" href="#Module-instantiation">Module instantiation</a></h3>
+<p>A Verilog component can instantiate other components of the current project (Verilog or
+schematic), by name, with <strong>named</strong> port connections:</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="verilog">adder4 add1 (.a(x), .b(y), .sum(s));
+counter #(.N(8)) c1 (.en(enable), .q(count));
+</code></pre></td></tr></table>
+<ul>
+<li>Positional connections are not supported; every port must be connected, each exactly once.</li>
+<li>The instantiated component must already exist in the project.</li>
+<li>
+Parameter overrides (<code>#(.N(8))</code>) work on Verilog components that declare parameters: ISSIE
+creates and saves a specialised copy of the component's sheet with the overridden value.
+</li>
+</ul>
+<h3><a name="What-the-compiler-generates" class="anchor" href="#What-the-compiler-generates">What the compiler generates</a></h3>
+<p>The Verilog is synthesised to a normal ISSIE sheet: expressions become gates, adders,
+multiplexers, bus selections and merges; <code>always_ff</code> variables become registers; arrays become
+banks of registers (there is currently no RAM/ROM inference); instantiations become the
+corresponding custom components. You can open the generated sheet like any other and watch it in
+the step simulator or wave simulator.</p>
 
         
     </div>
@@ -483,18 +645,18 @@ endmodule
     </a>
   </li>
   <li class="level-3">
-    <a href="#Syntax">
-      Syntax
+    <a href="#Module-declaration">
+      Module declaration
     </a>
   </li>
-  <li class="level-4">
-    <a href="#Old-style-example">
-      Old style example
+  <li class="level-3">
+    <a href="#Identifiers">
+      Identifiers
     </a>
   </li>
-  <li class="level-4">
-    <a href="#New-style-example">
-      New style example
+  <li class="level-3">
+    <a href="#Declarations">
+      Declarations
     </a>
   </li>
   <li class="level-3">
@@ -505,6 +667,26 @@ endmodule
   <li class="level-3">
     <a href="#Operators">
       Operators
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Continuous-assignment">
+      Continuous assignment
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Procedural-blocks">
+      Procedural blocks
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Module-instantiation">
+      Module instantiation
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-the-compiler-generates">
+      What the compiler generates
     </a>
   </li>
 </ul>

@@ -132,6 +132,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
@@ -295,6 +301,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
 
   </a>
 </li>             
@@ -545,6 +557,106 @@
             <div>
               <code onmouseout="hideTip(event, '1882', 1882)" onmouseover="showTip(event, '1882', 1882)">
                 <p>
+                  <a id="layoutCanvas">
+                    <a href="#layoutCanvas">
+                      <code><span>layoutCanvas&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1882">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>layoutCanvas&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span></span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        arg0
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg1
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:SheetLayout.layoutCanvas`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SheetLayout.layoutCanvas\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L461-461" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Lay out an existing canvas: resize every component to what the app will actually draw
+ (createSymbolRecord, as buildComponent does), position the body by recursive bisection and
+ pin Inputs and Outputs to edge columns in the order they appear in the component list —
+ which therefore must be the sheet's intended port order, since a sheet's own port order is
+ read off its I/O positions. Connections are untouched: with no vertices they are re-routed
+ on load. Used by the Verilog compiler for its generated sheets.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg0
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg1
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1883', 1883)" onmouseover="showTip(event, '1883', 1883)">
+                <p>
                   <a id="paramDefsOf">
                     <a href="#paramDefsOf">
                       <code><span>paramDefsOf&#32;<span>sheet</span></span></code>
@@ -552,7 +664,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1882">
+              <div class="fsdocs-tip" id="1883">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>paramDefsOf&#32;<span>sheet</span></span></code>
@@ -589,7 +701,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SheetLayout.paramDefsOf\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L465-465" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L479-479" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -627,7 +739,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1883', 1883)" onmouseover="showTip(event, '1883', 1883)">
+              <code onmouseout="hideTip(event, '1884', 1884)" onmouseover="showTip(event, '1884', 1884)">
                 <p>
                   <a id="saveLibraryComponent">
                     <a href="#saveLibraryComponent">
@@ -636,7 +748,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1883">
+              <div class="fsdocs-tip" id="1884">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>saveLibraryComponent&#32;<span>libPath&#32;description&#32;dependencies&#32;sheet</span></span></code>
@@ -697,7 +809,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SheetLayout.saveLibraryComponent\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L580-580" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L594-594" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -758,7 +870,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1884', 1884)" onmouseover="showTip(event, '1884', 1884)">
+              <code onmouseout="hideTip(event, '1885', 1885)" onmouseover="showTip(event, '1885', 1885)">
                 <p>
                   <a id="saveProject">
                     <a href="#saveProject">
@@ -767,7 +879,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1884">
+              <div class="fsdocs-tip" id="1885">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>saveProject&#32;<span>folder&#32;sheets</span></span></code>
@@ -812,7 +924,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SheetLayout.saveProject\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L611-611" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L625-625" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -855,7 +967,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1885', 1885)" onmouseover="showTip(event, '1885', 1885)">
+              <code onmouseout="hideTip(event, '1886', 1886)" onmouseover="showTip(event, '1886', 1886)">
                 <p>
                   <a id="saveSheet">
                     <a href="#saveSheet">
@@ -864,7 +976,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1885">
+              <div class="fsdocs-tip" id="1886">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>saveSheet&#32;<span>folder&#32;sheet</span></span></code>
@@ -909,7 +1021,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SheetLayout.saveSheet\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L556-556" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L570-570" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -952,7 +1064,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1886', 1886)" onmouseover="showTip(event, '1886', 1886)">
+              <code onmouseout="hideTip(event, '1887', 1887)" onmouseover="showTip(event, '1887', 1887)">
                 <p>
                   <a id="toCanvasState">
                     <a href="#toCanvasState">
@@ -961,7 +1073,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1886">
+              <div class="fsdocs-tip" id="1887">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>toCanvasState&#32;<span>sheet</span></span></code>
@@ -998,7 +1110,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SheetLayout.toCanvasState\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L525-525" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/SheetLayout.fs#L539-539" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

@@ -132,6 +132,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
@@ -299,6 +305,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
@@ -356,10 +368,46 @@
     <div id="content">
         
 <h1><a name="Verilog-output" class="anchor" href="#Verilog-output">Verilog output</a></h1>
-<p>ISSIE can output any design as <em>synthesisable</em> or <em>simulatable</em> Verilog HDL. Every ISSIE design sheet is turned into a single Verilog module. The <strong>Verilog output</strong> Sheet menu item leads to a dialog screen:</p>
-<p><img src="img/verilog-output.png" alt="" /></p>
-<p>The buttons provide help on how to generate and use output with <strong>Verilog simulation</strong> or the <strong>Issie-stick FPGA hardware</strong>.</p>
-<p>Verilog output is not currently used much: but the code to generate it is very simple and easily changed. Please add issues if what currently exists does not fit your requirements.</p>
+<p>ISSIE can write a design out as <em>synthesisable</em> or <em>simulatable</em> Verilog. The whole design —
+the chosen sheet with all of its subsheets flattened — becomes a single Verilog module named
+<code>main</code>, plus one small generated module per RAM/ROM component.</p>
+<p>To write a design as Verilog, right-click the sheet's name in the sheet menu (the breadcrumb of
+sheets at the top of the canvas) and choose <strong>Write design as Verilog</strong>. A dialog offers the two
+flavours, and help on using each:</p>
+<ul>
+<li>
+<strong>Synthesis Verilog</strong> — inputs and <code>clk</code> are module ports; suitable for synthesis tools such
+as yosys, and used by ISSIE's own FPGA build flow (see <a href="issiestick.html">the ISSIE-Stick page</a>,
+and the <strong>Build</strong> tab, which drives yosys/nextpnr/icepack/iceprog directly).
+</li>
+<li>
+<strong>Simulation Verilog</strong> — inputs become internal registers initialised to the values they had
+in the ISSIE simulator, and a testbench <code>initial</code> block runs the clock and <code>$display</code>s the
+outputs each cycle; suitable for running under a Verilog simulator such as Icarus Verilog.
+</li>
+</ul>
+<p>The file is written as <code>&lt;sheet&gt;.v</code> in the project directory.</p>
+<h3><a name="Shape-of-the-output" class="anchor" href="#Shape-of-the-output">Shape of the output</a></h3>
+<p>The generated code is plain Verilog-2001: a non-ANSI module header, <code>wire</code>/<code>reg</code> declarations,
+combinational logic as <code>assign</code> statements (with <code>?:</code> for multiplexers), sequential components as
+one-line <code>always @(posedge clk)</code> statements, and each memory as its own generated module with an
+<code>initial</code>-block preload, instantiated positionally. Identifiers are derived from component
+labels, upper-cased, with <code>$</code>-separated suffixes distinguishing subsheet instances and multiple
+outputs.</p>
+<p>Current limitations:</p>
+<ul>
+<li>Buses wider than 64 bits are not supported (output fails with an error).</li>
+<li>One design per file; the module is always called <code>main</code>.</li>
+<li>
+The emitted Verilog is <em>not</em> accepted by ISSIE's own <a href="verilogComp.html">Verilog component input</a>,
+which reads a different (SystemVerilog-flavoured) subset — so a design exported from ISSIE
+cannot currently be re-imported as a Verilog component. The gap between the two is analysed in
+<a href="https://github.com/tomcl/issie/blob/master/docs/dev/verilogRoundTrip.md">docs/dev/verilogRoundTrip.md</a>.
+</li>
+</ul>
+<p>The generating code (<code>src/Renderer/VerilogComponent/Verilog.fs</code>) is simple and easily changed;
+it is exercised by the <code>Issie.VerilogOutput</code> test group. Please add issues if what currently
+exists does not fit your requirements.</p>
 
         
     </div>
@@ -370,6 +418,11 @@
   <li class="level-1">
     <a href="#Verilog-output">
       Verilog output
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Shape-of-the-output">
+      Shape of the output
     </a>
   </li>
 </ul>

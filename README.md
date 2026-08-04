@@ -23,10 +23,10 @@ For more technical info about the project, read on. This documentation is partly
 
 For the Issie website go [here](https://tomcl.github.io/issie/).
 
-The application is mostly written in F#, which gets transpiled to JavaScript via the [Fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. [Electron](electronjs.org) provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
+The application is mostly written in F#, which gets transpiled to JavaScript via the [Fable](https://fable.io/) compiler. [Electron](https://www.electronjs.org/) is then used to convert the developed web-app to a cross-platform application. Electron provides access to platform-level APIs (such as access to the file system) which would not be available to vanilla browser web-apps.
 
-[Webpack 5](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process: the electron-webpack build 
-is automated using the pre-existing scripts under the [scripts](scripts/) directory.
+[Webpack 5](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process: the build 
+is automated using the scripts under the [scripts](scripts/) directory.
 
 The drawing capabilities are provided (now) by a custom schematic editor library implemented in F# and specialised for digital components.
 
@@ -41,7 +41,7 @@ The choice of F# as main programming language for the app has been dictated by a
 ## Getting Started
 
 If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and
-download and run the latest prebuilt binary for your platform (Windows or Macos). Issie will require in total about 200M of disk space.
+download and run the latest prebuilt binary for your platform (Windows, macOS or Linux). Issie will require in total about 200M of disk space.
 
 * Windows: unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
     * If you get a security warning saying something like: *Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.
@@ -51,6 +51,7 @@ More info* then:
 * Macos: Double click the dmg file  and run the application inside the folder, or drag and drop this to install.
     * If Macos asks you to do this, you will need to change your security settings to allow apps not downloaded from app store
     * *Apple* -> *System settings* -> *Privacy & Security* -> (find at bottom of options by scrolling) *Allow Applications From* ->  *App Store and Known Developers*
+* Linux: unzip \*.zip anywhere and run the `issie` executable in the unzipped files.
 
       
 
@@ -67,62 +68,82 @@ Once you open up Issie and are ready to go, feel free to open one of the Demo Pr
 
 ## Getting Started as Developer
 
-If you want to get started as a developer, follow these steps.
+### Prerequisites (common to Windows, macOS, Linux)
 
-### Development Install Prerequisites (common to windows, macos, linux)
+Download and install (if you already have these tools, just check the versions):
 
-Download and install (if you already have these tools installed just check the version constraints).
+* [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Check with `dotnet --version`.
+* [Node.js v22 LTS](https://nodejs.org/en/download) or later, which includes `npm`. Check with `node -v`.
+    * After installing, update npm itself: `npm install -g npm@latest`.
+    * If other projects need a different Node version, use a version manager (nvm, fnm) rather
+      than switching global installs.
+* (recommended) An F# editor: [VS Code](https://code.visualstudio.com/) with the
+  [Ionide extension](https://ionide.io/), or Visual Studio (workload ".NET desktop development"
+  with "F# language support" ticked), or JetBrains Rider.
+* On Windows, run the commands below from a cmd terminal (in Windows Terminal, set the default
+  profile to Command Prompt rather than PowerShell): the helper scripts are `.cmd` files.
 
+### First build
 
-* [.Net 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).  
-* [Node.js v22](https://nodejs.org/en/download/prebuilt-installer/current).
-    * You do not need to install chocolatey (at the prompt for this) however you can if you want
-    * Node.js includes the `npm` package manager, so this does not need to be installed separately.
-         * However as of Dec 2024 v22 node does not include the necessary latest v11 npm. After installing node you must update npm as follows
-              * npm install -g npm@latest
-              * After upgrade npm --version should return 11.x.x
-    * If you are using a different version of Node for development on other projects, global install 
-    (the default) may interfere with this. You will need to do a more complex local node install.
-* (recommended) Visual Studio 2022 which includes F# 8.0, Install with:
-  * Workload: .Net Desktop development
-  * Ticked: F# language support
-* (recommended) install [hyper.js](https://hyper.is/) or [Windows Terminal](https://github.com/microsoft/terminal) for Windows. On windows change terminal settings if needed so terminal runs cmd window not powershell.
+1. Clone the [Issie repo](https://github.com/tomcl/ISSIE) locally, or fork it on GitHub and clone
+   your fork. (Downloading as a zip also works: on Windows first right-click the zip file,
+   select Properties, and click **Unblock**, then extract.)
 
-### Issie Development
+2. In the repo root run `build.cmd` (Windows) or `./build.sh` (macOS/Linux; run
+   `chmod 755 build.sh` first if it is not executable). This restores the pinned dotnet tools
+   (Fable, Paket, FAKE), installs all .NET and npm packages, deletes stale generated JavaScript,
+   compiles everything, and starts the app in dev mode. The first compile takes a minute or two.
 
-1. Download & unzip the [Issie repo](https://github.com/tomcl/ISSIE), or clone it locally, or fork it on github and then clone it locally.
-   - If downloading as zip you must on Windows unblock the zip file's MOTW mark. In file explorer, right-clik on the zip file and select properties. Then click `unblock`.
-   - Afte unblocking extract all files from the zip file as normal.
+### Day-to-day development
 
-3. Check you have the .NET and Node prerequisites above if you want to do more than make binaries, also: VS 2022 (or latest VS Code + ionide, or Rider) installed.
-   * In a terminal window: `node -v` shows Node version. `dotnet --version` shows Dotnet version.
+`build.cmd`/`build.sh` is only needed once, or again when dependencies change. After that, use
+the npm scripts directly - they are much faster:
 
-4. Navigate from the repo master branch root directory (which contains this README), in a command-line interpreter, or start one from directory context menu.
+* `npm run dev` - the normal dev loop: compiles the two F# projects in parallel with
+  `fable watch` and starts the app. Saving an F# source file recompiles it and hot-reloads the
+  running app (use the app's `File -> Reload` if the two ever get out of step). When nothing has
+  changed since the last compile, the app starts in a few seconds.
+* `npm run dev:once` - compile once and start the app, with no watcher: the fastest way to just
+  run Issie from source.
+* `npm run debug` - dev mode with runtime assertions enabled; noticeably slower.
+* `npm run test` - the Expecto test suite: ~130 tests in ~20 s covering simulation, parameter
+  resolution and the draw block, all under plain .NET with no Electron.
+  `npm run test -- --filter Issie.<GroupName>` runs one group.
+* `npm run typecheck` - type-check the renderer under .NET without Fable: the quickest way to
+  find out whether a change compiles, with better error messages than Fable's.
+* `npm run dist` - production binaries for your platform, under `dist/`.
+* `npm version patch|minor|major` - (maintainers, on master) make a release: syncs the version
+  in `package.json` and `Version.fs`, commits, tags and pushes; CI then builds all platforms and
+  publishes the GitHub release.
 
-5. Run `build.cmd` under Windows or `build.sh` under linux or macos (`chmod 755 build.sh` will give the script execute permission). This will download and install all dependencies then launch the application in dev mode with HMR.
-     
-  * HMR: the application will automatically recompile and update while running if you save updated source files
-  * To initialise and reload: `File -> reload page`
-  * To exit: after you exit the application the auto-compile script will terminate after about 15s
-  * To recompile the whole application again run `npm run dev`. Run `npm run debug` for the debug mode (this is going to be a lot slower than dev).
-  * To generate distributable binaries for dev host system `npm run dist`.
-  * If you have changed `packet.json` and therefore need to remake the lock file `paket-lock.json` use `npm install`.
-  * On windows `build killzombies` will terminate orphan node and dotnet processes which occasionally happen using this build chain after unusual terminations (maybe no longer needed?)
+Other points:
 
-6. **To make binaries only**. Cancel dev mode (two ctrl-C in command window) if it is running. Run `npm run dist` in command window to generate binaries under `.\dist` directory. For macos you will need to install python 3 to compile native binaries - you will be auto-prompted to do this but will then need to run `npm run dist` again.
+* To exit dev mode, close the app window and Ctrl-C the watch script in the terminal.
+* Orphan node/dotnet processes occasionally survive unusual terminations; kill them with
+  `npm run clean-dev-win` (Windows) or `npm run clean-dev-mac` (macOS).
+* If you change `package.json`, run `npm install` to update `package-lock.json`, and commit both.
+* Why a dev start is sometimes near-instant and sometimes a full recompile - Fable's caching
+  rules and the things that silently defeat them - is explained in
+  [docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md).
 
-NB - in parallel with the above compilation, Issie code will always compile without errors (but not run) under dotnet, for example by building it from Visual Studio. Compilation should be identical but when unsure why there is an error it is **very helpful** to build the current code under .Net with VS or VSC and get easier to find error messages. Similarly, VS or VSC can be used with confidence to refactor code, testing with compilation. Building under VS or VSC cannot work because the code depends on Electron and Node APIs to work.
+### Working in an IDE
+
+Issie also compiles - but cannot run - as a normal .NET solution (`issie.sln`), since at runtime
+the code needs Electron and browser APIs. This is very useful: when a Fable error is unclear,
+building under .NET (Visual Studio, Ionide, Rider, or `npm run typecheck`) gives much better
+error messages, and refactorings can be checked by a .NET compile without touching the app. One
+caveat: code inside `#if FABLE_COMPILER` branches is only checked by an actual Fable compile.
 
 #### Node management details
 
-* `package-lock.json` contains exact package versions and is downloaded from the repo. Normally you don't need to change this. The standard build above will run `npm ci` which checks and audits packages but does not change the lock file.
-* If you need to add upgrade a package (in `package.json1`) use `npm install` to recreate a lock file, which can be pushed to the repo.
-* Single packages can conveniently be changed or added using `npm upgrade name` or `npm [-D] install name` instead of editing `package.json`.  
-* If a package audits with a problem use `npm ls name` to find which of the required packages use it (usually upgrading or replacing them will remove the problem).
+* `package-lock.json` contains exact package versions and comes from the repo. Normally you don't need to change it. The standard build runs `npm ci`, which installs exactly the locked versions and does not change the lock file.
+* If you add or upgrade a package in `package.json`, run `npm install` to recreate the lock file, and commit it.
+* Single packages can conveniently be changed or added using `npm upgrade name` or `npm install [-D] name` instead of editing `package.json`.
+* If a package audits with a problem use `npm ls name` to find which of the required packages use it (usually upgrading or replacing them will remove the problem). Production dependencies are the ones that matter - they ship to users - and are checked by `npm run audit:prod`, which also runs automatically before `npm run dist`.
 
-#### Development on Macos
+#### Development on macOS
 
-A clean build will work equally well on macos, however things are more likely to go wrong if you have previously installed conflicting packages:
+A clean build will work equally well on macOS, however things are more likely to go wrong if you have previously installed conflicting packages:
 
 * Legacy versions of `dotnet` - can if needed be removed [as here](https://stackoverflow.com/questions/44089518/how-can-i-uninstall-dotnet-core-from-macos-sierra):
 
@@ -136,19 +157,30 @@ A clean build will work equally well on macos, however things are more likely to
   * ``chown -R `whoami` dir``
 for each directory that might have the files with bad permissions. Typically your dev directory `.` and `/usr/local`.
 * Uninstalling and reinstalling latest dotnet is helpful if dotnet has been installed wrong.
-* For Apple silicon Mac users, you should use the Arm64 version of .NET in order to get the best results. You can get it from the official Microsoft Website, using their installer. 
+* For Apple silicon Mac users, you should use the Arm64 version of .NET in order to get the best results. You can get it from the official Microsoft Website, using their installer.
+* `npm run dist` may prompt you to install Python 3 (needed to compile native modules). Install it and run `npm run dist` again.
 
 
 ### Under the hood for developers
 
-Although the dev chain is complex, it is now very smooth and identical for all platforms. Each of these steps can be performed as needed:
+The dev chain is identical on all platforms. What the scripts above actually do, step by step:
 
-1. You need `Dotnet SDK` and `Node` installed. Dotnet SDK gives you F#.
-2. `dotnet tool restore` gets you the dev tools: `Fable` compiler, `Fake` build automation, `paket` dotnet package manager. (Node package management is via `npm` which comes with Node).
-3. `dotnet paket install` installs all of the dotnet-side packages needed
-4. `npm ci` downloads and audits correct versions of all of the npm packages. `npm install` will redo the versions if these have changed and generate an updated lock file.
-5. `npm run dev`, `npm run dist`, `npm run debug`: scripts defined in `package.json` which control developmment (with HMR) or production compilation with Fable, and packing using Webpack 5.
-6. The `build.cmd` and `build.sh` scripts package the above steps adding some not usually necessary directory cleaning - you can run them individually in order if you have problems.
+1. `dotnet tool restore` installs the pinned dev tools from `dotnet-tools.json`: the `Fable`
+   compiler, the `Paket` dotnet package manager and the `FAKE` build tool. (Node package
+   management is via `npm`, which comes with Node.)
+2. `dotnet paket install` installs all of the dotnet-side packages.
+3. `npm ci` installs the exact npm package versions recorded in `package-lock.json`.
+4. Fable transpiles every `.fs` file in `src/Main` and `src/Renderer` to a `.fs.js` file next to
+   it (these are generated files, not in the repo).
+5. Webpack bundles the generated JavaScript: `webpack.config.main.js` turns `src/Main/Main.fs.js`
+   into `build/index.js`, and `webpack.config.renderer.js` turns `src/Renderer/Renderer.fs.js`
+   (plus CSS and static assets) into `build/renderer-index.js`. In dev mode the renderer bundle
+   is served by webpack-dev-server with hot reload instead.
+6. Electron runs `build/index.js` as its main process, which opens the app window.
+
+`build.cmd`/`build.sh` run steps 1-3 and then hand over to a FAKE target defined in `build.fsx`
+(`build.cmd -t <Target>`; the default target `Dev` cleans generated JS and runs `npm run dev`).
+Other targets include `Build`, `Dist`, `CleanDev` and `KillZombies`.
 
 * To update the tool versions (not normally needed) edit `dotnet-tools.json`.
 * To change the dotnet packages used (advanced) change `paket.dependencies` at top level **and** `paket.references` in the directory of the relevant `.fsproj` file. Currently dotnet packages are not pinned to versions so latest compatible versions are always used. This is probably wrong but seems to work well.
@@ -198,31 +230,20 @@ As result of this, at any time saving an edited F# renderer project file causes 
 * fable transpile to from F# to javascript file (dependent F# files may also be transpiled)
 * webpack hot load of any changed javascript files to the running electron application
 
-The build system depends on a `Fake` file `build.fsx`. Fake is a DSL written in F# that is specialised to automate build tasks. Build.fsx has targets representing build tasks, and normally these are run via `build.cmd` or `build.sh`, instead of using `dotnet fake` directly:
+The build system also has a `FAKE` script, `build.fsx`. FAKE is a DSL written in F# specialised to automate build tasks. `build.fsx` has targets representing build tasks (`Build`, `Dev`, `Dist`, `CleanDev`, `KillZombies`, ...), run via `build.cmd` / `build.sh` / `build.ps1`:
 
-* `build <target>` ==> `dotnet fake build -t <target>`
+* `build -t <Target>` ==> `dotnet fsi build.fsx -t <Target>` (after restoring tools and packages; the default target is `Dev`)
 
 ## Code Overview
 
-The source code consists of two distinct sections transpiled separately to Javascript to make a complete Electron application.
+The source code consists of two distinct F# projects, transpiled separately to JavaScript, that together make a complete Electron application.
 
-* The electron main process runs the Electron parent process under the desktop native OS, it starts the app process and provides desktop access services to it.
-* The electron client (app) process runs under Chromium in a simulated browser environment (isolated from the native OS).
+* The electron **main** process (`src/Main`) runs under the desktop native OS: it starts the app process and provides desktop access services (file system, dialogs, native menus) to it. `Main.fs` configures electron start-up and is boilerplate that rarely changes.
+* The electron **renderer** (app) process (`src/Renderer`) is the application itself, running under Chromium in a browser environment isolated from the native OS.
 
-Electron thus allows code written for a browser (HTML + CSS + JavaScript) to be run as a desktop app with the additional capability of desktop filesystem access via communication between the two processes.
+Electron thus allows code written for a browser (HTML + CSS + JavaScript) to run as a desktop app with desktop filesystem access, via communication between the two processes: all of Issie's file I/O happens in the main process.
 
-Both processes run Javascript under Node.
-
-The `src/Main/Main.fs` source configures electron start-up and is boilerplate. It is transpiled to the root project directory so it can be automatically picked up by Electron.
-
-The remaining app code (in )
-
-
-The code that turns the F# project source into `renderer.js` is the FABLE compiler followed by the Node Webpack bundler that combines multiple Javascript files into a single `renderer.js`.
-
-The compile process is controlled by the `.fsproj` files (defining the F# source) and `webpack.additions.main.js`, `webpack.additions.renderer.js`
-which define how Webpack combines F# outputs for both electron main and electron app processes and where the executable code is put. 
-This is boilerplate which you do not need to change; normally the F# project files are all that needs to be modified.
+The Fable compiler transpiles each project's F# to JavaScript (a `.fs.js` file beside each `.fs`), and Webpack then bundles each set into a single file: `build/index.js` for the main process and `build/renderer-index.js` for the renderer. The bundling is controlled by `webpack.config.main.js` and `webpack.config.renderer.js` — boilerplate you do not need to change; normally the `.fsproj` files defining the F# sources are all that needs modifying.
 
 
 ## Documentation and Generation
@@ -261,17 +282,17 @@ If you've built the docs and want to access the server again, you can run `dotne
 
 |   Subfolder or file   |                                             Description                                 |
 |:----------------------|:----------------------------------------------------------------------------------------|
-| `Main/main.fs` | Code for the main electron process that sets everything up - not normally changed |
+| `Main/Main.fs` | Code for the main electron process that sets everything up - not normally changed |
 | `Renderer/Common/*`       | Provides some common types and utilities, as well as interfaces to libraries APIs and custom libraries |
 | `Renderer/Interface/*` | Contains low-level interface functions, and all the low-level file management              |
 | `Renderer/DrawBlock/*` | Contains all the SVG-based schematic editor code in F#|
 | `Renderer/Simulator/*` | Contains the logic to analyse and simulate a schematic sheet                               |             
 | `Renderer/UI/*`     | Contains the UI logic|
-| `./renderer.fs`     | Top-level file that drives the renderer code: contains Elmish MVU loop and Electron menu code |
+| `Renderer/Renderer.fs` | Top-level file that drives the renderer code: contains Elmish MVU loop and Electron menu code |
 
 ### `Tests` folder
 
-Currently tests are very old, and will not work. They are based on F# Expecto testing library and in principle the widthinferrer and simulator code (which runs under dotnet) could be tested here.
+The Expecto test suite: `npm run test` (which runs `dotnet run --project Tests/Issie.Tests -c Release` — Expecto uses `dotnet run`, **not** `dotnet test`). It compiles the whole renderer project under .NET, so simulation, parameter resolution, the draw block and UI helpers are all testable without Electron or a browser — around 130 tests in about 20 seconds. To add a test file, list it in `Tests/Issie.Tests/Issie.Tests.fsproj` **and** add its `tests` value to the list in `Main.fs`; missing either fails silently.
 
 
 ### `Static` folder
@@ -284,7 +305,7 @@ Contains source information that controls the project documentation web site [ht
 
 ## Project versus File in the Issie application
 
-Issie allows the users to create projects and files within those projects. A Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder any non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). each design file represents one design sheet of a hierarchical hardware design, sheets can contain, as components, other sheets.
+Issie allows the users to create projects and files within those projects. An Issie project is simply a folder named `<project-name>` that contains an empty file named `<project_name>.dprj` (dprj stands for diagram project). The project folder contains any non-zero number of design files, each named `<component_name>.dgm` (dgm stands for diagram). Each design file represents one design sheet of a hierarchical hardware design; sheets can contain, as components, other sheets.
 
 When opening a project, Issie will initially search the given repository for `.dgm` files, parse and load their content, and allow the user to open them in Issie or use them as components in other designs.
 

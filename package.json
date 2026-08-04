@@ -108,7 +108,7 @@
     "electron-builder": "^26.15.3",
     "electron-builder-notarize": "^1.5",
     "file-loader": "^6",
-    "fs-extra": "11.3.0",
+    "fs-extra": "11.4.0",
     "html-webpack-plugin": "^5",
     "loglevel": "^1",
     "mini-css-extract-plugin": "^2",

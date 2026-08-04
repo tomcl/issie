@@ -126,11 +126,11 @@ sheet to one component, and the `(~&x)`/`(~|x)` reductions crashed AST conversio
 (`parseOperation` knew a `"!&"` spelling the lexer never produces and had no Nor case; note NOR
 is the compare-to-zero itself, with no trailing inverter).
 
-Known checker bug, not yet fixed: `checkVariablesUsed` enumerates an array's *vector bits*
-(`decl.Range`) but assignments are tracked per *word*, so an array whose vector width differs
-from its word count (e.g. `bit [7:0] hist [3:0]`) reports phantom unassigned words. The corpus's
-`2d_array.sv` masks this because its width and word count are both 3. Also by design: every
-array word must be both written and read.
+A related checker bug found the same way and also fixed: `checkVariablesUsed` enumerated an
+array's *vector bits* (`decl.Range`) while assignments are tracked per *word*, so an array whose
+vector width differed from its word count (e.g. `bit [7:0] hist [3:0]`) reported phantom
+unassigned words. The corpus's `2d_array.sv` masked this because its width and word count are
+both 3. Note the intended rule stands: every array word must be both written and read.
 
 ## Reproducing
 

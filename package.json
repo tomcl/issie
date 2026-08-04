@@ -124,7 +124,7 @@
     "terser-webpack-plugin": "^5",
     "utf-8-validate": "^5",
     "webpack": "^5",
-    "webpack-cli": "^5",
+    "webpack-cli": "^7",
     "webpack-dev-server": "^5.2.6"
   },
   "private": true

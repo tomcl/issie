@@ -433,7 +433,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4130', 4130)" onmouseover="showTip(event, '4130', 4130)">
+              <code onmouseout="hideTip(event, '4143', 4143)" onmouseover="showTip(event, '4143', 4143)">
                 <p>
                   <a id="Annotation">
                     <a href="#Annotation">
@@ -442,7 +442,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4130">
+              <div class="fsdocs-tip" id="4143">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Annotation</code>
@@ -461,7 +461,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L184-184" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L197-197" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -485,7 +485,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4131', 4131)" onmouseover="showTip(event, '4131', 4131)">
+              <code onmouseout="hideTip(event, '4144', 4144)" onmouseover="showTip(event, '4144', 4144)">
                 <p>
                   <a id="Appearance">
                     <a href="#Appearance">
@@ -494,7 +494,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4131">
+              <div class="fsdocs-tip" id="4144">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Appearance</code>
@@ -536,7 +536,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4132', 4132)" onmouseover="showTip(event, '4132', 4132)">
+              <code onmouseout="hideTip(event, '4145', 4145)" onmouseover="showTip(event, '4145', 4145)">
                 <p>
                   <a id="CentrePos">
                     <a href="#CentrePos">
@@ -545,7 +545,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4132">
+              <div class="fsdocs-tip" id="4145">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>CentrePos</code>
@@ -587,7 +587,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4133', 4133)" onmouseover="showTip(event, '4133', 4133)">
+              <code onmouseout="hideTip(event, '4146', 4146)" onmouseover="showTip(event, '4146', 4146)">
                 <p>
                   <a id="Component">
                     <a href="#Component">
@@ -596,7 +596,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4133">
+              <div class="fsdocs-tip" id="4146">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Component</code>
@@ -646,7 +646,68 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4134', 4134)" onmouseover="showTip(event, '4134', 4134)">
+              <code onmouseout="hideTip(event, '4147', 4147)" onmouseover="showTip(event, '4147', 4147)">
+                <p>
+                  <a id="DeclaredPortLabels">
+                    <a href="#DeclaredPortLabels">
+                      <code>DeclaredPortLabels</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4147">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>DeclaredPortLabels</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span><span>(<span><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span>&#32;*&#32;<span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></span>)</span>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L193-193" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The DECLARED port labels and widths of a custom component instance, while the sheet
+ is drawn at computed values that change them. None otherwise, so for every symbol
+ that is not a custom component and for almost every one that is.
+
+ A custom component instance is the one symbol whose parameter slot does not name a
+ number in its own type: a CustomCompParam slot binds a parameter of the sheet
+ INSIDE it, and the instance's port widths follow from that binding by way of the
+ child sheet. ComponentSlots.setSlotValue can put the binding back but not the ports
+ it implies - it has no access to the child sheet - so the ports have to be
+ remembered separately, or a sheet saved while showing computed values would write
+ an instance whose ports contradict its own bindings.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code><span><span>(<span><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span>&#32;*&#32;<span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></span>)</span>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4148', 4148)" onmouseover="showTip(event, '4148', 4148)">
                 <p>
                   <a id="DeclaredSlots">
                     <a href="#DeclaredSlots">
@@ -655,7 +716,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4134">
+              <div class="fsdocs-tip" id="4148">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>DeclaredSlots</code>
@@ -709,7 +770,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4135', 4135)" onmouseover="showTip(event, '4135', 4135)">
+              <code onmouseout="hideTip(event, '4149', 4149)" onmouseover="showTip(event, '4149', 4149)">
                 <p>
                   <a id="HScale">
                     <a href="#HScale">
@@ -718,7 +779,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4135">
+              <div class="fsdocs-tip" id="4149">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>HScale</code>
@@ -737,7 +798,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L204-204" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L217-217" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -762,7 +823,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4136', 4136)" onmouseover="showTip(event, '4136', 4136)">
+              <code onmouseout="hideTip(event, '4150', 4150)" onmouseover="showTip(event, '4150', 4150)">
                 <p>
                   <a id="Id">
                     <a href="#Id">
@@ -771,7 +832,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4136">
+              <div class="fsdocs-tip" id="4150">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Id</code>
@@ -815,7 +876,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4137', 4137)" onmouseover="showTip(event, '4137', 4137)">
+              <code onmouseout="hideTip(event, '4151', 4151)" onmouseover="showTip(event, '4151', 4151)">
                 <p>
                   <a id="InWidth0">
                     <a href="#InWidth0">
@@ -824,7 +885,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4137">
+              <div class="fsdocs-tip" id="4151">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>InWidth0</code>
@@ -870,7 +931,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4138', 4138)" onmouseover="showTip(event, '4138', 4138)">
+              <code onmouseout="hideTip(event, '4152', 4152)" onmouseover="showTip(event, '4152', 4152)">
                 <p>
                   <a id="InWidth1">
                     <a href="#InWidth1">
@@ -879,7 +940,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4138">
+              <div class="fsdocs-tip" id="4152">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>InWidth1</code>
@@ -909,7 +970,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4139', 4139)" onmouseover="showTip(event, '4139', 4139)">
+              <code onmouseout="hideTip(event, '4153', 4153)" onmouseover="showTip(event, '4153', 4153)">
                 <p>
                   <a id="InWidths">
                     <a href="#InWidths">
@@ -918,7 +979,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4139">
+              <div class="fsdocs-tip" id="4153">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>InWidths</code>
@@ -960,7 +1021,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4140', 4140)" onmouseover="showTip(event, '4140', 4140)">
+              <code onmouseout="hideTip(event, '4154', 4154)" onmouseover="showTip(event, '4154', 4154)">
                 <p>
                   <a id="IsClocked">
                     <a href="#IsClocked">
@@ -969,7 +1030,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4140">
+              <div class="fsdocs-tip" id="4154">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>IsClocked</code>
@@ -988,7 +1049,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L190-190" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L203-203" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1012,7 +1073,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4141', 4141)" onmouseover="showTip(event, '4141', 4141)">
+              <code onmouseout="hideTip(event, '4155', 4155)" onmouseover="showTip(event, '4155', 4155)">
                 <p>
                   <a id="LabelBoundingBox">
                     <a href="#LabelBoundingBox">
@@ -1021,7 +1082,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4141">
+              <div class="fsdocs-tip" id="4155">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>LabelBoundingBox</code>
@@ -1065,7 +1126,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4142', 4142)" onmouseover="showTip(event, '4142', 4142)">
+              <code onmouseout="hideTip(event, '4156', 4156)" onmouseover="showTip(event, '4156', 4156)">
                 <p>
                   <a id="LabelHasDefaultPos">
                     <a href="#LabelHasDefaultPos">
@@ -1074,7 +1135,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4142">
+              <div class="fsdocs-tip" id="4156">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>LabelHasDefaultPos</code>
@@ -1104,7 +1165,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4143', 4143)" onmouseover="showTip(event, '4143', 4143)">
+              <code onmouseout="hideTip(event, '4157', 4157)" onmouseover="showTip(event, '4157', 4157)">
                 <p>
                   <a id="LabelRotation">
                     <a href="#LabelRotation">
@@ -1113,7 +1174,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4143">
+              <div class="fsdocs-tip" id="4157">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>LabelRotation</code>
@@ -1143,7 +1204,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4144', 4144)" onmouseover="showTip(event, '4144', 4144)">
+              <code onmouseout="hideTip(event, '4158', 4158)" onmouseover="showTip(event, '4158', 4158)">
                 <p>
                   <a id="Moving">
                     <a href="#Moving">
@@ -1152,7 +1213,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4144">
+              <div class="fsdocs-tip" id="4158">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Moving</code>
@@ -1171,7 +1232,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L187-187" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L200-200" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1194,7 +1255,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4145', 4145)" onmouseover="showTip(event, '4145', 4145)">
+              <code onmouseout="hideTip(event, '4159', 4159)" onmouseover="showTip(event, '4159', 4159)">
                 <p>
                   <a id="MovingPort">
                     <a href="#MovingPort">
@@ -1203,7 +1264,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4145">
+              <div class="fsdocs-tip" id="4159">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>MovingPort</code>
@@ -1222,7 +1283,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L213-213" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L226-226" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1246,7 +1307,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4146', 4146)" onmouseover="showTip(event, '4146', 4146)">
+              <code onmouseout="hideTip(event, '4160', 4160)" onmouseover="showTip(event, '4160', 4160)">
                 <p>
                   <a id="MovingPortTarget">
                     <a href="#MovingPortTarget">
@@ -1255,7 +1316,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4146">
+              <div class="fsdocs-tip" id="4160">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>MovingPortTarget</code>
@@ -1274,7 +1335,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L215-215" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L228-228" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1297,7 +1358,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4147', 4147)" onmouseover="showTip(event, '4147', 4147)">
+              <code onmouseout="hideTip(event, '4161', 4161)" onmouseover="showTip(event, '4161', 4161)">
                 <p>
                   <a id="OffsetFromBBCentre">
                     <a href="#OffsetFromBBCentre">
@@ -1306,7 +1367,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4147">
+              <div class="fsdocs-tip" id="4161">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>OffsetFromBBCentre</code>
@@ -1348,7 +1409,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4148', 4148)" onmouseover="showTip(event, '4148', 4148)">
+              <code onmouseout="hideTip(event, '4162', 4162)" onmouseover="showTip(event, '4162', 4162)">
                 <p>
                   <a id="PortMaps">
                     <a href="#PortMaps">
@@ -1357,7 +1418,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4148">
+              <div class="fsdocs-tip" id="4162">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>PortMaps</code>
@@ -1376,7 +1437,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L199-199" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L212-212" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1402,7 +1463,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4149', 4149)" onmouseover="showTip(event, '4149', 4149)">
+              <code onmouseout="hideTip(event, '4163', 4163)" onmouseover="showTip(event, '4163', 4163)">
                 <p>
                   <a id="Pos">
                     <a href="#Pos">
@@ -1411,7 +1472,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4149">
+              <div class="fsdocs-tip" id="4163">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Pos</code>
@@ -1454,7 +1515,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4150', 4150)" onmouseover="showTip(event, '4150', 4150)">
+              <code onmouseout="hideTip(event, '4164', 4164)" onmouseover="showTip(event, '4164', 4164)">
                 <p>
                   <a id="ReversedInputPorts">
                     <a href="#ReversedInputPorts">
@@ -1463,7 +1524,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4150">
+              <div class="fsdocs-tip" id="4164">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>ReversedInputPorts</code>
@@ -1493,7 +1554,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4151', 4151)" onmouseover="showTip(event, '4151', 4151)">
+              <code onmouseout="hideTip(event, '4165', 4165)" onmouseover="showTip(event, '4165', 4165)">
                 <p>
                   <a id="STransform">
                     <a href="#STransform">
@@ -1502,7 +1563,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4151">
+              <div class="fsdocs-tip" id="4165">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>STransform</code>
@@ -1521,7 +1582,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L192-192" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L205-205" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1544,7 +1605,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4152', 4152)" onmouseover="showTip(event, '4152', 4152)">
+              <code onmouseout="hideTip(event, '4166', 4166)" onmouseover="showTip(event, '4166', 4166)">
                 <p>
                   <a id="VScale">
                     <a href="#VScale">
@@ -1553,7 +1614,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4152">
+              <div class="fsdocs-tip" id="4166">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>VScale</code>
@@ -1572,7 +1633,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L209-209" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/DrawModelType.fs#L222-222" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

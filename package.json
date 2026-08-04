@@ -120,7 +120,7 @@
     "source-map-loader": "^5",
     "style-loader": "^4",
     "terser-webpack-plugin": "^5",
-    "utf-8-validate": "^5",
+    "utf-8-validate": "^6",
     "webpack": "^5",
     "webpack-dev-server": "^5.2.6"
   },

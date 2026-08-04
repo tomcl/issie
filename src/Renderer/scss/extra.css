@@ -5,6 +5,15 @@
    generated Bulma output since 2022. main.css is vendored and regenerates from
    nothing; this is the file to edit.
    --------------------------------------------------------------------------- */
+
+/* Bulma sets `overflow-y: scroll` on html so that web pages do not jog sideways
+   as content grows past a screenful. Issie is a window, not a page: every view
+   is positioned and sized to the viewport, the document itself never scrolls,
+   and all that rule leaves is a dead scrollbar down the right-hand edge. */
+html {
+  overflow-y: auto;
+}
+
 .hide {
   display: none;
 }

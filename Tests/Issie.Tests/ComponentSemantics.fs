@@ -70,6 +70,26 @@ let private allInputs (widths: int list) : bigint list list =
         (fun acc w -> [ for prefix in acc do for v in 0 .. (1 <<< w) - 1 -> prefix @ [ bigint v ] ])
         [ [] ]
 
+/// Destructure the inputs handed to a reference function.
+/// A reference takes a bigint list, since checkExhaustive builds one from the widths, but each
+/// reference below knows how many inputs its component has. A plain list pattern in the lambda
+/// would be an incomplete match; these are single-case active patterns, so they are total as far
+/// as the compiler is concerned and say what went wrong if a reference and its widths disagree.
+let private arityError n (l: bigint list) =
+    failwithf "reference function expected %d inputs but was given %d: %A" n l.Length l
+
+let private (|In1|) (l: bigint list) =
+    match l with | [ a ] -> a | _ -> arityError 1 l
+
+let private (|In2|) (l: bigint list) =
+    match l with | [ a; b ] -> a, b | _ -> arityError 2 l
+
+let private (|In3|) (l: bigint list) =
+    match l with | [ a; b; c ] -> a, b, c | _ -> arityError 3 l
+
+let private (|In5|) (l: bigint list) =
+    match l with | [ a; b; c; d; e ] -> a, b, c, d, e | _ -> arityError 5 l
+
 /// Check a combinational component against a reference function over every input combination
 let private checkExhaustive name compType inWidths outWidths (reference: bigint list -> bigint list) =
     test name {
@@ -107,55 +127,55 @@ let tests =
                     (gateRef gateType)
 
         // adders: inputs Cin, A, B; outputs Sum, Cout
-        checkExhaustive "NbitsAdder" (NbitsAdder w) [ 1; w; w ] [ w; 1 ] (fun [ cin; a; b ] ->
+        checkExhaustive "NbitsAdder" (NbitsAdder w) [ 1; w; w ] [ w; 1 ] (fun (In3(cin, a, b)) ->
             let sum = a + b + cin
             [ mask w sum; sum >>> w ])
-        checkExhaustive "NbitsAdderNoCin" (NbitsAdderNoCin w) [ w; w ] [ w; 1 ] (fun [ a; b ] ->
+        checkExhaustive "NbitsAdderNoCin" (NbitsAdderNoCin w) [ w; w ] [ w; 1 ] (fun (In2(a, b)) ->
             let sum = a + b
             [ mask w sum; sum >>> w ])
-        checkExhaustive "NbitsAdderNoCout" (NbitsAdderNoCout w) [ 1; w; w ] [ w ] (fun [ cin; a; b ] ->
+        checkExhaustive "NbitsAdderNoCout" (NbitsAdderNoCout w) [ 1; w; w ] [ w ] (fun (In3(cin, a, b)) ->
             [ mask w (a + b + cin) ])
-        checkExhaustive "NbitsAdderNoCinCout" (NbitsAdderNoCinCout w) [ w; w ] [ w ] (fun [ a; b ] ->
+        checkExhaustive "NbitsAdderNoCinCout" (NbitsAdderNoCinCout w) [ w; w ] [ w ] (fun (In2(a, b)) ->
             [ mask w (a + b) ])
 
         // n-bit logic
-        checkExhaustive "NbitsXor" (NbitsXor(w, None)) [ w; w ] [ w ] (fun [ a; b ] -> [ a ^^^ b ])
-        checkExhaustive "NbitsXor multiply" (NbitsXor(w, Some Multiply)) [ w; w ] [ w ] (fun [ a; b ] ->
+        checkExhaustive "NbitsXor" (NbitsXor(w, None)) [ w; w ] [ w ] (fun (In2(a, b)) -> [ a ^^^ b ])
+        checkExhaustive "NbitsXor multiply" (NbitsXor(w, Some Multiply)) [ w; w ] [ w ] (fun (In2(a, b)) ->
             [ mask w (a * b) ])
-        checkExhaustive "NbitsAnd" (NbitsAnd w) [ w; w ] [ w ] (fun [ a; b ] -> [ a &&& b ])
-        checkExhaustive "NbitsOr" (NbitsOr w) [ w; w ] [ w ] (fun [ a; b ] -> [ a ||| b ])
-        checkExhaustive "NbitsNot" (NbitsNot w) [ w ] [ w ] (fun [ a ] -> [ a ^^^ ((1I <<< w) - 1I) ])
-        checkExhaustive "NbitSpreader" (NbitSpreader w) [ 1 ] [ w ] (fun [ a ] ->
+        checkExhaustive "NbitsAnd" (NbitsAnd w) [ w; w ] [ w ] (fun (In2(a, b)) -> [ a &&& b ])
+        checkExhaustive "NbitsOr" (NbitsOr w) [ w; w ] [ w ] (fun (In2(a, b)) -> [ a ||| b ])
+        checkExhaustive "NbitsNot" (NbitsNot w) [ w ] [ w ] (fun (In1(a)) -> [ a ^^^ ((1I <<< w) - 1I) ])
+        checkExhaustive "NbitSpreader" (NbitSpreader w) [ 1 ] [ w ] (fun (In1(a)) ->
             [ if a = 1I then (1I <<< w) - 1I else 0I ])
 
         // multiplexing: select is the last input
-        checkExhaustive "Mux2" Mux2 [ w; w; 1 ] [ w ] (fun [ a; b; sel ] -> [ if sel = 0I then a else b ])
-        checkExhaustive "Mux4" Mux4 [ w; w; w; w; 2 ] [ w ] (fun [ a; b; c; d; sel ] ->
+        checkExhaustive "Mux2" Mux2 [ w; w; 1 ] [ w ] (fun (In3(a, b, sel)) -> [ if sel = 0I then a else b ])
+        checkExhaustive "Mux4" Mux4 [ w; w; w; w; 2 ] [ w ] (fun (In5(a, b, c, d, sel)) ->
             [ [ a; b; c; d ].[int sel] ])
-        checkExhaustive "Demux2" Demux2 [ w; 1 ] [ w; w ] (fun [ a; sel ] ->
+        checkExhaustive "Demux2" Demux2 [ w; 1 ] [ w; w ] (fun (In2(a, sel)) ->
             if sel = 0I then [ a; 0I ] else [ 0I; a ])
 
         // bus manipulation: MergeWires/SplitWire are little-endian, first port is LSBs
-        checkExhaustive "MergeWires" MergeWires [ 2; w ] [ 2 + w ] (fun [ a; b ] -> [ (b <<< 2) ||| a ])
-        checkExhaustive "SplitWire" (SplitWire 2) [ 2 + w ] [ 2; w ] (fun [ a ] ->
+        checkExhaustive "MergeWires" MergeWires [ 2; w ] [ 2 + w ] (fun (In2(a, b)) -> [ (b <<< 2) ||| a ])
+        checkExhaustive "SplitWire" (SplitWire 2) [ 2 + w ] [ 2; w ] (fun (In1(a)) ->
             [ mask 2 a; a >>> 2 ])
-        checkExhaustive "MergeN" (MergeN 3) [ 1; 2; 2 ] [ 5 ] (fun [ a; b; c ] ->
+        checkExhaustive "MergeN" (MergeN 3) [ 1; 2; 2 ] [ 5 ] (fun (In3(a, b, c)) ->
             [ a ||| (b <<< 1) ||| (c <<< 3) ])
         // SplitN slices need not tile the input: slice 1 starts at bit 1, slice 2 at bit 3
-        checkExhaustive "SplitN" (SplitN(2, [ 2; 2 ], [ 1; 3 ])) [ 5 ] [ 2; 2 ] (fun [ a ] ->
+        checkExhaustive "SplitN" (SplitN(2, [ 2; 2 ], [ 1; 3 ])) [ 5 ] [ 2; 2 ] (fun (In1(a)) ->
             [ mask 2 (a >>> 1); mask 2 (a >>> 3) ])
-        checkExhaustive "BusSelection" (BusSelection(2, 1)) [ w + 2 ] [ 2 ] (fun [ a ] ->
+        checkExhaustive "BusSelection" (BusSelection(2, 1)) [ w + 2 ] [ 2 ] (fun (In1(a)) ->
             [ mask 2 (a >>> 1) ])
-        checkExhaustive "BusCompare1" (BusCompare1(w, 5I, "5")) [ w ] [ 1 ] (fun [ a ] ->
+        checkExhaustive "BusCompare1" (BusCompare1(w, 5I, "5")) [ w ] [ 1 ] (fun (In1(a)) ->
             [ if a = 5I then 1I else 0I ])
 
         // shifts: input 0 data, input 1 amount; 2-bit shifter covers amounts 0..3 at width 3,
         // including shifting by >= the bus width
-        checkExhaustive "Shift LSL" (Shift(w, 2, LSL)) [ w; 2 ] [ w ] (fun [ a; amt ] ->
+        checkExhaustive "Shift LSL" (Shift(w, 2, LSL)) [ w; 2 ] [ w ] (fun (In2(a, amt)) ->
             [ if amt >= bigint w then 0I else mask w (a <<< int amt) ])
-        checkExhaustive "Shift LSR" (Shift(w, 2, LSR)) [ w; 2 ] [ w ] (fun [ a; amt ] ->
+        checkExhaustive "Shift LSR" (Shift(w, 2, LSR)) [ w; 2 ] [ w ] (fun (In2(a, amt)) ->
             [ if amt >= bigint w then 0I else a >>> int amt ])
-        checkExhaustive "Shift ASR" (Shift(w, 2, ASR)) [ w; 2 ] [ w ] (fun [ a; amt ] ->
+        checkExhaustive "Shift ASR" (Shift(w, 2, ASR)) [ w; 2 ] [ w ] (fun (In2(a, amt)) ->
             let signSet = a >>> (w - 1) = 1I
             let allOnes = (1I <<< w) - 1I
             let result =

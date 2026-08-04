@@ -489,8 +489,7 @@ let paramDefsOf (sheet: SheetDescription) : Result<ParameterDefs option, string>
                         { Expression = expr; Constraints = [] })
                 | (ParamName missing) :: _ ->
                     // every parameter used on a sheet must be declared on it
-                    Error $"slot expression '{spec.Expression}' on {spec.Comp} uses '{missing}', which {sheet.Name} does not declare"
-                | _ -> Error "unreachable")
+                    Error $"slot expression '{spec.Expression}' on {spec.Comp} uses '{missing}', which {sheet.Name} does not declare")
     match sheet.Params, sheet.Slots with
     | [], [] -> Ok None
     | _ ->

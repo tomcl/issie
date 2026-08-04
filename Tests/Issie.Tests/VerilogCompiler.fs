@@ -135,6 +135,23 @@ let tests =
                         let r = simulateVerilog xor [ "a", bigint a; "b", bigint b ]
                         Expect.equal r["O"] (bigint (a ^^^ b)) $"{a} ^ {b}"
             }
+            // ~& and ~| parsed but crashed AST conversion: parseOperation only knew a "!&"
+            // spelling the lexer can never produce, and had no Nor case at all
+            test "nand and nor reductions" {
+                let src =
+                    """module dut(a, o$nand, o$nor);
+input bit [1:0] a;
+output bit o$nand;
+output bit o$nor;
+assign o$nand = (~&a);
+assign o$nor = (~|a);
+endmodule
+"""
+                for a in 0..3 do
+                    let r = simulateVerilog src [ "a", bigint a ]
+                    Expect.equal r["O$NAND"] (bigint (if a = 3 then 0 else 1)) $"~&{a}"
+                    Expect.equal r["O$NOR"] (bigint (if a = 0 then 1 else 0)) $"~|{a}"
+            }
             test "xnor works as a subexpression" {
                 let src =
                     """module dut(a, b, c, o);

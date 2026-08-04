@@ -451,8 +451,8 @@ looks like the exception and is not one.</p>
 <td><p><code>mainWindow</code>, <code>closeAfterSave</code> — Electron main process, no Elmish model there</p></td>
 </tr>
 <tr class="even">
-<td><p><code>Renderer.fs</code></p></td>
-<td><p><code>firstPress</code> — keyboard event handler</p></td>
+<td><p><code>UI/KeyBindings.fs</code></p></td>
+<td><p><code>modelContext</code> — a cached projection of the model for DOM handlers, which cannot see it and must decide <code>preventDefault</code> synchronously; <code>ctrlHeld</code> — physical modifier state, wanted on its edges and across focus loss; <code>keyLog</code> — debug-only log of what the dispatcher decided</p></td>
 </tr>
 <tr class="odd">
 <td><p><code>Interface/JSHelpers.fs</code></p></td>
@@ -496,10 +496,6 @@ bookkeeping of exactly the kind that belongs in <code>Model</code>. Check first 
 every mouse event or only on right-click; if the latter, there is no performance argument.
 </li>
 <li>
-*<em><code>UI/Update.fs</code> — <code>evilUIState</code>.*</em> Popup/UI state, named by whoever wrote it as the problem it
-is. Entangled with <code>PopupViewFunc</code>, so moving it means understanding that interaction first.
-</li>
-<li>
 *<em><code>UI/MemoryEditorView.fs</code> — <code>dynamicMem: Memory1</code>.*</em> Working state of the memory editor dialog.
 <code>PopupDialogData</code> already holds dialog state and is the obvious home. Note this one may be
 written per keystroke in a large memory table, so measure before moving.
@@ -514,6 +510,14 @@ sheet open; as a global it also survived closing and reopening a project, which 
 <li>
 <code>UI/UpdateHelpers.fs</code> — <code>pendingAddedComponents</code> → <code>Model.PendingDragAddition</code>. Read and written
 in <code>sheetMsg</code>, which already rebuilds the model record, so the move was free.
+</li>
+<li>
+<code>UI/Update.fs</code> — <code>evilUIState</code>, and <code>Renderer.fs</code> — <code>firstPress</code>. Both were absorbed by the
+keyboard dispatcher in <code>UI/KeyBindings.fs</code>. <code>evilUIState</code> held a three-case approximation of the
+UI context for the sole purpose of deciding whether to swallow the space bar, and got that wrong
+in text entry; <code>modelContext</code> is the real thing, derived from the model rather than maintained by
+hand. <code>firstPress</code> marked the Ctrl/Cmd key-down edge and is now <code>ctrlHeld</code>. Neither moved into
+<code>Model</code>: the problem both were solving is that a DOM handler cannot read one.
 </li>
 </ul>
 

@@ -66,6 +66,14 @@ to produce the electrical graph. Treating the two as interchangeable is the most
 type) → `Sheet.fs` (mouse placement) → `Symbol.fs` (visual representation and ports) →
 `CanvasExtractor.fs` (simulation node).
 
+**A parameterised sheet has no single signature.** It has a family of them, one per set of
+bindings, so a custom component instance's port widths are a fact about the INSTANCE, not the
+sheet: two instances of one sheet are meant to differ. `CanvasExtractor.signatureOfInstance` is the
+only place that works them out, and placement, the properties pane, the simulator's custom
+component check and `CustomCompPorts` all go through it — they held separate copies before, and the
+copies disagreed. "Instance out of date" means differs from what its OWN bindings give it; compared
+against the sheet instead, every parameterised design reports as changed.
+
 **Fable emits `.fs.js` and `.fs.js.map` next to every `.fs`.** When JS behaviour disagrees with the
 F# you just wrote, read the emitted `.fs.js`.
 

@@ -469,6 +469,7 @@ let createSymbolRecord ldcs theme comp =
             Component = {comp with H=h ; W = w}
             // loaded from file, so at declared values: display values are pushed on afterwards
             DeclaredSlots = Map.empty
+            DeclaredPortLabels = None
             Annotation = None
             Moving = false
             InWidth0 = None
@@ -883,11 +884,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 /// A pasted copy is correct for the same reason: it inherits DeclaredSlots from the symbol it was
 /// copied from, and those slots mean the same thing on the copy.
 let declaredComponent (symbol: Symbol) : Component =
-    match Map.isEmpty symbol.DeclaredSlots with
+    /// A custom component instance's ports follow from its bindings by way of the sheet inside it,
+    /// which setSlotValues cannot reach: they are remembered whole. See Symbol.DeclaredPortLabels.
+    let withDeclaredPorts (compType: ComponentType) =
+        match compType, symbol.DeclaredPortLabels with
+        | Custom cc, Some (ins, outs) -> Custom {cc with InputLabels = ins; OutputLabels = outs}
+        | _ -> compType
+    match Map.isEmpty symbol.DeclaredSlots && symbol.DeclaredPortLabels = None with
     | true -> symbol.Component
     | false ->
         { symbol.Component with
-            Type = ComponentSlots.setSlotValues symbol.DeclaredSlots symbol.Component.Type }
+            Type =
+                symbol.Component.Type
+                |> ComponentSlots.setSlotValues symbol.DeclaredSlots
+                |> withDeclaredPorts }
 
 /// The component as it is DRAWN, including any parameter values computed for the current top
 /// sheet. This is what the properties pane should show; use extractComponent for anything that

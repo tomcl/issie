@@ -342,6 +342,24 @@ let bindParamOnInstances
     ldcs
     |> List.map (fun ldc -> if ldc.Name = sheetName then ldc else addToSheet ldc)
 
+/// Mark a sheet as differing from the file it was loaded from.
+///
+/// A change to what a sheet DECLARES, or to the expression filling one of its slots, need not
+/// change its canvas at all: declaring a parameter, writing its description, deleting an unused
+/// one, or entering an expression that works out to the width already shown all leave the canvas
+/// identical. Issie decides whether the open sheet needs saving by comparing canvases
+/// (UpdateHelpers.currentSheetIsOutOfDate), so a change of that kind is invisible to it: the save
+/// button stays dark, switching sheets does not save, and the work is dropped.
+///
+/// This flag is the one other thing that comparison consults, and saving the sheet clears it. It
+/// is what ParameterView.markSheetParamsChanged sets on every path that edits parameter data.
+let markSheetOutOfDate (sheetName: string) (ldcs: LoadedComponent list) : LoadedComponent list =
+    ldcs
+    |> List.map (fun ldc ->
+        match ldc.Name = sheetName with
+        | true -> {ldc with LoadedComponentIsOutOfDate = true}
+        | false -> ldc)
+
 /// Whether every instance of every sheet binds every parameter that sheet declares.
 /// The invariant bindParamOnInstances and the placement popup exist to keep; false only for a
 /// project saved before it was required, or one edited by hand.

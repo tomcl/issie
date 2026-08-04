@@ -87,6 +87,7 @@ let makeSymbol (comp: Component) : DrawModelType.SymbolT.Symbol =
       Id = ComponentId comp.Id
       Component = comp
       DeclaredSlots = Map.empty
+      DeclaredPortLabels = None
       Annotation = None
       Moving = false
       IsClocked = false

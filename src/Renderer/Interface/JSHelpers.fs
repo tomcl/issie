@@ -200,7 +200,15 @@ let setDebugLevel() =
         debugLevel <- 1
 
 /// return a v4 (random) universally unique identifier (UUID)
+#if FABLE_COMPILER
 let uuid():string = import "v4" "uuid"
+#else
+/// Under plain .NET the npm uuid package is not there, and a Fable import compiles to code that
+/// throws when called. Minting an id is not draw-block-specific - every path that adds a component
+/// or a port needs one - so the tests could not reach any of them. .NET has its own v4 generator,
+/// and nothing depends on which one produced an id, only that it is unique.
+let uuid():string = System.Guid.NewGuid().ToString()
+#endif
 
 
 (*

@@ -310,4 +310,79 @@ let tests =
             Expect.equal (SymbolUpdate.declaredComponent sym).Type (Input1(8, Some 7I))
                 "a symbol with nothing stashed is saved exactly as it stands"
         }
+
+        // A custom component instance is the one symbol whose slot value does not name a number in
+        // its own type: a CustomCompParam slot binds a parameter of the sheet INSIDE it, and the
+        // port widths follow from that binding by way of the child sheet. Putting the binding back
+        // therefore does not put the ports back, and a sheet saved while showing computed values
+        // was written with an instance whose ports contradict its own bindings - which is exactly
+        // what checkCustomComponentForOkIOs rejects.
+
+        test "a custom instance saves its declared ports as well as its declared binding" {
+            let comp = makeComp "cc" 2 1 (customOf childLdc [ "A", 16; "B", 16 ] [ "S", 16 ]
+                                            (Some(Map [ ParamName "W", PInt 16 ]))) "CC"
+            // displayed at W = 16 though the sheet the instance sits on declares 8
+            let displaying =
+                { makeSymbol comp with
+                    DeclaredSlots = Map [ CustomCompParam "W", 8 ]
+                    DeclaredPortLabels = Some ([ "A", 8; "B", 8 ], [ "S", 8 ]) }
+            match (SymbolUpdate.declaredComponent displaying).Type with
+            | Custom cc ->
+                Expect.equal cc.ParameterBindings (Some(Map [ ParamName "W", PInt 8 ]))
+                    "the declared binding is saved"
+                Expect.equal (cc.InputLabels, cc.OutputLabels) ([ "A", 8; "B", 8 ], [ "S", 8 ])
+                    "and the ports saved with it agree with it"
+            | t -> failtest $"expected a custom component, got {t}"
+        }
+
+        test "a custom instance with nothing stashed is saved exactly as it stands" {
+            let comp = makeComp "cc" 2 1 (customOf childLdc [ "A", 16; "B", 16 ] [ "S", 16 ]
+                                            (Some(Map [ ParamName "W", PInt 16 ]))) "CC"
+            let saved = SymbolUpdate.declaredComponent (makeSymbol comp)
+            Expect.equal saved.Type comp.Type "no display values, nothing to undo"
+        }
+
+        test "an instance saved at its declared ports passes the custom component check" {
+            // the end of the story above: ports and bindings that disagree are what the simulator
+            // refuses, so the two have to be put back together
+            let comp = makeComp "cc" 2 1 (customOf childLdc [ "A", 16; "B", 16 ] [ "S", 16 ]
+                                            (Some(Map [ ParamName "W", PInt 16 ]))) "CC"
+            let displaying =
+                { makeSymbol comp with
+                    DeclaredSlots = Map [ CustomCompParam "W", 8 ]
+                    DeclaredPortLabels = Some ([ "A", 8; "B", 8 ], [ "S", 8 ]) }
+            let saved = SymbolUpdate.declaredComponent displaying
+            match saved.Type with
+            | Custom cc ->
+                Expect.isOk (CanvasStateAnalyser.checkCustomComponentForOkIOs saved cc [ childLdc ])
+                    "the saved instance describes hardware the simulator accepts"
+            | t -> failtest $"expected a custom component, got {t}"
+        }
+
+        // An IO slot is stored under the label its component had when the slot was created, and
+        // nothing rewrites it when the component is renamed. Every reader ignores it, so the width
+        // must still be applied - it used to be dropped, and the port silently kept whatever width
+        // the sheet was saved with.
+
+        test "a renamed sheet input is still sized by its parameter slot in simulation" {
+            let a = makeComp "a" 0 1 (Input1(4, None)) "RENAMED"
+            let s = makeComp "s" 1 0 (Output 4) "S"
+            let defs =
+                { DefaultBindings = Map [ declares "W" (PInt 4) ]
+                  // the slot was created while the input was called A
+                  ParamSlots =
+                    Map [ { CompId = "a"; CompSlot = IO "A" }, { Expression = PParameter(ParamName "W"); Constraints = [] }
+                          { CompId = "s"; CompSlot = IO "S" }, { Expression = PParameter(ParamName "W"); Constraints = [] } ] }
+            let renamedLdc = makeLdc "prenamed" (Some defs) ([ a; s ], [ conn a 0 s 0 ])
+            let x = makeComp "rx" 0 1 (Input1(8, None)) "X"
+            let cc =
+                makeComp "rcc" 1 1
+                    (customOf renamedLdc [ "RENAMED", 8 ] [ "S", 8 ] (Some(Map [ ParamName "W", PInt 8 ])))
+                    "RCC"
+            let o = makeComp "ro" 1 0 (Output 8) "O"
+            let parent =
+                makeLdc "prenamedparent" None ([ x; cc; o ], [ conn x 0 cc 0; conn cc 0 o 0 ])
+            let outs = run parent [ renamedLdc ] (Map [ "X", 200I ]) |> expectOk
+            Expect.equal outs["O"] 200I "200 passes through undamaged at the bound width of 8"
+        }
     ]

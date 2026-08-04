@@ -61,32 +61,25 @@ let private placeCustomComponent
         (createParam: (ComponentId -> Unit) option)
         model
         dispatch =
-    // resolve the sheet's parameterised slots at these bindings before reading off the port
-    // labels, so the instance's ports are the widths it will actually elaborate to
-    let effectiveBindings =
-        match loadedComponent.LCParameterSlots with
-        | Some paramSlots ->
-            // a parameter the instance does not bind takes the sheet's declared default
-            (ParameterTypes.bindingsOf paramSlots.DefaultBindings, bindings)
-            ||> Map.fold (fun acc name expr -> Map.add name expr acc)
-        | None -> Map.empty
-
-    let resolvedCanvas =
-        match loadedComponent.LCParameterSlots with
-        | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
-            let (comps, conns) = loadedComponent.CanvasState
-            let resolvedComps =
-                comps |> List.map (fun comp ->
-                    match ParameterView.resolveParametersForComponent effectiveBindings paramSlots.ParamSlots comp with
-                    | Ok resolvedComp -> resolvedComp
-                    | Error _ -> comp)
-            (resolvedComps, conns)
-        | _ -> loadedComponent.CanvasState
+    // The instance's ports are the child sheet resolved at these bindings, which is
+    // CanvasExtractor.signatureOfInstance's job: a binding may be an expression in the parameters
+    // of the sheet being placed ONTO - that is what the popup's bind-to-parent button writes - and
+    // it has to be evaluated there before it can size a port. Evaluating it in the child's own
+    // environment instead makes a parameter bound to a same-named parent parameter look
+    // self-referential, and the instance is placed with the child's default widths.
+    // The sheet is put at the head of the list so that a library component just materialised into
+    // the project is found whether or not the model has caught up with it.
+    let ldcs =
+        loadedComponent
+        :: (tryGetLoadedComponents model |> List.filter (fun l -> l.Name <> loadedComponent.Name))
+    let inputLabels, outputLabels =
+        CanvasExtractor.signatureOfInstance ldcs (ParameterView.paramBindingsOfModel model) loadedComponent.Name bindings
+        |> Option.defaultValue (loadedComponent.InputLabels, loadedComponent.OutputLabels)
 
     let custom = Custom {
         Name = loadedComponent.Name
-        InputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
-        OutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
+        InputLabels = inputLabels
+        OutputLabels = outputLabels
         Form = loadedComponent.Form
         Description = loadedComponent.Description
         ParameterBindings = if Map.isEmpty bindings then None else Some bindings

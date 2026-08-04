@@ -70,6 +70,24 @@ type ParamSlot = {CompId: string; CompSlot: CompSlotName}
 let compId_ = Optics.Lens.create (fun s -> s.CompId) (fun v s -> {s with CompId = v})
 let compSlot_ = Optics.Lens.create (fun s -> s.CompSlot) (fun v s -> {s with CompSlot = v})
 
+/// Whether two slot names refer to the same field of a component.
+///
+/// The label in an `IO` slot is not part of its identity. It records the component's label as it
+/// was when the slot was created, and nothing rewrites it when the component is renamed - so a
+/// rename would otherwise orphan the slot and let a second one be created for the same field, with
+/// which of the two applied decided by Map key order. Every reader already ignores it
+/// (ComponentSlots.trySetSlotValue matches `IO _` in every case), so this is what "the same slot"
+/// has always meant in effect. The label is kept in the type because existing .dgm files store it,
+/// and it is repaired on save by CanvasExtractor.tidyParamSlots so that it stays worth displaying.
+let sameSlotName (a: CompSlotName) (b: CompSlotName) =
+    match a, b with
+    | IO _, IO _ -> true
+    | _ -> a = b
+
+/// Whether two slots are the same slot: the same field of the same component. See sameSlotName.
+let sameSlot (a: ParamSlot) (b: ParamSlot) =
+    a.CompId = b.CompId && sameSlotName a.CompSlot b.CompSlot
+
 /// A parameter expression and its corresponding constraints
 type ConstrainedExpr = {
     Expression: ParamExpression
@@ -129,6 +147,27 @@ let bindingsOf (defs: ParamDefinitions) : ParamBindings =
 /// as an extra field.
 /// This field should store all the Component's slot information where slots are bound to parameters.
 type ComponentSlotExpr = Map<ParamSlot, ConstrainedExpr>
+
+/// The expression filling a slot, found by what the slot IS rather than by the exact key: an `IO`
+/// slot stored under the component's old label is still that component's IO slot. See sameSlot.
+let tryFindSlot (slot: ParamSlot) (slots: ComponentSlotExpr) : ConstrainedExpr option =
+    match Map.tryFind slot slots with
+    | Some found -> Some found
+    | None -> slots |> Map.toList |> List.tryPick (fun (s, e) -> if sameSlot s slot then Some e else None)
+
+/// Every slot of the map that is not the given slot. Used to replace or delete a slot without
+/// leaving behind an older key for the same field - the state that made two slots fight over one
+/// component's width.
+let private withoutSlot (slot: ParamSlot) (slots: ComponentSlotExpr) : ComponentSlotExpr =
+    slots |> Map.filter (fun s _ -> not (sameSlot s slot))
+
+/// Put an expression in a slot, replacing whatever filled it before.
+let addSlot (slot: ParamSlot) (exprSpec: ConstrainedExpr) (slots: ComponentSlotExpr) : ComponentSlotExpr =
+    withoutSlot slot slots |> Map.add slot exprSpec
+
+/// Empty a slot, so that its field goes back to being an ordinary number.
+let removeSlot (slot: ParamSlot) (slots: ComponentSlotExpr) : ComponentSlotExpr =
+    withoutSlot slot slots
 
 /// The state used per design sheet to define integer slots
 /// that have values defined with parameter expressions
@@ -264,6 +303,15 @@ let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string 
         let currentPrecedence = 3
         "(" + renderParamExpression left currentPrecedence + "%" + renderParamExpression right currentPrecedence + ")"
 
+/// The names a parameter may have: a letter, then letters and digits.
+///
+/// This is exactly the parser's name token, exported so that the two cannot drift apart. They had:
+/// names were accepted as `[a-zA-Z0-9]+`, while the tokenizer split `W2X` into `W2` and `X` - so a
+/// parameter could be declared under a name and then never referred to. A leading digit is
+/// excluded for the same reason read the other way round: `123` would be a number.
+let isValidParamName (name: string) : bool =
+    Regex.IsMatch(name, @"^[a-zA-Z][a-zA-Z0-9]*$")
+
 /// <summary>
 /// Parses a string into a parameter expression AST.
 /// </summary>
@@ -274,25 +322,36 @@ let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string 
 /// </returns>
 /// <remarks>
 /// Supports arithmetic expressions with:
-/// - Integer constants
-/// - Parameter names (alphanumeric identifiers)
+/// - Integer constants, which may be negated
+/// - Parameter names, which are a letter followed by letters and digits (see isValidParamName)
 /// - Binary operators: +, -, *, /, %
+/// - Unary minus
 /// - Parentheses for grouping
-/// 
+///
 /// Operator precedence (higher binds tighter):
+/// - unary -: binds tightest, being part of the operand it precedes
 /// - *, /, %: Higher precedence
 /// - +, -: Lower precedence
-/// 
+///
 /// The parser uses recursive descent with separate functions for each precedence level.
 /// </remarks>
 let parseExpression (text: string) : Result<ParamExpression, ParamError> =
-    
+
     let toOperand (operand: string) =
         match System.Int32.TryParse operand with
         | true, intVal -> PInt intVal
         | false, _ -> PParameter <| ParamName operand
 
-    // Parses primary expressions: numbers, variables, and parentheses
+    /// Negation. There is no PNegate case and none is wanted: subtraction from zero is the same
+    /// expression, so every function over ParamExpression already handles it and no saved file
+    /// needs to change. A negated literal is folded so that it renders back as the user typed it;
+    /// a negated parameter renders as `0-W`, which means the same and re-parses to itself.
+    let negate expr =
+        match expr with
+        | PInt value -> PInt -value
+        | _ -> PSubtract (PInt 0, expr)
+
+    // Parses primary expressions: numbers, variables, negation and parentheses
     let rec parsePrimary (tokens: string list) : Result<ParamExpression * string list, ParamError> =
         match tokens with
         | [] -> Error "Unfinished expression"
@@ -302,6 +361,9 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
             | Ok _ -> Error "Mismatched parentheses"
             | Error e -> Error e
         | ")" :: _ -> Error "Unexpected closing parenthesis"
+        // Unary minus, so that a negative value can be written at all. Without it `-4` parsed the
+        // minus sign as though it were a parameter name and then complained about the 4.
+        | "-" :: rest -> parsePrimary rest |> Result.map (fun (expr, remaining) -> negate expr, remaining)
         | operand :: rest -> Ok (toOperand operand, rest)
 
     // Parses multiplication, division, and modulo (higher precedence)
@@ -344,14 +406,26 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
             loop firstOperand rest
         | Error e -> Error e
 
-    // Tokenizer: Splits input into numbers, variables, and operators
+    // Tokenizer: Splits input into numbers, parameter names, and operators.
+    // The name token is exactly isValidParamName's rule, so every name that can be declared can be
+    // written in an expression. It used to be `\d+[a-zA-Z]*|[a-zA-Z]+\d*`, which tokenised `W2X`
+    // as `W2` then `X` - so a parameter of that name could be declared and then never used, with
+    // an error message that pointed at neither problem.
     let tokenize (input: string) =
-        let pattern = @"\d+[a-zA-Z]*|[a-zA-Z]+\d*|[()+\-*/%]"
+        let pattern = @"[a-zA-Z][a-zA-Z0-9]*|\d+|[()+\-*/%]"
         Regex.Matches(input, pattern)
         |> Seq.cast<Match>
         |> Seq.map (fun m -> m.Value)
         |> Seq.toList
     
+    /// A number directly followed by a name, which this grammar never allows. It is worth its own
+    /// message because it is what `2W` now becomes: either a multiplication sign is missing, or the
+    /// design predates names having to start with a letter. Reported here rather than left to the
+    /// parser, which notices several steps later and complains about the wrong token.
+    let numberRunIntoName (tokens: string list) =
+        List.pairwise tokens
+        |> List.tryFind (fun (a, b) -> Regex.IsMatch(a, @"^\d+$") && Regex.IsMatch(b, @"^[a-zA-Z]"))
+
     let validPattern = @"^[0-9a-zA-Z()+\-*/%\s]+$"  // Allow only numbers, letters, operators, spaces, and parentheses
     if text = "" then Error "Input Empty"
     elif not (Regex.IsMatch(text, validPattern)) then
@@ -361,10 +435,16 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
         match tokenize text with
         | [] -> Error "Input Empty"
         | tokens ->
-            match parseExpressionTokens tokens with
-            | Ok (expr, []) -> Ok expr  // Ensure no leftover tokens
-            | Ok (_, leftover) -> Error (sprintf "Unexpected characters at end of expression: %s" (String.concat "" leftover))
-            | Error e -> Error e
+            match numberRunIntoName tokens with
+            | Some (number, name) ->
+                Error $"'{number}{name}' is neither a number nor a parameter name: a parameter name \
+                        must start with a letter, and a multiplication must be written out as \
+                        {number}*{name}"
+            | None ->
+                match parseExpressionTokens tokens with
+                | Ok (expr, []) -> Ok expr  // Ensure no leftover tokens
+                | Ok (_, leftover) -> Error (sprintf "Unexpected characters at end of expression: %s" (String.concat "" leftover))
+                | Error e -> Error e
 
 /// <summary>
 /// Checks if a parameter expression contains any parameter references.

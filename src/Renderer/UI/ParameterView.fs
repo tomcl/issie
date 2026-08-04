@@ -16,7 +16,6 @@ open DrawModelType
 open Optics
 open Optics.Operators
 open Optic
-open System.Text.RegularExpressions
 open Fulma.Extensions.Wikiki
 
 //------------------------------------------------------------------------------------------------
@@ -69,51 +68,46 @@ let symbolToComponent_ : Optics.Lens<SymbolT.Symbol, Component> =
 
 /// Evaluates a list of constraints got from slots against a set of parameter bindings to
 /// check what values of param are allowed.
-/// NB here 'PINT is not a polymorphic type but a type parameter that will be instantiated to int or bigint.
+///
+/// Pure: the constraints that are not met are returned, not dispatched. This used to send a
+/// notification from inside a List.filter, and one of its two callers is editParameterBox's
+/// isDisabled - which the popup asks, while rendering, whether its button should be greyed out. A
+/// constraint that could not be evaluated would have dispatched from there, re-rendered, and
+/// dispatched again. It also sent SetPopupDialogText, which is where some popups keep the text the
+/// user is typing.
+///
+/// Everything the caller has to say is carried in the ParamConstraint it gets back, which is where
+/// the caller already looks for it: a bound that cannot be worked out comes back as a constraint
+/// whose message says so.
 let evaluateConstraints
         (paramBindings: ParamBindings)
         (exprSpecs: ConstrainedExpr list)
-        (dispatch: Msg -> unit)
             : Result<Unit, ParamConstraint list> =
 
+    /// The constraints on one expression that its value does not meet.
+    let unmetConstraints (exprSpec: ConstrainedExpr) =
+        match ParameterTypes.evaluateParamExpression paramBindings exprSpec.Expression with
+        // an expression that cannot be evaluated fails its constraints: returning no failures here
+        // would let an undefined value through the guard
+        | Error err -> [MinVal (exprSpec.Expression, $"This value could not be worked out. {err}")]
+        | Ok value ->
+            exprSpec.Constraints
+            |> List.choose (fun konst ->
+                let bound, message =
+                    match konst with
+                    | MaxVal (bound, message) | MinVal (bound, message) -> bound, message
+                match ParameterTypes.evaluateParamExpression paramBindings bound with
+                // a bound that cannot be worked out cannot pass the value it guards
+                | Error err -> Some (MinVal (bound, $"{message} - but that limit could not be worked out. {err}"))
+                | Ok limit ->
+                    match konst with
+                    | MaxVal _ when value > limit -> Some konst
+                    | MinVal _ when value < limit -> Some konst
+                    | _ -> None)
 
-    let failedConstraints konst expr =
-        let resultExpression = ParameterTypes.evaluateParamExpression paramBindings expr
-        match resultExpression with
-            | Ok value ->
-                konst
-                |> List.filter (fun constr ->
-                    // a bound that cannot be evaluated cannot pass the value it guards
-                    match constr with
-                    | MaxVal (expr, errorMsg) ->
-                        match ParameterTypes.evaluateParamExpression paramBindings expr with
-                        | Ok maxValue -> value > maxValue
-                        | Error err -> // evaluation of constraint failed
-                            let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
-                            dispatch <| SetPopupDialogText (Some (string errMsg))
-                            true
-                    | MinVal (expr, _) ->
-                        match ParameterTypes.evaluateParamExpression paramBindings expr with
-                        | Ok minValue -> value < minValue
-                        | Error err -> // evaluation of constraint failed
-                            let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
-                            dispatch <| SetPopupDialogText (Some (string errMsg))
-                            true
-                    )
-            | Error err ->
-                // an expression that cannot be evaluated fails its constraints: returning no
-                // failures here would let an undefined value through the guard
-                let errMsg = sprintf "Expression Evaluation of Constraint failed because %s" (string err)
-                dispatch <| SetPopupDialogText (Some (string errMsg))
-                [MinVal (expr, errMsg)]
-    
-    let result =
-        exprSpecs
-        |> List.collect (fun slot ->
-            failedConstraints slot.Constraints slot.Expression)
-    
-    if List.isEmpty result then Ok()
-    else Error result
+    match exprSpecs |> List.collect unmetConstraints with
+    | [] -> Ok ()
+    | unmet -> Error unmet
 
 
 // Generates a ParameterExpression from input text
@@ -182,45 +176,20 @@ let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBin
 
 /// The port widths an instance of `childSheet` has when it binds its parameters as given.
 ///
-/// An instance binding is an expression in the parameters of the sheet the instance SITS ON, so it
-/// is evaluated there first; the child sheet's own declared defaults then fill in every parameter
-/// the instance does not bind. That merged environment - the same one GraphMerger.effectiveBindings
-/// builds for elaboration - is what the child's IO slot expressions have to be evaluated in.
-///
-/// Evaluating them against the raw instance bindings instead leaves every unbound parameter
-/// undefined, and makes a parameter bound to a same-named parent parameter look self-referential,
-/// so the width silently comes out as zero.
-///
-/// A label whose width cannot be worked out is left out of the result rather than guessed at, so
-/// its port keeps the width it already has.
+/// The work is CanvasExtractor.signatureOfInstance's, which is the one place that knows what an
+/// instance's ports are; this only turns its answer into the label-to-width map that
+/// updateCustomComponent wants. The label comes from the child sheet's Input or Output COMPONENT,
+/// not from the `IO` slot that sets its width, so a port renamed since its slot was created is
+/// still sized by that slot - see ParameterTypes.sameSlotName.
 let portWidthsOfInstance
         (ldcs: LoadedComponent list)
         (parentBindings: ParamBindings)
         (childSheet: string)
         (instanceBindings: ParamBindings)
         : Map<string, int> =
-    match ldcs |> List.tryFind (fun lc -> lc.Name = childSheet) with
-    | None -> Map.empty
-    | Some childLdc ->
-        let effective =
-            ParameterAnalysis.declaredParams childLdc
-            |> Map.map (fun name defExpr ->
-                Map.tryFind name instanceBindings
-                |> Option.bind (fun expr ->
-                    ParameterTypes.evaluateParamExpression parentBindings expr
-                    |> Result.toOption
-                    |> Option.map PInt)
-                |> Option.defaultValue defExpr)
-        ParameterAnalysis.sheetParamSlots childLdc
-        |> Map.toSeq
-        |> Seq.choose (fun (slot, exprSpec) ->
-            match slot.CompSlot with
-            | IO label ->
-                ParameterTypes.evaluateParamExpression effective exprSpec.Expression
-                |> Result.toOption
-                |> Option.map (fun width -> label, width)
-            | _ -> None)
-        |> Map.ofSeq
+    CanvasExtractor.signatureOfInstance ldcs parentBindings childSheet instanceBindings
+    |> Option.map (fun (ins, outs) -> ins @ outs |> Map.ofList)
+    |> Option.defaultValue Map.empty
 
 /// Push the values of the parameterised slots of ONE component onto the canvas.
 /// All of a component's slots are applied together because two of the messages replace a whole
@@ -300,25 +269,51 @@ let updateComponent dispatch model (slot: ParamSlot) (value:int) =
 // exprContainsParams has been moved to ParameterTypes module
 
 
+/// The open sheet's parameter data has just changed.
+///
+/// Nothing in the canvas need have changed with it: declaring a parameter, writing its
+/// description, or giving a slot an expression that works out to the width already shown all leave
+/// the canvas identical. UpdateHelpers.currentSheetIsOutOfDate compares only the canvas, so
+/// without this the save button stays dark, switching sheets does not save, and the work is
+/// silently dropped.
+///
+/// LoadedComponentIsOutOfDate is the flag that survives: SavedSheetIsOutOfDate is recomputed from
+/// it on every draw block message, and is set here too only so that the button responds before the
+/// next such message arrives. Saving the sheet clears both.
+/// The work is ParameterAnalysis.markSheetOutOfDate, which is a function of the loaded components
+/// alone and so can be tested without building a Model; this only reaches it.
+let markSheetParamsChanged (model: Model) : Model =
+    match model.CurrentProj with
+    | None -> model
+    | Some proj ->
+        model
+        |> Optic.map (projectOpt_ >?> loadedComponents_) (ParameterAnalysis.markSheetOutOfDate proj.OpenFileName)
+        |> Optic.set savedSheetIsOutOfDate_ true
+
 /// Adds or updates a parameter slot in loaded component param slots
 /// Removes the entry if the expression does not contain parameters
 let updateParamSlot
     (slot: ParamSlot)
     (exprSpec: ConstrainedExpr)
     (model: Model)
-    : Model = 
+    : Model =
 
-    let paramSlots = 
+    let paramSlots =
         model
         |> get paramSlotsOfModel_
         |> Option.defaultValue Map.empty
 
+    // addSlot and removeSlot rather than Map.add and Map.remove: a slot stored under the
+    // component's old label is the same slot, and adding a second one for the same field left the
+    // two to fight over the component's width in Map key order. See ParameterTypes.sameSlot.
     let newParamSlots =
         match ParameterTypes.exprContainsParams exprSpec.Expression with
-        | true  -> Map.add slot exprSpec paramSlots
-        | false -> Map.remove slot paramSlots
+        | true  -> ParameterTypes.addSlot slot exprSpec paramSlots
+        | false -> ParameterTypes.removeSlot slot paramSlots
 
-    set paramSlotsOfModel_ newParamSlots model
+    match newParamSlots = paramSlots with
+    | true -> model
+    | false -> model |> set paramSlotsOfModel_ newParamSlots |> markSheetParamsChanged
 
 
 /// Add the parameter information from a newly created component to paramSlots
@@ -372,7 +367,7 @@ let paramInputField
         // Only return first violated constraint
         let checkConstraints expr =
             let exprSpec = {Expression = expr; Constraints = constraints}
-            match evaluateConstraints paramBindings [exprSpec] dispatch with
+            match evaluateConstraints paramBindings [exprSpec] with
             | Ok () -> Ok ()
                 // Error (ParameterTypes.renderParamExpression expr)
             | Error (firstConstraint :: _) ->
@@ -410,15 +405,14 @@ let paramInputField
         | _ -> failwithf "Value cannot exist with invalid expression"
 
     let slots = model |> getCurrentSheet |> getParamSlots
-    let inputString = 
-        match comp with
-        | Some c ->
-            let key = {CompId = c.Id; CompSlot = compSlotName}
-            if Map.containsKey key slots then
-                ParameterTypes.renderParamExpression slots[key].Expression 0 // Or: Some (Map.find key slots)
-            else
-                currentValue |> Option.defaultValue defaultValue |> string
-        | None -> currentValue |> Option.defaultValue defaultValue |> string
+    let inputString =
+        // tryFindSlot, not Map.tryFind: an IO slot created before the component was renamed is
+        // stored under the old label and is still this field's slot, so a rename must not blank
+        // the expression out of the box. See ParameterTypes.sameSlot.
+        comp
+        |> Option.bind (fun c -> ParameterTypes.tryFindSlot {CompId = c.Id; CompSlot = compSlotName} slots)
+        |> Option.map (fun exprSpec -> ParameterTypes.renderParamExpression exprSpec.Expression 0)
+        |> Option.defaultValue (currentValue |> Option.defaultValue defaultValue |> string)
     
     let errText = 
         model.PopupDialogData.DialogState
@@ -548,14 +542,51 @@ let private declaredSlotValues (model: Model) : Map<ComponentId, Map<CompSlotNam
     |> List.map (fun (compId, entries) -> compId, entries |> List.map snd |> Map.ofList)
     |> Map.ofList
 
-/// Record on each symbol the declared value of the slots it is about to display differently.
+/// The declared ports of every custom component instance whose ports are about to be displayed
+/// differently, because a parameter it binds is shown at a value the sheet does not declare.
+///
+/// An instance is the one component whose slot value does not name a number in its own type: a
+/// CustomCompParam slot binds a parameter of the sheet INSIDE it, and the port widths follow from
+/// that binding by way of the child sheet. Putting the binding back at save time therefore does
+/// not put the ports back, and the sheet would be written with an instance whose ports contradict
+/// its own bindings - which is exactly what the simulator's custom component check rejects.
+/// So the ports are remembered whole. See SymbolT.Symbol.DeclaredPortLabels.
+let private declaredPortLabels (model: Model) : Map<ComponentId, (string * int) list * (string * int) list> =
+    match model.CurrentProj with
+    | None -> Map.empty
+    | Some proj ->
+        let ldcs = (ModelHelpers.getUpdatedLoadedComponents proj model).LoadedComponents
+        let declared = paramBindingsOfModel model
+        let computed = computedBindingsForOpenSheet model
+        let slots = model |> get paramSlotsOfModel_ |> Option.defaultValue Map.empty
+        let sigAt bindings (comp: Component) (cc: CustomComponentType) =
+            ParameterAnalysis.instanceBindingExprs slots comp cc
+            |> CanvasExtractor.signatureOfInstance ldcs bindings cc.Name
+        model
+        |> get modelToSymbols
+        |> Map.toList
+        |> List.choose (fun (cid, sym: SymbolT.Symbol) ->
+            match sym.Component.Type with
+            | Custom cc ->
+                match sigAt declared sym.Component cc, sigAt computed sym.Component cc with
+                | Some declaredSig, Some computedSig when declaredSig <> computedSig ->
+                    Some (cid, declaredSig)
+                | _ -> None
+            | _ -> None)
+        |> Map.ofList
+
+/// Record on each symbol what it is about to display differently: the declared value of each of
+/// its parameterised slots, and - for a custom component instance - its declared ports.
 /// Every symbol is written, so a symbol that no longer differs has its record cleared: this must
 /// be safe to repeat, and on a later call the values may have been computed for a different top
-/// sheet. Only the slot values are recorded, so no other edit to the symbol is disturbed.
+/// sheet. Only those two things are recorded, so no other edit to the symbol is disturbed.
 let private stashDeclaredSlots (model: Model) : Model =
     let byComp = declaredSlotValues model
+    let portsByComp = declaredPortLabels model
     let stash cid (sym: SymbolT.Symbol) =
-        {sym with DeclaredSlots = Map.tryFind cid byComp |> Option.defaultValue Map.empty}
+        {sym with
+            DeclaredSlots = Map.tryFind cid byComp |> Option.defaultValue Map.empty
+            DeclaredPortLabels = Map.tryFind cid portsByComp}
     model |> Optic.map modelToSymbols (Map.map stash)
 
 /// Draw the open sheet at the values its parameters take under the current top sheet.
@@ -719,7 +750,9 @@ let modifyInfoSheet (project: CommonTypes.Project) (choise: UpdateInfoSheetChois
                                     else lc
                                 )
     let newProject = {project with LoadedComponents = updatedComponents}
-    updateParameter newProject |> UpdateModel |> dispatch
+    // the canvas is untouched by a change to what the sheet declares, so say the sheet needs
+    // saving rather than leaving it to be inferred from a canvas that is identical
+    (updateParameter newProject >> markSheetParamsChanged) |> UpdateModel |> dispatch
 
 /// Every instance of a sheet binds every parameter that sheet declares.
 ///
@@ -827,12 +860,15 @@ let addParameterBox model dispatch =
                 // the sheets below be bound to it; that shows up as a bind button in those
                 // instances' properties rather than as a popup raised here
 
-        // Parameter names can only be made out of letters and numbers, and every parameter must
-        // be described: the description is what instances of this sheet show when asking for a value
+        // A parameter name is a letter followed by letters and numbers - the parser's rule, since a
+        // name that cannot be written in an expression is of no use - and every parameter must be
+        // described: the description is what instances of this sheet show when asking for a value.
+        // The rule used to be `[a-zA-Z0-9]+` here while the popup's own red text said the name had
+        // to start with a letter, so a name beginning with a digit was flagged and accepted.
         let isDisabled =
             fun (model': Model) ->
                  let newParamName = getText model'.PopupDialogData
-                 not (Regex.IsMatch(newParamName, "^[a-zA-Z0-9]+$"))
+                 not (ParameterTypes.isValidParamName newParamName)
                  || getText2 model'.PopupDialogData = ""
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
@@ -923,7 +959,7 @@ let editParameterBox model parameterName dispatch   =
                     |> List.map snd
 
                 getText2 model'.PopupDialogData = ""
-                || (evaluateConstraints (editedBindings model') exprSpecs dispatch |> Result.isError)
+                || (evaluateConstraints (editedBindings model') exprSpecs |> Result.isError)
 
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
@@ -1208,52 +1244,6 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                 ]
             addParameterButton
         ]
-
-/// Resolve every parameterised slot of one component against the given bindings.
-/// Used to work out the port widths of a custom component instance before it is placed, and to
-/// refresh a LoadedComponent's port labels. The slot-to-field mapping is ComponentSlots'.
-let resolveParametersForComponent
-    (paramBindings: ParamBindings)
-    (paramSlots: Map<ParamSlot, ConstrainedExpr>)
-    (comp: Component)
-    : Result<Component, string> =
-
-    paramSlots
-    |> Map.filter (fun slot _ -> slot.CompId = comp.Id)
-    |> Map.toList
-    |> List.fold
-        (fun compRes (slot, constrainedExpr) ->
-            compRes
-            |> Result.bind (fun (compType: ComponentType) ->
-                ParameterTypes.evaluateParamExpression paramBindings constrainedExpr.Expression
-                |> Result.map (fun value -> ComponentSlots.setSlotValue slot.CompSlot value compType)))
-        (Ok comp.Type)
-    |> Result.map (fun compType -> { comp with Type = compType })
-
-/// Update LoadedComponent port labels after parameter resolution
-let updateLoadedComponentPorts (loadedComponent: LoadedComponent) : LoadedComponent =
-    match loadedComponent.LCParameterSlots with
-    | Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
-        // Apply parameter resolution to get updated port labels
-        let (comps, conns) = loadedComponent.CanvasState
-        let resolvedComps = 
-            comps |> List.map (fun comp ->
-                match resolveParametersForComponent (bindingsOf paramSlots.DefaultBindings) paramSlots.ParamSlots comp with
-                | Ok resolvedComp -> resolvedComp
-                | Error _ -> comp // Keep original on error
-            )
-        let resolvedCanvas = (resolvedComps, conns)
-        let newInputLabels = CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas
-        let newOutputLabels = CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas
-        
-        { loadedComponent with 
-            InputLabels = newInputLabels
-            OutputLabels = newOutputLabels }
-    | _ -> loadedComponent
-
-/// Update a custom component with new I/O component widths.
-/// Used when these chnage as result of parameter changes.
-
 
 //------------------------------------------------------------------------------------------------//
 //------------------------------------- Bind-to-top offers ---------------------------------------//

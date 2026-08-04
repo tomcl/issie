@@ -179,6 +179,19 @@ module SymbolT =
             /// leave the memo blind to a top-sheet change and the canvas would silently go stale.
             DeclaredSlots : Map<ParameterTypes.CompSlotName, int>
 
+            /// The DECLARED port labels and widths of a custom component instance, while the sheet
+            /// is drawn at computed values that change them. None otherwise, so for every symbol
+            /// that is not a custom component and for almost every one that is.
+            ///
+            /// A custom component instance is the one symbol whose parameter slot does not name a
+            /// number in its own type: a CustomCompParam slot binds a parameter of the sheet
+            /// INSIDE it, and the instance's port widths follow from that binding by way of the
+            /// child sheet. ComponentSlots.setSlotValue can put the binding back but not the ports
+            /// it implies - it has no access to the child sheet - so the ports have to be
+            /// remembered separately, or a sheet saved while showing computed values would write
+            /// an instance whose ports contradict its own bindings.
+            DeclaredPortLabels : ((string * int) list * (string * int) list) option
+
             /// Use Some Annotation for visible (and clickable) objects on screen
             /// In this case Component is a dummy used only to provide expected H & V
             Annotation: Annotation option
@@ -224,6 +237,7 @@ module SymbolT =
     let movingPortTarget_ = Lens.create (fun a -> a.MovingPortTarget) (fun s a -> {a with MovingPortTarget = s})
     let component_ = Lens.create (fun a -> a.Component) (fun s a -> {a with Component = s})
     let declaredSlots_ = Lens.create (fun a -> a.DeclaredSlots) (fun s a -> {a with DeclaredSlots = s})
+    let declaredPortLabels_ = Lens.create (fun a -> a.DeclaredPortLabels) (fun s a -> {a with DeclaredPortLabels = s})
     let posOfSym_ = Lens.create (fun a -> a.Pos) (fun s a -> {a with Pos = s})
     let getScaleF = Option.defaultValue 1.
     let scaleF_ = Lens.create

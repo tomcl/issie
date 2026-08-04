@@ -7,6 +7,18 @@ be updated correctly, with best efforts attempt to keep existing connections to 
 the same or where it can safely be deduced how ports have been renamed.
 
 The code potentially makes changes to every sheet in the project in the model, and writes out these changes to disk.
+
+A sheet that declares parameters has no single signature: it has a family of them, one per set of
+bindings, and two instances of it may legitimately have different port widths. So "out of date"
+cannot mean "differs from the sheet". It means differs from what THIS instance's own bindings give
+it - CanvasExtractor.signatureOfInstance - and each instance is brought back to its own signature
+rather than to a shared one. Testing against the sheet instead raised this dialog on every save of
+any parameterised design, and accepting it forced every instance to the sheet's declared widths
+while leaving its bindings alone, which is a design the simulator then rejects.
+
+Widths are consequently absent from what the dialog reports. A port added, deleted or renamed is a
+fact about the SHEET and is what the user needs to confirm; a width is a fact about each instance,
+and every instance is updated to its own.
 *)
 
 open Fulma
@@ -122,7 +134,8 @@ type PortChange = {
     }
 
 /// Names and widths of ports, ordered. Input ports, Output ports.
-type Signature = (string*int) list * (string*int) list
+/// CanvasExtractor owns this type, because it is what signatureOfInstance answers with.
+type Signature = CanvasExtractor.Signature
 
 let getIOMatchFromSig (inputs, outputs)  =
 
@@ -177,21 +190,26 @@ let ioCompareSigs (sig1: Signature) (sig2: Signature) =
 
 let guessAtRenamedPorts (matches: PortChange seq)  : PortChange array =
     let matches = Seq.toList matches
-    let portsByWidthFiltered (ports: ((string*int) * PortChange) list) =
+    /// Candidates keyed by what a rename cannot change: which side of the component the port is on
+    /// and how wide it is. A key held by more than one candidate is dropped, since there is then
+    /// no single port it could have been renamed from.
+    /// The direction belongs in the key: keyed on width alone, an INPUT added at width 8 was
+    /// paired with an OUTPUT deleted at width 8, and the instance was left half-changed.
+    let portsByKeyFiltered (ports: ((string*int) * PortChange) list) =
         ports
-        |> List.groupBy (fst >> snd)
-        |> List.collect (function |(width, [item]) -> [width,item] | _ -> [] )
+        |> List.groupBy (fun ((_, width), change) -> change.Direction, width)
+        |> List.collect (function |(key, [item]) -> [key,item] | _ -> [] )
         |> Map.ofList
-  
-    let additions = 
-        matches
-        |> List.collect (function | {New = Some (name,width); Old = None; Direction = dir } as m -> [(name,width), m] | _ -> [])
-        |> portsByWidthFiltered
 
-    let deletions = 
+    let additions =
         matches
-        |> List.collect (function | {Old = Some (name,width); New = None; Direction = dir } as m -> [(name,width), m] | _ -> [])
-        |> portsByWidthFiltered
+        |> List.collect (function | {New = Some (name,width); Old = None} as m -> [(name,width), m] | _ -> [])
+        |> portsByKeyFiltered
+
+    let deletions =
+        matches
+        |> List.collect (function | {Old = Some (name,width); New = None} as m -> [(name,width), m] | _ -> [])
+        |> portsByKeyFiltered
 
     let guessedRenames, deletedMatches =
         Set.intersect (Set (mapKeys additions)) (Set (mapKeys deletions))
@@ -216,84 +234,52 @@ let guessAtRenamedPorts (matches: PortChange seq)  : PortChange array =
 
 
 
-let findInstancesOfCurrentSheet (project:Project) =
-    let thisSheet = getCorrectFileName project
-    let ldcs = project.LoadedComponents
-    let getInstance (comp:Component) =
-        match comp.Type with
-        | Custom ({Name=thisSheet} as cType) -> Some (ComponentId comp.Id, cType)
-        | _ -> None
+/// One instance of the current sheet placed on another sheet: where it is, the signature it has,
+/// and the signature it OUGHT to have - the sheet inside it resolved at this instance's own
+/// parameter bindings. The two differ exactly when the instance needs updating.
+type Instance = {
+    /// the sheet the instance sits on
+    Sheet: string
+    CompId: string
+    Label: string
+    Old: Signature
+    Expected: Signature
+    }
 
-    let getSheetInstances (ldc:LoadedComponent) =
-        fst ldc.CanvasState
-        |> List.choose getInstance
+/// Every instance of the current sheet, with the signature it has and the one it should have.
+///
+/// An instance's bindings are expressions in the parameters of the sheet it SITS ON - and may be
+/// overridden there by a CustomCompParam slot, exactly as in elaboration - so the parent sheet is
+/// where they are evaluated. ParameterAnalysis.instanceBindingExprs is the same merge the
+/// properties pane and the simulator make.
+let getInstancesOfCurrentSheet (model: Model) : Instance list =
+    mapOverProject [] model <| fun p ->
+        let sheetName = getCorrectFileName p
+        p.LoadedComponents
+        |> List.filter (fun ldc -> ldc.Name <> sheetName)
+        |> List.collect (fun parentLdc ->
+            let parentBindings = ParameterAnalysis.declaredParams parentLdc
+            let parentSlots = ParameterAnalysis.sheetParamSlots parentLdc
+            fst parentLdc.CanvasState
+            |> List.choose (fun comp ->
+                match comp.Type with
+                | Custom cc when cc.Name = sheetName ->
+                    ParameterAnalysis.instanceBindingExprs parentSlots comp cc
+                    |> CanvasExtractor.signatureOfInstance p.LoadedComponents parentBindings sheetName
+                    |> Option.map (fun expected ->
+                        { Sheet = parentLdc.Name
+                          CompId = comp.Id
+                          Label = comp.Label
+                          Old = cc.InputLabels, cc.OutputLabels
+                          Expected = expected })
+                | _ -> None))
 
-    ldcs
-    |> List.collect (fun ldc -> 
-        getSheetInstances ldc
-        |> List.map (fun ins -> ldc.Name, ins))
-
-
-type Deps =
-    | NoDependents
-    | OneSig of ((string * int) list * (string * int) list) * (string * (ComponentId * CustomComponentType)) list
-    | Mixed of (string * int) list
-
-let getDependentsInfo (p: Project)  =
-    let instances = findInstancesOfCurrentSheet p
-    let gps = 
-        instances
-        |> List.groupBy (fun (_, (_,{InputLabels=ips; OutputLabels=ops})) -> (ips |> List.sort), (ops |> List.sort))
-        |> List.sortByDescending (fun (tag,items) -> items.Length)
-
-    match gps with
-    | [] -> NoDependents // no dependencies - nothing to do
-    | [sg, items] -> OneSig(sg, items) // normal case, all dependencies have same signature
-    | _ -> // dependencies have mixed signatures
-        instances
-        |> List.groupBy fst
-        |> List.map (fun (tag, lst) -> tag, lst.Length)
-        |> Mixed          
-
-let makePortName (nameWidth :(string*int) option) =
-    match nameWidth with
-    | None -> ""
-    | Some (name,w) -> $"%s{name}({w-1}:{0})"
-    |> str
-
-/// returns IO signature of current sheet, and all its instances in other sheets
-let getDependents (model:Model)  =
-    mapOverProject None model <| fun p ->
-         let sheetName = getCorrectFileName p
-         let newSig = 
-             p.LoadedComponents
-             |> List.find (fun ldc -> ldc.Name = sheetName)
-             |> (fun ldc -> parseDiagramSignature ldc.CanvasState)
-         let instances =
-             p.LoadedComponents
-             |> List.filter (fun ldc -> ldc.Name <> sheetName)
-             |> List.collect (fun ldc -> 
-                 fst ldc.CanvasState
-                 |> List.collect (
-                     function 
-                         | {Type = Custom { Name=name; InputLabels=ins; OutputLabels=outs}
-                            Id = cid} when name = sheetName-> [ldc.Name, cid,  (ins,outs)]
-                         | _ -> []))
-         Some(newSig, instances)
-
-let dependencyDoesNotMatchSignature newSig oldSig =
-    let sortLists (a,b) = a, b // we now require signature order to match
-    sortLists newSig <> sortLists oldSig
-
-
-/// check whether any instance dependent on current sheet has different signature from current
-let getOutOfDateDependents (model:Model) =
-    match getDependents model with
-    | None
-    | Some(_, []) -> None
-    | Some (newSig, (_,_,sg) :: _otherInstances) as deps when 
-            dependencyDoesNotMatchSignature newSig sg-> deps
-    | _ -> None
+/// The instances of the current sheet that no longer match what their own bindings give them.
+/// Signature ORDER matters as well as content: the ports of an instance are numbered in the order
+/// the Input and Output components appear on the sheet, so moving one reorders its ports.
+let getOutOfDateDependents (model: Model) : Instance list =
+    getInstancesOfCurrentSheet model
+    |> List.filter (fun inst -> inst.Old <> inst.Expected)
 
 
 /// Return canvasState updated with bad connections that have lost either of their connecting components deleted
@@ -419,24 +405,30 @@ let changeInstance (comp:Component) (change: PortChange) =
     | newC, oldC -> 
         failwithf $"What? Change with new={newC} and old = {oldC} should not be possible"
     
-/// Make changes to ccomponent cid on sheet converting old ports oldSig to new ports newSig
-let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature) (p: Project) =
+/// Bring one instance to the signature its own parameter bindings give it.
+let updateInstance (inst: Instance) (p: Project) =
+    let newSig = inst.Expected
     /// Assume that name and bit number changes have been made. Deal with any needed reordering.
-    let reorderInstancePorts (newSig: Signature) (comp: Component) =
+    let reorderInstancePorts (comp: Component) =
         let reorderPorts newNames oldNames (oldPorts: Port list) =
             newNames
             |> List.map (fun (name,_) -> List.findIndex (fun (name',_) -> name'=name) oldNames)
             |> List.map (fun n -> oldPorts[n])
             |> List.mapi (fun i p -> {p with PortNumber = Some i})
         match comp.Type with
-        | Custom ct -> //when ct.Form = Some User ->                
-                if oldSig = newSig then 
+        | Custom ct -> //when ct.Form = Some User ->
+                // What is left to do is judged from the signature the instance has NOW, after
+                // changeInstance has added, deleted, renamed and rewidened its ports - not from
+                // the one it started with. Comparing against the original made a change that both
+                // added a port and reordered the rest fall through to the warning below, which
+                // left the instance half-updated.
+                let currentSig = ct.InputLabels, ct.OutputLabels
+                if currentSig = newSig then
                     comp
-                elif mapPair List.sort newSig = mapPair List.sort oldSig then
+                elif mapPair List.sort currentSig = mapPair List.sort newSig then
                     printfn $"Reordering {comp.Label}"
-                    let oldSig = ct.InputLabels, ct.OutputLabels
                     let newIn,newOut = newSig
-                    let oldIn,oldOut = oldSig
+                    let oldIn,oldOut = currentSig
                     let newInPorts = reorderPorts newIn oldIn comp.InputPorts
                     let newOutPorts = reorderPorts newOut oldOut comp.OutputPorts
                     let ct' = {ct with InputLabels = fst newSig; OutputLabels = snd newSig}
@@ -449,19 +441,19 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
 
         | _ -> comp // no change (should never happen?)
 #if ASSERTS
-    assertThat 
-        (sheet <> (getCorrectFileName p))
-        $"What? Instances to be changed in {sheet} must not be in custom \
+    assertThat
+        (inst.Sheet <> (getCorrectFileName p))
+        $"What? Instances to be changed in {inst.Sheet} must not be in custom \
         component sheet{p.OpenFileName}"
 #endif
     let ldc =
         p.LoadedComponents
-        |> List.find (fun ldc -> ldc.Name = sheet)
+        |> List.find (fun ldc -> ldc.Name = inst.Sheet)
     let (comps,conns) = ldc.CanvasState
     let comp =
-        comps |> List.find (fun comp -> comp.Id = cid)
-    let changes = 
-        ioCompareSigs newSig oldSig
+        comps |> List.find (fun comp -> comp.Id = inst.CompId)
+    let changes =
+        ioCompareSigs newSig inst.Old
         |> guessAtRenamedPorts
     let comp' =
         (comp, changes)
@@ -469,28 +461,33 @@ let updateInstance (newSig: Signature) (sheet:string,cid:string,oldSig:Signature
             let comp'' = changeInstance comp change
             comp''
             )
-        |> reorderInstancePorts newSig
+        |> reorderInstancePorts
     let comps' =
         comps
-        |> List.map (fun comp -> 
-            if comp.Id = cid then 
-                comp' 
-            else 
+        |> List.map (fun comp ->
+            if comp.Id = inst.CompId then
+                comp'
+            else
                 comp)
-    let ldc' = {ldc with CanvasState = deleteIncompleteConnections (comps',conns)}
+    let ldc' =
+        {ldc with
+            CanvasState = deleteIncompleteConnections (comps',conns)
+            // the sheet has changed in memory and must reach disk: it is not the open sheet, so
+            // nothing else will notice
+            LoadedComponentIsOutOfDate = true}
     let ldcLst = ldc' :: List.except [ldc] p.LoadedComponents
     {p with LoadedComponents = ldcLst}
 
 
 
-/// dispatch message to change project in model, returning project           
-let updateDependents (newSig: Signature) (instances:(string*string*Signature) list) model dispatch =
+/// dispatch message to change project in model, returning project
+let updateDependents (instances: Instance list) model dispatch =
     match model.CurrentProj with
     | None -> None
     | Some p ->
         (p,instances)
-        ||> List.fold (fun p instance -> updateInstance newSig instance p)
-        |> (fun p -> 
+        ||> List.fold (fun p instance -> updateInstance instance p)
+        |> (fun p ->
             dispatch <| SetProject p
             Some p)
 
@@ -505,98 +502,152 @@ let checkCanvasStateIsOk (model:Model) =
         ioNames.Length = (List.distinct ioNames).Length
         )
     
+/// A change to the sheet's ports as the dialog reports it: a port added, deleted or renamed.
+/// Widths are deliberately left out - see the module comment - so that one row describes what
+/// happened to every instance, however many different widths those instances have.
+type ReportedChange = {
+    Direction: IODirection
+    OldName: string option
+    NewName: string option
+    Message: string
+    }
+
+/// What the user is being asked to confirm, gathered from every out-of-date instance: the ports
+/// that came and went, and which instances change only in width.
+///
+/// The structural changes are taken over all instances rather than from a representative one.
+/// Instances of a parameterised sheet may be at different widths, so a rename can be guessed for
+/// one and not for another; the union is what the sheet's ports actually did.
+let reportedChanges (instances: Instance list) : ReportedChange list * Instance list =
+    let changesOf (inst: Instance) =
+        ioCompareSigs inst.Expected inst.Old
+        |> guessAtRenamedPorts
+        |> Array.toList
+    let structuralOf (change: PortChange) =
+        let nameOf = Option.map fst
+        match nameOf change.New, nameOf change.Old with
+        | newName, oldName when newName = oldName -> None
+        | newName, oldName ->
+            Some {Direction = change.Direction; NewName = newName; OldName = oldName; Message = change.Message}
+    let structural =
+        instances
+        |> List.collect (changesOf >> List.choose structuralOf)
+        |> List.distinct
+    let widthOnly =
+        instances
+        |> List.filter (fun inst -> changesOf inst |> List.forall (structuralOf >> Option.isNone))
+    structural, widthOnly
+
 /// returns a popup function to show the dependents update dialog if this is needed
 /// this dialog drives all subsequent work changing custom component instances
 let optCurrentSheetDependentsPopup (model: Model) =
-        let sheet = 
+        let sheet =
             model.CurrentProj
-            |> Option.map (fun p -> 
+            |> Option.map (fun p ->
                 match p.WorkingFileName with
                 |Some z -> (Option.get p.WorkingFileName)
                 |None -> p.OpenFileName
             )
         if not <| checkCanvasStateIsOk model then
             None // do nothing if IOs are not currently valid. Can this ever happen?
-        else     
-            match getOutOfDateDependents model  with
-            | None -> None
-            | Some (newSig, (((firstSheet,firstCid,firstSig) :: rest) as instances)) ->
-                let depSheets = 
+        else
+            match getOutOfDateDependents model with
+            | [] -> None
+            | instances ->
+                let depSheets =
                     instances
-                    |> List.map (fun (sheet,_,_) -> sheet)
+                    |> List.map (fun inst -> inst.Sheet)
                     |> List.distinct
                     |> String.concat ","
-                let changes = 
-                    ioCompareSigs newSig firstSig
-                    |> guessAtRenamedPorts
-                match changes |> Array.exists (fun ch -> ch.Old <> ch.New) with
-                | false -> None
-                | true -> 
-                    let whatChanged ="the inputs or outputs"
-                    
-                    let headCell heading =  th [ ] [ str heading ]
-                    let makeRow (change:PortChange) = 
-                        tr []
+                let structural, widthOnly = reportedChanges instances
+                let whatChanged =
+                    match structural, widthOnly with
+                    | [], [] -> ""
+                    | [], _ -> "the width of a port on"
+                    | _, _ -> "the inputs or outputs of"
+
+                let headCell heading =  th [ ] [ str heading ]
+                let makeRow (change: ReportedChange) =
+                    let name = Option.defaultValue "" >> str
+                    tr []
+                        [
+                            td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
+                            td [] [name change.NewName]
+                            td [] [name change.OldName]
+                            td [] [str change.Message]
+                        ]
+                let structuralTable =
+                    match structural with
+                    | [] -> div [] []
+                    | _ ->
+                        Table.table [
+                                Table.IsHoverable
+                                Table.IsBordered
+                                Table.IsNarrow
+                                Table.Props [Style [ MarginTop "15px" ]]]
                             [
-                       
-                                td [] [str (if change.Direction = InputIO  then "Input" else "Output")]
-                                td [] [makePortName change.New]
-                                td [] [makePortName change.Old]
-                                td [] [str change.Message]
+                                thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
+                                tbody []   (List.map makeRow structural)
                             ]
-                    let body = 
-                        div [Style [ MarginTop "15px" ] ] 
-                            [
-                                Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
-                                str $"You have changed the {whatChanged} of the current '{sheet}' sheet. "
-                                br []
-                                str "This dialog will automatically update all dependent sheets to match this. "
-                                br []
-                                str $"The '{sheet}' sheet is instantiated as a symbol {instances.Length} times in dependent sheets: '{depSheets}'. "
-                                str $"If you do not automatically update the symbols you will need to delete and recreate each one."
-                                br []
-                                str "If you automatically update symbols wires that no longer match will be autorouted correctly when you next load each sheet"
-                                br []
-                                Table.table [
-                                        Table.IsHoverable                               
-                                        Table.IsBordered
-                                        Table.IsNarrow
-                                        Table.Props [Style [ MarginTop "15px" ]]]
-                                    [ 
-                                        thead [] [ tr [] (List.map headCell ["Type" ;"New port"; "Old port" ; "Change"]) ]
-                                        tbody []   (Array.map makeRow  changes) 
-                                    ]
-                            ]
+                // Instances whose widths alone change are NAMED rather than tabulated: two
+                // instances of a parameterised sheet are meant to be at different widths, and
+                // printing one instance's numbers as though they were the sheet's is what made
+                // this dialog describe a parameterised design wrongly. Which instances are
+                // affected is the part the user can act on.
+                let widthNote =
+                    match widthOnly with
+                    | [] -> div [] []
+                    | affected ->
+                        let named =
+                            affected
+                            |> List.map (fun inst -> $"{inst.Label} on {inst.Sheet}")
+                            |> String.concat ", "
+                        let verb = if affected.Length = 1 then "is" else "are"
+                        div [] [str $"These instances {verb} at port widths that no longer follow from \
+                                      their own parameters, and will be corrected: {named}."]
+                let body =
+                    div [Style [ MarginTop "15px" ] ]
+                        [
+                            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [str $"{sheet}"]
+                            str $"You have changed {whatChanged} the current '{sheet}' sheet. "
+                            br []
+                            str "This dialog will automatically update all dependent sheets to match this. "
+                            br []
+                            str $"The '{sheet}' sheet is instantiated as a symbol {instances.Length} times in dependent sheets: '{depSheets}'. "
+                            str $"If you do not automatically update the symbols you will need to delete and recreate each one."
+                            br []
+                            str "If you automatically update symbols wires that no longer match will be autorouted correctly when you next load each sheet"
+                            br []
+                            str "Each instance is set to the port widths its own parameters give it, so instances at different widths stay at different widths."
+                            br []
+                            widthNote
+                            structuralTable
+                        ]
 
-                    let buttonAction isUpdate dispatch  _ =
-                        if isUpdate then
-                            // printfn "instances: %A" instances
-                            
-                            let newp = 
-                                updateDependents newSig instances model dispatch
-                            
-                            newp |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk |> ignore
-                            
-                            
-                            let proj = Option.get (newp)
-                            
-                            if proj.OpenFileName <> (Option.defaultValue proj.OpenFileName proj.WorkingFileName) then 
-                                let model' = {model with CurrentProj = Some proj}
-                                openFileInProject' false proj.OpenFileName proj model' dispatch
-                            else ()
+                let buttonAction isUpdate dispatch  _ =
+                    if isUpdate then
+                        let newp =
+                            updateDependents instances model dispatch
 
-                        dispatch <| ClosePopup
-                        
-                    choicePopupFunc 
-                        "Update All Sheet Instances" 
-                        (fun _ -> body)
-                        "Update all instances" 
-                        "Save the sheet without updating instances" 
-                        buttonAction 
-                    |> Some
-              
+                        newp |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk |> ignore
 
-            | _ -> failwithf "What? Impossible"
+
+                        let proj = Option.get (newp)
+
+                        if proj.OpenFileName <> (Option.defaultValue proj.OpenFileName proj.WorkingFileName) then
+                            let model' = {model with CurrentProj = Some proj}
+                            openFileInProject' false proj.OpenFileName proj model' dispatch
+                        else ()
+
+                    dispatch <| ClosePopup
+
+                choicePopupFunc
+                    "Update All Sheet Instances"
+                    (fun _ -> body)
+                    "Update all instances"
+                    "Save the sheet without updating instances"
+                    buttonAction
+                |> Some
 
 
 

@@ -1,6 +1,7 @@
 module CanvasExtractor
 
 open CommonTypes
+open ParameterTypes
 open Fable.Core
 
 let sortQBy (byFun: 'a -> 'b) (ids: 'a list) =
@@ -268,20 +269,150 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
 
     ldc
 
-/// Drop parameter slots naming components that are no longer on the sheet.
-/// Every parameter slot must name a live component: a slot outliving its component cannot be
-/// displayed or edited, and pushing a value into it would throw.
-let pruneDeadParamSlots ((comps, _): CanvasState) (paramDefs: ParameterTypes.ParameterDefs option) =
+/// Put a sheet's parameter slots in order against its canvas, ready to be saved:
+///
+///   - drop slots naming components that are no longer on the sheet. Every parameter slot must
+///     name a live component: a slot outliving its component cannot be displayed or edited, and
+///     pushing a value into it would throw;
+///   - re-point the label an `IO` slot carries at its component's current label. Nothing rewrites
+///     that label when the component is renamed, and while no reader depends on it (see
+///     ParameterTypes.sameSlotName) it is what the properties pane and the slot table print, so a
+///     stale one describes the sheet wrongly.
+let tidyParamSlots ((comps, _): CanvasState) (paramDefs: ParameterTypes.ParameterDefs option) =
     match paramDefs with
     | None -> None
     | Some defs ->
-        let liveIds =
+        let labelOf =
             comps
-            |> List.map (fun comp -> comp.Id)
-            |> Set.ofList
+            |> List.map (fun comp -> comp.Id, comp.Label)
+            |> Map.ofList
         defs.ParamSlots
-        |> Map.filter (fun slot _ -> Set.contains slot.CompId liveIds)
+        |> Map.toList
+        |> List.choose (fun (slot, exprSpec) ->
+            match Map.tryFind slot.CompId labelOf, slot.CompSlot with
+            | None, _ -> None
+            | Some label, IO _ -> Some ({slot with CompSlot = IO label}, exprSpec)
+            | Some _, _ -> Some (slot, exprSpec))
+        |> Map.ofList
         |> fun slots -> Some {defs with ParamSlots = slots}
+
+//------------------------------------------------------------------------------------------------//
+//------------------------- The signature of one custom component instance -----------------------//
+//------------------------------------------------------------------------------------------------//
+
+(*
+    A sheet that declares parameters does not have one signature: it has a family of them, one per
+    set of bindings. The port widths of a custom component instance are therefore a fact about the
+    INSTANCE, worked out from the sheet inside it resolved at the bindings that instance gives.
+
+    Everything that needs to know an instance's ports goes through signatureOfInstance: placing one
+    (CatalogueView), redrawing one when a binding changes (ParameterView), checking one before
+    simulation (CanvasStateAnalyser) and bringing instances back into step when the sheet changes
+    (CustomCompPorts). Three copies of this calculation existed before, and they disagreed.
+*)
+
+/// A sheet's ports: input labels and widths, then output labels and widths, each in the order the
+/// components appear on the sheet.
+type Signature = (string * int) list * (string * int) list
+
+/// The bindings a sheet is resolved with inside one instance of it.
+///
+/// An instance binding is an expression in the parameters of the sheet the instance SITS ON, so it
+/// is evaluated there first and reaches the child sheet as a plain value; every parameter the
+/// instance does not bind takes the child's own declared default. This is the same merge
+/// GraphMerger.effectiveBindings makes for elaboration, so what is drawn and what is simulated
+/// agree. A binding that cannot be evaluated falls back to the default rather than to nothing.
+let effectiveInstanceBindings
+        (childDefaults: ParamBindings)
+        (parentBindings: ParamBindings)
+        (instanceBindings: ParamBindings)
+        : ParamBindings =
+    childDefaults
+    |> Map.map (fun name defExpr ->
+        Map.tryFind name instanceBindings
+        |> Option.bind (fun expr ->
+            evaluateParamExpression parentBindings expr
+            |> Result.toOption
+            |> Option.map PInt)
+        |> Option.defaultValue defExpr)
+
+/// A sheet's canvas with every parameterised slot resolved at the given bindings.
+/// A slot whose expression cannot be evaluated leaves its component alone, so the widths that are
+/// known still come out rather than the whole sheet failing.
+let resolveCanvasAtBindings
+        (bindings: ParamBindings)
+        (slots: ComponentSlotExpr)
+        ((comps, conns): CanvasState)
+        : CanvasState =
+    let slotsOf compId =
+        slots |> Map.toList |> List.filter (fun (slot, _) -> slot.CompId = compId)
+    let resolve (comp: Component) =
+        (comp.Type, slotsOf comp.Id)
+        ||> List.fold (fun compType (slot, exprSpec) ->
+            match evaluateParamExpression bindings exprSpec.Expression with
+            | Ok value -> ComponentSlots.setSlotValue slot.CompSlot value compType
+            | Error _ -> compType)
+        |> fun compType -> {comp with Type = compType}
+    List.map resolve comps, conns
+
+/// Whether the widths in an instance's signature can be believed: every value the instance binds
+/// is one this caller can work out, and every parameterised slot of the child sheet then
+/// evaluates. False where a binding is an expression the caller has no environment for - a
+/// canvas checked on its own knows nothing of the sheet that contains it - so the widths that come
+/// back are the child sheet's own and only the port NAMES mean anything.
+let private signatureIsExact
+        (childDefaults: ParamBindings)
+        (parentBindings: ParamBindings)
+        (instanceBindings: ParamBindings)
+        (effective: ParamBindings)
+        (slots: ComponentSlotExpr)
+        : bool =
+    let bindingsUsable =
+        childDefaults
+        |> Map.forall (fun name _ ->
+            // a parameter the instance leaves alone takes the child's default, which is known
+            match Map.tryFind name instanceBindings with
+            | None -> true
+            | Some expr -> evaluateParamExpression parentBindings expr |> Result.isOk)
+    bindingsUsable
+    && (slots |> Map.forall (fun _ exprSpec ->
+            evaluateParamExpression effective exprSpec.Expression |> Result.isOk))
+
+/// The signature an instance of `childSheet` has when it binds its parameters as given, and
+/// whether its widths are exact. The bindings are read as expressions in `parentBindings` - the
+/// parameters of the sheet the instance sits on.
+/// Not exact (see signatureIsExact) means some width could not be worked out here, and only the
+/// port NAMES may be relied on; the widths are then those the child sheet was saved with.
+/// None when the child sheet is not in the project.
+let signatureOfInstanceWithCertainty
+        (ldcs: LoadedComponent list)
+        (parentBindings: ParamBindings)
+        (childSheet: string)
+        (instanceBindings: ParamBindings)
+        : (Signature * bool) option =
+    ldcs
+    |> List.tryFind (fun ldc -> ldc.Name = childSheet)
+    |> Option.map (fun childLdc ->
+        let defs =
+            childLdc.LCParameterSlots
+            |> Option.defaultValue {DefaultBindings = Map.empty; ParamSlots = Map.empty}
+        let childDefaults = bindingsOf defs.DefaultBindings
+        let effective = effectiveInstanceBindings childDefaults parentBindings instanceBindings
+        let resolved = resolveCanvasAtBindings effective defs.ParamSlots childLdc.CanvasState
+        (getOrderedCompLabels (Input1 (0, None)) resolved,
+         getOrderedCompLabels (Output 0) resolved),
+        signatureIsExact childDefaults parentBindings instanceBindings effective defs.ParamSlots)
+
+/// The signature an instance of `childSheet` has when it binds its parameters as given.
+/// None when the child sheet is not in the project.
+let signatureOfInstance
+        (ldcs: LoadedComponent list)
+        (parentBindings: ParamBindings)
+        (childSheet: string)
+        (instanceBindings: ParamBindings)
+        : Signature option =
+    signatureOfInstanceWithCertainty ldcs parentBindings childSheet instanceBindings
+    |> Option.map fst
 
 /// Returns true if project exists and ldc is electrically identical to same sheet in project
 /// canvasState must be the project currently open state.

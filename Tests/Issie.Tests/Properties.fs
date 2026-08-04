@@ -15,7 +15,9 @@ let private paramNames = [ "pa"; "pb"; "pc" ]
 let rec private genExpr size =
     let leaf =
         Gen.oneof [
-            Gen.choose (0, 40) |> Gen.map PInt
+            // negative literals included: they are written with unary minus, and the render/parse
+            // round-trip below is what holds that reading and writing agree about it
+            Gen.choose (-40, 40) |> Gen.map PInt
             Gen.elements paramNames |> Gen.map (ParamName >> PParameter)
         ]
     if size <= 0 then
@@ -98,6 +100,111 @@ let tests =
             | Error e ->
                 Expect.stringContains e "must be numeric" "says what to type instead"
                 Expect.stringContains e "added to the sheet" "says how to get a parameter"
+        }
+
+        // --- what a parameter may be called ---
+        //
+        // The name rule and the parser's name token are one rule (isValidParamName), because a name
+        // that cannot be written in an expression is of no use. They used to differ: names were
+        // accepted as [a-zA-Z0-9]+ while the tokenizer read letters-then-digits, so W2X could be
+        // declared and then never referred to.
+
+        test "a name of letters and digits is valid and can be written in an expression" {
+            Expect.isTrue (isValidParamName "W2X") "a letter, a digit and a letter"
+            Expect.equal (parseExpression "W2X") (Ok(PParameter(ParamName "W2X")))
+                "and the parser reads it as one name"
+            Expect.equal (parseExpression "W2X*2") (Ok(PMultiply(PParameter(ParamName "W2X"), PInt 2)))
+                "including in the middle of an expression"
+        }
+
+        test "a name must start with a letter" {
+            Expect.isFalse (isValidParamName "2W") "a leading digit would be indistinguishable from a number"
+            Expect.isFalse (isValidParamName "123") "and this one entirely so"
+            Expect.isFalse (isValidParamName "") "a name is required"
+            Expect.isFalse (isValidParamName "W_2") "an underscore is not part of the language"
+            Expect.isTrue (isValidParamName "W") "the ordinary case"
+        }
+
+        test "a number run into a name says which of the two mistakes it is" {
+            match parseExpression "2W" with
+            | Ok e -> failtest $"expected an error, got {e}"
+            | Error err ->
+                Expect.stringContains err "start with a letter" "the name might predate the rule"
+                Expect.stringContains err "2*W" "or a multiplication sign is missing"
+        }
+
+        test "every valid name parses as one name, whatever the letters and digits do" {
+            [ "W"; "w"; "WIDTH"; "W2"; "W2X"; "A1B2C3"; "x9"; "Q0q0" ]
+            |> List.iter (fun name ->
+                Expect.isTrue (isValidParamName name) $"{name} is a valid name"
+                Expect.equal (parseExpression name) (Ok(PParameter(ParamName name)))
+                    $"and {name} parses as exactly that name")
+        }
+
+        // --- negative values ---
+        //
+        // `-4` used to read the minus sign as though it were a parameter name and then complain
+        // about the 4, so a negative value could not be written at all.
+
+        test "a negative literal parses as that literal" {
+            Expect.equal (parseExpression "-4") (Ok(PInt -4)) "folded, so it renders back as typed"
+            Expect.equal (renderParamExpression (PInt -4) 0) "-4" "and renders as the user wrote it"
+        }
+
+        test "unary minus binds to the operand it precedes" {
+            let bindings = Map [ ParamName "W", PInt 8 ]
+            let value text =
+                parseExpression text
+                |> Result.bind (evaluateParamExpression bindings)
+            Expect.equal (value "-W") (Ok -8) "negating a parameter"
+            Expect.equal (value "3--4") (Ok 7) "subtracting a negative"
+            Expect.equal (value "2*-3") (Ok -6) "negating the right operand of a product"
+            Expect.equal (value "-(W+1)") (Ok -9) "negating a parenthesised expression"
+            Expect.equal (value "-W+10") (Ok 2) "and binding tighter than addition"
+        }
+
+        // --- constraints ---
+        //
+        // evaluateConstraints returns what is unmet rather than dispatching it. It used to send a
+        // notification from inside a List.filter, and one of its callers is editParameterBox's
+        // isDisabled - which the popup asks WHILE RENDERING whether its button should be greyed
+        // out. A constraint that could not be evaluated would have dispatched from a render,
+        // re-rendered, and dispatched again. Being a function of its arguments, it is testable
+        // here at all, which is the other half of the point.
+
+        test "a value within its constraints meets them" {
+            let spec = { Expression = PInt 8; Constraints = [ MinVal(PInt 1, "too small"); MaxVal(PInt 16, "too big") ] }
+            Expect.isOk (ParameterView.evaluateConstraints Map.empty [ spec ]) "8 is between 1 and 16"
+        }
+
+        test "a value outside a constraint comes back as that constraint" {
+            let tooSmall = { Expression = PInt 0; Constraints = [ MinVal(PInt 1, "Width must be positive") ] }
+            match ParameterView.evaluateConstraints Map.empty [ tooSmall ] with
+            | Ok () -> failtest "expected the constraint to be unmet"
+            | Error [ MinVal(_, message) ] ->
+                Expect.equal message "Width must be positive" "the author's message reaches the caller unchanged"
+            | Error other -> failtest $"expected one unmet MinVal, got {other}"
+        }
+
+        test "a limit that cannot be worked out fails the value it guards, and says why" {
+            // the case that used to dispatch from a render: the bound refers to a parameter that
+            // is not in scope, so nothing can be said about whether the value is within it
+            let spec =
+                { Expression = PInt 8
+                  Constraints = [ MaxVal(PParameter(ParamName "MISSING"), "Width must fit the bus") ] }
+            match ParameterView.evaluateConstraints Map.empty [ spec ] with
+            | Ok () -> failtest "an unusable limit must not pass the value it guards"
+            | Error [ MinVal(_, message) | MaxVal(_, message) ] ->
+                Expect.stringContains message "Width must fit the bus" "keeps the author's message"
+                Expect.stringContains message "could not be worked out" "and says what went wrong with it"
+            | Error other -> failtest $"expected one unmet constraint, got {other}"
+        }
+
+        test "a value that cannot be worked out fails its constraints" {
+            let spec =
+                { Expression = PParameter(ParamName "MISSING"); Constraints = [ MinVal(PInt 1, "too small") ] }
+            Expect.isError (ParameterView.evaluateConstraints Map.empty [ spec ])
+                "returning no failures would let an undefined value through the guard"
         }
 
         testPropertyWithConfig config "wire data round-trip"

@@ -569,90 +569,32 @@ type CustomComponentError =
 /// Error with details if there's a mismatch or missing sheet
 /// </returns>
 /// <remarks>
-/// Parameter Resolution Process:
-/// 1. If the component has parameter bindings AND the sheet has parameter slots:
-///    - Iterate through all components in the sheet
-///    - For each component, check if it has a parameter slot definition
-///    - If it's an Input1 or Output component with a matching IO label slot:
-///      * Evaluate the parameter expression using a simple recursive evaluator
-///      * The evaluator only handles PInt (constants) and PParameter (lookups)
-///      * Update the component's width with the resolved value
-/// 2. Use the resolved components to extract the actual I/O labels
-/// 3. Compare against expected labels from the custom component instance
-/// 
-/// This simplified parameter resolution is sufficient for validation purposes,
-/// as it only needs to resolve I/O port widths to determine port labels.
-/// 
-/// PARAMETER RESOLUTION ARCHITECTURE:
-/// The codebase implements parameter resolution at three different levels:
-/// 
-/// 1. Full Resolution (ParameterTypes.evaluateParamExpression):
-///    - Supports all arithmetic operations (+, -, *, /, %)
-///    - Returns Result with detailed error messages
-///    - Used in UI for user feedback when editing parameters
-/// 
-/// 2. Graph Resolution (GraphMerger.resolveParametersInSimulationGraph):
-///    - Uses internal evalExpr that returns Option
-///    - Supports all arithmetic operations
-///    - Applies resolved values via applySlotValue
-///    - Used during simulation graph construction
-/// 
-/// 3. Validation Resolution (this function):
-///    - Minimal evaluator supporting only PInt and PParameter
-///    - Only resolves I/O port widths for label extraction
-///    - Optimized for fast validation checks
-/// 
-/// This three-tier approach ensures efficient processing while maintaining
-/// full parameter functionality where needed.
+/// The signature an instance ought to have is CanvasExtractor.signatureOfInstance: the sheet
+/// inside it, resolved at the bindings the instance gives. That is the same calculation the
+/// catalogue makes when placing an instance, the properties pane makes when a binding is edited,
+/// and CustomCompPorts makes when bringing instances back into step - one function, so those four
+/// cannot disagree about what an instance's ports are, as the copies they used to hold did.
+///
+/// The instance's bindings are read here on their own, with no parent sheet to evaluate them in,
+/// because a canvas is checked without reference to whatever contains it. A binding that is an
+/// expression in the parent's parameters therefore cannot be worked out, and the signature comes
+/// back inexact: only the port NAMES are then compared, and the widths are left to simulation
+/// elaboration, which has the parent's bindings and is exact. Comparing widths anyway would fail a
+/// design that is perfectly correct.
 /// </remarks>
 let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (sheets: LoadedComponent list) =
-    let inouts = args.InputLabels, args.OutputLabels
     let name = args.Name
     let compare labs1 labs2 = (labs1 |> Set) = (labs2 |> Set)
-    
+
 
     sheets
     |> List.tryFind (fun sheet -> sheet.Name = name)
     |> Option.map (fun sheet ->
-        // Resolve the sheet's parameterised port widths with this instance's bindings, so
-        // the check compares the widths this instance actually has.
-        // widthsKnown = false means some port width depends on an expression that cannot be
-        // evaluated in this context (e.g. a binding referring to a parameter of the sheet
-        // holding the instance). Comparing default widths would then be a false positive, so
-        // only port names are checked and widths are left to simulation elaboration, which
-        // is exact.
-        let resolvedInputs, resolvedOutputs, widthsKnown =
-            match args.ParameterBindings, sheet.LCParameterSlots with
-            | Some paramBindings, Some paramSlots when not (Map.isEmpty paramSlots.ParamSlots) ->
-                let eval expr =
-                    match ParameterTypes.evaluateParamExpression paramBindings expr with
-                    | Ok n -> Some n
-                    | Error _ -> None
-
-                let (comps, conns) = sheet.CanvasState
-                let resolveComp (comp: Component) : Component option =
-                    paramSlots.ParamSlots
-                    |> Map.toList
-                    |> List.tryPick (fun (slot, expr) ->
-                        if slot.CompId = comp.Id then
-                            match slot.CompSlot, comp.Type with
-                            | IO label, Input1 (_, d) when label = comp.Label ->
-                                Some (eval expr.Expression |> Option.map (fun w -> { comp with Type = Input1 (w, d) }))
-                            | IO label, Output _ when label = comp.Label ->
-                                Some (eval expr.Expression |> Option.map (fun w -> { comp with Type = Output w }))
-                            | _ -> None
-                        else None
-                    )
-                    |> Option.defaultValue (Some comp)
-                let resolvedComps = comps |> List.map resolveComp
-                match resolvedComps |> List.forall Option.isSome with
-                | false -> sheet.InputLabels, sheet.OutputLabels, false
-                | true ->
-                    let resolvedCanvas = (resolvedComps |> List.map Option.get, conns)
-                    CanvasExtractor.getOrderedCompLabels (Input1 (0, None)) resolvedCanvas,
-                    CanvasExtractor.getOrderedCompLabels (Output 0) resolvedCanvas,
-                    true
-            | _ -> sheet.InputLabels, sheet.OutputLabels, true
+        let (resolvedInputs, resolvedOutputs), widthsKnown =
+            args.ParameterBindings
+            |> Option.defaultValue Map.empty
+            |> CanvasExtractor.signatureOfInstanceWithCertainty sheets Map.empty name
+            |> Option.defaultValue ((sheet.InputLabels, sheet.OutputLabels), true)
 
         let names labs = labs |> List.map fst
         let inputsMatch =
@@ -661,12 +603,15 @@ let checkCustomComponentForOkIOs (c: Component) (args: CustomComponentType) (she
         let outputsMatch =
             if widthsKnown then compare resolvedOutputs args.OutputLabels
             else compare (names resolvedOutputs) (names args.OutputLabels)
-        sheet, inputsMatch, outputsMatch)
+        // the error names the RESOLVED ports, not the sheet's declared ones: on a parameterised
+        // sheet the declared widths are not what this instance should have had, and quoting them
+        // sends the user to look at the wrong number
+        (resolvedInputs, resolvedOutputs), inputsMatch, outputsMatch)
     |> function
         | None -> Error(c, NoSheet name)
         | Some(_, true, true) -> Ok()
-        | Some(sheet, false, _) -> Error(c, BadInputs(name, sheet.InputLabels, args.InputLabels))
-        | Some(sheet, true, false) -> Error(c, BadOutputs(name, sheet.OutputLabels, args.OutputLabels))
+        | Some((ins, _), false, _) -> Error(c, BadInputs(name, ins, args.InputLabels))
+        | Some((_, outs), true, false) -> Error(c, BadOutputs(name, outs, args.OutputLabels))
 
 /// Custom components have I/Os which are the same (names) as the I/Os in the corresponding sheet
 /// This can change if a sheet made into a custom component is edited

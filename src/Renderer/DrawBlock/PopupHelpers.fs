@@ -655,9 +655,11 @@ let dialogPopupBodyTextDescriptionAndInt beforeText placeholder beforeDescriptio
         let goodLabelStart =
                 getText dialogData
                 |> (fun s -> String.startsWithLetter s || s = "")
+        // ParameterTypes owns the rule, because it is also the parser's: a name this rejects
+        // could be declared and then never written in an expression
         let goodLabelLetters =
                  getText dialogData
-                 |> (fun s -> Regex.IsMatch(s, "^[a-zA-Z0-9]+$") || s = "")
+                 |> (fun s -> ParameterTypes.isValidParamName s || s = "")
         // an empty description is only flagged once the user has started naming the parameter,
         // so the popup does not open already showing an error
         let describedOrUnstarted = getText2 dialogData <> "" || getText dialogData = ""

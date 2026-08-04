@@ -17,6 +17,7 @@ let main argv =
         DrawBlockTests.tests
         LibraryTests.tests
         ParameterUI.tests
+        InstanceSignatures.tests
         KeyBindingTests.tests
         VerilogOutput.tests
         // The VerilogCompiler group spawns node for every parse (the real nearley parser) and

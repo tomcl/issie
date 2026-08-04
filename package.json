@@ -86,7 +86,7 @@
     "core-js": "^3",
     "cross-zip": "^4",
     "font-awesome": "^4",
-    "katex": "^0.16.21",
+    "katex": "^0.18.1",
     "source-map-support": "^0.5",
     "usb": "^3.0.1",
     "uuid": "^14.0.1"

@@ -203,13 +203,17 @@ let private mem aw dw (data: (int * int) list) =
 //----------------------------------------- tests ------------------------------------------//
 //------------------------------------------------------------------------------------------//
 
+/// Every gate type at every arity the emitter treats differently
+let private gateComponents : (string * ComponentType * int list * int list) list =
+    [ for gateType in [ And; Or; Xor; Nand; Nor; Xnor ] do
+        for n in [ 2; 3; 4 ] -> $"GateN %A{gateType} {n}", GateN(gateType, n), List.replicate n 1, [ 1 ] ]
+
 /// Every component type that getVerilogComponent can be reached with, in a shape that simulates.
 /// Legacy types (Decode4, Input, AsyncROM, ROM, RAM) are left out: FastCreate rejects them, so no
 /// FastSimulation containing one can be built and their Verilog is unreachable.
 let private allComponents : (string * ComponentType * int list * int list) list =
-    [ for gateType in [ And; Or; Xor; Nand; Nor; Xnor ] do
-        for n in [ 2; 3; 4 ] -> $"GateN %A{gateType} {n}", GateN(gateType, n), List.replicate n 1, [ 1 ]
-      "Not", Not, [ 1 ], [ 1 ]
+    gateComponents @
+    [ "Not", Not, [ 1 ], [ 1 ]
       "Viewer", Viewer 4, [ 4 ], []
       "IOLabel-in-line", IOLabel, [ 4 ], [ 4 ]
       "Constant1", Constant1(8, 200I, "200"), [], [ 8 ]

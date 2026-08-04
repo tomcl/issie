@@ -376,27 +376,42 @@
 deferrals:</p>
 <ul>
 <li>
-<strong>Display of real values</strong> happens in the properties pane (parameter table annotations); the
-canvas itself is still drawn and width-checked at default values. Drawing the canvas at the
-singleton real values is designed but not implemented — see
-<a href="#drawing-at-computed-values">Drawing at computed values</a> below.
+<strong>Drawing at computed values is implemented</strong>, as described in
+<a href="#drawing-at-computed-values">Drawing at computed values</a> below — with one addition that section
+did not anticipate. A custom component instance's ports follow from a <code>CustomCompParam</code> binding
+by way of the child sheet, which <code>ComponentSlots.setSlotValue</code> cannot reach, so the declared
+ports are stashed alongside the declared slot values in <code>Symbol.DeclaredPortLabels</code>.
 </li>
 <li>
-<strong>Undo/redo</strong> restores whole model snapshots, so re-doing a placement does not re-fire the
-component-added trigger. The unbound state remains visible as a "(default; unbound)" note in
-the instance's properties, and the next qualifying event re-checks.
+<strong>Binding is total</strong>: every instance binds every parameter its sheet declares, rather than
+carrying no bindings until one is created. See the note below.
 </li>
 <li>
 <strong>Deletion</strong>: the existing behaviour (refusing deletion while slots on the sheet use the
 parameter, and dropping dead bindings from instances elsewhere) is kept unchanged; the
 pass-through-chain listing remains a possible extension.
 </li>
+<li>
+<strong>Undo/redo</strong> restores whole model snapshots, so re-doing a placement does not re-fire the
+component-added trigger. The next qualifying event re-checks.
+</li>
 <li>The <strong>later extensions</strong> (instance-path viewing, memory parametrisation) are not implemented.</li>
 </ul>
-<p>One behaviour change beyond the plan text: placing a custom component instance no longer copies
-the parent sheet's default bindings into the instance as frozen values (the old behaviour, which
-was precisely the silent-stale-chain problem). New instances carry no bindings and elaborate at
-their sheet's defaults until a binding is created explicitly or through an accepted offer.</p>
+<p>Two behaviour changes beyond the plan text:</p>
+<p><strong>Placement asks.</strong> Placing a custom component instance no longer copies the parent sheet's
+default bindings into the instance as frozen values (the old behaviour, which was precisely the
+silent-stale-chain problem). Instead the placement popup asks for a value for every parameter the
+child sheet declares, showing each one's description, with a button to bind to a same-named
+parameter of the sheet being placed onto.</p>
+<p><strong>Every instance binds every parameter.</strong> The plan left an instance's parameter <em>unbound</em> until a
+binding was created, and displayed that state as "(default; unbound)". That state is now designed
+away rather than presented: an unbound parameter elaborates at the sheet's own declared value,
+which is a fact about the sheet and not about the instance, and it makes "default" a concept the
+user has to reason about. Placing an instance establishes the binding, and
+<code>ParameterAnalysis.bindParamOnInstances</code> fills the hole a parameter added to a sheet that already
+has instances would otherwise leave. This retargeted the bind-to-top offer, which fired on unbound
+parameters and so could never fire again: it now fires on a parameter bound to a plain <strong>number</strong>,
+which is the state the offer is actually useful in.</p>
 <h2><a name="The-problem" class="anchor" href="#The-problem">The problem</a></h2>
 <p>Issie parameters today are <strong>per-instance arguments</strong>: a sheet declares parameters with default
 values; slot expressions on its components use them; a custom component instance may explicitly
@@ -500,7 +515,9 @@ Contextual inherited values are read-only annotations naming their source
 (<em>"W = 64, from CPU_TOP; default 32"</em>). Bindings are edited where they live: on the instance, in
 the parent sheet.</p>
 <h3><a name="The-bind-to-top-offer" class="anchor" href="#The-bind-to-top-offer">The bind-to-top offer</a></h3>
-<p>Where a custom component instance's parameter is unbound, the UI may offer:</p>
+<p><em>As implemented the trigger is a parameter bound to a plain number, not an unbound one — see the
+implementation status above.</em> Where a custom component instance's parameter qualifies, the UI may
+offer:</p>
 <blockquote>
 <p>Bind to CPU_TOP:width? width parameters and bindings will be created in sheets X, Y, Z.</p>
 </blockquote>
@@ -566,6 +583,14 @@ was wrong and was changed while implementing: reverting a whole component on sav
 every edit made while computed values were on display — a constant's value, a memory's contents,
 the label. Only the slot values are stashed, so everything that is not a parameterised slot is
 saved as it stands.</em></p>
+<p><em>Slot values alone turned out to be not quite enough, and a second field
+<code>Symbol.DeclaredPortLabels</code> was added later. A custom component instance is the one symbol whose
+slot value does not name a number in its own type: a <code>CustomCompParam</code> slot binds a parameter of
+the sheet INSIDE the instance, and the instance's port widths follow from that binding by way of
+the child sheet. <code>ComponentSlots.setSlotValue</code> can put the binding back but not the ports it
+implies, having no access to the child sheet, so a sheet saved while showing computed values wrote
+an instance whose ports contradicted its own bindings — which is what the simulator's custom
+component check rejects. The declared ports are therefore remembered whole.</em></p>
 <p>The direction matters and is forced by React caching. <code>SymbolView.renderSymbol</code> is a
 <code>FunctionComponent.Of(..., "Symbol", equalsButFunctions)</code> whose memo key is the whole <code>Symbol</code>
 record. Holding the computed value anywhere outside the symbol — a model-level map consulted at

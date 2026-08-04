@@ -114,7 +114,7 @@
     "mini-css-extract-plugin": "^2",
     "nearley": "^2.20.1",
     "prismjs": "^1.30",
-    "react": "^18",
+    "react": "^19",
     "react-dom": "^18",
     "react-simple-code-editor": "0.14.1",
     "source-map-loader": "^5",

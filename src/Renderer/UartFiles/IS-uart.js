@@ -44,6 +44,18 @@ const TX_STEP = "S"; //Message to step one clock cycle
 const TX_READ = "R";  //Message to read viewer 0
 const TX_INTERVAL = 500;
 
+const encoder = new TextEncoder();
+
+//WebUSB transfers take a BufferSource, never a string. usb 2 hid this by
+//running the argument through Buffer.from, which encodes a string; usb 3
+//treats anything that is not an ArrayBuffer as an ArrayBufferView, so a
+//string silently becomes a zero-length transfer. Encode every message here.
+const msg = (s) => encoder.encode(s);
+
+//Likewise a control transfer with no payload: usb 2 substituted an empty
+//buffer for a missing argument, usb 3 dereferences it.
+const NO_DATA = new Uint8Array(0);
+
 var device
 var sendTimer
 var kill = false
@@ -68,12 +80,12 @@ function decimalToHex(d, padding) {
 export async function stepAndReadAllViewers(n){
     
     const release = await mutex.acquire();
-    await device.transferOut(TX_EP, TX_STEP);
+    await device.transferOut(TX_EP, msg(TX_STEP));
     //console.log("Step sent!");
     let viewerValues = [];
     for (var i=0;i<n;i++){
         let check = true;
-        await device.transferOut(TX_EP, TX_READ + decimalToHex(i,2));
+        await device.transferOut(TX_EP, msg(TX_READ + decimalToHex(i,2)));
         while(check){
             var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
             if (result.data.byteLength > RX_PAD_BYTES) {
@@ -95,7 +107,7 @@ export async function readAllViewers(n){
     let viewerValues = [];
     for (var i=0;i<n;i++){
         let check = true;
-        await device.transferOut(TX_EP, TX_READ + decimalToHex(i,2));
+        await device.transferOut(TX_EP, msg(TX_READ + decimalToHex(i,2)));
         while(check){
             var result = await device.transferIn(RX_EP, RX_BUF_SIZE);
             if (result.data.byteLength > RX_PAD_BYTES) {
@@ -114,17 +126,17 @@ export async function readAllViewers(n){
 
 export async function step() {
     await mutex.waitForUnlock();
-    await device.transferOut(TX_EP, TX_STEP);
+    await device.transferOut(TX_EP, msg(TX_STEP));
     console.log("Step sent!");
 }
 
 export async function pauseOp() {
-    await device.transferOut(TX_EP, TX_PAUSE);
+    await device.transferOut(TX_EP, msg(TX_PAUSE));
     
 }
 
 export async function continuedOp() {
-    await device.transferOut(TX_EP, TX_CONTINUE);    
+    await device.transferOut(TX_EP, msg(TX_CONTINUE));    
 }
 
 
@@ -172,7 +184,7 @@ export async function connectAndRead(n) {
         request: BAUD_REQ,
         value: BAUD_VALUE,
         index: BAUD_INDEX,
-    });
+    }, NO_DATA);
 
     console.log(`Set baud = ${result.status}`);
 
@@ -220,7 +232,7 @@ export async function simpleConnect() {
         request: BAUD_REQ,
         value: BAUD_VALUE,
         index: BAUD_INDEX,
-    });
+    }, NO_DATA);
 
     console.log(`Set baud = ${result.status}`);
 

@@ -117,7 +117,7 @@
     "prettier": "^2",
     "prismjs": "^1.30",
     "react": "^18",
-    "react-dom": "^18",
+    "react-dom": "^19",
     "react-simple-code-editor": "0.14.1",
     "source-map-loader": "^5",
     "style-loader": "^4",

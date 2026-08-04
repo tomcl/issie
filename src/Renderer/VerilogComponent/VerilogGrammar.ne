@@ -48,7 +48,7 @@ const lexer = moo.compile({
     binary: /\'b[0-1]+/,
     unsigned_number: /[0-9]+/,
     all_numeric: /\'h[0-9a-fA-F]+/,
-    IDENTIFIER: {match: /[a-zA-Z][a-zA-Z_0-9]*/, type: moo.keywords({
+    IDENTIFIER: {match: /[a-zA-Z_][a-zA-Z_0-9$]*/, type: moo.keywords({
         keywords: ["alias","always", "always_comb", "always_ff", "and","assert","assign","assume","automatic","before","begin","bind","bins","binsof","bit","break","buf","bufif0","bufif1","byte","case","casex","casez","cell","chandle","class","clocking","cmos","config","const","constraint","context","continue","cover","covergroup","coverpoint","cross","deassign","default","defparam","design","disable","dist","do","edge","else","end","endcase","endclass","endclocking","endconfig","endfunction","endgenerate","endgroup","endinterface","endmodule","endpackage","endprimitive","endprogram","endproperty","endsequence","endspecify","endtable","endtask","enum","event","expect","export","extends","extern","final","first_match","for","force","foreach","forever","fork","forkjoin","function","generate","genvar","highz0","highz1","if","iff","ifnone","ignore_bins","illegal_bins","import","incdir","include","initial","inout","input","inside","instance","int","integer","interface","intersect","join","join_any","join_none","large","liblist","library","local","localparam","logic","longint","macromodule","matches","medium","modport","module","nand","negedge","new","nmos","nor","noshowcancelled","not","notif0","notif1","null","or","output","package","packed","parameter","pmos","posedge","primitive","priority","program","property","protected","pull0","pull1","pulldown","pullup","pulsestyle_ondetect","pulsestyle_onevent","pure","rand","randc","randcase","randsequence","rcmos","real","realtime","ref","reg","release","repeat","return","rnmos","rpmos","rtran","rtranif0","rtranif1","scalared","sequence","shortint","shortreal","showcancelled","signed","small","solve","specify","specparam","static","string","strong0","strong1","struct","super","supply0","supply1","table","tagged","task","this","throughout","time","timeprecision","timeunit","tran","tranif0","tranif1","tri","tri0","tri1","triand","trior","trireg","type","typedef","union","unique","unsigned","use","uwire","var","vectored","virtual","void","wait","wait_order","wand","weak0","weak1","while","wildcard","wire","with","within","wor","xnor","xor"],
         module: "module",
         endmodule: "endmodule",
@@ -84,7 +84,9 @@ PROGRAM -> MODULE {%function(d) {return {Type: "program", Module: d[0]};} %}
 # _ for optional whitespace, __ for obligatory whitespace
 MODULE 
     -> _ %module __ NAME_OF_MODULE _ %lparen _ LIST_OF_PORTS _ %rparen _ %semicolon _ MODULE_ITEMS %endmodule _ {%function(d) { return {Type: "module_old", ModuleName: d[3], PortList: d[7], ModuleItems: d[13], EndLocation: d[14].offset}; } %}
-    | _ %module __ NAME_OF_MODULE (__ PARAMETER_PORT_LIST {%function(d){return d[0];}%}):? _ %lparen _ (IO_ITEMS _ {%function(d){return d[0];}%}):? %rparen _ %semicolon _ NON_PORT_MODULE_ITEMS %endmodule _ {%function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[5], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};} %}
+    # d[1] not d[0] in the parameter group: d[0] is the whitespace match, and returning it
+    # made every #(parameter ...) header silently vanish before the semantic checks
+    | _ %module __ NAME_OF_MODULE (__ PARAMETER_PORT_LIST {%function(d){return d[1];}%}):? _ %lparen _ (IO_ITEMS _ {%function(d){return d[0];}%}):? %rparen _ %semicolon _ NON_PORT_MODULE_ITEMS %endmodule _ {%function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[4], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};} %}
 
 NAME_OF_MODULE -> IDENTIFIER {% id %}
  
@@ -155,10 +157,13 @@ IO_ITEM
 ############################################    DECLARATIONS    ###############################################
 
 
-INPUT_DECL -> input __ (%bit _ ) (RANGE _ {%(d) => {return d[0]}%}):? LIST_OF_VARIABLES  {%function(d) {
+# _ not __ after the direction keyword: the lexer's longest-match already guarantees a
+# separator before another word ("inputbit" lexes as one identifier), so mandatory
+# whitespace only served to reject legal space-free forms.
+INPUT_DECL -> input _ (%bit _ ) (RANGE _ {%(d) => {return d[0]}%}):? LIST_OF_VARIABLES  {%function(d) {
     return {Type: "declaration", DeclarationType: "input", DataType: d[2][0].type, Range: d[3], Variables: d[4], Location: d[0].Location};} %}
 
-OUTPUT_DECL -> output __ (%bit _ ) (RANGE _ {%(d) => {return d[0]}%}):? LIST_OF_VARIABLES {%function(d) {
+OUTPUT_DECL -> output _ (%bit _ ) (RANGE _ {%(d) => {return d[0]}%}):? LIST_OF_VARIABLES {%function(d) {
     return {Type: "declaration", DeclarationType: "output", DataType: d[2][0].type, Range: d[3], Variables: d[4], Location: d[0].Location};} %}
 
 LIST_OF_VARIABLES
@@ -183,11 +188,11 @@ DATATYPE
     | %wire {%function(d) {return {type: "wire", offset: d[0].offset};} %}
 
 #### reg declaration #####
-REG_DECLARATION 
-    -> DATATYPE __  (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ %semicolon {% (d,l,r) => {
+REG_DECLARATION
+    -> DATATYPE _  (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ %semicolon {% (d,l,r) => {
         return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], Location: d[0].offset};} %}
     # arrays must be declared one at a time
-    | DATATYPE __ (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ ARRAY_RANGE _ %semicolon {% (d,l,r) => {
+    | DATATYPE _ (RANGE _ {%(d,l,r) => {return d[0]}%}):? LIST_OF_VARIABLES2 _ ARRAY_RANGE _ %semicolon {% (d,l,r) => {
         return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], ArrayRanges: d[5], Location: d[0].offset};} %}
 ######################################     BEHAVIORAL STATEMENTS    #############################################
 
@@ -522,14 +527,14 @@ UNARY_OPERATOR -> %lnot {%(d)=>{return d[0].value}%}  | %and {%(d)=>{return d[0]
 
 MULTIPLICATION_OPERATOR -> %mult {%(d)=>{return d[0].value}%} 
 
+# The payload is d[1] in every rule (d[0] is '[', d[2] is ']'): earlier actions read d[2],
+# storing the ']' token as the select, and concatenated d[6] (undefined) for chained selects.
 ARRAY_SELECT
-    -> %lbracket UNSIGNED_NUMBER %rbracket ARRAY_SELECT {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}].concat(d[6]);} %}
-    # | %lbracket _ EXPRESSION _ %rbracket _ ARRAY_SELECT {%function(d,l,reject) {return [d[2]].concat(d[6]);} %}
-    | %lbracket %unsigned_number %rbracket {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}];} %}
-    # | %lbracket _ EXPRESSION _ %rbracket {%function(d,l,reject) {return {Type: "var_array", VariableArraySelect: d[2], WordSelect: null};} %}
+    -> %lbracket UNSIGNED_NUMBER %rbracket ARRAY_SELECT {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[1]}].concat(d[3]);} %}
+    | %lbracket %unsigned_number %rbracket {%function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[1].value}];} %}
     | %lbracket EXPRESSION %rbracket {%function(d,l,reject) {
-          if (d[2].Type === "unary" && d[2].Unary.Type === "number") return reject;
-          return [{ArrayType: "var_array", VariableArraySelect: d[2], WordSelect: null}];
+          if (d[1].Type === "unary" && d[1].Unary.Type === "number") return reject;
+          return [{ArrayType: "var_array", VariableArraySelect: d[1], WordSelect: null}];
       } %}
 
 # ARRAY_SELECT

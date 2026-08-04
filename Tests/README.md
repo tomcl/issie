@@ -95,6 +95,9 @@ than pixel widths, which are only ever as good as that table. Anything about how
 
 ## Not covered
 
-Worth knowing before you assume a change is safe. There are no tests for the Verilog subsystem
-(`src/Renderer/VerilogComponent/`, over 10,000 lines), the waveform simulator, the truth-table UI,
-or the Elmish update loop. Wire routing is covered only for the simple cases in `DrawBlockTests.fs`.
+Worth knowing before you assume a change is safe. The Verilog subsystem has two suites —
+`VerilogOutput.fs` (the emitted Verilog text) and `VerilogCompiler.fs` (the input compiler
+end-to-end: real parse via node, semantic checks, synthesis, simulation) — but they pin specific
+behaviours, not the 10,000-line subsystem broadly. There are no tests for the waveform
+simulator, the truth-table UI, or the Elmish update loop. Wire routing is covered only for the
+simple cases in `DrawBlockTests.fs`.

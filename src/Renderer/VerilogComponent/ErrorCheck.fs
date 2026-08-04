@@ -75,7 +75,7 @@ let portCheck (ast: VerilogInput) linesLocations errorList  =
             let items = ast.Module.ModuleItems.ItemList |> Array.toList
             let decls = 
                 items |> List.collect (fun x -> 
-                    match (x.IODecl |> isNullOrUndefined) with
+                    match (x.IODecl |> Option.isNone) with
                     | false -> 
                         match x.IODecl with
                         | Some d -> 
@@ -844,7 +844,7 @@ let checkWiresAndAssignments
                         |]
                     createErrorMessage linesLocations lhs.Location message extraMessages lhs.Name
                 | _ ->
-                    match isNullOrUndefined decl.Range with
+                    match Option.isNone decl.Range with
                     |true -> localErrors // No errors
                     |false ->  
                         let widthErrors = Array.empty
@@ -1172,7 +1172,7 @@ let getPortSizeAndLocationMap (items: ItemDU list) paramMap =
             match x with
             | ItemDU.IOItem ioItem -> 
                 let size =
-                    match isNullOrUndefined ioItem.Range with
+                    match Option.isNone ioItem.Range with
                     | true -> 1
                     | false -> 
                         try 
@@ -1196,7 +1196,7 @@ let getPortWidthDeclarationMap items paramMap =
         match x with
         | ItemDU.IOItem d -> 
             let size = 
-                match isNullOrUndefined d.Range with
+                match Option.isNone d.Range with
                 | true -> (0,0)
                 | false -> 
                     try 
@@ -1218,7 +1218,7 @@ let getPortMap (items: ItemDU list) =
                 |> Array.toList
                 |> List.collect (fun identifier -> [(identifier.Name,ioItem.DeclarationType)])
             | _ -> []
-            // match (x.IODecl |> isNullOrUndefined) with
+            // match (x.IODecl |> Option.isNone) with
             // | false -> 
             //     match x.IODecl with
             //     | Some d -> 
@@ -1376,7 +1376,7 @@ let getSemanticErrorsNoParamOverride (ast: VerilogTypes.VerilogInput) linesLocat
             ||> List.fold (fun map decl ->
                 (map, decl.Variables)
                 ||> Array.fold (fun map' variable -> 
-                    if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
+                    if Option.isNone decl.Range then Map.add variable.Name 1 map'
                     else
                         let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
                         let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap

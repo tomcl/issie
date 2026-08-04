@@ -384,7 +384,13 @@ let rec convertExpression (raw: ExpressionT) : ExpressionDU =
     | "equality" -> Equality (parseOperation (Option.get raw.Operator), convertExpression (Option.get raw.Head), convertExpression (Option.get raw.Tail))
     | "bitwise_AND" -> BitwiseAnd (convertExpression (Option.get raw.Head), convertExpression (Option.get raw.Tail))
     | "bitwise_OR" -> BitwiseOr (convertExpression (Option.get raw.Head), convertExpression (Option.get raw.Tail))
-    | "bitwise_XOR" -> BitwiseXor (convertExpression (Option.get raw.Head), convertExpression (Option.get raw.Tail))
+    | "bitwise_XOR" ->
+        // the grammar parses ^, ~^ and ^~ into one node type; only the operator text
+        // distinguishes xor from xnor
+        match raw.Operator with
+        | Some "~^" | Some "^~" ->
+            BitwiseXnor (convertExpression (Option.get raw.Head), convertExpression (Option.get raw.Tail))
+        | _ -> BitwiseXor (convertExpression (Option.get raw.Head), convertExpression (Option.get raw.Tail))
     | "logical_AND" -> LogicalAnd (convertExpression (Option.get raw.Head), convertExpression (Option.get raw.Tail))
     | "logical_OR" -> LogicalOr (convertExpression (Option.get raw.Head), convertExpression (Option.get raw.Tail))
     | "conditional_cond" -> 

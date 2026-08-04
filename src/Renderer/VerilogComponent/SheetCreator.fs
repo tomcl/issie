@@ -1033,9 +1033,16 @@ let mainExpressionCircuitBuilder (expr:ExpressionDU) ioAndWireToCompMap varSizeM
                 let topCircuit = {Comps=[topComp;ioLabelComp];Conns=[conn];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
                 joinCircuits [cin;c1;inputB] [topComp.InputPorts[0];topComp.InputPorts[1];topComp.InputPorts[2]] topCircuit
 
-            |_ -> //bitwise gates and multiplication      
+            |_ -> //bitwise gates and multiplication
                 let topCircuit = {Comps=[topComp];Conns=[];Out=topComp.OutputPorts[0];OutWidth=c1.OutWidth}
-                joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
+                let gateCircuit = joinCircuits [c1;c2] [topComp.InputPorts[0];topComp.InputPorts[1]] topCircuit
+                match expr.Type with
+                | EBitwiseXnor ->
+                    // Issie has no n-bit XNOR primitive: ~^ is XOR followed by inversion
+                    let notComp = createComponent (NbitsNot gateCircuit.OutWidth) "NOT"
+                    let notCircuit = {Comps=[notComp];Conns=[];Out=notComp.OutputPorts[0];OutWidth=gateCircuit.OutWidth}
+                    joinCircuits [gateCircuit] [notComp.InputPorts[0]] notCircuit
+                | _ -> gateCircuit
 
 
     and buildUnaryCircuit (unary:UnaryCompilable) (targetWidth:int)=

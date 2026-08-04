@@ -168,7 +168,7 @@ let getErrorTable (errorList: ErrorInfo list) addButton =
     let getErrorTableLines error = 
         let line = error.Line   
         // let message = 
-        match isNullOrUndefined error.ExtraErrors with
+        match Option.isNone error.ExtraErrors with
         |true -> null
         |false ->
             let tLine = 

@@ -47,7 +47,7 @@ const lexer = moo.compile({
     binary: /\'b[0-1]+/,
     unsigned_number: /[0-9]+/,
     all_numeric: /\'h[0-9a-fA-F]+/,
-    IDENTIFIER: {match: /[a-zA-Z][a-zA-Z_0-9]*/, type: moo.keywords({
+    IDENTIFIER: {match: /[a-zA-Z_][a-zA-Z_0-9$]*/, type: moo.keywords({
         keywords: ["alias","always", "always_comb", "always_ff", "and","assert","assign","assume","automatic","before","begin","bind","bins","binsof","bit","break","buf","bufif0","bufif1","byte","case","casex","casez","cell","chandle","class","clocking","cmos","config","const","constraint","context","continue","cover","covergroup","coverpoint","cross","deassign","default","defparam","design","disable","dist","do","edge","else","end","endcase","endclass","endclocking","endconfig","endfunction","endgenerate","endgroup","endinterface","endmodule","endpackage","endprimitive","endprogram","endproperty","endsequence","endspecify","endtable","endtask","enum","event","expect","export","extends","extern","final","first_match","for","force","foreach","forever","fork","forkjoin","function","generate","genvar","highz0","highz1","if","iff","ifnone","ignore_bins","illegal_bins","import","incdir","include","initial","inout","input","inside","instance","int","integer","interface","intersect","join","join_any","join_none","large","liblist","library","local","localparam","logic","longint","macromodule","matches","medium","modport","module","nand","negedge","new","nmos","nor","noshowcancelled","not","notif0","notif1","null","or","output","package","packed","parameter","pmos","posedge","primitive","priority","program","property","protected","pull0","pull1","pulldown","pullup","pulsestyle_ondetect","pulsestyle_onevent","pure","rand","randc","randcase","randsequence","rcmos","real","realtime","ref","reg","release","repeat","return","rnmos","rpmos","rtran","rtranif0","rtranif1","scalared","sequence","shortint","shortreal","showcancelled","signed","small","solve","specify","specparam","static","string","strong0","strong1","struct","super","supply0","supply1","table","tagged","task","this","throughout","time","timeprecision","timeunit","tran","tranif0","tranif1","tri","tri0","tri1","triand","trior","trireg","type","typedef","union","unique","unsigned","use","uwire","var","vectored","virtual","void","wait","wait_order","wand","weak0","weak1","while","wildcard","wire","with","within","wor","xnor","xor"],
         module: "module",
         endmodule: "endmodule",
@@ -79,13 +79,13 @@ var grammar = {
     ParserRules: [
     {"name": "PROGRAM", "symbols": ["MODULE"], "postprocess": function(d) {return {Type: "program", Module: d[0]};}},
     {"name": "MODULE", "symbols": ["_", (lexer.has("module") ? {type: "module"} : module), "__", "NAME_OF_MODULE", "_", (lexer.has("lparen") ? {type: "lparen"} : lparen), "_", "LIST_OF_PORTS", "_", (lexer.has("rparen") ? {type: "rparen"} : rparen), "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon), "_", "MODULE_ITEMS", (lexer.has("endmodule") ? {type: "endmodule"} : endmodule), "_"], "postprocess": function(d) { return {Type: "module_old", ModuleName: d[3], PortList: d[7], ModuleItems: d[13], EndLocation: d[14].offset}; }},
-    {"name": "MODULE$ebnf$1$subexpression$1", "symbols": ["PARAMETER_PORT_LIST"], "postprocess": function(d){return d[0];}},
+    {"name": "MODULE$ebnf$1$subexpression$1", "symbols": ["__", "PARAMETER_PORT_LIST"], "postprocess": function(d){return d[1];}},
     {"name": "MODULE$ebnf$1", "symbols": ["MODULE$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "MODULE$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
     {"name": "MODULE$ebnf$2$subexpression$1", "symbols": ["IO_ITEMS", "_"], "postprocess": function(d){return d[0];}},
     {"name": "MODULE$ebnf$2", "symbols": ["MODULE$ebnf$2$subexpression$1"], "postprocess": id},
     {"name": "MODULE$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "MODULE", "symbols": ["_", (lexer.has("module") ? {type: "module"} : module), "__", "NAME_OF_MODULE", "_", "MODULE$ebnf$1", (lexer.has("lparen") ? {type: "lparen"} : lparen), "_", "MODULE$ebnf$2", (lexer.has("rparen") ? {type: "rparen"} : rparen), "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon), "_", "NON_PORT_MODULE_ITEMS", (lexer.has("endmodule") ? {type: "endmodule"} : endmodule), "_"], "postprocess": function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[5], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};}},
+    {"name": "MODULE", "symbols": ["_", (lexer.has("module") ? {type: "module"} : module), "__", "NAME_OF_MODULE", "MODULE$ebnf$1", "_", (lexer.has("lparen") ? {type: "lparen"} : lparen), "_", "MODULE$ebnf$2", (lexer.has("rparen") ? {type: "rparen"} : rparen), "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon), "_", "NON_PORT_MODULE_ITEMS", (lexer.has("endmodule") ? {type: "endmodule"} : endmodule), "_"], "postprocess": function(d) {return {Type: "module_new", ModuleName: d[3], ParameterPortList: d[4], IOItems: d[8], ModuleItems: d[13], EndLocation: d[14].offset};}},
     {"name": "NAME_OF_MODULE", "symbols": ["IDENTIFIER"], "postprocess": id},
     {"name": "LIST_OF_PORTS", "symbols": ["PORT", "_", (lexer.has("comma") ? {type: "comma"} : comma), "_", "LIST_OF_PORTS"], "postprocess": function(d, l, reject) {return {Type: "port_list", Head: d[0], Tail: d[4], Location: d[0].Location};}},
     {"name": "LIST_OF_PORTS", "symbols": ["PORT"], "postprocess": function(d,l,reject) {return {Type: "port_list", Head: d[0], Tail: null, Location: d[0].Location};}},
@@ -126,13 +126,13 @@ var grammar = {
     {"name": "INPUT_DECL$ebnf$1$subexpression$1", "symbols": ["RANGE", "_"], "postprocess": (d) => {return d[0]}},
     {"name": "INPUT_DECL$ebnf$1", "symbols": ["INPUT_DECL$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "INPUT_DECL$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "INPUT_DECL", "symbols": ["input", "__", "INPUT_DECL$subexpression$1", "INPUT_DECL$ebnf$1", "LIST_OF_VARIABLES"], "postprocess": function(d) {
+    {"name": "INPUT_DECL", "symbols": ["input", "_", "INPUT_DECL$subexpression$1", "INPUT_DECL$ebnf$1", "LIST_OF_VARIABLES"], "postprocess": function(d) {
         return {Type: "declaration", DeclarationType: "input", DataType: d[2][0].type, Range: d[3], Variables: d[4], Location: d[0].Location};} },
     {"name": "OUTPUT_DECL$subexpression$1", "symbols": [(lexer.has("bit") ? {type: "bit"} : bit), "_"]},
     {"name": "OUTPUT_DECL$ebnf$1$subexpression$1", "symbols": ["RANGE", "_"], "postprocess": (d) => {return d[0]}},
     {"name": "OUTPUT_DECL$ebnf$1", "symbols": ["OUTPUT_DECL$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "OUTPUT_DECL$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "OUTPUT_DECL", "symbols": ["output", "__", "OUTPUT_DECL$subexpression$1", "OUTPUT_DECL$ebnf$1", "LIST_OF_VARIABLES"], "postprocess": function(d) {
+    {"name": "OUTPUT_DECL", "symbols": ["output", "_", "OUTPUT_DECL$subexpression$1", "OUTPUT_DECL$ebnf$1", "LIST_OF_VARIABLES"], "postprocess": function(d) {
         return {Type: "declaration", DeclarationType: "output", DataType: d[2][0].type, Range: d[3], Variables: d[4], Location: d[0].Location};} },
     {"name": "LIST_OF_VARIABLES", "symbols": ["NAME_OF_VARIABLE", "_", (lexer.has("comma") ? {type: "comma"} : comma), "_", "LIST_OF_VARIABLES"], "postprocess": function(d) {return {Type: "variable_list", Head: d[0], Tail: d[4]};}},
     {"name": "LIST_OF_VARIABLES", "symbols": ["NAME_OF_VARIABLE"], "postprocess": function(d) {return {Type: "variable_list", Head: d[0], Tail: null};}},
@@ -147,12 +147,12 @@ var grammar = {
     {"name": "REG_DECLARATION$ebnf$1$subexpression$1", "symbols": ["RANGE", "_"], "postprocess": (d,l,r) => {return d[0]}},
     {"name": "REG_DECLARATION$ebnf$1", "symbols": ["REG_DECLARATION$ebnf$1$subexpression$1"], "postprocess": id},
     {"name": "REG_DECLARATION$ebnf$1", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "REG_DECLARATION", "symbols": ["DATATYPE", "__", "REG_DECLARATION$ebnf$1", "LIST_OF_VARIABLES2", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon)], "postprocess":  (d,l,r) => {
+    {"name": "REG_DECLARATION", "symbols": ["DATATYPE", "_", "REG_DECLARATION$ebnf$1", "LIST_OF_VARIABLES2", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon)], "postprocess":  (d,l,r) => {
         return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], Location: d[0].offset};} },
     {"name": "REG_DECLARATION$ebnf$2$subexpression$1", "symbols": ["RANGE", "_"], "postprocess": (d,l,r) => {return d[0]}},
     {"name": "REG_DECLARATION$ebnf$2", "symbols": ["REG_DECLARATION$ebnf$2$subexpression$1"], "postprocess": id},
     {"name": "REG_DECLARATION$ebnf$2", "symbols": [], "postprocess": function(d) {return null;}},
-    {"name": "REG_DECLARATION", "symbols": ["DATATYPE", "__", "REG_DECLARATION$ebnf$2", "LIST_OF_VARIABLES2", "_", "ARRAY_RANGE", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon)], "postprocess":  (d,l,r) => {
+    {"name": "REG_DECLARATION", "symbols": ["DATATYPE", "_", "REG_DECLARATION$ebnf$2", "LIST_OF_VARIABLES2", "_", "ARRAY_RANGE", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon)], "postprocess":  (d,l,r) => {
         return {Type: "declaration", DeclarationType: "logic", DataType: d[0].type, Range: d[2], Variables: d[3], ArrayRanges: d[5], Location: d[0].offset};} },
     {"name": "ALWAYS_CONSTRUCT", "symbols": [(lexer.has("always_comb") ? {type: "always_comb"} : always_comb), "__", "STATEMENT"], "postprocess": function(d) {
         return {Type: "always_construct", AlwaysType: d[0].value, Statement: d[2], ClkLoc: 0, Location: d[0].offset};} },
@@ -191,7 +191,7 @@ var grammar = {
     {"name": "COMPLETE_STATEMENT", "symbols": ["SEQ_BLOCK"], "postprocess": function(d,l,reject) {return {Type: "statement", StatementType: "seq_block", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: d[0], Conditional: null,  CaseStatement: null, ForStatement: null, Location: d[0].Location};}},
     {"name": "COMPLETE_STATEMENT", "symbols": ["CASE_STATEMENT"], "postprocess": function(d,l,reject) {return {Type: "statement", StatementType: "case_stmt", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: null,  CaseStatement: d[0], ForStatement: null, Location: d[0].Location};}},
     {"name": "COMPLETE_STATEMENT", "symbols": ["FOR_STATEMENT"], "postprocess": function(d,l,reject) {return {Type: "statement", StatementType: "for_stmt", NonBlockingAssign: null, BlockingAssign: null, SeqBlock: null, Conditional: null, CaseStatement: null, ForStatement: d[0], Location: d[0].Location};}},
-    {"name": "FOR_STATEMENT", "symbols": [(lexer.has("t_for") ? {type: "t_for"} : t_for), "_", (lexer.has("lparen") ? {type: "lparen"} : lparen), "_", "ASSIGNMENT", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon), "_", "EXPRESSION", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon), "_", "ASSIGNMENT", "_", (lexer.has("rparen") ? {type: "rparen"} : rparen), "_", "COMPLETE_STATEMENT"], "postprocess":  function(d) {
+    {"name": "FOR_STATEMENT", "symbols": [(lexer.has("t_for") ? {type: "t_for"} : t_for), "__", (lexer.has("lparen") ? {type: "lparen"} : lparen), "_", "ASSIGNMENT", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon), "_", "EXPRESSION", "_", (lexer.has("semicolon") ? {type: "semicolon"} : semicolon), "_", "ASSIGNMENT", "_", (lexer.has("rparen") ? {type: "rparen"} : rparen), "__", "STATEMENT"], "postprocess":  function(d) {
         // -> %t_for _ %lparen _ BLOCKING_ASSIGNMENT _ %semicolon _ EXPRESSION _ %semicolon _ BLOCKING_ASSIGNMENT _ %rparen _ STATEMENT {% function(d) {
         // -> %t_for _ %lparen _ (ASSIGNMENT | BLOCKING_ASSIGNMENT | NONBLOCKING_ASSIGNMENT) _ %semicolon _ EXPRESSION _ %semicolon _ (ASSIGNMENT | BLOCKING_ASSIGNMENT | NONBLOCKING_ASSIGNMENT) _ %rparen _ STATEMENT {% function(d) {
             return {Type: "for_stmt", Initialisation: d[4], Condition: d[8], Step: d[12], Statement: d[16], Location: d[0].offset};
@@ -268,8 +268,8 @@ var grammar = {
     {"name": "L_VALUE", "symbols": ["IDENTIFIER"], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};}},
     {"name": "L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bit", BitsStart: d[3], BitsEnd: d[3], Primary: d[0]};}},
     {"name": "L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("colon") ? {type: "colon"} : colon), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_bits", BitsStart: d[3], BitsEnd: d[5], Primary: d[0]};}},
-    {"name": "L_VALUE", "symbols": ["IDENTIFIER", "_", "ARRAY_SELECT", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[5]};}},
-    {"name": "L_VALUE", "symbols": ["IDENTIFIER", "_", "ARRAY_SELECT", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("colon") ? {type: "colon"} : colon), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[7]};}},
+    {"name": "L_VALUE", "symbols": ["IDENTIFIER", "_", "ARRAY_SELECT", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[5]};}},
+    {"name": "L_VALUE", "symbols": ["IDENTIFIER", "_", "ARRAY_SELECT", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("colon") ? {type: "colon"} : colon), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "l_value", PrimaryType: "identifier_array", Primary: d[0], ArrayIndices: d[2], BitsStart: d[5], BitsEnd: d[7]};}},
     {"name": "VARIABLE_BITSELECT_L_VALUE", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "EXPRESSION", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": 
         function(d, l, reject) {
             if (d[3].Type === "unary" && d[3].Unary.Type === "number") return reject;
@@ -333,11 +333,11 @@ var grammar = {
     {"name": "UNARY_OPERATOR", "symbols": [(lexer.has("or") ? {type: "or"} : or)], "postprocess": (d)=>{return d[0].value}},
     {"name": "UNARY_OPERATOR", "symbols": [(lexer.has("nor") ? {type: "nor"} : nor)], "postprocess": (d)=>{return d[0].value}},
     {"name": "MULTIPLICATION_OPERATOR", "symbols": [(lexer.has("mult") ? {type: "mult"} : mult)], "postprocess": (d)=>{return d[0].value}},
-    {"name": "ARRAY_SELECT", "symbols": [(lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "_", "UNSIGNED_NUMBER", "_", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket), "_", "ARRAY_SELECT"], "postprocess": function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}].concat(d[6]);}},
-    {"name": "ARRAY_SELECT", "symbols": [(lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "_", (lexer.has("unsigned_number") ? {type: "unsigned_number"} : unsigned_number), "_", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[2].value}];}},
-    {"name": "ARRAY_SELECT", "symbols": [(lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "_", "EXPRESSION", "_", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d,l,reject) {
-            if (d[2].Type === "unary" && d[2].Unary.Type === "number") return reject;
-            return [{ArrayType: "var_array", VariableArraySelect: d[2], WordSelect: null}];
+    {"name": "ARRAY_SELECT", "symbols": [(lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "UNSIGNED_NUMBER", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket), "ARRAY_SELECT"], "postprocess": function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[1]}].concat(d[3]);}},
+    {"name": "ARRAY_SELECT", "symbols": [(lexer.has("lbracket") ? {type: "lbracket"} : lbracket), (lexer.has("unsigned_number") ? {type: "unsigned_number"} : unsigned_number), (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d,l,reject) {return [{ArrayType: "const_array", VariableArraySelect: null, WordSelect: d[1].value}];}},
+    {"name": "ARRAY_SELECT", "symbols": [(lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "EXPRESSION", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d,l,reject) {
+            if (d[1].Type === "unary" && d[1].Unary.Type === "number") return reject;
+            return [{ArrayType: "var_array", VariableArraySelect: d[1], WordSelect: null}];
         } },
     {"name": "PRIMARY", "symbols": ["IDENTIFIER"], "postprocess": function(d) {return {Type: "primary", PrimaryType: "identifier", BitsStart: null, BitsEnd: null, Primary: d[0]};}},
     {"name": "PRIMARY", "symbols": ["IDENTIFIER", "_", (lexer.has("lbracket") ? {type: "lbracket"} : lbracket), "_", "UNSIGNED_NUMBER", "_", (lexer.has("rbracket") ? {type: "rbracket"} : rbracket)], "postprocess": function(d) {return {Type: "primary", PrimaryType: "identifier_bit", BitsStart: d[4], BitsEnd: d[4], Primary: d[0]};}},

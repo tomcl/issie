@@ -87,19 +87,42 @@ Emitter side (all local to `Verilog.fs`):
 - emit ASR-by-constant without `$signed` (the sign-spread construction the input compiler itself
   uses), and suppress `clk` for purely combinational sheets.
 
-Input-compiler side (hard to avoid):
+Input-compiler side:
 
-- memories: either RAM/ROM inference from arrays (the commented-out path in `SheetCreator.fs`),
-  or accepting multiple modules per file plus positional instantiation — without one of these,
-  the cycle is limited to memory-free designs;
-- the XNOR-compiled-as-XOR bug;
-- (optional, general robustness) allow `$` in identifiers and a space-free `output[15:0]`, both
-  legal Verilog that the lexer currently rejects.
+- memories: the cheapest route is the *emitter* lowering them into the dialect the compiler
+  already handles — a RAM as an array with a clocked write, a ROM as `always_comb case` over
+  literal labels (constants + muxes). That is behaviourally exact and needs no compiler change,
+  but it costs ~3-4 components per word (the compiler expands arrays to register banks with
+  per-word selection), so it only suits small memories: a 64K-word fixture like `3cpu`'s code
+  memory would explode into hundreds of thousands of components. RAM/ROM inference from arrays
+  (the commented-out path in `SheetCreator.fs`) — genuinely tricky — is only needed if emitted
+  memories must come back *as* memory components, with sparse simulation and usable sheets;
+- ~~the XNOR-compiled-as-XOR bug~~ — **fixed** (Aug 2026): `~^`/`^~` now convert to
+  `BitwiseXnor` and synthesise as XOR + NbitsNot, pinned by a simulated truth-table test;
+- ~~allow `$` in identifiers~~ and leading `_` — **fixed**: the lexer now takes standard
+  Verilog identifiers (leading `$` stays rejected, so system tasks still error). Mandatory
+  whitespace after `input`/`output`/`bit`/`wire` is gone too (`bit[3:0] x;` parses); note
+  `output[15:0]` remains invalid only because `bit` is required in IO declarations.
 
 With the emitter mode in place, a golden test is straightforward under plain .NET + node: emit
 each fixture sheet, run the emitted text through `parser.js` and the error checker, build a sheet
 with `SheetCreator.createSheet`, simulate both sheets for N cycles and compare outputs — the same
 pattern `Tests/Issie.Tests/GoldenModel.fs` uses today.
+
+## Test infrastructure (added Aug 2026)
+
+`Tests/Issie.Tests/VerilogCompiler.fs` runs the *input* compiler end-to-end under plain .NET:
+source → the real nearley parse (`node run_parser.mjs`, the same parse the editor runs) → AST
+deserialised into `VerilogTypes.VerilogInput` → `ErrorCheck.getSemanticErrors` →
+`SheetCreator.createSheet` → simulate and assert on outputs. New compiler work should come with
+tests there; `run_parser.mjs` alone answers "does this source parse?" in milliseconds.
+
+Building that pipeline flushed out three latent bugs, all fixed with it: `#(parameter ...)`
+headers were silently discarded (two compounding wrong indices in the `module_new` grammar
+action), constant array word-selects (`arr[2][0]`) stored the `]` token instead of the index
+(three wrong indices in `ARRAY_SELECT`), and `DrawHelpers.uuid` under .NET returned the same
+string for every call (`Guid.NewGuid` missing its parentheses), which collapsed every generated
+sheet to one component.
 
 ## Reproducing
 

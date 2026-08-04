@@ -71,6 +71,12 @@ Rules that the checker enforces:
 - Every bit of every output must be assigned, on every path (no accidental latches), and no bit
   may be driven twice.
 
+### Identifiers
+
+Standard Verilog rules: a letter or underscore first, then letters, digits, `_` and `$`
+(so `_state` and `count$next` are fine; a leading `$` is reserved for system tasks, which are
+not supported).
+
 ### Declarations
 
 - Internal signals: `wire x;`, `bit x;`, `wire [7:0] y;`, `bit [7:0] y;` — `wire` and `bit` are

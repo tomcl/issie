@@ -279,7 +279,7 @@ let checkCasesStatements
         ||> List.fold (fun map decl ->
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
-                if isNullOrUndefined decl.Range then Map.add variable.Name 0 map'
+                if Option.isNone decl.Range then Map.add variable.Name 0 map'
                 else
                     let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
                     let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
@@ -409,7 +409,7 @@ let checkVariablesAlwaysAssigned
         ||> List.fold (fun map decl ->
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
-                if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
+                if Option.isNone decl.Range then Map.add variable.Name 1 map'
                 else
                     let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
                     let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap
@@ -560,7 +560,7 @@ let checkExpressions
             (map, decl.Variables)
             ||> Array.fold (fun map' variable -> 
                 // TODO: check if this is a load-bearing 0
-                if isNullOrUndefined decl.Range then Map.add variable.Name 1 map'
+                if Option.isNone decl.Range then Map.add variable.Name 1 map'
                 else
                     let bStart = evalExprWithParams (Option.get decl.Range).Start paramMap
                     let bEnd = evalExprWithParams (Option.get decl.Range).End paramMap

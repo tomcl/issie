@@ -2561,11 +2561,16 @@ let createSheet (veriloginput:VerilogInput) (project:Project) model dispatch=
     //     // printfn "component label = %s" comp.Label
     // )
 
-    let finalCanvasState = 
+    let finalCanvasState =
         (components, snd finalCanvasState)
         |> fixCanvasState
-    // failwithf "Final Canvas State: %A" finalCanvasState
-    finalCanvasState
+    // fixConsecutiveWires returns components in Map order, so restore the declaration order of
+    // the I/O before layout: SheetLayout pins Inputs/Outputs to edge columns in list order, and
+    // a sheet's own port order is read off those positions
+    let orderedComps =
+        fst finalCanvasState
+        |> List.sortBy (fun c -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var = c.Label) ioVars))
+    SheetLayout.layoutCanvas (orderedComps, snd finalCanvasState)
 
 
 // 1. create wire label for every variable and port maybe bit by bit?? shouldn't be bit by bit because performance

@@ -452,6 +452,20 @@ let private layout (comps: Component list) (conns: Connection list) : Component 
         | Some (x, y) -> { comp with X = x; Y = y }
         | None -> comp)
 
+/// Lay out an existing canvas: resize every component to what the app will actually draw
+/// (createSymbolRecord, as buildComponent does), position the body by recursive bisection and
+/// pin Inputs and Outputs to edge columns in the order they appear in the component list —
+/// which therefore must be the sheet's intended port order, since a sheet's own port order is
+/// read off its I/O positions. Connections are untouched: with no vertices they are re-routed
+/// on load. Used by the Verilog compiler for its generated sheets.
+let layoutCanvas ((comps, conns): CanvasState) : CanvasState =
+    let sized =
+        comps
+        |> List.map (fun comp ->
+            let s = SymbolUpdate.createSymbolRecord [] SymbolT.ThemeType.Colourful comp
+            { comp with H = s.Component.H; W = s.Component.W })
+    layout sized conns, conns
+
 //------------------------------------------------------------------------------------------------//
 //------------------------------------------ Output ----------------------------------------------//
 //------------------------------------------------------------------------------------------------//

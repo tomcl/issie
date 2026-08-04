@@ -833,7 +833,7 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
 
 
 let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origin:CodeEditorOpen) dispatch =
-    let title = sprintf "Create Combinational Logic Components using Verilog" 
+    let title = sprintf "Create Combinational or Synchronous Components using Verilog" 
     let beforeText =
         fun _ -> str <| sprintf "ISSIE Component Name"
     let noErrors = List.isEmpty model.PopupDialogData.VerilogErrors

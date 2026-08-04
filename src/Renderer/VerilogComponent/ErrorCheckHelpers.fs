@@ -463,6 +463,7 @@ let RHSUnaryAnalysis
 
         | BitwiseOr (a, b)
         | BitwiseXor (a, b)
+        | BitwiseXnor (a, b)
         | BitwiseAnd (a, b)
         | Additive (_, a, b) ->
             let u1 = findSizeOfExpression a
@@ -566,9 +567,10 @@ let getWidthOfExpr
 
         | BitwiseOr (head, tail)
         | BitwiseXor (head, tail)
+        | BitwiseXnor (head, tail)
         | BitwiseAnd (head, tail)
         | Additive (_, head, tail)
-            -> 
+            ->
             let u1 = findSizeOfExpression head
             let u2 = findSizeOfExpression tail
             max u1 u2

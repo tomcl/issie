@@ -17,7 +17,7 @@ let fixturesDir =
 /// a single-property object ({"Input1": [1, 0]}), options as the value or null, and
 /// record-keyed maps as arrays of pairs. Driven by reflection so the whole SavedInfo
 /// schema, including every ComponentType case, is covered without enumeration.
-module private SimpleJsonFormat =
+module SimpleJsonFormat =
     open Newtonsoft.Json
     open Newtonsoft.Json.Linq
     open Microsoft.FSharp.Reflection
@@ -52,6 +52,12 @@ module private SimpleJsonFormat =
                 FSharpValue.MakeUnion(noneCase, [||], true)
             else
                 FSharpValue.MakeUnion(someCase, [| des (t.GetGenericArguments()[0]) tok |], true)
+        elif t.IsArray then
+            let elemType = t.GetElementType()
+            let ja = tok :?> JArray
+            let arr = System.Array.CreateInstance(elemType, ja.Count)
+            ja |> Seq.iteri (fun i el -> arr.SetValue(des elemType el, i))
+            box arr
         elif genericDef = Some typedefof<list<_>> then
             let elemType = t.GetGenericArguments()[0]
             let cases = FSharpType.GetUnionCases(t, true)

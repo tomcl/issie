@@ -253,7 +253,7 @@ let cornerCircle = { defaultCircle with R = 5.0; Stroke = "Black"; StrokeWidth =
 #if FABLE_COMPILER
 let uuid():string = import "v4" "uuid"
 #else
-let uuid():string = System.Guid.NewGuid.ToString()
+let uuid():string = System.Guid.NewGuid().ToString()
 #endif
 
 // ----------------------------- SVG Helpers ----------------------------- //

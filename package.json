@@ -87,7 +87,6 @@
     "cross-zip": "^4",
     "font-awesome": "^4",
     "katex": "^0.16.21",
-    "react-tooltip": "^5",
     "source-map-support": "^0.5",
     "usb": "^3.0.1",
     "uuid": "^14.0.1"
@@ -102,7 +101,7 @@
     "@electron/remote": "^2",
     "bufferutil": "^4",
     "classnames": "^2",
-    "cross-env": "^7",
+    "cross-env": "^10.1.0",
     "css-loader": "^6",
     "dotenv": "^1",
     "electron": "43.2.0",
@@ -114,7 +113,6 @@
     "loglevel": "^1",
     "mini-css-extract-plugin": "^2",
     "nearley": "^2.20.1",
-    "prettier": "^2",
     "prismjs": "^1.30",
     "react": "^18",
     "react-dom": "^18",
@@ -124,7 +122,6 @@
     "terser-webpack-plugin": "^5",
     "utf-8-validate": "^5",
     "webpack": "^5",
-    "webpack-cli": "^5",
     "webpack-dev-server": "^5.2.6"
   },
   "private": true

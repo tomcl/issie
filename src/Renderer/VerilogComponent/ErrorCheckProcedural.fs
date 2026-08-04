@@ -876,24 +876,29 @@ let checkVariablesUsed
     // printf "declarations: %A" (foldAST getDeclarations [] (VerilogInput ast))
     // printfn "AST: %A" ast
 
-    let variables = 
+    // Assignments and reads label an array per word ("hist[2]"), not per vector bit, so the
+    // declaration side must enumerate words for arrays: using the vector range reported
+    // phantom words whenever an array's width differed from its word count.
+    let wordLabels (name: string) =
+        match Map.tryFind name arraySizeMap with
+        | Some (_, dims) -> Some([ 0 .. dims[0] - 1 ] |> List.map (fun w -> name + "[" + (string w) + "]"))
+        | None -> None
+
+    let variables =
         foldAST getDeclarations [] (VerilogInput ast)
-        |> List.collect (fun decl -> 
-            match decl.Range with
-            | None -> 
-                let res = decl.Variables |> Array.map (fun var -> var.Name + "[0]") |> Array.toList
-                res
-            | Some range -> 
-                let bStart = evalExprWithParams range.Start paramMap
-                let bEnd = evalExprWithParams range.End paramMap
-                let bits = [|bEnd .. bStart|]
-                let res =
-                    decl.Variables
-                    |> Array.collect (fun var -> 
-                        let varBits = bits |> Array.map (fun bit -> var.Name+"["+(string bit)+"]")
-                        varBits)
-                    |> Array.toList
-                res
+        |> List.collect (fun decl ->
+            decl.Variables
+            |> Array.toList
+            |> List.collect (fun var ->
+                match wordLabels var.Name with
+                | Some words -> words
+                | None ->
+                    match decl.Range with
+                    | None -> [ var.Name + "[0]" ]
+                    | Some range ->
+                        let bStart = evalExprWithParams range.Start paramMap
+                        let bEnd = evalExprWithParams range.End paramMap
+                        [ for bit in bEnd .. bStart -> var.Name + "[" + (string bit) + "]" ])
             )
     let checkVariable errorBits (variable: string) =
         match Set.contains variable assignmentsLHS with
@@ -928,29 +933,12 @@ let checkVariablesUsed
         | true -> errorBits
         | false -> errorBits @ [variable]
 
-    let arrays = 
+    let arrays =
         foldAST getDeclarations [] (VerilogInput ast)
-        |> List.filter (fun decl ->
-            match Map.tryFind (decl.Variables[0].Name) arraySizeMap with
-            | Some _ -> true
-            | None -> false)
-        |> List.collect (fun decl -> 
-            match decl.Range with
-            | None -> 
-                let res = decl.Variables |> Array.map (fun var -> var.Name + "[0]") |> Array.toList
-                res
-            | Some range -> 
-                let bStart = evalExprWithParams range.Start paramMap
-                let bEnd = evalExprWithParams range.End paramMap
-                let bits = [|bEnd .. bStart|]
-                let res =
-                    decl.Variables
-                    |> Array.collect (fun var -> 
-                        let varBits = bits |> Array.map (fun bit -> var.Name+"["+(string bit)+"]")
-                        varBits)
-                    |> Array.toList
-                res
-            )
+        |> List.collect (fun decl ->
+            decl.Variables
+            |> Array.toList
+            |> List.collect (fun var -> wordLabels var.Name |> Option.defaultValue []))
 
     let arraysNotAssigned =
         arrays

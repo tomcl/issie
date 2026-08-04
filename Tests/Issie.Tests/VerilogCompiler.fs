@@ -211,6 +211,53 @@ endmodule
             }
         ]
 
+        testList "arrays" [
+            // the unassigned/unread checks enumerated an array's vector bits but track
+            // assignments per word, so width <> word count reported phantom words
+            test "array with width different from word count compiles" {
+                let src =
+                    """module dut(clk, a, o);
+input bit clk;
+input bit [7:0] a;
+output bit [7:0] o;
+bit [7:0] hist [3:0];
+bit [1:0] i;
+always_ff @(posedge clk) begin
+    for (i = 2'd0; i <= 2'd3; i = i + 2'd1) begin
+        hist[i] <= a;
+    end
+end
+assign o = (hist[0] ^ hist[1]) | (hist[2] & hist[3]);
+endmodule
+"""
+                let r = simulateVerilog src [ "a", bigint 5 ]
+                Expect.equal r["O"] (bigint 0) "registers all zero before the first clock edge"
+            }
+            test "a genuinely unwritten word is still reported, phantom words are not" {
+                let src =
+                    """module dut(clk, a, o);
+input bit clk;
+input bit [7:0] a;
+output bit [7:0] o;
+bit [7:0] hist [2:0];
+always_ff @(posedge clk) begin
+    hist[0] <= a;
+    hist[1] <= a;
+end
+assign o = (hist[0] ^ hist[1]) | hist[2];
+endmodule
+"""
+                match parseVerilog src with
+                | Error e -> failtestf "parse error: %s" e
+                | Ok(ast, lines) ->
+                    let msgs =
+                        ErrorCheck.getSemanticErrors ast lines VerilogTypes.NewVerilogFile emptyProject
+                        |> List.map (fun e -> e.Message)
+                    Expect.isTrue (msgs |> List.exists (fun m -> m.Contains "hist[2]")) $"hist[2] unwritten: {msgs}"
+                    Expect.isFalse (msgs |> List.exists (fun m -> m.Contains "hist[7]")) $"no phantom bit-words: {msgs}"
+            }
+        ]
+
         testList "corpus" [
             // every file the compiler's own valid-input corpus holds must still parse
             test "all valid corpus files parse" {

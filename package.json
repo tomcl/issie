@@ -89,7 +89,7 @@
     "katex": "^0.16.21",
     "react-tooltip": "^5",
     "source-map-support": "^0.5",
-    "usb": "^2.15",
+    "usb": "^3.0.1",
     "uuid": "^14.0.1"
   },
   "overrides": {

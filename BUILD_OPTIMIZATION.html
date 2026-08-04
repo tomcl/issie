@@ -7,17 +7,17 @@
     <meta content="Main" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="Build Process Optimization Guide
+    <meta property="og:title" content="Build Speed and Fable Caching
 " />
     <meta property="og:url" content="/issie/BUILD_OPTIMIZATION.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="Build Process Optimization Guide
+    <meta name="twitter:title" content="Build Speed and Fable Caching
 ">
     
-    <title>Build Process Optimization Guide
+    <title>Build Speed and Fable Caching
  | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
@@ -100,7 +100,7 @@
 </li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
-    Build Process Optimization Guide
+    Build Speed and Fable Caching
 
   </a>
 </li>             
@@ -267,7 +267,7 @@
 </li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
-    Build Process Optimization Guide
+    Build Speed and Fable Caching
 
   </a>
 </li>             
@@ -357,119 +357,71 @@
 </aside>
 <main>
     <div id="content">
-        <h1><a name="Build-Process-Optimization-Guide" class="anchor" href="#Build-Process-Optimization-Guide">Build Process Optimization Guide</a></h1>
-<h2><a name="Overview" class="anchor" href="#Overview">Overview</a></h2>
-<p>This document outlines the build process optimizations implemented for the ISSIE project to improve developer experience and reduce build times.</p>
-<h2><a name="Current-Issues-Addressed" class="anchor" href="#Current-Issues-Addressed">Current Issues Addressed</a></h2>
-<ol>
-<li><strong>Sequential Compilation</strong>: Main and Renderer were compiled sequentially</li>
-<li><strong>Double Compilation</strong>: Changes triggered compilation in both watch processes</li>
-<li><strong>No Caching</strong>: Full recompilation on every change</li>
-<li><strong>Slow Source Maps</strong>: Detailed source maps slowed down development builds</li>
-<li><strong>No Build Analysis</strong>: No visibility into build performance bottlenecks</li>
-</ol>
-<h2><a name="Implemented-Optimizations" class="anchor" href="#Implemented-Optimizations">Implemented Optimizations</a></h2>
-<h3><a name="1-Parallel-Compilation" class="anchor" href="#1-Parallel-Compilation">1. Parallel Compilation</a></h3>
-<p><strong>New Commands:</strong>
-- <code>npm run dev:parallel</code> - Runs Main and Renderer compilation in parallel
-- <code>npm run compile:parallel</code> - Parallel compilation for production builds</p>
-<p><strong>Benefits:</strong>
-- ~40-50% reduction in initial build time
-- Better CPU utilization on multi-core systems</p>
-<h3><a name="2-Webpack-Optimization" class="anchor" href="#2-Webpack-Optimization">2. Webpack Optimization</a></h3>
-<p><strong>Development Configuration (<code>webpack.config.renderer.dev.js</code>):</strong>
-- Faster source maps (<code>eval-cheap-module-source-map</code>)
-- Filesystem caching enabled
-- Babel caching enabled
-- Optimized watch options
-- Disabled unnecessary optimizations for dev builds</p>
-<p><strong>Benefits:</strong>
-- ~30% faster incremental builds
-- Persistent cache across sessions</p>
-<h3><a name="3-Fable-Configuration" class="anchor" href="#3-Fable-Configuration">3. Fable Configuration</a></h3>
-<p>*<em><code>.fablerc</code> settings:*</em>
-- Incremental compilation enabled
-- Watch dependencies for better change detection
-- Typed arrays for performance</p>
-<p><strong>Benefits:</strong>
-- Only recompiles changed files
-- Better memory usage</p>
-<h3><a name="4-Additional-Scripts" class="anchor" href="#4-Additional-Scripts">4. Additional Scripts</a></h3>
-<p><strong>Utility Commands:</strong>
-- <code>npm run clean:cache</code> - Clear all build caches
-- <code>npm run typecheck</code> - Run F# type checking separately
-- <code>npm run build:analyze</code> - Analyze bundle size</p>
-<h2><a name="Usage-Recommendations" class="anchor" href="#Usage-Recommendations">Usage Recommendations</a></h2>
-<h3><a name="For-Development" class="anchor" href="#For-Development">For Development</a></h3>
-<ol>
-<li>
-<p><strong>First time setup:</strong></p>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">npm install
-npm run clean:cache  # Start fresh
-</code></pre></td></tr></table>
-</li>
-<li>
-<p><strong>Daily development:</strong></p>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">npm run dev:parallel  # Faster parallel builds
-# or
-npm run dev:fast     # With optimized webpack config
-</code></pre></td></tr></table>
-</li>
-<li>
-<p><strong>After major changes:</strong></p>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">npm run clean:cache
-npm run dev:parallel
-</code></pre></td></tr></table>
-</li>
-</ol>
-<h3><a name="For-Production" class="anchor" href="#For-Production">For Production</a></h3>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">npm run compile:parallel  # Parallel compilation
-npm run build            # Production webpack build
-npm run dist             # Create distributables
-</code></pre></td></tr></table>
-<h2><a name="Performance-Metrics" class="anchor" href="#Performance-Metrics">Performance Metrics</a></h2>
-<h3><a name="Before-Optimization" class="anchor" href="#Before-Optimization">Before Optimization</a></h3>
+        <h1><a name="Build-Speed-and-Fable-Caching" class="anchor" href="#Build-Speed-and-Fable-Caching">Build Speed and Fable Caching</a></h1>
+<p>How the dev build gets fast startup, and what silently makes it slow again.</p>
+<h2><a name="The-scripts" class="anchor" href="#The-scripts">The scripts</a></h2>
 <ul>
-<li>Initial build: ~30-40 seconds</li>
-<li>Incremental build: ~10-15 seconds</li>
-<li>Memory usage: ~2GB</li>
+<li>
+<code>npm run dev</code> — <a href="../scripts/dev.js"><code>scripts/dev.js</code></a> runs <code>dotnet fable watch</code> for <code>src/Main</code>
+and <code>src/Renderer</code> <strong>in parallel</strong>, then starts webpack + Electron
+(<a href="../scripts/start.js"><code>scripts/start.js</code></a>) as soon as both projects' generated JS is safe to
+load. Hot reload of renderer changes while running.
+</li>
+<li>
+<code>npm run dev:once</code> — same launcher with a one-shot compile and no watcher. When nothing changed
+since the last compile, Fable skips compilation entirely and the app is up in a few seconds.
+Edits need a rerun.
+</li>
+<li><code>npm run debug</code> — <code>dev</code> plus the <code>ASSERTS</code> define on the renderer.</li>
+<li>
+<code>npm run compile</code> — <a href="../scripts/parallel-compile.js"><code>scripts/parallel-compile.js</code></a>: one-shot
+parallel compile of both projects with the <code>PRODUCTION</code> define. Used by <code>pack</code> and <code>dist</code>.
+</li>
+<li><code>node scripts/dev.js --no-app</code> — either mode without launching Electron (compile check).</li>
 </ul>
-<h3><a name="After-Optimization" class="anchor" href="#After-Optimization">After Optimization</a></h3>
-<ul>
-<li>Initial build: ~15-20 seconds</li>
-<li>Incremental build: ~3-5 seconds</li>
-<li>Memory usage: ~1.5GB</li>
-</ul>
-<h2><a name="Troubleshooting" class="anchor" href="#Troubleshooting">Troubleshooting</a></h2>
-<h3><a name="Build-Cache-Issues" class="anchor" href="#Build-Cache-Issues">Build Cache Issues</a></h3>
-<p>If you experience stale builds or unexpected behavior:</p>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">npm run clean:cache
-rm -rf build/
-npm run dev:parallel
-</code></pre></td></tr></table>
-<h3><a name="Memory-Issues" class="anchor" href="#Memory-Issues">Memory Issues</a></h3>
-<p>For systems with limited memory:
-1. Use sequential builds: <code>npm run dev</code>
-2. Reduce Fable parallelism in <code>.fablerc</code>
-3. Close other applications</p>
-<h3><a name="Type-Checking" class="anchor" href="#Type-Checking">Type Checking</a></h3>
-<p>Run type checking separately for faster feedback:</p>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">npm run typecheck
-</code></pre></td></tr></table>
-<h2><a name="Future-Improvements" class="anchor" href="#Future-Improvements">Future Improvements</a></h2>
+<h2><a name="How-Fable-decides-it-can-start-fast" class="anchor" href="#How-Fable-decides-it-can-start-fast">How Fable decides it can start fast</a></h2>
+<p>Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file of the Renderer
+(~200 including dependencies) and takes on the order of a minute. What it does have:</p>
 <ol>
-<li><strong>Vite Integration</strong>: Replace Webpack with Vite for faster HMR</li>
-<li><strong>SWC/esbuild</strong>: Use faster JavaScript transpilers</li>
-<li><strong>Module Federation</strong>: Split the app into micro-frontends</li>
-<li><strong>Docker Build Cache</strong>: Containerized builds with layer caching</li>
-<li><strong>CI/CD Optimization</strong>: Parallel builds in GitHub Actions</li>
+<li>
+<strong>Project cracking cache</strong> (<code>fable_modules/project_cracked.json</code>) — restoring project options
+takes ~200ms instead of several seconds.
+</li>
+<li>
+<strong>Up-to-date detection</strong> — if every generated <code>.fs.js</code> is strictly newer than its <code>.fs</code>, a
+one-shot compile is skipped entirely, and <code>fable watch</code> runs its <code>--run</code> command <em>immediately</em>
+(recompiling silently in the background to build its watch graph). <code>dev.js</code> uses that <code>--run</code>
+hook (<code>scripts/fable-ready.js</code>) as the signal to start Electron, so an unchanged tree starts
+the app in seconds either way.
+</li>
 </ol>
-<h2><a name="Contributing" class="anchor" href="#Contributing">Contributing</a></h2>
-<p>When adding new build optimizations:
-1. Measure performance before and after
-2. Document the changes in this file
-3. Test on Windows, Mac, and Linux
-4. Ensure backwards compatibility</p>
+<h2><a name="What-breaks-it" class="anchor" href="#What-breaks-it">What breaks it</a></h2>
+<ul>
+<li>
+<p><strong>A stale <code>.fs.js</code> timestamp.</strong> Fable only rewrites an output file whose <em>content</em> changed. If a
+<code>.fs</code> file's mtime is refreshed without changing its emitted JS — a comment or warning-only
+edit, a <code>git checkout</code>/rebase touching the file — its output stays older than it forever, and
+that single file forces the full recompile on <strong>every</strong> startup. Find offenders (run in
+<code>src/Renderer</code> and <code>src/Main</code>) and touch the listed outputs' <code>.fs.js</code> files:</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">find . -name "*.fs" -not -path "./obj/*" | while read f; do
+  [ -f "$f.js" ] &amp;&amp; [ ! "$f.js" -nt "$f" ] &amp;&amp; echo "$f"
+done
+</code></pre></td></tr></table>
+</li>
+<li>
+<p><strong>Switching build modes.</strong> <code>fable watch</code> implicitly adds the <code>DEBUG</code> define (this is what
+enables Elmish HMR), so <code>dev</code>, <code>dev:once</code> and <code>compile</code> are three different builds. Each switch
+between them invalidates the up-to-date state and costs one full recompile; staying in one mode
+stays fast.</p>
+</li>
+<li>
+<p><strong>Changed compiler options.</strong> Any option change — defines, <code>--verbose</code>, source maps — is
+recorded in the cracking cache and defeats output reuse for the next run. In particular a
+<code>--verbose</code> diagnostic run makes the <em>following</em> plain run recompile.</p>
+</li>
+</ul>
+<p>If the cache seems wedged, <code>dotnet fable clean</code> in the project directory removes the generated
+files and caches for a genuinely fresh start.</p>
 
         
     </div>
@@ -478,103 +430,23 @@ npm run dev:parallel
     <p id="on-this-page">On this page</p>
     <ul>
   <li class="level-1">
-    <a href="#Build-Process-Optimization-Guide">
-      Build Process Optimization Guide
+    <a href="#Build-Speed-and-Fable-Caching">
+      Build Speed and Fable Caching
     </a>
   </li>
   <li class="level-2">
-    <a href="#Overview">
-      Overview
+    <a href="#The-scripts">
+      The scripts
     </a>
   </li>
   <li class="level-2">
-    <a href="#Current-Issues-Addressed">
-      Current Issues Addressed
+    <a href="#How-Fable-decides-it-can-start-fast">
+      How Fable decides it can start fast
     </a>
   </li>
   <li class="level-2">
-    <a href="#Implemented-Optimizations">
-      Implemented Optimizations
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#1-Parallel-Compilation">
-      1. Parallel Compilation
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#2-Webpack-Optimization">
-      2. Webpack Optimization
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#3-Fable-Configuration">
-      3. Fable Configuration
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#4-Additional-Scripts">
-      4. Additional Scripts
-    </a>
-  </li>
-  <li class="level-2">
-    <a href="#Usage-Recommendations">
-      Usage Recommendations
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#For-Development">
-      For Development
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#For-Production">
-      For Production
-    </a>
-  </li>
-  <li class="level-2">
-    <a href="#Performance-Metrics">
-      Performance Metrics
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Before-Optimization">
-      Before Optimization
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#After-Optimization">
-      After Optimization
-    </a>
-  </li>
-  <li class="level-2">
-    <a href="#Troubleshooting">
-      Troubleshooting
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Build-Cache-Issues">
-      Build Cache Issues
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Memory-Issues">
-      Memory Issues
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Type-Checking">
-      Type Checking
-    </a>
-  </li>
-  <li class="level-2">
-    <a href="#Future-Improvements">
-      Future Improvements
-    </a>
-  </li>
-  <li class="level-2">
-    <a href="#Contributing">
-      Contributing
+    <a href="#What-breaks-it">
+      What breaks it
     </a>
   </li>
 </ul>

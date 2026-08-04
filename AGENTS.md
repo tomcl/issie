@@ -33,6 +33,8 @@ CLAUDE.md is right: this file is a summary, and a summary drifts.
   PRODUCTION define.
 - `npm run build`: production bundle via Webpack, into `build/`.
 - `npm run dist` / `npm run pack`: build distributables with electron-builder.
+- `npm version patch|minor|major` (on master): release — syncs Version.fs with package.json,
+  commits, tags `vX.Y.Z` and pushes; the tag push makes CI build and publish the GitHub release.
 - `run-tests.cmd` (Windows) / `run-tests.sh` (Unix): restore, then run the suite and type-check.
 
 `npm run typecheck` does not look inside `#if FABLE_COMPILER` branches. Code there is only checked

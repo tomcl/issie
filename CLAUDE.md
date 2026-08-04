@@ -16,6 +16,7 @@ npm run dev:once   # one-shot compile + app, no watcher; near-instant when nothi
 npm run debug      # includes assertions - slower
 npm run dist       # production binaries
 npm run typecheck  # dotnet build of Renderer.fsproj: F# type check without Fable
+npm version patch  # release (master only): sync Version.fs, commit, tag, push - CI publishes
 ```
 
 There is no lint command; the F# compiler is the check.

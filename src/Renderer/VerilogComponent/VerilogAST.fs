@@ -30,6 +30,7 @@ type OperatorDU =
     | Xnor
     | AndOp
     | Nand
+    | Nor
     | Eq
     | Neq
     | Lt
@@ -333,7 +334,9 @@ let parseOperation = function
     | "^" -> Xor
     | "~^" | "^~" -> Xnor
     | "&" -> AndOp
-    | "!&" -> Nand
+    // the lexer spells the reduction gates ~& and ~| (the "!&" spelling can never be lexed)
+    | "~&" -> Nand
+    | "~|" -> Nor
     | "==" -> Eq
     | "!=" -> Neq
     | "<" -> Lt

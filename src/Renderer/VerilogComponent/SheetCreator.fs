@@ -1236,8 +1236,10 @@ let mainExpressionCircuitBuilder (expr:ExpressionDU) ioAndWireToCompMap varSizeM
         let busCompareCircuit = {Comps=[busCompareComp];Conns=[];Out=busCompareComp.OutputPorts[0];OutWidth=1}
 
         match circType,expr.Operator with
-        |"reduction",Some AndOp 
-        |"reduction",Some NotOp 
+        |"reduction",Some AndOp
+        |"reduction",Some NotOp
+        // (~|x) is true exactly when x = 0, so the compare-to-zero needs no trailing NOT
+        |"reduction",Some Nor
             -> joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit
         |_,_ ->
             let comparedCircuit = joinCircuits [c1] [busCompareComp.InputPorts[0]] busCompareCircuit

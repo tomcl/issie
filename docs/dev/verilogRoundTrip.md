@@ -117,12 +117,20 @@ deserialised into `VerilogTypes.VerilogInput` → `ErrorCheck.getSemanticErrors`
 `SheetCreator.createSheet` → simulate and assert on outputs. New compiler work should come with
 tests there; `run_parser.mjs` alone answers "does this source parse?" in milliseconds.
 
-Building that pipeline flushed out three latent bugs, all fixed with it: `#(parameter ...)`
+Building that pipeline flushed out latent bugs, fixed with it: `#(parameter ...)`
 headers were silently discarded (two compounding wrong indices in the `module_new` grammar
 action), constant array word-selects (`arr[2][0]`) stored the `]` token instead of the index
-(three wrong indices in `ARRAY_SELECT`), and `DrawHelpers.uuid` under .NET returned the same
+(three wrong indices in `ARRAY_SELECT`), `DrawHelpers.uuid` under .NET returned the same
 string for every call (`Guid.NewGuid` missing its parentheses), which collapsed every generated
-sheet to one component.
+sheet to one component, and the `(~&x)`/`(~|x)` reductions crashed AST conversion
+(`parseOperation` knew a `"!&"` spelling the lexer never produces and had no Nor case; note NOR
+is the compare-to-zero itself, with no trailing inverter).
+
+Known checker bug, not yet fixed: `checkVariablesUsed` enumerates an array's *vector bits*
+(`decl.Range`) but assignments are tracked per *word*, so an array whose vector width differs
+from its word count (e.g. `bit [7:0] hist [3:0]`) reports phantom unassigned words. The corpus's
+`2d_array.sv` masks this because its width and word count are both 3. Also by design: every
+array word must be both written and read.
 
 ## Reproducing
 

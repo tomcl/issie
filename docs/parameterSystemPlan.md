@@ -6,22 +6,37 @@ This document records the agreed design for the next stage of the Issie paramete
 [parameterSystem.md](parameterSystem.md) for where the code lives), with these deviations and
 deferrals:
 
-- **Display of real values** happens in the properties pane (parameter table annotations); the
-  canvas itself is still drawn and width-checked at default values. Drawing the canvas at the
-  singleton real values is designed but not implemented — see
-  [Drawing at computed values](#drawing-at-computed-values) below.
-- **Undo/redo** restores whole model snapshots, so re-doing a placement does not re-fire the
-  component-added trigger. The unbound state remains visible as a "(default; unbound)" note in
-  the instance's properties, and the next qualifying event re-checks.
+- **Drawing at computed values is implemented**, as described in
+  [Drawing at computed values](#drawing-at-computed-values) below — with one addition that section
+  did not anticipate. A custom component instance's ports follow from a `CustomCompParam` binding
+  by way of the child sheet, which `ComponentSlots.setSlotValue` cannot reach, so the declared
+  ports are stashed alongside the declared slot values in `Symbol.DeclaredPortLabels`.
+- **Binding is total**: every instance binds every parameter its sheet declares, rather than
+  carrying no bindings until one is created. See the note below.
 - **Deletion**: the existing behaviour (refusing deletion while slots on the sheet use the
   parameter, and dropping dead bindings from instances elsewhere) is kept unchanged; the
   pass-through-chain listing remains a possible extension.
+- **Undo/redo** restores whole model snapshots, so re-doing a placement does not re-fire the
+  component-added trigger. The next qualifying event re-checks.
 - The **later extensions** (instance-path viewing, memory parametrisation) are not implemented.
 
-One behaviour change beyond the plan text: placing a custom component instance no longer copies
-the parent sheet's default bindings into the instance as frozen values (the old behaviour, which
-was precisely the silent-stale-chain problem). New instances carry no bindings and elaborate at
-their sheet's defaults until a binding is created explicitly or through an accepted offer.
+Two behaviour changes beyond the plan text:
+
+**Placement asks.** Placing a custom component instance no longer copies the parent sheet's
+default bindings into the instance as frozen values (the old behaviour, which was precisely the
+silent-stale-chain problem). Instead the placement popup asks for a value for every parameter the
+child sheet declares, showing each one's description, with a button to bind to a same-named
+parameter of the sheet being placed onto.
+
+**Every instance binds every parameter.** The plan left an instance's parameter *unbound* until a
+binding was created, and displayed that state as "(default; unbound)". That state is now designed
+away rather than presented: an unbound parameter elaborates at the sheet's own declared value,
+which is a fact about the sheet and not about the instance, and it makes "default" a concept the
+user has to reason about. Placing an instance establishes the binding, and
+`ParameterAnalysis.bindParamOnInstances` fills the hole a parameter added to a sheet that already
+has instances would otherwise leave. This retargeted the bind-to-top offer, which fired on unbound
+parameters and so could never fire again: it now fires on a parameter bound to a plain **number**,
+which is the state the offer is actually useful in.
 
 ## The problem
 
@@ -108,7 +123,9 @@ the parent sheet.
 
 ### The bind-to-top offer
 
-Where a custom component instance's parameter is unbound, the UI may offer:
+*As implemented the trigger is a parameter bound to a plain number, not an unbound one — see the
+implementation status above.* Where a custom component instance's parameter qualifies, the UI may
+offer:
 
 > Bind to CPU_TOP:width? width parameters and bindings will be created in sheets X, Y, Z.
 
@@ -172,6 +189,15 @@ was wrong and was changed while implementing: reverting a whole component on sav
 every edit made while computed values were on display — a constant's value, a memory's contents,
 the label. Only the slot values are stashed, so everything that is not a parameterised slot is
 saved as it stands.*
+
+*Slot values alone turned out to be not quite enough, and a second field
+`Symbol.DeclaredPortLabels` was added later. A custom component instance is the one symbol whose
+slot value does not name a number in its own type: a `CustomCompParam` slot binds a parameter of
+the sheet INSIDE the instance, and the instance's port widths follow from that binding by way of
+the child sheet. `ComponentSlots.setSlotValue` can put the binding back but not the ports it
+implies, having no access to the child sheet, so a sheet saved while showing computed values wrote
+an instance whose ports contradicted its own bindings — which is what the simulator's custom
+component check rejects. The declared ports are therefore remembered whole.*
 
 The direction matters and is forced by React caching. `SymbolView.renderSymbol` is a
 `FunctionComponent.Of(..., "Symbol", equalsButFunctions)` whose memo key is the whole `Symbol`

@@ -8,8 +8,12 @@ read of the parameter system
 
 **All three High findings, and the Medium that shared a cause with one of them, are now fixed**,
 each pinned by a test in `Tests/Issie.Tests/ParameterScenarios.fs` that was checked to fail without
-the fix. The rest stand. Line numbers are as of the original commit and will have drifted; the
-named functions will not.
+the fix. Finding 5 and two of the Low items have since been fixed as well, and are marked. The
+rest stand. Line numbers are as of the original commit and will have drifted; the named functions
+will not.
+
+A third review, of the parameter system against the code that keeps custom component instances in
+step with their sheets, is recorded at the end of this file.
 
 ## High
 
@@ -101,6 +105,13 @@ It calls `dispatch <| SetPopupDialogText ...` inside the `List.filter` predicate
 popup render (`:946`). Whenever a constraint expression fails to evaluate, every render dispatches
 a model update that triggers another render.
 
+**Fixed.** The `dispatch` parameter is gone and the function is pure: what is unmet comes back in
+the returned `ParamConstraint list`, which is where both callers already looked for it. A bound
+that cannot be evaluated returns a constraint whose message keeps the author's wording and says
+why the limit could not be worked out. The removed dispatch was also `SetPopupDialogText`, which
+is where some popups keep the text the user is typing. Being a function of its arguments is what
+makes it testable at all, which `Tests/Issie.Tests/Properties.fs` now does.
+
 ### 6. Cross-sheet paste always loses parameterisation
 
 `copyParamSlotsToPastedComponents` (`ParameterView.fs:690`) reads `paramSlotsOfModel_` — the
@@ -143,9 +154,14 @@ They are now a single match over the two types that really are supported. The
 - Three different silent fallbacks for the same "cannot evaluate" condition:
   `ComponentLibraries.paramsOfSheet` (`:78`) and `ParameterView.childDefaultValue` (`:1686`)
   default to `1`; `ParameterAnalysis.displayValuesOfSheet` (`:242`) defaults to `0`.
-- `ParameterTypes.parseExpression` has no unary minus: `-5` tokenises to `["-"; "5"]` and reports
+- ~~`ParameterTypes.parseExpression` has no unary minus: `-5` tokenises to `["-"; "5"]` and reports
   `Unexpected characters at end of expression: 5`. Also `12abc` becomes a single token and is
-  accepted as a parameter name.
+  accepted as a parameter name.~~ **Both fixed.** Unary minus parses as subtraction from zero, so
+  no AST case was added and no saved file changes; a negated literal is folded so it renders back
+  as typed. The name rule and the tokenizer's name token are now one function,
+  `isValidParamName` — which turned out to matter in the other direction too: `W2X` could be
+  declared and then never written in an expression, and a name beginning with a digit was shown in
+  red by the dialog and accepted by its OK button anyway.
 - `ParameterAnalysis.chainActionsForInstance` calls `Set.minElement declarers` `rootDeclarer`
   (`:414`). That is the alphabetically first sheet, not the outermost, so the default and
   description copied onto intermediate sheets come from an arbitrary declarer.
@@ -321,3 +337,97 @@ shorter.
 - **Two entries under "Checked and fine" above are now out of date**: multi-sheet library
   components *are* supported (`readComponentAndDependencies` plus `Requires`), and
   `materialiseLibrarySheet` no longer exists.
+
+---
+
+# Third review: the parameter system against custom component port updating
+
+Recorded 2026-08-04 against `master` at `605fa39cc`, asking two questions: is
+`CustomCompPorts.fs` — which brings every instance of a sheet back into step when that sheet's
+ports change — compatible with the parameter system, and is the parameter system itself correct.
+
+**Everything below is fixed**, in `9e0f755ef`, each pinned by a test that was checked to fail
+without the fix. Tests are in `Tests/Issie.Tests/InstanceSignatures.fs` (new),
+`ParameterScenarios.fs` and `Properties.fs`.
+
+## The incompatibility
+
+`CustomCompPorts` was built on one axiom: **a sheet has one signature, and every instance of it
+must equal that signature**. A parameterised sheet has a family of signatures, one per set of
+bindings, and two instances of it are meant to differ. So:
+
+1. **The dialog fired on every save of any parameterised design.** `getOutOfDateDependents`
+   compared each instance against `parseDiagramSignature` of the sheet at its declared values.
+   `optCurrentSheetDependentsPopup` runs from `FinishUICmd`, dispatched by
+   `saveOpenFileActionWithModelUpdate` and `openFileInProject'`, so an instance bound to anything
+   other than the sheet's default raised "you have changed the inputs or outputs" on every save
+   and every sheet switch, when nothing had changed.
+2. **Accepting it broke the design.** `changeInstance` rewrote `InputLabels`/`OutputLabels` to the
+   declared widths and left `ParameterBindings` alone, so the instance claimed width 8 while
+   binding `W=16`. The next simulation reported `BadInputs` from
+   `checkCustomComponentForOkIOs` — a dialog whose stated purpose is consistency, destroying it.
+3. **Instance-specific changes were inexpressible.** `updateInstance` took a single `newSig` for
+   all instances and `getOutOfDateDependents` looked only at the head of the list.
+4. **A renamed child IO unhooked its parameter slot.** The slot key is `IO of Label`, nothing
+   rewrote it on rename, and `pruneDeadParamSlots` would not drop it because the component was
+   still alive. Editing the renamed port then created a *second* slot for the same field, and
+   `GraphMerger.processComponent` applied both, in `Map` key order.
+
+### The reconciliation
+
+The invariant that replaces "all instances match the sheet":
+
+> an instance is out of date exactly when it differs from what **its own** bindings give it
+
+`CanvasExtractor.signatureOfInstance` is the single calculation of that, and the four places that
+need it — placement, the properties pane, the simulator's check, and `CustomCompPorts` — all call
+it; they held three divergent copies before. `signatureOfInstanceWithCertainty` reports whether
+the widths can be believed, so a canvas checked without its parent compares names only. The
+`IO` slot label is no longer part of a slot's identity (`ParameterTypes.sameSlot`), and
+`tidyParamSlots` repoints it on save.
+
+Going through one function fixed a case none of the copies had right: placing an instance bound to
+a same-named parameter of the sheet it is placed onto evaluated that binding in the *child's*
+environment, where it looks self-referential, so the instance was placed at the child's default
+widths.
+
+## Also found in the parameter system
+
+- **A parameter-only edit was never saved.** `UpdateHelpers.currentSheetIsOutOfDate` compares
+  canvases and the `LoadedComponentIsOutOfDate` flag; a parameter declared, a description written,
+  an unused parameter deleted, or a slot given an expression that works out to the width already
+  shown all leave the canvas identical. The save button stayed dark, `openFileInProject` passes
+  `SavedSheetIsOutOfDate` as its `saveCurrent`, and the work was dropped on leaving the sheet.
+  Fixed by `ParameterView.markSheetParamsChanged` on every path that edits parameter data.
+- **Saving while drawing at computed values wrote a self-contradicting instance.**
+  `DeclaredSlots` restores a `CustomCompParam` binding, but the instance's ports follow from that
+  binding by way of the child sheet and `ComponentSlots.setSlotValue` cannot reach it. The `.dgm`
+  got computed ports and declared bindings. Fixed with `Symbol.DeclaredPortLabels`.
+- **`guessAtRenamedPorts` ignored port direction**, keying rename candidates on width alone, so an
+  input added at width 8 could be paired with an output deleted at width 8 and the instance left
+  half-changed.
+- **`reorderInstancePorts` judged its remaining work from the signature the instance started
+  with**, not the one it had after `changeInstance` ran, so a change that both added a port and
+  reordered the rest fell through to `printfn "What? Signatures do not match"` and returned the
+  instance half-updated.
+- Findings 5 and the two parser items in the first review's Low list (unary minus, `12abc` as a
+  name) are fixed; see their entries above.
+
+## Incidental
+
+`JSHelpers.uuid` gained a `#if FABLE_COMPILER` .NET fallback. The npm package is absent under
+plain .NET and a Fable import throws when called, so no test could reach any path that adds a
+component or a port — including the add-a-port branch of `changeInstance`.
+
+## Still open
+
+- The three silent `1` / `0` fallbacks for "cannot evaluate" (first review, Low) are unchanged.
+- `ParameterAnalysis.chainActionsForInstance`'s `Set.minElement declarers` is still the
+  alphabetically first sheet rather than the outermost.
+- Cross-sheet paste still loses parameterisation for non-custom components (finding 6).
+- `deleteParameterBox` checks `ParamSlots` for uses of the parameter but not `DefaultBindings`, so
+  a parameter defined in terms of another can be orphaned. Only reachable through a hand-edited
+  file today, since the UI only ever writes `PInt` defaults — but `editParameterBox` explicitly
+  handles expression-valued defaults, so the system claims to support them.
+- `addParameterBox` does not reject a duplicate name: `Map.add` silently replaces the existing
+  declaration and its description.

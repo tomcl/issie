@@ -37,7 +37,7 @@ by an actual Fable run, so compile with Fable before trusting a change to one.
 
 ## Testing Guidelines
 - Expecto, with FsCheck for property tests. Run with `dotnet run`, **not** `dotnet test`.
-- `npm run test` runs about 209 tests in roughly a minute and reaches all of `Renderer.fsproj`:
+- `npm run test` runs about 249 tests in roughly a minute and reaches all of `Renderer.fsproj`:
   simulation, parameter resolution, the draw block, and UI-module helpers.
 - **Run one group, not the suite** — seconds instead of a minute; timings per group are in
   `Tests/README.md`:

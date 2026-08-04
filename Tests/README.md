@@ -1,7 +1,7 @@
 # Issie tests
 
 ```bash
-npm run test        # the whole suite: ~209 tests, ~60s (~20s with VerilogCompiler excluded)
+npm run test        # the whole suite: ~249 tests, ~55s (~18s with VerilogCompiler excluded)
 ```
 
 That runs `dotnet run --project Tests/Issie.Tests -c Release`. It is `dotnet run`, not
@@ -23,10 +23,10 @@ Group runtimes (Release, warm build; add ~4s of startup per invocation):
 | `VerilogCompiler` | 11 | **39s** |
 | `ComponentSemantics` | 42 | 9s |
 | `GoldenModel` | 3 | 3.4s |
-| `Properties` | 13 | 1.3s |
+| `Properties` | 23 | 1.0s |
 | `VerilogOutput` | 45 | 1.1s |
 | `SheetDescription` | 18 | 1.0s |
-| everything else (`Algebra`, `DrawBlock`, `KeyBindings`, `Library`, `ParameterScenarios`, `ParameterUI`, `Persistence`) | 77 | < 1s each |
+| everything else (`Algebra`, `DrawBlock`, `InstanceSignatures`, `KeyBindings`, `Library`, `ParameterScenarios`, `ParameterUI`, `Persistence`) | 107 | ≤ 1s each |
 
 `VerilogCompiler` dominates: it spawns **node** for every parse (the real nearley parser, the
 same one the editor runs), so it needs node on PATH and costs ~2/3 of the suite. Because of
@@ -34,7 +34,7 @@ that it is **skipped whenever the `CI` environment variable is set** (GitHub Act
 `CI=true`) — see `Main.fs`. To skip it locally the same way:
 
 ```bash
-CI=true npm run test          # 198 tests, ~20s of test time
+CI=true npm run test          # 238 tests, ~18s of test time
 ```
 
 Run `Issie.VerilogCompiler` explicitly when touching anything under
@@ -51,10 +51,11 @@ simulation, parameter resolution, persistence, the draw block and UI-module help
 | `VerilogOutput.fs` | 45 | The Verilog text `Verilog.getVerilog` emits: structural invariants over every component, emitted expressions evaluated against the simulator's own reference, and constructs that were once emitted wrongly. |
 | `ComponentSemantics.fs` | 42 | Every component type simulated in a minimal circuit and compared against an independent reference. Exhaustive over all inputs at width 3. |
 | `AlgebraTests.fs` | 32 | Truth-table algebraic simulation: the `evalExp` simplifier, append handling, and symbolic simulation end to end. |
+| `InstanceSignatures.fs` | 26 | What a custom component instance's ports are, and keeping instances in step with the sheet inside them: per-instance signatures, port add/delete/rename, slot identity across a rename, and the out-of-date flag for parameter-only edits. |
+| `Properties.fs` | 23 | FsCheck properties: the parameter expression language against a reference evaluator and through render/parse, plus its name rule, unary minus and constraint checking; number conversions; the >32-bit bigint simulation paths. |
+| `ParameterScenarios.fs` | 19 | Parameterised sheets instantiated at different bindings and simulated: per-instance resolution, propagation down a hierarchy, what is saved while computed values are displayed, and error reporting. |
 | `SheetDescriptionTests.fs` | 18 | The sheet-description DSL and the layout that realises it — port resolution, error messages, placement, parameters, and a save/reload round trip. |
-| `ParameterScenarios.fs` | 15 | Parameterised sheets instantiated at different bindings and simulated: per-instance resolution, propagation down a hierarchy, and error reporting. |
-| `ParameterUI.fs` | 15 | The two gates that decide how much of the parameter feature the UI shows, as pure functions of the loaded components. |
-| `Properties.fs` | 13 | FsCheck properties: the parameter expression language against a reference evaluator and through render/parse, number conversions, and the >32-bit bigint simulation paths. |
+| `ParameterUI.fs` | 15 | The two gates that decide how much of the parameter feature the UI shows, and the totality of instance bindings, as pure functions of the loaded components. |
 | `VerilogCompiler.fs` | 11 | The Verilog *input* compiler end to end: real nearley parse via node, semantic checks, synthesis to a sheet, and the simulated behaviour of that sheet. Needs `node`; skipped when `CI` is set. |
 | `KeyBindingTests.fs` | 7 | The shortcut table: every `ShortcutId` bound, nothing shadowed, nothing that can never fire — all invisible at runtime otherwise. |
 | `DrawBlockTests.fs` | 5 | Symbols built and wires routed with nothing running, plus the .NET text-width reconstruction checked against widths recorded from a real browser. |

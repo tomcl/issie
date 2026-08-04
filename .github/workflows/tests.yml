@@ -157,7 +157,7 @@ jobs:
 #       continue-on-error: true
     
 #     - name: Compile TypeScript/JavaScript
-#       run: npm run compile:parallel
+#       run: npm run compile
 #       continue-on-error: true
 
 #   lint:
@@ -227,7 +227,7 @@ jobs:
     
 #     - name: Build production bundle
 #       run: |
-#         npm run compile:parallel
+#         npm run compile
 #         npm run build
     
 #     - name: Test Electron app build

@@ -11,13 +11,21 @@ simulation application written in F#, transpiled to JavaScript by Fable and run 
 build.cmd          # Windows: full setup - installs dependencies, builds, starts dev mode
 build.sh           # Linux/Mac equivalent
 
-npm run dev        # hot reload
+npm run dev        # hot reload; Main and Renderer compile in parallel
+npm run dev:once   # one-shot compile + app, no watcher; near-instant when nothing changed
 npm run debug      # includes assertions - slower
 npm run dist       # production binaries
 npm run typecheck  # dotnet build of Renderer.fsproj: F# type check without Fable
 ```
 
 There is no lint command; the F# compiler is the check.
+
+Fable skips recompiling (or in watch mode, starts the app before the silent background
+recompile) only when every `.fs.js` is strictly newer than its `.fs`. Two traps defeat that and
+force the full ~1-minute compile every time — see
+[docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md): a source touched without changing its
+emitted JS keeps a permanently stale `.fs.js` (fix by touching the output file), and watch mode
+adds the `DEBUG` define, so alternating `dev`/`dev:once`/`compile` recompiles on each switch.
 
 **You can see what the running app is drawing.** `npm run dev` opens a DevTools-protocol port, and
 `scripts/inspect-canvas.js` reads the canvas through it — the whole draw block model serialised with

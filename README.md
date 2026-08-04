@@ -170,28 +170,28 @@ Additionally, the section `"scripts"`:
 "scripts": {
     "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
     "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
-    "compile": "dotnet fable src/Main -s && dotnet fable src/Renderer -s --define PRODUCTION",
-    "debug": "dotnet fable watch src/Main -s --run npm run debugrenderer",
-    "debugrenderer": "dotnet fable watch src/Renderer -s --define ASSERTS --run npm run start",
-    "dev": "dotnet fable watch src/Main -s --run npm run devrenderer",
-    "devrenderer": "dotnet fable watch src/Renderer -s --run npm run start",
+    "compile": "node scripts/parallel-compile.js",
+    "debug": "node scripts/dev.js --asserts",
+    "dev": "node scripts/dev.js",
+    "dev:once": "node scripts/dev.js --once",
     "start": "cross-env NODE_ENV=development node scripts/start.js",
-    "build": "cross-env NODE_ENV=production node scripts/build.js",
+    "build": "cross-env NODE_ENV=production ELECTRON_ENABLE_LOGGING=true node scripts/build.js",
     "pack": "npm run compile && npm run build && electron-builder --dir",
     "dist": "npm run compile && npm run build && electron-builder",
     "buildonly": "electron-builder",
     "testcompiler": "cd src/Renderer/VerilogComponent/test && dotnet fable --noCache && node testParser.fs.js"
   }
 ```
-Defines the in-project shortcut commands as a set of `<key> : <value` lines, so that when we use `npm run <stript_key>` it is equivalent to calling `<script_value>`. 
-For example, in the root of the project, running in the terminal `npm run dev` is equivalent to the command line:
+Defines the in-project shortcut commands as a set of `<key> : <value>` lines, so that when we use `npm run <script_key>` it is equivalent to calling `<script_value>`.
 
-```
-dotnet fable watch src/Main -s --run npm run devrenderer
-```
-
-This runs fable 4 to transpile the main process, then (`--run` is an option of fable to run another command) runs script `devrenderer` to transpile to javascript and watch the F# files in the renderer process. After the renderer transpilation is finished 
-[start.js script](scripts/start.js) will be run. This invokes `webpack` to pack and lauch the javascript code, under electron, and also watches for changes in the javascript code, and *hot loads* these on the running application
+`npm run dev` runs [dev.js](scripts/dev.js), which starts `dotnet fable watch` for the main and
+renderer processes *in parallel*, transpiling the F# to javascript and watching the F# files for
+changes. As soon as both projects' generated javascript is up to date — immediately if nothing
+changed since the last compile, otherwise when the first compilation finishes — it runs the
+[start.js script](scripts/start.js). This invokes `webpack` to pack and launch the javascript code
+under electron, watches for changes in the javascript code, and *hot loads* these on the running
+application. `npm run dev:once` is the same but compiles exactly once with no watcher: startup is
+very fast when nothing has changed, and edits need a rerun to be picked up.
 
 As result of this, at any time saving an edited F# renderer project file causes (nearly) immediate:
 

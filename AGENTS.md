@@ -23,11 +23,14 @@ CLAUDE.md is right: this file is a summary, and a summary drifts.
   `SimulatorTypes.fs`, which has since been split into `SimGraphTypes.fs` and `SimTypes.fs`.
 
 ## Build, Test, and Development Commands
-- `npm run dev`: hot-reload development (Fable watch + Electron).
+- `npm run dev`: hot-reload development (parallel Fable watch + Electron).
+- `npm run dev:once`: one-shot Fable compile (skipped entirely when sources are unchanged), then
+  Electron — no watching, no hot reload.
 - `npm run debug`: dev mode with extra renderer assertions, and slower.
 - `npm run test`: run the test suite — see below.
 - `npm run typecheck`: type-check `Renderer.fsproj` under .NET, without Fable. Fast.
-- `npm run compile:parallel`: compile the F# projects to JS with Fable.
+- `npm run compile`: compile both F# projects to JS with Fable, in parallel, with the
+  PRODUCTION define.
 - `npm run build`: production bundle via Webpack, into `build/`.
 - `npm run dist` / `npm run pack`: build distributables with electron-builder.
 - `run-tests.cmd` (Windows) / `run-tests.sh` (Unix): restore, then run the suite and type-check.

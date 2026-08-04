@@ -8,7 +8,7 @@
 #     dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock
 #
 # Neither this script nor CI compiles the #if FABLE_COMPILER branches. If you have changed code
-# inside one, run `npm run compile:parallel` as well - nothing else will check it.
+# inside one, run `npm run compile` as well - nothing else will check it.
 
 set -u
 

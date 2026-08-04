@@ -7,7 +7,7 @@ REM and, much quicker while iterating, one group at a time:
 REM     dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock
 REM
 REM Neither this script nor CI compiles the #if FABLE_COMPILER branches. If you have changed
-REM code inside one, run "npm run compile:parallel" as well - nothing else will check it.
+REM code inside one, run "npm run compile" as well - nothing else will check it.
 
 setlocal
 set FAIL=0

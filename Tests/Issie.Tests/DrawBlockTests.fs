@@ -173,6 +173,54 @@ let tests =
             checkWiresAreOrthogonalAndConnected model "after autoroute"
         }
 
+        test "a placement lands centred on the position it is given, and a click there commits it" {
+            // The contract dragging a component out of the catalogue is built on. A drop does not
+            // place the component itself: it sends the move-then-click that placing it by hand
+            // would have sent, so the dragged and clicked gestures can only agree for as long as
+            // a placement goes exactly where the gesture puts it. Were the move to place the
+            // component somewhere of its own choosing - at a grid point, at an offset from the
+            // cursor - a drop would silently stop landing under the pointer.
+            let mouseAt op pos : DrawHelpers.MouseT =
+                { Pos = pos; ScreenMovement = { X = 0.; Y = 0. }; ScreenPage = { X = 0.; Y = 0. }
+                  ShiftKeyDown = false; Op = op }
+            /// CurrentAction carries a function, so it has no equality: say which case is wanted.
+            let expectAction (wanted: string) (action: SheetT.CurrentAction) =
+                let name =
+                    match action with
+                    | SheetT.Idle -> "Idle"
+                    | SheetT.DragAndDrop -> "DragAndDrop"
+                    | SheetT.InitialisedCreateComponent _ -> "InitialisedCreateComponent"
+                    | other -> $"%A{other}"
+                Expect.equal name wanted $"the sheet should be {wanted}"
+            let dropPos = { X = 500.; Y = 400. }
+            let sheet, _ = SheetUpdate.init ()
+            let armed =
+                { sheet with
+                    Action = SheetT.InitialisedCreateComponent ([], GateN (And, 2), "", None) }
+
+            let placed, _ = SheetUpdateHelpers.mMoveUpdate armed (mouseAt DrawHelpers.Move dropPos)
+
+            let symbols = placed.Wire.Symbol.Symbols |> Map.toList |> List.map snd
+            Expect.hasLength symbols 1 "the move created exactly one symbol"
+            let sym = List.head symbols
+            let centre =
+                { X = sym.Pos.X + sym.Component.W / 2.; Y = sym.Pos.Y + sym.Component.H / 2. }
+            Expect.floatClose Accuracy.high centre.X dropPos.X "the symbol is centred on the drop"
+            Expect.floatClose Accuracy.high centre.Y dropPos.Y "the symbol is centred on the drop"
+            expectAction "DragAndDrop" placed.Action
+
+            // Bounding boxes are refreshed by SheetUpdate.update's postUpdateChecks, which a click
+            // arriving in the same batch as the move relies on: the click asks whether the new
+            // symbol overlaps anything, and cannot ask about a symbol it has no box for.
+            let boxed =
+                { placed with BoundingBoxes = Symbol.getBoundingBoxes placed.Wire.Symbol }
+            let committed, _ = SheetUpdateHelpers.mDownUpdate boxed (mouseAt DrawHelpers.Down dropPos)
+
+            expectAction "Idle" committed.Action
+            Expect.hasLength (committed.Wire.Symbol.Symbols |> Map.toList) 1 "the symbol is still there"
+            Expect.equal committed.SelectedComponents [ sym.Id ] "and is left selected"
+        }
+
         test "the separation pass leaves every wire connected and orthogonal" {
             // separation is the pass that nudges parallel wires apart, and the one most likely
             // to move a segment somewhere it should not go

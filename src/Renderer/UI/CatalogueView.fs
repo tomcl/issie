@@ -44,8 +44,106 @@ let menuItem styles label onClick =
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick; Style styles ] ]
         [ str label ]
 
+/// Where on the sheet a pointer release landed, if it landed on the canvas at all. Releasing
+/// anywhere else - over the catalogue, the menu bar, outside the window - places nothing, which
+/// is what lets a drag be abandoned by dropping it nowhere.
+let private dropPosOnCanvas (ev: Browser.Types.PointerEvent) (model: Model) : XYPos option =
+    match Browser.Dom.document.getElementById "Canvas" with
+    | null -> None
+    | canvas ->
+        let box = canvas.getBoundingClientRect ()
+        match ev.clientX >= box.left && ev.clientX <= box.right
+              && ev.clientY >= box.top && ev.clientY <= box.bottom with
+        | false -> None
+        // The conversion the canvas applies to its own mouse events, so a drop lands under the
+        // pointer however the sheet happens to be scrolled or zoomed.
+        | true -> Some (SheetDisplay.getDrawBlockPos ev getHeaderHeight model.Sheet)
+
+/// A catalogue item that places a component. `place` is what the item does when it is asked for -
+/// create the component, or open the popup that will - and it runs when the gesture ends.
+///
+/// Click and drag are one gesture here: a click is a drag that ended somewhere other than the
+/// canvas, and both end in the same call to `place`. Both are driven from pointer events rather
+/// than a click handler because the capture taken on press retargets the click to this item even
+/// when the release was over the canvas, so an OnClick would fire a second time for every drop.
+let private placementItem styles (ghost: DragGhost) label (place: unit -> unit) (model: Model) dispatch =
+    /// Whether this item is the one being carried, marked on the element by its own press and
+    /// unmarked when that press ends.
+    ///
+    /// The question is put to the DOM rather than to the model because these handlers hold the
+    /// model as it was when the catalogue was last drawn: a click quick enough to beat the
+    /// re-render would look like a gesture that had never started, and would place nothing.
+    /// Being per-element it settles the other direction too - a press that began somewhere else,
+    /// on the canvas or on another catalogue item, places nothing here.
+    let carryingThis (ev: Browser.Types.PointerEvent) : bool = ev.currentTarget?__issieCarrying = true
+    let setCarrying (ev: Browser.Types.PointerEvent) (carrying: bool) =
+        ev.currentTarget?__issieCarrying <- carrying
+    Menu.Item.li [
+        Menu.Item.IsActive false
+        Menu.Item.Props [
+            Style styles
+            OnPointerDown (fun ev ->
+                setCarrying ev true
+                // Captured, so the gesture is followed across the whole window. Without this the
+                // ghost would stop moving the instant the pointer left this item, which is at
+                // once - the canvas it is being dragged to is a few pixels away. Best effort:
+                // capture can be refused for a pointer the browser no longer considers active,
+                // and losing the ghost is a far smaller thing than losing the ability to place,
+                // which is why nothing else here depends on it.
+                try ev.currentTarget?setPointerCapture (ev.pointerId) |> ignore with _ -> ()
+                dispatch (StartDragPlacement (ghost, { X = ev.clientX; Y = ev.clientY })))
+            OnPointerMove (fun ev ->
+                // Only while carrying something: hovering over the catalogue must not dispatch
+                // on every mouse move.
+                if carryingThis ev then
+                    dispatch (MoveDragPlacement { X = ev.clientX; Y = ev.clientY }))
+            OnPointerUp (fun ev ->
+                if carryingThis ev then
+                    setCarrying ev false
+                    // Released over the canvas, the component goes where it was dropped; released
+                    // anywhere else, this was a click, and it follows the cursor as it always has.
+                    match dropPosOnCanvas ev model with
+                    | Some pos -> dispatch (DropDragPlacement pos)
+                    | None -> dispatch EndDragPlacement
+                    place ())
+            // A gesture the system takes away - a touch turning into a scroll, the window losing
+            // the pointer - places nothing, exactly as a release off the canvas does.
+            OnPointerCancel (fun ev ->
+                if carryingThis ev then
+                    setCarrying ev false
+                    dispatch EndDragPlacement)
+        ]
+    ] [ str label ]
+
+/// Hand a placement to the sheet. The component follows the cursor until it is clicked into
+/// place, except when the placement came from a catalogue drag that has already been dropped:
+/// then it goes where it was dropped, put there by the move-then-click the user would otherwise
+/// have performed by hand.
+///
+/// Driving the drop through the ordinary mouse path rather than placing directly is what keeps
+/// the two gestures identical in everything that follows - snapping, the overlap check, the undo
+/// entry - and it means a drop onto an occupied space settles into the same follow-the-cursor
+/// state a click would have left it in, rather than being refused.
+let private startPlacement (placeMsg: SheetT.Msg) (model: Model) dispatch =
+    dispatch (Sheet placeMsg)
+    match model.DragPlacement with
+    | Some (DroppedAt pos) ->
+        let atDropPoint op : DrawHelpers.MouseT = {
+            Pos = pos
+            ScreenMovement = { X = 0.; Y = 0. }
+            ScreenPage = { X = 0.; Y = 0. }
+            ShiftKeyDown = false
+            Op = op
+        }
+        dispatch EndDragPlacement
+        dispatch (Sheet (SheetT.MouseMsg (atDropPoint DrawHelpers.Move)))
+        dispatch (Sheet (SheetT.MouseMsg (atDropPoint DrawHelpers.Down)))
+    | _ -> ()
+
 let private createComponent compType label createParam model dispatch =
-    Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, compType, label, createParam)) |> dispatch
+    startPlacement
+        (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, compType, label, createParam))
+        model dispatch
 
 // Anything requiring a standard label should be checked and updated with the correct number suffix in Symbol/Sheet, 
 // so give the label ""
@@ -85,7 +183,7 @@ let private placeCustomComponent
         ParameterBindings = if Map.isEmpty bindings then None else Some bindings
     }
 
-    Sheet (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "", createParam)) |> dispatch
+    startPlacement (SheetT.InitialiseCreateComponent (tryGetLoadedComponents model, custom, "", createParam)) model dispatch
 
 /// Start placing an instance of a sheet. A sheet that declares parameters asks for a value for
 /// each of them first: placing without asking would silently freeze the sheet's defaults into the
@@ -101,9 +199,31 @@ let startPlacingCustomComponent (loadedComponent: LoadedComponent) model dispatc
                 model dispatch
         ParameterView.customComponentParamPopup loadedComponent place model dispatch
 
+/// An instance of `loadedComponent` as it is drawn before any parameters have been chosen: the
+/// sheet at its own declared defaults, which is what the instance would be if the popup were
+/// simply accepted.
+let private customGhost (loadedComponent: LoadedComponent) =
+    GhostSymbol (Custom {
+        Name = loadedComponent.Name
+        InputLabels = loadedComponent.InputLabels
+        OutputLabels = loadedComponent.OutputLabels
+        Form = loadedComponent.Form
+        Description = loadedComponent.Description
+        ParameterBindings = None
+    })
+
+/// Placing a sheet reads the model as it is when the gesture ends rather than as it was when the
+/// catalogue was drawn, because the drop position is written into it moments earlier - by the
+/// pointer-up that leads here.
+let private placeSheetOnGesture (loadedComponent: LoadedComponent) dispatch =
+    fun () ->
+        dispatch <| ExecFuncInMessage (
+            (fun model' dispatch' -> startPlacingCustomComponent loadedComponent model' dispatch'),
+            dispatch)
+
 let private makeCustom styles model dispatch (loadedComponent: LoadedComponent)  =
-    menuItem styles loadedComponent.Name (fun _ ->
-        startPlacingCustomComponent loadedComponent model dispatch)
+    placementItem styles (customGhost loadedComponent) loadedComponent.Name
+        (placeSheetOnGesture loadedComponent dispatch) model dispatch
 
 //------------------------------------------------------------------------------------------------//
 //---------------------------------- Shipped component libraries ---------------------------------//
@@ -222,8 +342,8 @@ let private makeCustomList styles model dispatch =
 
 /// A Verilog-generated sheet is placed exactly as any other sheet is, parameters included.
 let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)  =
-    menuItem styles loadedComponent.Name (fun _ ->
-        startPlacingCustomComponent loadedComponent model dispatch)
+    placementItem styles (customGhost loadedComponent) loadedComponent.Name
+        (placeSheetOnGesture loadedComponent dispatch) model dispatch
 
 let private makeVerilogList styles model dispatch =
     match model.CurrentProj with
@@ -1035,6 +1155,71 @@ let private makeMenuGroupWithTip styles  title tip menuList =
         Menu.list [] menuList
     ]
 
+/// The component a catalogue drag is carrying, drawn following the cursor.
+///
+/// This is the draw block's own drawing - createNewSymbol and drawComponent, the pair the canvas
+/// itself uses - and not a picture of one, so what is being carried cannot fall out of step with
+/// what will be placed: a symbol whose look depends on its ports, its size or the theme comes out
+/// right here for nothing, and stays right when that drawing changes. It is scaled by the sheet's
+/// zoom for the same reason.
+///
+/// Nothing is added to any model. The symbol is built, drawn and discarded on each mouse move,
+/// which is what lets the popup still stand in front of the component being created.
+let viewDragGhost (model: Model) : ReactElement =
+    match model.DragPlacement with
+    | None | Some (DroppedAt _) -> null
+    | Some (Dragging (ghost, cursor)) ->
+        let theme = model.Sheet.Wire.Symbol.Theme
+        let zoom = model.Sheet.Zoom
+        /// Room around the symbol for what the drawing puts outside its own box - port labels
+        /// above all - so that the ghost is not clipped by the svg holding it.
+        let pad = 40.
+        let drawing, w, h =
+            match ghost with
+            | GhostSymbol compType ->
+                let sym = Symbol.createNewSymbol (tryGetLoadedComponents model) {X = 0.; Y = 0.} compType "" theme
+                SymbolView.drawComponent sym theme, sym.Component.W, sym.Component.H
+            | GhostBox name ->
+                // A library component's ports are not known until its sheet is read, and reading
+                // it means going to disk - that belongs at placement, not on a mouse-down. So it
+                // is carried as a named box, and takes its true shape once it is placed.
+                let w, h = 100., 60.
+                [ rect [
+                    SVGAttr.Width w; SVGAttr.Height h; SVGAttr.Rx 5.
+                    SVGAttr.Fill "lightgray"; SVGAttr.Stroke "black"; SVGAttr.StrokeWidth 1. ] []
+                  text [
+                    SVGAttr.X (w / 2.); SVGAttr.Y (h / 2.)
+                    SVGAttr.TextAnchor "middle"
+                    SVGAttr.Custom ("dominantBaseline", "middle")
+                    SVGAttr.FontSize "12px" ] [ str name ] ],
+                w, h
+        let svgW = (w + 2. * pad) * zoom
+        let svgH = (h + 2. * pad) * zoom
+        div [
+            Style [
+                Position PositionOptions.Fixed
+                // Centred on the cursor, as the symbol will be when it is created: createNewSymbol
+                // centres a component on the position it is given.
+                // qualified: Left and Top are also Edge cases, from DrawModelType
+                CSSProp.Left $"{cursor.X - svgW / 2.}px"
+                CSSProp.Top $"{cursor.Y - svgH / 2.}px"
+                Width $"{svgW}px"
+                Height $"{svgH}px"
+                // The ghost must never be what the pointer is over. The drop is decided by what
+                // is under the cursor, and something drawn at the cursor would always be it.
+                CSSProp.PointerEvents "none"
+                Opacity 0.65
+                // Above the right-hand pane, which is 31, and far below a popup.
+                ZIndex 32
+            ]
+        ] [
+            svg [ Style [ Width $"{svgW}px"; Height $"{svgH}px" ] ] [
+                g [ Style [ Transform $"scale({zoom})" ] ] [
+                    g [ Style [ Transform $"translate({pad}px, {pad}px)" ] ] drawing
+                ]
+            ]
+        ]
+
 let compareModelsApprox (m1:Model) (m2:Model) =
 
     let m1r = reduceApprox m1
@@ -1057,14 +1242,21 @@ let viewCatalogue model dispatch =
         let deMuxTipMessage (numBits:string) = $"The output numbered by the binary value 
         of the {numBits} sel inputs is equal to Data, the others are 0"
 
-        let viewCatOfModel = fun model ->                 
-            let styles = 
+        let viewCatOfModel = fun model ->
+            let styles =
                 match model.Sheet.Action with
                 | SheetT.InitialisedCreateComponent _ -> [Cursor "grabbing"]
                 | _ -> []
 
-            let catTip1 name func (tip:string) = 
-                let react = menuItem styles name func
+            /// Memory contents for a ghost only. A memory symbol is one fixed size whatever it
+            /// holds, so these values are never seen: the real ones are asked for by the popup.
+            let ghostMemory = { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map.empty }
+
+            /// One catalogue component. `ghost` is what the item draws while it is being carried:
+            /// the component it places, at the parameters that component would have if the popup,
+            /// where there is one, were simply accepted.
+            let catTip1 name (ghost: ComponentType) func (tip:string) =
+                let react = placementItem styles (GhostSymbol ghost) name (fun () -> func ()) model dispatch
                 div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
                       Tooltip.dataTooltip tip
                       Style styles
@@ -1074,92 +1266,92 @@ let viewCatalogue model dispatch =
                 // TODO
                     makeMenuGroup
                         "Input / Output"
-                        [ catTip1 "Input"  (fun _ -> dispatchAsFunc (createInputPopup "input" Input1)) "Input connection to current sheet: one or more bits"
-                          catTip1 "Output" (fun  _ -> dispatchAsFunc (createIOPopup true "output" Output)) "Output connection from current sheet: one or more bits"
-                          catTip1 "Viewer" (fun  _ -> dispatchAsFunc (createIOPopup true "viewer" Viewer)) "Viewer to expose value in step simulation: works in subsheets. \
+                        [ catTip1 "Input" (Input1 (1, None))  (fun _ -> dispatchAsFunc (createInputPopup "input" Input1)) "Input connection to current sheet: one or more bits"
+                          catTip1 "Output" (Output 1) (fun  _ -> dispatchAsFunc (createIOPopup true "output" Output)) "Output connection from current sheet: one or more bits"
+                          catTip1 "Viewer" (Viewer 1) (fun  _ -> dispatchAsFunc (createIOPopup true "viewer" Viewer)) "Viewer to expose value in step simulation: works in subsheets. \
                                                                                                          Can also be used to terminate an unused output."
-                          catTip1 "Constant" (fun  _ -> dispatchAsFunc (createConstantPopup)) "Define a one or more bit constant value of specified width, \
+                          catTip1 "Constant" (Constant1 (1, 0I, "0")) (fun  _ -> dispatchAsFunc (createConstantPopup)) "Define a one or more bit constant value of specified width, \
                                                                                             e.g. 0 or 1, to drive an input. Values can be written \
                                                                                             in hex, decimal, or binary."
-                          catTip1 "Wire Label" (fun  _ -> dispatchAsFunc (createIOPopup false "label" (fun _ -> IOLabel))) "Labels with the same name connect \
+                          catTip1 "Wire Label" (IOLabel) (fun  _ -> dispatchAsFunc (createIOPopup false "label" (fun _ -> IOLabel))) "Labels with the same name connect \
                                                                                                                          together wires within a sheet. Each set of labels \
                                                                                                                          muts have exactly one driving input. \
                                                                                                                          A label can also be used to terminate an unused output"
-                          catTip1 "Not Connected" (fun  _ -> dispatchAsFunc (createComponent (NotConnected) "" None)) "Not connected component to terminate unused output."]                          
+                          catTip1 "Not Connected" (NotConnected) (fun  _ -> dispatchAsFunc (createComponent (NotConnected) "" None)) "Not connected component to terminate unused output."]                          
                     makeMenuGroup
                         "Buses"
                         [ 
-                        catTip1 "MergeWires"  (fun  _ -> dispatchAsFunc (createComponent MergeWires "" None)) "Use Mergewires when you want to \
+                        catTip1 "MergeWires" (MergeWires)  (fun  _ -> dispatchAsFunc (createComponent MergeWires "" None)) "Use Mergewires when you want to \
                                                                                        join the bits of a two busses to make a wider bus. \
                                                                                        Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                        after placing component to change this."
                             
-                        catTip1 "MergeN"  (fun  _ -> dispatchAsFunc (createMergeNPopup))
+                        catTip1 "MergeN" (MergeN 2)  (fun  _ -> dispatchAsFunc (createMergeNPopup))
                                 $"Use MergeN when you want to join the bits of between 2 \
                                  and {Constants.maxSplitMergeBranches} busses to make a wider bus."
-                        catTip1 "SplitWire" (fun  _ -> dispatchAsFunc (createSplitWirePopup)) "Use Splitwire when you want to split the \
+                        catTip1 "SplitWire" (SplitWire 1) (fun  _ -> dispatchAsFunc (createSplitWirePopup)) "Use Splitwire when you want to split the \
                                                                                              bits of a bus into two sets. \
                                                                                              Default has LS bits connected to top arm. Use Edit -> Flip Vertically \
                                                                                              after placing component to change this."
-                        catTip1 "SplitN" (fun  _ -> dispatchAsFunc (createSplitNPopup))
+                        catTip1 "SplitN" (SplitN (2, [1; 1], [0; 1])) (fun  _ -> dispatchAsFunc (createSplitNPopup))
                             $"Use SplitN when you want to split \
                               between 2 and {Constants.maxSplitMergeBranches} separate fields from a bus."                                                                          
-                        catTip1 "Bus Select" (fun  _ -> dispatchAsFunc (createBusSelectPopup))
+                        catTip1 "Bus Select" (BusSelection (1, 0)) (fun  _ -> dispatchAsFunc (createBusSelectPopup))
                             "Bus Select output connects to one or \
                              more selected bits of its input"
-                        catTip1 "Bus Compare" (fun  _ -> dispatchAsFunc (createBusComparePopup)) "Bus compare outputs 1 if the input bus \
+                        catTip1 "Bus Compare" (BusCompare1 (1, 0I, "0")) (fun  _ -> dispatchAsFunc (createBusComparePopup)) "Bus compare outputs 1 if the input bus \
                                                                                                  matches a constant value as written in decimal, hex, or binary." 
-                        catTip1 "N bits spreader" (fun  _ -> dispatchAsFunc (createNbitSpreaderPopup)) "Replicates a 1 bit input onto all N bits of an output bus"]
+                        catTip1 "N bits spreader" (NbitSpreader 1) (fun  _ -> dispatchAsFunc (createNbitSpreaderPopup)) "Replicates a 1 bit input onto all N bits of an output bus"]
                     makeMenuGroup
                         "Gates"
-                        [ catTip1 "Not"  (fun  _ -> dispatchAsFunc (createCompStdLabel Not None) ) "Invertor: output is negation of input"
-                          catTip1 "And"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (And, 2)) None))
+                        [ catTip1 "Not" (Not)  (fun  _ -> dispatchAsFunc (createCompStdLabel Not None) ) "Invertor: output is negation of input"
+                          catTip1 "And" (GateN (And, 2))  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (And, 2)) None))
                                                 "Output is 1 if all the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Or"   (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Or, 2)) None))
+                          catTip1 "Or" (GateN (Or, 2))   (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Or, 2)) None))
                                                 "Output is 1 if any of the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Xor"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xor, 2)) None))
+                          catTip1 "Xor" (GateN (Xor, 2))  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xor, 2)) None))
                                                 "Output is 1 if an odd number of inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Nand" (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nand, 2)) None))
+                          catTip1 "Nand" (GateN (Nand, 2)) (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nand, 2)) None))
                                                 "Output is 0 if all the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Nor"  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nor, 2)) None))
+                          catTip1 "Nor" (GateN (Nor, 2))  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nor, 2)) None))
                                                 "Output is 0 if any of the inputs are 1. Use Properties to add more inputs"
-                          catTip1 "Xnor" (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xnor, 2)) None))
+                          catTip1 "Xnor" (GateN (Xnor, 2)) (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xnor, 2)) None))
                                                 "Output is 1 if an even number of inputs are 1. Use Properties to add more inputs"]
                     makeMenuGroup
                         "Mux / Demux"
-                        [ catTip1 "2-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux2 None)) <| muxTipMessage "two"
-                          catTip1 "4-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux4 None)) <| muxTipMessage "four"
-                          catTip1 "8-Mux" (fun  _ -> dispatchAsFunc (createCompStdLabel Mux8 None)) <| muxTipMessage "eight"                                                             
-                          catTip1 "2-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux2 None))  <| deMuxTipMessage "two"  
-                          catTip1 "4-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux4 None))  <| deMuxTipMessage "four"
-                          catTip1 "8-Demux" (fun  _ -> dispatchAsFunc (createCompStdLabel Demux8 None))  <| deMuxTipMessage "eight" ]
+                        [ catTip1 "2-Mux" (Mux2) (fun  _ -> dispatchAsFunc (createCompStdLabel Mux2 None)) <| muxTipMessage "two"
+                          catTip1 "4-Mux" (Mux4) (fun  _ -> dispatchAsFunc (createCompStdLabel Mux4 None)) <| muxTipMessage "four"
+                          catTip1 "8-Mux" (Mux8) (fun  _ -> dispatchAsFunc (createCompStdLabel Mux8 None)) <| muxTipMessage "eight"                                                             
+                          catTip1 "2-Demux" (Demux2) (fun  _ -> dispatchAsFunc (createCompStdLabel Demux2 None))  <| deMuxTipMessage "two"  
+                          catTip1 "4-Demux" (Demux4) (fun  _ -> dispatchAsFunc (createCompStdLabel Demux4 None))  <| deMuxTipMessage "four"
+                          catTip1 "8-Demux" (Demux8) (fun  _ -> dispatchAsFunc (createCompStdLabel Demux8 None))  <| deMuxTipMessage "eight" ]
                     makeMenuGroup
                         "Arithmetic"
-                        [ catTip1 "N bits adder" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAdder 1)) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
-                          catTip1 "N bits XOR" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsXor (1, None))) "N bit XOR gates - use to make subtractor or comparator"
-                          catTip1 "N bits AND" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAnd 1)) "N bit AND gates"
-                          catTip1 "N bits OR" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsOr 1)) "N bit OR gates"
-                          catTip1 "N bits NOT" (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsNot 1)) "N bit NOT gates"
-                          catTip1 "N bits shift" (fun  _ -> dispatchAsFunc (createShiftPopup)) "N bit shifter: shifts the input by the number of positions on the SHIFT input. \
+                        [ catTip1 "N bits adder" (NbitsAdder 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAdder 1)) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
+                          catTip1 "N bits XOR" (NbitsXor (1, None)) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsXor (1, None))) "N bit XOR gates - use to make subtractor or comparator"
+                          catTip1 "N bits AND" (NbitsAnd 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAnd 1)) "N bit AND gates"
+                          catTip1 "N bits OR" (NbitsOr 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsOr 1)) "N bit OR gates"
+                          catTip1 "N bits NOT" (NbitsNot 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsNot 1)) "N bit NOT gates"
+                          catTip1 "N bits shift" (Shift (1, 1, LSL)) (fun  _ -> dispatchAsFunc (createShiftPopup)) "N bit shifter: shifts the input by the number of positions on the SHIFT input. \
                                                     The kind of shift - logical left (LSL), logical right (LSR) or arithmetic right (ASR) - is chosen when the component is created"]
 
                     makeMenuGroup
                         "Flip Flops and Registers"
-                        [ catTip1 "D-flip-flop" (fun  _ -> dispatchAsFunc (createCompStdLabel DFF None)) "D flip-flop - note that clock is assumed always connected to a global clock, \
+                        [ catTip1 "D-flip-flop" (DFF) (fun  _ -> dispatchAsFunc (createCompStdLabel DFF None)) "D flip-flop - note that clock is assumed always connected to a global clock, \
                                                                                                    so ripple counters cannot be implemented in Issie"
-                          catTip1 "D-flip-flop with enable" (fun  _ -> dispatchAsFunc (createCompStdLabel DFFE None)) "D flip-flop: output will remain unchanged when En is 0"
-                          catTip1 "Register" (fun  _ -> dispatchAsFunc (createRegisterPopup (Register 0))) "N D flip-flops with inputs and outputs combined into single N bit busses"
-                          catTip1 "Register with enable" (fun  _ -> dispatchAsFunc (createRegisterPopup (RegisterE 0))) "As register but outputs stay the same if En is 0"
-                          catTip1 "Counter" (fun  _ -> dispatchAsFunc (createRegisterPopup (Counter 0))) "N-bits counter with customisable enable and load inputs"]
+                          catTip1 "D-flip-flop with enable" (DFFE) (fun  _ -> dispatchAsFunc (createCompStdLabel DFFE None)) "D flip-flop: output will remain unchanged when En is 0"
+                          catTip1 "Register" (Register 1) (fun  _ -> dispatchAsFunc (createRegisterPopup (Register 0))) "N D flip-flops with inputs and outputs combined into single N bit busses"
+                          catTip1 "Register with enable" (RegisterE 1) (fun  _ -> dispatchAsFunc (createRegisterPopup (RegisterE 0))) "As register but outputs stay the same if En is 0"
+                          catTip1 "Counter" (Counter 1) (fun  _ -> dispatchAsFunc (createRegisterPopup (Counter 0))) "N-bits counter with customisable enable and load inputs"]
                     makeMenuGroup
                         "Memories"
-                        [ catTip1 "ROM (asynchronous)" (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncROM1)) "This is combinational: \
+                        [ catTip1 "ROM (asynchronous)" (AsyncROM1 ghostMemory) (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncROM1)) "This is combinational: \
                                                     the output is available in the same clock cycle that the address is presented"
-                          catTip1 "ROM (synchronous)" (fun  _ -> dispatchAsFunc (createMemoryPopup ROM1)) "A ROM whose output contains \
+                          catTip1 "ROM (synchronous)" (ROM1 ghostMemory) (fun  _ -> dispatchAsFunc (createMemoryPopup ROM1)) "A ROM whose output contains \
                                                     the addressed data in the clock cycle after the address is presented"
-                          catTip1 "RAM (synchronous)" (fun  _ -> dispatchAsFunc (createMemoryPopup RAM1))  "A RAM whose output contains the addressed \
+                          catTip1 "RAM (synchronous)" (RAM1 ghostMemory) (fun  _ -> dispatchAsFunc (createMemoryPopup RAM1))  "A RAM whose output contains the addressed \
                                                    data in the clock cycle after the address is presented" 
-                          catTip1 "RAM (async read)" (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncRAM1))  "A RAM whose output contains the addressed \
+                          catTip1 "RAM (async read)" (AsyncRAM1 ghostMemory) (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncRAM1))  "A RAM whose output contains the addressed \
                                                    data in the same clock cycle as address is presented" ]
 
                     makeMenuGroupWithTip styles
@@ -1205,8 +1397,9 @@ let viewCatalogue model dispatch =
                 div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
                       Tooltip.dataTooltip listing.Header.Description
                       Style styles ]
-                    [ menuItem styles listing.Header.Name (fun _ ->
-                        dispatchAsFunc (startPlacingLibraryComponent library listing)) ]
+                    [ placementItem styles (GhostBox listing.Header.Name) listing.Header.Name
+                        (fun () -> dispatchAsFunc (startPlacingLibraryComponent library listing))
+                        model dispatch ]
             Menu.menu [Props [Class "py-1"; Style ([Height "calc(100vh - 200px)"; OverflowY OverflowOptions.Auto] @ styles)]] [
                 div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; JustifyContent "space-between"; MarginBottom "6px"]] [
                     b [] [str $"{library.Name} library"]

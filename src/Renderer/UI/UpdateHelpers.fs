@@ -193,14 +193,20 @@ let shortDisplayMsg (msg:Msg) =
     | ClosePropertiesNotification
     | SetTopMenu _ 
     | ReloadSelectedComponent _ 
-    | SetDragMode _ 
+    | SetDragMode _
+    // one per mouse move for as long as a catalogue item is being carried: far too many to trace,
+    // and each says only where the cursor now is
+    | MoveDragPlacement _
     // Set width of right-hand pane when tab is WaveSimulator or TruthTable
-    | SetViewerWidth _ 
+    | SetViewerWidth _
     | MenuAction _ 
     | DiagramMouseEvent
     | ContextMenuAction _ -> None
     | ContextMenuItemClick _
     | SelectionHasChanged -> Some "Selection has changed"
+    | StartDragPlacement _ -> Some "StartDragPlacement"
+    | DropDragPlacement pos -> Some $"DropDragPlacement at {pos}"
+    | EndDragPlacement -> Some "EndDragPlacement"
     | SetIsLoading _
     | SetRouterInteractive _
     | CloseApp

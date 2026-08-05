@@ -179,10 +179,11 @@ let private newProject model dispatch =
 
     
 
-/// The browser's state, or an empty one. The popup only renders while it is Some.
-let private browserState (model: Model) =
-    model.ProjectBrowser
-    |> Option.defaultValue { Folder = ""; Listing = Ok []; Selected = 0 }
+// browserState, which supplied an empty state when the model had none, is gone. Its fallback
+// listing was Ok [], which renders as "Nothing in this folder" - so any moment the popup drew
+// before or after its state existed claimed the folder was empty, over a folder full of projects.
+// The body matches on the state instead and draws nothing without it, so that message can only
+// ever come from having actually read an empty folder.
 
 /// The path as clickable segments, so that going up several levels is one click rather than
 /// several - which is what the Up button alone made it. Explorer's address bar does the same, and
@@ -192,13 +193,27 @@ let private breadcrumbOf (folder: string) (goTo: string -> unit) =
     // than a reassembled one - separators differ between platforms and a rebuilt root is wrong
     let rec ancestors (path: string) =
         if isFilesystemRoot path then [path] else ancestors (dirName path) @ [path]
-    Breadcrumb.breadcrumb [Breadcrumb.Size IsSmall] [
-        for path in ancestors folder ->
-            Breadcrumb.item [] [
-                a [ OnClick (fun _ -> goTo path); HTMLAttr.Title path ]
-                  [str (if isFilesystemRoot path then path else baseName path)]
-            ]
-    ]
+    /// A root reads as "C:" rather than "C:\": the crumb separator already does the work the
+    /// trailing slash would, and showing both puts the OS separator and the UI one side by side.
+    /// A POSIX root is "/" and has nothing left once its separator is taken away, so it keeps it.
+    let label (path: string) =
+        if not (isFilesystemRoot path) then
+            baseName path
+        else
+            match path.TrimEnd [| '\\'; '/' |] with
+            | "" -> path
+            | trimmed -> trimmed
+    div [Style [ Display DisplayOptions.Flex; FlexWrap "wrap"
+                 AlignItems AlignItemsOptions.Center; MarginBottom "6px" ]]
+        (ancestors folder
+         |> List.indexed
+         |> List.collect (fun (i, path) ->
+             [ // "›", not a slash: it is what Explorer's own address bar separates with, it is
+               // what the rows below use to mean "go in", and unlike "/" it claims nothing about
+               // which separator this platform uses
+               if i > 0 then
+                   span [Style [Color "grey"; Margin "0 5px"]] [str "›"]
+               a [OnClick (fun _ -> goTo path); HTMLAttr.Title path] [str (label path)] ]))
 
 /// Open the folder the user chose, which may not be a project.
 ///
@@ -256,7 +271,12 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
 
     let body =
         fun (model': Model) ->
-            let browser = browserState model'
+        // Nothing to draw without the state that says which folder this is showing. Standing in
+        // for it with an empty one told the user the folder was empty, which is a lie about a
+        // folder nobody had looked in yet.
+        match model'.ProjectBrowser with
+        | None -> div [] []
+        | Some browser ->
             let folder = browser.Folder
             let recents = model'.UserData.RecentProjects |> Option.defaultValue []
             let goTo (path: string) = dispatch <| SetProjectBrowserFolder path

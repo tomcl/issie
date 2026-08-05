@@ -179,63 +179,26 @@ let private newProject model dispatch =
 
     
 
-/// The folder the browser is looking at, and the counter that makes it look at the disk again.
-/// Empty when the browser is not open, which the popup never renders in.
+/// The browser's state, or an empty one. The popup only renders while it is Some.
 let private browserState (model: Model) =
-    model.ProjectBrowser |> Option.defaultValue { Folder = ""; Generation = 0 }
+    model.ProjectBrowser
+    |> Option.defaultValue { Folder = ""; Listing = Ok []; Selected = 0 }
 
-type private BrowserListProps = {
-    Folder: string
-    Generation: int
-    Open: string -> unit
-    Navigate: string -> unit
-}
-
-/// The folders inside the one being browsed, each saying what Issie makes of it.
-///
-/// Memoised on the folder and the generation. A popup body runs on every message, so without this
-/// every keystroke in the path field would list whatever prefix had been typed so far; with it,
-/// the disk is read when the folder changes and once a second thereafter. Props holding functions
-/// are exactly what equalsButFunctions is for.
-let private browserList =
-    FunctionComponent.Of(
-        (fun (props: BrowserListProps) ->
-            if not (isDirectory props.Folder) then
-                div [Style [Color "red"; Padding "8px 0"]] [str "That folder does not exist."]
-            else
-                match listFolderForOpening props.Folder with
-                | [] ->
-                    div [Style [Color "grey"; Padding "8px 0"]]
-                        [str "Nothing in this folder. Go up, or type a path above."]
-                | entries ->
-                    Menu.menu [] [
-                        Menu.list []
-                            (entries |> List.map (fun entry ->
-                                let name = baseName entry.Path
-                                let sheets =
-                                    if entry.SheetCount = 1 then "1 sheet" else $"{entry.SheetCount} sheets"
-                                let label, note, act =
-                                    match entry.Kind with
-                                    | IsProject ->
-                                        b [] [str name], span [Style [Color "grey"]] [str sheets], props.Open
-                                    | SheetsButNoMarker ->
-                                        b [] [str name],
-                                        span [Style [Color "darkorange"]] [str $"{sheets}, no project file"],
-                                        props.Open
-                                    // an ordinary folder is not a dead end: it is where the next
-                                    // level of browsing goes
-                                    | NotAProject ->
-                                        span [Style [Color "dimgrey"]] [str name],
-                                        span [Style [Color "grey"]] [str "›"],
-                                        props.Navigate
-                                Menu.Item.li
-                                    [ Menu.Item.IsActive false
-                                      Menu.Item.OnClick (fun _ -> act entry.Path) ]
-                                    [ div [Style [Display DisplayOptions.Flex; JustifyContent "space-between"]]
-                                          [ label; note ] ]))
-                    ]),
-        "ProjectBrowserList",
-        Fable.React.Helpers.equalsButFunctions)
+/// The path as clickable segments, so that going up several levels is one click rather than
+/// several - which is what the Up button alone made it. Explorer's address bar does the same, and
+/// the editable field underneath stays for pasting a path or reaching another drive.
+let private breadcrumbOf (folder: string) (goTo: string -> unit) =
+    // built by walking up from the folder, so each crumb carries the path it stands for rather
+    // than a reassembled one - separators differ between platforms and a rebuilt root is wrong
+    let rec ancestors (path: string) =
+        if isFilesystemRoot path then [path] else ancestors (dirName path) @ [path]
+    Breadcrumb.breadcrumb [Breadcrumb.Size IsSmall] [
+        for path in ancestors folder ->
+            Breadcrumb.item [] [
+                a [ OnClick (fun _ -> goTo path); HTMLAttr.Title path ]
+                  [str (if isFilesystemRoot path then path else baseName path)]
+            ]
+    ]
 
 /// Open the folder the user chose, which may not be a project.
 ///
@@ -243,7 +206,7 @@ let private browserList =
 /// marker has been lost, or a folder that merely contains projects. The last is not a refusal -
 /// it is where browsing continues. Mutually recursive with the browser, since the browser opens
 /// folders and an unopenable folder puts the browser back.
-let rec private openChosenFolder (path: string) model dispatch =
+let rec openChosenFolder (path: string) model dispatch =
     /// Turning the spinner back off: it is put on in the hope of showing during a load, and every
     /// way out of here that does not load something would otherwise leave it spinning over an
     /// unchanged app.
@@ -303,23 +266,80 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                 // model' rather than the model this popup was opened with: opening reads the
                 // recent list to add to it, and the popup outlives whatever else has happened
                 openChosenFolder path model' dispatch
-            div [] [
-                if not (List.isEmpty recents) then
-                    div [Style [MarginBottom "10px"]] [
-                        b [] [str "Recent"]
+            /// Places on the left, contents on the right - the layout every file dialog has,
+            /// borrowed because it solves a real problem here: ten recents stacked above the
+            /// listing pushed the folder's own contents below the fold.
+            let places =
+                div [Style [Width "180px"; MarginRight "12px"; Flex "0 0 auto"]] [
+                    b [] [str "Recent"]
+                    match recents with
+                    | [] -> div [Style [Color "grey"; FontSize "12px"]] [str "Nothing yet."]
+                    | recents ->
                         Menu.menu [] [
                             Menu.list []
                                 (recents |> List.map (fun path ->
                                     Menu.Item.li
                                         [ Menu.Item.IsActive false
                                           Menu.Item.OnClick (fun _ -> openIt path) ]
-                                        [ div [HTMLAttr.Title path]
-                                              [str (cropToLength Constants.maxDisplayedPathLengthInRecentProjects false path)] ]))
+                                        // both axes hidden: hiding only one makes CSS force the
+                                        // other to auto, which put a scrollbar on every row
+                                        [ div [ HTMLAttr.Title path
+                                                Style [OverflowX OverflowOptions.Hidden
+                                                       OverflowY OverflowOptions.Hidden
+                                                       TextOverflow "ellipsis"
+                                                       WhiteSpace WhiteSpaceOptions.Nowrap] ]
+                                              [str (baseName path)] ]))
                         ]
-                    ]
-                    hr []
+                ]
 
-                b [] [str "Folder"]
+            /// Fixed height and scrolling inside itself, so that the path bar above it stays put
+            /// however many folders there are. The whole dialog used to scroll together, which put
+            /// the path bar out of reach in any large folder.
+            let contents =
+                div [Style [
+                        Flex "1"; MinWidth "0"
+                        Height Constants.projectBrowserListHeight
+                        OverflowY OverflowOptions.Auto
+                        Border "1px solid lightgrey"; BorderRadius "4px" ]] [
+                    match browser.Listing with
+                    | Error message ->
+                        div [Style [Color "red"; Padding "8px"]] [str message]
+                    | Ok [] ->
+                        div [Style [Color "grey"; Padding "8px"]]
+                            [str "Nothing in this folder. Go up, or type a path above."]
+                    | Ok entries ->
+                        Menu.menu [] [
+                            Menu.list []
+                                (entries |> List.mapi (fun i entry ->
+                                    let name = baseName entry.Path
+                                    let sheets =
+                                        if entry.SheetCount = 1 then "1 sheet" else $"{entry.SheetCount} sheets"
+                                    let label, note, act =
+                                        match entry.Kind with
+                                        | IsProject ->
+                                            b [] [str name], span [Style [Color "grey"]] [str sheets], openIt
+                                        | SheetsButNoMarker ->
+                                            b [] [str name],
+                                            span [Style [Color "darkorange"]] [str $"{sheets}, no project file"],
+                                            openIt
+                                        // an ordinary folder is not a dead end: it is where the
+                                        // next level of browsing goes
+                                        | NotAProject ->
+                                            span [Style [Color "dimgrey"]] [str name],
+                                            span [Style [Color "grey"]] [str "›"],
+                                            goTo
+                                    Menu.Item.li
+                                        // the row the keyboard is on, shown the way Bulma shows a
+                                        // selected menu item so it reads as one thing with a click
+                                        [ Menu.Item.IsActive (i = browser.Selected)
+                                          Menu.Item.OnClick (fun _ -> act entry.Path) ]
+                                        [ div [Style [Display DisplayOptions.Flex; JustifyContent "space-between"]]
+                                              [ label; note ] ]))
+                        ]
+                ]
+
+            div [] [
+                breadcrumbOf folder goTo
                 div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "8px"]] [
                     // typed as well as walked to, which is how another drive or a share is reached
                     // without this becoming a file manager
@@ -330,16 +350,10 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                             Input.OnChange (getTextEventValue >> SetProjectBrowserFolder >> dispatch)
                         ]
                     ]
-                    Button.button [
-                        Button.Size IsSmall
-                        Button.Disabled (isFilesystemRoot folder)
-                        Button.OnClick (fun _ -> goTo (dirName folder))
-                    ] [str "Up"]
                     // No Refresh button: the folder is re-read once a second while this is open,
                     // so a folder made or renamed outside Issie simply appears.
                     Button.button [
                         Button.Size IsSmall
-                        Button.Props [Style [MarginLeft "4px"]]
                         Button.OnClick (fun _ ->
                             askForFolder "Choose a project folder, or a folder of projects" "Use this folder"
                                 (Some folder)
@@ -351,16 +365,44 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                                 | _ -> openIt chosen))
                     ] [str "Browse..."]
                 ]
-
-                browserList {
-                    Folder = folder
-                    Generation = browser.Generation
-                    Open = openIt
-                    Navigate = goTo
-                }
+                div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.FlexStart]] [places; contents]
+                div [Style [Color "grey"; FontSize "12px"; MarginTop "6px"]] [
+                    str "Arrow keys move, Enter opens, Backspace goes up."
+                ]
             ]
 
-    dynamicClosablePopup "Open project" body (fun _ -> div [] []) [Width "640px"] dispatch
+    let foot =
+        fun (_: Model) ->
+            Level.level [Level.Level.Props [Style [Width "100%"]]] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button [Button.Color IsLight; Button.OnClick (fun _ -> dispatch ClosePopup)]
+                            [str "Cancel"]
+                    ]
+                ]
+            ]
+
+    dynamicClosablePopup "Open project" body foot [Width "700px"] dispatch
+
+/// Act on the row the project browser's keyboard selection is on: a project opens, an ordinary
+/// folder is entered - the same two things a click on that row does.
+let activateBrowserSelection (model: Model) dispatch =
+    match model.ProjectBrowser with
+    | Some browser ->
+        match browser.Listing with
+        | Ok entries ->
+            match List.tryItem browser.Selected entries with
+            | Some entry ->
+                match entry.Kind with
+                | NotAProject -> dispatch (SetProjectBrowserFolder entry.Path)
+                | _ ->
+                    dispatch ClosePopup
+                    dispatch (Sheet (SheetT.SetSpinner true))
+                    openChosenFolder entry.Path model dispatch
+            | None -> ()
+        | Error _ -> ()
+    | None -> ()
 
 /// open an existing project
 let private openProject model dispatch =

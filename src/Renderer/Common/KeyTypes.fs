@@ -81,6 +81,9 @@ type KeyContext =
     | TextEntry
     /// the hand-rolled code editor is up
     | CodeEditor
+    /// the project browser is showing and focus is not in its path box. Its own context rather
+    /// than Popup, because arrows and Enter mean something there and nothing in any other dialog
+    | ProjectBrowser
     /// a modal popup is showing and focus is not in one of its boxes
     | Popup
     /// the waveform simulator has the keyboard
@@ -118,6 +121,11 @@ type ShortcutId =
     // ---- escape, one identity per context ----
     | ScCancelGesture
     | ScClosePopup
+    // ---- project browser ----
+    | ScBrowserPrev
+    | ScBrowserNext
+    | ScBrowserOpen
+    | ScBrowserParent
     | ScDeselect
     | ScLeaveTextBox
     // ---- view ----
@@ -293,8 +301,20 @@ let shortcuts: ShortcutSpec list =
       // ------------------------------------------------------------------ escape, by context
       spec ScCancelGesture (both [ ch Mods.none (named Names.escape) ]) [ SheetBusy ]
           "Cancel the action in progress" CatEdit
-      spec ScClosePopup (both [ ch Mods.none (named Names.escape) ]) [ Popup ]
+      spec ScClosePopup (both [ ch Mods.none (named Names.escape) ]) [ Popup; ProjectBrowser ]
           "Close the open dialogue" CatEdit
+
+      // ------------------------------------------------------------------ project browser
+      // Only in its own context, so no other dialog sees them. Arrows repeat, since holding one
+      // to run down a long folder is the point; opening and going up do not.
+      repeating (spec ScBrowserPrev (both [ ch Mods.none (named Names.arrowUp) ]) [ ProjectBrowser ]
+          "Previous folder in the list" CatView)
+      repeating (spec ScBrowserNext (both [ ch Mods.none (named Names.arrowDown) ]) [ ProjectBrowser ]
+          "Next folder in the list" CatView)
+      spec ScBrowserOpen (both [ ch Mods.none (named Names.enter) ]) [ ProjectBrowser ]
+          "Open the selected project, or go into the selected folder" CatView
+      spec ScBrowserParent (both [ ch Mods.none (named Names.backspace) ]) [ ProjectBrowser ]
+          "Go up to the containing folder" CatView
       spec ScDeselect (both [ ch Mods.none (named Names.escape) ]) [ SheetIdle ]
           "Deselect everything" CatEdit
       spec ScLeaveTextBox

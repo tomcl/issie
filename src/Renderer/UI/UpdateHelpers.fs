@@ -210,6 +210,9 @@ let shortDisplayMsg (msg:Msg) =
     | DropDragPlacement pos -> Some $"DropDragPlacement at {pos}"
     | EndDragPlacement -> Some "EndDragPlacement"
     | SetProjectBrowserFolder folder -> Some $"Browsing {folder}"
+    | MoveProjectBrowserSelection n -> Some $"Browser selection moves by {n}"
+    | GoToProjectBrowserParent -> Some "Browser up"
+    | OpenProjectBrowserSelection _ -> Some "Browser open selection"
     | SetIsLoading _
     | SetRouterInteractive _
     | CloseApp

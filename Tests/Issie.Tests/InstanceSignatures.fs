@@ -64,6 +64,14 @@ let private instanceUnderTest
           Expected = expected }
     | _ -> failtest $"{comp.Label} is not a custom component"
 
+/// An instance record made from the two signatures alone, for the cases where what is being tested
+/// is only how the stored ports are compared with the ones the sheet gives.
+let private storedAgainstExpected
+        (stored: CanvasExtractor.Signature)
+        (expected: CanvasExtractor.Signature)
+        : CustomCompPorts.Instance =
+    { Sheet = "parent"; CompId = "i"; Label = "I"; Old = stored; Expected = expected }
+
 /// The custom component type of `cid` on `sheet` after the project has been updated.
 let private customOn (p: Project) (sheet: string) (cid: string) =
     p.LoadedComponents
@@ -151,6 +159,34 @@ let tests =
             let under = instanceUnderTest [childLdc; parent] parent stale
             Expect.notEqual under.Old under.Expected "stored at 4 while bound to 8"
             Expect.equal under.Expected (["A", 8], ["S", 8]) "and 8 is what it should be"
+            Expect.isTrue (CustomCompPorts.instanceIsOutOfDate under) "so it needs updating"
+        }
+
+        // --- port order is not part of being up to date ---
+
+        test "an instance whose ports are in another order than the sheet's is up to date" {
+            // ports are matched to the sheet's I/O components by label - FastCreate does it when a
+            // simulation is elaborated, CanvasStateAnalyser compares sets - and are drawn where the
+            // symbol's own PortOrder puts them, so the order of an instance's ports means nothing.
+            // Comparing it raised this dialog over four of the five shipped demos, whose instances
+            // were placed before the I/O components were moved about on their sheets.
+            let inst = storedAgainstExpected (["B", 8; "A", 4], ["T", 1; "S", 2]) (["A", 4; "B", 8], ["S", 2; "T", 1])
+            Expect.isFalse (CustomCompPorts.instanceIsOutOfDate inst) "the same ports, listed differently"
+        }
+
+        test "a port missing from a reordered instance is still out of date" {
+            let inst = storedAgainstExpected (["B", 8], ["S", 2]) (["A", 4; "B", 8], ["S", 2])
+            Expect.isTrue (CustomCompPorts.instanceIsOutOfDate inst) "A is on the sheet and not on the instance"
+        }
+
+        test "a width change is still out of date when the ports are also reordered" {
+            let inst = storedAgainstExpected (["B", 8; "A", 4], ["S", 2]) (["A", 16; "B", 8], ["S", 2])
+            Expect.isTrue (CustomCompPorts.instanceIsOutOfDate inst) "A is 4 where it should be 16"
+        }
+
+        test "an input and an output of the same name and width are not interchangeable" {
+            let inst = storedAgainstExpected (["X", 4], []) ([], ["X", 4])
+            Expect.isTrue (CustomCompPorts.instanceIsOutOfDate inst) "the input became an output"
         }
 
         // --- each instance is brought to its OWN signature, not to a shared one ---
@@ -241,6 +277,26 @@ let tests =
             Expect.isTrue
                 (updated.LoadedComponents |> List.find (fun l -> l.Name = "parent")).LoadedComponentIsOutOfDate
                 "the sheet holding the instance has unsaved changes"
+        }
+
+        test "and is not still flagged once the dialog has written it out" {
+            // the dialog writes every sheet from memory, so nothing is left to save. A flag left
+            // set made every later "close without saving?" dialog name a sheet whose file was
+            // correct, with no Save button anywhere to clear it - that button follows the OPEN
+            // sheet, and an instance is never on the sheet being edited
+            let stale = instanceOf "stale" 4 (bindingOf 8)
+            let parent = makeLdc "parent" None ([stale], [])
+            let ldcs = [childLdc; parent]
+            let project =
+                { ProjectPath = ""; OpenFileName = "child"; WorkingFileName = None; LoadedComponents = ldcs }
+            let saved =
+                CustomCompPorts.updateDependents [instanceUnderTest ldcs parent stale] project
+                |> CustomCompPorts.markProjectSaved
+            Expect.isEmpty
+                (saved.LoadedComponents |> List.filter (fun l -> l.LoadedComponentIsOutOfDate) |> List.map (fun l -> l.Name))
+                "no sheet reports unsaved changes"
+            Expect.equal (customOn saved "parent" "stale").InputLabels ["A", 8]
+                "and the update itself survived"
         }
 
         // --- what the dialog reports ---

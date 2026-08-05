@@ -19,6 +19,8 @@ while leaving its bindings alone, which is a design the simulator then rejects.
 Widths are consequently absent from what the dialog reports. A port added, deleted or renamed is a
 fact about the SHEET and is what the user needs to confirm; a width is a fact about each instance,
 and every instance is updated to its own.
+
+Port ORDER is not compared either - see instanceIsOutOfDate.
 *)
 
 open Fulma
@@ -34,6 +36,7 @@ open FilesIO
 open CanvasExtractor
 open PopupHelpers
 open MenuHelpers
+open Optics
 
 
 let printSheetNames (model:Model) =
@@ -274,12 +277,30 @@ let getInstancesOfCurrentSheet (model: Model) : Instance list =
                           Expected = expected })
                 | _ -> None))
 
+/// Whether one instance is out of step with what its own bindings give it: it has a port the sheet
+/// does not, lacks one the sheet has, or holds one at the wrong width.
+///
+/// The ORDER of the ports is deliberately not compared. An instance's ports are matched to the
+/// sheet's Input and Output components by LABEL - by FastCreate when a simulation is elaborated, by
+/// SynchronousUtils, and by CanvasStateAnalyser.checkCustomComponentForOkIOs, which compares sets
+/// when it decides whether a design is legal - and each port is drawn where the symbol's own saved
+/// PortOrder puts it, keyed by port id. So an instance whose ports are in a different order from
+/// the sheet's is a correct instance, and reordering it would change nothing that can be seen or
+/// simulated.
+///
+/// Requiring the orders to match raised this dialog on four of the five shipped demos, whose
+/// instances were placed before the I/O components were moved about on their sheets, and described
+/// the difference as a width change - which is what the dialog says when nothing structural
+/// happened.
+let instanceIsOutOfDate (inst: Instance) : bool =
+    let samePorts (ports: (string * int) list) (ports': (string * int) list) = Set ports = Set ports'
+    not (samePorts (fst inst.Old) (fst inst.Expected)
+         && samePorts (snd inst.Old) (snd inst.Expected))
+
 /// The instances of the current sheet that no longer match what their own bindings give them.
-/// Signature ORDER matters as well as content: the ports of an instance are numbered in the order
-/// the Input and Output components appear on the sheet, so moving one reorders its ports.
 let getOutOfDateDependents (model: Model) : Instance list =
     getInstancesOfCurrentSheet model
-    |> List.filter (fun inst -> inst.Old <> inst.Expected)
+    |> List.filter instanceIsOutOfDate
 
 
 /// Return canvasState updated with bad connections that have lost either of their connecting components deleted
@@ -480,16 +501,19 @@ let updateInstance (inst: Instance) (p: Project) =
 
 
 
-/// dispatch message to change project in model, returning project
-let updateDependents (instances: Instance list) model dispatch =
-    match model.CurrentProj with
-    | None -> None
-    | Some p ->
-        (p,instances)
-        ||> List.fold (fun p instance -> updateInstance instance p)
-        |> (fun p ->
-            dispatch <| SetProject p
-            Some p)
+/// Bring every one of these instances to the signature its own parameter bindings give it.
+let updateDependents (instances: Instance list) (p: Project) : Project =
+    (p, instances)
+    ||> List.fold (fun p instance -> updateInstance instance p)
+
+/// Every sheet has just been written to disk from memory, so none of them has unsaved changes.
+///
+/// updateInstance flags each sheet it changes so that the change reaches disk; once it has, the
+/// flag has done its job. Left set it made every later "close without saving?" dialog name sheets
+/// whose files were already correct, and left the user no way to clear it: the Save button follows
+/// the OPEN sheet alone, and an instance is by construction never on that sheet.
+let markProjectSaved (p: Project) : Project =
+    p |> Optic.map loadedComponents_ (List.map (Optic.set loadedComponentIsOutOfDate_ false))
 
 let checkCanvasStateIsOk (model:Model) =
     mapOverProject false model (fun p ->
@@ -602,8 +626,9 @@ let optCurrentSheetDependentsPopup (model: Model) =
                             affected
                             |> List.map (fun inst -> $"{inst.Label} on {inst.Sheet}")
                             |> String.concat ", "
-                        let verb = if affected.Length = 1 then "is" else "are"
-                        div [] [str $"These instances {verb} at port widths that no longer follow from \
+                        let subject =
+                            if affected.Length = 1 then "This instance is" else "These instances are"
+                        div [] [str $"{subject} at port widths that no longer follow from \
                                       their own parameters, and will be corrected: {named}."]
                 let body =
                     div [Style [ MarginTop "15px" ] ]
@@ -625,19 +650,19 @@ let optCurrentSheetDependentsPopup (model: Model) =
                         ]
 
                 let buttonAction isUpdate dispatch  _ =
-                    if isUpdate then
-                        let newp =
-                            updateDependents instances model dispatch
-
-                        newp |> Option.map saveAllProjectFilesFromLoadedComponentsToDisk |> ignore
-
-
-                        let proj = Option.get (newp)
+                    match isUpdate, model.CurrentProj with
+                    | true, Some p ->
+                        let proj =
+                            updateDependents instances p
+                            |> (fun p ->
+                                saveAllProjectFilesFromLoadedComponentsToDisk p
+                                markProjectSaved p)
+                        dispatch <| SetProject proj
 
                         if proj.OpenFileName <> (Option.defaultValue proj.OpenFileName proj.WorkingFileName) then
                             let model' = {model with CurrentProj = Some proj}
                             openFileInProject' false proj.OpenFileName proj model' dispatch
-                        else ()
+                    | _ -> ()
 
                     dispatch <| ClosePopup
 

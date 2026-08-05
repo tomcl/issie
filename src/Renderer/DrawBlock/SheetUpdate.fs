@@ -24,6 +24,18 @@ module node = Node.Api
 
 importReadUart
 
+/// Send a mouse event to the update function for whatever the sheet is currently doing. The
+/// per-operation update functions are in SheetUpdateHelpers, which is where the state machine
+/// lives; this is only the dispatch table, shared by real mouse events and synthesised ones.
+let private dispatchMouse (model: Model) (mMsg: MouseT) =
+    let mouseAlreadyDown = match model.Action with | MovingPort _ | ConnectingInput _ | ConnectingOutput _ -> true |_ -> false
+    match mMsg.Op with
+    | Down when mouseAlreadyDown = true -> model, Cmd.none
+    | Down -> mDownUpdate model mMsg
+    | Drag -> mDragUpdate model mMsg
+    | Up -> mUpUpdate model mMsg
+    | Move -> mMoveUpdate model mMsg
+
 /// Update Function
 let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<ModelType.Msg> =
     /// In this module model = Sheet model
@@ -171,7 +183,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         {model with CtrlKeyDown = false}, Cmd.none
 
     | MouseMsgOrig(mEv, mouseOp, headerHeight) ->
-        
+
         let mMsg:MouseT = {
                 Op = mouseOp ;
                 ShiftKeyDown = mEv.shiftKey
@@ -179,15 +191,14 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 ScreenPage = {X=mEv.pageX; Y=mEv.pageY}
                 Pos = getDrawBlockPos mEv headerHeight model
                 }
-        // Mouse Update Functions can be found above, update function got very messy otherwise
-        let mouseAlreadyDown = match model.Action with | MovingPort _ | ConnectingInput _ | ConnectingOutput _ -> true |_ -> false
-        match mMsg.Op with
-        | Down when mouseAlreadyDown = true -> model, Cmd.none
-        | Down -> mDownUpdate model mMsg
-        | Drag -> 
-            mDragUpdate model mMsg
-        | Up -> mUpUpdate model mMsg
-        | Move -> mMoveUpdate model mMsg
+        dispatchMouse model mMsg
+
+    // A gesture the program has performed rather than the user: a catalogue drop sends the
+    // move-then-click that placing by hand would have sent, so a dropped component is created and
+    // committed by the ordinary placement path rather than by a second copy of it. Differs from
+    // MouseMsgOrig only in having no DOM event to read the position from.
+    | MouseMsg mMsg ->
+        dispatchMouse model mMsg
 
     | UpdateBoundingBoxes ->
         let model =

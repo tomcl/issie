@@ -572,6 +572,16 @@ type Msg =
     | SetTopMenu of TopMenu
     | ReloadSelectedComponent of int
     | SetDragMode of DragMode
+    /// A catalogue item has been pressed: start carrying it, drawing the given ghost at the
+    /// cursor. Nothing is created - see DragPlacement.
+    | StartDragPlacement of DragGhost * XYPos
+    /// The cursor has moved while carrying a catalogue item, in client coordinates.
+    | MoveDragPlacement of XYPos
+    /// A carried catalogue item has been released over the canvas at this draw block position.
+    | DropDragPlacement of XYPos
+    /// Stop carrying a catalogue item, whether because it was dropped somewhere that places
+    /// nothing or because the placement it started has now been made.
+    | EndDragPlacement
     | ChangeBuildTabVisibility
     /// Set width of right-hand pane when tab is WaveSimulator or TruthTable
     | SetViewerWidth of int
@@ -701,6 +711,31 @@ type DragAddition =
     | PlacedFromCatalogue of ComponentId list
     | PastedFromClipboard of ComponentId list
 
+/// What a catalogue drag draws following the cursor.
+type DragGhost =
+    /// The symbol itself, drawn by the draw block's own renderer at the component's default
+    /// parameters. What the user is carrying looks like what they will get.
+    | GhostSymbol of ComponentType
+    /// A named box, for a library component whose sheet has not been read and so has no ports to
+    /// draw yet. Reading it means going to disk, which belongs at placement rather than on a
+    /// mouse-down.
+    | GhostBox of string
+
+/// A catalogue component being dragged onto the canvas, before it exists.
+///
+/// Nothing is created until the drop, and where the catalogue item asks for parameters, not until
+/// that popup is accepted: what follows the cursor is drawn from a symbol that is never added to
+/// any model. That is what makes the gesture free to abandon - a drag ending anywhere but the
+/// canvas leaves nothing behind - and it keeps the popup in front of the component exactly as it
+/// is for a click.
+type DragPlacement =
+    /// The button is still down: `Ghost` is drawn centred on `CursorPos`, in client coordinates.
+    | Dragging of Ghost: DragGhost * CursorPos: XYPos
+    /// Released over the canvas at this position, in draw block coordinates. Consumed by the next
+    /// InitialiseCreateComponent, which may be several messages away since a creation popup
+    /// stands between the drop and the component existing.
+    | DroppedAt of XYPos
+
 /// Which half of the window the keyboard is pointing at.
 type Pane = | LeftPane | RightPane
 
@@ -770,6 +805,9 @@ type Model = {
     /// How the components of an in-progress drag were added, if they were. Set when the drag
     /// starts and consumed when it settles; None the rest of the time.
     PendingDragAddition : DragAddition option
+    /// A catalogue item being dragged onto the canvas, or the position one was dropped at. None
+    /// whenever no such gesture is in flight, which is nearly always.
+    DragPlacement : DragPlacement option
     /// Projects whose top-sheet choice popup the user has cancelled. Cancelling opens the sheet
     /// at default parameter values; the question is not asked again for that project.
     TopSheetChoiceDeclined : Set<string>
@@ -840,6 +878,7 @@ let userData_ = Lens.create (fun a -> a.UserData) (fun s a -> {a with UserData =
 let uISheetTrail_ = Lens.create (fun a -> a.UISheetTrail) (fun s a -> {a with UISheetTrail = s})
 let savedSheetIsOutOfDate_ = Lens.create (fun a -> a.SavedSheetIsOutOfDate) (fun s a -> {a with SavedSheetIsOutOfDate = s})
 let pendingDragAddition_ = Lens.create (fun a -> a.PendingDragAddition) (fun s a -> {a with PendingDragAddition = s})
+let dragPlacement_ = Lens.create (fun a -> a.DragPlacement) (fun s a -> {a with DragPlacement = s})
 let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (fun s a -> {a with TopSheetChoiceDeclined = s})
 let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})

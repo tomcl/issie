@@ -175,6 +175,29 @@ let update (msg : Msg) oldModel =
         {model with DividerDragMode= mode}
         |> withNoMsg
 
+    | StartDragPlacement (ghost, cursorPos) ->
+        model
+        |> set dragPlacement_ (Some (Dragging (ghost, cursorPos)))
+        |> withNoMsg
+
+    | MoveDragPlacement cursorPos ->
+        // Only while still carrying something: a stray move must not resurrect a gesture that
+        // has already been dropped, which would put the ghost back and lose the drop position.
+        match model.DragPlacement with
+        | Some (Dragging (ghost, _)) ->
+            model |> set dragPlacement_ (Some (Dragging (ghost, cursorPos))) |> withNoMsg
+        | _ -> model |> withNoMsg
+
+    | DropDragPlacement pos ->
+        model
+        |> set dragPlacement_ (Some (DroppedAt pos))
+        |> withNoMsg
+
+    | EndDragPlacement ->
+        model
+        |> set dragPlacement_ None
+        |> withNoMsg
+
     | SetViewerWidth w ->
         {model with WaveSimViewerWidth = w}
         |> withNoMsg
@@ -442,7 +465,13 @@ let update (msg : Msg) oldModel =
         |> withNoMsg
 
     | ClosePopup ->
+        // A drop position outlives the drop precisely so that a creation popup can stand between
+        // the two, so it must die with that popup. Cancelling would otherwise leave it to be
+        // picked up by the NEXT placement, which would land where this one was abandoned. On the
+        // accepting path it has already been consumed and cleared, and clearing again costs
+        // nothing.
         { model with
+            DragPlacement = None
             PopupViewFunc = None;
             CodeEditorState = None
             PopupDialogData =

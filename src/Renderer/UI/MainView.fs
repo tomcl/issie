@@ -90,6 +90,7 @@ let init() = {
     LastCreatedComponent = None
     SavedSheetIsOutOfDate = false
     PendingDragAddition = None
+    DragPlacement = None
     TopSheetChoiceDeclined = Set.empty
     ComponentLibraries = ComponentLibraries.findLibraries ()
     OpenLibrary = None
@@ -167,7 +168,8 @@ let private  viewRightTab canvasState model dispatch =
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
             Heading.h4 [] [ str "Catalogue" ]
             div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ] 
-                [ str "Click on a component to add it to the diagram. Hover on components for details." ]
+                [ str "Drag a component onto the diagram, or click it and then click where it should \
+                       go. Hover on components for details." ]
             CatalogueView.viewCatalogue model dispatch
         ]
         
@@ -459,7 +461,12 @@ let displayView model dispatch =
                     ]
                 ]) [
             // transient popups
-            UIPopups.viewPopup model dispatch  
+            UIPopups.viewPopup model dispatch
+
+            // A component being dragged out of the catalogue, drawn at the cursor. It belongs to
+            // the whole window rather than to either pane, because the gesture crosses between
+            // them: the drag starts over the catalogue and ends over the canvas.
+            CatalogueView.viewDragGhost model
 
             /// Which pane the keyboard follows, changed only by clicking in one.
             let claimKeyFocus pane =

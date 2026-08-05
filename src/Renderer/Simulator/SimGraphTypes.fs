@@ -115,7 +115,7 @@ let errMsg (errType: SimulationErrorType) =
         sprintf "%A port appears to have a port number: %d" correctType portNum
     | LabelConnect ->
         sprintf
-            "You can't connect two Wire Labels with a wire. Delete the connecting wire. If you want to join two bus labels \
+            "You can't connect two Net Labels with a wire. Delete the connecting wire. If you want to join two net labels \
                      you need only give them the same name - then they will form a single net."
     | LabelDuplicate (ioType, compLabel) ->
         sprintf "Two %s components cannot have the same label: %s." ioType compLabel

@@ -127,7 +127,7 @@ let componentTypeName (ct: ComponentType) : string =
     | Input1 _ | Input _ -> "Input"
     | Output _ -> "Output"
     | Viewer _ -> "Viewer"
-    | IOLabel -> "Wire label"
+    | IOLabel -> "Net label"
     | NotConnected -> "Not connected"
     | Constant1 _ | Constant _ -> "Constant"
     | BusSelection _ -> "Bus selection"
@@ -857,12 +857,13 @@ let private describeComponent (comp:Component) model : ReactElement list =
                number > 0. The input range selected for output is displayed in brackets on the \
                symbol." ]
     | IOLabel ->
-        [ str "Labels with the same name connect wires. Each label has input on left and output on \
-               right. No output connection is required from a set of labels. Since a set represents \
-               one wire of bus, exactly one input connection is required. Labels can be used:"
+        [ str "Net labels with the same name are one net. Each label has input on left and output \
+               on right. No output connection is required from a net. Since a net represents one \
+               wire or bus, exactly one input connection is required. Net labels can be used:"
           br []
           str "To name wires and document designs."; br []
-          str "To join inputs and outputs without wires."; br []
+          str "To join inputs and outputs without wires, in place of a long connection or one \
+               driving many inputs."; br []
           str "To prevent an unused output from giving an error." ]
     | MergeWires ->
         [str "Merge two busses of width n and m into a single bus of width n+m. The bit numbers of \

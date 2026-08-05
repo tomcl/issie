@@ -70,7 +70,7 @@ let getCompDetails fs wave =
         | Output _ -> "Output", true
         | Constant1 _ -> "What? can't happen", true
         | Viewer _ -> "Viewer", true
-        | IOLabel-> "Wire Label", true
+        | IOLabel-> "Net Label", true
         | NotConnected -> "What? can't happen", true
         | Not ->
             let gateType = $"{fc.FType}".ToUpper()

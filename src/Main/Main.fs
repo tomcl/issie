@@ -57,7 +57,22 @@ let isMacos = Api.``process``.platform = Base.Darwin
 let isWin = Api.``process``.platform = Base.Win32
 
         
-mainProcess.app.commandLine.appendSwitch("js-flags", "--expose-gc --trace-gc --trace-gc-ignore-scavenger --enable-logging --max-old-space-size=3600 --min-semi-space-size=64")
+// app.commandLine applies to every process Electron spawns - the GPU process, utility processes
+// and every renderer - so this list is the whole app's, not the simulator's. The heap sizes are
+// what Issie's simulations need. GC tracing writes a line per collection per process to stdout,
+// which is a thing to ask for rather than have; it is not measurably slow, just noise nobody
+// reads. --enable-logging was in this list and is not a V8 flag at all - it is a Chromium switch,
+// so V8 only ever rejected it, and Chromium logging comes from ELECTRON_ENABLE_LOGGING anyway.
+let jsFlags =
+    [   "--expose-gc"
+        "--max-old-space-size=3600"
+        "--min-semi-space-size=64"
+        if hasDebugArgs() then
+            "--trace-gc"
+            "--trace-gc-ignore-scavenger" ]
+    |> String.concat " "
+
+mainProcess.app.commandLine.appendSwitch("js-flags", jsFlags)
 
 
 mainProcess.app.name <- "Issie"
@@ -82,6 +97,18 @@ let printListeners() =
 
 [<Emit("__static")>]
 let staticDir() :string = jsNative
+
+/// Seconds since this process was launched. Startup has to be measured from here and not from
+/// the first line of this module: everything before that is Electron booting, and it is a phase
+/// like any other.
+[<Emit("process.uptime()")>]
+let processUptime() : float = jsNative
+
+/// Stamp a startup phase on stdout. The only useful question about a slow start is which phase
+/// costs the seconds - Electron's boot, the splash's first paint, or the renderer's bundle - and
+/// that is unanswerable unless each one says when it happened.
+let stampStartup (phase: string) =
+    printfn "[startup %6.3fs] %s" (processUptime()) phase
 
 let mutable closeAfterSave = false
 
@@ -134,14 +161,46 @@ let hardenWebContents (webContents: WebContents) =
             openExternally url)
     |> ignore
 
+/// Where splash.html lives. __static is a compile-time substitution, and the production one
+/// expands to a template literal over a bare `path` identifier that webpack's bundle does not
+/// bind - so reading it unconditionally throws before any window exists. Every other consumer
+/// (the icon below, FilesIO) branches around it for exactly this reason.
+let splashPagePath () =
+    let isDev = (``process``?defaultApp = true)
+    if isDev then
+        // relative in development ("static"), so resolve it against the working directory
+        path.resolve (staticDir(), "splash.html")
+    else
+        // electron-builder copies static/ to resources/static (see package.json extraFiles)
+        path.join (``process``?resourcesPath, "static", "splash.html")
+
 /// Issie's renderer takes a noticeable time to start, and until it does the app window has
 /// nothing in it. This frameless window covers that gap: it is the first thing on screen, and
 /// the main window stays hidden behind it until its content has finished loading.
-let createSplashWindow () =
+///
+/// It stays hidden until it has painted. Chromium fills a new window with white until its web
+/// contents produce a frame - backgroundColor does not change that - and a renderer process takes
+/// long enough to spawn that showing the window on creation put a white rectangle on screen for
+/// most of the start. onPainted then runs, and is where the app's own load is started from.
+let createSplashWindow (onPainted: unit -> unit) =
+    let page = splashPagePath()
+    if not (fs.existsSync (U2.Case1 page)) then
+        // No splash beats a broken one, and finding out by asking the filesystem costs a
+        // millisecond where finding out by failing to load costs the ~2s a renderer takes to
+        // start before it can report the error.
+        JS.console.error ("Issie splash page not found: " + page)
+        onPainted()
+    else
+
     let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
         options.width <- Some 640.
         options.height <- Some 360.
         options.frame <- Some false
+        // Chromium paints a new window white until its web contents produce a frame, whatever
+        // backgroundColor says. Staying hidden until ready-to-show is the only way to not put
+        // an empty white rectangle on screen for as long as the page takes to paint.
+        options.show <- Some false
+        options.paintWhenInitiallyHidden <- Some true
         options.resizable <- Some false
         options.movable <- Some false
         options.minimizable <- Some false
@@ -149,7 +208,7 @@ let createSplashWindow () =
         options.center <- Some true
         options.alwaysOnTop <- Some true
         options.skipTaskbar <- Some true
-        // matches the page's own background, so no white flash before the first paint
+        // matches the page's own background, so the window edge is not a lighter line around it
         options.backgroundColor <- Some "#071a24"
         options.title <- Some "Issie"
         options.webPreferences <- Some (
@@ -160,11 +219,24 @@ let createSplashWindow () =
                 o.devTools <- Some false)
 
     let window = mainProcess.BrowserWindow.Create options
+    stampStartup "splash window created"
     hardenWebContents window.webContents
-    // staticDir() is relative in development, absolute when packaged: resolve handles both
-    window.loadFile (path.resolve (staticDir(), "splash.html")) |> ignore
+    window.``once_ready-to-show`` (Function(fun _ ->
+        stampStartup "splash painted"
+        window.show()
+        onPainted()))
+    |> ignore
+    window.loadFile page
+    |> Promise.catch (fun err ->
+        // Chromium renders its own error page when a load fails, and that page paints - so
+        // without taking the window away here, ready-to-show would put "file not found" on
+        // screen. Failure then goes down the same path as success: Issie carries on starting.
+        JS.console.error ("Issie splash page failed to load: ", err)
+        if not (window.isDestroyed()) then window.destroy()
+        splashWindow <- Option.None
+        onPainted())
+    |> ignore
     splashWindow <- Some window
-    window
 
 /// Take the splash down and put the app window on screen. Called when the renderer finishes
 /// loading and again from a timeout, so a renderer that never loads cannot leave Issie with no
@@ -173,10 +245,14 @@ let revealMainWindow (window: BrowserWindow) =
     splashWindow
     |> Option.iter (fun splash -> if not (splash.isDestroyed()) then splash.destroy())
     splashWindow <- Option.None
-    if not (window.isDestroyed()) then
+    // Only the first call shows anything. The backstop fires 20s in whatever happened, by which
+    // time the user may have unmaximised or moved the window, and maximising it again from under
+    // them would be worse than the blank window this is all here to avoid.
+    if not (window.isDestroyed()) && not (window.isVisible()) then
         window.setOpacity 1.0
         window.maximize()
         window.show()
+        stampStartup "main window shown"
 
 let createMainWindow () =
     let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
@@ -214,6 +290,12 @@ let createMainWindow () =
     mainWindow <- Some window
     window
 
+/// Set once the app's own start-up has been let go. Three things race to do that - the splash
+/// painting, the splash failing to load, and a backstop timer - and exactly one must win. This
+/// is process lifecycle rather than model state, which is what makes a mutable right here (see
+/// docs/mutableState.md).
+let mutable appStarted = false
+
     // This method will be called when Electron has finished
     // initialization and is ready to create browser windows.
 let startRenderer (doAfterReady: BrowserWindow -> Unit) =
@@ -230,13 +312,27 @@ let startRenderer (doAfterReady: BrowserWindow -> Unit) =
         // remote property assignment landing at all. When it did not, they simply stayed. A debug
         // build still adds its Development menu from the renderer afterwards, which is where it
         // has to be built since its items dispatch into the app.
+        stampStartup "app ready"
         mainProcess.Menu.setApplicationMenu None
-        // before the main window, so it is on screen for as much of the load as possible
-        createSplashWindow() |> ignore
-        let window = createMainWindow()
-        //printfn "window created"
-        window
-        |> doAfterReady) |> ignore
+
+        let startApp () =
+            if not appStarted then
+                appStarted <- true
+                let window = createMainWindow()
+                stampStartup "main window created"
+                doAfterReady window
+
+        // A window cannot show anything until Chromium has spawned a renderer process for it and
+        // that process has painted, which measures at 1.5-2.5s here for a page of 6KB. Two windows
+        // created together spawn two of them at once and both go slower: the splash used to take
+        // ~2.9s to paint that way against ~2.0s when it has the machine to itself. So the app's
+        // own window - the one that then fetches megabytes of bundle - waits for the splash.
+        // The cost is ~0.7s on the total start, bought so that the splash is up for it.
+        createSplashWindow startApp
+        // Backstop: whatever the splash does, it must not be able to stop Issie starting. Well
+        // clear of the ~2s a renderer process takes to spawn and paint, since firing early costs
+        // the wait without buying the splash - it just puts the two renderers back in contention.
+        JS.setTimeout startApp 5000 |> ignore) |> ignore
 
 
 let loadAppIntoWidowWhenReady (window: BrowserWindow) =
@@ -272,6 +368,7 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
         //printfn "done load"
     loadWindowContent window
     window.webContents.on("did-finish-load", ( fun () ->
+        stampStartup "renderer loaded"
         revealMainWindow window))
     |> ignore
     // Backstop: whatever happens to the load, the splash comes down and the window appears.
@@ -355,7 +452,7 @@ let rec addListeners (window: BrowserWindow) =
             mainWindow <- Some window) |> ignore
     window
 
-printfn $"starting..."
+stampStartup "main bundle loaded"
 
 let rec startup() =
     startRenderer( fun win ->

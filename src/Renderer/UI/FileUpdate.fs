@@ -1,7 +1,9 @@
 ﻿module FileUpdate
 open Elmish
+open Fulma
 open Fable.React
 open Fable.React.Props
+open Helpers
 open ModelType
 open ElectronAPI
 open FilesIO
@@ -58,46 +60,176 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
     else
         dispatch nextAction
 
-/// Create a new project.
-let rec private newProject model dispatch  =
+/// Create the project directory, its marker and its first sheet, and open it.
+let private createProjectAt (path: string) model dispatch =
+    match tryCreateFolder path with
+    | Error err ->
+        JSHelpers.log err
+        displayFileErrorNotification err dispatch
+    | Ok _ ->
+        dispatch EndSimulation // End any running simulation.
+        dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
+        dispatch EndWaveSim
+        // Create empty placeholder projectFile.
+        writeFile (projectMarkerPath path) ""
+        |> Notifications.displayAlertOnError dispatch
+        // Create empty initial diagram file.
+        let initialComponent = createEmptyComponentAndFile path "main"
+        dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
+        setupProjectFromComponents false "main" [initialComponent] model dispatch
+
+/// Where a new project of this name, in this folder, would go - or why it would not go anywhere.
+///
+/// Every objection the creation used to raise after the event is asked here instead, of what the
+/// user has typed so far, so that the Create button can say whether it would work rather than the
+/// user finding out by pressing it.
+let private newProjectPath (parent: string) (name: string) : Result<string, string> =
+    match projectNameError name with
+    | Some err -> Error err
+    | None when parent = "" -> Error "Choose the folder to create the project in."
+    | None when not (isDirectory parent) -> Error $"'{parent}' is not a folder."
+    | None when inspectProjectDirectory parent = IsProject ->
+        Error $"'{baseName parent}' is itself an Issie project, and a project cannot contain another."
+    | None ->
+        let path = pathJoin [| parent; name |]
+        if exists path then Error $"'{name}' already exists in that folder." else Ok path
+
+/// Create a new project, asking for its name and where to put it.
+///
+/// This was a native SAVE dialog: it asked the user to save a file that was really a directory,
+/// offered to overwrite a folder it would not overwrite, and kept the naming rules to itself until
+/// one was broken - at which point a native error box appeared and the dialog reopened empty. The
+/// form asks the two things that are actually needed, judges them as they are typed, and says what
+/// it is about to create before creating it.
+let private newProject model dispatch =
     warnAppWidth dispatch (fun _ ->
-    match askForNewProjectPath model.UserData.LastUsedDirectory with
-    | None -> () // User gave no path.
-    | Some path ->
-        match tryCreateFolder path with
-        | Error err ->
-            JSHelpers.log err
-            // Show error in a dialog box and then re-open the project creation dialog
-            electronRemote.dialog.showErrorBox("Invalid Project Name", err)
-            newProject model dispatch
-        | Ok _ ->
-            dispatch EndSimulation // End any running simulation.
-            dispatch <| TruthTableMsg CloseTruthTable // Close any open Truth Table.
-            dispatch EndWaveSim
-            // Create empty placeholder projectFile.
-            let projectFile = baseName path + ".dprj"
-            writeFile (pathJoin [| path; projectFile |]) ""
-            |> Notifications.displayAlertOnError dispatch
-            // Create empty initial diagram file.
-            let initialComponent = createEmptyComponentAndFile path "main"
-            dispatch <| SetUserData {model.UserData with LastUsedDirectory = Some path}
-            setupProjectFromComponents false "main" [initialComponent] model dispatch)
+    // The last used directory is the last project opened or created, so the folder holding it is
+    // where this user keeps their projects - a better guess than the directory itself, which would
+    // propose a project inside the last one.
+    let defaultParent =
+        model.UserData.LastUsedDirectory
+        |> Option.map dirName
+        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+    dispatch <| SetPopupDialogText (Some "")
+    dispatch <| SetPopupDialogText2 (Some defaultParent)
+
+    let body =
+        fun (model': Model) ->
+            let name = getText model'.PopupDialogData
+            let parent = getText2 model'.PopupDialogData
+            let outcome = newProjectPath parent name
+            div [] [
+                str "What should the project be called?"
+                Input.text [
+                    Input.Props [AutoFocus true; SpellCheck false]
+                    Input.Placeholder "Project name"
+                    Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+                ]
+                br []
+                str "Where should it go?"
+                div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center]] [
+                    // Typed as well as browsed: a path can be pasted, which the dialog alone never
+                    // allowed. Controlled by the dialog text so that Browse writes into it.
+                    div [Style [Flex "1"; MarginRight "8px"]] [
+                        Input.text [
+                            Input.Value parent
+                            Input.Props [SpellCheck false; Style [FontFamily "monospace"]]
+                            Input.Placeholder "Folder to create the project in"
+                            Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText2 >> dispatch)
+                        ]
+                    ]
+                    Button.button [
+                        Button.Size IsSmall
+                        Button.OnClick (fun _ ->
+                            askForFolder "Where should the project folder go?" "Use this folder"
+                                (Some parent)
+                            |> Option.iter (Some >> SetPopupDialogText2 >> dispatch))
+                    ] [str "Browse..."]
+                ]
+                br []
+                // Said before it happens, because a project is a directory of files rather than
+                // the one file the old save dialog implied, and nothing else tells the user that.
+                match outcome with
+                | Ok path ->
+                    div [Style [Color "green"]] [
+                        str $"Will create the folder {path}, holding {name}.dprj and the first \
+                              sheet, main.dgm."
+                    ]
+                | Error err ->
+                    // "enter a name" is what an untouched form always says: it is a prompt rather
+                    // than a complaint, so it is not dressed as one.
+                    let untouched = name = "" && parent <> ""
+                    div [Style [Color (if untouched then "grey" else "red")]] [str err]
+            ]
+
+    let buttonAction =
+        fun (model': Model) ->
+            match newProjectPath (getText2 model'.PopupDialogData) (getText model'.PopupDialogData) with
+            | Ok path ->
+                dispatch ClosePopup
+                createProjectAt path model dispatch
+            | Error _ -> () // unreachable: the button is disabled until this is Ok
+
+    let isDisabled =
+        fun (model': Model) ->
+            newProjectPath (getText2 model'.PopupDialogData) (getText model'.PopupDialogData)
+            |> Result.isError
+
+    dialogPopup "New project" body "Create" buttonAction isDisabled [] dispatch)
 
     
 
 /// open an existing project
+///
+/// The dialog asks for a folder, so a folder is what has to be checked: it may hold no sheets at
+/// all, and it may hold sheets without the marker that says it is a project. Neither is a reason
+/// to say nothing, which is what a filtered file dialog did by simply refusing to offer it.
 let private openProject model dispatch =
     //trying to force the spinner to load earlier
     //doesn't really work right now
-    warnAppWidth dispatch (fun _ -> 
+    warnAppWidth dispatch (fun _ ->
     dispatch (Sheet (SheetT.SetSpinner true))
+    /// Every way out of here that does not open a project has to put the spinner back: it is
+    /// turned on above in the hope of showing during the load, and a load that never starts would
+    /// otherwise leave it spinning over an unchanged app.
+    let giveUp () = dispatch (Sheet (SheetT.SetSpinner false))
     let dirName =
         match Option.map readFilesFromDirectory model.UserData.LastUsedDirectory with
         | Some [] | None -> None
         | _ -> model.UserData.LastUsedDirectory
     match askForExistingProjectPath dirName with
-    | None -> () // User gave no path.
-    | Some path -> openProjectFromPath path model dispatch)
+    | None -> giveUp () // User gave no path.
+    | Some path ->
+        match inspectProjectDirectory path with
+        | IsProject -> openProjectFromPath path model dispatch
+        | NotAProject ->
+            giveUp ()
+            displayFileErrorNotification
+                $"'{path}' holds no Issie sheets, so there is no project here to open. \
+                  An Issie project is a folder of .dgm sheet files."
+                dispatch
+        | SheetsButNoMarker ->
+            // Loadable, and worth loading: the sheets are the project. The marker is what says so
+            // to everything that has only the folder to go on, so offer to put it back rather
+            // than either refusing the folder or writing to it uninvited.
+            giveUp ()
+            choicePopup
+                "Add the missing project file?"
+                (div [] [
+                    str $"'{path}' holds Issie sheets but no .dprj project file, which is what \
+                          marks a folder as an Issie project."
+                    br []; br []
+                    str $"Issie can open it either way. Adding {baseName path}.dprj lets it be \
+                          recognised as a project in future." ])
+                "Add it and open"
+                "Open without it"
+                (fun addMarker _ ->
+                    dispatch ClosePopup
+                    if addMarker then
+                        writeFile (projectMarkerPath path) ""
+                        |> Notifications.displayAlertOnError dispatch
+                    openProjectFromPath path model dispatch)
+                dispatch)
 
 /// Close current project, if any.
 let forceCloseProject (model:Model) dispatch =

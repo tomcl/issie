@@ -311,6 +311,31 @@ let readFilesFromDirectoryWithExtn (path:string) (extn:string) : string list =
     readFilesFromDirectory path
     |> List.filter (fun name -> hasExtn extn name)
 
+/// What a directory looks like to Issie.
+///
+/// The .dprj marker is not needed to load a project - loadAllComponentFiles reads the .dgm files
+/// and never opens it - but it is how a project is told from a folder that merely happens to have
+/// sheets in it, and how "would this new project be inside an existing one?" is answered.
+type ProjectDirectory =
+    /// Holds the marker: a project, whatever else is in it.
+    | IsProject
+    /// Holds sheets but no marker, so it was a project whose marker has been lost, or a folder
+    /// somebody put sheets in. Loadable either way.
+    | SheetsButNoMarker
+    /// Nothing here that Issie can open.
+    | NotAProject
+
+let inspectProjectDirectory (path: string) : ProjectDirectory =
+    let files = readFilesFromDirectory path
+    match files |> List.exists (hasExtn ".dprj"), files |> List.exists (hasExtn ".dgm") with
+    | true, _ -> IsProject
+    | false, true -> SheetsButNoMarker
+    | false, false -> NotAProject
+
+/// The empty file that marks a directory as an Issie project, named after the directory.
+let projectMarkerPath (projectPath: string) =
+    pathJoin [| projectPath; baseName projectPath + ".dprj" |]
+
 let removeExtn extn fName = 
     if hasExtn extn fName
     then Some fName[0..(fName.Length - extn.Length - 1)]
@@ -414,12 +439,20 @@ let private makeFileFilters (name : string) (extn : string) =
     |> unbox<FileFilter> 
     |> Array.singleton
 
-/// Ask the user to choose a project file, with a dialog window.
-/// Return the folder containing the chosen project file.
-/// Return None if the user exits withouth selecting a path.
+/// Ask the user to choose a project, with a dialog window.
+/// Return the chosen folder, or None if the user exits without choosing one.
+///
+/// A project IS a directory, so that is what the dialog asks for. It used to ask for the .dprj
+/// inside one, which meant navigating into the project, past its sheets greyed out by the filter,
+/// to select a file that is empty, says nothing, and is named after the folder the user was
+/// already standing in - and whose directory was then all that was kept. Asking for the folder
+/// also lets a project whose marker was lost or renamed be opened, which the filter made
+/// impossible even though loading a project never reads it.
 let askForExistingProjectPath (defaultPath: string option) : string option =
     let options = createEmpty<OpenDialogSyncOptions>
-    options.filters <- Some (makeFileFilters "ISSIE project file" "dprj" |> ResizeArray)
+    options.title <- Some "Open ISSIE project folder"
+    options.buttonLabel <- Some "Open project"
+    options.properties <- Some [| OpenDialogOptionsPropertiesArray.OpenDirectory |]
     options.defaultPath <-
         defaultPath
         |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
@@ -430,8 +463,26 @@ let askForExistingProjectPath (defaultPath: string option) : string option =
         Seq.toList
         >> function
         | [] -> Option.None
-        | p :: _ -> Some <| dirName p
+        | p :: _ -> Some p
     )
+
+/// Ask the user to choose a folder, for a caller that knows what it wants one for.
+/// Return None if the user exits without choosing one.
+let askForFolder (title: string) (buttonLabel: string) (defaultPath: string option) : string option =
+    let options = createEmpty<OpenDialogSyncOptions>
+    options.title <- Some title
+    options.buttonLabel <- Some buttonLabel
+    options.properties <- Some [|
+        OpenDialogOptionsPropertiesArray.OpenDirectory
+        OpenDialogOptionsPropertiesArray.CreateDirectory
+        |]
+    options.defaultPath <-
+        defaultPath
+        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+        |> Some
+    let w = electronRemote.getCurrentWindow()
+    electronRemote.dialog.showOpenDialogSync(w,options)
+    |> Option.bind (Seq.toList >> function [] -> Option.None | p :: _ -> Some p)
 
 /// ask for existing sheet paths
 let askForExistingSheetPaths (defaultPath: string option) : string list option =
@@ -456,44 +507,29 @@ let askForExistingSheetPaths (defaultPath: string option) : string list option =
 
 
 
-/// Ask the user a new project path, with a dialog window.
-/// Return None if the user exits withouth selecting a path.
-let rec askForNewProjectPath (defaultPath:string option) : string option =
-    let options = createEmpty<SaveDialogSyncOptions>
-    options.filters <- Some (makeFileFilters "ISSIE project" "" |> ResizeArray)
-    options.title <- Some "Enter new ISSIE project directory and name"
-    options.nameFieldLabel <- Some "New project name"
-    options.defaultPath <- defaultPath
-    options.buttonLabel <- Some "Create Project"
-    options.properties <- Some [|
-        SaveDialogOptionsPropertiesArray.CreateDirectory
-        SaveDialogOptionsPropertiesArray.ShowOverwriteConfirmation
-        |]
-    match electronRemote.getCurrentWindow() with
-    | w ->
-        electronRemote.dialog.showSaveDialogSync(options)
-        |> Option.bind (fun dPath ->
-            let dir = dirName dPath
-            let files = readdir dir
-            if Seq.exists (fun (fn:string) -> fn.EndsWith ".dprj") files
-            then
-                electronRemote.dialog.showErrorBox(
-                    "Invalid project directory",
-                    "You are trying to create a new Issie project inside an existing project directory. \
-                     This is not allowed, please choose a different directory")
-                askForNewProjectPath defaultPath
-            
-            else
-                Some dPath)
-    
-    
+// askForNewProjectPath, a native SAVE dialog that asked the user to save a file which was really
+// a directory, is gone: FileUpdate.newProject asks for the name and the folder in the app, where
+// the naming rule and the inside-an-existing-project rule can be answered while the user is still
+// typing rather than by an error box after the dialog has taken their typing away.
 
-
-    
-let tryCreateFolder (path : string) =
-    if Seq.exists (Char.IsLetterOrDigitOrUnderscore >> not) (baseName path) then 
-        Result.Error <| "Project names must contain only letters, digits, or underscores. Spaces and hyphens are not allowed."
+/// Why a project may not be called this, if it may not.
+///
+/// One rule, in one place: the creation form asks it of every keystroke so that the user sees the
+/// objection while they can still act on it, and tryCreateFolder asks it as the last word. It used
+/// to be reachable only by breaking it, after the native dialog had been dismissed, in an error
+/// box that took the typing with it.
+let projectNameError (name: string) : string option =
+    if name = "" then
+        Some "Enter a name for the project."
+    elif Seq.exists (Char.IsLetterOrDigitOrUnderscore >> not) name then
+        Some "Project names must contain only letters, digits, or underscores. Spaces and hyphens are not allowed."
     else
+        None
+
+let tryCreateFolder (path : string) =
+    match projectNameError (baseName path) with
+    | Some err -> Result.Error err
+    | None ->
         try
             Result.Ok <| mkdir path
         with

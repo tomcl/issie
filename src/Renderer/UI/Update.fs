@@ -203,7 +203,8 @@ let update (msg : Msg) oldModel =
         // flight must not start a second one, or the folder would be read twice a second, then
         // four times, and so on.
         let chainAlreadyRunning = model.ProjectBrowser.IsSome
-        let model = model |> set projectBrowser_ (Some { Folder = folder; Generation = 0 })
+        let model =
+            model |> set projectBrowser_ (Some (ModelHelpers.readProjectBrowserFolder folder 0))
         if chainAlreadyRunning then
             model |> withNoMsg
         else
@@ -214,8 +215,31 @@ let update (msg : Msg) oldModel =
         // the browser has closed, so the chain ends here rather than ticking on unseen
         | None -> model |> withNoMsg
         | Some browser ->
-            model |> set projectBrowser_ (Some { browser with Generation = browser.Generation + 1 }),
+            // the selection is kept where it was, but the folder may have shrunk under it
+            model
+            |> set projectBrowser_
+                (Some (ModelHelpers.readProjectBrowserFolder browser.Folder browser.Selected)),
             Cmd.ofMsg (DispatchDelayed (Constants.projectBrowserRefreshMs, TickProjectBrowser))
+
+    | MoveProjectBrowserSelection delta ->
+        model
+        |> Optic.map projectBrowser_ (Option.map (fun browser ->
+            match browser.Listing with
+            | Error _ -> browser
+            | Ok entries ->
+                { browser with
+                    Selected = ModelHelpers.clampSelection (browser.Selected + delta) entries }))
+        |> withNoMsg
+
+    | GoToProjectBrowserParent ->
+        match model.ProjectBrowser with
+        | Some browser when not (isFilesystemRoot browser.Folder) ->
+            model |> withMsg (SetProjectBrowserFolder (dirName browser.Folder))
+        | _ -> model |> withNoMsg
+
+    | OpenProjectBrowserSelection dispatch ->
+        FileUpdate.activateBrowserSelection model dispatch
+        model |> withNoMsg
 
     | SetViewerWidth w ->
         {model with WaveSimViewerWidth = w}

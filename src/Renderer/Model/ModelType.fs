@@ -587,6 +587,14 @@ type Msg =
     /// A second has passed: read the browsed folder again, and come back in another second.
     /// Does nothing once the browser has closed, which is what ends the chain.
     | TickProjectBrowser
+    /// Move the project browser's keyboard selection by this many rows.
+    | MoveProjectBrowserSelection of int
+    /// Show the folder containing the one being browsed. Does nothing at a filesystem root.
+    | GoToProjectBrowserParent
+    /// Act on the selected row: a project opens, an ordinary folder is entered. Carries dispatch
+    /// as FileCommand does, because opening a project is not something the update function can do
+    /// with a message alone.
+    | OpenProjectBrowserSelection of (Msg -> unit)
     | ChangeBuildTabVisibility
     /// Set width of right-hand pane when tab is WaveSimulator or TruthTable
     | SetViewerWidth of int
@@ -749,10 +757,16 @@ type DragPlacement =
 type ProjectBrowserState = {
     /// The folder being shown.
     Folder: string
-    /// Bumped once a second. The listing is memoised - reading a directory is a disk access and a
-    /// popup body runs on every message - so this is what tells it to look at the disk again, and
-    /// what keeps typing in the path field from listing every prefix along the way.
-    Generation: int
+    /// What is in it, or why it cannot be shown.
+    ///
+    /// Read when the folder changes and once a second after that, in the update function rather
+    /// than while rendering. A popup body runs on every message, so a view that read the disk
+    /// would read it continuously - and the keyboard has to know how many rows there are before
+    /// it can move between them.
+    Listing: Result<FilesIO.FolderEntry list, string>
+    /// The row the keyboard is on, an index into the listing. Clamped whenever the listing changes,
+    /// since the folder can grow or shrink underneath it.
+    Selected: int
 }
 
 /// Which half of the window the keyboard is pointing at.

@@ -18,6 +18,9 @@ module Constants =
     /// read plus one per subfolder in it - a millisecond or so for an ordinary folder, and 14ms
     /// for the worst one on a typical Windows machine - so this costs nothing worth measuring.
     let projectBrowserRefreshMs = 1000
+    /// How tall the project browser's list of folders is. Fixed, and scrolling inside itself, so
+    /// that a folder of 200 subfolders does not push the path bar off the top of the dialog.
+    let projectBrowserListHeight = "300px"
     /// Needed to prevent possible overrun of simulation arrays
     let multipliers = [1;2;5;10;20;50;100;200;500;1000]
     let maxStepsOverflow = 3
@@ -38,6 +41,24 @@ module Constants =
 
     /// initial number of clock cycles navigated by the scrollbar.
     let scrollbarBkgRepCyclesInit = 100
+
+/// Keep a project browser selection on a row that exists. The folder can grow or shrink under it
+/// between one refresh and the next, and an index past the end would leave Enter doing nothing.
+let clampSelection (index: int) (entries: 'a list) =
+    if List.isEmpty entries then 0 else max 0 (min index (List.length entries - 1))
+
+/// Read a folder for the project browser: what is in it, or why it cannot be shown.
+///
+/// Done here, from the update function, rather than while rendering. A popup body runs on every
+/// message, so a view that read the disk would read it continuously - and the keyboard needs the
+/// number of rows before it can move between them.
+let readProjectBrowserFolder (folder: string) (selected: int) : ProjectBrowserState =
+    let listing =
+        if FilesIO.isDirectory folder then Ok (FilesIO.listFolderForOpening folder)
+        else Error "That folder does not exist."
+    { Folder = folder
+      Listing = listing
+      Selected = listing |> Result.map (clampSelection selected) |> Result.defaultValue 0 }
 
 /// type used for CSS grids in the UI to position an item on a grid
 type CSSGridPos =

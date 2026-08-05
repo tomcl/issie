@@ -37,6 +37,9 @@ let contextOfModel (m: Model) : KeyContext =
     // requiring both is the accurate test rather than a defence against one of them latching.
     if m.CodeEditorState.IsSome && m.PopupViewFunc.IsSome then
         CodeEditor
+    // before Popup, since the browser IS a popup and wants arrows and Enter that no other one does
+    elif m.ProjectBrowser.IsSome && m.PopupViewFunc.IsSome then
+        ProjectBrowser
     elif m.PopupViewFunc.IsSome || m.SpinnerPayload.IsSome || m.PopupDialogData.Progress.IsSome then
         Popup
     elif
@@ -200,6 +203,11 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     // ---- escape, one action per context ----
     | ScCancelGesture -> keyDispatch SheetT.KeyboardMsg.ESC
     | ScClosePopup -> dispatch ClosePopup
+    // ---- project browser ----
+    | ScBrowserPrev -> dispatch (MoveProjectBrowserSelection -1)
+    | ScBrowserNext -> dispatch (MoveProjectBrowserSelection 1)
+    | ScBrowserOpen -> dispatch (OpenProjectBrowserSelection dispatch)
+    | ScBrowserParent -> dispatch GoToProjectBrowserParent
     | ScDeselect -> sheetDispatch SheetT.ResetSelection
     | ScLeaveTextBox ->
         // hand the keyboard back to the schematic without reaching for the mouse

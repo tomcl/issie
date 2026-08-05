@@ -279,12 +279,16 @@ let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
     dispatch
     <| Msg.ExecFuncInMessage(
         (fun _ _ ->
-            // None removes the menu bar entirely on Windows and Linux. Every key it used to
-            // register is now resolved by KeyBindings against the context the user is in.
-            electronRemote.app.applicationMenu <-
-                match template with
-                | [] -> None
-                | items ->
+            // Only ever ADDS a menu, and only a debug build has one to add. Removing the menu bar
+            // is the main process's job, done before the first window exists (Main.startRenderer):
+            // doing it from here left Electron's own File/Edit/View/Window/Help menu up until the
+            // renderer had loaded, and left it up for good whenever this assignment - a property
+            // set across the @electron/remote bridge - did not land. Every key those menus used to
+            // register is resolved by KeyBindings against the context the user is in.
+            match template with
+            | [] -> ()
+            | items ->
+                electronRemote.app.applicationMenu <-
                     items
                     |> List.map U2.Case1
                     |> Array.ofList

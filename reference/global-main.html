@@ -470,6 +470,66 @@
             <div>
               <code onmouseout="hideTip(event, '165', 165)" onmouseover="showTip(event, '165', 165)">
                 <p>
+                  <a id="appStarted">
+                    <a href="#appStarted">
+                      <code><span>appStarted&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="165">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>appStarted&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:Main.appStarted`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:Main.appStarted\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L297-297" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Set once the app's own start-up has been let go. Three things race to do that - the splash
+ painting, the splash failing to load, and a backstop timer - and exactly one must win. This
+ is process lifecycle rather than model state, which is what makes a mutable right here (see
+ docs/mutableState.md).
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '166', 166)" onmouseover="showTip(event, '166', 166)">
+                <p>
                   <a id="argFlagIsOn">
                     <a href="#argFlagIsOn">
                       <code><span>argFlagIsOn&#32;<span>flags</span></span></code>
@@ -477,7 +537,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="165">
+              <div class="fsdocs-tip" id="166">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>argFlagIsOn&#32;<span>flags</span></span></code>
@@ -547,7 +607,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '166', 166)" onmouseover="showTip(event, '166', 166)">
+              <code onmouseout="hideTip(event, '167', 167)" onmouseover="showTip(event, '167', 167)">
                 <p>
                   <a id="args">
                     <a href="#args">
@@ -556,7 +616,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="166">
+              <div class="fsdocs-tip" id="167">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>args&#32;<span></span></span></code>
@@ -586,7 +646,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '167', 167)" onmouseover="showTip(event, '167', 167)">
+              <code onmouseout="hideTip(event, '168', 168)" onmouseover="showTip(event, '168', 168)">
                 <p>
                   <a id="closeAfterSave">
                     <a href="#closeAfterSave">
@@ -595,7 +655,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="167">
+              <div class="fsdocs-tip" id="168">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>closeAfterSave&#32;<span></span></span></code>
@@ -625,7 +685,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '168', 168)" onmouseover="showTip(event, '168', 168)">
+              <code onmouseout="hideTip(event, '169', 169)" onmouseover="showTip(event, '169', 169)">
                 <p>
                   <a id="createMainWindow">
                     <a href="#createMainWindow">
@@ -634,7 +694,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="168">
+              <div class="fsdocs-tip" id="169">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>createMainWindow&#32;<span>()</span></span></code>
@@ -686,37 +746,32 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '169', 169)" onmouseover="showTip(event, '169', 169)">
+              <code onmouseout="hideTip(event, '170', 170)" onmouseover="showTip(event, '170', 170)">
                 <p>
                   <a id="createSplashWindow">
                     <a href="#createSplashWindow">
-                      <code><span>createSplashWindow&#32;<span>()</span></span></code>
+                      <code><span>createSplashWindow&#32;<span>onPainted</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="169">
+              <div class="fsdocs-tip" id="170">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>createSplashWindow&#32;<span>()</span></span></code>
+                  <code><span>createSplashWindow&#32;<span>onPainted</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        ()
+                        onPainted
                       </b>
                       :
-                      <code>unit</code>
+                      <code><span>unit&#32;->&#32;unit</span></code>
                     </span>
                     <br/>
                   </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/electronapi-electron-browserwindow.html">BrowserWindow</a></code>
-                  </span>
                   <br/>
                 </div>
               </div>
@@ -732,34 +787,30 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.createSplashWindow\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L140-140" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L185-185" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      Issie's renderer takes a noticeable time to start, and until it does the app window has
  nothing in it. This frameless window covers that gap: it is the first thing on screen, and
  the main window stays hidden behind it until its content has finished loading.
+
+ It stays hidden until it has painted. Chromium fills a new window with white until its web
+ contents produce a frame - backgroundColor does not change that - and a renderer process takes
+ long enough to spawn that showing the window on creation put a white rectangle on screen for
+ most of the start. onPainted then runs, and is where the app's own load is started from.
                   </p>
                 </div>
               </summary>
               <dl class="fsdocs-params">
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    ()
+                    onPainted
                   </span>
                   :
-                  <code>unit</code>
+                  <code><span>unit&#32;->&#32;unit</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><a href="/issie/reference/electronapi-electron-browserwindow.html">BrowserWindow</a></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
               </dl>
             </details>
           </td>
@@ -767,7 +818,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '170', 170)" onmouseover="showTip(event, '170', 170)">
+              <code onmouseout="hideTip(event, '171', 171)" onmouseover="showTip(event, '171', 171)">
                 <p>
                   <a id="debug">
                     <a href="#debug">
@@ -776,7 +827,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="170">
+              <div class="fsdocs-tip" id="171">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>debug&#32;<span></span></span></code>
@@ -806,7 +857,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '171', 171)" onmouseover="showTip(event, '171', 171)">
+              <code onmouseout="hideTip(event, '172', 172)" onmouseover="showTip(event, '172', 172)">
                 <p>
                   <a id="devServerUrl">
                     <a href="#devServerUrl">
@@ -815,7 +866,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="171">
+              <div class="fsdocs-tip" id="172">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>devServerUrl&#32;<span></span></span></code>
@@ -840,7 +891,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:Main.devServerUrl\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L109-109" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L136-136" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -864,7 +915,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '172', 172)" onmouseover="showTip(event, '172', 172)">
+              <code onmouseout="hideTip(event, '173', 173)" onmouseover="showTip(event, '173', 173)">
                 <p>
                   <a id="dispatchToRenderer">
                     <a href="#dispatchToRenderer">
@@ -873,7 +924,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="172">
+              <div class="fsdocs-tip" id="173">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>dispatchToRenderer&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span></span></span></code>
@@ -927,7 +978,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '173', 173)" onmouseover="showTip(event, '173', 173)">
+              <code onmouseout="hideTip(event, '174', 174)" onmouseover="showTip(event, '174', 174)">
                 <p>
                   <a id="electronRemote">
                     <a href="#electronRemote">
@@ -936,7 +987,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="173">
+              <div class="fsdocs-tip" id="174">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>electronRemote&#32;<span></span></span></code>
@@ -989,7 +1040,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '174', 174)" onmouseover="showTip(event, '174', 174)">
+              <code onmouseout="hideTip(event, '175', 175)" onmouseover="showTip(event, '175', 175)">
                 <p>
                   <a id="hardenWebContents">
                     <a href="#hardenWebContents">
@@ -998,7 +1049,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="174">
+              <div class="fsdocs-tip" id="175">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>hardenWebContents&#32;<span>webContents</span></span></code>
@@ -1030,7 +1081,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.hardenWebContents\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L126-126" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L153-153" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1057,7 +1108,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '175', 175)" onmouseover="showTip(event, '175', 175)">
+              <code onmouseout="hideTip(event, '176', 176)" onmouseover="showTip(event, '176', 176)">
                 <p>
                   <a id="hasDebugArgs">
                     <a href="#hasDebugArgs">
@@ -1066,7 +1117,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="175">
+              <div class="fsdocs-tip" id="176">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>hasDebugArgs&#32;<span>()</span></span></code>
@@ -1118,7 +1169,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '176', 176)" onmouseover="showTip(event, '176', 176)">
+              <code onmouseout="hideTip(event, '177', 177)" onmouseover="showTip(event, '177', 177)">
                 <p>
                   <a id="isAppUrl">
                     <a href="#isAppUrl">
@@ -1127,7 +1178,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="176">
+              <div class="fsdocs-tip" id="177">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isAppUrl&#32;<span>url</span></span></code>
@@ -1164,7 +1215,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.isAppUrl\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L113-113" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L140-140" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1198,7 +1249,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '177', 177)" onmouseover="showTip(event, '177', 177)">
+              <code onmouseout="hideTip(event, '178', 178)" onmouseover="showTip(event, '178', 178)">
                 <p>
                   <a id="isMacos">
                     <a href="#isMacos">
@@ -1207,7 +1258,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="177">
+              <div class="fsdocs-tip" id="178">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isMacos&#32;<span></span></span></code>
@@ -1237,7 +1288,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '178', 178)" onmouseover="showTip(event, '178', 178)">
+              <code onmouseout="hideTip(event, '179', 179)" onmouseover="showTip(event, '179', 179)">
                 <p>
                   <a id="isWin">
                     <a href="#isWin">
@@ -1246,7 +1297,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="178">
+              <div class="fsdocs-tip" id="179">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isWin&#32;<span></span></span></code>
@@ -1276,7 +1327,46 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '179', 179)" onmouseover="showTip(event, '179', 179)">
+              <code onmouseout="hideTip(event, '180', 180)" onmouseover="showTip(event, '180', 180)">
+                <p>
+                  <a id="jsFlags">
+                    <a href="#jsFlags">
+                      <code><span>jsFlags&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="180">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>jsFlags&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>string</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '181', 181)" onmouseover="showTip(event, '181', 181)">
                 <p>
                   <a id="loadAppIntoWidowWhenReady">
                     <a href="#loadAppIntoWidowWhenReady">
@@ -1285,7 +1375,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="179">
+              <div class="fsdocs-tip" id="181">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>loadAppIntoWidowWhenReady&#32;<span>window</span></span></code>
@@ -1323,7 +1413,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '180', 180)" onmouseover="showTip(event, '180', 180)">
+              <code onmouseout="hideTip(event, '182', 182)" onmouseover="showTip(event, '182', 182)">
                 <p>
                   <a id="mainWindow">
                     <a href="#mainWindow">
@@ -1332,7 +1422,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="180">
+              <div class="fsdocs-tip" id="182">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mainWindow&#32;<span></span></span></code>
@@ -1362,7 +1452,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '181', 181)" onmouseover="showTip(event, '181', 181)">
+              <code onmouseout="hideTip(event, '183', 183)" onmouseover="showTip(event, '183', 183)">
                 <p>
                   <a id="openExternally">
                     <a href="#openExternally">
@@ -1371,7 +1461,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="181">
+              <div class="fsdocs-tip" id="183">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openExternally&#32;<span>url</span></span></code>
@@ -1403,7 +1493,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.openExternally\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L118-118" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L145-145" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1428,7 +1518,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '182', 182)" onmouseover="showTip(event, '182', 182)">
+              <code onmouseout="hideTip(event, '184', 184)" onmouseover="showTip(event, '184', 184)">
                 <p>
                   <a id="printListeners">
                     <a href="#printListeners">
@@ -1437,7 +1527,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="182">
+              <div class="fsdocs-tip" id="184">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>printListeners&#32;<span>()</span></span></code>
@@ -1475,7 +1565,88 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '183', 183)" onmouseover="showTip(event, '183', 183)">
+              <code onmouseout="hideTip(event, '185', 185)" onmouseover="showTip(event, '185', 185)">
+                <p>
+                  <a id="processUptime">
+                    <a href="#processUptime">
+                      <code><span>processUptime&#32;<span>()</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="185">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>processUptime&#32;<span>()</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Main.processUptime`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.processUptime\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L105-105" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Seconds since this process was launched. Startup has to be measured from here and not from
+ the first line of this module: everything before that is Electron booting, and it is a phase
+ like any other.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '186', 186)" onmouseover="showTip(event, '186', 186)">
                 <p>
                   <a id="revealMainWindow">
                     <a href="#revealMainWindow">
@@ -1484,7 +1655,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="183">
+              <div class="fsdocs-tip" id="186">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>revealMainWindow&#32;<span>window</span></span></code>
@@ -1516,7 +1687,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.revealMainWindow\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L172-172" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L244-244" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1542,7 +1713,89 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '184', 184)" onmouseover="showTip(event, '184', 184)">
+              <code onmouseout="hideTip(event, '187', 187)" onmouseover="showTip(event, '187', 187)">
+                <p>
+                  <a id="splashPagePath">
+                    <a href="#splashPagePath">
+                      <code><span>splashPagePath&#32;<span>()</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="187">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>splashPagePath&#32;<span>()</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>string</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Main.splashPagePath`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.splashPagePath\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L168-168" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Where splash.html lives. __static is a compile-time substitution, and the production one
+ expands to a template literal over a bare `path` identifier that webpack's bundle does not
+ bind - so reading it unconditionally throws before any window exists. Every other consumer
+ (the icon below, FilesIO) branches around it for exactly this reason.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '188', 188)" onmouseover="showTip(event, '188', 188)">
                 <p>
                   <a id="splashWindow">
                     <a href="#splashWindow">
@@ -1551,7 +1804,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="184">
+              <div class="fsdocs-tip" id="188">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>splashWindow&#32;<span></span></span></code>
@@ -1576,7 +1829,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:Main.splashWindow\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L72-72" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L87-87" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1599,7 +1852,74 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '185', 185)" onmouseover="showTip(event, '185', 185)">
+              <code onmouseout="hideTip(event, '189', 189)" onmouseover="showTip(event, '189', 189)">
+                <p>
+                  <a id="stampStartup">
+                    <a href="#stampStartup">
+                      <code><span>stampStartup&#32;<span>phase</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="189">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>stampStartup&#32;<span>phase</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        phase
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Main.stampStartup`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Main.stampStartup\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Main/Main.fs#L110-110" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Stamp a startup phase on stdout. The only useful question about a slow start is which phase
+ costs the seconds - Electron's boot, the splash's first paint, or the renderer's bundle - and
+ that is unanswerable unless each one says when it happened.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    phase
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '190', 190)" onmouseover="showTip(event, '190', 190)">
                 <p>
                   <a id="startRenderer">
                     <a href="#startRenderer">
@@ -1608,7 +1928,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="185">
+              <div class="fsdocs-tip" id="190">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>startRenderer&#32;<span>doAfterReady</span></span></code>
@@ -1646,7 +1966,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '186', 186)" onmouseover="showTip(event, '186', 186)">
+              <code onmouseout="hideTip(event, '191', 191)" onmouseover="showTip(event, '191', 191)">
                 <p>
                   <a id="startup">
                     <a href="#startup">
@@ -1655,7 +1975,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="186">
+              <div class="fsdocs-tip" id="191">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>startup&#32;<span>()</span></span></code>
@@ -1693,7 +2013,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '187', 187)" onmouseover="showTip(event, '187', 187)">
+              <code onmouseout="hideTip(event, '192', 192)" onmouseover="showTip(event, '192', 192)">
                 <p>
                   <a id="staticDir">
                     <a href="#staticDir">
@@ -1702,7 +2022,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="187">
+              <div class="fsdocs-tip" id="192">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>staticDir&#32;<span>()</span></span></code>
@@ -1754,7 +2074,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '188', 188)" onmouseover="showTip(event, '188', 188)">
+              <code onmouseout="hideTip(event, '193', 193)" onmouseover="showTip(event, '193', 193)">
                 <p>
                   <a id="wait">
                     <a href="#wait">
@@ -1763,7 +2083,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="188">
+              <div class="fsdocs-tip" id="193">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wait&#32;<span>n&#32;cont</span></span></code>

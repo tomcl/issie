@@ -348,28 +348,49 @@ type ProjectDirectory =
     /// Nothing here that Issie can open.
     | NotAProject
 
-let inspectProjectDirectory (path: string) : ProjectDirectory =
+/// What a directory is to Issie, and how many sheets are in it, from the one read of it. The
+/// count is free once the classification has looked at the file names anyway.
+let inspectFolder (path: string) : ProjectDirectory * int =
     let files = readFilesFromDirectory path
-    match files |> List.exists (hasExtn ".dprj"), files |> List.exists (hasExtn ".dgm") with
-    | true, _ -> IsProject
-    | false, true -> SheetsButNoMarker
-    | false, false -> NotAProject
+    let sheets = files |> List.filter (hasExtn ".dgm") |> List.length
+    match files |> List.exists (hasExtn ".dprj"), sheets > 0 with
+    | true, _ -> IsProject, sheets
+    | false, true -> SheetsButNoMarker, sheets
+    | false, false -> NotAProject, sheets
+
+let inspectProjectDirectory (path: string) : ProjectDirectory = inspectFolder path |> fst
 
 /// The empty file that marks a directory as an Issie project, named after the directory.
 let projectMarkerPath (projectPath: string) =
     pathJoin [| projectPath; baseName projectPath + ".dprj" |]
 
-/// The immediate subdirectories of `path` that Issie could open, and what each of them is.
+/// True when a path has no parent to go up to - a drive root, or the root of a share. dirName
+/// returns such a path unchanged, which is what the browser's Up control asks.
+let isFilesystemRoot (path: string) = dirName path = path
+
+/// One folder as the project browser draws it.
+type FolderEntry = {
+    Path: string
+    Kind: ProjectDirectory
+    /// .dgm files directly inside it: what a project is worth telling apart by, without opening it.
+    SheetCount: int
+}
+
+/// Every immediate subdirectory of `path`, classified, for the browser to draw.
 ///
-/// A folder picker shows every folder alike, so the folder somebody browses to is as likely to be
-/// the one their projects live in as a project itself. This is what lets that be answered with the
-/// projects rather than with a refusal. One level only: it answers "you have picked the folder
-/// your projects are in", not "search my disk".
-let projectsWithin (path: string) : (string * ProjectDirectory) list =
+/// A native folder picker draws every folder alike, so it cannot show which of them hold projects -
+/// which is the whole reason Issie draws this list itself. Ordinary folders are included because
+/// the browser navigates into them; hidden ones are not, since nobody keeps projects in them and
+/// they would bury what is worth seeing. Openable folders sort first, so a project is never lost
+/// among unrelated ones. One level only: this lists a folder, it does not search a disk.
+let listFolderForOpening (path: string) : FolderEntry list =
     readSubdirectories path
-    |> List.map (fun dir -> dir, inspectProjectDirectory dir)
-    |> List.filter (fun (_, kind) -> kind <> NotAProject)
-    |> List.sortBy fst
+    |> List.filter (fun dir -> not ((baseName dir).StartsWith "."))
+    |> List.map (fun dir ->
+        let kind, sheets = inspectFolder dir
+        { Path = dir; Kind = kind; SheetCount = sheets })
+    |> List.sortBy (fun entry ->
+        (match entry.Kind with NotAProject -> 1 | _ -> 0), String.toLower (baseName entry.Path))
 
 let removeExtn extn fName = 
     if hasExtn extn fName

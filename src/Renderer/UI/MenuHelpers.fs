@@ -27,7 +27,9 @@ module Constants =
     let minAppWidth = 1060.
     let typicalAppWidth = 1600.
 
-    let numberOfRecentProjects: int  = 5
+    /// Recent projects are now a panel in the project browser rather than a few lines on the
+    /// startup screen, and a term's work is more than five projects.
+    let numberOfRecentProjects: int  = 10
     let maxDisplayedPathLengthInRecentProjects: int  = 60
     /// canvas width < this => use fewer chars in path
     let largeScreenCanvasWidth = 1000

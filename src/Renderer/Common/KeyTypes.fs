@@ -307,14 +307,19 @@ let shortcuts: ShortcutSpec list =
       // ------------------------------------------------------------------ project browser
       // Only in its own context, so no other dialog sees them. Arrows repeat, since holding one
       // to run down a long folder is the point; opening and going up do not.
+      //
+      // No Doc, which keeps them out of the shortcut table. That table is what a user consults
+      // while drawing, and these four exist only inside one dialog, which says what they do on
+      // its own face - listing them there would be four rows of noise between the keys that do
+      // apply to the schematic.
       repeating (spec ScBrowserPrev (both [ ch Mods.none (named Names.arrowUp) ]) [ ProjectBrowser ]
-          "Previous folder in the list" CatView)
+          "" CatView)
       repeating (spec ScBrowserNext (both [ ch Mods.none (named Names.arrowDown) ]) [ ProjectBrowser ]
-          "Next folder in the list" CatView)
+          "" CatView)
       spec ScBrowserOpen (both [ ch Mods.none (named Names.enter) ]) [ ProjectBrowser ]
-          "Open the selected project, or go into the selected folder" CatView
+          "" CatView
       spec ScBrowserParent (both [ ch Mods.none (named Names.backspace) ]) [ ProjectBrowser ]
-          "Go up to the containing folder" CatView
+          "" CatView
       spec ScDeselect (both [ ch Mods.none (named Names.escape) ]) [ SheetIdle ]
           "Deselect everything" CatEdit
       spec ScLeaveTextBox

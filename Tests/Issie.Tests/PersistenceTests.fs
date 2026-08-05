@@ -67,6 +67,37 @@ let tests =
                     "the marker alone is enough")
         }
 
+        // A folder picker draws every folder alike, so the folder somebody chooses is as likely to
+        // be the one their projects live in as a project. This is what turns that near miss into
+        // the list of projects to pick from, rather than a refusal.
+        test "the projects inside a folder are found, and nothing else is" {
+            withTempDir (fun folder ->
+                let sub name =
+                    let p = System.IO.Path.Combine(folder, name)
+                    System.IO.Directory.CreateDirectory p |> ignore
+                    p
+                let marked = sub "adder"
+                touch marked "adder.dprj"
+                touch marked "main.dgm"
+                let unmarked = sub "orphan"
+                touch unmarked "main.dgm"
+                sub "notes" |> ignore                   // an ordinary folder
+                touch (sub "empty") ".keep"             // a folder with nothing Issie wants
+                touch folder "loose.dgm"                // a file, not a folder, and not recursed into
+
+                let found = FilesIO.projectsWithin folder
+                Expect.equal (found |> List.map (fst >> System.IO.Path.GetFileName)) ["adder"; "orphan"]
+                    "both openable folders are offered, in name order, and nothing else is"
+                Expect.equal (found |> List.map snd) [FilesIO.IsProject; FilesIO.SheetsButNoMarker]
+                    "and each is labelled with what it is, since one of them lacks its marker")
+        }
+
+        test "a folder with nothing openable inside offers nothing" {
+            withTempDir (fun folder ->
+                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(folder, "notes")) |> ignore
+                Expect.isEmpty (FilesIO.projectsWithin folder) "an ordinary folder is not offered")
+        }
+
         test "a project's marker is named after its folder" {
             let path = FilesIO.projectMarkerPath (FilesIO.pathJoin [| "some"; "where"; "adder" |])
             Expect.equal (FilesIO.baseName path) "adder.dprj" "the marker takes the folder's name"

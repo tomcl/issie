@@ -269,27 +269,27 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
         
         addText posNew text "middle" "bold" Constants.mergeSplitTextSize
 
-    let busSelectLine msb lsb  =
-        let text = 
-            match msb = lsb  with
-            | true -> sprintf $"({lsb})"
-            | false -> sprintf $"({msb}:{lsb})"
-        let pos, align = 
-            let rotate' = 
-                if not transform.flipped then 
+    /// The bit range a bus select passes, drawn outside its body. The body is small on purpose -
+    /// it sits in the middle of wiring laid out around it - and rotated it is thinner than any
+    /// range, so the range goes beside it rather than in it, and stays the right way up.
+    let busSelectLine nBits lsb =
+        let pos, align =
+            let rotate' =
+                if not transform.flipped then
                     transform.Rotation
                 else
-                    match transform.Rotation with 
+                    match transform.Rotation with
                     | Degree90 -> Degree270 | Degree270 -> Degree90 | r -> r
+            // clear of whichever edge of the body it is put beside, by a couple of pixels
             match rotate' with
-            | Degree0 -> {X=w/2.; Y= h/2. + 7.}, "middle"
-            | Degree180 -> {X=w/2.; Y= -8.}, "middle"
-            | Degree270 -> {X= 4.; Y=h/2. - 7.}, "end"
-            | Degree90 -> {X= 5.+ w/2.; Y=h/2. }, "start"
-        addText pos text align "bold" Constants.busSelectTextSize
+            | Degree0 -> {X=w/2.; Y= h + 2.}, "middle"
+            | Degree180 -> {X=w/2.; Y= -14.}, "middle"
+            | Degree270 -> {X= -2.; Y=h/2. - 7.}, "end"
+            | Degree90 -> {X= w + 2.; Y=h/2. - 7.}, "start"
+        addText pos (busSelectTitle nBits lsb) align "bold" Constants.busSelectTextSize
 
 
-    let clockTxtPos = 
+    let clockTxtPos =
         match transform.Rotation, transform.flipped with
         | Degree0, false -> {X = 17.; Y = H - 13.}
         | Degree180, true -> {X = 17.; Y = 2.}
@@ -314,8 +314,6 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             //    [|{X=W/5.;Y=0};{X=0;Y=H/2.};{X=W/5.;Y=H};{X=W;Y=H};{X=W;Y=0}|]
             | Constant1 _ -> 
                 [|{X=W;Y=H/2.};{X=W/2.;Y=H/2.};{X=0;Y=H};{X=0;Y=0};{X=W/2.;Y=H/2.}|]
-            | IOLabel ->
-                [|{X=0.;Y=H/2.};{X=W;Y=H/2.}|]
             | Viewer _ ->
                 [|{X=W/5.;Y=0};{X=0;Y=H/2.};{X=W/5.;Y=H};{X=W;Y=H};{X=W;Y=0}|]
             | NotConnected ->
@@ -330,8 +328,6 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=0.3*W};{X=0;Y=H-0.3*W};{X=W;Y=H};{X=W;Y=0}|]
             | Mux2 | Mux4 | Mux8 -> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H-0.3*W};{X=W;Y=0.3*W}|]
-            | BusSelection _ -> 
-                [|{X=0;Y=H/2.}; {X=W;Y=H/2.}|]
             | BusCompare _ |BusCompare1 _-> 
                 [|{X=0;Y=0};{X=0;Y=H};{X=W*0.6;Y=H};{X=W*0.8;Y=H*0.7};{X=W;Y=H*0.7};{X=W;Y =H*0.3};{X=W*0.8;Y=H*0.3};{X=W*0.6;Y=0}|]
             | Not ->
@@ -344,9 +340,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
             | Custom x when symbol.IsClocked = true -> 
                 [|{X=0;Y=H-13.};{X=8.;Y=H-7.};{X=0;Y=H-1.};{X=0;Y=0};{X=W;Y=0};{X=W;Y=H};{X=0;Y=H}|]
-            | NbitSpreader _ ->
-                [|{X=0;Y=H/2.};{X=W*0.4;Y=H/2.};{X=W*0.4;Y=H};{X=W*0.4;Y=0.};{X=W*0.4;Y=H/2.};{X=W;Y=H/2.}|]
-            | _ -> 
+            | _ ->
                 [|{X=0;Y=0};{X=0;Y=H};{X=W;Y=H};{X=W;Y=0}|]
         rotatePoints originalPoints {X=W/2.;Y=H/2.} transform
         |> toString 
@@ -365,14 +359,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
             | Degree90 | Degree270 -> Array.map (fun pos -> pos + {X=12.;Y=0}) textPoints
             | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +5.}) textPoints
             | _ -> textPoints
-        let NbitSpreaderTextPos =
-            let textPoints = rotatePoints [|{X=W/4.;Y=H/2.+2.};{X=W*0.7;Y=H/2.+4.}|] {X=W/2.;Y=H/2.} transform
-            match transform.Rotation with
-            | Degree90 -> Array.map (fun pos -> pos + {X=13.;Y=(-5.0)}) textPoints
-            | Degree180 -> Array.map (fun pos -> pos + {X=0;Y= +8.}) textPoints
-            | Degree270 -> Array.map (fun pos -> pos + {X=18.;Y=(-5.0)}) textPoints
-            | _ -> textPoints
-        let rotate1 pos = 
+        let rotate1 pos =
             match rotatePoints [|pos|] {X=W/2.;Y=H/2.} transform with 
             | [|pos'|]-> pos' 
             | _ -> failwithf "What? Can't happen"
@@ -421,18 +408,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                 | true -> []
             | None -> []
             
-        | NbitSpreader n -> 
-            //let lo = 1
-            //let msb = hi + lo - 1
-            //let midb = lo
-            //let midt = lo - 1
-            let values = [(-1,0);((n-1),0)]
-            List.fold (fun og i ->
-                og @ mergeSplitLine 
-                        NbitSpreaderTextPos[i] 
-                        (fst values[i]) 
-                        (snd values[i])) [] [0..1]
-        | SplitWire mid -> 
+        | SplitWire mid ->
             let msb, mid' = match symbol.InWidth0 with | Some n -> n - 1, mid | _ -> -100, -50
             let midb = mid'
             let midt = mid'-1
@@ -459,10 +435,10 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
                         og @ mergeSplitNLine comp.Type PortType.Output pos (fst value) (snd value)) [] (Array.toList outputTextPoints)outputValues
             outputEls @ inputEls
             
-        | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  -> 
+        | DFF | DFFE | Register _ |RegisterE _ | ROM1 _ |RAM1 _ | AsyncRAM1 _ | Counter _ | CounterNoEnable _ | CounterNoLoad _ | CounterNoEnableLoad _  ->
             (addText clockTxtPos " clk" "middle" "normal" "12px")
-        | BusSelection(nBits,lsb) ->           
-            busSelectLine (lsb + nBits - 1) lsb
+        | BusSelection (nBits, lsb) ->
+            busSelectLine nBits lsb
         | Constant1 (_, _, dialogVal) -> 
             let align, yOffset, xOffset= 
                 match transform.flipped, transform.Rotation with
@@ -491,10 +467,7 @@ let drawComponent (symbol:Symbol) (theme:ThemeType) =
     let outlineColour, strokeWidth =
         match comp.Type with
         | SplitWire _ | MergeWires -> outlineColor colour, "4.0"
-        | NbitSpreader _ -> outlineColor colour, "4.0"
-        | IOLabel -> outlineColor colour, "4.0"
         | NotConnected -> outlineColor colour, "4.0"
-        | BusSelection _ -> outlineColor colour, "4.0"
         | _ -> "black", "1.0"
 
 

@@ -582,6 +582,11 @@ type Msg =
     /// Stop carrying a catalogue item, whether because it was dropped somewhere that places
     /// nothing or because the placement it started has now been made.
     | EndDragPlacement
+    /// Show this folder in the project browser, opening the browser if it is not already open.
+    | SetProjectBrowserFolder of string
+    /// A second has passed: read the browsed folder again, and come back in another second.
+    /// Does nothing once the browser has closed, which is what ends the chain.
+    | TickProjectBrowser
     | ChangeBuildTabVisibility
     /// Set width of right-hand pane when tab is WaveSimulator or TruthTable
     | SetViewerWidth of int
@@ -736,6 +741,20 @@ type DragPlacement =
     /// stands between the drop and the component existing.
     | DroppedAt of XYPos
 
+/// The project browser's state while it is open.
+///
+/// Its own field rather than borrowed dialog text: the refresh timer has to be able to ask whether
+/// the browser is still open, and a timer that answered from shared popup state would go on
+/// writing into whatever dialog opened next.
+type ProjectBrowserState = {
+    /// The folder being shown.
+    Folder: string
+    /// Bumped once a second. The listing is memoised - reading a directory is a disk access and a
+    /// popup body runs on every message - so this is what tells it to look at the disk again, and
+    /// what keeps typing in the path field from listing every prefix along the way.
+    Generation: int
+}
+
 /// Which half of the window the keyboard is pointing at.
 type Pane = | LeftPane | RightPane
 
@@ -808,6 +827,9 @@ type Model = {
     /// A catalogue item being dragged onto the canvas, or the position one was dropped at. None
     /// whenever no such gesture is in flight, which is nearly always.
     DragPlacement : DragPlacement option
+    /// Set while the project browser is open, and None the rest of the time - which is how its
+    /// refresh timer knows to stop.
+    ProjectBrowser : ProjectBrowserState option
     /// Projects whose top-sheet choice popup the user has cancelled. Cancelling opens the sheet
     /// at default parameter values; the question is not asked again for that project.
     TopSheetChoiceDeclined : Set<string>
@@ -879,6 +901,7 @@ let uISheetTrail_ = Lens.create (fun a -> a.UISheetTrail) (fun s a -> {a with UI
 let savedSheetIsOutOfDate_ = Lens.create (fun a -> a.SavedSheetIsOutOfDate) (fun s a -> {a with SavedSheetIsOutOfDate = s})
 let pendingDragAddition_ = Lens.create (fun a -> a.PendingDragAddition) (fun s a -> {a with PendingDragAddition = s})
 let dragPlacement_ = Lens.create (fun a -> a.DragPlacement) (fun s a -> {a with DragPlacement = s})
+let projectBrowser_ = Lens.create (fun a -> a.ProjectBrowser) (fun s a -> {a with ProjectBrowser = s})
 let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (fun s a -> {a with TopSheetChoiceDeclined = s})
 let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})

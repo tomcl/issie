@@ -179,12 +179,10 @@ let private newProject model dispatch =
 
     
 
-/// The folder the browser is looking at. Kept in the dialog text rather than in a model field of
-/// its own, because ClosePopup already clears that: the browser cannot leave state behind it.
-let private browsingAt (model: Model) = getText model.PopupDialogData
-
-/// Bumped by Refresh, so that the same folder can be read again.
-let private browserGeneration (model: Model) = model.PopupDialogData.Int |> Option.defaultValue 0
+/// The folder the browser is looking at, and the counter that makes it look at the disk again.
+/// Empty when the browser is not open, which the popup never renders in.
+let private browserState (model: Model) =
+    model.ProjectBrowser |> Option.defaultValue { Folder = ""; Generation = 0 }
 
 type private BrowserListProps = {
     Folder: string
@@ -195,9 +193,10 @@ type private BrowserListProps = {
 
 /// The folders inside the one being browsed, each saying what Issie makes of it.
 ///
-/// Memoised on the folder and the refresh generation because reading a directory is a disk access
-/// and a popup body runs on every message: without this, browsing would re-read the filesystem
-/// continuously. Props holding functions are exactly what equalsButFunctions is for.
+/// Memoised on the folder and the generation. A popup body runs on every message, so without this
+/// every keystroke in the path field would list whatever prefix had been typed so far; with it,
+/// the disk is read when the folder changes and once a second thereafter. Props holding functions
+/// are exactly what equalsButFunctions is for.
 let private browserList =
     FunctionComponent.Of(
         (fun (props: BrowserListProps) ->
@@ -290,14 +289,14 @@ let rec private openChosenFolder (path: string) model dispatch =
 /// remains, as Browse, for the places this list will not reach: another drive, a share, anywhere
 /// worth typing rather than walking to.
 and private viewProjectBrowser (startFolder: string) model dispatch =
-    dispatch <| SetPopupDialogText (Some startFolder)
-    dispatch <| SetPopupDialogInt (Some 0)
+    dispatch <| SetProjectBrowserFolder startFolder
 
     let body =
         fun (model': Model) ->
-            let folder = browsingAt model'
+            let browser = browserState model'
+            let folder = browser.Folder
             let recents = model'.UserData.RecentProjects |> Option.defaultValue []
-            let goTo (path: string) = dispatch <| SetPopupDialogText (Some path)
+            let goTo (path: string) = dispatch <| SetProjectBrowserFolder path
             let openIt (path: string) =
                 dispatch ClosePopup
                 dispatch (Sheet (SheetT.SetSpinner true))
@@ -328,7 +327,7 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                         Input.text [
                             Input.Value folder
                             Input.Props [SpellCheck false; Style [FontFamily "monospace"]]
-                            Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+                            Input.OnChange (getTextEventValue >> SetProjectBrowserFolder >> dispatch)
                         ]
                     ]
                     Button.button [
@@ -336,14 +335,8 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                         Button.Disabled (isFilesystemRoot folder)
                         Button.OnClick (fun _ -> goTo (dirName folder))
                     ] [str "Up"]
-                    Button.button [
-                        Button.Size IsSmall
-                        Button.Props [Style [MarginLeft "4px"]]
-                        // re-read the same folder: the generation is what the memoised list
-                        // notices, since the path it is keyed on has not changed
-                        Button.OnClick (fun _ ->
-                            dispatch <| SetPopupDialogInt (Some (browserGeneration model' + 1)))
-                    ] [str "Refresh"]
+                    // No Refresh button: the folder is re-read once a second while this is open,
+                    // so a folder made or renamed outside Issie simply appears.
                     Button.button [
                         Button.Size IsSmall
                         Button.Props [Style [MarginLeft "4px"]]
@@ -361,7 +354,7 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
 
                 browserList {
                     Folder = folder
-                    Generation = browserGeneration model'
+                    Generation = browser.Generation
                     Open = openIt
                     Navigate = goTo
                 }

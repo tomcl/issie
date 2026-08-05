@@ -198,6 +198,25 @@ let update (msg : Msg) oldModel =
         |> set dragPlacement_ None
         |> withNoMsg
 
+    | SetProjectBrowserFolder folder ->
+        // One refresh chain at a time. Reopening the browser while the last chain is still in
+        // flight must not start a second one, or the folder would be read twice a second, then
+        // four times, and so on.
+        let chainAlreadyRunning = model.ProjectBrowser.IsSome
+        let model = model |> set projectBrowser_ (Some { Folder = folder; Generation = 0 })
+        if chainAlreadyRunning then
+            model |> withNoMsg
+        else
+            model, Cmd.ofMsg (DispatchDelayed (Constants.projectBrowserRefreshMs, TickProjectBrowser))
+
+    | TickProjectBrowser ->
+        match model.ProjectBrowser with
+        // the browser has closed, so the chain ends here rather than ticking on unseen
+        | None -> model |> withNoMsg
+        | Some browser ->
+            model |> set projectBrowser_ (Some { browser with Generation = browser.Generation + 1 }),
+            Cmd.ofMsg (DispatchDelayed (Constants.projectBrowserRefreshMs, TickProjectBrowser))
+
     | SetViewerWidth w ->
         {model with WaveSimViewerWidth = w}
         |> withNoMsg
@@ -472,6 +491,9 @@ let update (msg : Msg) oldModel =
         // nothing.
         { model with
             DragPlacement = None
+            // closing the project browser is what stops its refresh timer: the next tick finds
+            // this None and does not schedule another
+            ProjectBrowser = None
             PopupViewFunc = None;
             CodeEditorState = None
             PopupDialogData =

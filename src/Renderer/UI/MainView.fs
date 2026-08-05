@@ -91,6 +91,7 @@ let init() = {
     SavedSheetIsOutOfDate = false
     PendingDragAddition = None
     DragPlacement = None
+    ProjectBrowser = None
     TopSheetChoiceDeclined = Set.empty
     ComponentLibraries = ComponentLibraries.findLibraries ()
     OpenLibrary = None

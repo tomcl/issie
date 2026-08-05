@@ -67,35 +67,47 @@ let tests =
                     "the marker alone is enough")
         }
 
-        // A folder picker draws every folder alike, so the folder somebody chooses is as likely to
-        // be the one their projects live in as a project. This is what turns that near miss into
-        // the list of projects to pick from, rather than a refusal.
-        test "the projects inside a folder are found, and nothing else is" {
+        // What the project browser draws. A native folder picker cannot say which folders are
+        // projects, which is the whole reason Issie lists them itself.
+        test "a folder is listed with what each thing in it is, projects first" {
             withTempDir (fun folder ->
                 let sub name =
                     let p = System.IO.Path.Combine(folder, name)
                     System.IO.Directory.CreateDirectory p |> ignore
                     p
-                let marked = sub "adder"
-                touch marked "adder.dprj"
+                let marked = sub "zebra"                // named last, to prove projects sort first
+                touch marked "zebra.dprj"
                 touch marked "main.dgm"
+                touch marked "alu.dgm"
                 let unmarked = sub "orphan"
                 touch unmarked "main.dgm"
-                sub "notes" |> ignore                   // an ordinary folder
-                touch (sub "empty") ".keep"             // a folder with nothing Issie wants
-                touch folder "loose.dgm"                // a file, not a folder, and not recursed into
+                sub "notes" |> ignore                   // an ordinary folder: navigable, so listed
+                sub ".hidden" |> ignore                 // hidden: nobody keeps projects there
+                touch folder "loose.dgm"                // a file, so not a folder in the listing
 
-                let found = FilesIO.projectsWithin folder
-                Expect.equal (found |> List.map (fst >> System.IO.Path.GetFileName)) ["adder"; "orphan"]
-                    "both openable folders are offered, in name order, and nothing else is"
-                Expect.equal (found |> List.map snd) [FilesIO.IsProject; FilesIO.SheetsButNoMarker]
-                    "and each is labelled with what it is, since one of them lacks its marker")
+                let listed = FilesIO.listFolderForOpening folder
+                Expect.equal (listed |> List.map (fun e -> System.IO.Path.GetFileName e.Path))
+                    ["orphan"; "zebra"; "notes"]
+                    "openable folders first in name order, then ordinary ones; hidden and files omitted"
+                Expect.equal (listed |> List.map (fun e -> e.Kind))
+                    [FilesIO.SheetsButNoMarker; FilesIO.IsProject; FilesIO.NotAProject]
+                    "each says what it is, so the browser can mark it"
+                Expect.equal (listed |> List.map (fun e -> e.SheetCount)) [1; 2; 0]
+                    "and how many sheets it holds, which is what tells two projects apart")
         }
 
-        test "a folder with nothing openable inside offers nothing" {
+        test "a folder holding nothing lists nothing" {
             withTempDir (fun folder ->
-                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(folder, "notes")) |> ignore
-                Expect.isEmpty (FilesIO.projectsWithin folder) "an ordinary folder is not offered")
+                Expect.isEmpty (FilesIO.listFolderForOpening folder) "an empty folder lists nothing")
+        }
+
+        test "a path that is not a folder lists nothing rather than failing" {
+            withTempDir (fun folder ->
+                touch folder "a.dgm"
+                let notAFolder = System.IO.Path.Combine(folder, "a.dgm")
+                Expect.isEmpty (FilesIO.listFolderForOpening notAFolder) "a file has nothing inside it"
+                Expect.isEmpty (FilesIO.listFolderForOpening (System.IO.Path.Combine(folder, "nope")))
+                    "nor does a path that is not there")
         }
 
         test "a project's marker is named after its folder" {

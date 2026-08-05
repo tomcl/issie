@@ -179,13 +179,71 @@ let private newProject model dispatch =
 
     
 
+/// The folder the browser is looking at. Kept in the dialog text rather than in a model field of
+/// its own, because ClosePopup already clears that: the browser cannot leave state behind it.
+let private browsingAt (model: Model) = getText model.PopupDialogData
+
+/// Bumped by Refresh, so that the same folder can be read again.
+let private browserGeneration (model: Model) = model.PopupDialogData.Int |> Option.defaultValue 0
+
+type private BrowserListProps = {
+    Folder: string
+    Generation: int
+    Open: string -> unit
+    Navigate: string -> unit
+}
+
+/// The folders inside the one being browsed, each saying what Issie makes of it.
+///
+/// Memoised on the folder and the refresh generation because reading a directory is a disk access
+/// and a popup body runs on every message: without this, browsing would re-read the filesystem
+/// continuously. Props holding functions are exactly what equalsButFunctions is for.
+let private browserList =
+    FunctionComponent.Of(
+        (fun (props: BrowserListProps) ->
+            if not (isDirectory props.Folder) then
+                div [Style [Color "red"; Padding "8px 0"]] [str "That folder does not exist."]
+            else
+                match listFolderForOpening props.Folder with
+                | [] ->
+                    div [Style [Color "grey"; Padding "8px 0"]]
+                        [str "Nothing in this folder. Go up, or type a path above."]
+                | entries ->
+                    Menu.menu [] [
+                        Menu.list []
+                            (entries |> List.map (fun entry ->
+                                let name = baseName entry.Path
+                                let sheets =
+                                    if entry.SheetCount = 1 then "1 sheet" else $"{entry.SheetCount} sheets"
+                                let label, note, act =
+                                    match entry.Kind with
+                                    | IsProject ->
+                                        b [] [str name], span [Style [Color "grey"]] [str sheets], props.Open
+                                    | SheetsButNoMarker ->
+                                        b [] [str name],
+                                        span [Style [Color "darkorange"]] [str $"{sheets}, no project file"],
+                                        props.Open
+                                    // an ordinary folder is not a dead end: it is where the next
+                                    // level of browsing goes
+                                    | NotAProject ->
+                                        span [Style [Color "dimgrey"]] [str name],
+                                        span [Style [Color "grey"]] [str "›"],
+                                        props.Navigate
+                                Menu.Item.li
+                                    [ Menu.Item.IsActive false
+                                      Menu.Item.OnClick (fun _ -> act entry.Path) ]
+                                    [ div [Style [Display DisplayOptions.Flex; JustifyContent "space-between"]]
+                                          [ label; note ] ]))
+                    ]),
+        "ProjectBrowserList",
+        Fable.React.Helpers.equalsButFunctions)
+
 /// Open the folder the user chose, which may not be a project.
 ///
-/// A folder picker draws every folder alike, so what comes back has to be judged rather than
-/// assumed: it may be a project, a project whose marker has been lost, the folder the user's
-/// projects live IN, or nothing to do with Issie. Only the last is a dead end, and even that is
-/// said out loud. Recursive because choosing from the projects found inside a folder arrives back
-/// here, and one of those may itself be missing its marker.
+/// What is chosen has to be judged rather than assumed: it may be a project, a project whose
+/// marker has been lost, or a folder that merely contains projects. The last is not a refusal -
+/// it is where browsing continues. Mutually recursive with the browser, since the browser opens
+/// folders and an unopenable folder puts the browser back.
 let rec private openChosenFolder (path: string) model dispatch =
     /// Turning the spinner back off: it is put on in the hope of showing during a load, and every
     /// way out of here that does not load something would otherwise leave it spinning over an
@@ -217,65 +275,111 @@ let rec private openChosenFolder (path: string) model dispatch =
                 openProjectFromPath path model dispatch)
             dispatch
 
+    // Not something to open, so it is something to look inside: browsing continues there. This is
+    // the case a native folder picker cannot help with, since it draws the folder holding your
+    // projects exactly like the projects themselves.
     | NotAProject ->
         giveUp ()
-        match projectsWithin path with
-        | [] ->
-            closablePopup
-                "Not an Issie project"
-                (div [] [
-                    str $"'{path}' is not an Issie project, and holds none."
-                    br []; br []
-                    str "An Issie project is a folder of .dgm sheet files, marked by a .dprj file \
-                         of the same name as the folder. Choose such a folder, or the folder your \
-                         projects are kept in." ])
-                (div [] [])
-                []
-                dispatch
-        | found ->
-            // The folder the projects live in, which is at least as likely a thing to browse to as
-            // a project itself - and which the picker gives no way to tell apart from one. Offering
-            // what is inside turns the near miss into the thing that was wanted.
-            closablePopup
-                "Projects in this folder"
-                (div [] [
-                    str $"'{path}' is not itself an Issie project, but it contains these. \
-                          Choose one to open it."
-                    br []; br []
-                    Menu.menu [] [
-                        Menu.list []
-                            (found |> List.map (fun (projectPath, kind) ->
-                                Menu.Item.li
-                                    [ Menu.Item.IsActive false
-                                      Menu.Item.OnClick (fun _ ->
-                                        dispatch ClosePopup
-                                        dispatch (Sheet (SheetT.SetSpinner true))
-                                        openChosenFolder projectPath model dispatch) ]
-                                    [ div [] [
-                                        str (baseName projectPath)
-                                        match kind with
-                                        | SheetsButNoMarker ->
-                                            span [Style [Color "grey"; MarginLeft "8px"]]
-                                                 [str "(sheets, but no project file)"]
-                                        | _ -> null ] ]))
-                    ] ])
-                (div [] [])
-                []
-                dispatch
+        viewProjectBrowser path model dispatch
+
+/// Choose a project to open, from a list Issie draws itself.
+///
+/// A native folder picker cannot show which folders are projects - it has no idea - so browsing in
+/// one is guesswork until something is chosen. Here every folder says what it is before it is
+/// picked, and an ordinary folder is a way further in rather than a mistake. The system dialog
+/// remains, as Browse, for the places this list will not reach: another drive, a share, anywhere
+/// worth typing rather than walking to.
+and private viewProjectBrowser (startFolder: string) model dispatch =
+    dispatch <| SetPopupDialogText (Some startFolder)
+    dispatch <| SetPopupDialogInt (Some 0)
+
+    let body =
+        fun (model': Model) ->
+            let folder = browsingAt model'
+            let recents = model'.UserData.RecentProjects |> Option.defaultValue []
+            let goTo (path: string) = dispatch <| SetPopupDialogText (Some path)
+            let openIt (path: string) =
+                dispatch ClosePopup
+                dispatch (Sheet (SheetT.SetSpinner true))
+                // model' rather than the model this popup was opened with: opening reads the
+                // recent list to add to it, and the popup outlives whatever else has happened
+                openChosenFolder path model' dispatch
+            div [] [
+                if not (List.isEmpty recents) then
+                    div [Style [MarginBottom "10px"]] [
+                        b [] [str "Recent"]
+                        Menu.menu [] [
+                            Menu.list []
+                                (recents |> List.map (fun path ->
+                                    Menu.Item.li
+                                        [ Menu.Item.IsActive false
+                                          Menu.Item.OnClick (fun _ -> openIt path) ]
+                                        [ div [HTMLAttr.Title path]
+                                              [str (cropToLength Constants.maxDisplayedPathLengthInRecentProjects false path)] ]))
+                        ]
+                    ]
+                    hr []
+
+                b [] [str "Folder"]
+                div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "8px"]] [
+                    // typed as well as walked to, which is how another drive or a share is reached
+                    // without this becoming a file manager
+                    div [Style [Flex "1"; MarginRight "8px"]] [
+                        Input.text [
+                            Input.Value folder
+                            Input.Props [SpellCheck false; Style [FontFamily "monospace"]]
+                            Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+                        ]
+                    ]
+                    Button.button [
+                        Button.Size IsSmall
+                        Button.Disabled (isFilesystemRoot folder)
+                        Button.OnClick (fun _ -> goTo (dirName folder))
+                    ] [str "Up"]
+                    Button.button [
+                        Button.Size IsSmall
+                        Button.Props [Style [MarginLeft "4px"]]
+                        // re-read the same folder: the generation is what the memoised list
+                        // notices, since the path it is keyed on has not changed
+                        Button.OnClick (fun _ ->
+                            dispatch <| SetPopupDialogInt (Some (browserGeneration model' + 1)))
+                    ] [str "Refresh"]
+                    Button.button [
+                        Button.Size IsSmall
+                        Button.Props [Style [MarginLeft "4px"]]
+                        Button.OnClick (fun _ ->
+                            askForFolder "Choose a project folder, or a folder of projects" "Use this folder"
+                                (Some folder)
+                            |> Option.iter (fun chosen ->
+                                // whatever was chosen, honour the intent: open it if it can be
+                                // opened, otherwise carry on browsing from there
+                                match inspectProjectDirectory chosen with
+                                | NotAProject -> goTo chosen
+                                | _ -> openIt chosen))
+                    ] [str "Browse..."]
+                ]
+
+                browserList {
+                    Folder = folder
+                    Generation = browserGeneration model'
+                    Open = openIt
+                    Navigate = goTo
+                }
+            ]
+
+    dynamicClosablePopup "Open project" body (fun _ -> div [] []) [Width "640px"] dispatch
 
 /// open an existing project
 let private openProject model dispatch =
-    //trying to force the spinner to load earlier
-    //doesn't really work right now
     warnAppWidth dispatch (fun _ ->
-    dispatch (Sheet (SheetT.SetSpinner true))
-    let dirName =
-        match Option.map readFilesFromDirectory model.UserData.LastUsedDirectory with
-        | Some [] | None -> None
-        | _ -> model.UserData.LastUsedDirectory
-    match askForExistingProjectPath dirName with
-    | None -> dispatch (Sheet (SheetT.SetSpinner false)) // User gave no path.
-    | Some path -> openChosenFolder path model dispatch)
+    // Where this user keeps their projects: the folder holding the last one they had open, which
+    // is where the next one almost always is. The project itself would show only its sheets.
+    let start =
+        model.UserData.LastUsedDirectory
+        |> Option.filter isDirectory
+        |> Option.map dirName
+        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+    viewProjectBrowser start model dispatch)
 
 /// Close current project, if any.
 let forceCloseProject (model:Model) dispatch =

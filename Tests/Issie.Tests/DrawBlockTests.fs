@@ -221,6 +221,39 @@ let tests =
             Expect.equal committed.SelectedComponents [ sym.Id ] "and is left selected"
         }
 
+        // A bus select is drawn small - half a grid square high - because it sits in the middle of
+        // wiring laid out around it. Nothing is written inside a body that thin, and rotated it is
+        // thinner still: the bit range goes beside it. Were the range ever moved inside, a rotated
+        // bus select would be 15 pixels wide holding 45 pixels of text.
+        test "a bus select stays small and holds no text, whatever range it selects" {
+            [ 1, 0; 4, 0; 8, 0; 1, 31; 16, 16; 32, 0; 8, 1024 ]
+            |> List.iter (fun (nBits, lsb) ->
+                let ct = BusSelection (nBits, lsb)
+                let comp = Symbol.makeComponent { X = 0.; Y = 0. } ct $"id{nBits}_{lsb}" "SEL"
+                Expect.equal (Symbol.getComponentLegend ct Degree0) ""
+                    "nothing is drawn inside the body, so no rotation of it can clip anything"
+                Expect.equal comp.H (float Symbol.Constants.gridSize / 2.)
+                    "it stays as thin as the line it replaced, so no sheet holding one reflows"
+                Expect.equal comp.W (float Symbol.Constants.gridSize * 2.)
+                    "and as wide, for the same reason"
+                Expect.stringContains (Symbol.busSelectTitle nBits lsb) (string lsb)
+                    "the range drawn beside it names the lsb")
+        }
+
+        // The spreader is the other way about: rare enough to be spelled out, so it is a body of
+        // the usual size with a name on each port, and the wire shape it used to be drawn as is
+        // gone. What matters is that the ports still exist and still say which is which.
+        test "the bus spreader is a body with a named port on each side" {
+            let comp = Symbol.makeComponent { X = 0.; Y = 0. } (NbitSpreader 8) "id" "S1"
+            let inNames, outNames = CanvasStateAnalyser.portNames (NbitSpreader 8)
+            Expect.equal inNames [ "IN" ] "the input is named"
+            Expect.equal outNames [ "OUT" ] "and so is the output"
+            Expect.hasLength comp.InputPorts 1 "one input port"
+            Expect.hasLength comp.OutputPorts 1 "one output port"
+            Expect.stringContains (Symbol.getComponentLegend (NbitSpreader 8) Degree0) "8"
+                "the legend names the width it spreads to"
+        }
+
         test "the separation pass leaves every wire connected and orthogonal" {
             // separation is the pass that nudges parallel wires apart, and the one most likely
             // to move a segment somewhere it should not go

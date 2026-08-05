@@ -60,16 +60,6 @@ module Constants =
             FontFamily = "Verdana"; 
             FontWeight="500"}
 
-    /// Most fonts now work perfectly - see playground.fs for some tests - add more as needed.
-    /// Style used by bus select bit legends
-    let busSelectStyle: Text = 
-        {defaultText with 
-            TextAnchor = "start"; 
-            FontSize = "12px"; 
-            FontFamily = "helvetica"; 
-            FontWeight="600"}
-
-
     /// Offset between label position and symbol. This is also used as a margin for the label bounding box.
     let componentLabelOffsetDistance: float =  // offset from symbol outline, otehr parameters scale correctly
         if testShowLabelBoundingBoxes then 0. else 7.
@@ -193,10 +183,15 @@ let getSymbolColour compType clocked (theme:ThemeType) =
             -> "lightblue"  //for clocked components
         |Input _ |Input1 (_,_) |Output _ |Viewer _ |Constant _ |Constant1 _ 
             -> "#E8D0A9"  //dark orange: for IO
-        | SplitWire _ | MergeWires | BusSelection _ | NbitSpreader _ | IOLabel | NotConnected ->
+        | SplitWire _ | MergeWires | NotConnected ->
             "rgb(120,120,120)"
-        | MergeN _| SplitN _ -> 
+        | MergeN _| SplitN _ ->
             "lightgray"
+        // The spreader, the bus select and the net label are drawn as bodies rather than as wire
+        // shapes, and being combinational they are drawn in the combinational colour below - the
+        // dark grey above is a stroke colour, and text on it would be the same grey (outlineColor
+        // leaves it alone) on a nearly black fill. A net label is a body too, if a thin one: a
+        // rectangle it can fill when selected rather than a line to recolour.
         | _ -> "rgba(255,255,217,1)" //lightyellow: for combinational components
 
 
@@ -283,10 +278,9 @@ let nBitsGateTitle (gateType:string) (n:int) : string =
     |_ -> (string n) + "-bit." + gateType+ "-N"
 
 ///Insert titles for bus select
-/// used once 
-let busSelectTitle (wob:int) (lsb:int) : string = 
+let busSelectTitle (wob:int) (lsb:int) : string =
     match wob with
-    | 1 -> $"{lsb}"
+    | 1 -> $"({lsb})"
     | _ when wob > 1 -> $"({wob+lsb-1}:{lsb})"
     | _ -> failwith "non positive bus width in bustitle"
 
@@ -381,6 +375,12 @@ let getComponentLegend (componentType:ComponentType) (rotation:Rotation) =
     | Custom x -> x.Name.ToUpper()
     | MergeN _ -> "Merge"
     | SplitN _ -> "Split"
+    // Says the whole of what the component does, and says it the same way up whatever the symbol
+    // is rotated to - which a shape cannot do, since two shapes that are mirror images become each
+    // other at 180 degrees. It was drawn as a length of wire until now, with this text floating
+    // beside it at one of four hand-placed offsets.
+    | NbitSpreader 1 -> "Spread"
+    | NbitSpreader n -> $"Spread.1→{n}"
     | _ -> ""
 
 
@@ -617,7 +617,10 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | Demux2 ->( 2  , 2, 3.*gS ,  2.*gS) 
     | Demux4 -> ( 2  , 4, 8. * gS ,  2.*gS) 
     | Demux8 -> ( 2  , 8, 16.*gS ,  2.*gS) 
-    | BusSelection (a, b) -> (  1 , 1, gS/2.,  2.*gS) 
+    // exactly as thin as the line it used to be drawn as: a bus select sits in the middle of
+    // wiring laid out around a half-square-high symbol, and growing it walks it into its
+    // neighbours on every sheet that has one
+    | BusSelection (a, b) -> (  1 , 1, gS/2.,  2.*gS)
     | BusCompare _ | BusCompare1 _ -> ( 1 , 1, gS ,  2.*gS) 
     | DFF -> (  1 , 1, 2.5*gS, 2.5*gS) 
     | DFFE -> ( 2  , 1, 2.5*gS  , 2.5*gS) 
@@ -632,7 +635,9 @@ let getComponentProperties (compType:ComponentType) (label: string)=
     | RAM1 (a) | AsyncRAM1 a -> ( 3 , 1, 4.*gS  , 5.*gS) 
     | NbitsXor (n, _) | NbitsOr (n) |NbitsAnd (n) -> (  2 , 1, 4.*gS  , 4.*gS) 
     | NbitsNot (n)  -> (  1 , 1, 3.*gS  , 4.*gS) 
-    | NbitSpreader (n) -> (1, 1, 2.*gS, 2.*gS)
+    // the footprint of a Register, which is also one in and one out with a name for each: this is
+    // a component rarely enough used to be worth spelling out rather than compressing
+    | NbitSpreader _ -> (1, 1, 2.*gS, 4.*gS)
     | NbitsAdder (n) -> (  3 , 2, 3.*gS  , 4.*gS)
     |NbitsAdderNoCin (n) -> (  2 , 2, 3.*gS  , 4.*gS)
     | NbitsAdderNoCout (n)-> (  3 , 1, 3.*gS  , 4.*gS)

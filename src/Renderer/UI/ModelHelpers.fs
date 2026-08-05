@@ -13,6 +13,11 @@ open SimTypes
 
 
 module Constants =
+    /// How often the project browser re-reads the folder it is showing, so that a folder made or
+    /// renamed outside Issie appears without being asked for. Listing a folder is one directory
+    /// read plus one per subfolder in it - a millisecond or so for an ordinary folder, and 14ms
+    /// for the worst one on a typical Windows machine - so this costs nothing worth measuring.
+    let projectBrowserRefreshMs = 1000
     /// Needed to prevent possible overrun of simulation arrays
     let multipliers = [1;2;5;10;20;50;100;200;500;1000]
     let maxStepsOverflow = 3

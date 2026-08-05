@@ -179,57 +179,103 @@ let private newProject model dispatch =
 
     
 
-/// open an existing project
+/// Open the folder the user chose, which may not be a project.
 ///
-/// The dialog asks for a folder, so a folder is what has to be checked: it may hold no sheets at
-/// all, and it may hold sheets without the marker that says it is a project. Neither is a reason
-/// to say nothing, which is what a filtered file dialog did by simply refusing to offer it.
+/// A folder picker draws every folder alike, so what comes back has to be judged rather than
+/// assumed: it may be a project, a project whose marker has been lost, the folder the user's
+/// projects live IN, or nothing to do with Issie. Only the last is a dead end, and even that is
+/// said out loud. Recursive because choosing from the projects found inside a folder arrives back
+/// here, and one of those may itself be missing its marker.
+let rec private openChosenFolder (path: string) model dispatch =
+    /// Turning the spinner back off: it is put on in the hope of showing during a load, and every
+    /// way out of here that does not load something would otherwise leave it spinning over an
+    /// unchanged app.
+    let giveUp () = dispatch (Sheet (SheetT.SetSpinner false))
+    match inspectProjectDirectory path with
+    | IsProject -> openProjectFromPath path model dispatch
+
+    | SheetsButNoMarker ->
+        // Loadable, and worth loading: the sheets are the project. The marker is what says so to
+        // everything that has only the folder to go on, so offer to put it back rather than either
+        // refusing the folder or writing to it uninvited.
+        giveUp ()
+        choicePopup
+            "Add the missing project file?"
+            (div [] [
+                str $"'{baseName path}' holds Issie sheets but no .dprj project file, which is \
+                      what marks a folder as an Issie project."
+                br []; br []
+                str $"Issie can open it either way. Adding {baseName path}.dprj lets it be \
+                      recognised as a project in future." ])
+            "Add it and open"
+            "Open without it"
+            (fun addMarker _ ->
+                dispatch ClosePopup
+                if addMarker then
+                    writeFile (projectMarkerPath path) ""
+                    |> Notifications.displayAlertOnError dispatch
+                openProjectFromPath path model dispatch)
+            dispatch
+
+    | NotAProject ->
+        giveUp ()
+        match projectsWithin path with
+        | [] ->
+            closablePopup
+                "Not an Issie project"
+                (div [] [
+                    str $"'{path}' is not an Issie project, and holds none."
+                    br []; br []
+                    str "An Issie project is a folder of .dgm sheet files, marked by a .dprj file \
+                         of the same name as the folder. Choose such a folder, or the folder your \
+                         projects are kept in." ])
+                (div [] [])
+                []
+                dispatch
+        | found ->
+            // The folder the projects live in, which is at least as likely a thing to browse to as
+            // a project itself - and which the picker gives no way to tell apart from one. Offering
+            // what is inside turns the near miss into the thing that was wanted.
+            closablePopup
+                "Projects in this folder"
+                (div [] [
+                    str $"'{path}' is not itself an Issie project, but it contains these. \
+                          Choose one to open it."
+                    br []; br []
+                    Menu.menu [] [
+                        Menu.list []
+                            (found |> List.map (fun (projectPath, kind) ->
+                                Menu.Item.li
+                                    [ Menu.Item.IsActive false
+                                      Menu.Item.OnClick (fun _ ->
+                                        dispatch ClosePopup
+                                        dispatch (Sheet (SheetT.SetSpinner true))
+                                        openChosenFolder projectPath model dispatch) ]
+                                    [ div [] [
+                                        str (baseName projectPath)
+                                        match kind with
+                                        | SheetsButNoMarker ->
+                                            span [Style [Color "grey"; MarginLeft "8px"]]
+                                                 [str "(sheets, but no project file)"]
+                                        | _ -> null ] ]))
+                    ] ])
+                (div [] [])
+                []
+                dispatch
+
+/// open an existing project
 let private openProject model dispatch =
     //trying to force the spinner to load earlier
     //doesn't really work right now
     warnAppWidth dispatch (fun _ ->
     dispatch (Sheet (SheetT.SetSpinner true))
-    /// Every way out of here that does not open a project has to put the spinner back: it is
-    /// turned on above in the hope of showing during the load, and a load that never starts would
-    /// otherwise leave it spinning over an unchanged app.
-    let giveUp () = dispatch (Sheet (SheetT.SetSpinner false))
     let dirName =
         match Option.map readFilesFromDirectory model.UserData.LastUsedDirectory with
         | Some [] | None -> None
         | _ -> model.UserData.LastUsedDirectory
     match askForExistingProjectPath dirName with
-    | None -> giveUp () // User gave no path.
-    | Some path ->
-        match inspectProjectDirectory path with
-        | IsProject -> openProjectFromPath path model dispatch
-        | NotAProject ->
-            giveUp ()
-            displayFileErrorNotification
-                $"'{path}' holds no Issie sheets, so there is no project here to open. \
-                  An Issie project is a folder of .dgm sheet files."
-                dispatch
-        | SheetsButNoMarker ->
-            // Loadable, and worth loading: the sheets are the project. The marker is what says so
-            // to everything that has only the folder to go on, so offer to put it back rather
-            // than either refusing the folder or writing to it uninvited.
-            giveUp ()
-            choicePopup
-                "Add the missing project file?"
-                (div [] [
-                    str $"'{path}' holds Issie sheets but no .dprj project file, which is what \
-                          marks a folder as an Issie project."
-                    br []; br []
-                    str $"Issie can open it either way. Adding {baseName path}.dprj lets it be \
-                          recognised as a project in future." ])
-                "Add it and open"
-                "Open without it"
-                (fun addMarker _ ->
-                    dispatch ClosePopup
-                    if addMarker then
-                        writeFile (projectMarkerPath path) ""
-                        |> Notifications.displayAlertOnError dispatch
-                    openProjectFromPath path model dispatch)
-                dispatch)
+    | None -> dispatch (Sheet (SheetT.SetSpinner false)) // User gave no path.
+    | Some path -> openChosenFolder path model dispatch)
 
 /// Close current project, if any.
 let forceCloseProject (model:Model) dispatch =

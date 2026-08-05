@@ -297,6 +297,29 @@ let readFilesFromDirectory (path:string) : string list =
         printf $"Warning: readFilesFromDirectory has 'path'='{path}' and this directory does not exist."
         []
 
+/// The immediate subdirectories of a folder, as full paths. [] if it cannot be read.
+///
+/// Deliberately not readdir: under .NET that is Directory.GetFiles, which lists files only, while
+/// node's readdirSync lists directories too. Anything looking for subfolders through readdir
+/// therefore works in the app and finds nothing under test - which is how this function came to
+/// exist.
+let readSubdirectories (folderPath: string) : string list =
+    if not (isDirectory folderPath) then
+        []
+    else
+        try
+            #if FABLE_COMPILER
+            fs.readdirSync (U2.Case1 folderPath)
+            |> Seq.toList
+            |> List.map (fun name -> pathJoin [| folderPath; name |])
+            |> List.filter isDirectory
+            #else
+            Directory.GetDirectories folderPath |> Array.toList
+            #endif
+        with e ->
+            printf $"Warning: readSubdirectories failed on '{folderPath}': {e.Message}"
+            []
+
 let hasExtn extn fName =
     (String.toLower fName).EndsWith (String.toLower extn)
 
@@ -335,6 +358,18 @@ let inspectProjectDirectory (path: string) : ProjectDirectory =
 /// The empty file that marks a directory as an Issie project, named after the directory.
 let projectMarkerPath (projectPath: string) =
     pathJoin [| projectPath; baseName projectPath + ".dprj" |]
+
+/// The immediate subdirectories of `path` that Issie could open, and what each of them is.
+///
+/// A folder picker shows every folder alike, so the folder somebody browses to is as likely to be
+/// the one their projects live in as a project itself. This is what lets that be answered with the
+/// projects rather than with a refusal. One level only: it answers "you have picked the folder
+/// your projects are in", not "search my disk".
+let projectsWithin (path: string) : (string * ProjectDirectory) list =
+    readSubdirectories path
+    |> List.map (fun dir -> dir, inspectProjectDirectory dir)
+    |> List.filter (fun (_, kind) -> kind <> NotAProject)
+    |> List.sortBy fst
 
 let removeExtn extn fName = 
     if hasExtn extn fName
@@ -450,8 +485,10 @@ let private makeFileFilters (name : string) (extn : string) =
 /// impossible even though loading a project never reads it.
 let askForExistingProjectPath (defaultPath: string option) : string option =
     let options = createEmpty<OpenDialogSyncOptions>
-    options.title <- Some "Open ISSIE project folder"
-    options.buttonLabel <- Some "Open project"
+    // A folder picker draws every folder the same, so it cannot show which ones hold projects.
+    // The title says that the folder they are in will do, which is what Issie then acts on.
+    options.title <- Some "Choose an ISSIE project folder, or a folder containing projects"
+    options.buttonLabel <- Some "Open"
     options.properties <- Some [| OpenDialogOptionsPropertiesArray.OpenDirectory |]
     options.defaultPath <-
         defaultPath

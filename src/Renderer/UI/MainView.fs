@@ -441,7 +441,11 @@ let displayView model dispatch =
     if model.CurrentProj = None  (* (((purgeTime - lastPurgeTime) > 10000.) && (JSHelpers.Memory.getProcessMemory() > 500))*) then
         div [HTMLAttr.Id "OpenProject"] [
                 TopMenuView.viewNoProjectMenu model dispatch
-                UIPopups.viewPopup model dispatch ]
+                UIPopups.viewPopup model dispatch
+                // Notifications were drawn only once a project was open, so anything that went
+                // wrong on the way to opening one - the screen where opening is all there is to
+                // do - set a notification that nothing rendered, and looked like silence.
+                Notifications.viewNotifications model dispatch ]
     elif model.TopMenuOpenState = TransientClosed then
         JSHelpers.delayedDispatch dispatch 1000 (SetTopMenu Closed) |> ignore
         div [] []

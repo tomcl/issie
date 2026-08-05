@@ -367,7 +367,7 @@ let showDemoProjects model dispatch (demosInfo : (string * int * int) list) =
                             ]
                         | "registerFile" ->
                             div [] [
-                                str "regx16x8 file from EEP1 demo using wire labels to simplify wiring"
+                                str "regx16x8 file from EEP1 demo using net labels to simplify wiring"
                             ]
                         | "adder (4-bit)" ->
                             div [] [

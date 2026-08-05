@@ -169,8 +169,7 @@ let private  viewRightTab canvasState model dispatch =
         div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
             Heading.h4 [] [ str "Catalogue" ]
             div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ] 
-                [ str "Drag a component onto the diagram, or click it and then click where it should \
-                       go. Hover on components for details." ]
+                [ str "Drag components to sheet, or click and click to drop. Hover for details." ]
             CatalogueView.viewCatalogue model dispatch
         ]
         

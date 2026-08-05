@@ -30,6 +30,8 @@ open TopMenuView
 open MenuHelpers
 open SheetCreator
 open ParameterTypes
+open Optics
+open Optics.Operators
 
 NearleyBindings.importGrammar
 NearleyBindings.importFix
@@ -38,34 +40,79 @@ NearleyBindings.importParser
 module Constants =
     let maxGateInputs = 19
     let maxSplitMergeBranches = 19
+    /// The size a library component is carried at before its sheet has been read - see GhostBox.
+    let ghostBoxW = 100.
+    let ghostBoxH = 60.
+    /// The colour the draw block gives a symbol dragged on top of another. A carried component
+    /// that would land on one is drawn in it, and for the same reason: it cannot be dropped there.
+    let ghostErrorColour = "Red"
 
 let menuItem styles label onClick =
     Menu.Item.li
         [ Menu.Item.IsActive false; Menu.Item.Props [ OnClick onClick; Style styles ] ]
         [ str label ]
 
-/// Where on the sheet a pointer release landed, if it landed on the canvas at all. Releasing
-/// anywhere else - over the catalogue, the menu bar, outside the window - places nothing, which
-/// is what lets a drag be abandoned by dropping it nowhere.
-let private dropPosOnCanvas (ev: Browser.Types.PointerEvent) (model: Model) : XYPos option =
+/// Where on the sheet a point on the screen is, if it is over the canvas at all. A gesture that
+/// ends anywhere else - over the catalogue, the menu bar, outside the window - is over no position
+/// on the sheet and places nothing, which is what lets a drag be abandoned by dropping it nowhere.
+///
+/// This is the conversion the canvas applies to its own mouse events - SheetDisplay.getDrawBlockPos
+/// - except that the scroll is read from the canvas rather than from the sheet model. The model's
+/// copy of it is refreshed by Sheet.update, and a catalogue drag sends the sheet nothing, so during
+/// one it can be as old as the last thing done to the sheet: after opening a project and going
+/// straight to the catalogue it still holds the scroll the sheet was created with.
+let private sheetPosOfCursor (cursor: XYPos) (sheet: SheetT.Model) : XYPos option =
     match Browser.Dom.document.getElementById "Canvas" with
     | null -> None
     | canvas ->
         let box = canvas.getBoundingClientRect ()
-        match ev.clientX >= box.left && ev.clientX <= box.right
-              && ev.clientY >= box.top && ev.clientY <= box.bottom with
+        match cursor.X >= box.left && cursor.X <= box.right
+              && cursor.Y >= box.top && cursor.Y <= box.bottom with
         | false -> None
-        // The conversion the canvas applies to its own mouse events, so a drop lands under the
-        // pointer however the sheet happens to be scrolled or zoomed.
-        | true -> Some (SheetDisplay.getDrawBlockPos ev getHeaderHeight model.Sheet)
+        | true ->
+            Some {
+                X = (cursor.X + canvas.scrollLeft) / sheet.Zoom
+                Y = (cursor.Y - getHeaderHeight + canvas.scrollTop) / sheet.Zoom
+            }
+
+/// The space a carried component would take up on the sheet if it were dropped at `sheetPos`.
+///
+/// For a symbol this is the box of the symbol that would be created there, worked out by creating
+/// it: a component's size depends on its ports and on the text in it, so anything else here would
+/// be a second, disagreeing, opinion of how big it is.
+let private ghostBoundingBox (model: Model) (ghost: DragGhost) (sheetPos: XYPos) : BoundingBox =
+    match ghost with
+    | GhostSymbol compType ->
+        Symbol.createNewSymbol (tryGetLoadedComponents model) sheetPos compType "" model.Sheet.Wire.Symbol.Theme
+        |> Symbol.getSymbolBoundingBox
+    | GhostBox _ ->
+        {
+            TopLeft = { X = sheetPos.X - Constants.ghostBoxW / 2.; Y = sheetPos.Y - Constants.ghostBoxH / 2. }
+            W = Constants.ghostBoxW
+            H = Constants.ghostBoxH
+        }
+
+/// Whether a component carried to this point would land on top of one already on the sheet.
+///
+/// The sheet refuses to place a component over another, so a drag that would do it is shown as
+/// refused - the ghost turns red - and releasing it does nothing at all.
+let private ghostOverlaps (model: Model) (ghost: DragGhost) (cursor: XYPos) : bool =
+    match sheetPosOfCursor cursor model.Sheet with
+    | None -> false
+    | Some sheetPos ->
+        let box = ghostBoundingBox model ghost sheetPos
+        model.Sheet.BoundingBoxes
+        |> Map.exists (fun _ symbolBox -> DrawHelpers.boxesIntersect symbolBox box)
 
 /// A catalogue item that places a component. `place` is what the item does when it is asked for -
 /// create the component, or open the popup that will - and it runs when the gesture ends.
 ///
 /// Click and drag are one gesture here: a click is a drag that ended somewhere other than the
-/// canvas, and both end in the same call to `place`. Both are driven from pointer events rather
-/// than a click handler because the capture taken on press retargets the click to this item even
-/// when the release was over the canvas, so an OnClick would fire a second time for every drop.
+/// canvas, and both end in the same call to `place`. The exception is a drag released over a
+/// component already on the sheet, which is refused and calls nothing. Both are driven from pointer
+/// events rather than a click handler because the capture taken on press retargets the click to
+/// this item even when the release was over the canvas, so an OnClick would fire a second time for
+/// every drop.
 let private placementItem styles (ghost: DragGhost) label (place: unit -> unit) (model: Model) dispatch =
     /// Whether this item is the one being carried, marked on the element by its own press and
     /// unmarked when that press ends.
@@ -100,12 +147,21 @@ let private placementItem styles (ghost: DragGhost) label (place: unit -> unit) 
             OnPointerUp (fun ev ->
                 if carryingThis ev then
                     setCarrying ev false
-                    // Released over the canvas, the component goes where it was dropped; released
-                    // anywhere else, this was a click, and it follows the cursor as it always has.
-                    match dropPosOnCanvas ev model with
-                    | Some pos -> dispatch (DropDragPlacement pos)
-                    | None -> dispatch EndDragPlacement
-                    place ())
+                    let cursor = { X = ev.clientX; Y = ev.clientY }
+                    match ghostOverlaps model ghost cursor with
+                    // The release the red ghost is warning about. Nothing happens at all: `place`
+                    // is not called, so a component that asks a popup for its parameters does not
+                    // ask for a placement that is not going to happen. The popup belongs to a
+                    // placement that succeeds.
+                    | true -> dispatch EndDragPlacement
+                    | false ->
+                        // Released over free canvas the component goes where it was dropped;
+                        // released off the canvas this was a click, and the component follows the
+                        // cursor as it always has.
+                        match sheetPosOfCursor cursor model.Sheet with
+                        | Some pos -> dispatch (DropDragPlacement pos)
+                        | None -> dispatch EndDragPlacement
+                        place ())
             // A gesture the system takes away - a touch turning into a scroll, the window losing
             // the pointer - places nothing, exactly as a release off the canvas does.
             OnPointerCancel (fun ev ->
@@ -418,6 +474,108 @@ let private createIOPopup hasInt typeStr compType (model:Model) dispatch =
                 getText dialogData
                 |> (fun s -> s = "" || not (String.startsWithLetter s))
             (getInt dialogData < 1) || notGoodLabel
+    dialogPopup title body buttonText buttonAction isDisabled [] dispatch
+
+
+/// The nets on this sheet that already have a name. A net IS its name - every net label carrying
+/// it is the same net - so the names, and not the components carrying them, are what a new label
+/// has to choose between.
+let private netLabelNames (model: Model) : string list =
+    model.Sheet.Wire.Symbol.Symbols
+    |> Map.toList
+    |> List.choose (fun (_, sym) ->
+        match sym.Component.Type with
+        | IOLabel -> Some sym.Component.Label
+        | _ -> None)
+    |> List.distinct
+    |> List.sort
+
+/// The name a label would carry if the text in the box were accepted. Comparing anything against
+/// what was typed rather than against this would let "data" through as a new net beside DATA.
+let private typedNetName (model: Model) : string =
+    MenuHelpers.formatLabelFromType IOLabel (getText model.PopupDialogData)
+
+/// What is wrong with the name in the box, if anything - the message to show, and the reason the
+/// Add button is dead.
+///
+/// A name that an existing net already has is refused rather than quietly joined: joining is what
+/// the pills are for, and a name that collided by accident would otherwise make two nets that were
+/// never meant to be one into a single net, silently and some way from where the user was looking.
+let private newNetProblem (model: Model) : string option =
+    match getText model.PopupDialogData with
+    | "" -> None
+    | typed when not (String.startsWithLetter typed) -> Some "Name must start with a letter"
+    | _ ->
+        let name = typedNetName model
+        match List.contains name (netLabelNames model) with
+        | true -> Some $"{name} is already a net on this sheet - join it above instead"
+        | false -> None
+
+/// Placing a net label.
+///
+/// A net label is a name rather than a component that happens to have one, and the thing a user
+/// wants to do with it is nearly always join a net that already exists. So the nets on the sheet
+/// come first, as pills: clicking one places a label on that net and is the whole of the gesture.
+/// The box below is for the other case, a net that does not exist yet, and refuses any name that
+/// does.
+let private createNetLabelPopup (model: Model) dispatch =
+    let title = "Add net label"
+    /// Place one net label carrying this name and close the popup - what both the pills and the
+    /// button do, and the only thing this dialog exists to do.
+    ///
+    /// The model is the one the popup was opened with rather than the one it is drawn with, because
+    /// that is where a drop position lives: opened by a drop, the label goes where it was dropped.
+    let placeNetLabel (name: string) =
+        createComponent IOLabel (MenuHelpers.formatLabelFromType IOLabel name) None model dispatch
+        dispatch ClosePopup
+    let body =
+        fun (model': Model) ->
+            let netPill (name: string) =
+                Tag.tag [
+                    Tag.Color IsInfo
+                    Tag.Props [
+                        // one of a list of siblings, so React is told which is which
+                        Key name
+                        Style [Cursor "pointer"]
+                        OnClick (fun _ -> placeNetLabel name) ]
+                ] [ str name ]
+            let nets = netLabelNames model'
+            let problem = newNetProblem model'
+            div [] [
+                match nets with
+                | [] -> null
+                | names ->
+                    div [Style [MarginBottom "10px"]] [
+                        str "Join a net on this sheet:"
+                        Tag.list [Tag.List.Props [Style [MarginTop "6px"]]] (List.map netPill names)
+                    ]
+                str (match nets with [] -> "Name the net:" | _ -> "Or name a new net:")
+                Input.text [
+                    Input.Props [AutoFocus true; SpellCheck false]
+                    Input.Placeholder "Net name"
+                    Input.OnChange (JSHelpers.getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
+                ]
+                match problem with
+                | None -> null
+                | Some message -> span [Style [FontStyle "Italic"; Color "Red"]] [str message]
+                hr [Style [MarginTop "12px"; MarginBottom "8px"]]
+                div [Style [FontSize "0.9em"]] [
+                    str "In a digital schematic a set of connected wires is called a net."
+                    br []
+                    str "Every net label with the same name is one net, so a signal can be picked \
+                         up anywhere on the sheet with no wire drawn to it."
+                    br []
+                    str "Use net labels instead of a wire that would cross the sheet, and for high \
+                         fan-out: drive the net once, then join it at each input it feeds."
+                    br []
+                    str "Exactly one label in a net may be driven; the rest drive inputs."
+                ]
+            ]
+    let buttonText = "Add"
+    let buttonAction = fun (model': Model) -> placeNetLabel (getText model'.PopupDialogData)
+    let isDisabled =
+        fun (model': Model) ->
+            getText model'.PopupDialogData = "" || (newNetProblem model').IsSome
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -1165,28 +1323,37 @@ let private makeMenuGroupWithTip styles  title tip menuList =
 ///
 /// Nothing is added to any model. The symbol is built, drawn and discarded on each mouse move,
 /// which is what lets the popup still stand in front of the component being created.
+///
+/// Carried over a component already on the sheet it is drawn red, because there it cannot be
+/// dropped - see ghostOverlaps.
 let viewDragGhost (model: Model) : ReactElement =
     match model.DragPlacement with
     | None | Some (DroppedAt _) -> null
     | Some (Dragging (ghost, cursor)) ->
         let theme = model.Sheet.Wire.Symbol.Theme
         let zoom = model.Sheet.Zoom
+        let overlapping = ghostOverlaps model ghost cursor
         /// Room around the symbol for what the drawing puts outside its own box - port labels
         /// above all - so that the ghost is not clipped by the svg holding it.
         let pad = 40.
         let drawing, w, h =
             match ghost with
             | GhostSymbol compType ->
-                let sym = Symbol.createNewSymbol (tryGetLoadedComponents model) {X = 0.; Y = 0.} compType "" theme
+                let placed = Symbol.createNewSymbol (tryGetLoadedComponents model) {X = 0.; Y = 0.} compType "" theme
+                let sym =
+                    match overlapping with
+                    | true -> placed |> Optic.set (SymbolT.appearance_ >-> SymbolT.colour_) Constants.ghostErrorColour
+                    | false -> placed
                 SymbolView.drawComponent sym theme, sym.Component.W, sym.Component.H
             | GhostBox name ->
                 // A library component's ports are not known until its sheet is read, and reading
                 // it means going to disk - that belongs at placement, not on a mouse-down. So it
                 // is carried as a named box, and takes its true shape once it is placed.
-                let w, h = 100., 60.
+                let w, h = Constants.ghostBoxW, Constants.ghostBoxH
+                let fill = if overlapping then Constants.ghostErrorColour else "lightgray"
                 [ rect [
                     SVGAttr.Width w; SVGAttr.Height h; SVGAttr.Rx 5.
-                    SVGAttr.Fill "lightgray"; SVGAttr.Stroke "black"; SVGAttr.StrokeWidth 1. ] []
+                    SVGAttr.Fill fill; SVGAttr.Stroke "black"; SVGAttr.StrokeWidth 1. ] []
                   text [
                     SVGAttr.X (w / 2.); SVGAttr.Y (h / 2.)
                     SVGAttr.TextAnchor "middle"
@@ -1273,10 +1440,11 @@ let viewCatalogue model dispatch =
                           catTip1 "Constant" (Constant1 (1, 0I, "0")) (fun  _ -> dispatchAsFunc (createConstantPopup)) "Define a one or more bit constant value of specified width, \
                                                                                             e.g. 0 or 1, to drive an input. Values can be written \
                                                                                             in hex, decimal, or binary."
-                          catTip1 "Wire Label" (IOLabel) (fun  _ -> dispatchAsFunc (createIOPopup false "label" (fun _ -> IOLabel))) "Labels with the same name connect \
-                                                                                                                         together wires within a sheet. Each set of labels \
-                                                                                                                         muts have exactly one driving input. \
-                                                                                                                         A label can also be used to terminate an unused output"
+                          catTip1 "Net Label" (IOLabel) (fun  _ -> dispatchAsFunc createNetLabelPopup) "Every net label with the same name is one net, \
+                                                                                                                         connected within a sheet without wires: use them for \
+                                                                                                                         long connections and high fan-out. Each net must have \
+                                                                                                                         exactly one driving input. A net label can also be used \
+                                                                                                                         to terminate an unused output"
                           catTip1 "Not Connected" (NotConnected) (fun  _ -> dispatchAsFunc (createComponent (NotConnected) "" None)) "Not connected component to terminate unused output."]                          
                     makeMenuGroup
                         "Buses"

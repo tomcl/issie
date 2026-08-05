@@ -800,7 +800,7 @@ let private mapInputPortIdsToVirtualConnectionIds (conns: Connection list) (comp
             match getBusLabelConns compLst  with
             | [cId] -> List.map (fun comp -> (InputPortId comp.InputPorts[0].Id, cId)) compLst |> Ok
             | h when h.Length <> 1 -> Error {
-                Msg = sprintf "A wire label must have exactly one driving component but the label '%s' has %d" lab h.Length
+                Msg = sprintf "A net label must have exactly one driving component but the label '%s' has %d" lab h.Length
                 ConnectionsAffected = h 
                 }            
             | _ -> Ok []

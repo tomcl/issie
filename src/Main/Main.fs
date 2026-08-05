@@ -168,7 +168,20 @@ let createMainWindow () =
     // This method will be called when Electron has finished
     // initialization and is ready to create browser windows.
 let startRenderer (doAfterReady: BrowserWindow -> Unit) =
-    mainProcess.app.on_ready(fun _ _ -> 
+    mainProcess.app.on_ready(fun _ _ ->
+        // Issie has no application menu: every key it cares about is resolved by KeyBindings
+        // against the context the user is in, and an Electron menu registers its accelerators
+        // globally and unconditionally. Clearing it HERE, before the first window exists, is what
+        // makes that true - Electron installs its own File/Edit/View/Window/Help menu otherwise,
+        // and a window created with autoHideMenuBar false shows it.
+        //
+        // The renderer used to be left to remove it, by assigning app.applicationMenu across the
+        // @electron/remote bridge from inside an Elmish subscription. That is both late - the
+        // standard menus are up for as long as the renderer takes to load - and conditional on a
+        // remote property assignment landing at all. When it did not, they simply stayed. A debug
+        // build still adds its Development menu from the renderer afterwards, which is where it
+        // has to be built since its items dispatch into the app.
+        mainProcess.Menu.setApplicationMenu None
         let window = createMainWindow()
         //printfn "window created"
         window

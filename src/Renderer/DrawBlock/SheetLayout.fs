@@ -620,12 +620,12 @@ let saveLibraryComponent
         |> Result.bind (fun () -> write true sheet))
 
 /// Write a whole project: every sheet, plus the empty .dprj marker that makes the directory a
-/// project rather than a directory that happens to contain sheets. Issie will not offer a
-/// directory without one, and drops it from the recent list.
+/// project rather than a directory that happens to contain sheets. Issie will open a directory
+/// without one, offering to put it back, but only a marked directory is recognised as a project
+/// without being asked about.
 let saveProject (folder: string) (sheets: SheetDescription list) : Result<unit, string> =
     match FilesIO.tryEnsureDirectory folder with
     | Error msg -> Error msg
     | Ok folder ->
-        let marker = FilesIO.pathJoin [| folder; FilesIO.baseName folder + ".dprj" |]
-        FilesIO.writeFile marker ""
+        FilesIO.writeFile (FilesIO.projectMarkerPath folder) ""
         |> Result.bind (fun () -> sheets |> Helpers.ResultList.iter (saveSheet folder))

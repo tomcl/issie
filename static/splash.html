@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:;" />
+<title>Issie</title>
+<style>
+  /* The splash is a frameless window shown while the renderer loads, so it has no chrome of
+     its own: the rounded card below IS the window, and the 1px hairline is what gives it an
+     edge against whatever is behind it. The Issie chip is drawn as vector geometry rather
+     than scaled from static/icon.png, which is a 512px bitmap and goes soft when blown up. */
+
+  :root {
+    --teal:        #00d2b4;
+    --teal-bright: #2ff0d4;
+    --teal-deep:   #00a98f;
+    --ink:         #071a24;
+    --ink-2:       #0d2b39;
+  }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--ink);
+    color: #eaf7f5;
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    user-select: none;
+    cursor: default;
+  }
+
+  .card {
+    position: relative;
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 46px;
+    padding: 0 52px;
+    background:
+      radial-gradient(120% 130% at 18% 12%, rgba(0, 210, 180, .22) 0%, rgba(0, 210, 180, 0) 58%),
+      radial-gradient(90% 120% at 100% 100%, rgba(0, 120, 160, .20) 0%, rgba(0, 120, 160, 0) 60%),
+      linear-gradient(150deg, var(--ink-2) 0%, var(--ink) 62%);
+    box-shadow: inset 0 0 0 1px rgba(140, 240, 225, .13);
+    animation: rise .42s cubic-bezier(.2, .8, .3, 1) both;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: scale(.985); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .logo {
+    height: 186px;
+    width: auto;
+    flex: none;
+    filter: drop-shadow(0 0 34px rgba(0, 210, 180, .40));
+  }
+
+  .rule {
+    flex: none;
+    width: 1px;
+    height: 168px;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 210, 180, 0),
+      rgba(0, 210, 180, .45) 22%,
+      rgba(0, 210, 180, .45) 78%,
+      rgba(0, 210, 180, 0));
+  }
+
+  .text { min-width: 0; }
+
+  .wordmark {
+    font-size: 78px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .155em;
+    /* the trailing letter-space would otherwise push the word off-centre */
+    text-indent: .155em;
+    margin-left: -.155em;
+    background: linear-gradient(180deg, #ffffff 0%, #bff4ea 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .sub {
+    margin-top: 18px;
+    font-size: 15.5px;
+    font-weight: 400;
+    letter-spacing: .205em;
+    white-space: nowrap;
+    color: #79c8bd;
+  }
+
+  /* Indeterminate: the renderer cannot report progress, so this says "working", not "how far". */
+  .progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .05);
+  }
+
+  .progress::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 34%;
+    background: linear-gradient(90deg,
+      rgba(0, 210, 180, 0), var(--teal-bright), rgba(0, 210, 180, 0));
+    animation: sweep 1.5s ease-in-out infinite;
+  }
+
+  @keyframes sweep {
+    from { left: -34%; }
+    to   { left: 100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; }
+    .progress::after { animation-duration: 3s; }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <!-- Issie chip. Geometry traced from docs/issieIconName.png: body 326x459 with r=33
+         corners, a knocked-out dot and bar, and three leads a side on a 147.5 pitch. -->
+    <svg class="logo" viewBox="0 0 548 459" role="img" aria-label="Issie">
+      <defs>
+        <linearGradient id="chipFill" x1="0" y1="0" x2=".35" y2="1">
+          <stop offset="0"   stop-color="#1ae6c8" />
+          <stop offset=".55" stop-color="#00d2b4" />
+          <stop offset="1"   stop-color="#00a98f" />
+        </linearGradient>
+        <!-- the dot and the bar are holes in the body, not lighter paint on top of it -->
+        <mask id="chipHoles">
+          <rect x="111" y="0" width="326" height="459" rx="33" fill="#fff" />
+          <circle cx="209" cy="82" r="44" fill="#000" />
+          <rect x="278" y="53" width="111" height="58" rx="29" fill="#000" />
+        </mask>
+      </defs>
+
+      <g fill="url(#chipFill)">
+        <rect x="111" y="0" width="326" height="459" rx="33" mask="url(#chipHoles)" />
+
+        <g>
+          <rect x="0"   y="66.5"  width="89" height="31" rx="15.5" />
+          <rect x="50"  y="44.5"  width="39" height="75" rx="9" />
+          <rect x="459" y="66.5"  width="89" height="31" rx="15.5" />
+          <rect x="459" y="44.5"  width="39" height="75" rx="9" />
+
+          <rect x="0"   y="214"   width="89" height="31" rx="15.5" />
+          <rect x="50"  y="192"   width="39" height="75" rx="9" />
+          <rect x="459" y="214"   width="89" height="31" rx="15.5" />
+          <rect x="459" y="192"   width="39" height="75" rx="9" />
+
+          <rect x="0"   y="361.5" width="89" height="31" rx="15.5" />
+          <rect x="50"  y="339.5" width="39" height="75" rx="9" />
+          <rect x="459" y="361.5" width="89" height="31" rx="15.5" />
+          <rect x="459" y="339.5" width="39" height="75" rx="9" />
+        </g>
+      </g>
+    </svg>
+
+    <div class="rule"></div>
+
+    <div class="text">
+      <div class="wordmark">ISSIE</div>
+      <div class="sub">Imperial College London</div>
+    </div>
+
+    <div class="progress"></div>
+  </div>
+</body>
+</html>

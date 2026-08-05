@@ -68,6 +68,9 @@ mainProcess.app.name <- "Issie"
 // be closed automatically when the JavaScript object is garbage collected.
 let mutable mainWindow: BrowserWindow option = Option.None
 
+/// Splash shown while the renderer loads. Held here for the same reason as mainWindow.
+let mutable splashWindow: BrowserWindow option = Option.None
+
 
 
 let printListeners() =
@@ -131,9 +134,55 @@ let hardenWebContents (webContents: WebContents) =
             openExternally url)
     |> ignore
 
+/// Issie's renderer takes a noticeable time to start, and until it does the app window has
+/// nothing in it. This frameless window covers that gap: it is the first thing on screen, and
+/// the main window stays hidden behind it until its content has finished loading.
+let createSplashWindow () =
+    let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
+        options.width <- Some 640.
+        options.height <- Some 360.
+        options.frame <- Some false
+        options.resizable <- Some false
+        options.movable <- Some false
+        options.minimizable <- Some false
+        options.maximizable <- Some false
+        options.center <- Some true
+        options.alwaysOnTop <- Some true
+        options.skipTaskbar <- Some true
+        // matches the page's own background, so no white flash before the first paint
+        options.backgroundColor <- Some "#071a24"
+        options.title <- Some "Issie"
+        options.webPreferences <- Some (
+            jsOptions<WebPreferences> <| fun o ->
+                // the splash is static markup: it needs neither Node nor dev tools
+                o.nodeIntegration <- Some false
+                o.contextIsolation <- Some true
+                o.devTools <- Some false)
+
+    let window = mainProcess.BrowserWindow.Create options
+    hardenWebContents window.webContents
+    // staticDir() is relative in development, absolute when packaged: resolve handles both
+    window.loadFile (path.resolve (staticDir(), "splash.html")) |> ignore
+    splashWindow <- Some window
+    window
+
+/// Take the splash down and put the app window on screen. Called when the renderer finishes
+/// loading and again from a timeout, so a renderer that never loads cannot leave Issie with no
+/// visible window at all - which means this must be safe to call more than once.
+let revealMainWindow (window: BrowserWindow) =
+    splashWindow
+    |> Option.iter (fun splash -> if not (splash.isDestroyed()) then splash.destroy())
+    splashWindow <- Option.None
+    if not (window.isDestroyed()) then
+        window.setOpacity 1.0
+        window.maximize()
+        window.show()
+
 let createMainWindow () =
     let options = jsOptions<BrowserWindowConstructorOptions> <| fun options ->
-        options.show <- Some <| true
+        // hidden until the renderer has loaded: the splash is what the user looks at until then.
+        // revealMainWindow is the only thing that shows it, and it always runs.
+        options.show <- Some <| false
         options.autoHideMenuBar <- Some false
         options.backgroundColor <-  Some "#FFFFFF" // BUG - colors do not work
         options.opacity <- Some 0.8
@@ -182,6 +231,8 @@ let startRenderer (doAfterReady: BrowserWindow -> Unit) =
         // build still adds its Development menu from the renderer afterwards, which is where it
         // has to be built since its items dispatch into the app.
         mainProcess.Menu.setApplicationMenu None
+        // before the main window, so it is on screen for as much of the load as possible
+        createSplashWindow() |> ignore
         let window = createMainWindow()
         //printfn "window created"
         window
@@ -220,9 +271,11 @@ let loadAppIntoWidowWhenReady (window: BrowserWindow) =
             |> ignore
         //printfn "done load"
     loadWindowContent window
-    window.webContents.on("did-finish-load", ( fun () -> 
-        window.setOpacity 1.0
-        window.maximize()))
+    window.webContents.on("did-finish-load", ( fun () ->
+        revealMainWindow window))
+    |> ignore
+    // Backstop: whatever happens to the load, the splash comes down and the window appears.
+    JS.setTimeout (fun () -> revealMainWindow window) 20000 |> ignore
 
   
    

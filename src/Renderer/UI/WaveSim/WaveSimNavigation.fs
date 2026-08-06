@@ -252,11 +252,14 @@ let setScrollbarOffset (wsm: WaveSimModel) (dispatch: Msg->unit) (offset: float 
 /// <summary>Update <c>WaveSimModel</c> with new <c>ScrollbarQueueIsEmpty</c>.
 /// Used to update is-empty counter to coalesce scrollbar mouse events together.
 /// Update is achieved by dispatching a <c>UpdateWSModel</c> message, so as to not clog the queue with <c>GenerateWaveforms</c> messages.</summary>
-/// <param name="wsm">Target <c>WaveSimModel</c>.</param>
 /// <param name="dispatch">Dispatch function to send messages with.</param>
 /// <param name="isEmpty">Bool to be written to <c>WaveSimModel.ScrollbarQueueIsEmpty</c>.</param>
-let setScrollbarLastX (wsm: WaveSimModel) (dispatch: Msg->unit) (isEmpty: bool): unit =
-    UpdateWSModel (fun _ -> { wsm with ScrollbarQueueIsEmpty = isEmpty }) |> dispatch
+/// <remarks>Only the flag is written. Anything else this message found in the model stays: a
+/// GenerateWaveforms dispatched by an earlier step of the same drag can be waiting in the queue
+/// ahead of this one, and writing back a whole model captured before it would undo the scroll it
+/// had just done.</remarks>
+let setScrollbarLastX (dispatch: Msg->unit) (isEmpty: bool): unit =
+    UpdateWSModel (fun ws -> { ws with ScrollbarQueueIsEmpty = isEmpty }) |> dispatch
 
 /// If zoomIn, then increase width of clock cycles (i.e.reduce number of visible cycles).
 /// otherwise reduce width. GenerateWaveforms message will reconstitute SVGs after the change.
@@ -392,7 +395,7 @@ let updateScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit) (cursor: float) (a
         setScrollbarOffset wsm dispatch offset
     | InScrollbarDrag -> // in drag, unknown queue state: update counter, if queue is empty then dispatch ReleaseScrollQueue message
         let canDispatch = wsm.ScrollbarQueueIsEmpty
-        setScrollbarLastX wsm dispatch false
+        setScrollbarLastX dispatch false
         if canDispatch then ScrollbarMouseMsg (cursor, ReleaseScrollQueue, dispatch) |> dispatch
     | ReleaseScrollQueue -> // in drag, and queue is clear: update and set ScrollbarQueueIsEmpty to true
         match wsm.ScrollbarTbOffset with

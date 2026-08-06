@@ -140,13 +140,20 @@ let getInputName (withComp: bool) (comp: FastComponent) (port: InputPortNumber) 
     let portName : string = getInputPortName comp.FType port
     let bitLims : string =
         match comp.FType with
-        // The enable is one bit whatever the register's width is. getInputPortName has already
-        // put the leading '.' on, which is why the name to compare against carries one too.
-        | RegisterE _ when portName = ".EN" -> bitLimsString (0, 0)
+        // The enable and load inputs are one bit whatever the width of the register or counter
+        // they control - only the data input carries that width. getInputPortName has already put
+        // the leading '.' on, which is why the names compared against carry one too.
+        | RegisterE _ | Counter _ | CounterNoEnable _ | CounterNoLoad _
+                when portName = ".EN" || portName = ".LOAD" ->
+            bitLimsString (0, 0)
+        // An adder's carry in is one bit; it is the two operands that are as wide as the adder.
+        | NbitsAdder _ | NbitsAdderNoCout _ when portName = ".CIN" ->
+            bitLimsString (0, 0)
         | Input1 (w, _) | Output w | Constant1 (w, _, _) | Constant (w, _) | Viewer w
         | NbitsXor(w, _) | NbitsNot w | NbitsAnd w | NbitsAdder w | NbitsOr w
         | NbitsAdderNoCin w | NbitsAdderNoCout w | NbitsAdderNoCinCout w
-        | BusCompare(w,_) | BusCompare1(w,_,_)  |Register w | RegisterE w | NbitSpreader w ->
+        | BusCompare(w,_) | BusCompare1(w,_,_)  |Register w | RegisterE w
+        | Counter w | CounterNoEnable w | NbitSpreader w ->
             bitLimsString (w - 1, 0)
         | Not | BusCompare _ | BusCompare1 _ | GateN _
         | Mux2 | Mux4 | Mux8 | Decode4 | Demux2 | Demux4 | Demux8
@@ -218,7 +225,9 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
     let bitLims =
         match comp.FType with
         | BusCompare(w,_) | BusCompare1(w,_,_) -> bitLimsString (w-1, 0)
-        | Not | GateN _ 
+        // As with the carry in, the carry out is one bit whatever the width of the adder.
+        | NbitsAdder _ | NbitsAdderNoCin _ when portName = ".COUT" -> bitLimsString (0, 0)
+        | Not | GateN _
         | Decode4 | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
         | DFF | DFFE ->
             bitLimsString (0, 0)

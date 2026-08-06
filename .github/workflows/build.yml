@@ -75,34 +75,6 @@ jobs:
         draft: true
         body: New major or minor version pushed, release text work in progress.
 
-  update-badges-prebuild:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Set macOS badge to failing
-      uses: RubbaBoy/BYOB@v1.3.0
-      with:
-        NAME: build-macos
-        LABEL: 'Build (macOS)'
-        STATUS: failing
-        COLOR: FF0000
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Set Windows badge to failing
-      uses: RubbaBoy/BYOB@v1.3.0
-      with:
-        NAME: build-windows
-        LABEL: 'Build (Windows)'
-        STATUS: failing
-        COLOR: FF0000
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Set Linux badge to failing
-      uses: RubbaBoy/BYOB@v1.3.0
-      with:
-        NAME: build-linux
-        LABEL: 'Build (Linux)'
-        STATUS: failing
-        COLOR: FF0000
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-macos:
     runs-on: macos-latest
     timeout-minutes: 60
@@ -195,41 +167,45 @@ jobs:
         tag_name: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
         files: dist/*
 
-  update-badge-macos:
+  # One job for all three badges, so the BYOB writes happen in sequence.
+  #
+  # BYOB stores badge state in shields.json on the 'shields' branch, and each invocation
+  # clones that branch, edits the file and pushes. As three separate jobs they raced: on the
+  # v6.0.9 run macOS cloned two seconds before Windows pushed, so the macOS push was a
+  # non-fast-forward and was rejected. BYOB neither retries nor fails the step, so the job
+  # went green while the badge kept the stale value - a red macOS badge for a build that
+  # had in fact succeeded, DMGs signed, notarised and uploaded.
+  #
+  # Steps in one job are sequential, so each write sees the previous one. Running on
+  # always() and reading each build's own result also removes the need to pre-set the
+  # badges to failing: they are now written once, to what actually happened, instead of
+  # being red by default and turned green afterwards.
+  update-badges:
     runs-on: ubuntu-latest
-    needs: build-macos
+    needs: [build-macos, build-windows, build-linux]
+    if: always()
     steps:
-    - name: Set macOS badge to passing
+    - name: Set macOS badge
       uses: RubbaBoy/BYOB@v1.3.0
       with:
         NAME: build-macos
         LABEL: 'Build (macOS)'
-        STATUS: passing
-        COLOR: 00FF00
+        STATUS: ${{ needs.build-macos.result == 'success' && 'passing' || 'failing' }}
+        COLOR: ${{ needs.build-macos.result == 'success' && '00FF00' || 'FF0000' }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  update-badge-linux:
-    runs-on: ubuntu-latest
-    needs: build-linux
-    steps:
-    - name: Set Linux badge to passing
-      uses: RubbaBoy/BYOB@v1.3.0
-      with:
-        NAME: build-linux
-        LABEL: 'Build (Linux)'
-        STATUS: passing
-        COLOR: 00FF00
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  update-badge-windows:
-    runs-on: ubuntu-latest
-    needs: build-windows
-    steps:
-    - name: Set Windows badge to passing
+    - name: Set Windows badge
       uses: RubbaBoy/BYOB@v1.3.0
       with:
         NAME: build-windows
         LABEL: 'Build (Windows)'
-        STATUS: passing
-        COLOR: 00FF00
+        STATUS: ${{ needs.build-windows.result == 'success' && 'passing' || 'failing' }}
+        COLOR: ${{ needs.build-windows.result == 'success' && '00FF00' || 'FF0000' }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Set Linux badge
+      uses: RubbaBoy/BYOB@v1.3.0
+      with:
+        NAME: build-linux
+        LABEL: 'Build (Linux)'
+        STATUS: ${{ needs.build-linux.result == 'success' && 'passing' || 'failing' }}
+        COLOR: ${{ needs.build-linux.result == 'success' && '00FF00' || 'FF0000' }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -108,12 +108,16 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     // printfn "DEBUG:updateViewerWidthInWaveSim: Calculated Scrollbar Width = %Apx" scrollbarWidth
 
 
-    let updateFn wsModel = 
+    let updateFn wsModel =
+        /// StartCycle, ShownCycles and CursorDisplayCycle count sampled cycles, of which the last
+        /// is LastClock / SamplingZoom. LastClock and CursorExactClkCycle count simulation cycles.
+        let lastSampledCycle = wsModel.WSConfig.LastClock / wsModel.SamplingZoom
         {
         wsModel with
             ShownCycles = wholeCycles
-            StartCycle = min wsModel.StartCycle (wsModel.WSConfig.LastClock - (wholeCycles - 1)*wsModel.SamplingZoom)
-            CursorDisplayCycle = min wsModel.CursorDisplayCycle wsModel.WSConfig.LastClock
+            StartCycle = min wsModel.StartCycle (max 0 (lastSampledCycle - wholeCycles + 1))
+            CursorDisplayCycle = min wsModel.CursorDisplayCycle lastSampledCycle
+            CursorExactClkCycle = min wsModel.CursorExactClkCycle wsModel.WSConfig.LastClock
             WaveformColumnWidth = finalWavesColWidth
             ScrollbarBkgWidth = scrollbarWidth
         }
@@ -154,7 +158,11 @@ let rec validateSimParas (ws: WaveSimModel) =
 let changeMultiplier newMultiplier (ws: WaveSimModel) =
     let oldM = ws.SamplingZoom
     let sampsHalf = (float ws.ShownCycles - 1.) / 2.
-    let newShown = 1 + min ws.ShownCycles (ws.WSConfig.LastClock / newMultiplier)
+    /// As many cycles as are shown now, unless the new multiplier leaves fewer than that in the
+    /// simulation. There are LastClock / newMultiplier + 1 of those, counting cycle 0 - adding the
+    /// 1 to the whole expression instead would widen the view by a cycle on every change of
+    /// multiplier, which then sticks because updateViewerWidthInWaveSim ignores changes under 10%.
+    let newShown = min ws.ShownCycles (ws.WSConfig.LastClock / newMultiplier + 1)
     let newStart = int ((float ws.StartCycle + sampsHalf) * float oldM / float newMultiplier - (float newShown - 1.) / 2.)
     {ws with ShownCycles = newShown; StartCycle = newStart; SamplingZoom = newMultiplier}
     |> validateSimParas

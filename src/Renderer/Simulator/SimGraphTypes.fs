@@ -227,13 +227,17 @@ type FastData =
         | _ -> failwithf $"GetQint32 Can't turn Alg into a uint32"
 
     /// if given width <= 32 it will generate Word form FastData, otherwise BigWord.
+    /// The value is masked into the width, since every stored value must be within its bus
+    /// width. NB this used to store a positive unmasked (MakeFastData 2 4I gave 4) and to
+    /// reduce a negative with %, which leaves a negative remainder rather than the two's
+    /// complement pattern.
     static member inline MakeFastData (width: int) (data: bigint) =
-        match width with
-        | w when w <= 32 && data >= 0I -> { Dat = Word(uint32 data); Width = w }
-        | w when w <= 32 && data < 0I ->
-            let data = data % (1I <<< w)
-            { Dat = Word(uint32 data); Width = w }
-        | w -> { Dat = BigWord data; Width = w }
+        let masked = data &&& ((1I <<< width) - 1I)
+
+        if width <= 32 then
+            { Dat = Word(uint32 masked); Width = width }
+        else
+            { Dat = BigWord masked; Width = width }
 
 //-------------------------------------------------------------------------------------//
 //-----------------------------TT Algebra Types----------------------------------------//

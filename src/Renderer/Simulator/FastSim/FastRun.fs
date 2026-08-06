@@ -20,7 +20,7 @@ open System.Numerics
 
 module Constants =
     /// a number bigger than any possible simulation time in ms
-    let maxSimulationTime = 1.0 ** 10.0
+    let maxSimulationTime = 1.0e10
     /// used to prevent time instrument overhead in simulation - too large and simulations prevent responsiveness
     let numberOfStepsBeforeTimeCheck = 5
 
@@ -107,16 +107,8 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         propagateEval fc
 
     let initInput (fc: FastComponent) =
-        let inputVal: uint32 =
-            match fc.FType with
-            | Input1(w, defaultVal) ->
-                match defaultVal with
-                | Some defaultVal -> defaultVal
-                | None -> 0I
-            | _ ->
-                printf "non-input type component in initInput"
-                0I
-            |> uint32
+        // NB no default value is applied here - setInputstoDefault does that. A value was
+        // computed at this point and discarded
         //printfn "Init input..."
         // REVIEW - Input initialisation is no longer required
         // fc.InputLinks[0].FastDataStep
@@ -140,11 +132,8 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 | Some arr -> arr.Step[0] <- RamState mem
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
-                let initD =
-                    match Map.tryFind 0I mem.Data with
-                    | Some n -> convertBigintToFastData w n
-                    | _ -> convertIntToFastData w 0u
-                // change simulation semantics to output 0 in cycle 0
+                // change simulation semantics to output 0 in cycle 0 (the memory word at
+                // address 0 was read into an unused binding here)
                 match vec.Width with
                 | w when w <= 32 -> vec.UInt32Step[0] <- 0u
                 | w -> vec.BigIntStep[0] <- 0I
@@ -213,16 +202,8 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
         propagateEval fc
 
     let initInput (fc: FastComponent) =
-        let inputVal: uint32 =
-            match fc.FType with
-            | Input1(w, defaultVal) ->
-                match defaultVal with
-                | Some defaultVal -> defaultVal
-                | None -> 0I
-            | _ ->
-                printf "non-input type component in initInput"
-                0I
-            |> uint32
+        // NB no default value is applied here - setInputstoDefault does that. A value was
+        // computed at this point and discarded
         //printfn "Init input..."
         fc.InputLinks[0].FDataStep
         |> Array.iteri (fun i _ -> fc.InputLinks[0].FDataStep[ i ] <- Data(convertIntToFastData (fc.OutputWidth 0) 0u))
@@ -245,11 +226,8 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
                 | Some arr -> arr.Step[0] <- RamState mem
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
-                let initD =
-                    match Map.tryFind 0I mem.Data with
-                    | Some n -> convertBigintToFastData w n
-                    | _ -> convertIntToFastData w 0u
-                // change simulation semantics to output 0 in cycle 0
+                // change simulation semantics to output 0 in cycle 0 (the memory word at
+                // address 0 was read into an unused binding here)
                 vec.FDataStep[0] <- Data(convertIntToFastData w 0u)
             | _, w -> vec.FDataStep[0] <- Data(convertIntToFastData w 0u))
 
@@ -265,13 +243,15 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
     //printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
     //printfn "Loop init done"
-    printfn
+    // debug trace, commented out as in the non-FData twin above: this was printing on every
+    // truth-table build
+    (*printfn
         "%d constant, %d input, %d clocked, %d ready to reduce from %d"
         fs.FConstantComps.Length
         fs.FGlobalInputComps.Length
         fs.FClockedComps.Length
         readyToReduce.Length
-        fs.FComps.Count
+        fs.FComps.Count*)
 
     while readyToReduce.Length <> 0 do
         //printf "Adding %d combinational components %A" nextBatch.Length (pp nextBatch)
@@ -363,20 +343,21 @@ let checkAndValidate (fs: FastSimulation) =
         |> Array.iter (fun fc ->
             fc.Outputs
             |> Array.iteri (fun i output ->
-                let width = fc.Outputs[i].Width
-
-                match width, output.Width with
-                | n, m when n <> m ->
+                // the array width against the component's declared output width. This used to
+                // compare fc.Outputs[i].Width with output.Width - the same value - so the
+                // inconsistency check could never fire and only the zero-width case was caught
+                match output.Width, fc.OutputWidth i with
+                | 0, _ ->
                     failwithf
-                        "Inconsistent simulation data width found on signal output width %d from %A %s:%d"
-                        m
+                        "Unexpected output data width 0 found on initialised component %A %s:%d"
                         fc.FType
                         fc.FullName
                         i
-                | 0, _ ->
+                | n, m when n <> m ->
                     failwithf
-                        "Unexpected output data width %A found on initialised component %A %s:%d"
-                        width
+                        "Inconsistent simulation data width found on signal output: array width %d but declared width %d from %A %s:%d"
+                        n
+                        m
                         fc.FType
                         fc.FullName
                         i

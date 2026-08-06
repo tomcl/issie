@@ -74,7 +74,10 @@ let readMemoryFData (mem: Memory1) (address: FData) : FData =
     | Data addr ->
         let addr = convertFastDataToBigint addr
         Helpers.getMemData addr mem
-        |> convertBigintToFastData mem.AddressWidth
+        // the value read is a data word, so it is WordWidth wide. This used to say
+        // AddressWidth, which mislabelled every read and, when WordWidth > 32 >= AddressWidth,
+        // sent it down the uint32 branch of convertBigintToFastData and truncated it
+        |> convertBigintToFastData mem.WordWidth
         |> Data
 
 /// Write the content of the memory at the specified address.
@@ -333,7 +336,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | Input1(width, _), true ->
         if comp.Active then
             let bits = insBigInt 0
-            checkWidth width (comp.OutputWidth 0)
+            // the input width, as in the uint32 branch above (this read OutputWidth)
+            checkWidth width (comp.InputWidth 0)
             putBigInt 0 bits
     // twosComp, not a 32 bit conversion: a negative constant (e.g. -1 at width 4) must
     // store its width-wide two's complement bit pattern, as everything downstream relies
@@ -958,8 +962,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let mergeTwoValues (width: int) (value1: uint32) (value2: uint32) =
             (value1 <<< width) ||| value2
         let res = List.fold2 (fun acc width input ->
-            if input < 0 then
-                failwith "Input values must be non-negative"
             mergeTwoValues width acc (insUInt32 input)) 0u (List.rev (List.map (fun x -> comp.InputWidth x) [0..n-1])) [for x in n-1..-1..0 -> x]
         putUInt32 0 res
     | MergeN n , true ->

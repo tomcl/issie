@@ -62,7 +62,6 @@ let private hexToBin (hStr: string) : string =
                 | '7' -> "0111"
                 | '8' -> "1000"
                 | '9' -> "1001"
-                | 'a' -> "1010"
                 | 'a' | 'A' -> "1010"
                 | 'b' | 'B'  -> "1011"
                 | 'c' | 'C' -> "1100"
@@ -309,15 +308,10 @@ let fastDataToPaddedString maxChars radix (fd: FastData) =
         | r -> r
 
     match fd.Dat with
-    | Word w ->
-        let signBit = w &&& (1u <<< (fd.Width - 1))
-
-        let signExtendedW =
-            match displayRadix, signBit <> 0u with
-            | SDec, true -> int64 (int32 w) - (1L <<< fd.Width)
-            | _ -> int64 (uint64 w)
-
-        valToPaddedString fd.Width displayRadix (bigint w)
+    // valToPaddedString does the sign handling for SDec itself (via twosCompValue). A
+    // hand-rolled sign extension was computed here and discarded - and it would have
+    // shifted by -1 at width 0
+    | Word w -> valToPaddedString fd.Width displayRadix (bigint w)
 
     | BigWord big ->
         let displayRadix =
@@ -387,7 +381,10 @@ let convertIntToWireData (width: int) (num: bigint) : WireData =
     if num >= 0I then
         padToWidth width (intToBinary num)
     else
-        padToWidth width (intToBinary ((num &&& (1I <<< width)) - 1I))
+        // width-wide two's complement. NB the mask is (2^width - 1): masking with 2^width
+        // instead selects the single bit above the width, which is set for every in-range
+        // negative number, so every negative used to come back as all-ones
+        padToWidth width (intToBinary (num &&& ((1I <<< width) - 1I)))
 
 /// Convert a list of Bits into an int. The Least Significant Bits are the one
 /// with low index (e.g. LSB is at position 0, MSB is at position N).
@@ -444,17 +441,16 @@ let convertFastDataToInt32 (d: FastData) =
 let convertBigintToInt32 (b: bigint) = int32 (b &&& bigint 0xffffffff)
 
 
-let rec convertFastDataToWireData (fastDat: FastData) =
-    let bigToWire width big =
-        big
-        |> convertIntToWireData width
-
-    let rec bigToWire width b =
+let convertFastDataToWireData (fastDat: FastData) =
+    // NB not recursive: this used to be a `let rec` that shadowed a plain binding of the
+    // same name, so the non-negative branch called itself with unchanged arguments and
+    // looped forever on every BigWord
+    let bigToWire width b =
         if b < 0I then
             printfn $"Warning - invalid BigWord FastData case {b} < 0"
             []
         else
-            bigToWire width b
+            convertIntToWireData width b
 
     match fastDat.Dat with
     | Word w -> convertIntToWireData fastDat.Width (bigint w)
@@ -485,7 +481,13 @@ let strToBigint (str: string) : Result<bigint, string> =
     let removeCommas (str: string) =
         str.Replace(",", "")
     let str = str.ToLower().Trim()
-    let str = if str.Length > 1 && str[0] = 'x' || str[0]='b' || str.Length = 0 then "0" + str else str
+    // the length test must come first: && binds tighter than ||, so the empty-string guard
+    // used to sit after an unguarded str[0] and never ran (throwing under .NET)
+    let str =
+        if str.Length = 0 || (str.Length > 1 && str[0] = 'x') || str[0] = 'b' then
+            "0" + str
+        else
+            str
     let str = removeCommas str
     let success, n =
 #if FABLE_COMPILER
@@ -509,24 +511,25 @@ let strToBigint (str: string) : Result<bigint, string> =
     | false -> Error "Invalid number."
     | true -> Ok n
 
-let private countBits (num: bigint) : int =
+/// Check a number fits in <width> bits: unsigned (0 .. 2^width - 1) if it is non-negative,
+/// two's complement (-2^(width-1) .. -1) if it is negative - a negative needs a sign bit,
+/// so it gets one bit less of magnitude.
+/// NB the negative case used to be checked by the unsigned test applied to -num-1, which
+/// accepted negatives of twice the legal magnitude (-16 passed at width 4) and then
+/// silently converted them to a wrong value.
+let checkWidth (width: int) (num: bigint) : string option =
+    let inRange =
+        if width < 1 then
+            num = 0I
+        elif num < 0I then
+            num >= -(1I <<< (width - 1))
+        else
+            num < (1I <<< width)
 
-    let rec log2Int (n:bigint) =
-        if n = 0I then 0
-        elif n < 0I then log2Int ( -n - 1I)
-        else log2Int (n >>> 1) + 1
-    let n = log2Int num        
-    if n = 0 then 1 else n
-        
-/// Check a number is formed by at most <width> bits.
-let rec checkWidth (width: int) (num: bigint) : string option =
-    if num < 0I then
-        checkWidth width <| (-num) - 1I
+    if inRange then
+        None
     else
-        let bitsCount = countBits num
-        match bitsCount <= width with
-        | true -> None
-        | false -> Some <| sprintf "Expected %d or less bits." width
+        Some <| sprintf "Expected %d or less bits." width
 
 /// Convert a string to a number making sure that it has no more bits than
 /// specified in width.

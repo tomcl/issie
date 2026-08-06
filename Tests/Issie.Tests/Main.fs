@@ -9,6 +9,8 @@ let main argv =
     testList "Issie" [
         Properties.tests
         AlgebraTests.tests
+        NumberHelpersTests.tests
+        TruthTableSimTests.tests
         ParameterScenarios.tests
         ComponentSemantics.tests
         GoldenModel.tests

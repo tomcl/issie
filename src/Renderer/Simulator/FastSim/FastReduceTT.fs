@@ -810,7 +810,14 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                     // (bigint^w)
                     let (minusOne: bigint) = (1I <<< w) - 1I
                     BigWord(minusOne - a)
-                | Word a -> Word(~~~a)
+                | Word a ->
+                    // NOT overflows the width, so the result must be masked back into it -
+                    // this used to be a bare ~~~a, setting every bit above the bus width
+                    // (NOT of 0101 at width 4 came out as 0xFFFFFFFA). At width 32 the mask
+                    // is not needed, and (1u <<< 32) would wrap to 1u making it 0
+                    match aIn.Width with
+                    | 32 -> Word(~~~a)
+                    | w -> Word(((1u <<< w) - 1u) &&& (~~~a))
 
             put 0 <| Data { aIn with Dat = outDat }
         | Alg exp -> put 0 <| Alg(algNot exp)

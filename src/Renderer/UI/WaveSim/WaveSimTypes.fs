@@ -38,8 +38,6 @@ module Constants =
     /// Same as SVG ViewBox Height.
     let rowHeight = 30
 
-    let colWidth = 120
-
     /// Width of line that separates each clock cycle.
     let clkLineWidth = 0.8
     /// Width of each waveform line.
@@ -51,14 +49,6 @@ module Constants =
     let valueColumnFontSize = "12px"
     let valueColumnFontFamily = "Helvetica"
 
-    let valueColumnText = 
-        { DrawHelpers.defaultText with 
-            FontSize = valueColumnFontSize
-            FontFamily = valueColumnFontFamily}
-
-    let fontSizeValueOnWave = "10px"
-    /// Text used to display vlaues on non-binary waves
-    let valueOnWaveText = { DrawHelpers.defaultText with FontSize = "5px" } // dummy size
     /// Whitespace padding between repeated values displayed on non-binary waves.
     let valueOnWavePadding = 75.0
     /// Whitespace padding between non-binary wave values and the edge of transition.
@@ -130,11 +120,6 @@ module Constants =
 
     /// number of extra steps simulated beyond that used in simulation. Is this needed?
     let extraSimulatedSteps = 5 
-
-    let infoMessage = 
-        "Find ports by any part of their name. '.' = show all. '*' = show selected. '-' = collapse all"
-
-    let outOfDateMessage = "Use refresh button to update waveforms. 'End' and then 'Start' to simulate a different sheet"
 
     let infoSignUnicode = "\U0001F6C8"
 

@@ -341,8 +341,6 @@ let displayUInt32OnWave
         match gapWidth with
         | w when (w < singleWidth * 1.05) -> // display filled polygon
             let fillPoints = nonBinaryFillPoints wsModel.StartCycle cycleWidth gap
-            let gapCenterPadWidth = (float gap.Length * cycleWidth - singleWidth) / 2.
-
             let fill = makePolyfill fillPoints
             EvilHoverCache.addGapToStore gapCache gap
             [ fill ]
@@ -426,7 +424,9 @@ let displayBigIntOnWave
     |> Array.map (fun gap ->
         let gapCycle = gap.Start - wsModel.StartCycle
         // generate string
-        let waveValue = BigIntToPaddedString Constants.waveLegendMaxChars wsModel.Radix width waveValues[gap.Start]
+        // waveValues is sampled from StartCycle, so it is indexed by gapCycle and not by the
+        // absolute cycle gap.Start
+        let waveValue = BigIntToPaddedString Constants.waveLegendMaxChars wsModel.Radix width waveValues[gapCycle]
         
         // calculate display widths
         let cycleWidth = singleWaveWidth wsModel
@@ -450,7 +450,7 @@ let displayBigIntOnWave
             let startPadWidth = 
                     singleCycleCenterPadWidth
             let startText = makeTextElement true (float gapCycle * cycleWidth + startPadWidth) waveValue
-            let endText = makeTextElement false (float (gapCycle + 1) * cycleWidth - startPadWidth) waveValue
+            let endText = makeTextElement false (float (gapCycle + gap.Length) * cycleWidth - startPadWidth) waveValue
             [ startText; endText ] 
 
     )
@@ -502,7 +502,6 @@ let generateWaveform (ws: WaveSimModel) (index: WaveIndexT) (wave: Wave): Wave =
             let transitions,waveValues = calculateNonBinaryTransitions waveData.DriverData.UInt32Step ws.StartCycle ws.ShownCycles ws.SamplingZoom
             let fstPoints, sndPoints =
                 let waveWidth = singleWaveWidth ws
-                let startCycle = if Constants.generateVisibleOnly then ws.StartCycle else 0
                 Array.mapi (nonBinaryWavePoints waveWidth 0) transitions |> Array.unzip
             let gapStore = EvilHoverCache.initGapStore (ws.ShownCycles/ 2 + 1)
             let valuesSVG = displayUInt32OnWave ws wave.Width waveValues transitions gapStore

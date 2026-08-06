@@ -21,10 +21,6 @@ open WaveSimTypes
 
 // maybe these should be defined earlier in compile order? Or added as list functions?
 
-let listMaxWithDef defaultValue lst =
-    defaultValue :: lst
-    |> List.max
-
 let listCollectSomes mapFn lst =
     lst
     |> List.collect (fun x -> match mapFn x with | Some r -> [r] | None -> [])
@@ -104,29 +100,6 @@ let normalFontStyle = [
     FontSize "14px"
 ]
 
-let noBorderStyle = [
-    BorderWidth 0
-    BorderCollapse "collapse"
-]
-
-/// Style for selectRamButton
-let selectRamButtonStyle = [
-    Height Constants.rowHeight
-    FontSize "16px"
-    Position PositionOptions.Relative
-    MarginRight 0
-]
-
-/// Props for selectRamButton
-
-/// Style for selectWavesButton
-let selectWavesButtonStyle = Style [
-    Height Constants.rowHeight
-    FontSize "16px"
-    Position PositionOptions.Relative
-    MarginLeft 0
-]
-
 /// Style for top row of buttons
 let topRowButtonStyle isRightSide= Style [
     Height ModelHelpers.Constants.wsButtonHeight
@@ -137,24 +110,6 @@ let topRowButtonStyle isRightSide= Style [
     MarginRight Constants.topRowButtonMargin
     MarginLeft Constants.topRowButtonMargin
 ]
-
-let infoButtonProps color = [
-        Button.Color color
-        Button.IsRounded
-        Button.Size ISize.IsSmall
-        Button.Props [
-            Style [
-                Height (float Constants.rowHeight)
-                Height Constants.rowHeight
-                Width Constants.colWidth
-                FontSize "16px"
-                Position PositionOptions.Relative
-                MarginRight 0
-                MarginLeft 0
-                MarginBottom "5px"
-            ]
-        ]
-    ]
 
 let topHalfButtonPropsLoading isLoading color buttonId isRightSide = [
     Button.Color color
@@ -573,7 +528,9 @@ let clkCycleText m i : IProp list =
         [
             SVGAttr.Custom("fontWeight", "bold")
         ]
-    if i * m.SamplingZoom = m.CursorDisplayCycle then
+    // i and CursorDisplayCycle are both sampled (displayed) cycle numbers, so they compare directly:
+    // it is the printed label (n, above) that is scaled by the sampling zoom.
+    if i = m.CursorDisplayCycle then
         cursorExtraProps @ props
     else
         props

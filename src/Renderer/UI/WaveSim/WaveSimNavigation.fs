@@ -84,8 +84,14 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
 
     /// Require at least one visible clock cycle: otherwise choose number to get close to correct width of 1 cycle
     let wholeCycles =
-        max 1 (int (float waveColWidth / singleWaveWidth wsModel))
+        int (float waveColWidth / singleWaveWidth wsModel)
         |> min (wsModel.WSConfig.LastClock / wsModel.SamplingZoom) // make sure there can be no over-run when making viewer larger
+        // The floor comes after that limit, not before it. A sampling zoom larger than the whole
+        // simulation makes LastClock / SamplingZoom = 0, which would otherwise pull the floored
+        // value back down to a ShownCycles of 0: an empty sample range, which every transition
+        // calculation rejects, and a singleWaveWidth of infinity, from which nothing recovers.
+        // The other two writers of ShownCycles - validateSimParas and changeMultiplier - floor at 1.
+        |> max 1
         // prevent oscilaltion when number of cycles changes continuously due to width changes in values (rare corner case)
         |> (function | whole when abs (float (whole - wsModel.ShownCycles) / float wsModel.ShownCycles) < 0.1 -> wsModel.ShownCycles
                      | whole -> whole)
@@ -459,6 +465,13 @@ let clkCycleButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactEleme
 let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
     /// key = 0 .. n-1 where there are n possible multipliers
         let mulTable = Constants.multipliers
+        /// A multiplier which samples away all but a cycle or two of the simulation leaves a view
+        /// with nothing to see in it, so only those keeping at least minVisibleCycles samples
+        /// within LastClock are offered. The one in use is always offered, whatever the current
+        /// configuration says, so that the menu shows what the button reads.
+        let keyIsUsable key =
+            mulTable[key] = wsModel.SamplingZoom ||
+            wsModel.WSConfig.LastClock / mulTable[key] >= Constants.minVisibleCycles
         let menuItem (key) =
             let itemLegend = str (match key with | 0 -> "Every Cycle (normal X1)" | _ -> $"Every {mulTable[key]} cycles")
             Menu.Item.li
@@ -476,7 +489,7 @@ let multiplierMenuButton(wsModel: WaveSimModel) (dispatch: Msg -> unit) =
                     br []
                     p [] [str "Use it this menu to zoom out slow-changing signals when the range of"; addSpaces 5 zoomOutSVG; str "is not enough."]
                     br []
-                    Menu.menu [] [ Menu.list [] (List.map menuItem [0 .. mulTable.Length - 1 ])]
+                    Menu.menu [] [ Menu.list [] ([0 .. mulTable.Length - 1] |> List.filter keyIsUsable |> List.map menuItem)]
                 ]
 
         let buttonClick = Button.OnClick (fun _ ->

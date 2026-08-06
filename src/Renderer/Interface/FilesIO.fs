@@ -637,23 +637,32 @@ let removeAutoFile folderPath baseName =
     let path = pathJoin [| folderPath; baseName + ".dgmauto" |]
     unlink path // Asynchronous.
 
+/// Parse one "address data" line of a .ram file. lineNo is the 1-based line number in the
+/// file, used only to say where an error is.
 let readMemDefnLine (addressWidth:int) (wordWidth: int) (lineNo: int) (s:string) =
-    let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';'"'|] s 
+    let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';'"'|] s
     match nums with
     | [|addr;data|] ->
         let addrNum = NumberHelpers.strToIntCheckWidth addressWidth addr
         let dataNum = NumberHelpers.strToIntCheckWidth wordWidth data
         match addrNum,dataNum with
         | Ok a, Ok d -> Ok (a, d)
-        | Error aErr,_ -> Error $"Line {lineNo}:'%s{s}' has invalid address ({addr}). {aErr}"
-        | _, Error dErr -> Error $"Line '%s{s}' has invalid data item ({data}). {dErr}"
-    | x -> Error $"Line {lineNo}:'%s{s}' has {x.Length} items: valid lines consist of two numbers"
+        | Error aErr,_ -> Error $"Line {lineNo}: '%s{s}' has an invalid address ({addr}). {aErr}"
+        // the line number used to be missing here, so a bad data item said only which line
+        // text was wrong, not where to find it
+        | _, Error dErr -> Error $"Line {lineNo}: '%s{s}' has an invalid data item ({data}). {dErr}"
+    | x -> Error $"Line {lineNo}: '%s{s}' has {x.Length} items: valid lines consist of two numbers"
 
+/// Parse the lines of a .ram file, reporting the first bad line. lines must be the file's
+/// lines as they are, blanks included, so that reported line numbers match the file.
 let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
-    let parse = 
-        Array.map String.trim lines
-        |> Array.filter ((<>) "")
-        |> Array.mapi (readMemDefnLine addressWidth wordWidth)
+    let parse =
+        lines
+        // number the lines before dropping blank ones: the index used to be taken after the
+        // filter, making it a 0-based count of non-blank lines rather than a line number
+        |> Array.mapi (fun i line -> i + 1, String.trim line)
+        |> Array.filter (fun (_, line) -> line <> "")
+        |> Array.map (fun (lineNo, line) -> readMemDefnLine addressWidth wordWidth lineNo line)
     match Array.tryFind (function | Error _ -> true | _ -> false) parse with
     | None ->
         let defs = (Array.map (function |Ok x -> x | _ -> failwithf "What?") parse)
@@ -674,9 +683,11 @@ let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
 let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
      tryReadFileSync fPath
     |> Result.bind (
-        //(fun contents -> printfn "read file:\n contents={contents}"; contents)
-        String.splitRemoveEmptyEntries [|'\n';'\r'|]
-        >> readMemLines addressWidth wordWidth 
+        // split on '\n' only, keeping blank lines, so readMemLines can report true file line
+        // numbers. Splitting on both '\n' and '\r' and removing empties dropped them, and a
+        // trailing '\r' is removed by the trim in readMemLines
+        (fun (contents: string) -> contents.Split '\n')
+        >> readMemLines addressWidth wordWidth
         >> Result.map Map.ofArray)
 
     

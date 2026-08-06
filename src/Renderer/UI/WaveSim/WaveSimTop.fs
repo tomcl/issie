@@ -260,7 +260,9 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
                     ws.AllWaves.Count + sum)
         /// update the model memories to match any updated linked initial contents files
         let model = MemoryEditorView.updateAllMemoryComps model
-        let wsSheet = 
+        // the simulation is about to use these contents, so say if a linked file did not load
+        MemoryEditorView.notifyMemoryFileErrors dispatch model
+        let wsSheet =
             match model.WaveSimSheet with
             | None ->
                 Option.get (getCurrFile model)

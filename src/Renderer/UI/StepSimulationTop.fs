@@ -28,6 +28,8 @@ let viewSimulation canvasState model dispatch =
         // memory in model is not updated because the model update will be lost. This does
         // matter because if memory contents are ever viewed the viewer will update them then.
         let model = MemoryEditorView.updateAllMemoryComps model
+        // the simulation is about to use these contents, so say if a linked file did not load
+        MemoryEditorView.notifyMemoryFileErrors dispatch model
         tryGetSimData false canvasState model
         |> function
             | Ok simData -> 

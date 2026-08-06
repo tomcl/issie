@@ -528,8 +528,17 @@ let checkWidth (width: int) (num: bigint) : string option =
 
     if inRange then
         None
+    elif width < 1 then
+        Some <| sprintf "A width of %d holds no value other than 0." width
     else
-        Some <| sprintf "Expected %d or less bits." width
+        // state both ranges: "Expected N or less bits" did not explain why a negative is
+        // refused one bit sooner than a positive of the same magnitude
+        Some
+        <| sprintf
+            "Expected a value that fits in %d bits: 0 to %O unsigned, or %O to -1 negative."
+            width
+            ((1I <<< width) - 1I)
+            (-(1I <<< (width - 1)))
 
 /// Convert a string to a number making sure that it has no more bits than
 /// specified in width.

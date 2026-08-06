@@ -149,29 +149,13 @@ module SimpleJsonFormat =
     let deserialise<'T> (json: string) : 'T =
         des typeof<'T> (parseJson json) :?> 'T
 
-// --- .ram parsing, mirroring FilesIO.readMemDefnLine / readMemLines ---
-
-let private readMemDefnLine (addressWidth: int) (wordWidth: int) (lineNo: int) (s: string) =
-    let nums = String.splitRemoveEmptyEntries [| ' '; '\t'; ','; ';'; '"' |] s
-    match nums with
-    | [| addr; data |] ->
-        let addrNum = NumberHelpers.strToIntCheckWidth addressWidth addr
-        let dataNum = NumberHelpers.strToIntCheckWidth wordWidth data
-        match addrNum, dataNum with
-        | Ok a, Ok d -> Ok(a, d)
-        | Error aErr, _ -> Error $"Line {lineNo}:'%s{s}' has invalid address ({addr}). {aErr}"
-        | _, Error dErr -> Error $"Line '%s{s}' has invalid data item ({data}). {dErr}"
-    | x -> Error $"Line {lineNo}:'%s{s}' has {x.Length} items: valid lines consist of two numbers"
+// --- .ram parsing ---
+// FilesIO.readMemLines is the production parser and is pure, so it is used directly rather
+// than mirrored here. Only the file read has to be done separately: FilesIO does that
+// through node, which is not available under .NET.
 
 let private readMemLines (addressWidth: int) (wordWidth: int) (lines: string array) =
-    let parsed =
-        lines
-        |> Array.map String.trim
-        |> Array.filter ((<>) "")
-        |> Array.mapi (readMemDefnLine addressWidth wordWidth)
-    match Array.tryPick (function Error e -> Some e | Ok _ -> None) parsed with
-    | Some firstErr -> Error firstErr
-    | None -> Ok(parsed |> Array.map (function Ok x -> x | Error _ -> failwith "unreachable"))
+    FilesIO.readMemLines addressWidth wordWidth lines
 
 /// Reload a memory component's contents from its .ram file, as the app does on project load
 let private initialiseMemory (projectPath: string) (comp: Component) =

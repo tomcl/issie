@@ -51,13 +51,60 @@ let updateLoadedComponentMemory (memUpdate: Memory1 -> Memory1) =
     Optic.map project_ (updateProject)
 
 /// Update one FromData Memory1 in project to equal its linked file memory file contents.
-/// Silently do not update components where the file reading fails
+/// A component whose file cannot be read keeps the contents it already has - see
+/// firstMemoryFileError, which reports that, since on its own it is silent.
 let updateMemory (p: Project) (mem: Memory1) =
     match mem.Init with
     | FromFile fName ->
         FilesIO.initialiseMem mem p.ProjectPath
         |> function | Ok mem -> mem | Error e -> mem
     | _ -> mem // no change
+
+/// Every distinct file-linked memory in the project and on the open sheet. Two components
+/// linking one file with the same widths read it once, since the file name and the two
+/// widths are all initialiseMem uses.
+let private linkedMemories (p: Project) (model: Model) : Memory1 list =
+    let memoriesOf (comps: Component list) =
+        comps
+        |> List.choose (fun c -> match c.Type with | Memory mem -> Some mem | _ -> None)
+
+    let drawBlockMemories =
+        Optic.get (sheet_ >-> SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_) model
+        |> Map.toList
+        |> List.map (fun (_, sym) -> sym.Component)
+        |> memoriesOf
+
+    let loadedComponentMemories =
+        p.LoadedComponents
+        |> List.collect (fun ldc -> fst ldc.CanvasState |> memoriesOf)
+
+    drawBlockMemories @ loadedComponentMemories
+    |> List.filter (fun mem -> match mem.Init with | FromFile _ -> true | _ -> false)
+    |> List.distinctBy (fun mem -> mem.Init, mem.AddressWidth, mem.WordWidth)
+
+/// Why the first unreadable linked .ram file cannot be read, if there is one.
+/// updateMemory leaves such a memory holding its previous contents - all zeros in a project
+/// that has just been opened - without saying so, so this must be reported wherever those
+/// contents are about to be used.
+let firstMemoryFileError (model: Model) : string option =
+    match model.CurrentProj with
+    | None -> None
+    | Some p ->
+        linkedMemories p model
+        |> List.tryPick (fun mem ->
+            match mem.Init, FilesIO.initialiseMem mem p.ProjectPath with
+            | FromFile fName, Error e ->
+                Some
+                <| $"Memory file '{fName}.ram' could not be read, so memory components linked to it "
+                   + $"still hold their previous contents (all zeros in a newly opened project). {e}"
+            | _ -> None)
+
+/// Report the first unreadable linked .ram file, if any. Called where memory contents are
+/// about to be used, not from the periodic check, which would re-raise it twice a second.
+let notifyMemoryFileErrors (dispatch: Msg -> unit) (model: Model) : unit =
+    match firstMemoryFileError model with
+    | Some msg -> dispatch <| SetFilesNotification(errorFilesNotification msg)
+    | None -> ()
 
 /// Update all file-linked memory components in Draw Block (attached to symbols) and relevant loadedcomponent
 let updateDrawBlockMemoryComps  (memUpdate: Memory1 -> Memory1) (p: Project) =
@@ -348,6 +395,8 @@ let private makeEditor memory compId model dispatch =
 /// Open a popup to view and edit the content of a memory.
 let openMemoryEditor memory compId model dispatch : unit =
     let model = updateAllMemoryComps model // update memories in current model
+    // the contents shown below are about to be read, so say if a linked file did not load
+    notifyMemoryFileErrors dispatch model
     // Build editor.
     let title = "Memory editor"
     let body = makeEditor memory compId model dispatch

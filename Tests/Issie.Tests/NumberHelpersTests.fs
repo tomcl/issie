@@ -43,6 +43,12 @@ let private widthCheckTests =
             | None ->
                 let converted = twosComp width n
                 converted >= 0I && converted < (1I <<< width)
+        test "the reason names both permitted ranges" {
+            // "Expected 4 or less bits" did not say why -9 is refused when 9 is accepted
+            let msg = Expect.wantSome (checkWidth 4 (-9I)) "-9 is rejected at width 4"
+            Expect.stringContains msg "0 to 15" "gives the unsigned range"
+            Expect.stringContains msg "-8 to -1" "gives the negative range"
+        }
     ]
 
 let private wireDataTests =
@@ -136,5 +142,51 @@ let private fastDataTests =
             fd.GetBigInt >= 0I && fd.GetBigInt < (1I <<< width)
     ]
 
+/// FilesIO.readMemLines is the .ram parser. It reports the first bad line only, so that one
+/// message has to say exactly where the problem is and what was wrong with it.
+let private ramFileTests =
+    let read (lines: string list) = FilesIO.readMemLines 4 8 (Array.ofList lines)
+
+    testList "readMemLines" [
+        test "parses a well-formed file" {
+            let r = read [ "0 12"; "1 x1f"; "2 b1010" ]
+            Expect.equal r (Ok [| 0I, 12I; 1I, 31I; 2I, 10I |]) "three definitions"
+        }
+        test "blank lines are allowed and do not shift line numbers" {
+            // the line index used to be taken after blank lines were filtered out, so it
+            // counted non-blank lines from 0 rather than numbering the file's lines
+            let msg = Expect.wantError (read [ ""; "0 12"; ""; "1 999" ]) "line 4 is bad"
+            Expect.stringContains msg "Line 4" "the real file line number"
+        }
+        test "a bad address says so, with its line and the reason" {
+            let msg = Expect.wantError (read [ "0 12"; "99 3" ]) "99 needs more than 4 bits"
+            Expect.stringContains msg "Line 2" "where"
+            Expect.stringContains msg "invalid address (99)" "which item"
+            Expect.stringContains msg "0 to 15" "why"
+        }
+        test "a bad data item says so, with its line and the reason" {
+            // the data-item message used to omit the line number that the address one gave
+            let msg = Expect.wantError (read [ "0 12"; "1 -200" ]) "-200 does not fit in 8 bits"
+            Expect.stringContains msg "Line 2" "where"
+            Expect.stringContains msg "invalid data item (-200)" "which item"
+            Expect.stringContains msg "-128 to -1" "why"
+        }
+        test "a line with the wrong number of items says so" {
+            let msg = Expect.wantError (read [ "0 12"; "1 2 3" ]) "three items"
+            Expect.stringContains msg "Line 2" "where"
+            Expect.stringContains msg "3 items" "why"
+        }
+        test "only the first error is reported" {
+            let msg = Expect.wantError (read [ "99 1"; "98 1" ]) "both lines are bad"
+            Expect.stringContains msg "Line 1" "the first one"
+            Expect.isFalse (msg.Contains "Line 2") "and only that one"
+        }
+        test "repeated addresses are rejected" {
+            Expect.isError (read [ "1 2"; "1 3" ]) "address 1 defined twice"
+        }
+    ]
+
 let tests =
-    testList "NumberHelpers" [ widthCheckTests; wireDataTests; parsingTests; fastDataTests ]
+    testList
+        "NumberHelpers"
+        [ widthCheckTests; wireDataTests; parsingTests; fastDataTests; ramFileTests ]

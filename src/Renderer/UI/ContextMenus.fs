@@ -17,6 +17,17 @@ open ElectronAPI
 *)
 
 
+/// Item offered on a schematic component while a wave simulation is running, which adds waveforms
+/// from that component to the viewer. Which menu the renderer asks for decides whether it appears -
+/// this file cannot see the model. See UpdateHelpers.getContextMenu.
+let addWavesItem = "Add waveforms to viewer"
+
+let private componentItems =
+    ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Properties"]
+
+let private customComponentItems =
+    ["Go to sheet" ; "Properties" ; "Move ports" ; "Resize symbol"]
+
 /// The context menu info is a map of menu name -> list of menu items
 /// menu and item names can be arbitrary strings
 /// add menus as here
@@ -24,9 +35,11 @@ let contextMenus = [
         "SheetMenuBreadcrumbDev", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Save as library component"; "Write design as Verilog"; "Lock"; "Unlock"; "Lock Subtree"; "Unlock Subtree"]
         "SheetMenuBreadcrumb", ["Rename"; "Duplicate"; "Delete"; "Set as top"; "Save as library component"; "Write design as Verilog"]
         "ProjectPath", ["Copy path"; "Open directory"]
-        "CustomComponent", ["Go to sheet" ; "Properties" ; "Move ports" ; "Resize symbol"]
+        "CustomComponent", customComponentItems
+        "CustomComponentWaveSim", customComponentItems @ [addWavesItem]
         "ScalingBox", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)"; "Delete Box (DEL)"; "Copy Box (Ctrl+C)"; "Move Box (Drag any component)"]
-        "Component", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Properties"]
+        "Component", componentItems
+        "ComponentWaveSim", componentItems @ [addWavesItem]
         "Canvas", ["Zoom-in (Alt+Up) and centre" ; "Zoom-out (Alt+Down)" ; "Fit to window (Ctrl+W)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
         "Wire", ["Unfix Wire"]
         "WaveSimHelp", ["Waveform and RAM selection"; "Waveform Operations"; "Miscellaneous"]

@@ -347,6 +347,9 @@ type WaveSimModel = {
     WaveModalActive: bool
     /// If the ram selection modal is visible.
     RamModalActive: bool
+    /// The component whose port selection modal is visible, if any. Set by the schematic's
+    /// right-click menu, which names a component on the canvas rather than one in the simulation.
+    PortSelectComp: ComponentId option
     /// List of RAM components on the sheet.
     RamComps: FComponentId list
     /// Map of which RAM components have been selected.

@@ -470,6 +470,12 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | _ -> NoMenu
             
     // return the desired menu
+    /// The menus for a component come in pairs: the one with the extra item to add waveforms from
+    /// the component is offered only when there are waveforms to add. ContextMenus.fs is compiled
+    /// into the main process too and cannot see the model, so the choice has to be made here.
+    let ifWavesToOffer (sym: SymbolT.Symbol) (waveSimMenu: string) (menu: string) =
+        if WaveSimSelect.compWavesToOffer model sym.Id <> [] then waveSimMenu else menu
+
     match rightClickElement with
     | SheetMenuBreadcrumb _ ->
         if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumb"
@@ -477,10 +483,10 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         "ProjectPath"
     | DBScalingBox _ -> 
         "ScalingBox"
-    | DBCustomComp _->        
-        "CustomComponent"
-    | DBComp _ ->
-        "Component"
+    | DBCustomComp (sym, _) ->
+        ifWavesToOffer sym "CustomComponentWaveSim" "CustomComponent"
+    | DBComp sym ->
+        ifWavesToOffer sym "ComponentWaveSim" "Component"
     | DBCanvas _ ->
         "Canvas"
     | DBWire _ ->
@@ -643,6 +649,15 @@ let processContextMenuClick
         |> set rightPaneTabVisible_ Properties
         |> withWireMsg (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [sym.Id]))
     
+    | DBComp sym, "Add waveforms to viewer"
+    | DBCustomComp (sym, _), "Add waveforms to viewer" ->
+        // Show the wave simulator as well as the dialog, so that the waveforms being added can be
+        // seen going in - and because the dialog is drawn by the wave simulator's own view.
+        model
+        |> set rightPaneTabVisible_ Simulation
+        |> set simSubTabVisible_ WaveSim
+        |> withMsg (UpdateWSModel (fun ws -> {ws with PortSelectComp = Some sym.Id}))
+
     | DBComp _, "Delete (DEL)" ->
         keyDispatch SheetT.KeyboardMsg.DEL
         model  

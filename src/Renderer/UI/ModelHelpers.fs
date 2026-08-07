@@ -86,6 +86,7 @@ let initWSModel  : WaveSimModel = {
     WaveformColumnWidth = Constants.initialWaveformColWidth
     WaveModalActive = false
     RamModalActive = false
+    PortSelectComp = None
     RamComps = []
     SelectedRams = Map.empty
     RamStartLocation = Map.empty

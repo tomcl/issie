@@ -445,3 +445,173 @@ let selectRamModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
                 Modal.Card.foot [] []
             ]
         ]
+
+//--------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+//---------------------Waveform Selection for One Component Picked on the Schematic-----------------------//
+//--------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+
+// The schematic's right-click menu offers the ports of the component clicked on. That component is
+// one on the canvas, of which the simulation may hold more than one copy: a sheet instantiated
+// twice holds two of everything in it. Picking between those copies from the canvas would be
+// guesswork - the symbol clicked on is not any one of them - so the menu is offered only when there
+// is exactly one, and the wave selector is what serves the rest.
+
+/// The custom component instance a component sits directly inside, if any.
+/// An access path is ordered from the root of the simulation, so its last element is the instance
+/// the component is immediately within.
+let enclosingInstance (accessPath: ComponentId list) : FComponentId option =
+    match accessPath with
+    | [] -> None
+    | path -> Some (path[path.Length - 1], path[0 .. path.Length - 2])
+
+/// An Input or Output inside a subsheet drives no wave of its own: the signal belongs to the port
+/// of the custom component instance that the sheet sits in, and is named after that port. Return
+/// that port's wave, so the menu offers these components rather than passing over them.
+/// FastCreate.linkFastCustomComponentsToDriverArrays draws the same correspondence when it links
+/// the two sets of data arrays together; this follows it in the opposite direction.
+let private waveOfInstancePort
+        (fs: FastSimulation)
+        (allWaves: Map<WaveIndexT, Wave>)
+        (fc: FastComponent)
+            : Wave list =
+    let portOfLabel (labels: (string * int) list) =
+        labels |> List.tryFindIndex (fun (label, _) -> label = fc.FLabel)
+    match fc.FType, enclosingInstance (snd fc.fId) with
+    | (Input1 _ | Output _), Some instanceId ->
+        match Map.tryFind instanceId fs.FCustomComps with
+        | Some { FType = Custom cc } ->
+            let portType, portNum =
+                match fc.FType with
+                | Input1 _ -> PortType.Input, portOfLabel cc.InputLabels
+                | _ -> PortType.Output, portOfLabel cc.OutputLabels
+            portNum
+            |> Option.bind (fun pNum ->
+                allWaves
+                |> Map.tryPick (fun wi wave ->
+                    if wi.Id = instanceId && wi.PortType = portType && wi.PortNumber = pNum then
+                        Some wave
+                    else
+                        None))
+            |> Option.toList
+        | _ -> []
+    | _ -> []
+
+/// The waves to offer for one component on the canvas, and the number of copies of that component
+/// the simulation holds. A component in a sheet instantiated more than once has one copy per
+/// instantiation, and none of them is offered.
+let wavesOfComponent
+        (fs: FastSimulation)
+        (allWaves: Map<WaveIndexT, Wave>)
+        (compId: ComponentId)
+            : Wave list * int =
+    let instances =
+        fs.WaveComps
+        |> Map.toList
+        |> List.filter (fun (fId, _) -> fst fId = compId)
+    match instances with
+    | [ fId, fc ] ->
+        let waves =
+            allWaves
+            |> Map.toList
+            |> List.filter (fun (wi, _) -> wi.Id = fId)
+            |> List.map snd
+        (if waves = [] then waveOfInstancePort fs allWaves fc else waves), 1
+    | instances ->
+        [], instances.Length
+
+/// The label the simulation gives one component on the canvas, when it holds exactly one of it.
+let private simLabelOfComponent (fs: FastSimulation) (compId: ComponentId) : string option =
+    fs.WaveComps
+    |> Map.tryPick (fun fId fc -> if fst fId = compId then Some fc.FLabel else None)
+
+/// The waves to offer on the schematic's right-click menu for the component clicked on: none
+/// unless a wave simulation is running and holds exactly one copy of that component.
+let compWavesToOffer (model: Model) (compId: ComponentId) : Wave list =
+    let ws = ModelHelpers.getWSModel model
+    match model.WaveSimSheet, ws.State with
+    | Some sheet, Success when sheet <> "" ->
+        match wavesOfComponent (Simulator.getFastSim()) ws.AllWaves compId with
+        | waves, 1 -> waves
+        | _ -> []
+    | _ -> []
+
+/// Modal that, when active, shows the ports of one component picked on the schematic, which of
+/// them are displayed as waveforms, and allows that to be changed. Opened from the right-click
+/// menu on that component.
+let selectCompWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
+    let close = fun _ -> dispatch <| UpdateWSModel (fun ws -> {ws with PortSelectComp = None})
+    match wsModel.PortSelectComp with
+    | None ->
+        div [] []
+    | Some compId ->
+        let fs = Simulator.getFastSim()
+        let waves =
+            wavesOfComponent fs wsModel.AllWaves compId
+            |> fst
+            |> List.sortBy (fun wave -> wave.WaveId.PortType, wave.WaveId.PortNumber)
+        let compLabel = simLabelOfComponent fs compId |> Option.defaultValue "component"
+
+        /// Said only when the waves are not on the component clicked on but on the ports of the
+        /// instance holding it, which is where an Input or Output of a subsheet is simulated.
+        let portsOfInstanceNote =
+            match waves with
+            | wave :: _ when wave.CompLabel <> compLabel ->
+                [ str $"The signal is on the "
+                  bSpan $"{wave.CompLabel}"
+                  str $" port of the sheet instance {compLabel} belongs to, which is where the \
+                        waveform viewer shows it."
+                  br []; br [] ]
+            | _ -> []
+
+        let portRow (wave: Wave) =
+            let isSelected = isWaveSelected wave.WaveId wsModel
+            let fontStyle = if isSelected then boldFontStyle else normalFontStyle
+            waveRow fontStyle [
+                input [
+                    Type "Checkbox"
+                    Checked isSelected
+                    OnChange (fun _ -> toggleWaveSelection wave.WaveId wsModel dispatch)
+                    Style [MarginLeft "10px"; MarginRight "10px"]
+                ]
+                p [Style fontStyle] [str wave.PortLabel]
+                p [Style fontStyle] [str (match wave.WaveId.PortType with
+                                          | PortType.Output -> "Output"
+                                          | PortType.Input -> "Input")]
+                p [Style fontStyle] [str (if wave.Width = 1 then "1 bit" else $"{wave.Width} bits")]
+            ]
+
+        Modal.modal [
+            Modal.IsActive true
+            Modal.Props [Style [ZIndex 20000]]
+        ] [
+            Modal.background [ Props [ OnClick close ] ] []
+            Modal.Card.card [Props [Style [Width 600]]] [
+                Modal.Card.head [] [
+                    Modal.Card.title [] [
+                        Level.level [] [
+                            Level.left [] [ str $"Waveforms from {compLabel}" ]
+                            Level.right [] [
+                                Delete.delete [
+                                    Delete.Option.Size IsMedium
+                                    Delete.Option.OnClick close
+                                ] []
+                            ]
+                        ]
+                    ]
+                ]
+                Modal.Card.body [] (
+                    portsOfInstanceNote @
+                    match waves with
+                    | [] ->
+                        [ str "No waveforms are available from this component." ]
+                    | waves ->
+                        [ str "Ticked ports are shown in the waveform viewer. Use "
+                          bSpan "Select Waves"
+                          str " for anything not on this component."
+                          hr []
+                          wavePropsTable (List.map portRow waves) ])
+                Modal.Card.foot [] []
+            ]
+        ]

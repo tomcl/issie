@@ -186,34 +186,40 @@ let subSheetsToNameReact (subSheets: string list) =
 let wavesToIds (waves: Wave list) =
     waves |> List.map (fun wave -> wave.WaveId)
 
-/// Get the name of a subsheet from its subsheet (string) path list to root of simulation.
-let nameOfSubsheet (fs:FastSimulation) (subSheet: string List) =
-    match subSheet with
-    | [] -> 
-        fs.SimulatedTopSheet
-    | sheets -> 
-        sheets[sheets.Length - 1]
+/// The name of the sheet a wave's component sits on, which is how ComponentsById and
+/// ConnectionsByPort are both keyed.
+/// A component's access path names the custom component instances it sits inside, and the innermost
+/// of those is an instance of the sheet wanted. It is that instance's TYPE which names the sheet:
+/// its LABEL is chosen by whoever placed it, and only happens to be the sheet's name until someone
+/// renames the instance. Asking the label instead left every wave in a renamed subsheet - REGFILE
+/// for reg16x8, say - with no connections found, and so with no wires highlighted on hover.
+let sheetOfWave (fs: FastSimulation) (wave: Wave) : string option =
+    match snd wave.WaveId.Id with
+    | [] ->
+        Some fs.SimulatedTopSheet
+    | path ->
+        Map.tryFind (path[path.Length - 1], path[0 .. path.Length - 2]) fs.FCustomComps
+        |> Option.bind (fun instance ->
+            match instance.FType with
+            | Custom cc -> Some cc.Name
+            | _ -> None)
 
 /// Work out a SheetPort from a wave, if one exists
 /// SheetPorts may not exist in some corner cases when simulation is ending etc.
 let waveToSheetPort fs (wave:Wave) =
-    let sheet = nameOfSubsheet fs wave.SubSheet
     let wi = wave.WaveId
-    fs.ComponentsById
-    |> Map.tryFind (sheet.ToLower()) 
-    |> Option.map (Map.tryFind  (fst wi.Id))
-    |> Option.flatten
-    |> Option.map (fun comp ->
+    sheetOfWave fs wave
+    |> Option.bind (fun sheet ->
+        fs.ComponentsById
+        |> Map.tryFind sheet
+        |> Option.bind (Map.tryFind (fst wi.Id))
+        |> Option.map (fun comp ->
             let port =
                 match wi.PortType, comp.InputPorts.Length > 0, comp.OutputPorts.Length > 0 with
                 | PortType.Input, true, _ | PortType.Output, true, false -> comp.InputPorts[wi.PortNumber]
                 | PortType.Output ,_, true | PortType.Input, false, true -> comp.OutputPorts[wi.PortNumber]
                 | _ -> failwithf "What? no parts found in waveToSheetPort"
-            {
-                Sheet = sheet.ToLower()
-                PortOnComp = port
-            }
-            |> fun p -> [p])
+            [{ Sheet = sheet; PortOnComp = port }]))
     |> Option.defaultValue []
 
 

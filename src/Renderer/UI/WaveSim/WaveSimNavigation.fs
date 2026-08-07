@@ -99,8 +99,12 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
     let singleCycleWidth = float waveColWidth / float wholeCycles
     let finalWavesColWidth = singleCycleWidth * float wholeCycles
 
-    /// Estimated length of scrollbar, adding three components together: names col, waveform port, and values col.
-    let scrollbarWidth = (float namesColWidth) + finalWavesColWidth + (float valuesColumnWidth)
+    /// Estimated length of scrollbar, adding three components together: names col, waveform port,
+    /// and values col - less the strip at the left of the names column which the scrollbar is
+    /// indented past, so that it still ends level with the right of the table.
+    let scrollbarWidth =
+        (float namesColWidth) + finalWavesColWidth + (float valuesColumnWidth)
+        - float Constants.viewSymbolWidth
 
     // printfn "DEBUG:updateViewerWidthInWaveSim: Names Column Width = %Apx" (float namesColWidth)
     // printfn "DEBUG:updateViewerWidthInWaveSim: Waves Column Width = %Apx" finalWavesColWidth
@@ -358,7 +362,12 @@ let makeScrollbar (wsm: WaveSimModel) (dispatch: Msg->unit): ReactElement =
             OnMouseDown tbMouseDownHandler; OnMouseUp tbMouseUpHandler; OnMouseMove tbMouseMoveHandler;
         ]
 
-    div [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap; MarginTop "5px"; MarginBottom "5px"; Height "25px"; CSSProp.Custom("Overflow", "visible visible")]] [
+    // Indented to start on the same line as the labels and the controls above, leaving the strip
+    // at the left of the pane to the view buttons. Its width is short by the same amount, so its
+    // right-hand end stays level with the right of the table - see updateViewerWidthInWaveSim.
+    div [ Style [ WhiteSpace WhiteSpaceOptions.Nowrap; MarginTop "5px"; MarginBottom "5px";
+                  MarginLeft Constants.viewSymbolWidth; Height "25px";
+                  CSSProp.Custom("Overflow", "visible visible")]] [
         button [ Button.Props [scrollbarClkCycleLeftStyle] ]
             (fun _ -> scrollWaveformViewBy -1.0)
             (str "◀")

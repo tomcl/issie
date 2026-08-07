@@ -18,10 +18,26 @@ module Constants =
     /// Width of values column
     let valuesColWidth = 100
     let deleteSymbolWidth = 20
+    /// Width of the slot at the left of each wave name holding the button which shows that wave's
+    /// component on the schematic. Taken out of leftMargin rather than added to the names column,
+    /// so that the waveforms are no narrower for it: updateViewerWidthInWaveSim subtracts both from
+    /// the same total.
+    let viewSymbolWidth = 20
     let scrollBarWidth = 15
 
-    /// Width of left margin of waveform simulator
-    let leftMargin = 30
+    /// How often, and for how many tries, to look for the sheet that a jump to a waveform's
+    /// component has asked for. Opening a sheet is asynchronous: its load messages are delivered in
+    /// one batch 300ms later by SimulationView.doBatchOfMsgsAsynch, and that batch ends with the
+    /// Ctrl-W which fits the sheet to the window - so a jump has to wait for the component to
+    /// appear rather than act on the next render, which would be both too early and then undone.
+    let sheetLoadPollMs = 100
+    let sheetLoadPollTries = 30
+
+    /// Width of left margin of waveform simulator. What was once a 30px margin is now the
+    /// view-symbol strip inside the names column (see viewSymbolWidth), which the controls and the
+    /// scrollbar are indented past. All that is left to do here is keep the view buttons off the
+    /// divider bar.
+    let leftMargin = 3
     /// Width of right margin of waveform simulator
     let rightMargin = 0
 

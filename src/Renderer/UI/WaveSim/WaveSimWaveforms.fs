@@ -61,11 +61,144 @@ let radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement 
     ] (List.map (radixTab) radixString)
 
 
+//---------------------------------------------------------------------------------------//
+//------------Showing on the schematic the component a waveform comes from---------------//
+//---------------------------------------------------------------------------------------//
+
+// Hovering a wave's name highlights the component the wave comes from, which is no help when that
+// component is scrolled out of view, or is on a sheet other than the one open. The button at the
+// outer edge of each name goes there: it changes sheet if it has to, then scrolls the component to
+// the middle of the canvas.
+
 let highlightCircuit fs comps wave (dispatch: Msg -> Unit) =
     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols comps)))
     // Filter out any non-existent wires
-    let conns = connsOfWave fs wave 
-    dispatch <| Sheet (SheetT.Msg.SelectWires conns)    
+    let conns = connsOfWave fs wave
+    dispatch <| Sheet (SheetT.Msg.SelectWires conns)
+
+/// Highlight on the schematic the component a wave comes from, and the wires carrying that wave.
+/// An IOLabel is highlighted wherever it appears on the sheet, since every copy of it is the one
+/// signal. Does nothing when the component is not on the sheet now open.
+let highlightWaveComps (model: Model) (wave: Wave) (dispatch: Msg -> Unit) =
+    let symbols = model.Sheet.Wire.Symbol.Symbols
+    let fs = Simulator.getFastSim()
+    match Map.tryFind (fst wave.WaveId.Id) symbols with
+    | Some {Component={Type=IOLabel;Label=lab}} ->
+        symbols
+        |> Map.toList
+        |> List.map (fun (_,sym) -> sym.Component)
+        |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
+        |> List.map (fun comp -> ComponentId comp.Id)
+        |> fun labelComps -> highlightCircuit fs labelComps wave dispatch
+    | Some _ ->
+        highlightCircuit fs [fst wave.WaveId.Id] wave dispatch
+    | None -> ()
+
+/// The visible part of the schematic, in sheet coordinates, or None when it is not being shown.
+/// Sheet coordinates are canvas pixels divided by the zoom, as getVisibleScreenCentre has it.
+let private visibleSheetArea (model: Model) : BoundingBox option =
+    let canvas = Browser.Dom.document.getElementById "Canvas"
+    if canvas = null || model.Sheet.Zoom = 0. then
+        None
+    else
+        Some {
+            TopLeft = {X = canvas.scrollLeft / model.Sheet.Zoom; Y = canvas.scrollTop / model.Sheet.Zoom}
+            W = canvas.clientWidth / model.Sheet.Zoom
+            H = canvas.clientHeight / model.Sheet.Zoom
+        }
+
+/// Where on the open sheet the component a wave comes from is, if it is on that sheet at all.
+let private symbolBoxOnOpenSheet (model: Model) (wave: Wave) : BoundingBox option =
+    Map.tryFind (fst wave.WaveId.Id) model.Sheet.BoundingBoxes
+
+let private centreOf (box: BoundingBox) =
+    {X = box.TopLeft.X + box.W / 2.; Y = box.TopLeft.Y + box.H / 2.}
+
+/// True when the component is on the sheet now open and within the visible part of it. Its centre
+/// is what has to be visible: a component half off the edge is one the user still has to go to.
+let private symbolIsInView (model: Model) (wave: Wave) : bool =
+    match symbolBoxOnOpenSheet model wave, visibleSheetArea model with
+    | Some box, Some view ->
+        let centre = centreOf box
+        centre.X > view.TopLeft.X && centre.X < view.TopLeft.X + view.W &&
+        centre.Y > view.TopLeft.Y && centre.Y < view.TopLeft.Y + view.H
+    | _ -> false
+
+/// Scroll the open sheet to put the component in the middle of the canvas. Does nothing when the
+/// component is not on the sheet now open, which after a sheet change is true until it has loaded.
+let private scrollToSymbol (wave: Wave) (model: Model) (dispatch: Msg -> unit) =
+    match symbolBoxOnOpenSheet model wave, visibleSheetArea model with
+    | Some box, Some view ->
+        let centre = centreOf box
+        // UpdateScrollPos is in canvas pixels, which are sheet coordinates scaled by the zoom
+        dispatch <| Sheet (SheetT.UpdateScrollPos {
+            X = max 0. ((centre.X - view.W / 2.) * model.Sheet.Zoom)
+            Y = max 0. ((centre.Y - view.H / 2.) * model.Sheet.Zoom) })
+    | _ -> ()
+
+/// The sheet holding a component, found by the id it has on that sheet's canvas.
+let private sheetOfComponent (model: Model) (wave: Wave) : string option =
+    let compId = fst wave.WaveId.Id
+    model.CurrentProj
+    |> Option.bind (fun project ->
+        project.LoadedComponents
+        |> List.tryFind (fun ldc ->
+            fst ldc.CanvasState |> List.exists (fun comp -> ComponentId comp.Id = compId))
+        |> Option.map (fun ldc -> ldc.Name))
+
+/// Put the component in the middle of the canvas and highlight it, once the sheet holding it has
+/// loaded. Opening a sheet is asynchronous - doBatchOfMsgsAsynch delivers its load messages in one
+/// batch 300ms later, and that batch ends with the Ctrl-W that fits the sheet to the window - so
+/// this waits for the component to appear rather than running after the next render, which would
+/// be too early and would then be undone by that Ctrl-W. Gives up rather than waiting for ever:
+/// the sheet may be one which cannot be opened at all.
+let rec private showWhenSheetLoaded (triesLeft: int) (wave: Wave) (dispatch: Msg -> unit) =
+    let attempt model dispatch =
+        match symbolBoxOnOpenSheet model wave with
+        | Some _ ->
+            scrollToSymbol wave model dispatch
+            highlightWaveComps model wave dispatch
+        | None when triesLeft > 0 ->
+            showWhenSheetLoaded (triesLeft - 1) wave dispatch
+        | None -> ()
+    dispatch <| DispatchDelayed(Constants.sheetLoadPollMs, ExecFuncInMessage(attempt, dispatch))
+
+/// Show on the schematic the component a wave comes from: change to its sheet if it is on another
+/// one, then scroll it into the middle of the canvas and highlight it.
+/// The highlight is applied here as well as on hover because it does not survive the journey: a
+/// sheet change loads a new set of symbols, taking any selection with it, and the highlight the
+/// hover had applied was to a component the user could not see anyway.
+let private showSymbolOfWave (wave: Wave) (model: Model) (dispatch: Msg -> unit) =
+    match symbolBoxOnOpenSheet model wave with
+    | Some _ ->
+        scrollToSymbol wave model dispatch
+        highlightWaveComps model wave dispatch
+    | None ->
+        match sheetOfComponent model wave, model.CurrentProj with
+        | Some sheet, Some project ->
+            MenuHelpers.openFileInProject sheet project model dispatch
+            showWhenSheetLoaded Constants.sheetLoadPollTries wave dispatch
+        | _ -> ()
+
+/// Button at the outer edge of a wave's name which shows that wave's component on the schematic.
+/// Green when the component cannot be seen - on another sheet, or scrolled out of view - and grey
+/// when it is already in front of the user, so that the colour says whether pressing it will move
+/// anything without the button itself coming and going under the mouse.
+let private viewSymbolButton (model: Model) (wave: Wave) (dispatch: Msg -> unit) : ReactElement =
+    let isInView = symbolIsInView model wave
+    div [
+        viewSymbolButtonStyle isInView
+        Draggable false
+        HTMLAttr.Title (
+            if isInView then "Centre this component on the schematic"
+            else "Show this component: change sheet and scroll to it")
+        OnClick (fun ev ->
+            // Stop the click reaching the row, which selects and drags
+            ev.stopPropagation()
+            // Run against the model as it is when this is handled, not as it was when the row was
+            // drawn: the canvas may have been scrolled since
+            dispatch <| ExecFuncInMessage(showSymbolOfWave wave, dispatch))
+    ] [ eyeSvg "white" "12px" ]
 
 /// Create label of waveform name for each selected wave.
 /// Note that this is generated after calling selectedWaves. Any changes to this function
@@ -87,22 +220,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                 OnMouseOver (fun _ -> dispatch <| execWithModel (fun model ->
                     if wsModel.DraggedIndex = None then
                         dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
-                        // Check if symbol exists on Canvas
-                        let symbols = model.Sheet.Wire.Symbol.Symbols
-                        let fs = Simulator.getFastSim()
-                        match Map.tryFind (fst wave.WaveId.Id) symbols with
-                        | Some {Component={Type=IOLabel;Label=lab}} ->
-                            let labelComps =
-                                symbols
-                                |> Map.toList
-                                |> List.map (fun (_,sym) -> sym.Component)
-                                |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
-                                |> List.map (fun comp -> ComponentId comp.Id)
-                            highlightCircuit fs labelComps wave dispatch                            
-                        | Some sym ->
-                            highlightCircuit fs [fst wave.WaveId.Id] wave dispatch
-                        | None -> ())
-                        
+                        highlightWaveComps model wave dispatch)
                 )
                 OnMouseOut (fun _ ->
                     dispatch <| SetWSModel {wsModel with HoveredLabel = None; DraggedIndex = None; PrevSelectedWaves = None }
@@ -171,7 +289,11 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
             ]
         ] [ Level.left
                 [ Props (nameRowLevelLeftProps visibility) ]
-                [ Delete.delete [
+                // The view button sits outboard of the delete icon: delete belongs to the label,
+                // the view button is an extra beside it, and this is the order the eye ends up in
+                // the slot taken from the margin.
+                [ viewSymbolButton model wave dispatch
+                  Delete.delete [
                     Delete.Option.Size IsSmall
                     Delete.Option.Props [
                         OnClick (fun _ ->
@@ -193,7 +315,7 @@ let namesColumn model wsModel dispatch : ReactElement =
     let rows = 
         nameRows model wsModel dispatch
     div (namesColumnProps wsModel)
-        (List.concat [ topRow wsModel []; rows ])
+        (List.concat [ topRow wsModel (namesColBackground "transparent" (Some (2, separatorColour, false))) []; rows ])
     //|> TimeHelpers.instrumentInterval "namesColumn" start
 
 
@@ -250,7 +372,7 @@ let private valuesColumn wsModel : ReactElement =
             FontWeight wsModel.WSConfig.FontWeight;
             PaddingLeft "4pt"]] [str (string <| cursorClkNum)] ]
     div [ HTMLAttr.Id "ValuesCol" ; valuesColumnStyle wsModel width]
-        (List.concat [ topRow wsModel topRowNumber ; rows ])
+        (List.concat [ topRow wsModel plainTopRowLine topRowNumber ; rows ])
     //|> TimeHelpers.instrumentInterval "valuesColumn" start
 
 /// Generate a column of waveforms corresponding to selected waves.

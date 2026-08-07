@@ -116,4 +116,31 @@ let tests =
           <| fun () ->
               let waves, copies = offered "not-in-this-simulation"
               Expect.equal copies 0 "no copies of a component the simulation does not hold"
-              Expect.isEmpty waves "and so nothing to offer" ]
+              Expect.isEmpty waves "and so nothing to offer"
+
+          // Hovering a wave's name highlights the wires carrying it, which are found by the sheet
+          // the wave's component is on. A subsheet is reached through a custom component instance
+          // whose LABEL is whatever the person who placed it chose - here SOLO1, for the sheet
+          // named solo - so taking the sheet's name from that label finds no sheet, and no wires.
+          testCase "a wave in a subsheet knows its sheet by the instance's type, not its label"
+          <| fun () ->
+              let fs, allWaves = simulation.Force()
+              match fst (WaveSimSelect.wavesOfComponent fs allWaves (ComponentId "solo-not")) with
+              | wave :: _ ->
+                  Expect.equal
+                      (WaveSimHelpers.sheetOfWave fs wave)
+                      (Some "solo")
+                      "the sheet is the instance's type, whose label is SOLO1"
+                  Expect.isNonEmpty
+                      (WaveSimHelpers.connsOfWave fs wave)
+                      "so the wave's connections are found and its wires can be highlighted"
+              | [] -> failtest "expected waves for the gate inside the subsheet"
+
+          testCase "a wave on the top sheet knows its sheet"
+          <| fun () ->
+              let fs, allWaves = simulation.Force()
+              match fst (WaveSimSelect.wavesOfComponent fs allWaves (ComponentId "top-not")) with
+              | wave :: _ ->
+                  Expect.equal (WaveSimHelpers.sheetOfWave fs wave) (Some "top") "the simulated top sheet"
+                  Expect.isNonEmpty (WaveSimHelpers.connsOfWave fs wave) "and its connections are found"
+              | [] -> failtest "expected waves for the gate on the top sheet" ]

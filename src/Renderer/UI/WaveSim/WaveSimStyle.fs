@@ -60,15 +60,41 @@ let valueTopPadding (ws:WaveSimModel) =
     (float Constants.rowHeight - float ws.WSConfig.FontSize - 8.) / 2.
 
 
+let separatorColour = "rgb(219,219,219)"
+
+/// Background for the names column, or for one row of it.
+/// The strip at the left, where the view button sits, is painted as pane rather than as column, so
+/// that the button reads as standing outside the line the labels start on - which is what it is.
+/// The delete cross is inside that line, because it belongs to the label.
+/// Any line along the row starts at that same place rather than running out into the strip. It is
+/// painted as a second background layer, since a border cannot be inset. The line is given as
+/// thickness, colour, and whether it goes along the top of the element rather than the bottom.
+let namesColBackground (fill: string) (line: (int * string * bool) option) : CSSProp list =
+    let edge = string Constants.viewSymbolWidth + "px"
+    let fillLayer = "linear-gradient(to right, white " + edge + ", " + fill + " " + edge + ")"
+    match line with
+    | None ->
+        [ BackgroundImage fillLayer ]
+    | Some (thickness, colour, atTop) ->
+        [ BackgroundImage
+            (fillLayer + ", linear-gradient(to right, transparent " + edge + ", " + colour + " " + edge + ")")
+          BackgroundSize ("100% 100%, 100% " + string thickness + "px")
+          BackgroundPosition (if atTop then "0 0, 0 0" else "0 0, 0 100%")
+          BackgroundRepeat "no-repeat" ]
+
 /// Empty row used in namesColumn and valuesColumn. Shifts these down by one
 /// to allow for the row of clk cycle numbers in waveformsColumn.
-let topRow (ws:WaveSimModel) topRowContent =
-    [ div [ Style [
-                Height Constants.rowHeight
-                BorderBottom "2px solid rgb(219,219,219)"
-                PaddingTop (valueTopPadding ws)
-            ]]
+/// The background carries the line under the row: the names column insets that line past the view
+/// button strip, the values column has no strip and draws it as a plain border.
+let topRow (ws:WaveSimModel) (background: CSSProp list) topRowContent =
+    [ div [ Style (
+                [ Height Constants.rowHeight
+                  PaddingTop (valueTopPadding ws) ]
+                @ background)]
           topRowContent ]
+
+/// The line under the top row of the values column, which has no strip to keep clear of.
+let plainTopRowLine = [ BorderBottom ("2px solid " + separatorColour) ]
 
 /// Style for showing error messages in waveform simulator.
 let errorMessageStyle = Style [
@@ -306,13 +332,15 @@ let scrollbarClkCycleRightStyle = Style (
     ])
 
 /// Style for Bulma level element in name row
-let nameRowLevelStyle isHovered = Style [
-    Height Constants.rowHeight
-    BorderBottom "1px solid rgb(219,219,219)"
-    if isHovered then
-        BackgroundColor "hsl(0, 0%, 96%)"
-        Cursor "grab"
-]
+let nameRowLevelStyle isHovered = Style (
+    [ Height Constants.rowHeight
+      if isHovered then Cursor "grab" ]
+    // The row's own colour, and the line separating it from the next, both start at the label line
+    // rather than at the edge of the pane - the strip to the left of that belongs to the view
+    // button. A hovered row must repaint the strip too, or its highlight would cover it.
+    @ namesColBackground
+        (if isHovered then "hsl(0, 0%, 96%)" else "transparent")
+        (Some (1, separatorColour, false)))
 
 /// Style for name label
 let nameLabelStyle isHovered = Style [
@@ -343,6 +371,39 @@ let nameRowLevelLeftProps (visibility: string): IHTMLProp list = [
     ]
 ]
 
+/// Eye, drawn to the size of the box it is given. Marks the button which shows a waveform's
+/// component on the schematic.
+let eyeSvg (colour: string) (size: string) =
+    svg [
+        ViewBox "0 0 576 512"
+        SVGAttr.Height size
+        SVGAttr.Width size
+    ] [
+        path [
+            SVGAttr.Fill colour
+            D "M288 96c-93 0-171 56-224 160 53 104 131 160 224 160s171-56 224-160c-53-104-131-160-224-160zm0
+               266c-58 0-106-47-106-106s48-106 106-106 106 47 106 106-48 106-106 106zm0-170c-35 0-64 29-64 64s29
+               64 64 64 64-29 64-64-29-64-64-64z"
+        ] []
+    ]
+
+/// Style of the button which shows a waveform's component on the schematic. It sits in a slot of
+/// its own at the outer edge of the name row, beyond the delete icon, so that it reads as an extra
+/// beside the label rather than as one of the label's own controls. Green when the component cannot
+/// be seen and grey when it is already in front of the user; shown only while the row is hovered.
+let viewSymbolButtonStyle (isInView: bool) = Style [
+    Width Constants.viewSymbolWidth
+    Height Constants.viewSymbolWidth
+    MinWidth Constants.viewSymbolWidth
+    Display DisplayOptions.Flex
+    AlignItems AlignItemsOptions.Center
+    JustifyContent "center"
+    BorderRadius "4px"
+    MarginRight "2px"
+    BackgroundColor (if isInView then "hsl(0, 0%, 71%)" else "hsl(141, 53%, 53%)")
+    Cursor "pointer"
+]
+
        
        
 
@@ -369,7 +430,7 @@ let calcNamesColWidth (ws:WaveSimModel) : int =
         |> List.max
         |> System.Math.Ceiling
         |> int
-    cWidth + Constants.deleteSymbolWidth
+    cWidth + Constants.deleteSymbolWidth + Constants.viewSymbolWidth
 
 
 /// List of Style properties for columns in wave viewer.
@@ -388,7 +449,12 @@ let waveSimColumn = [
 
 /// Style properties for names column
 let namesColumnStyle (ws:WaveSimModel) = Style (
-    (waveSimColumn) @ [
+    (waveSimColumn)
+    // The column's top border is drawn as a background layer instead, so that it too stops at the
+    // label line rather than running out across the view button strip.
+    @ namesColBackground Constants.namesValuesColumnColor (Some (2, separatorColour, true))
+    @ [
+        BorderTop "none"
         Width (calcNamesColWidth ws)
         Float FloatOptions.Left
         BackgroundColor Constants.namesValuesColumnColor
@@ -696,6 +762,10 @@ let topHalfStyle = Style [
     // buttons and the control row each carry a margin of their own, so only the rest of the
     // table's gap is needed here.
     MarginRight (Constants.waveTableRightGap - Constants.topRowButtonMargin)
+    // and the same on the left, against the line the labels start on rather than the edge of the
+    // pane: the strip outside that line belongs to the view buttons, which are meant to stand out
+    // of it. Padding rather than margin, so the sticky white background still covers the strip.
+    PaddingLeft (Constants.viewSymbolWidth - Constants.topRowButtonMargin)
 ]
 
 //---------------------------Code for selector details state----------------------------------//

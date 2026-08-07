@@ -150,7 +150,7 @@ let private ramFileTests =
     testList "readMemLines" [
         test "parses a well-formed file" {
             let r = read [ "0 12"; "1 x1f"; "2 b1010" ]
-            Expect.equal r (Ok [| 0I, 12I; 1I, 31I; 2I, 10I |]) "three definitions"
+            Expect.equal r (Ok [| 0I, 12I, None; 1I, 31I, None; 2I, 10I, None |]) "three definitions"
         }
         test "blank lines are allowed and do not shift line numbers" {
             // the line index used to be taken after blank lines were filtered out, so it
@@ -183,6 +183,28 @@ let private ramFileTests =
         }
         test "repeated addresses are rejected" {
             Expect.isError (read [ "1 2"; "1 3" ]) "address 1 defined twice"
+        }
+        // Comments say what a location is for, and are shown when hovering the waveform of a ROM
+        // reading that location.
+        test "a comment is read from the line it is written on" {
+            let r = read [ "0 12 // reset vector"; "1 34" ]
+            Expect.equal r (Ok [| 0I, 12I, Some "reset vector"; 1I, 34I, None |]) "one commented, one not"
+        }
+        test "an address may be written with a colon after it" {
+            let r = read [ "0: 12 // reset vector" ]
+            Expect.equal r (Ok [| 0I, 12I, Some "reset vector" |]) "the colon is a separator"
+        }
+        test "a line which is only a comment defines nothing" {
+            let r = read [ "// what this memory holds"; "0 12" ]
+            Expect.equal r (Ok [| 0I, 12I, None |]) "the comment line is skipped, not an error"
+        }
+        test "a comment does not hide a bad line" {
+            let msg = Expect.wantError (read [ "0 12"; "99 3 // still out of range" ]) "99 needs more than 4 bits"
+            Expect.stringContains msg "Line 2" "where"
+            Expect.stringContains msg "invalid address (99)" "which item"
+        }
+        test "an empty comment is no comment" {
+            Expect.equal (read [ "0 12 //" ]) (Ok [| 0I, 12I, None |]) "nothing written after the //"
         }
     ]
 

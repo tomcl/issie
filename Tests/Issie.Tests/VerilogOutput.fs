@@ -197,7 +197,8 @@ let private mem aw dw (data: (int * int) list) =
     { Init = FromData
       AddressWidth = aw
       WordWidth = dw
-      Data = data |> List.map (fun (a, d) -> bigint a, bigint d) |> Map.ofList }
+      Data = data |> List.map (fun (a, d) -> bigint a, bigint d) |> Map.ofList
+      Comments = None }
 
 //------------------------------------------------------------------------------------------//
 //----------------------------------------- tests ------------------------------------------//

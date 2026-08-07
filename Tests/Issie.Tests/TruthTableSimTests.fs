@@ -110,7 +110,8 @@ let private memoryTests =
         { Init = FromData
           AddressWidth = addressWidth
           WordWidth = wordWidth
-          Data = data }
+          Data = data
+          Comments = None }
 
     testList "memory" [
         test "ROM output is WordWidth wide, not AddressWidth" {

@@ -168,6 +168,7 @@ let mutable dynamicMem: Memory1 = {
     WordWidth = 0; 
     AddressWidth = 0; 
     Data = Map.empty 
+    Comments = None
     } // Need to use a mutable dynamic memory and update it locally so that the shown values are correct since the model is not immediately updated
 
 let baseSelector numBase changeBase =
@@ -303,6 +304,11 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
 
     //printfn "Making body with data=%A, dynamic %A" memory.Data dynamicMem
     // let memory = dynamicMem
+    /// Comments written against locations in the .ram file this memory came from. They are shown
+    /// here but not edited: the file is where they are written, as the data in a linked memory is.
+    let comments = Option.defaultValue Map.empty memory.Comments
+    let hasComments = not (Map.isEmpty comments)
+
     let makeRow isReadOnly (memData: Map<bigint,bigint>) (addr: bigint) =
         let content =  // Need to keep the changes locally as well, since the model does not immediately get updated
             Map.tryFind (addr) memData
@@ -344,9 +350,11 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                     Input.Option.OnChange <| (getTextEventValue >> (fun text ->
                         match strToIntCheckWidth memory.WordWidth text with
                         | Error err -> showError err dispatch
-                        | Ok _ -> closeError dispatch))                    
+                        | Ok _ -> closeError dispatch))
                 ]
             ]
+            if hasComments then
+                td [Style [Color "grey"]] [ str (Option.defaultValue "" (Map.tryFind addr comments)) ]
         ]
 
     div [bodyStyle] [
@@ -356,6 +364,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
             thead [] [ tr [] [
                 th [] [str "Address"]
                 th [] [str "Content"]
+                if hasComments then th [] [str "Comment"]
             ] ]
             tbody [] ( [startLoc..endLoc] |> List.map (makeRow (isReadOnly <> "") memory.Data))
         ]
@@ -412,6 +421,9 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
         Map.tryFind addr memData
         |> Option.defaultValue 0I
     let viewNum = viewNum memoryEditorData.NumberBase
+    // the comments belong to the locations, so they are the same in both memories being compared
+    let comments = Option.defaultValue Map.empty memory1.Comments
+    let hasComments = not (Map.isEmpty comments)
     let makeRow content1 content2 addr =
         let hasChanged = content1 <> content2
         let showRow addr =
@@ -426,6 +438,8 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
             td [
                 Style [BackgroundColor (if hasChanged then "#baffd3" else "auto") ]
             ] [ str <| viewNum content2 ]
+            if hasComments then
+                td [Style [Color "grey"]] [ str (Option.defaultValue "" (Map.tryFind addr comments)) ]
         ]
     let addr = Option.defaultValue 0I memoryEditorData.Address
     let addr2 = addr + 15I
@@ -436,6 +450,7 @@ let private makeDiffViewerBody memory1 memory2 memoryEditorData =
                 th [] [str "Address"]
                 th [] [str "Initial content"]
                 th [] [str "Current content"]
+                if hasComments then th [] [str "Comment"]
             ] ]
             tbody [] (
                 [addr..addr2] |> List.map (fun a -> (makeRow (getData a memory1.Data) (getData a memory2.Data) a))

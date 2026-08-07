@@ -15,6 +15,7 @@ For every wave in the simulation.
 *)
 
 open ModelType
+open SimTypes
 open WaveSimTypes
 open Fable.React
 open Fable.React.Props
@@ -52,30 +53,56 @@ let checkIfHatched (store:GapStore) (cycle:int) =
     store.Gaps[0..store.NextGap-1]
     |> Array.exists (fun gap -> gap.Start <= cycle && gap.Length + gap.Start > cycle)
 
-/// Use cached "gap" data to determine if a wave is hatched at a given cycle.
-/// If so, return text for a tooltip based on the correct wave value for that cycle.
-/// If not, return an empty string.
+/// The comment written in a .ram file against the location a ROM is reading at a given simulation
+/// step, if the ROM has any comments and this wave is its data output.
+/// The location read is the address input one step earlier for a synchronous ROM and at the same
+/// step for an asynchronous one, which is the distinction WaveSimRams.addReadWrite also makes.
+let getRomCommentAtStep (fs: FastSimulation) (step: int) (wave: Wave) : string =
+    match Map.tryFind wave.WaveId.Id fs.WaveComps with
+    | Some fc when wave.WaveId.PortType = CommonTypes.PortType.Output ->
+        let readStep =
+            match fc.FType with
+            | CommonTypes.AsyncROM1 _ -> Some step
+            | CommonTypes.ROM1 _ -> if step > 0 then Some (step - 1) else None
+            | _ -> None
+        let comments : Map<bigint,string> =
+            match fc.FType with
+            | CommonTypes.AsyncROM1 mem
+            | CommonTypes.ROM1 mem -> Option.defaultValue Map.empty mem.Comments
+            | _ -> Map.empty
+        match readStep with
+        | Some readStep when not (Map.isEmpty comments) ->
+            FastExtract.getFastComponentInput fc 0 readStep
+            |> fun address -> Map.tryFind address comments
+            |> Option.defaultValue ""
+        | _ -> ""
+    | _ -> ""
+
+/// Text for the tooltip shown when hovering a waveform at a given cycle, or "" for no tooltip.
+/// A value is given when the wave is too narrow there to have its number printed on it - the cached
+/// "gap" data says when that is - and a ROM's data output also gives the comment written against
+/// the location being read, so that both appear when the number is hidden as well.
 let getWaveToolTip (cycle:int) (waveNum: int) (ws:WaveSimModel) =
     match List.tryItem waveNum ws.SelectedWaves with
     | None -> ""
     | Some index ->
         let wave = ws.AllWaves[index]
-        let start = wave.StartCycle
         let arrayIndex = cycle * ws.SamplingZoom
-        //printfn $"Wave - Start: {start}, Cycle: {cycle}, {wave.ViewerDisplayName}, NextGap={wave.HatchedCycles.NextGap}"
-        if checkIfHatched wave.HatchedCycles cycle
-        then
-            match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
-            | Some {DriverData = data} ->
-                if data.Width <= 32 then
-                     NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.UInt32Step[arrayIndex]
-                else
-                    NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.BigIntStep[arrayIndex]
-            | None ->
-                ""
-        else
-
-             ""
+        let hiddenValue =
+            if checkIfHatched wave.HatchedCycles cycle then
+                match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
+                | Some {DriverData = data} ->
+                    if data.Width <= 32 then
+                        NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.UInt32Step[arrayIndex]
+                    else
+                        NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.BigIntStep[arrayIndex]
+                | None -> ""
+            else ""
+        match hiddenValue, getRomCommentAtStep Simulator.simCacheWS.FastSim arrayIndex wave with
+        | "", "" -> ""
+        | value, "" -> $"Value:{value}"
+        | "", comment -> comment
+        | value, comment -> $"Value:{value}. {comment}"
 
 /// SVG group element for tooltip.
 /// The props of the tooltip, as well as its text, are set in the function <c>changeToolTip</c>.

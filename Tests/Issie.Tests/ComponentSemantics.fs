@@ -245,13 +245,13 @@ let tests =
               [ 2I; 0I; 0I ] ]  // read addr 2 -> 22
         let asyncRamExpected = [ [ 0I ]; [ 0I ]; [ 11I ]; [ 22I ] ]
         test "AsyncRAM1" {
-            let mem = { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map.empty }
+            let mem = { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map.empty; Comments = None }
             let outs = simulateClocked (AsyncRAM1 mem) [ 4; 8; 1 ] [ 8 ] asyncRamStimuli
             Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
         }
         test "AsyncRAM1 with >32-bit address" {
             // bigint address, uint32 data: exercises the mixed-width FastSim path
-            let mem = { Init = FromData; AddressWidth = 33; WordWidth = 8; Data = Map.empty }
+            let mem = { Init = FromData; AddressWidth = 33; WordWidth = 8; Data = Map.empty; Comments = None }
             let outs = simulateClocked (AsyncRAM1 mem) [ 33; 8; 1 ] [ 8 ] asyncRamStimuli
             Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
         }

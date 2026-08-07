@@ -201,8 +201,12 @@ AddressWidth : int
 /// How wide each memory word should be, in bits.
 WordWidth : int
 /// Sparse represnetation: addresses not in map contain zero
-Data : Map<bigint,bigint>  
-} 
+Data : Map<bigint,bigint>
+/// Comments written against locations in a .ram file, as "0 10 // what this word is for".
+/// Addresses with no comment are absent. Optional so that designs saved before comments
+/// existed still load: a missing field reads back as None.
+Comments : Map<bigint,string> option
+}
 
     
 type ShiftComponentType =

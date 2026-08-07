@@ -637,16 +637,27 @@ let removeAutoFile folderPath baseName =
     let path = pathJoin [| folderPath; baseName + ".dgmauto" |]
     unlink path // Asynchronous.
 
-/// Parse one "address data" line of a .ram file. lineNo is the 1-based line number in the
-/// file, used only to say where an error is.
+/// Split a .ram file line into the part which defines a memory location and the comment written
+/// against it, if any. A comment runs from "//" to the end of the line.
+let splitMemDefnComment (s: string) =
+    match s.IndexOf "//" with
+    | -1 -> s, None
+    | i ->
+        let comment = String.trim (s.Substring(i + 2))
+        s.Substring(0, i), (if comment = "" then None else Some comment)
+
+/// Parse one "address data" line of a .ram file, which may carry a comment. lineNo is the 1-based
+/// line number in the file, used only to say where an error is.
 let readMemDefnLine (addressWidth:int) (wordWidth: int) (lineNo: int) (s:string) =
-    let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';'"'|] s
+    let defn, comment = splitMemDefnComment s
+    // ':' is a separator so that the "0: 10" form people write addresses in is read as two numbers
+    let nums = String.splitRemoveEmptyEntries [|' ';'\t';',';';';':';'"'|] defn
     match nums with
     | [|addr;data|] ->
         let addrNum = NumberHelpers.strToIntCheckWidth addressWidth addr
         let dataNum = NumberHelpers.strToIntCheckWidth wordWidth data
         match addrNum,dataNum with
-        | Ok a, Ok d -> Ok (a, d)
+        | Ok a, Ok d -> Ok (a, d, comment)
         | Error aErr,_ -> Error $"Line {lineNo}: '%s{s}' has an invalid address ({addr}). {aErr}"
         // the line number used to be missing here, so a bad data item said only which line
         // text was wrong, not where to find it
@@ -661,13 +672,15 @@ let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
         // number the lines before dropping blank ones: the index used to be taken after the
         // filter, making it a 0-based count of non-blank lines rather than a line number
         |> Array.mapi (fun i line -> i + 1, String.trim line)
-        |> Array.filter (fun (_, line) -> line <> "")
+        // a line which is nothing but a comment defines no location, so it is dropped here along
+        // with the blank ones rather than being read as a line with no numbers on it
+        |> Array.filter (fun (_, line) -> String.trim (fst (splitMemDefnComment line)) <> "")
         |> Array.map (fun (lineNo, line) -> readMemDefnLine addressWidth wordWidth lineNo line)
     match Array.tryFind (function | Error _ -> true | _ -> false) parse with
     | None ->
         let defs = (Array.map (function |Ok x -> x | _ -> failwithf "What?") parse)
         let repeats =
-            Array.groupBy fst defs
+            Array.groupBy (fun (addr, _, _) -> addr) defs
             |> Array.filter (fun (num, vals) -> vals.Length > 1)
         if repeats <> [||] then 
             repeats
@@ -680,6 +693,8 @@ let readMemLines (addressWidth:int) (wordWidth: int) (lines: string array) =
         Error firstErr
     | _ -> failwithf "What? can't happen"
 
+/// The locations defined by a .ram file, and the comments written against them. Locations with no
+/// comment are absent from the second map.
 let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
      tryReadFileSync fPath
     |> Result.bind (
@@ -688,16 +703,29 @@ let readMemDefns (addressWidth:int) (wordWidth: int) (fPath: string) =
         // trailing '\r' is removed by the trim in readMemLines
         (fun (contents: string) -> contents.Split '\n')
         >> readMemLines addressWidth wordWidth
-        >> Result.map Map.ofArray)
+        >> Result.map (fun defs ->
+            let data = defs |> Array.map (fun (addr, dat, _) -> addr, dat) |> Map.ofArray
+            let comments =
+                defs
+                |> Array.choose (fun (addr, _, comment) -> comment |> Option.map (fun c -> addr, c))
+                |> Map.ofArray
+            data, comments))
 
     
     
 
 let writeMemDefns (fPath: string) (mem: Memory1) =
     try
+        // comments are written back against their locations, or writing a memory out would lose
+        // whatever the .ram file it came from had to say about them
+        let comments = Option.defaultValue Map.empty mem.Comments
         Map.toArray mem.Data
         |> Array.sortBy fst
-        |> Array.map (fun (a,b) -> $"{NumberHelpers.hexBignum a}\t{NumberHelpers.hexBignum b}")
+        |> Array.map (fun (a,b) ->
+            let defn = $"{NumberHelpers.hexBignum a}\t{NumberHelpers.hexBignum b}"
+            match Map.tryFind a comments with
+            | Some comment -> $"{defn}\t// {comment}"
+            | None -> defn)
         |> String.concat "\n"
         |> writeFile fPath
         |> Ok
@@ -717,12 +745,13 @@ let initialiseMem (mem: Memory1) (projectPath:string) =
             readMemDefns mem.AddressWidth mem.WordWidth fPath
 
         | FromData ->
-            Ok mem.Data
+            Ok (mem.Data, Option.defaultValue Map.empty mem.Comments)
 
         | _ -> Error $"Unsupported legacy memory type '{mem.Init}'"
-       
+
     memResult
-    |> Result.map (fun data -> {mem with Data = data})
+    |> Result.map (fun (data, comments) ->
+        {mem with Data = data; Comments = (if Map.isEmpty comments then None else Some comments)})
 
 
 
@@ -798,6 +827,7 @@ let getLatestComp (comp: Component) =
             Data = mem.Data
             AddressWidth = mem.AddressWidth
             WordWidth = mem.WordWidth
+            Comments = None
         }
     match comp.Type with
     | RAM mem -> {comp with Type = RAM1 (updateMem mem)}
@@ -838,10 +868,13 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
             let fPath = pathJoin [|projectPath ; (fName + ".ram")|]
             let memData = readMemDefns mem.AddressWidth mem.WordWidth fPath
             match memData with
-            | Ok memDat -> 
+            | Ok (memDat, comments) ->
                 if memDat <> mem.Data then
                     printfn "%s" $"Warning! RAM file {fPath} has changed so component {comp.Label} is now different"
-                let mem = {mem with Data = memDat}
+                let mem =
+                    {mem with
+                        Data = memDat
+                        Comments = (if Map.isEmpty comments then None else Some comments)}
                 {comp with Type = getMemType comp.Type mem}
             | Error msg ->
                 printfn $"Error reloading component {comp.Label} from its file {fPath}:\n{msg}"

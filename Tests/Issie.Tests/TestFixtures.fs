@@ -168,7 +168,17 @@ let private initialiseMemory (projectPath: string) (comp: Component) =
         | FromFile name ->
             let fPath = Path.Combine(projectPath, name + ".ram")
             match readMemLines mem.AddressWidth mem.WordWidth (File.ReadAllLines fPath) with
-            | Ok defns -> { comp with Type = getMemType comp.Type { mem with Data = Map.ofArray defns } }
+            | Ok defns ->
+                let data = defns |> Array.map (fun (addr, dat, _) -> addr, dat) |> Map.ofArray
+                let comments =
+                    defns
+                    |> Array.choose (fun (addr, _, c) -> c |> Option.map (fun c -> addr, c))
+                    |> Map.ofArray
+                let mem =
+                    { mem with
+                        Data = data
+                        Comments = (if Map.isEmpty comments then None else Some comments) }
+                { comp with Type = getMemType comp.Type mem }
             | Error msg -> failwith $"Cannot parse {fPath}: {msg}"
         | _ -> comp
     | _ -> comp
@@ -179,7 +189,8 @@ let private getLatestComp (comp: Component) =
         { Init = FromData
           Data = mem.Data
           AddressWidth = mem.AddressWidth
-          WordWidth = mem.WordWidth }
+          WordWidth = mem.WordWidth
+          Comments = None }
     match comp.Type with
     | RAM mem -> { comp with Type = RAM1(updateMem mem) }
     | ROM mem -> { comp with Type = ROM1(updateMem mem) }

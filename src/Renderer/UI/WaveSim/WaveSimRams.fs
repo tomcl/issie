@@ -21,12 +21,15 @@ open Optics
 open Optics.Operators
 
 
-/// Table row that shows the address and data of a RAM component.
-let ramTableRow ((addr, data,rowType): string * string * RamRowType): ReactElement =
+/// Table row that shows the address and data of a RAM component, and what the .ram file it was
+/// initialised from had to say about that location. The comment column is there only when the
+/// memory has comments, so that every row of a table has the same cells.
+let ramTableRow (hasComments: bool) ((addr, data, comment, rowType): string * string * string * RamRowType): ReactElement =
 
     tr [ Style <| ramTableRowStyle rowType ] [
         td [] [ str addr ]
         td [] [ str data ]
+        if hasComments then td [Style [Color "grey"]] [ str comment ]
     ]
 
 /// Table showing contents of a RAM component.
@@ -77,11 +80,18 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             max (screenHeight() - (min wanted (screenHeight()/2.)) - 300.) 30.
             |> (fun h -> h - 40.)
 
-        /// print a single 0 location as one table row
-        let print1 (a:bigint,b:bigint,rw:RamRowType) = $"{print aWidth a}",$"{print dWidth b}",rw
+        /// Comments written against locations in the .ram file this memory came from.
+        let comments = Option.defaultValue Map.empty memData.Comments
+        let hasComments = not (Map.isEmpty comments)
 
-        /// print a range of zero locations as one table row
-        let print2 (a1:bigint) (a2:bigint) (d:bigint) = $"{print aWidth (a1+1I)} ... {print aWidth (a2-1I)}", $"{print dWidth d}",RAMNormal
+        /// print a single 0 location as one table row
+        let print1 (a:bigint,b:bigint,rw:RamRowType) =
+            $"{print aWidth a}", $"{print dWidth b}", (Option.defaultValue "" (Map.tryFind a comments)), rw
+
+        /// print a range of zero locations as one table row. A range covers many locations, so no
+        /// one comment belongs against it.
+        let print2 (a1:bigint) (a2:bigint) (d:bigint) =
+            $"{print aWidth (a1+1I)} ... {print aWidth (a2-1I)}", $"{print dWidth d}", "", RAMNormal
 
         /// output info for one table row filling the given zero memory gap or arbitrary size, or no line if there is no gap.
         let printGap (gStart:bigint) (gEnd:bigint) =
@@ -231,9 +241,10 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
                     tr [] [
                         th [ centerAlignStyle ] [ str "Address"]
                         th [ centerAlignStyle ] [ str "Data"; sub [Style [MarginLeft "2px"; FontSize "10px"]] [str (string wsModel.CursorExactClkCycle)]]
+                        if hasComments then th [ centerAlignStyle ] [ str "Comment"]
                     ]
                 ]
-                tbody [] (List.map (fun item -> ramTableRow item) lineItems)
+                tbody [] (List.map (fun item -> ramTableRow hasComments item) lineItems)
                                    
             ] ]
             br []

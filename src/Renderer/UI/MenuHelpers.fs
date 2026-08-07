@@ -192,7 +192,7 @@ let makeSourceMenu
         
             match key, projOpt with
             | FromFile s, Some p ->
-                let mem1 = {Init = FromFile s; AddressWidth = n1; WordWidth = n2; Data=Map.empty}
+                let mem1 = {Init = FromFile s; AddressWidth = n1; WordWidth = n2; Data=Map.empty; Comments=None}
                 let sheetDispatch sMsg = dispatch (Sheet sMsg)
                 let mem = FilesIO.initialiseMem mem1 p.ProjectPath
                 match mem with

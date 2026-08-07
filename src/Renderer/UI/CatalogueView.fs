@@ -1064,6 +1064,8 @@ let private createMemoryPopup memType model (dispatch: Msg -> Unit) =
                 WordWidth = wordWidth
                 Init = source
                 Data = Map.empty
+                // initialiseMem fills these in from the .ram file when there is one
+                Comments = None
                 }
 
             let memory = FilesIO.initialiseMem  initMem dialogData.ProjectPath
@@ -1417,7 +1419,7 @@ let viewCatalogue model dispatch =
 
             /// Memory contents for a ghost only. A memory symbol is one fixed size whatever it
             /// holds, so these values are never seen: the real ones are asked for by the popup.
-            let ghostMemory = { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map.empty }
+            let ghostMemory = { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map.empty; Comments = None }
 
             /// One catalogue component. `ghost` is what the item draws while it is being carried:
             /// the component it places, at the parameters that component would have if the popup,

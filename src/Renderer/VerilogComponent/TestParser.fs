@@ -213,7 +213,7 @@ let simulateAST ast src dst loadedComps=
         inputs.Inputs
         |> List.map (fun inputPort ->
             let data = inputPort.Values |> List.indexed |> List.map (fun (k, v) -> bigint k, bigint v) |> Map.ofList
-            let (mem: Memory1) = {AddressWidth=width; Data=data; Init=FromData; WordWidth=inputPort.Width}
+            let (mem: Memory1) = {AddressWidth=width; Data=data; Init=FromData; WordWidth=inputPort.Width; Comments=None}
             let rom = createComponent (AsyncROM1 mem) "rom"
             // connect cnt out to rom in
             let conn = createConnection cnt.OutputPorts[0] rom.InputPorts[0]

@@ -663,8 +663,14 @@ let setWaveToolTip (m: WaveSimModel) (ev:Browser.Types.MouseEvent) =
     let numValText = EvilHoverCache.getWaveToolTip cycle waveNum m
     let ttXPos = float (cycle - m.StartCycle) * singleWaveWidth m
     let ttYPos = ( float waveNum * float Constants.rowHeight + 16. / 2.)
-    let ttText = if numValText = "" then "" else $"Cycle:{cycle*m.SamplingZoom}. Value:{numValText}"
-    let ttXMaxEdge = float m.ShownCycles * singleWaveWidth m
+    // getWaveToolTip labels the value itself, since what it has to say may be a hidden value, the
+    // comment against the memory location a ROM is reading, or both
+    let ttText = if numValText = "" then "" else $"Cycle:{cycle*m.SamplingZoom}. {numValText}"
+    // The tooltip may run on past the right of the waveforms and over the values column, which is
+    // drawn under it - so that is where it has to fit, not within the waveforms alone. A ROM's
+    // comment is a sentence rather than a number, and cutting it at the edge of the waveforms is
+    // what made it unreadable in a narrow window.
+    let ttXMaxEdge = float m.ShownCycles * singleWaveWidth m + float (fst (valuesColumnSize m))
     EvilHoverCache.changeToolTip "waveTip" ttText ttXPos ttYPos ttXMaxEdge (numValText <> "")
 
 /// Controls the background highlighting of which clock cycle is selected
@@ -678,6 +684,11 @@ let cursorCycleHighlightSVG m dispatch =
             GridColumnStart 1
             GridRowStart 1
             ZIndex 33
+            // An svg clips whatever falls outside its viewport, and this one is only as wide as the
+            // waveforms. The tooltip drawn in it has to be able to run out over the names and values
+            // columns to either side, which it is drawn above, or a long one is cut off. What is
+            // outside the pane is still clipped, by the scrolling div these all sit in.
+            CSSProp.Overflow OverflowOptions.Visible
         ]
         SVGAttr.Height (string ((count + 1) * Constants.rowHeight) + "px")
         SVGAttr.Width (viewBoxWidth m)

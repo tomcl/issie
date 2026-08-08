@@ -686,11 +686,13 @@ let private viewMenuItems dispatch =
       itemWithKey "Zoom application reset" KeyTypes.ScAppZoomReset (fun () ->
           JSHelpers.electronRemote.getCurrentWebContents().setZoomLevel 0.0)
       Navbar.divider [] []
-      itemWithKey "Zoom diagram in" KeyTypes.ScDiagramZoomIn (fun () ->
+      // The menu is on the schematic's side of the window, so these always mean the diagram -
+      // unlike the keys, which follow whatever the user is looking at (KeyBindings.zoom).
+      itemWithKey "Zoom diagram in" KeyTypes.ScZoomIn (fun () ->
           keyDispatch SheetT.KeyboardMsg.ZoomIn)
-      itemWithKey "Zoom diagram out" KeyTypes.ScDiagramZoomOut (fun () ->
+      itemWithKey "Zoom diagram out" KeyTypes.ScZoomOut (fun () ->
           keyDispatch SheetT.KeyboardMsg.ZoomOut)
-      itemWithKey "Zoom diagram to fit" KeyTypes.ScDiagramZoomToFit (fun () ->
+      itemWithKey "Zoom diagram to fit" KeyTypes.ScZoomToFit (fun () ->
           keyDispatch SheetT.KeyboardMsg.CtrlW)
       Navbar.divider [] []
       itemWithKey "Show/hide grid" KeyTypes.ScToggleGrid (fun () -> sheetDispatch SheetT.Msg.ToggleGrid)

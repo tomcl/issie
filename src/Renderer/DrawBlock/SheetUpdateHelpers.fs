@@ -333,9 +333,11 @@ let mDownUpdate
         let withEditEnded (m, cmd) = m, Cmd.batch [editEndedCmd; cmd]
         withEditEnded <|
         match clickedOn with
-        | Canvas when mMsg.ShiftKeyDown ->
+        | Canvas when mMsg.ShiftKeyDown || model.SpaceKeyDown ->
             // Start Panning with drag, setting up offset to calculate scroll poistion during drag.
             // When panning ScreenScrollPos muts move in opposite direction to ScreenPage.
+            // Space as well as Shift: space-drag is how every drawing application pans, and is
+            // the one people try first.
             {model with Action = Panning ( model.ScreenScrollPos + mMsg.ScreenPage)}, Cmd.none
         | Label compId ->
             {model with Action = InitialiseMovingLabel compId; TmpModel = Some model},
@@ -884,6 +886,9 @@ let mMoveUpdate
         let newCursor =
             match model.CursorType, model.Action with
             | Spinner,_ -> Spinner
+            // pan mode outranks whatever is under the pointer: while space is held the next drag
+            // pans wherever it starts, so the cursor must not offer to grab a wire instead
+            | _ when model.SpaceKeyDown -> Grabbing
             | _ ->
                 match hovering with
                 | InputPort (_, p) | OutputPort (_, p) -> ClickablePort // Change cursor if on port

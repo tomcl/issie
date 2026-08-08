@@ -272,8 +272,10 @@ let viewInfoPopupAtTab (startTab: int) dispatch =
                     ]
 
                     tr [] [
-                        td [] [str "Ctrl-W"]
-                        td [] [str "Use Ctrl-W to fit the current sheet to the window so you can see all the components"]
+                        td [] [str "Zoom keys"]
+                        td [] [str "Ctrl with + or - zooms whatever you are looking at - the schematic, or the \
+                                    waveforms. Ctrl-0 fits the whole sheet on the screen, which is the one to reach \
+                                    for most. Add Alt to any of the three to zoom the application itself instead"]
                     ]
                     tr [] [
                         td [] [str "Sheet descriptions"]
@@ -539,11 +541,11 @@ let viewWaveInfoPopup dispatch feature =
                             The top sheet's own inputs and outputs are shown straight away. Press the";
                        bSpan " Select Waves "; str "button to change which waveforms are viewed - any signal on \
                        any sheet can be shown. See the selection popup info button for more info."]
-                // The Schematic Editor zoom keys differ between Windows and macOS, so name the one
-                // place that always has them right rather than writing one platform's keys here.
-                li [] [str "Use Ctrl/Shift/- and Ctrl/Shift/+ buttons to resize the viewer so you can comfortably see the correct number of \
-                            waveforms." ; str " The Schematic Editor canvas can be zoomed from the View menu, or with the keyboard - the "
-                       bSpan "Info"; str " button lists the keys for your platform under "; bSpan "Keyboard Shortcuts"; str "."]
+                li [] [str "Use "; bSpan "Ctrl/+"; str " and "; bSpan "Ctrl/-"; str " to show fewer or more clock \
+                            cycles. The same two keys zoom the schematic when the schematic has the keyboard: they \
+                            zoom whatever you are looking at. Add "; bSpan "Alt"; str " to zoom the whole application \
+                            instead. The "; bSpan "Info"; str " button lists every key for your platform under ";
+                       bSpan "Keyboard Shortcuts"; str "."]
                 li [] [str "Drag the"; bSpan " grey horizontal divider bar "; str " to make the waveform viewer wider."] 
             ]
 
@@ -580,14 +582,15 @@ let viewWaveInfoPopup dispatch feature =
                 li [] [ str "Scroll or use " ; bSpan "Scrollbar arrows" ; str " and "; DiagramStyle.zoomOutSVG; DiagramStyle.zoomInSVG;
                         str " controls to show which cycles to display."]
                 li [] [ str "Move the coloured"; bSpan " cursor clock cycle"; str " using "; bSpan "a click on the waveforms,";
-                        str " the "; bSpan "cursor box number,"; bSpan " box controls,"; str " or "; bSpan "Left/Right Arrow Keys";
-                        str " when the mouse is on the righthand side of the grey divider." ]
+                        str " the "; bSpan "cursor box number,"; bSpan " box controls,"; str " or the ";
+                        bSpan "Left/Right arrow keys"; str " once you have clicked anywhere in this pane.                         They step the cursor until you click the schematic or type in a box." ]
                 li [] [ str "The column to the right of the waveforms shows signal values in the cursor cycle" ]
                 li [] [ str "Drag the"; bSpan " grey vertical divider "; str "to alter the screen space used by waveforms"]
                 li [] [ str "Waveforms will scroll vertically if you select more than will fit on the screen."]
                 li [] [ str "Use "; bSpan "Select RAM"; str " to view RAM contents for the current cycle."]
                 li [] [ str "Use "; bSpan "Bin Hex uDec sDec"; str " buttons to change the display radix."]
-                li [] [ bSpan "Ctrl/Shift/+"; str " and "; bSpan "Ctrl/Shift/-"; str " will "; bSpan " zoom "; str "the viewer."]
+                li [] [ bSpan "Ctrl/+"; str " and "; bSpan "Ctrl/-"; str " show fewer or more clock cycles. Add ";
+                        bSpan "Alt"; str " to zoom the whole application instead."]
             ]
         | "Miscellaneous" ->
         

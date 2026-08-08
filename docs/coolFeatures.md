@@ -21,8 +21,9 @@ ISSIE features developed over several years to help you create readable schemati
 | **Place a component** | Click it in the Catalogue, then click the canvas — or **drag it straight from the Catalogue** and drop it where you want it | While you drag, a ghost of the real symbol follows the cursor. A drop onto space already occupied by another symbol is refused rather than overlapping them |
 | **Component tooltips** | Hover any Catalogue entry, or any field label in **Properties** | Every component explains what it is for, and every field explains what it sets and what people get wrong about it |
 | **Find a component** | Type in the Catalogue's search box | Matches the explanations as well as the names, so "subtract" finds the N bits XOR. Sections holding a match open themselves |
-| **Size-to-fit** | `Ctrl-W` | Most often used keyboard shortcut: zooms and centres the schematic so it all fits on screen |
-| **Zoom / pan the canvas** | `Alt`+`Up` / `Alt`+`Down`; `Ctrl`+mouse wheel; `Shift`+drag (or two-finger scroll) | Zoom in, zoom out, and pan |
+| **Size-to-fit** | `Ctrl-0` | Most often used keyboard shortcut: zooms and centres the schematic so it all fits on screen |
+| **Zoom the canvas** | `Ctrl`+`+` / `Ctrl`+`-`; `Ctrl`+mouse wheel | `Ctrl` with `+` `-` `0` zooms whatever you are looking at — the schematic, or the waveforms in the wave simulator. Add `Alt` to zoom the whole application instead |
+| **Pan the canvas** | `Space`+drag or `Shift`+drag (or two-finger scroll) | |
 | **Rotate and flip components** | `Ctrl`+`Right`: rotate clockwise <br> `Ctrl`+`Left`: rotate anti-clockwise <br> `Ctrl`+`Up`: flip vertically <br> `Ctrl`+`Down`: flip horizontally | Also on the Edit menu and on a component's right-click menu |
 | **Undo / redo** | `Ctrl-Z` / `Ctrl-Y`, or the on-screen buttons | |
 | **Copy / paste** | `Ctrl-C` / `Ctrl-V`, or the on-screen buttons | Duplicates keep the label with an incremented number. Works across sheets |
@@ -30,7 +31,7 @@ ISSIE features developed over several years to help you create readable schemati
 | **Change port location on custom components** | Hold `Ctrl` and drag a port to another position on the outline — or use *Move ports* on the component's right-click menu | Custom components can have a lot of ports; move them to make a readable symbol |
 | **Resize a custom component** | Hold `Ctrl` and drag a corner, use *Resize symbol* on its right-click menu, or set `Width Scale` / `Height Scale` in Properties | Auto-sizing keeps port legends from overlapping; override it when you want a particular shape |
 | **Change anything about a component** | Select it and use the **Properties** tab | Labels, bus widths, number of gate inputs, MUX input order, optional adder/counter ports, memory contents, Verilog source |
-| **Align / distribute** | `Ctrl-Shift-A` / `Ctrl-Shift-D` | Same-type components in the selection are aligned or evenly spaced; other types are left alone |
+| **Align / distribute** | `Ctrl-Shift-A` / `Ctrl-Shift-D`; rotate a label with `Ctrl-Shift-R` | Same-type components in the selection are aligned or evenly spaced; other types are left alone |
 | **Rotate or scale a block** | Drag a selection rectangle, then use the handles on the selection box | `Shift`-click adds or removes one component from the selection |
 
 ## Wires and connections
@@ -119,8 +120,9 @@ The on-screen copy & paste buttons can duplicate single components, or selected 
 
 ### Canvas zooming
 
-The canvas can be zoomed in or out, or auto-zoomed and panned to fit the whole circuit using
-`Ctrl-W` (macOS: `Cmd-Alt-0`).
+The canvas can be zoomed in or out with `Ctrl`+`+` and `Ctrl`+`-`, or auto-zoomed and panned to fit
+the whole circuit with `Ctrl-0`. The same chords work on macOS with `Cmd`. Adding `Alt` to any of
+the three zooms the whole application rather than the schematic.
 
 ### Symbol rotation
 

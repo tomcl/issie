@@ -129,9 +129,9 @@ type ShortcutId =
     | ScDeselect
     | ScLeaveTextBox
     // ---- view ----
-    | ScDiagramZoomIn
-    | ScDiagramZoomOut
-    | ScDiagramZoomToFit
+    | ScZoomIn
+    | ScZoomOut
+    | ScZoomToFit
     | ScAppZoomIn
     | ScAppZoomOut
     | ScAppZoomReset
@@ -162,10 +162,13 @@ type ShortcutId =
     | ScTextRedo
     // ---- infrastructure ----
     | ScSuppressScroll
+    /// bound to nothing on purpose - see the table
+    | ScSwallowCloseWindow
     | ScDevTools
     // ---- gestures: no chord, documented only ----
     | GsCtrlWheelZoom
     | GsShiftDragPan
+    | GsSpaceDragPan
     | GsCtrlHoldPorts
     | GsTabBetweenBoxes
 
@@ -260,33 +263,25 @@ let shortcuts: ShortcutSpec list =
                   mac = [ ch Mods.none (named Names.backspace); ch Mods.none (named Names.delete) ]))
           [ SheetIdle ] "Delete items" CatEdit
 
-      spec ScRotateClockwise
-          (Chords(win = [ ch Mods.prim (named Names.arrowRight) ],
-                  mac = [ ch Mods.primAlt (named Names.arrowRight) ]))
+      // Primary+arrow on both platforms. macOS used to add Option, so the chord for the commonest
+      // editing action differed in shape from the Windows one for no reason: Cmd+arrow is a
+      // text-editing shortcut, and text entry is a separate, opaque context these never reach.
+      spec ScRotateClockwise (both [ ch Mods.prim (named Names.arrowRight) ])
           [ SheetIdle ] "Rotate items clockwise" CatEdit
-      spec ScRotateAnticlockwise
-          (Chords(win = [ ch Mods.prim (named Names.arrowLeft) ],
-                  mac = [ ch Mods.primAlt (named Names.arrowLeft) ]))
+      spec ScRotateAnticlockwise (both [ ch Mods.prim (named Names.arrowLeft) ])
           [ SheetIdle ] "Rotate items anticlockwise" CatEdit
-      spec ScFlipVertical
-          (Chords(win = [ ch Mods.prim (named Names.arrowUp) ],
-                  mac = [ ch Mods.primAlt (named Names.arrowUp) ]))
+      spec ScFlipVertical (both [ ch Mods.prim (named Names.arrowUp) ])
           [ SheetIdle ] "Flip items vertically" CatEdit
-      spec ScFlipHorizontal
-          (Chords(win = [ ch Mods.prim (named Names.arrowDown) ],
-                  mac = [ ch Mods.primAlt (named Names.arrowDown) ]))
+      spec ScFlipHorizontal (both [ ch Mods.prim (named Names.arrowDown) ])
           [ SheetIdle ] "Flip items horizontally" CatEdit
 
-      spec ScAlign
-          (Chords(win = [ ch Mods.primShift (letter 'A') ], mac = [ ch Mods.primAlt (letter 'A') ]))
-          [ SheetIdle ] "Align items" CatEdit
-      spec ScDistribute
-          (Chords(win = [ ch Mods.primShift (letter 'D') ], mac = [ ch Mods.primAlt (letter 'D') ]))
-          [ SheetIdle ] "Distribute items" CatEdit
-      spec ScRotateLabel
-          (Chords(win = [ ch Mods.primShift (named Names.arrowRight) ],
-                  mac = [ ch Mods.primAlt (letter 'R') ]))
-          [ SheetIdle ] "Rotate label of item" CatEdit
+      spec ScAlign (both [ ch Mods.primShift (letter 'A') ]) [ SheetIdle ] "Align items" CatEdit
+      spec ScDistribute (both [ ch Mods.primShift (letter 'D') ]) [ SheetIdle ]
+          "Distribute items" CatEdit
+      // R for rotate. The two platforms had different *keys* for this, not merely different
+      // modifiers: Ctrl+Shift+Right against Cmd+Opt+R.
+      spec ScRotateLabel (both [ ch Mods.primShift (letter 'R') ]) [ SheetIdle ]
+          "Rotate label of item" CatEdit
 
       spec ScUndo (both [ ch Mods.prim (letter 'Z') ]) [ SheetIdle ] "Undo diagram action" CatEdit
       spec ScRedo
@@ -327,36 +322,61 @@ let shortcuts: ShortcutSpec list =
           [ TextEntry ] "Leave an input box, returning the keyboard to the schematic" CatTextEntry
 
       // ------------------------------------------------------------------ view
-      repeating (
-          spec ScDiagramZoomIn
-              (Chords(win = [ ch Mods.alt (named Names.arrowUp) ],
-                      mac = [ ch Mods.primAlt (named Names.equal) ]))
-              sheet "Zoom diagram in" CatView)
-      repeating (
-          spec ScDiagramZoomOut
-              (Chords(win = [ ch Mods.alt (named Names.arrowDown) ],
-                      mac = [ ch Mods.primAlt (named Names.minus) ]))
-              sheet "Zoom diagram out" CatView)
-      spec ScDiagramZoomToFit
-          (Chords(win = [ ch Mods.prim (letter 'W') ], mac = [ ch Mods.primAlt (KDigit '0') ]))
-          sheet "Zoom circuit to fit in screen" CatView
+      //
+      // ZOOM. One rule: Primary with + - 0 zooms whatever the user is looking at, and adding Alt
+      // zooms the whole application.
+      //
+      // Every drawing tool gives Ctrl +/-/0 to the document, and Issie's own Ctrl+wheel already
+      // zooms the diagram - so binding the keys to application zoom, as they were, made the same
+      // modifier mean two different things depending on whether a wheel or a key carried it. The
+      // diagram chords also had no shape in common between the platforms (Alt+Up against
+      // Cmd+Opt+=), so nothing a user learned on one transferred to the other.
+      //
+      // Shift+= is + on most layouts, so the two must always be the same action; that is what
+      // stops application zoom living on Primary+Shift and forces it onto Primary+Alt.
+      let zoomIn = [ ch Mods.prim (named Names.equal); ch Mods.primShift (named Names.equal) ]
+      let zoomOut = [ ch Mods.prim (named Names.minus) ]
+      let zoomReset = [ ch Mods.prim (KDigit '0') ]
+
+      // ONE shortcut, not one per target. Which thing is zoomed is decided when the key fires, by
+      // KeyBindings.zoomTarget, rather than by which key context the user is in.
+      //
+      // That distinction is the whole point. A context is a narrow thing - it is lost the moment a
+      // properties box takes DOM focus, or the right-hand pane is clicked - and zoom kept stopping
+      // in all the places where nothing else wanted the key. Binding it in every context where it
+      // has no competitor, and choosing the target inside the action, is what makes it reliable.
+      //
+      // TextEntry included on purpose: an input box has no use for Ctrl and + - 0, and losing zoom
+      // as soon as the caret lands somewhere is exactly the failure this replaces. Modal contexts
+      // are left out - zooming what is behind a dialog you cannot reach is not helpful.
+      let zoomable = [ SheetIdle; SheetBusy; WaveSim; TextEntry ]
+
+      repeating (spec ScZoomIn (both zoomIn) zoomable
+          "Zoom in: the schematic, or the waveforms if the wave simulator has the keyboard" CatView)
+      repeating (spec ScZoomOut (both zoomOut) zoomable
+          "Zoom out: the schematic, or the waveforms if the wave simulator has the keyboard" CatView)
+      spec ScZoomToFit (both zoomReset) zoomable
+          "Fit the whole circuit on the screen" CatView
 
       repeating (
           spec ScAppZoomIn
-              (both [ ch Mods.prim (named Names.equal); ch Mods.primShift (named Names.equal) ])
-              appWide "Zoom application in" CatView)
+              (both [ ch Mods.primAlt (named Names.equal)
+                      ch { Mods.primAlt with Shift = true } (named Names.equal) ])
+              appWide "Zoom whole application in" CatView)
       repeating (
-          spec ScAppZoomOut (both [ ch Mods.prim (named Names.minus) ]) appWide
-              "Zoom application out" CatView)
-      spec ScAppZoomReset (both [ ch Mods.prim (KDigit '0') ]) appWide
-          "Zoom application reset" CatView
+          spec ScAppZoomOut (both [ ch Mods.primAlt (named Names.minus) ]) appWide
+              "Zoom whole application out" CatView)
+      spec ScAppZoomReset (both [ ch Mods.primAlt (KDigit '0') ]) appWide
+          "Zoom whole application reset" CatView
       spec ScFullScreen
           (Chords(win = [ ch Mods.none (KFn 11) ], mac = [ ch Mods.primSecondary (letter 'F') ]))
           appWide "Enter/exit fullscreen" CatView
 
-      spec ScToggleGrid (macOnly [ ch Mods.primAlt (letter 'G') ]) sheet
+      // Both platforms, not macOS alone: Windows had no key at all for these and the generated
+      // help table showed it a row reading "(none)".
+      spec ScToggleGrid (both [ ch Mods.primAlt (letter 'G') ]) sheet
           "Show/hide grid lines" CatView
-      spec ScToggleWireArrows (macOnly [ ch Mods.primAlt (letter 'W') ]) sheet
+      spec ScToggleWireArrows (both [ ch Mods.primAlt (letter 'W') ]) sheet
           "Show/hide wire arrows" CatView
 
       // menu-only
@@ -371,8 +391,16 @@ let shortcuts: ShortcutSpec list =
       // ------------------------------------------------------------------ file
       spec ScNewSheet (both [ ch Mods.prim (letter 'N') ]) appWide "Create new sheet" CatFile
       spec ScSaveSheet (both [ ch Mods.prim (letter 'S') ]) appWide "Save current sheet" CatFile
-      spec ScAbout (macOnly [ ch Mods.prim (letter 'H') ]) appWide
-          "Open about/help window" CatFile
+      // F1, the usual key for help, on both platforms. This was macOS-only and on Cmd+H, which
+      // is the system Hide shortcut in every other Mac application.
+      spec ScAbout (both [ ch Mods.none (KFn 1) ]) appWide "Open the Info window" CatFile
+
+      // Ctrl+W used to fit the diagram to the window and now does nothing: Ctrl+0 does that, with
+      // the other two zoom keys beside it. It stays in the table, bound to nothing, so that it
+      // cannot fall through to a host that might read it as close-window - which on an
+      // application with one window means quit. Not bound on macOS, where Cmd+W closing a window
+      // is a real convention rather than a browser habit. No Doc: there is nothing to tell.
+      spec ScSwallowCloseWindow (winOnly [ ch Mods.prim (letter 'W') ]) appWide "" CatFile
       spec ScQuit (macOnly [ ch Mods.prim (letter 'Q') ]) appWide "Quit application" CatFile
 
       // ------------------------------------------------------------------ waveform simulator
@@ -410,6 +438,8 @@ let shortcuts: ShortcutSpec list =
       // ------------------------------------------------------------------ gestures (help only)
       spec GsCtrlWheelZoom (Gesture("Control + mouse wheel", "Command-mouse wheel")) []
           "Zoom the diagram" CatGesture
+      spec GsSpaceDragPan (Gesture("Space + drag on canvas", "Space-drag on canvas")) []
+          "Pan the schematic" CatGesture
       // Doc is empty so this stays out of the shortcut table: the mouse-gesture table above it
       // already covers scrolling, and more fully - it has the touchpad and touchscreen ways too.
       spec GsShiftDragPan (Gesture("Shift + drag on canvas", "Shift-drag on canvas")) []

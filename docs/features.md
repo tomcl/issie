@@ -87,7 +87,9 @@ code is good.
   whole thing with on-canvas handles.
 - **Custom components resize themselves** around their port labels, and you can `Ctrl`-drag any
   port to any edge to make a readable symbol, or drag the corners to size it yourself.
-- **`Ctrl-W` fits the sheet to the window.** The most-pressed key in ISSIE.
+- **`Ctrl-0` fits the sheet to the window** — the most-pressed key in ISSIE. `Ctrl` with `+` `-` `0`
+  zooms whatever you are looking at, the schematic or the waveforms; add `Alt` for the whole
+  application. `Space`-drag or `Shift`-drag pans.
 - **Three wire styles, three themes, optional grid and direction arrows** — all switchable at any
   time without touching the design.
 - **Undo and redo that work.**

@@ -591,6 +591,8 @@ module SheetT =
         | ColourSelection of compIds : ComponentId list * connIds : ConnectionId list * colour : HighLightColor
         | PortMovementStart
         | PortMovementEnd
+        | PanModeStart
+        | PanModeEnd
         | ResetSelection
         | ToggleNet of CanvasState //This message does nothing in sheet, but will be picked up by the update function
         | SelectWires of ConnectionId list
@@ -693,6 +695,10 @@ module SheetT =
         LastMousePosForSnap: XYPos
         MouseCounter: int
         CtrlKeyDown : bool
+        /// Whether the space bar is held. Space+drag pans the schematic, as it does in every
+        /// drawing application; Shift+drag does the same and is kept. Held state rather than a
+        /// chord, so it is tracked beside CtrlKeyDown rather than in the shortcut table.
+        SpaceKeyDown : bool
         PrevWireSelection : ConnectionId list
         ScalingBox: ScalingBox Option
         Compiling: bool

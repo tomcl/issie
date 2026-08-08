@@ -13,9 +13,9 @@ follows is only where it falls short of its own standard.
 
 Findings are ordered by (cost to fix) ÷ (benefit), best first.
 
-**Status, August 2026:** all of section A and all of section B have been fixed — each entry says
-how. Section C and D1–D2 remain open; C is deliberately deferred, since remapping keys is a change
-users have to absorb and is worth doing all at once. D3 is settled.
+**Status, August 2026:** sections A, B and C are all done — each entry says how. C was deferred
+once and then done in one pass, which is what it wanted: remapping keys is a change users have to
+absorb, so it is worth doing all at once. D1–D2 remain open. D3 is settled.
 
 ---
 
@@ -241,29 +241,42 @@ waveforms and the schematic.
 
 ### C1. Two zooms, and the obvious keys drive the wrong one
 
-`Ctrl+=` / `Ctrl+-` (`ScAppZoomIn`, `KeyTypes.fs:345`) scale the **whole application** via
-Electron's `setZoomLevel`. The **schematic** zoom is `Alt+Up` / `Alt+Down` on Windows and Linux
-(`ScDiagramZoomIn`, `KeyTypes.fs:331`).
+`Ctrl+=` / `Ctrl+-` scaled the **whole application** via Electron's `setZoomLevel`. The
+**schematic** zoom was `Alt+Up` / `Alt+Down` on Windows and Linux, and `Cmd+Opt+=` / `Cmd+Opt+-` on
+macOS — so the two platforms had no chord shape in common either.
 
 `Ctrl+=`/`Ctrl+-` is what a user reaches for to zoom a drawing, in every drawing application there
-is. In Issie it silently rescales the entire UI instead, which looks like the canvas zooming until
-the menu bar changes size too. Consider swapping them, or at least binding `Ctrl+=`/`Ctrl+-` to the
-diagram when the pointer is over the canvas.
+is. In Issie it silently rescaled the entire UI instead, which looks like the canvas zooming until
+the menu bar changes size too. Worse, Issie's own `Ctrl`+wheel already zoomed the diagram, so the
+same modifier meant two different things depending on whether a wheel or a key carried it.
+
+**FIXED, as one rule: Primary with `+` `-` `0` zooms whatever you are looking at, and adding `Alt`
+zooms the whole application.** "Whatever you are looking at" is the schematic in the sheet
+contexts and the **waveforms** in the wave simulator — which the in-app help already promised and
+did not have: what those keys did there was zoom the application.
+
+`Ctrl+W` is retired. It stays in the table bound to nothing, so that the host cannot read it as
+close-window — which on an application with one window means quit. Not bound on macOS, where
+`Cmd+W` closing a window is a real convention rather than a browser habit.
+
+`Shift+=` is `+` on most layouts, so those two must always be the same action; that is what stops
+application zoom living on `Primary+Shift` and puts it on `Primary+Alt`.
 
 ### C2. `Cmd+H` is taken from macOS
 
-`spec ScAbout (macOnly [ ch Mods.prim (letter 'H') ])` (`KeyTypes.fs:374`) opens the Info window,
-and shortcuts `preventDefault` by default. On macOS `Cmd+H` hides the front application in every program — this
-is one of the most ingrained system shortcuts there is, and Issie quietly takes it.
+`ScAbout` was `macOnly [ Cmd+H ]`, and shortcuts `preventDefault` by default. On macOS `Cmd+H`
+hides the front application in every program — one of the most ingrained system shortcuts there
+is, and Issie quietly took it. Meanwhile Windows and Linux had **no key for help at all**, and
+`F1` was unbound everywhere.
 
-Meanwhile Windows and Linux have **no key for help at all**, and `F1` is unbound everywhere.
-Suggest: `F1` (and `Cmd+/` or `Shift+Cmd+/` on macOS) for Info; release `Cmd+H`.
+**FIXED.** `F1` on both platforms; `Cmd+H` released.
 
 ### C3. Grid and wire arrows have keys only on macOS
 
-`ScToggleGrid` and `ScToggleWireArrows` are `macOnly` (`KeyTypes.fs:357–360`). Windows and Linux users get menu items only,
-and the generated shortcut table shows them a row with "(none)" against it. Either bind them on all
-platforms or drop them from the table.
+`ScToggleGrid` and `ScToggleWireArrows` were `macOnly`. Windows and Linux users got menu items
+only, and the generated shortcut table showed them a row reading "(none)".
+
+**FIXED.** `Primary+Alt+G` and `Primary+Alt+W` on both platforms.
 
 ### C4. Small naming mismatches
 
@@ -272,6 +285,30 @@ platforms or drop them from the table.
 - The Catalogue section is **"Arithmetic"** but holds `N bits AND`/`OR`/`NOT`, which are not
   arithmetic; the section named **"Gates"** holds only the 1-bit versions. A user looking for a
   wide AND will look in Gates.
+
+### C5. The same action, different chords on the two platforms
+
+Rotate and flip were `Ctrl`+arrows on Windows but `Cmd`+**`Opt`**+arrows on macOS; align and
+distribute `Ctrl+Shift+A`/`D` against `Cmd+Opt+A`/`D`; rotate-label used a different *key*
+altogether, `Ctrl+Shift+Right` against `Cmd+Opt+R`. `Mods.Primary` exists precisely so that
+Ctrl-against-Cmd needs no thought, so none of these had a reason — they are accidents of the
+migration from the Electron menus, whose accelerators the table was written to preserve.
+
+**FIXED.** All three are one chord for both platforms. A test asserts the general rule: a
+shortcut's Windows and macOS chords must be identical unless its id is on a short list of ones
+that differ for a real platform convention (Backspace deletes on macOS, redo is `Cmd+Shift+Z`,
+full screen, quit, dev tools, and the Windows-only `Ctrl+W` swallow).
+
+### C6. Space did nothing but suppress scrolling
+
+`Space` was bound only to stop the page scrolling under the canvas. In every drawing application
+`Space`+drag pans; Issie panned with `Shift`+drag alone, which is the less-guessed of the two.
+
+**FIXED.** `Space`+drag pans as well. Tracked as held state beside `ctrlHeld` in `KeyBindings`
+rather than as a chord — the table resolves one press to one action and has nowhere to say "while
+down". Only in the sheet contexts, so a space in a text box is still a space. The cursor shows the
+mode, and pan mode outranks whatever is under the pointer, so it cannot offer to grab a wire when
+the next drag is going to pan.
 
 ---
 

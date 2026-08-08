@@ -65,16 +65,28 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
         wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
 
-    /// This make the cursor control box focus after the next render.
-    /// Necessary for intuitive UI typing in the cursor control box
-    /// if this leads to simulation progress bars
-    /// that otherwise remove focus.
+    /// Give the cursor-control box its focus back after the next render, but only if it had it
+    /// when this refresh began.
+    ///
+    /// The point of this has always been that a progress bar shown mid-refresh takes focus away
+    /// from the box the user is typing a clock cycle into. Restoring it unconditionally, which is
+    /// what it used to do, meant every refresh - a click on a waveform, a zoom, a cursor step -
+    /// ended with the box focused whether the user had gone near it or not. The keyboard then
+    /// belonged to a text field, so the Left and Right arrows that step the cursor stopped
+    /// working until something else was clicked. Only put back what was actually taken.
     let dispatchFocusAfterRender model =
-        let focusCurrClk1 _ model =
-            let el = Browser.Dom.document.getElementById "clkCycleInput"
-            if el <> null then el.focus()
-            model
-        { model with RunAfterRenderWithSpinner = Some <| Option.defaultValue {FnToRun=focusCurrClk1;ButtonSpinnerOn=false} model.RunAfterRenderWithSpinner }
+        let hadFocus =
+            match Browser.Dom.document.activeElement with
+            | null -> false
+            | el -> el.id = "clkCycleInput"
+        match hadFocus with
+        | false -> model
+        | true ->
+            let focusCurrClk1 _ model =
+                let el = Browser.Dom.document.getElementById "clkCycleInput"
+                if el <> null then el.focus()
+                model
+            { model with RunAfterRenderWithSpinner = Some <| Option.defaultValue {FnToRun=focusCurrClk1;ButtonSpinnerOn=false} model.RunAfterRenderWithSpinner }
 
            
     /// Make sure we always have consistent parameters. They will be written back to model after this function terminates.

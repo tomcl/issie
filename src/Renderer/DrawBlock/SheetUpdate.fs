@@ -182,6 +182,19 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | PortMovementEnd ->
         {model with CtrlKeyDown = false}, Cmd.none
 
+    // Space held: the next drag on empty canvas pans instead of rubber-band selecting. Only from
+    // Idle, so holding space in the middle of some other gesture changes nothing, and the cursor
+    // says the mode is on.
+    | PanModeStart ->
+        match model.Action with
+        | Idle -> {model with SpaceKeyDown = true; CursorType = Grabbing}, Cmd.none
+        | _ -> model, Cmd.none
+
+    | PanModeEnd ->
+        match model.SpaceKeyDown with
+        | true -> {model with SpaceKeyDown = false; CursorType = Default}, Cmd.none
+        | false -> model, Cmd.none
+
     | MouseMsgOrig(mEv, mouseOp, headerHeight) ->
 
         let mMsg:MouseT = {
@@ -881,6 +894,7 @@ let init () =
         MouseCounter = 0
         LastMousePosForSnap = { X = 0.0; Y = 0.0 }
         CtrlKeyDown = false
+        SpaceKeyDown = false
         PrevWireSelection = []
         Compiling = false
         CompilationStatus = {Synthesis = Queued; PlaceAndRoute = Queued; Generate = Queued; Upload = Queued}

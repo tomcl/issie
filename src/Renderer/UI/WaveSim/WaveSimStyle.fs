@@ -261,8 +261,13 @@ let clkCycleInputStyle = Style [
 ]
 
 /// Props for clock cycle text Input field
+///
+/// No AutoFocus. React focuses an autofocused element every time it mounts, so this box took the
+/// keyboard whenever the viewer's control row was rebuilt - on Start, and after a cursor move or a
+/// zoom. The keyboard then belonged to a text field, and the Left and Right arrows that step the
+/// cursor stopped working until something else was clicked. You click into a box to type in it;
+/// SelectedComponentView's name box says the same thing for the same reason.
 let clkCycleInputProps : IHTMLProp list = [
-    AutoFocus true
     Min 0
     SpellCheck false
     Step 1

@@ -711,18 +711,18 @@ let processContextMenuClick
         model  
         |> withNoCmd
     
-    | DBCanvas pos, "Zoom-in (Alt+Up) and centre"  ->
+    | DBCanvas pos, "Zoom-in (Ctrl+plus) and centre"  ->
         printf "Zoom-in!!"
         model
         |> map (sheet_ >-> SheetT.zoom_)  (fun zoom -> min Sheet.Constants.maxMagnification (zoom*Sheet.Constants.zoomIncrement))
         |> withMsg (Sheet (SheetT.Msg.KeepZoomCentered pos))
 
-    | DBCanvas pos, "Zoom-out (Alt+Down)" ->
+    | DBCanvas pos, "Zoom-out (Ctrl+minus)" ->
         keyDispatch SheetT.KeyboardMsg.ZoomOut
         model
         |> withNoCmd
 
-    | DBCanvas _, "Fit to window (Ctrl+W)" ->
+    | DBCanvas _, "Fit to window (Ctrl+0)" ->
         keyDispatch SheetT.KeyboardMsg.CtrlW
         model
         |> withNoCmd

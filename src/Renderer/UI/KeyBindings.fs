@@ -160,6 +160,41 @@ let chordOf (ev: Browser.Types.KeyboardEvent) : Chord =
 ///
 /// Deliberately has no wildcard case, so adding a ShortcutId to the table without giving it an
 /// action is a compile error rather than a shortcut that quietly does nothing.
+
+/// Which of the two zoomable things a zoom key means.
+type private ZoomKey =
+    | ZoomIn
+    | ZoomOut
+    | ZoomToFit
+
+/// Whether the waveform viewer is the thing the user is looking at.
+///
+/// Three facts, all of them about what is on the screen and what was last touched, and none about
+/// DOM focus: the viewer keeps the zoom keys while the user is typing a clock cycle into its own
+/// input box, which is the case that made the old context-based split fail.
+///
+/// KeyFocusPane is the "last touched side" - set by a mousedown in either pane - so clicking the
+/// schematic hands the keys back even while the viewer is still on screen.
+let private waveSimHasTheKeyboard (m: Model) =
+    m.RightPaneTabVisible = RightTab.Simulation
+    && m.SimSubTabVisible = SimSubTab.WaveSim
+    && (getWSModel m).State = WaveSimState.Success
+    && m.KeyFocusPane = RightPane
+
+/// Zoom whatever is being looked at. Needs the model, which the dispatcher has no access to, so it
+/// goes round through ExecFuncInMessage as the other model-dependent actions here do.
+let private zoom (dispatch: Msg -> unit) (key: ZoomKey) =
+    let act (m: Model) (d: Msg -> unit) =
+        match waveSimHasTheKeyboard m, key with
+        | true, ZoomIn -> WaveSimNavigation.changeZoom (getWSModel m) true d
+        | true, ZoomOut -> WaveSimNavigation.changeZoom (getWSModel m) false d
+        // no "fit" for waveforms - the viewer has no such idea - so Ctrl+0 always fits the diagram
+        | true, ZoomToFit
+        | false, ZoomToFit -> d (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.CtrlW))
+        | false, ZoomIn -> d (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.ZoomIn))
+        | false, ZoomOut -> d (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.ZoomOut))
+    dispatch <| ExecFuncInMessage(act, dispatch)
+
 let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let keyDispatch (k: SheetT.KeyboardMsg) = sheetDispatch (SheetT.KeyPress k)
@@ -216,9 +251,9 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
         | el -> el?blur ()
 
     // ---- view ----
-    | ScDiagramZoomIn -> keyDispatch SheetT.KeyboardMsg.ZoomIn
-    | ScDiagramZoomOut -> keyDispatch SheetT.KeyboardMsg.ZoomOut
-    | ScDiagramZoomToFit -> keyDispatch SheetT.KeyboardMsg.CtrlW
+    | ScZoomIn -> zoom dispatch ZoomIn
+    | ScZoomOut -> zoom dispatch ZoomOut
+    | ScZoomToFit -> zoom dispatch ZoomToFit
     // the Electron roles these replace stepped the zoom *level* by 0.5 rather than scaling a
     // factor, so match that or the steps feel different from what users had
     | ScAppZoomIn -> stepAppZoom 0.5
@@ -257,13 +292,16 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     | ScTextRedo -> webContents().redo ()
 
     // ---- infrastructure ----
-    // preventDefault is the whole point of this one: space would otherwise scroll the canvas
+    // preventDefault is the whole point of these two: space would otherwise scroll the canvas,
+    // and Ctrl+W might be read as close-window by the host
     | ScSuppressScroll -> ()
+    | ScSwallowCloseWindow -> ()
     | ScDevTools -> renderer.ipcRenderer.send ("toggle-dev-tools", [||]) |> ignore
 
     // ---- gestures have no chord, so can never be resolved to ----
     | GsCtrlWheelZoom
     | GsShiftDragPan
+    | GsSpaceDragPan
     | GsCtrlHoldPorts
     | GsTabBetweenBoxes -> ()
 
@@ -296,6 +334,12 @@ let private record (chord: Chord) (ctx: KeyContext) (resolved: ShortcutId option
 let publishKeyLog () =
     if JSHelpers.debugLevel > 0 then
         Browser.Dom.window?issieKeys <- (fun () -> keyLog |> List.toArray)
+
+/// Whether the space bar is currently held, which puts the canvas in pan mode.
+///
+/// A held key rather than a chord, so it is tracked here beside ctrlHeld rather than in the
+/// shortcut table - which resolves one press to one action and has nowhere to say "while down".
+let mutable private spaceHeld = false
 
 /// Whether Ctrl (or Cmd) is currently held.
 ///
@@ -347,6 +391,16 @@ let onKeyDown (dispatch: Msg -> unit) (e: Browser.Types.Event) =
             ctrlHeld <- true
             dispatch <| Sheet SheetT.PortMovementStart
 
+        // Space held is the same kind of thing. Only on the canvas: in a text box space is a
+        // space, and the chord table already declines to bind it there for the same reason.
+        if ev.key = " " && not spaceHeld then
+            match currentContext () with
+            | SheetIdle
+            | SheetBusy ->
+                spaceHeld <- true
+                dispatch <| Sheet SheetT.PanModeStart
+            | _ -> ()
+
 let onKeyUp (dispatch: Msg -> unit) (e: Browser.Types.Event) =
     let ev: Browser.Types.KeyboardEvent = unbox e
     // only Ctrl/Meta going up ends the mode. This used to fire on *any* keyup, so releasing some
@@ -355,8 +409,16 @@ let onKeyUp (dispatch: Msg -> unit) (e: Browser.Types.Event) =
         ctrlHeld <- false
         dispatch <| Sheet SheetT.PortMovementEnd
 
+    if ev.key = " " && spaceHeld then
+        spaceHeld <- false
+        dispatch <| Sheet SheetT.PanModeEnd
+
 /// Ctrl released while the window is not focused produces no keyup at all.
 let onWindowBlur (dispatch: Msg -> unit) (_: Browser.Types.Event) =
     if ctrlHeld then
         ctrlHeld <- false
         dispatch <| Sheet SheetT.PortMovementEnd
+
+    if spaceHeld then
+        spaceHeld <- false
+        dispatch <| Sheet SheetT.PanModeEnd

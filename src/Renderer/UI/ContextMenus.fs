@@ -40,7 +40,9 @@ let contextMenus = [
         "ScalingBox", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)"; "Delete Box (DEL)"; "Copy Box (Ctrl+C)"; "Move Box (Drag any component)"]
         "Component", componentItems
         "ComponentWaveSim", componentItems @ [addWavesItem]
-        "Canvas", ["Zoom-in (Alt+Up) and centre" ; "Zoom-out (Alt+Down)" ; "Fit to window (Ctrl+W)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
+        // These labels spell their own keys, so they have to be kept in step with KeyTypes by
+        // hand - this file cannot see it, being compiled into the main process as well.
+        "Canvas", ["Zoom-in (Ctrl+plus) and centre" ; "Zoom-out (Ctrl+minus)" ; "Fit to window (Ctrl+0)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
         "Wire", ["Unfix Wire"]
         // Each of these is the name of a case in UIPopups.viewWaveInfoPopup, which is given the
         // item clicked on verbatim. A name here that has no case there reaches its catch-all, so

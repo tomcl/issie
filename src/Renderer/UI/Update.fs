@@ -150,12 +150,15 @@ let update (msg : Msg) oldModel =
         // already establishes that the wave simulator has the keyboard and is running.
         let wsModel = getWSModel model
         let moveCursorMsg num = WaveSimNavigation.setClkCycleMsg wsModel (wsModel.CursorExactClkCycle + num)
-        let cmd =
-            match s with
-            | "ArrowLeft" -> Cmd.ofMsg (moveCursorMsg -1)
-            | "ArrowRight" -> Cmd.ofMsg (moveCursorMsg 1)
-            | _ -> Cmd.none
-        model, cmd
+        match s with
+        | "ArrowLeft" -> model, Cmd.ofMsg (moveCursorMsg -1)
+        | "ArrowRight" -> model, Cmd.ofMsg (moveCursorMsg 1)
+        // changeZoom dispatches for itself rather than returning a message, as the viewer's own
+        // zoom buttons call it, so it needs a dispatch that update does not have: Cmd.ofEffect
+        // is given one.
+        | "ZoomIn" -> model, Cmd.ofEffect (WaveSimNavigation.changeZoom wsModel true)
+        | "ZoomOut" -> model, Cmd.ofEffect (WaveSimNavigation.changeZoom wsModel false)
+        | _ -> model, Cmd.none
 
 
     | SynchroniseCanvas ->

@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Features" />
+    <meta property="og:url" content="/issie/features.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Features">
+    
+    <title>Features | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header active">
+  Documentation
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header active">
+  Documentation
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        
+<h1><a name="Digital-design-that-explains-itself" class="anchor" href="#Digital-design-that-explains-itself">Digital design that explains itself</a></h1>
+<p><strong>ISSIE is a free, cross-platform EDA tool for digital logic: draw a schematic, simulate it, and
+see the waveforms — without reading a manual first.</strong></p>
+<p>Industry CAD systems are powerful and unteachable. Educational tools are teachable and can't scale.
+ISSIE is built on the belief that this is a false choice: a tool can be learnable in the first ten
+minutes <em>and</em> still hold a working CPU with a 200,000-cycle program running on it. Every feature
+below exists because a beginner got stuck on something, and the answer was to fix the tool rather
+than write another paragraph of documentation.</p>
+<p><img src="img/homePage/keyFeatures1.gif" alt="" /></p>
+<hr />
+<h2><a name="No-manual-needed" class="anchor" href="#No-manual-needed">No manual needed</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th align="left"></th>
+<th align="left"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><strong>Everything is tooltipped</strong></p></td>
+<td align="left"><p>Every component in the Catalogue explains what it does when you hover it — including the non-obvious ones. <em>"Every net label with the same name is one net, connected within a sheet without wires: use them for long connections and high fan-out."</em> Every field in the Properties pane explains itself the same way.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Search for what you mean</strong></p></td>
+<td align="left"><p>The Catalogue's search box matches the explanations as well as the names, so "subtract" finds the N bits XOR and "invert" finds Not — you do not have to already know Issie's word for the thing.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Right-click anywhere</strong></p></td>
+<td align="left"><p>Components, custom components, wires, the canvas, sheet names in the tree, even the project path — each offers exactly the actions that make sense there, with their keyboard shortcuts written on the item.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>The help is generated from the code</strong></p></td>
+<td align="left"><p>The Keyboard Shortcuts table in <strong>Info</strong> is built from the same table the key dispatcher reads, for <em>your</em> platform. It cannot list a key that does not work, or miss one that does.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Help where you are</strong></p></td>
+<td align="left"><p>The waveform simulator has its own <strong>Getting Started</strong> and <strong>Instructions</strong> panels, and the wave selector, RAM selector and parameter dialogs each explain themselves on their own face.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Drag or click</strong></p></td>
+<td align="left"><p>Drag a component from the Catalogue and drop it where you want it, or just click it and click the canvas. A drop onto an occupied space is refused rather than silently overlapping two symbols.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Demos to take apart</strong></p></td>
+<td align="left"><p>Five worked projects ship with ISSIE, from a full adder to an EEP1 CPU running a sieve of Eratosthenes. They reset each time you open them, so you can break them freely.</p></td>
+</tr>
+</tbody>
+</table>
+
+<hr />
+<h2><a name="Errors-tell-you-how-to-fix-them" class="anchor" href="#Errors-tell-you-how-to-fix-them">Errors tell you how to fix them</a></h2>
+<p>This is the design principle ISSIE is most stubborn about. An error message that only says
+<em>something is wrong</em> has failed. Every error names the thing, points at it, and where possible
+offers to correct it.</p>
+<p><strong>The error is shown on the schematic.</strong> Every simulation error carries the components and
+connections responsible, and they are highlighted on the canvas the moment the error appears — you
+are not left hunting.</p>
+<p><strong>The message says what to do.</strong> Compare a typical CAD "width mismatch" with what ISSIE says:</p>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><p>What went wrong</p></th>
+<th align="left"><p>What ISSIE tells you</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p>Bus widths disagree</p></td>
+<td align="left"><p><em>Wrong wire width. Target port expects a 4-bit signal, but source port produces an 8-bit signal.</em></p></td>
+</tr>
+<tr class="even">
+<td align="left"><p>Two wires into one input</p></td>
+<td align="left"><p><em>A component input port must have precisely one driving component, but 2 were found. If you want to merge wires together use a MergeWires component, not direct connection.</em></p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p>Two net labels wired together</p></td>
+<td align="left"><p><em>You can't connect two Net Labels with a wire. Delete the connecting wire. If you want to join two net labels you need only give them the same name — then they will form a single net.</em></p></td>
+</tr>
+<tr class="even">
+<td align="left"><p>A net with two drivers</p></td>
+<td align="left"><p><em>A set of labelled wires must have precisely one driving component, but 2 were found. If you are driving two labels from the same component delete one of them: a set of labels with the same name are all connected together and only one label in each same-name set must be driven.</em></p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p>A <code>.ram</code> file that will not parse</p></td>
+<td align="left"><p><em>Line 7: 'ff ff ff' has 3 items: valid lines consist of two numbers</em></p></td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>And often, a button that does it for you.</strong> Where the fix is unambiguous, ISSIE offers it:</p>
+<ul>
+<li>
+<em>Fix by adding 'Not Connected' component</em> — and it is placed, correctly oriented, next to the
+unconnected port.
+</li>
+<li>
+<em>Fix by deleting the port on the component</em> — for an adder carry-out or a counter enable you
+never wired.
+</li>
+<li>
+<em>Fix by deleting unnecessary 'Not Connected' components</em> — the inverse, when the port could
+simply be removed.
+</li>
+</ul>
+<p>Pressing the button applies the fix <strong>and restarts the simulation</strong>, so the loop closes.</p>
+<p><strong>The same care outside simulation.</strong> Sheet names, labels, bus widths and parameter values are
+validated as you type, with the reason shown next to the box, and the OK button stays disabled
+until the value is legal. Parameter constraints carry <em>author-written</em> error text, so a library
+component can say <em>"address width must be at least 2 or the register file has one entry"</em> in its
+own words. Verilog components are compiled as you type, and the Save button unlocks only when the
+code is good.</p>
+<hr />
+<h2><a name="A-schematic-editor-that-lays-out-for-you" class="anchor" href="#A-schematic-editor-that-lays-out-for-you">A schematic editor that lays out for you</a></h2>
+<p><img src="img/homePage/wireRouting.gif" alt="" /></p>
+<ul>
+<li>
+<strong>Auto-routing you almost never override.</strong> Wires route themselves around symbols, and then a
+whole-sheet separation pass spreads every wire on the sheet evenly. Any segment can still be
+dragged and fixed by hand, and everything else reroutes around it.
+</li>
+<li>
+<strong>Snapping and alignment.</strong> Symbols snap to each other's edges and to the positions that make
+wires straight. Selections can be aligned or distributed with one key.
+</li>
+<li>
+<strong>Rotate, flip, scale — individually or as a block.</strong> Select a group and rotate or scale the
+whole thing with on-canvas handles.
+</li>
+<li>
+<strong>Custom components resize themselves</strong> around their port labels, and you can <code>Ctrl</code>-drag any
+port to any edge to make a readable symbol, or drag the corners to size it yourself.
+</li>
+<li>*<em><code>Ctrl-W</code> fits the sheet to the window.*</em> The most-pressed key in ISSIE.</li>
+<li>
+<strong>Three wire styles, three themes, optional grid and direction arrows</strong> — all switchable at any
+time without touching the design.
+</li>
+<li><strong>Undo and redo that work.</strong></li>
+</ul>
+<p>Around 40 component types, all width-agnostic where it makes sense: N-input gates (up to 19),
+N-bit adders, shifters, registers and counters with optional enable/load ports, 2/4/8-way
+multiplexers, bus merge/split of up to 19 branches, bus select and compare, net labels, and
+synchronous and asynchronous ROM and RAM.</p>
+<p><img src="img/homePage/catalogue.png" alt="" /></p>
+<hr />
+<h2><a name="Three-ways-to-simulate" class="anchor" href="#Three-ways-to-simulate">Three ways to simulate</a></h2>
+<h3><a name="Step-simulation-immediate-feedback" class="anchor" href="#Step-simulation-immediate-feedback">Step simulation — immediate feedback</a></h3>
+<p><img src="img/homePage/stepSim.gif" alt="" /></p>
+<p>Set inputs, read outputs, step the clock. Viewer components expose internal signals from <em>any</em>
+subsheet without rewiring, values display in the radix you choose, and <em>set default inputs</em>
+remembers a set of input values for both simulators.</p>
+<h3><a name="Truth-tables-for-the-combinational-part" class="anchor" href="#Truth-tables-for-the-combinational-part">Truth tables — for the combinational part</a></h3>
+<p><img src="img/homePage/truthTable.png" alt="" /></p>
+<p>Generate a truth table for the whole sheet <strong>or for just the components you select</strong>. Then reduce
+it: hide columns, constrain inputs to the cases you care about, remove redundant rows, or switch
+inputs to <strong>algebraic</strong> variables and get a symbolic expression for each output instead of 2ⁿ rows.</p>
+<h3><a name="The-waveform-simulator-sophisticated-and-still-easy" class="anchor" href="#The-waveform-simulator-sophisticated-and-still-easy">The waveform simulator — sophisticated, and still easy</a></h3>
+<p><img src="img/homePage/waveSim.gif" alt="" /></p>
+<p>This is the part of ISSIE most often described as better than the professional equivalent.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="left"></th>
+<th align="left"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><strong>Something to look at straight away</strong></p></td>
+<td align="left"><p>Press Start and the top sheet's own inputs and outputs are already there — or, for a design whose top sheet is all subsystems, every Viewer in it. No empty grid, and nothing to configure before you can see your design running.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Any signal, any sheet</strong></p></td>
+<td align="left"><p>The viewer sees the whole hierarchy, not just the top sheet.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Find waves by typing</strong></p></td>
+<td align="left"><p>Search by wave, sheet, component or port name, with a breadcrumb of the design hierarchy to filter by sheet — or expand the tree and browse.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Add waves from the schematic</strong></p></td>
+<td align="left"><p>Right-click a component on the canvas → <em>Add waveforms to viewer</em>.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Hover a name, see the component</strong></p></td>
+<td align="left"><p>Hovering a waveform name highlights that component and its connections on the schematic; a button beside the name jumps to the sheet it lives on and shows it.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Probe the schematic</strong></p></td>
+<td align="left"><p>The other direction: rest the mouse on any wire of the schematic and its value at the cursor cycle appears beside the pointer. No hunting for the signal by name. It works in step simulation too, at the current clock tick.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Reorder by dragging, delete with one click</strong></p></td>
+<td align="left"><p>And your selection survives into the next simulation.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>A cursor that reads values</strong></p></td>
+<td align="left"><p>Click a waveform to move the cursor; the column on the right shows every selected signal's value at that cycle. Left/Right arrows step it.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Scroll to simulate further</strong></p></td>
+<td align="left"><p>Drag the scrollbar past the end and the simulation extends itself. Waveforms are generated on demand, so only what you look at is drawn.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>RAM contents live</strong></p></td>
+<td align="left"><p><em>Select RAM</em> shows a memory's contents at the cursor cycle, with the locations being read and written marked — and any comments from the <code>.ram</code> file that initialised it shown against their addresses.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Zoom, and sample-zoom</strong></p></td>
+<td align="left"><p>Ordinary zoom for detail; a sampling multiplier for viewing hundreds of thousands of cycles at once.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Bin / Hex / uDec / sDec</strong></p></td>
+<td align="left"><p>Switch radix at any time; values too wide to fit are shown in the cursor column instead.</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Edit while simulating</strong></p></td>
+<td align="left"><p>Change the design — even move to another sheet and edit it — and a green <strong>Refresh</strong> button lights up. Press it when you are ready.</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Configurable</strong></p></td>
+<td align="left"><p>Font size and weight for readability; maximum simulated cycle up to 4,000,000, with a live estimate of the memory that will cost.</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>ISSIE has its own simulator, built for this: write-once semantics on JavaScript typed arrays give
+functional-programming robustness at a speed that runs a CPU design for 200,000 clock cycles and
+keeps every waveform in memory.</p>
+<hr />
+<h2><a name="Designs-that-scale" class="anchor" href="#Designs-that-scale">Designs that scale</a></h2>
+<p><strong>Hierarchy.</strong> Any design sheet can be used as a custom component in another, any number of times.
+The <strong>Sheet</strong> menu draws the whole project as a tree with connector lines, showing which sheet
+contains which, and the same tree appears in the waveform simulator.</p>
+<p><strong>Sheet parameters.</strong> Declare named integer parameters on a sheet — <code>WIDTH</code>, <code>DEPTH</code> — and use
+arithmetic expressions in them for bus widths, constants, memory sizes and split points. Each place
+the sheet is used gives its own values, so <strong>two instances of one sheet can legitimately differ</strong>,
+and ISSIE tracks each instance against <em>its own</em> bindings. Parameters carry a compulsory
+description and optional min/max constraints with author-written error messages, and you are asked
+for values when you place the component.</p>
+<p><strong>Component libraries.</strong> Ready-made parameterised components, offered in the Catalogue in their own
+section. Choosing one copies its sheet into your project and asks what its parameters should be, so
+it becomes an ordinary editable sheet rather than a black box. Any sheet you write can become a
+library component from its right-click menu.</p>
+<p><strong>Memory files.</strong> RAM and ROM contents can be edited in a table or initialised from a <code>.ram</code> text
+file, which may carry <code>//</code> comments — ISSIE shows them against the locations they describe, so a
+program in memory is readable.</p>
+<p><img src="img/homePage/memoryEditor.png" alt="" /></p>
+<p><strong>Never lose work.</strong> Every sheet is continuously snapshotted to a <code>backup/</code> folder inside the
+project.</p>
+<hr />
+<h2><a name="Verilog-in-and-out" class="anchor" href="#Verilog-in-and-out">Verilog, in and out</a></h2>
+<p><strong>In:</strong> write a component's logic in SystemVerilog instead of drawing it — combinational
+(<code>assign</code>, <code>always_comb</code>) and synchronous (<code>always_ff @(posedge clk)</code>), with parameters, arrays,
+<code>if</code>/<code>case</code>/<code>for</code>. The editor highlights syntax, checks as you type, refuses to save until the code
+compiles, and offers one-click fixes for many errors. The result is compiled to an ordinary ISSIE
+sheet, so it simulates exactly like the equivalent schematic. See
+<a href="verilogComp.html">Verilog Components</a>.</p>
+<p><strong>Out:</strong> write any sheet and everything below it as synthesisable Verilog from its right-click menu,
+for an FPGA toolchain — or drive <a href="issiestick.html">ISSIE-Stick</a> hardware directly from the app.
+See <a href="verilogGenerate.html">Verilog Output</a>.</p>
+<p><img src="img/homePage/verilogComp.PNG" alt="" /></p>
+<hr />
+<h2><a name="Practical-matters" class="anchor" href="#Practical-matters">Practical matters</a></h2>
+<ul>
+<li>
+<strong>Free and open source</strong>, on <a href="https://github.com/tomcl/issie">GitHub</a> under the
+<a href="https://github.com/tomcl/issie/blob/master/LICENSE.md">GNU GPL v3 or later</a>.
+</li>
+<li>
+<strong>Windows, macOS (Apple Silicon) and Linux.</strong> No installation and no system changes: unzip and
+run. About 200 MB.
+</li>
+<li>
+<strong>Your files are yours.</strong> One human-readable JSON file per sheet, in a folder you choose. No
+cloud, no account, no telemetry.
+</li>
+<li>
+<strong>Developed and used in teaching at Imperial College London</strong>, by staff and undergraduates,
+since 2020.
+</li>
+</ul>
+<br>
+<p>*<em><a href="gettingStarted.html">Get ISSIE</a>*</em> · <strong><a href="userGuide.html">One-page tutorial</a></strong> ·
+<strong><a href="coolFeatures.html">Editor feature reference</a></strong></p>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Digital-design-that-explains-itself">
+      Digital design that explains itself
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#No-manual-needed">
+      No manual needed
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Errors-tell-you-how-to-fix-them">
+      Errors tell you how to fix them
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#A-schematic-editor-that-lays-out-for-you">
+      A schematic editor that lays out for you
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Three-ways-to-simulate">
+      Three ways to simulate
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Step-simulation-immediate-feedback">
+      Step simulation — immediate feedback
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Truth-tables-for-the-combinational-part">
+      Truth tables — for the combinational part
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-waveform-simulator-sophisticated-and-still-easy">
+      The waveform simulator — sophisticated, and still easy
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Designs-that-scale">
+      Designs that scale
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Verilog-in-and-out">
+      Verilog, in and out
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Practical-matters">
+      Practical matters
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

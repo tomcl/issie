@@ -48,13 +48,18 @@
   Documentation
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item active">
@@ -70,6 +75,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -114,12 +124,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -140,6 +144,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -221,13 +231,18 @@
   Documentation
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item active">
@@ -243,6 +258,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -287,12 +307,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -313,6 +327,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -368,85 +388,261 @@
     <div id="content">
         
 <h1><a name="Summary-of-Schematic-Editor-Operations" class="anchor" href="#Summary-of-Schematic-Editor-Operations">Summary of Schematic Editor Operations</a></h1>
-<p>ISSIE features developed over several years to help you create readable schematics very quickly. These are summarised in the table below:</p>
+<p>ISSIE features developed over several years to help you create readable schematics very quickly.</p>
+<blockquote>
+<p>Keys below are given for Windows and Linux. On macOS <code>Ctrl</code> is usually <code>Cmd</code>, and a few chords
+differ. <strong>The authoritative list for your platform is generated from the code</strong>: press <strong>Info</strong>
+→ <em>Keyboard Shortcuts</em>. The same actions are also on the <strong>Edit</strong> and <strong>View</strong> menus, and on the
+right-click menus, each labelled with its key.</p>
+</blockquote>
+<h2><a name="Placing-and-editing-components" class="anchor" href="#Placing-and-editing-components">Placing and editing components</a></h2>
 <table>
 <thead>
 <tr class="header">
-<th align="center"><p>Feature</p></th>
-<th align="center"><p>How</p></th>
-<th align="center"><p>Explanation</p></th>
+<th align="left"><p>Feature</p></th>
+<th align="left"><p>How</p></th>
+<th align="left"><p>Explanation</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="center"><p><strong>Size-to-fit</strong></p></td>
-<td align="center"><p><code>Ctrl-W</code></p></td>
-<td align="center"><p>Most often used keyboard shortcut to zoom and centre schematic so it is all fitted onto the screen at the correct zoom.</p></td>
+<td align="left"><p><strong>Place a component</strong></p></td>
+<td align="left"><p>Click it in the Catalogue, then click the canvas — or <strong>drag it straight from the Catalogue</strong> and drop it where you want it</p></td>
+<td align="left"><p>While you drag, a ghost of the real symbol follows the cursor. A drop onto space already occupied by another symbol is refused rather than overlapping them</p></td>
 </tr>
 <tr class="even">
-<td align="center"><p><strong>Change port location on Custom Components</strong></p></td>
-<td align="center"><p>Press <code>CTRL</code> and use your mouse to drag a port to another position on the outline of the symbol</p></td>
-<td align="center"><p>Custom components may end up having a large number of ports. You can move them to your desired location on the outline to create nicer schematics</p></td>
+<td align="left"><p><strong>Component tooltips</strong></p></td>
+<td align="left"><p>Hover any Catalogue entry, or any field label in <strong>Properties</strong></p></td>
+<td align="left"><p>Every component explains what it is for, and every field explains what it sets and what people get wrong about it</p></td>
 </tr>
 <tr class="odd">
-<td align="center"><p><strong>Resizing of Custom Components</strong></p></td>
-<td align="center"><p>Change <code>Width Scale</code> and <code>Height Scale</code> on the properties pane</p></td>
-<td align="center"><p>If default sizing makes port legends overlap you can scale custom component width and height in Properties</p></td>
+<td align="left"><p><strong>Find a component</strong></p></td>
+<td align="left"><p>Type in the Catalogue's search box</p></td>
+<td align="left"><p>Matches the explanations as well as the names, so "subtract" finds the N bits XOR. Sections holding a match open themselves</p></td>
 </tr>
 <tr class="even">
-<td align="center"><p><strong>Move component's label</strong></p></td>
-<td align="center"><p>Simply drag the component's label to your desired location on the canvas</p></td>
-<td align="center"></td>
+<td align="left"><p><strong>Size-to-fit</strong></p></td>
+<td align="left"><p><code>Ctrl-W</code></p></td>
+<td align="left"><p>Most often used keyboard shortcut: zooms and centres the schematic so it all fits on screen</p></td>
 </tr>
 <tr class="odd">
-<td align="center"><p><strong>Rotate and flip components</strong></p></td>
-<td align="center"><p><code>Ctrl + left arrow</code>: <br> <code>Ctrl + right arrow</code>:  <br> <code>Ctrl + up arrow</code>:  <br> <code>Ctrl + down arrow</code>:</p></td>
-<td align="center"><p>Rotate clockwise <br> Rotate anti-clockwise <br> Flip vertically <br> Flip horizontally</p></td>
+<td align="left"><p><strong>Zoom / pan the canvas</strong></p></td>
+<td align="left"><p><code>Alt</code>+<code>Up</code> / <code>Alt</code>+<code>Down</code>; <code>Ctrl</code>+mouse wheel; <code>Shift</code>+drag (or two-finger scroll)</p></td>
+<td align="left"><p>Zoom in, zoom out, and pan</p></td>
 </tr>
 <tr class="even">
-<td align="center"><p><strong>Truth Table for combinational logic</strong></p></td>
-<td align="center"><p><code>Simulations</code> -&gt; <code>Truth Table</code></p></td>
-<td align="center"><p>View the truth table for a combinational logic circuit. This can be either a full sheet or a sub-set by selecting the components you want to be included in the truth table</p></td>
+<td align="left"><p><strong>Rotate and flip components</strong></p></td>
+<td align="left"><p><code>Ctrl</code>+<code>Right</code>: rotate clockwise <br> <code>Ctrl</code>+<code>Left</code>: rotate anti-clockwise <br> <code>Ctrl</code>+<code>Up</code>: flip vertically <br> <code>Ctrl</code>+<code>Down</code>: flip horizontally</p></td>
+<td align="left"><p>Also on the Edit menu and on a component's right-click menu</p></td>
 </tr>
 <tr class="odd">
-<td align="center"><p><strong>Add a description on your sheets</strong></p></td>
-<td align="center"><p>De-select all components and click on properties. Click the <code>Add Description</code> button</p></td>
-<td align="center"><p>Sheet description will appear on the sheet list as an &#9432; button and will be displayed on properties when that sheet is used as a custom component</p></td>
+<td align="left"><p><strong>Undo / redo</strong></p></td>
+<td align="left"><p><code>Ctrl-Z</code> / <code>Ctrl-Y</code>, or the on-screen buttons</p></td>
+<td align="left"></td>
 </tr>
 <tr class="even">
-<td align="center"><p><strong>Themes</strong></p></td>
-<td align="center"><p><code>View</code> -&gt; <code>Theme</code></p></td>
-<td align="center"><p>Choose between the 3 supported themes: <code>Grayscale</code>, <code>Light</code> or <code>Colourful</code></p></td>
+<td align="left"><p><strong>Copy / paste</strong></p></td>
+<td align="left"><p><code>Ctrl-C</code> / <code>Ctrl-V</code>, or the on-screen buttons</p></td>
+<td align="left"><p>Duplicates keep the label with an incremented number. Works across sheets</p></td>
 </tr>
 <tr class="odd">
-<td align="center"><p><strong>Grid</strong></p></td>
-<td align="center"><p><code>View</code> -&gt; <code>Toggle grid</code></p></td>
-<td align="center"><p>Choose whether you want a grid to appear on your sheets</p></td>
+<td align="left"><p><strong>Move a component's label</strong></p></td>
+<td align="left"><p>Drag the label; <code>Ctrl-Shift-Right</code> rotates it</p></td>
+<td align="left"></td>
 </tr>
 <tr class="even">
-<td align="center"><p><strong>Wire Type</strong></p></td>
-<td align="center"><p><code>View</code> -&gt; <code>Wire Type</code></p></td>
-<td align="center"><p>Choose between the 3 supported wire types: <code>Jump</code>, <code>Radiussed</code> or <code>Modern</code> wires</p></td>
+<td align="left"><p><strong>Change port location on custom components</strong></p></td>
+<td align="left"><p>Hold <code>Ctrl</code> and drag a port to another position on the outline — or use <em>Move ports</em> on the component's right-click menu</p></td>
+<td align="left"><p>Custom components can have a lot of ports; move them to make a readable symbol</p></td>
 </tr>
 <tr class="odd">
-<td align="center"><p><strong>Wire Arrows</strong></p></td>
-<td align="center"><p><code>View</code> -&gt; <code>Toggle Wire Arrows</code></p></td>
-<td align="center"><p>Choose whether you want arrows at the end-points of your wires to show the direction of signals</p></td>
+<td align="left"><p><strong>Resize a custom component</strong></p></td>
+<td align="left"><p>Hold <code>Ctrl</code> and drag a corner, use <em>Resize symbol</em> on its right-click menu, or set <code>Width Scale</code> / <code>Height Scale</code> in Properties</p></td>
+<td align="left"><p>Auto-sizing keeps port legends from overlapping; override it when you want a particular shape</p></td>
 </tr>
 <tr class="even">
-<td align="center"><p><strong>Auto-routing with fixed segments</strong></p></td>
-<td align="center"></td>
-<td align="center"><p>Issie will <strong>nearly always</strong> route and separate all schematic connections neatly with no manual routing required. Any wire segment can be manually dragged to a desired position and "fixed" with other segments and wires auto-routed around it.</p></td>
+<td align="left"><p><strong>Change anything about a component</strong></p></td>
+<td align="left"><p>Select it and use the <strong>Properties</strong> tab</p></td>
+<td align="left"><p>Labels, bus widths, number of gate inputs, MUX input order, optional adder/counter ports, memory contents, Verilog source</p></td>
 </tr>
 <tr class="odd">
-<td align="center"><p><strong>Right-click context menus</strong></p></td>
-<td align="center"><p>Right-click on any schematic component or the background sheet will give you useful actions</p></td>
-<td align="center"></td>
+<td align="left"><p><strong>Align / distribute</strong></p></td>
+<td align="left"><p><code>Ctrl-Shift-A</code> / <code>Ctrl-Shift-D</code></p></td>
+<td align="left"><p>Same-type components in the selection are aligned or evenly spaced; other types are left alone</p></td>
 </tr>
 <tr class="even">
-<td align="center"><p><strong>Keyboard shortcuts</strong></p></td>
-<td align="center"><p>Most actions have shortcuts documented from the main <strong>info</strong> button or individually on menus.</p></td>
-<td align="center"></td>
+<td align="left"><p><strong>Rotate or scale a block</strong></p></td>
+<td align="left"><p>Drag a selection rectangle, then use the handles on the selection box</p></td>
+<td align="left"><p><code>Shift</code>-click adds or removes one component from the selection</p></td>
+</tr>
+</tbody>
+</table>
+
+<h2><a name="Wires-and-connections" class="anchor" href="#Wires-and-connections">Wires and connections</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><p>Feature</p></th>
+<th align="left"><p>How</p></th>
+<th align="left"><p>Explanation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><strong>Auto-routing with fixed segments</strong></p></td>
+<td align="left"><p>Automatic</p></td>
+<td align="left"><p>Issie will <strong>nearly always</strong> route and separate all schematic connections neatly with no manual routing required. Any wire segment can be manually dragged to a desired position and "fixed", with other segments and wires auto-routed around it</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Unfix a wire</strong></p></td>
+<td align="left"><p>Right-click the wire → <em>Unfix Wire</em></p></td>
+<td align="left"><p>Returns a hand-routed wire to auto-routing</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Re-separate / re-route</strong></p></td>
+<td align="left"><p>Edit menu, or <em>Reroute all wires</em> on the canvas right-click menu</p></td>
+<td align="left"><p>Applies the whole-sheet tidy-up to the selection, or to everything</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Wire type</strong></p></td>
+<td align="left"><p><code>View</code> → <code>Wire Type</code></p></td>
+<td align="left"><p><code>Jump</code>, <code>Radiussed</code> or <code>Modern</code> wires. Purely a display choice — it does not change the design</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Wire arrows</strong></p></td>
+<td align="left"><p><code>View</code> → <code>Toggle Wire Arrows</code></p></td>
+<td align="left"><p>Show the direction of signals at wire end-points</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Net labels</strong></p></td>
+<td align="left"><p>Catalogue → <code>Input / Output</code> → <code>Net Label</code></p></td>
+<td align="left"><p>Every net label with the same name is one net, joined without wires. Use for long connections and high fan-out. Exactly one label in a same-name set must be driven</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Terminate an unused output</strong></p></td>
+<td align="left"><p><code>Not Connected</code> component, or a <code>Viewer</code></p></td>
+<td align="left"><p>Issie will otherwise report the dangling output — and offer to insert the <code>Not Connected</code> for you</p></td>
+</tr>
+</tbody>
+</table>
+
+<h2><a name="Sheets-hierarchy-and-the-project" class="anchor" href="#Sheets-hierarchy-and-the-project">Sheets, hierarchy and the project</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><p>Feature</p></th>
+<th align="left"><p>How</p></th>
+<th align="left"><p>Explanation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><strong>Custom components</strong></p></td>
+<td align="left"><p>Catalogue → <code>This project</code></p></td>
+<td align="left"><p>Any design sheet can be placed in another sheet, any number of times</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Design hierarchy tree</strong></p></td>
+<td align="left"><p>The <strong>Sheet</strong> menu</p></td>
+<td align="left"><p>The whole project drawn as a tree with connector lines, showing which sheet contains which. The same tree appears in the waveform simulator</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Sheet right-click menu</strong></p></td>
+<td align="left"><p>Right-click a sheet in that tree</p></td>
+<td align="left"><p><em>Rename</em>, <em>Duplicate</em>, <em>Delete</em>, <em>Set as top</em>, <em>Save as library component</em>, <em>Write design as Verilog</em></p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Add a description to a sheet</strong></p></td>
+<td align="left"><p>De-select everything, open <strong>Properties</strong>, click <code>Add Description</code></p></td>
+<td align="left"><p>The description appears against the sheet as an &#9432; button, and is shown in Properties wherever the sheet is used as a custom component</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Sheet parameters</strong></p></td>
+<td align="left"><p><strong>Properties</strong> with nothing selected → <code>Add Parameter</code></p></td>
+<td align="left"><p>Named integer parameters, used in arithmetic expressions for bus widths, constants and memory sizes. Each instance of the sheet supplies its own values. See <a href="parameterSystem.html">Parameter System</a></p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Component libraries</strong></p></td>
+<td align="left"><p>Catalogue → <code>Library</code></p></td>
+<td align="left"><p>Ready-made parameterised components. Choosing one copies its sheet into your project and asks for its parameter values, so it stays an ordinary editable sheet</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Import a sheet</strong></p></td>
+<td align="left"><p><code>Sheet</code> → <code>Import Sheet</code></p></td>
+<td align="left"><p>Copy a sheet in from another project</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Project browser</strong></p></td>
+<td align="left"><p><code>Project</code> → <code>New project</code> / <code>Open project</code></p></td>
+<td align="left"><p>An in-app file browser: the projects inside a folder are listed and can be opened with the arrow keys and <code>Enter</code></p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Automatic backups</strong></p></td>
+<td align="left"><p>Automatic</p></td>
+<td align="left"><p>Every sheet is continuously snapshotted into a <code>backup/</code> subdirectory of the project</p></td>
+</tr>
+</tbody>
+</table>
+
+<h2><a name="Simulation-appearance-and-help" class="anchor" href="#Simulation-appearance-and-help">Simulation, appearance and help</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><p>Feature</p></th>
+<th align="left"><p>How</p></th>
+<th align="left"><p>Explanation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><p><strong>Step simulation</strong></p></td>
+<td align="left"><p><code>Simulations</code> → <code>Step Simulation</code></p></td>
+<td align="left"><p>Set inputs and read outputs immediately. <code>Viewer</code> components expose signals from any subsheet</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Truth table for combinational logic</strong></p></td>
+<td align="left"><p><code>Simulations</code> → <code>Truth Tables</code></p></td>
+<td align="left"><p>For a full sheet, or for just the components you select. Reduce it with input constraints, hidden columns, redundancy removal, or algebraic inputs</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Waveform simulation</strong></p></td>
+<td align="left"><p><code>Simulations</code> → <code>Wave Simulation</code></p></td>
+<td align="left"><p>See <a href="features.html">Features</a> for what it can do</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Add waveforms from the schematic</strong></p></td>
+<td align="left"><p>Right-click a component while a wave simulation is running → <em>Add waveforms to viewer</em></p></td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Read a value off the schematic</strong></p></td>
+<td align="left"><p>Rest the mouse on a wire while either simulator is running</p></td>
+<td align="left"><p>The value that wire carries appears beside the pointer — at the waveform cursor's cycle, or at the step simulator's current clock tick — in that simulator's radix. Nothing is shown for a wire on a sheet the simulation holds more than one copy of, since there would be no single answer</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Themes</strong></p></td>
+<td align="left"><p><code>View</code> → <code>Theme</code></p></td>
+<td align="left"><p><code>Grayscale</code>, <code>Light</code> or <code>Colourful</code></p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Grid</strong></p></td>
+<td align="left"><p><code>View</code> → <code>Toggle grid</code></p></td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Right-click context menus</strong></p></td>
+<td align="left"><p>Right-click a component, a custom component, a wire, the canvas, a sheet in the tree, or the project path</p></td>
+<td align="left"><p>Each offers exactly the actions that apply there, labelled with their shortcuts</p></td>
+</tr>
+<tr class="odd">
+<td align="left"><p><strong>Keyboard shortcuts</strong></p></td>
+<td align="left"><p><strong>Info</strong> → <em>Keyboard Shortcuts</em></p></td>
+<td align="left"><p>Generated from the same table the app dispatches keys with, for your platform, so it is always correct</p></td>
+</tr>
+<tr class="even">
+<td align="left"><p><strong>Errors</strong></p></td>
+<td align="left"><p>Automatic</p></td>
+<td align="left"><p>Every error names what is wrong and how to correct it, highlights the components and connections responsible on the canvas, and where the fix is unambiguous offers a button that applies it and restarts the simulation</p></td>
 </tr>
 </tbody>
 </table>
@@ -480,14 +676,15 @@
 <h3><a name="Copy-and-paste" class="anchor" href="#Copy-and-paste">Copy and paste</a></h3>
 <p>The on-screen copy &amp; paste buttons can duplicate single components, or selected sets of components (see selection below). They can also be used to copy components from one design sheet to a new one.</p>
 <h3><a name="Canvas-zooming" class="anchor" href="#Canvas-zooming">Canvas zooming</a></h3>
-<p>The canvas can be zoomed in or out, or auto-zoomed and panned to fit the whole circuit using <code>Ctrl-W</code> (<code>Cmd-W</code>).</p>
+<p>The canvas can be zoomed in or out, or auto-zoomed and panned to fit the whole circuit using
+<code>Ctrl-W</code> (macOS: <code>Cmd-Alt-0</code>).</p>
 <h3><a name="Symbol-rotation" class="anchor" href="#Symbol-rotation">Symbol rotation</a></h3>
 <p>Individual symbols can be rotated or flipped using the right-click menu or the Issie edit menu.</p>
 <h3><a name="Wire-display-types" class="anchor" href="#Wire-display-types">Wire display types</a></h3>
-<p>Wires can be displayed as radial, modern, or old-style jump. Switching display types can be done at any time and does not chnage the schematic.</p>
-<p>Radial wires are the mots interesting (and readable) form of wire display. Wire bends have small quadrant connections thus distinguishing between wires that cross and a wire joining two perpendicular wires. Visually, radial display makes connectivity easier to follow. The default radius for the wire quadrants is defined as <code>static member radius = 5.0</code> in <code>Wire</code> type. However, for very small wires, this radius is changed to prevent visual bugs. When drawing radii, the length of the smallest segment the curve connects to is checked, and if its length is &lt;5, the radius is shrunk to match it. Due to the limitations of drawing Arcs in SVG, these radii can only be integer valued, leading to small inconsistencies when a segment is a small non integer value (i.e. 1.5).</p>
+<p>Wires can be displayed as radial, modern, or old-style jump. Switching display types can be done at any time and does not change the schematic.</p>
+<p>Radial wires are the most interesting (and readable) form of wire display. Wire bends have small quadrant connections thus distinguishing between wires that cross and a wire joining two perpendicular wires. Visually, radial display makes connectivity easier to follow. The default radius for the wire quadrants is defined as <code>static member radius = 5.0</code> in <code>Wire</code> type. However, for very small wires, this radius is changed to prevent visual bugs. When drawing radii, the length of the smallest segment the curve connects to is checked, and if its length is &lt;5, the radius is shrunk to match it. Due to the limitations of drawing Arcs in SVG, these radii can only be integer valued, leading to small inconsistencies when a segment is a small non integer value (i.e. 1.5).</p>
 <h3><a name="Symbol-auto-sizing" class="anchor" href="#Symbol-auto-sizing">Symbol auto-sizing</a></h3>
-<p>Custom components (symbols) are dynamically resized depending on their port configuration. The minimum distance distance between 2 ports is set as <code>GridSize = 30</code>, which is defined as a <code>[&lt;Literal&gt;]</code> at the top of <code>Symbol.fs</code>. The dimensions of a component are determined as follows:</p>
+<p>Custom components (symbols) are dynamically resized depending on their port configuration. The minimum distance between 2 ports is set as <code>GridSize = 30</code>, which is defined as a <code>[&lt;Literal&gt;]</code> at the top of <code>Symbol.fs</code>. The dimensions of a component are determined as follows:</p>
 <ul>
 <li><strong>Height:</strong> Determined purely from the maximum number of ports on the left or right edge (n), setting the height to (n+1)<code>GridSize</code>, and spreading the ports GridSize apart.</li>
 <li><strong>Width:</strong> The distance between ports is determined by the maximum between the largest port label and <code>GridSize</code>. This ensures that the labels of the ports cannot overlap, whilst still being a minimum distance apart. The width can be calculated for both the Top and Bottom edges using the same approach as above using the maximum value, and taking the largest of these 2 values. In addition, the length of the longest labels from the Left and Right sides, as well as the component label (displayed in the center of the component) are added up and compared to the width obtained from the previous calculation. By selecting the component width as the maximum of these values, it can be ensured that labels associated with the component / ports do not overlap.</li>
@@ -514,6 +711,26 @@ When a port is dragged onto a different edge, the width and height of the compon
   <li class="level-1">
     <a href="#Summary-of-Schematic-Editor-Operations">
       Summary of Schematic Editor Operations
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Placing-and-editing-components">
+      Placing and editing components
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Wires-and-connections">
+      Wires and connections
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Sheets-hierarchy-and-the-project">
+      Sheets, hierarchy and the project
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Simulation-appearance-and-help">
+      Simulation, appearance and help
     </a>
   </li>
   <li class="level-1">

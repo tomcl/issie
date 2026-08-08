@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="User-friendliness review
+" />
+    <meta property="og:url" content="/issie/dev/userFriendlinessReview.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="User-friendliness review
+">
+    
+    <title>User-friendliness review
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="User-friendliness-review" class="anchor" href="#User-friendliness-review">User-friendliness review</a></h1>
+<p>Recorded August 2026 against <code>master</code> at v6.0.11, from a read of the feature set as a user meets
+it: the catalogue, the properties pane, the three simulators, the error paths, the keyboard and
+menu system, and the documentation site.</p>
+<p>Issie's stated principle is that a novice should need no manual, and that every error should say
+what is wrong <strong>and how to correct it</strong>. Measured against that principle Issie does far better than
+its competitors — the <em>Fix by …</em> buttons in
+<a href="../../src/Renderer/UI/SimulationView.fs"><code>SimulationView.viewSimulationError</code></a>, the generated
+shortcut table, the per-component tooltips and the context menus are all genuinely unusual. What
+follows is only where it falls short of its own standard.</p>
+<p>Findings are ordered by (cost to fix) ÷ (benefit), best first.</p>
+<p><strong>Status, August 2026:</strong> all of section A and all of section B have been fixed — each entry says
+how. Section C and D1–D2 remain open; C is deliberately deferred, since remapping keys is a change
+users have to absorb and is worth doing all at once. D3 is settled.</p>
+<hr />
+<h2><a name="A-Defects-places-that-contradict-the-principle" class="anchor" href="#A-Defects-places-that-contradict-the-principle">A. Defects — places that contradict the principle</a></h2>
+<h3><a name="A1-A-help-menu-item-that-says-Feature-not-explained" class="anchor" href="#A1-A-help-menu-item-that-says-Feature-not-explained">A1. A help menu item that says "Feature not explained"</a></h3>
+<p><code>ContextMenus.fs:45</code> offers <code>"Waveform Operations"</code> on the wave simulator's right-click help menu.
+<code>UIPopups.viewWaveInfoPopup</code> (<code>UIPopups.fs:442</code>) has that panel under the name
+<code>"Viewing Waveforms"</code>. The names do not match, so choosing it reaches the wildcard case and the
+user is told <em>"Feature not explained"</em> — in the help system, which is the worst place for it.</p>
+<p><strong>FIXED.</strong> The menu item is now <code>"Viewing Waveforms"</code>, matching the popup. One list is not possible
+— <code>ContextMenus.fs</code> is compiled into the main process, which has none of the renderer, and
+<code>UIPopups</code> is compiled long before it — so both sites now carry a note saying they must change
+together, and the catch-all case says what to do instead of <em>"Feature not explained"</em>.</p>
+<h3><a name="A2-The-combinational-loop-error-offers-no-remedy" class="anchor" href="#A2-The-combinational-loop-error-offers-no-remedy">A2. The combinational-loop error offers no remedy</a></h3>
+<p><code>SimulationGraphAnalyser.fs:131</code> reports a combinational loop as, in full:</p>
+<blockquote>
+<p>Cycle detected in combinatorial logic.</p>
+</blockquote>
+<p>The offending components <em>are</em> highlighted, which is good. But a combinational loop is one of the
+two or three classic first-year mistakes, and the message does not say what a loop is, why it
+cannot be simulated, or what to do (break the path, or put a register in it). Compare the
+asynchronous-RAM cycle message in <code>FastRun.fs:334</code>, which explains itself properly, or the net
+label messages, which are exemplary.</p>
+<p><strong>FIXED.</strong> The message now names the loop (<code>A -&gt; B -&gt; C -&gt; (back to the start)</code>, read from the
+graph), says why such a circuit has no value and would oscillate in hardware, and gives the two
+ways out: remove a connection, or put a flip-flop or register in the path.</p>
+<h3><a name="A3-Internal-type-names-leak-into-user-facing-errors" class="anchor" href="#A3-Internal-type-names-leak-into-user-facing-errors">A3. Internal type names leak into user-facing errors</a></h3>
+<p><code>SimGraphTypes.errMsg</code> renders several errors with <code>%A</code> over F# union values
+(<code>SimGraphTypes.fs:110–115</code>):</p>
+<blockquote>
+<p><code>PortType.Input port appears to have no port number</code></p>
+</blockquote>
+<p>and <code>InPortMismatch</code>/<code>OutPortMismatch</code> print raw F# list literals. <code>InternalError</code>
+(<code>SimGraphTypes.fs:177</code>) shows the user an exception message and a JavaScript stack trace.</p>
+<p><strong>FIXED.</strong> <code>%A</code> over <code>PortType</code> is gone (a <code>portTypeName</code> helper writes "input"/"output", so the
+message cannot change shape if the type ever gains a field), and those three now say the sheet file
+is probably damaged and point at the <code>backup</code> folder — the user cannot have caused them by editing,
+so telling them to correct it sent them looking for something that was not there. The port-mismatch
+messages say the sheet has been edited since the instance was placed and to replace the instance.
+<code>InternalError</code> is framed as a request to report, with the trace below it. One <code>Option.get</code> inside
+the error renderer, which would have thrown while displaying an error, is gone too.</p>
+<h3><a name="A4-with-a-non-zero-count-renders-as-a-bare-number" class="anchor" href="#A4-with-a-non-zero-count-renders-as-a-bare-number">A4. <code>OutputConnError</code> with a non-zero count renders as a bare number</a></h3>
+<p><code>SimGraphTypes.fs:155</code>:</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="pn">|</span> <span class="id">OutputConnError</span> <span class="pn">(</span><span class="id">count</span><span class="pn">,</span> <span class="id">_</span><span class="pn">,</span> <span class="id">_</span><span class="pn">)</span> <span class="k">-&gt;</span>
+    <span class="k">if</span> <span class="id">count</span> <span class="o">=</span> <span class="n">0</span> <span class="k">then</span> <span class="s">&quot;A component output port must have at least one connection. …&quot;</span>
+    <span class="k">else</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="id">sprintf</span> <span class="s">&quot;%d&quot;</span> <span class="id">count</span>
+</code></pre>
+<p>The error is currently raised only for <code>count = 0</code> (<code>CanvasStateAnalyser.fs:497</code> passes <code>(&lt;) 0</code>),
+so the branch is unreachable — but it was a live landmine behind a one-character change to a
+predicate.</p>
+<p><strong>FIXED.</strong> The branch now carries a real message saying an output may drive any number of inputs
+and asking for a report, with a comment recording that it is currently unreachable.</p>
+<h3><a name="A5-The-truth-table-refuses-without-saying-what-to-do-about-it" class="anchor" href="#A5-The-truth-table-refuses-without-saying-what-to-do-about-it">A5. The truth table refuses without saying what to do about it</a></h3>
+<p>On a sheet with any clocked component, <code>Generate Truth Table</code> is drawn as an ordinary enabled
+button (<code>TruthTableView.fs:944</code> and <code>:975</code> — only <code>Button.IsLight</code> distinguishes it), and clicking
+it raises the notification <em>"Truth Table generation only supported for Combinational Logic"</em>.</p>
+<p>The user is not told <strong>which</strong> components are clocked, and is not pointed at the thing that would
+actually work — <em>Truth Table for selected logic</em>, which is right there on the same panel and does
+exactly what they want. This is a click that goes nowhere.</p>
+<p><strong>FIXED.</strong> The button now reads <strong>"Why is there no table?"</strong> and is <code>IsWarning</code>, like the
+"See Problems" button beside it — it no longer looks like the one that makes a table. Clicking it
+highlights the clocked components on the schematic, names them (a custom component counts only if
+the sheet inside it is really clocked, which <code>couldBeSynchronousComponent</code> cannot tell on its own),
+explains why a table of sequential logic has no meaning, and points at both <em>Truth Table for
+selected logic</em> and the Wave Simulation tab.</p>
+<h3><a name="A6-Dead-unsafe-helpers-in-the-error-view" class="anchor" href="#A6-Dead-unsafe-helpers-in-the-error-view">A6. Dead unsafe helpers in the error view</a></h3>
+<p><code>SimulationView.fs:409</code> and <code>:425</code> defined <code>getComponentById</code> / <code>getConnectionById</code>, which
+<code>failwith</code> when the id is missing. Both were unused — the <code>…ListOpt</code> variants beside them are what
+the code calls — but they are the exact shape of a crash inside the error display.</p>
+<p><strong>FIXED.</strong> Both deleted, with a note beside the survivors recording why the throwing versions were
+wrong: a component named by an error can genuinely be absent, having been deleted between the
+simulation and the render.</p>
+<hr />
+<h2><a name="B-First-contact-the-biggest-wins" class="anchor" href="#B-First-contact-the-biggest-wins">B. First contact — the biggest wins</a></h2>
+<h3><a name="B1-The-waveform-simulator-opens-empty" class="anchor" href="#B1-The-waveform-simulator-opens-empty">B1. The waveform simulator opens empty</a></h3>
+<p><code>initWSModel</code> sets <code>SelectedWaves = List.empty</code> (<code>ModelHelpers.fs:78</code>). A user who presses
+<strong>Start</strong> on a clocked design for the first time gets a viewer with nothing in it and a sentence
+telling them to press another button.</p>
+<p>The first thing a beginner sees should be waveforms of their own design, not an empty grid, and
+the <em>Select Waves</em> dialog should be something they reach for to refine rather than something they
+must find in order to begin.</p>
+<p><strong>FIXED.</strong> <code>WaveSimSelect.withDefaultSelectionIfEmpty</code> selects the simulated top sheet's own
+inputs, outputs and Viewers — inputs first, then outputs, then Viewers, capped at 12 — and
+<code>refreshWaveSim</code> applies it when a new simulation is created. It runs only when the user has
+selected nothing at all, neither waves nor RAMs, so a selection saved with the sheet is never
+overridden and a deliberately pared-down one is never added to. Viewers are included because a
+Viewer exists for no other reason than to be looked at. Pinned by tests in
+<code>Tests/Issie.Tests/WaveSelection.fs</code>.</p>
+<p><strong>A top sheet with no ports of its own</strong> — found while checking this against the demos, and now
+also handled. The <code>3cpu</code> demo's <code>eep1</code> is a ROM, a RAM, two constants and two custom component
+instances, with not one Input, Output or Viewer, so the rule above selects nothing. The fallback is
+every <strong>Viewer in the design</strong>, at whatever depth: a Viewer is placed for exactly one reason, that
+somebody wanted to watch that net, so wherever they are they are the signals the author thought
+worth looking at. A design with no top-level ports and no Viewers anywhere still shows the "use
+Select Waves" message, which at that point is the honest answer.</p>
+<h3><a name="B2-The-Catalogue-has-no-search" class="anchor" href="#B2-The-Catalogue-has-no-search">B2. The Catalogue has no search</a></h3>
+<p><code>CatalogueView.viewCatOfModel</code> draws nine collapsible sections, ~41 components, plus <em>This project</em>,
+<em>Verilog</em> and <em>Library</em>. There is no filter box. A user who knows they want a shifter has to guess
+whether it is under Buses or Arithmetic (it is Arithmetic), and a user who does not know the Issie
+name for what they want has no way to look.</p>
+<p><strong>FIXED.</strong> A search box sits above the catalogue, filtering on component name <strong>and</strong> tooltip text
+— so "subtract" finds the N bits XOR and "invert" finds Not, which is the point of searching the
+tooltip as well as Issie's own name for the thing. Sections holding a match open themselves;
+sections with nothing in them are not drawn at all, since a column of empty headings says nothing
+about where the component is. Project sheets, Verilog components and libraries are filtered with
+everything else. The search string lives in <code>Model.CatalogueSearch</code>.</p>
+<h3><a name="B3-The-Properties-pane-explains-nothing" class="anchor" href="#B3-The-Properties-pane-explains-nothing">B3. The Properties pane explains nothing</a></h3>
+<p>Every Catalogue entry carries a written tooltip. <code>SelectedComponentView.fs</code> — the pane where a user
+actually configures the component they just placed — contains <strong>no tooltips at all</strong>. So the
+Catalogue tells you what an N-bit XOR is for, and then the pane offering to change its arithmetic
+op, its width, its label and its port set says nothing.</p>
+<p><strong>FIXED.</strong> <code>UI/PropertiesHelp.fs</code> holds the explanations, keyed by the label each field displays,
+and <code>fieldLabel</code> renders a label with its explanation as a tooltip. Keying on the label means a
+field acquires help simply by being labelled: no call site passes anything, the same label is
+explained the same way wherever it appears, and a label with no entry renders exactly as before.
+Both <code>SelectedComponentView</code>'s form helpers and <code>ParameterView.paramInputField</code> go through it, so
+the parameter boxes are covered as well. A label with something to say is marked with a dotted
+underline and a help cursor — an invisible tooltip is one nobody hovers.</p>
+<h3><a name="B4-No-way-to-see-a-signal-s-value-on-the-schematic" class="anchor" href="#B4-No-way-to-see-a-signal-s-value-on-the-schematic">B4. No way to see a signal's value on the schematic</a></h3>
+<p>Values can be read in the step simulator's panel, in the waveform cursor column, and as a tooltip
+on a waveform (<code>EvilHoverCache.fs</code>) — but never on the schematic itself. Hovering a wire during a
+simulation and seeing its current value is the thing users of every schematic simulator ask for
+first, and Issie already has all the pieces: the wave simulator can map a canvas component to its
+simulation driver in both directions (<code>WaveSimSelect.wavesOfComponent</code>,
+<code>WaveSimSelect.compWavesToOffer</code>), and <code>EvilHoverCache</code> already formats a value for a tooltip.</p>
+<p><strong>FIXED, for both simulators.</strong> Rest the mouse on any wire of the schematic while a simulation is
+running and the value it carries appears beside the pointer — at the waveform cursor's cycle, or at
+the step simulator's current clock tick, in that simulator's radix.</p>
+<p>The work splits along the seam it sits on. The draw block records which wire the mouse is resting
+on (<code>SheetT.Model.HoveredWire</code>, set from the <code>mouseOn</code> result the idle mouse-move already computes
+for the cursor shape) and knows nothing about simulation. <code>MainView.Probe</code> turns that into a value
+and knows nothing about hit-testing. <code>SheetDisplay.view</code> gained an <code>overlay</code> parameter so the label
+is drawn in draw block coordinates, panning and zooming with the schematic, without the draw block
+having to know what is in it.</p>
+<p>Which copy of the wire is answered by <code>WaveSimSelect.wavesOfComponent</code>, the same function the
+schematic's right-click menu uses: a wire on a sheet the simulation holds twice shows nothing,
+because there would be no single answer.</p>
+<p>Nothing had to be built for the step simulator: <strong>every</strong> <code>FastSimulation</code> already carries
+<code>WaveIndex</code>, <code>WaveComps</code> and <code>Drivers</code>, because <code>buildFastSimulation</code> ends in
+<code>addWavesToFastSimulation</code> whichever simulator asked for it. So the probe is two map lookups and an
+array read, and the two simulators differ only in which simulation, cycle and radix are handed to
+<code>WaveSimSelect.probeLabelForWire</code>. The waveform simulator wins when both are running: its cursor is
+where the user deliberately put it, whereas the step simulator's tick is just how far it has been
+stepped.</p>
+<p>One thing the shared path had to get right: the step simulator uses its data arrays as a <strong>circular
+buffer</strong> (<code>step % MaxArraySize</code>, as <code>FastExtract</code> does), while the waveform simulator does not — its
+array is sized for the whole run. Taking the modulo unconditionally is correct for both, since in
+the waveform case the cycle is always below <code>MaxArraySize</code>.</p>
+<h3><a name="B5-Nothing-happens-on-first-run" class="anchor" href="#B5-Nothing-happens-on-first-run">B5. Nothing happens on first run</a></h3>
+<p><code>viewInfoPopup</code> is reachable only from the <strong>Info</strong> button (and <code>Cmd+H</code> on macOS). A brand-new user
+sees <code>New project / Open project / Open demo project</code> and nothing else. The <em>Tips &amp; Features</em> tab of
+the Info popup is good content that most users will never open.</p>
+<p><strong>FIXED.</strong> Three parts, and the judgement behind them is that the in-app text is the primary path
+and the website carries the depth. A page a beginner has to go and find is exactly the manual Issie
+is designed not to need; but a popup is the wrong shape for a tutorial, and the documentation site
+is already good and is kept in step with the code by the same pull request.</p>
+<ol>
+<li>
+The startup menu — the one thing a first-time user is certainly looking at — now ends with
+<strong>"New to Issie? Start here"</strong>, which opens the Info window. It is offered rather than opened
+for them: a second window in front of the first, before they have asked for anything, is an
+interruption rather than help.
+</li>
+<li>
+The <em>Introduction</em> tab is now <strong>Getting Started</strong>, and is first, so it is what the window opens
+on. It was three paragraphs about what Issie is; it is now the first five minutes in order
+(open a demo → place components → wire them → Properties → simulate), then what happens when
+something is wrong, then the two things that cannot be worked out by looking at the screen (the
+hierarchy, and the implicit clock). <em>About Issie</em> — version and acknowledgments, which nobody
+opened this window for — moves back to fourth.
+</li>
+<li>
+It ends with <strong>Where to read more</strong>: five links to the documentation site, one line each saying
+what is on the page. Depth lives there, one click away and clearly secondary.
+</li>
+</ol>
+<p><em>Tips &amp; Features</em> also gained rows for the things added since it was written: catalogue search,
+Properties tooltips, dragging from the catalogue, probing a wire, and the two directions between
+waveforms and the schematic.</p>
+<hr />
+<h2><a name="C-Consistency" class="anchor" href="#C-Consistency">C. Consistency</a></h2>
+<h3><a name="C1-Two-zooms-and-the-obvious-keys-drive-the-wrong-one" class="anchor" href="#C1-Two-zooms-and-the-obvious-keys-drive-the-wrong-one">C1. Two zooms, and the obvious keys drive the wrong one</a></h3>
+<p><code>Ctrl+=</code> / <code>Ctrl+-</code> (<code>ScAppZoomIn</code>, <code>KeyTypes.fs:345</code>) scale the <strong>whole application</strong> via
+Electron's <code>setZoomLevel</code>. The <strong>schematic</strong> zoom is <code>Alt+Up</code> / <code>Alt+Down</code> on Windows and Linux
+(<code>ScDiagramZoomIn</code>, <code>KeyTypes.fs:331</code>).</p>
+<p><code>Ctrl+=</code>/<code>Ctrl+-</code> is what a user reaches for to zoom a drawing, in every drawing application there
+is. In Issie it silently rescales the entire UI instead, which looks like the canvas zooming until
+the menu bar changes size too. Consider swapping them, or at least binding <code>Ctrl+=</code>/<code>Ctrl+-</code> to the
+diagram when the pointer is over the canvas.</p>
+<h3><a name="C2-is-taken-from-macOS" class="anchor" href="#C2-is-taken-from-macOS">C2. <code>Cmd+H</code> is taken from macOS</a></h3>
+<p><code>spec ScAbout (macOnly [ ch Mods.prim (letter 'H') ])</code> (<code>KeyTypes.fs:374</code>) opens the Info window,
+and shortcuts <code>preventDefault</code> by default. On macOS <code>Cmd+H</code> hides the front application in every program — this
+is one of the most ingrained system shortcuts there is, and Issie quietly takes it.</p>
+<p>Meanwhile Windows and Linux have <strong>no key for help at all</strong>, and <code>F1</code> is unbound everywhere.
+Suggest: <code>F1</code> (and <code>Cmd+/</code> or <code>Shift+Cmd+/</code> on macOS) for Info; release <code>Cmd+H</code>.</p>
+<h3><a name="C3-Grid-and-wire-arrows-have-keys-only-on-macOS" class="anchor" href="#C3-Grid-and-wire-arrows-have-keys-only-on-macOS">C3. Grid and wire arrows have keys only on macOS</a></h3>
+<p><code>ScToggleGrid</code> and <code>ScToggleWireArrows</code> are <code>macOnly</code> (<code>KeyTypes.fs:357–360</code>). Windows and Linux users get menu items only,
+and the generated shortcut table shows them a row with "(none)" against it. Either bind them on all
+platforms or drop them from the table.</p>
+<h3><a name="C4-Small-naming-mismatches" class="anchor" href="#C4-Small-naming-mismatches">C4. Small naming mismatches</a></h3>
+<ul>
+<li>
+The Simulations sub-tab reads <strong>"Truth Tables"</strong>; the panel heading inside it reads
+<strong>"Truth Table"</strong>; the documentation used to say <code>Simulations -&gt; Truth Table</code>.
+</li>
+<li>
+The Catalogue section is <strong>"Arithmetic"</strong> but holds <code>N bits AND</code>/<code>OR</code>/<code>NOT</code>, which are not
+arithmetic; the section named <strong>"Gates"</strong> holds only the 1-bit versions. A user looking for a
+wide AND will look in Gates.
+</li>
+</ul>
+<hr />
+<h2><a name="D-Documentation-and-release-information" class="anchor" href="#D-Documentation-and-release-information">D. Documentation and release information</a></h2>
+<h3><a name="D1-stops-at-v0-5-0" class="anchor" href="#D1-stops-at-v0-5-0">D1. <code>RELEASE_NOTES.md</code> stops at v0.5.0</a></h3>
+<p>The app is v6.0.11. The release notes file's most recent entry is <em>"v0.5.0 — Issie 1st release"</em>.
+A user asking "what changed?" finds a file that answers for 2020. The <code>docs/updates/</code> blog is
+better but stops at April 2025, and there has been a great deal since — parameters, libraries,
+the in-app menu and keyboard system, the project browser, the Fable 5 / .NET 10 move.</p>
+<p><strong>Fix:</strong> either keep the file current (the git log is already written in a style that would
+generate it) or delete it and point at the GitHub releases page, which <em>is</em> current.</p>
+<h3><a name="D2-The-screenshots-on-the-documentation-site-are-a-version-behind" class="anchor" href="#D2-The-screenshots-on-the-documentation-site-are-a-version-behind">D2. The screenshots on the documentation site are a version behind</a></h3>
+<p><code>docs/img/homePage/*</code> and <code>docs/img/userGuide/*</code> show a <strong>Sheets</strong> menu and an Electron application
+menu bar that no longer exist — the bar is now <code>Project | Sheet | Edit | View</code>, drawn inside the
+app. They are still recognisably Issie and the workflows are unchanged, so they are usable, but a
+refresh would be worth doing before the next release. <code>scripts/inspect-canvas.js</code> can screenshot
+the running app, so this could be scripted rather than done by hand.</p>
+<h3><a name="D3-The-licence-is-stated-two-ways" class="anchor" href="#D3-The-licence-is-stated-two-ways">D3. The licence is stated two ways</a></h3>
+<p><code>LICENSE.md</code> and <code>LICENSE</code> are GPL v3. <code>package.json</code> says <code>"license": "LGPL-3.0-or-later"</code>. These
+are different licences. One of them is wrong, and the documentation cannot state the licence
+confidently until it is settled.</p>
+<p><strong>FIXED — <code>package.json</code> now says <code>GPL-3.0-or-later</code>.</strong> The licence text has been the GPL since
+<code>89ad2aaec Add GPLv3 license</code>, and <code>LICENSE</code> and <code>LICENSE.md</code> are byte-identical copies of it. The
+LGPL string was not a relicensing: it was written into an empty <code>"license": ""</code> field during a
+routine version bump (<code>13182ba29 bump to v4.0.6</code>, August 2023) and never matched anything. The
+"or later" is kept from what was there, which is also what the GPL's own recommended boilerplate
+says. README now states the licence in prose so there is one place to read it.</p>
+<p>If LGPL really was intended, this change is the wrong way round — but that is a relicensing
+decision, and it would mean replacing <code>LICENSE</code>/<code>LICENSE.md</code>, not editing a JSON field.</p>
+<h3><a name="D4-says-More-documentation-needed-here" class="anchor" href="#D4-says-More-documentation-needed-here">D4. <code>issiestick.md</code> says "More documentation needed here!"</a></h3>
+<p>The ISSIE-Stick page is nine lines and admits it is incomplete, while the feature is advertised on
+the home page. Either write it or fold it into the Verilog Output page.</p>
+<hr />
+<h2><a name="What-is-already-right-and-should-not-be-disturbed" class="anchor" href="#What-is-already-right-and-should-not-be-disturbed">What is already right, and should not be disturbed</a></h2>
+<p>Worth recording, because these are the things a redesign would be tempted to "simplify":</p>
+<ul>
+<li>
+<strong>The <em>Fix by …</em> buttons.</strong> Applying the fix <em>and</em> restarting the simulation is what makes them
+feel like help rather than a suggestion.
+</li>
+<li>
+<strong>Generating the shortcut table from the dispatch table.</strong> It caught three real errors in the
+hand-written table it replaced.
+</li>
+<li><strong>Compulsory parameter descriptions</strong>, and author-written constraint error text.</li>
+<li><strong>Tooltips written as sentences</strong>, not as labels — the net label tooltip teaches the concept.</li>
+<li>
+<strong>Materialising library components into the project</strong> rather than linking them. A student can
+open one and read it.
+</li>
+<li><strong>Refusing a drop onto occupied space</strong> instead of silently overlapping two symbols.</li>
+</ul>
+
+        <div class="fsdocs-tip" id="fs1">val sprintf: format: Printf.StringFormat&lt;&#39;T&gt; -&gt; &#39;T</div>
+
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#User-friendliness-review">
+      User-friendliness review
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#A-Defects-places-that-contradict-the-principle">
+      A. Defects — places that contradict the principle
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#A1-A-help-menu-item-that-says-Feature-not-explained">
+      A1. A help menu item that says "Feature not explained"
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#A2-The-combinational-loop-error-offers-no-remedy">
+      A2. The combinational-loop error offers no remedy
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#A3-Internal-type-names-leak-into-user-facing-errors">
+      A3. Internal type names leak into user-facing errors
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#A5-The-truth-table-refuses-without-saying-what-to-do-about-it">
+      A5. The truth table refuses without saying what to do about it
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#A6-Dead-unsafe-helpers-in-the-error-view">
+      A6. Dead unsafe helpers in the error view
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#B-First-contact-the-biggest-wins">
+      B. First contact — the biggest wins
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#B1-The-waveform-simulator-opens-empty">
+      B1. The waveform simulator opens empty
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#B2-The-Catalogue-has-no-search">
+      B2. The Catalogue has no search
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#B3-The-Properties-pane-explains-nothing">
+      B3. The Properties pane explains nothing
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#B4-No-way-to-see-a-signal-s-value-on-the-schematic">
+      B4. No way to see a signal's value on the schematic
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#B5-Nothing-happens-on-first-run">
+      B5. Nothing happens on first run
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#C-Consistency">
+      C. Consistency
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#C1-Two-zooms-and-the-obvious-keys-drive-the-wrong-one">
+      C1. Two zooms, and the obvious keys drive the wrong one
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#C3-Grid-and-wire-arrows-have-keys-only-on-macOS">
+      C3. Grid and wire arrows have keys only on macOS
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#C4-Small-naming-mismatches">
+      C4. Small naming mismatches
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#D-Documentation-and-release-information">
+      D. Documentation and release information
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#D2-The-screenshots-on-the-documentation-site-are-a-version-behind">
+      D2. The screenshots on the documentation site are a version behind
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#D3-The-licence-is-stated-two-ways">
+      D3. The licence is stated two ways
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-is-already-right-and-should-not-be-disturbed">
+      What is already right, and should not be disturbed
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

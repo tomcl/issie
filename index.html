@@ -48,13 +48,18 @@
   Documentation
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item ">
@@ -70,6 +75,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -114,12 +124,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -140,6 +144,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -221,13 +231,18 @@
   Documentation
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item ">
@@ -243,6 +258,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -287,12 +307,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -313,6 +327,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -368,8 +388,10 @@
     <div id="content">
         
 <h1><a name="Issie-Documentation-Home" class="anchor" href="#Issie-Documentation-Home">Issie Documentation Home</a></h1>
+<p>See <a href="features.html">Features</a> for what Issie does and why it is easy to use.</p>
 <p>See <a href="gettingStarted.html">Getting Started</a> for how to put Issie on your laptop or develop Issie.</p>
 <p>See <a href="userGuide.html">User Tutorial</a> for a useful introduction to Issie on one page which you can follow or read.</p>
+<p>See <a href="coolFeatures.html">Schematic Editor Features</a> for a reference of every editor operation.</p>
 <p>See <a href="parameterSystem.html">Parameter System</a> for a detailed explanation of symbolic parameters, expressions, constraints, and simulation integration.</p>
 <br>
 <h2><a name="What-is-ISSIE" class="anchor" href="#What-is-ISSIE">What is ISSIE?</a></h2>
@@ -381,9 +403,9 @@ ISSIE was motivated because we found that industry-standard CAD systems were too
 <li>We find that EEE-educated internal PhD candidates starting with schematic logic designs usually have a better understanding of what <strong>digital hardware is</strong> than those from other institutions starting with HDL.</li>
 </ul>
 </li>
-<li>ISSIE has as a design principle that it should be easy to use by a novice, with all errors well highlighted. Error messages telling the user what the error is and how precisely to correct it, so a novice user can make the correction. Keeping to this principle has been challenging but worthwhile. We also wanted a complete system capable of real design work: good user interface is separate from large-scale features and performance and there is no reason they cannot both be implemented.</li>
+<li>ISSIE has as a design principle that it should be easy to use by a novice, with all errors well highlighted. Error messages telling the user what the error is and how precisely to correct it, so a novice user can make the correction — and where the correction is unambiguous, Issie offers a button that makes it. Keeping to this principle has been challenging but worthwhile. We also wanted a complete system capable of real design work: good user interface is separate from large-scale features and performance and there is no reason they cannot both be implemented.</li>
 <li>ISSIE is developed <strong>by undergraduate students and staff at Imperial College London</strong>. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac and Linux platforms.</li>
-<li>ISSIE is implemented using nearly 50K lines in the Functional-first language F#, the equivalent of 150K lines in a typical OOP language. ISSIE's implementation is (almost) pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has <strong>its own digital simulator</strong>, which uses <strong>write-once semantics</strong> on mutable (JS typed) arrays to combine the robustness of functional programming with high performance.</li>
+<li>ISSIE is implemented using over 55K lines of code (84K lines including comments) in the Functional-first language F#, the equivalent of some 150K lines in a typical OOP language. ISSIE's implementation is (almost) pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has <strong>its own digital simulator</strong>, which uses <strong>write-once semantics</strong> on mutable (JS typed) arrays to combine the robustness of functional programming with high performance.</li>
 <li>ISSIE uses the <a href="https://fable.io/">FABLE F# to Javascript compiler</a>, <a href="https://elmish.github.io/elmish/">Elmish MVU framework</a>, and <a href="https://www.electronjs.org/">Electron</a>. This tool chain creates seamless cross-platform applications with simple and highly productive coding.</li>
 <li>ISSIE can generate Verilog output to drive FPGAs and has an integrated system to do this directly using <strong>ISSIE-Stick</strong> hardware.</li>
 <li>ISSIE can also accept Verilog source, using this to define and simulate equivalent schematic components.</li>
@@ -402,8 +424,17 @@ ISSIE was motivated because we found that industry-standard CAD systems were too
 <ul>
 <li>New Waveform Selector for waveform simulations (complete)</li>
 <li>Tooltips on waveform simulator waveforms (complete)</li>
-<li>Symbolic parameters to make component bit-widths etc adjustable (in progress)</li>
-<li>Improvements to Verilog parser and to-Issie synthesis (in progress)</li>
+<li>Symbolic parameters to make component bit-widths etc adjustable (complete)</li>
+<li>Improvements to Verilog parser and to-Issie synthesis (complete)</li>
+</ul>
+<h4><a name="2026" class="anchor" href="#2026">2026</a></h4>
+<ul>
+<li>Sheet parameters, per-instance bindings and parameter constraints (complete)</li>
+<li>Reusable <a href="features.html">component libraries</a> offered in the Catalogue (complete)</li>
+<li>One in-app keyboard/menu system, with the shortcut help generated from it (complete)</li>
+<li>In-app project browser, drag-and-drop component placement, design hierarchy tree (complete)</li>
+<li>Move to .NET 10, Fable 5, Elmish 4 and React 18 (complete)</li>
+<li>An Expecto test suite covering the simulator, parameters and the draw block (complete)</li>
 <li>See <a href="https://github.com/tomcl/issie/issues/506">Issue 506</a> for possible other changes.</li>
 </ul>
 <br>
@@ -457,6 +488,11 @@ ISSIE was motivated because we found that industry-standard CAD systems were too
   <li class="level-4">
     <a href="#2025">
       2025
+    </a>
+  </li>
+  <li class="level-4">
+    <a href="#2026">
+      2026
     </a>
   </li>
   <li class="level-2">

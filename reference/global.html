@@ -48,13 +48,18 @@
   Documentation
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item ">
@@ -70,6 +75,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -114,12 +124,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -140,6 +144,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -221,13 +231,18 @@
   Documentation
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item ">
@@ -243,6 +258,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -287,12 +307,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -313,6 +327,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -1990,6 +2010,44 @@
             </a>
             <p class="fsdocs-summary">
               
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="PropertiesHelp">
+              <a href="/issie/reference/global-propertieshelp.html">
+                PropertiesHelp
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:PropertiesHelp`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:PropertiesHelp\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/PropertiesHelp.fs#L13-13" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               What the fields in the Properties pane mean, and the label element that says so.
+
+ The Catalogue explains every component before you place it, in a tooltip written as a sentence.
+ The pane where you then configure the component you placed explained nothing at all: it showed
+ "Width (bits)", "Optional Ports", "LSB" and left the user to work out the rest. This closes that
+ gap without adding prose to the pane itself, which is short on room.
+
+ The text is keyed by the label the field displays, so a field acquires its explanation simply by
+ being labelled - no call site has to pass one, and the same label used in two places is
+ explained the same way in both. A label with no entry here renders exactly as it did before.
+
+ Keep each entry to what the field does and, where there is one, the thing people get wrong.
             </p>
           </div>
         </td>

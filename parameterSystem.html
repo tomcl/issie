@@ -7,18 +7,15 @@
     <meta content="Main" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="Parameter System Documentation
-" />
+    <meta property="og:title" content="Parameter System" />
     <meta property="og:url" content="/issie/parameterSystem.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="Parameter System Documentation
-">
+    <meta name="twitter:title" content="Parameter System">
     
-    <title>Parameter System Documentation
- | issie</title>
+    <title>Parameter System | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -47,17 +44,22 @@
                     Notes</a></li>
                 <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
                     Repository</a></li>
-                <li class="nav-header ">
+                <li class="nav-header active">
   Documentation
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item ">
@@ -73,6 +75,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -95,7 +102,7 @@
     Updating This Documentation
   </a>
 </li>             
-<li class="nav-header active">
+<li class="nav-header ">
   Other
 </li>             
 <li class="nav-item ">
@@ -113,12 +120,6 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/parameterSystemPlan.html">
     Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item active">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
 
   </a>
 </li>             
@@ -143,6 +144,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -220,17 +227,22 @@
         <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
                 </a></li>
     
-        <li class="nav-header ">
+        <li class="nav-header active">
   Documentation
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item ">
@@ -246,6 +258,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -268,7 +285,7 @@
     Updating This Documentation
   </a>
 </li>             
-<li class="nav-header active">
+<li class="nav-header ">
   Other
 </li>             
 <li class="nav-item ">
@@ -286,12 +303,6 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/parameterSystemPlan.html">
     Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item active">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
 
   </a>
 </li>             
@@ -316,6 +327,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -369,7 +386,8 @@
 </aside>
 <main>
     <div id="content">
-        <h1><a name="Parameter-System-Documentation" class="anchor" href="#Parameter-System-Documentation">Parameter System Documentation</a></h1>
+        
+<h1><a name="Parameter-System-Documentation" class="anchor" href="#Parameter-System-Documentation">Parameter System Documentation</a></h1>
 <h2><a name="Overview" class="anchor" href="#Overview">Overview</a></h2>
 <p>The parameter system in Issie allows users to define symbolic integer parameters on design sheets and use them in mathematical expressions to configure component properties. This enables parameterized component design where values can be dynamically calculated based on parameter bindings rather than being hardcoded. The system supports hierarchical parameter scoping and instance-specific parameter overrides.</p>
 <h2><a name="Key-Features" class="anchor" href="#Key-Features">Key Features</a></h2>

@@ -47,14 +47,19 @@
                 <li class="nav-header active">
   Documentation
 </li>             
-<li class="nav-item active">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item ">
@@ -70,6 +75,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -114,12 +124,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -140,6 +144,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -220,14 +230,19 @@
         <li class="nav-header active">
   Documentation
 </li>             
-<li class="nav-item active">
-  <a class="nav-link" href="/issie/userGuide.html">
-    User Tutorial
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
   </a>
 </li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/gettingStarted.html">
     Getting Started
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
   </a>
 </li>             
 <li class="nav-item ">
@@ -243,6 +258,11 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/verilogGenerate.html">
     Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
   </a>
 </li>             
 <li class="nav-item ">
@@ -287,12 +307,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystem.html">
-    Parameter System Documentation
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -313,6 +327,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
 
   </a>
 </li>             
@@ -390,17 +410,31 @@ MacOs binaries are sometimes not uptodate. You can always generate your only bin
 </li>
 </ul>
 <h3><a name="Creating-a-New-Project" class="anchor" href="#Creating-a-New-Project">Creating a New Project</a></h3>
-<p>Once you open ISSIE you should see two options: <code>New Project</code> and <code>Open Project</code>.</p>
+<p>When ISSIE opens with no project it offers <code>New project</code>, <code>Open project</code> and <code>Open demo project</code>,
+followed by any projects you have opened before.</p>
 <ul>
-<li>Click <code>New Project</code></li>
-<li>Navigate to the folder you want to save your project</li>
+<li>Click <code>New project</code></li>
+<li>
+ISSIE shows its own project browser: pick the folder you want the project to live in, walking
+into folders from the list or using <code>Browse</code> for somewhere it does not reach. Recently used
+projects are listed down the left.
+</li>
 <li>Enter the name of your project</li>
 <li>Click <code>Create Project</code></li>
 </ul>
-<p>This process creates a folder where your project will be stored and the first sheet of your project, called <code>main</code>. You can see this by clicking at the <code>Sheets</code> selection button.</p>
+<p>This process creates a folder where your project will be stored and the first sheet of your
+project, called <code>main</code>. You can see this by opening the <strong>Sheet</strong> menu, which draws every sheet in
+the project as a tree showing which sheet uses which.</p>
+<p>If you would rather look around first, <code>Open demo project</code> offers five worked designs — from a full
+adder up to a CPU running a program. They are reset to their initial state every time you open
+them, so nothing you do to them is permanent.</p>
 <h3><a name="Your-first-design" class="anchor" href="#Your-first-design">Your first design</a></h3>
 <p>Let's start with a very simple schematic: a simple 2-input AND gate.</p>
-<p>Add the following components to your canvas from the <code>Catalogue</code> tab:</p>
+<p>Add the following components to your canvas from the <code>Catalogue</code> tab. Click a component and then
+click the canvas, or drag it straight out of the Catalogue and drop it where you want it. Hovering
+over any Catalogue entry explains what it is for, and the search box at the top of the Catalogue
+matches those explanations as well as the names — so you can look for what a component <em>does</em>
+without knowing what Issie calls it.</p>
 <ul>
 <li><code>INPUT/OUTPUT</code> =&gt; <code>Input</code> =&gt; Name: 'A', Bits: 1</li>
 <li><code>INPUT/OUTPUT</code> =&gt; <code>Input</code> =&gt; Name: 'B', Bits: 1</li>
@@ -454,7 +488,9 @@ Delete the output <code>OUT</code>
 <li>Auto-align elements</li>
 <li>Select the desired wire type (radiussed, jump or modern wires)</li>
 </ol>
-<p>You can view the shortcuts for all these modifications by clicking on the <code>edit</code> and <code>view</code> menus.</p>
+<p>You can view the shortcuts for all these modifications on the <code>Edit</code> and <code>View</code> menus, on the
+right-click menu of whatever you want to change, or all together under <code>Info</code> →
+<em>Keyboard Shortcuts</em>, which lists the keys as they are on <strong>your</strong> platform.</p>
 <p><strong>The improved schematic:</strong></p>
 <p><img src="img/userGuide/features2.gif" alt="" /></p>
 <h3><a name="Summary" class="anchor" href="#Summary">Summary</a></h3>
@@ -462,17 +498,31 @@ Delete the output <code>OUT</code>
 <li>In the <code>Catalogue</code> Menu we can find an extensive and complete library of components (gates, flip-flops, RAMs, ROMs, n-bit registers)</li>
 <li>We can add any number of components in our sheet and name them as we like</li>
 <li>When clicking on a port, ISSIE shows us all the ports we can connect that port to: dragging from one port to another makes a wire.</li>
-<li>Wires are initially automatically routed</li>
-<li>Auto-routing can be selectively over-ridden by manual routing to make a better-looking schematic.</li>
+<li>Wires are initially automatically routed, and then separated across the whole sheet so they do not sit on top of each other</li>
+<li>Auto-routing can be selectively over-ridden by manual routing to make a better-looking schematic. A hand-routed wire can be handed back to the router with right-click → <code>Unfix Wire</code>.</li>
 <li>We can simulate our design and check how the outputs change as we change the inputs.</li>
 </ul>
+<h3><a name="If-something-is-wrong" class="anchor" href="#If-something-is-wrong">If something is wrong</a></h3>
+<p>Try starting a simulation before everything is connected. ISSIE will not just refuse: it says what
+is wrong, in words aimed at someone who has not met the problem before —</p>
+<blockquote>
+<p><em>A component input port must have precisely one driving component, but 2 were found. If you want
+to merge wires together use a MergeWires component, not direct connection.</em></p>
+</blockquote>
+<p>— highlights on the schematic exactly which components and wires are responsible, and, when the
+correction is unambiguous, offers a button that makes it for you (for instance <em>Fix by adding 'Not
+Connected' component</em>, which places and orients the component next to the port). Pressing it also
+restarts the simulation, so you see straight away that the problem has gone.</p>
 <h2><a name="Using-Custom-Components" class="anchor" href="#Using-Custom-Components">Using Custom Components</a></h2>
 <h3><a name="The-root-schematic" class="anchor" href="#The-root-schematic">The root schematic</a></h3>
 <p>In this section we will create a hierarchical design with multiple design sheets by using schematics as <em>custom symbols</em> in other design sheets. Here is the aim: The design we created earlier can be used in a larger design as a decoder of a 4-bit message to produce a true/false result. Therefore, we are going to create a schematic with an asynchronous-read 4-bit ROM using the schematic we created before as a <em>custom symbol</em>.</p>
 <h4><a name="Steps" class="anchor" href="#Steps">Steps</a></h4>
 <ol>
-<li>Change the name of the current sheet from <code>main</code> to <code>decoder</code> (Sheets -&gt; rename)</li>
-<li>Add a new sheet and name it <code>main</code></li>
+<li>
+Change the name of the current sheet from <code>main</code> to <code>decoder</code>: open the <strong>Sheet</strong> menu,
+right-click <code>main</code> in the design tree, and choose <code>Rename</code>
+</li>
+<li>Add a new sheet (<strong>Sheet</strong> → <code>New Sheet</code>, or <code>Ctrl-N</code>) and name it <code>main</code></li>
 <li>
 Add to the main sheet:
 <ul>
@@ -487,7 +537,11 @@ Add to the main sheet:
 </ol>
 <p><img src="img/userGuide/custom.png" alt="" /></p>
 <h3><a name="Improving-the-design-sheet" class="anchor" href="#Improving-the-design-sheet">Improving the design sheet</a></h3>
-<p>It's time to use a hidden part of the ISSIE UI to <strong>move ports on custom symbols</strong>. ISSIE allows you to re-order and change the side of input and output ports of custom symbols by <code>CTRL</code> + <code>CLICKING ON THE PORT</code> you want to move. The UI, once you realise that you must keep <code>Ctrl</code> (<code>Cmd</code> on Macs) pressed, is intuitive.</p>
+<p>It's time to <strong>move ports on custom symbols</strong>. ISSIE allows you to re-order and change the side of
+input and output ports of custom symbols by <code>CTRL</code> + <code>CLICKING ON THE PORT</code> you want to move — hold
+<code>Ctrl</code> (<code>Cmd</code> on Macs) and the draggable ports and the resize corners appear. If you would rather
+not remember the key, both are also on the custom component's right-click menu as <em>Move ports</em> and
+<em>Resize symbol</em>.</p>
 <p>Preview how it works in the gif below:</p>
 <p><img src="img/userGuide/custom2.gif" alt="" /></p>
 <h3><a name="ROM-Initialisation" class="anchor" href="#ROM-Initialisation">ROM Initialisation</a></h3>
@@ -498,9 +552,17 @@ Add to the main sheet:
 <li>Change the content of the 16 memory location available by assigning a random 4-bit number to each one</li>
 <li>Click <code>done</code></li>
 </ol>
-<p>ISSIE also allows ROM and RAM initialisation via <code>.ram</code> text files of hex data in the ISSIE directory. See the ISSIE <strong>Eratosthenes</strong> demo for an example of this. The memory component <strong>properties</strong> tab offers additional options when there  <code>.ram</code> files present.</p>
+<p>ISSIE also allows ROM and RAM initialisation via <code>.ram</code> text files of hex data in the project
+directory. Each line is an address and a data word, and may carry a <code>//</code> comment — ISSIE shows the
+comment against that location wherever the memory is displayed, which is what makes a program held
+in a ROM readable. A <code>.ram</code> file that will not parse is reported by line and by reason, rather than
+just failing to load. See the ISSIE <strong>Eratosthenes</strong> demo for an example. The memory component
+<strong>properties</strong> tab offers additional options when there are <code>.ram</code> files present.</p>
 <h3><a name="Simulation-1" class="anchor" href="#Simulation-1">Simulation</a></h3>
 <p>Simulate your design! Change the value of the addressor input and see whether your decoder produces a true or false result for each number you assigned to the ROM.</p>
+<p>While a simulation is running — step or waveform — you can also <strong>rest the mouse on any wire</strong> of
+the schematic to read the value it is carrying. That is usually quicker than finding the signal by
+name, and it works for wires inside subsheets too.</p>
 <h2><a name="Waveform-Simulation" class="anchor" href="#Waveform-Simulation">Waveform Simulation</a></h2>
 <h3><a name="Creating-a-clocked-design" class="anchor" href="#Creating-a-clocked-design">Creating a clocked design</a></h3>
 <p>Let's now modify our previous design to make it <strong>clocked</strong> (sequential). We use a counter to form a custom addressor that will increment every clock cycle. Using the waveform simulator we will be able to view the output of our circuit for all memory locations. In order to create such designs easily, ISSIE offers a <code>Counter</code> component which, starting from 0, increments by one every clock cycle. Note that counters also have options, under properties, to add <code>Load</code> or <code>Enable</code> inputs.</p>
@@ -510,8 +572,14 @@ Add to the main sheet:
 <h3><a name="Simulating-your-design" class="anchor" href="#Simulating-your-design">Simulating your design</a></h3>
 <p>As soon as you connect everything correctly, You can simulate your design. Click on <code>Simulations</code> and then <code>Wave Simulation</code>.</p>
 <ul>
-<li>Click the <code>Start Simulation</code> button</li>
-<li>Click <code>Select Waves</code></li>
+<li>
+Click the <code>Start Simulation</code> button. The top sheet's own inputs and outputs are shown
+straight away, so there are already waveforms to look at.
+</li>
+<li>
+To choose different signals — anything on any sheet of the design, not just the top one — click
+<code>Select Waves</code>
+</li>
 </ul>
 <p><img src="img/userGuide/select1.png" alt="" /></p>
 <ul>
@@ -541,18 +609,50 @@ To check what you have selected:
 <li>adjust the number of clock cycles displayed using the <code>+/-</code> zoom controls.</li>
 <li>Order the waveforms <code>CNT1 / AROM1 / RESULT</code> by dragging the waveform names up or down.</li>
 <li>Check that the waveform simulator output matches your previous (Step Simulation) results.</li>
-<li>Use the scroll bar to view additional clock cycles.</li>
+<li>
+Use the scroll bar to view additional clock cycles. Drag the thumb past the right-hand end and
+the simulation extends itself further in time.
+</li>
 <li>Drag the grey horizontal divider to make the waveform display wider or narrower (you can do this at any time).</li>
 <li>You can check how these features work on a much larger design with 100,000 clock cycles using the Eratosthenes sieve demo.</li>
 </ul>
 <p><img src="img/userGuide/waveform1.png" alt="" /></p>
+<h3><a name="Finding-your-way-between-the-waveforms-and-the-schematic" class="anchor" href="#Finding-your-way-between-the-waveforms-and-the-schematic">Finding your way between the waveforms and the schematic</a></h3>
+<p>A waveform is not much use if you cannot tell which part of the design it came from. ISSIE keeps
+the two joined up:</p>
+<ul>
+<li>
+<strong>Hover a wire on the schematic</strong> and the value it carries at the cursor cycle appears beside the
+pointer. This is the quickest way to answer "what is on that wire?" without finding the signal in
+the viewer by name.
+</li>
+<li><strong>Hover a waveform's name</strong> and that component and its connections light up on the schematic.</li>
+<li>
+<strong>Click the button beside the name</strong> and ISSIE opens the sheet the component lives on and shows
+it to you — useful when the signal is several levels down the hierarchy.
+</li>
+<li>
+<strong>Go the other way</strong>: right-click a component on the schematic while the simulation is running
+and choose <em>Add waveforms to viewer</em> to pick which of its ports to display.
+</li>
+<li>
+Click a waveform to move the coloured <strong>cursor</strong>; the column on the right then reads out every
+selected signal's value at that cycle. <code>Left</code>/<code>Right</code> arrows step the cursor when the mouse is on
+the waveform side of the divider.
+</li>
+<li>
+The <strong>Configure</strong> button sets the waveform font size and weight, and the maximum number of cycles
+the simulation may run to, with a live estimate of the memory that will need.
+</li>
+<li>The <strong>Info</strong> button at the top right of the viewer explains all of this inside the app.</li>
+</ul>
 <h3><a name="Changing-your-design" class="anchor" href="#Changing-your-design">Changing your design</a></h3>
 <p>Now, keeping the simulation open,  add an extra register between the counter and the ROM address (or make any other change you want) and check that the simulation has the expected output. You can see the changes in the waveform simulator by clicking the <code>Refresh</code> button which will be enabled as soon as there is a change in the schematic.</p>
 <p><img src="img/userGuide/waveform2.png" alt="" /></p>
 <h2><a name="Truth-Table" class="anchor" href="#Truth-Table">Truth Table</a></h2>
 <p>One of ISSIE's features is the ability to view the truth table for a small combinational circuit.</p>
 <ul>
-<li>Click on <code>Simulations</code> and then <code>Truth Table</code></li>
+<li>Click on <code>Simulations</code> and then <code>Truth Tables</code></li>
 <li>Select the <code>DECODER</code> component</li>
 <li>Click on <code>Generate Truth Table</code> button on the 'Truth Table for selected logic' section</li>
 <li>Click on <code>Remove Redundancies</code></li>
@@ -575,6 +675,43 @@ To check what you have selected:
 <li>Replace the previous Decoder with the new one (found under <code>Verilog</code> section in the Catalogue)</li>
 <li>Simulate again your design. Everything should be the same as before.</li>
 </ul>
+<p>The editor checks your code as you type: the <code>Save</code> button stays disabled until it compiles, errors
+are shown against the line that caused them, and many of them come with a one-click fix.</p>
+<h2><a name="Sheet-Parameters" class="anchor" href="#Sheet-Parameters">Sheet Parameters</a></h2>
+<p>Building the same sheet twice at two different bus widths is a waste. Instead, give the sheet a
+<strong>parameter</strong>.</p>
+<ul>
+<li>
+De-select everything and open the <strong>Properties</strong> tab. This shows the properties of the sheet
+itself rather than of a component.
+</li>
+<li>
+Click <code>Add Parameter</code>, give it a name (say <code>WIDTH</code>), say what it means, and give it a default
+value. The description is compulsory — the whole point is that the next person to use your sheet
+can tell what the parameter is for.
+</li>
+<li>
+Now, in the properties of any component on the sheet, an integer field such as a bus width or a
+constant value can be written as an expression in the parameters: <code>WIDTH</code>, <code>WIDTH + 1</code>,
+<code>WIDTH * 2</code>. The sheet is drawn at the values its parameters currently take.
+</li>
+<li>
+You can attach minimum and maximum constraints, each with your own wording for what a user should
+do if they violate it.
+</li>
+</ul>
+<p>When the sheet is placed as a custom component in another sheet, ISSIE asks what values that
+<strong>instance</strong> should use. Two instances of the same sheet may legitimately have different port
+widths — a 4-bit one and a 32-bit one — and ISSIE tracks each against its own values.</p>
+<p>The <a href="parameterSystem.html">Parameter System</a> page has the full details.</p>
+<h2><a name="Component-Libraries" class="anchor" href="#Component-Libraries">Component Libraries</a></h2>
+<p>The Catalogue's <strong>Library</strong> section holds ready-made parameterised components. Choosing one asks
+for its parameter values and then copies its sheet <strong>into your project</strong>: it becomes an ordinary
+sheet you can open, read and change, not a black box.</p>
+<p>Any sheet you write can go the other way: right-click it in the <strong>Sheet</strong> menu tree and choose
+<code>Save as library component</code>. You say which library to put it in — an existing one or a new name —
+and what the Catalogue tooltip should say about it. Sub-sheets it uses are saved alongside it, and
+are materialised with it when someone picks it.</p>
 <h2><a name="Now-what" class="anchor" href="#Now-what">Now what?</a></h2>
 <p>You now know how to use ISSIE to create &amp; simulate digital designs.</p>
 <p>You can now create your designs (from simple circuits to fully functioning CPUs) and either simulate them or extract them as Verilog to use them with other tools.</p>
@@ -631,6 +768,11 @@ To check what you have selected:
       Summary
     </a>
   </li>
+  <li class="level-3">
+    <a href="#If-something-is-wrong">
+      If something is wrong
+    </a>
+  </li>
   <li class="level-2">
     <a href="#Using-Custom-Components">
       Using Custom Components
@@ -677,6 +819,11 @@ To check what you have selected:
     </a>
   </li>
   <li class="level-3">
+    <a href="#Finding-your-way-between-the-waveforms-and-the-schematic">
+      Finding your way between the waveforms and the schematic
+    </a>
+  </li>
+  <li class="level-3">
     <a href="#Changing-your-design">
       Changing your design
     </a>
@@ -689,6 +836,16 @@ To check what you have selected:
   <li class="level-2">
     <a href="#Verilog-Component">
       Verilog Component
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Sheet-Parameters">
+      Sheet Parameters
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Component-Libraries">
+      Component Libraries
     </a>
   </li>
   <li class="level-2">

@@ -292,8 +292,6 @@ let mDownUpdate
         match model.TmpModel with
         | None -> model
         | Some newModel -> newModel
-    // printfn "running mDownUpdate"
-    //printfn "mDownUpdate Action: %A" model.Action
     match model.Action with
     | DragAndDrop ->
         let errorComponents =
@@ -379,8 +377,6 @@ let mDownUpdate
             match model.Wire.Symbol.Symbols[compId].Annotation with
                 | Some ScaleButton ->   
                     let scalingBoxCentre:XYPos = model.ScalingBox.Value.ScalingBoxBound.Centre()
-                    // printfn "startCentre:%A" scalingBoxCentre
-                    // printfn "startMousePos:%A" mMsg.Pos
                     {model with
                         ScalingBoxCentrePos = scalingBoxCentre
                         ScalingTmpModel = None
@@ -453,7 +449,6 @@ let mDownUpdate
                         PrevWireSelection = model.SelectedWires},
                     Cmd.batch [wireCmd (BusWireT.SelectWires newWires); sheetCmd msg]
                 | _ -> 
-                        //printfn "Error components (Right)"
                         {model with Action = DragAndDrop}, 
                         Cmd.batch [sheetCmd DoNothing]
             else
@@ -485,7 +480,6 @@ let mDownUpdate
                     Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                 wireCmd (BusWireT.SelectWires newWires) ]
                 | _ -> 
-                        //printfn "Error components (Right)"
                         {model with Action = DragAndDrop}, 
                         Cmd.none
 
@@ -498,12 +492,10 @@ let mDownUpdate
                 | _ ->
                     match model.ErrorComponents with
                     | [] -> 
-                        //printfn "No error components (Wrong)"
                         {model with DragToSelectBox = initialiseSelection; Action = Selecting; SelectedComponents = newComponents; SelectedWires = newWires},
                         Cmd.batch [ symbolCmd (SymbolT.SelectSymbols newComponents)
                                     wireCmd (BusWireT.SelectWires newWires)]
                     | _ -> 
-                        //printfn "Error components (Right)"
                         {model with Action = DragAndDrop}, 
                         Cmd.batch [sheetCmd DoNothing]
 
@@ -531,8 +523,6 @@ let mDragUpdate
             {X = scalingBoxCentre.X - (mMsg.Pos.X - scalingBoxCentre.X);
              Y = scalingBoxCentre.Y - (mMsg.Pos.Y - scalingBoxCentre.Y)}
         
-        // printfn " mousePos:%A" mMsg.Pos
-        // printfn " newScalingBoxOppositeMouse:%A" newScalingBoxOppositeMouse
 
         let newBBMin = 
             {X = min (newScalingBoxOppositeMouse.X) (mMsg.Pos.X)  + 50.;
@@ -572,7 +562,6 @@ let mDragUpdate
         
 
         if (staySameModel.IsSome) then
-            //printfn "scaling stay same"
             {staySameModel.Value with
                         ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
                         ScalingTmpModel = scalingTmpModel;
@@ -583,7 +572,6 @@ let mDragUpdate
                         sheetCmd UpdateBoundingBoxes
                     ]
         else
-        //printfn "scaling not same"
         {newModel with
                     ScalingTmpModel = scalingTmpModel
                     ScrollingLastMousePos = {Pos=mMsg.Pos;Move=mMsg.ScreenMovement}
@@ -693,7 +681,6 @@ let mUpUpdate (model: Model) (mMsg: MouseT) : Model * Cmd<ModelType.Msg> = // mM
         match model.TmpModel with
         | None -> model
         | Some newModel -> {newModel with SelectedComponents = model.SelectedComponents}
-    //printfn "mUpUpdate with action: %A" model.Action
     match model.Action with
     | MovingWire segIdL ->
         let connIdL = segIdL |> List.map snd
@@ -937,14 +924,14 @@ let validateTwoSelectedSymbols (model:Model) =
             let getSym sId = 
                 Map.tryFind sId symbols
             match getSym s1, getSym s2 with
-            | Some s1, Some s2 -> 
-                printfn $"Testing with\ns1= {s1.Component.Type}\n s2={s2.Component.Type}"
+            | Some s1, Some s2 ->
+                Log.dbg Log.Symbol $"reordering ports between {s1.Component.Type} and {s2.Component.Type}"
                 Some(s1,s2)
             | _ -> 
-                printfn "Error: can't validate the two symbols selected to reorder ports"
+                Log.warn "cannot validate the two symbols selected to reorder ports"
                 None
         | syms -> 
-            printfn $"Can't test because number of selected symbols ({syms.Length}) is not 2"
+            Log.warn $"cannot reorder ports: {syms.Length} symbols are selected, not 2"
             None
 
 /// Geometric helper used for testing. Probably needs a better name, and to be collected with other

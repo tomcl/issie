@@ -257,7 +257,6 @@ let tryStartSimulationAfterErrorFix (simType:SimSubTab) (model:Model) =
                 |> removeAllSimulationsFromModel
                 |> fun model -> {model with WaveSimSheet = Some wsSheet}
             let wsModel = getWSModel model
-            //printfn $"simSheet={wsSheet}, wsModel sheet = {wsModel.TopSheet},{wsModel.FastSim.SimulatedTopSheet}, state={wsModel.State}"
             match simulateModel
                     true
                     model.WaveSimSheet

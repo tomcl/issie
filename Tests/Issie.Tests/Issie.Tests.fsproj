@@ -28,6 +28,7 @@
     <Compile Include="KeyBindingTests.fs" />
     <Compile Include="VerilogOutput.fs" />
     <Compile Include="VerilogCompiler.fs" />
+    <Compile Include="SourceHygiene.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
 

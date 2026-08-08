@@ -311,8 +311,7 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
 
 /// Create column of waveform names
 let namesColumn model wsModel dispatch : ReactElement =
-    let start = TimeHelpers.getTimeMs ()
-    let rows = 
+    let rows =
         nameRows model wsModel dispatch
     div (namesColumnProps wsModel)
         (List.concat [ topRow wsModel (namesColBackground "transparent" (Some (2, separatorColour, false))) []; rows ])
@@ -363,7 +362,6 @@ let clkCycleNumberRow (wsModel: WaveSimModel) =
 
 /// Create column of waveform values
 let private valuesColumn wsModel : ReactElement =
-    let start = TimeHelpers.getTimeMs ()
     let width, rows = valueRows wsModel
     let cursorClkNum = wsModel.CursorExactClkCycle
     let topRowNumber = [ div [Style [
@@ -433,5 +431,5 @@ let showWaveforms (model: Model) (wsModel: WaveSimModel) (dispatch: Msg -> unit)
         // and is not fatal. this error boundary ignores the error
         // and displays a blank div.
         | ex ->
-            printfn $"Error in showWaveforms: {ex.Message}"
+            Log.dbg Log.Wave $"waveforms drawn after the simulation ended: {ex.Message}"
             div [] []

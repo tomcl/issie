@@ -47,16 +47,6 @@ let generateScrollbarInfo (wsm: WaveSimModel): {| tbWidth: float; tbPos: float; 
     let tbPos = (float wsm.StartCycle) / (float newBkgRep - float wsm.ShownCycles) * tbMoveWidth
 
     // debug statements:
-    // printfn "DEBUG:generateScrollbarInfo: Input -"
-    // printfn "DEBUG:generateScrollbarInfo: wsm.CurrClkCycle = %d cycles" wsm.CurrClkCycle
-    // printfn "DEBUG:generateScrollbarInfo: wsm.StartCycle = %d cycles" wsm.StartCycle
-    // printfn "DEBUG:generateScrollbarInfo: wsm.ShownCycles = %d cycles" wsm.ShownCycles
-    // printfn "DEBUG:generateScrollbarInfo: wsm.ScrollbarBkgRepCycs = %d cycles" wsm.ScrollbarBkgRepCycs
-    // printfn "DEBUG:generateScrollbarInfo: bkgWidth = %.1f cycles" bkgWidth
-    // printfn "DEBUG:generateScrollbarInfo: Output -"
-    // printfn "DEBUG:generateScrollbarInfo: tbWidth = %.1fpx" tbWidth
-    // printfn "DEBUG:generateScrollbarInfo: tbPos = %.1fpx" tbPos
-    // printfn "DEBUG:generateScrollbarInfo: newBkgRep = %d cycles" newBkgRep
 
     {| tbWidth = tbWidth; tbPos = tbPos; bkgRep = newBkgRep |}
 
@@ -106,10 +96,6 @@ let inline updateViewerWidthInWaveSim w (model:Model) =
         (float namesColWidth) + finalWavesColWidth + (float valuesColumnWidth)
         - float Constants.viewSymbolWidth
 
-    // printfn "DEBUG:updateViewerWidthInWaveSim: Names Column Width = %Apx" (float namesColWidth)
-    // printfn "DEBUG:updateViewerWidthInWaveSim: Waves Column Width = %Apx" finalWavesColWidth
-    // printfn "DEBUG:updateViewerWidthInWaveSim: Values Column Width = %Apx" (float valuesColumnWidth)
-    // printfn "DEBUG:updateViewerWidthInWaveSim: Calculated Scrollbar Width = %Apx" scrollbarWidth
 
 
     let updateFn wsModel =
@@ -156,7 +142,6 @@ let rec validateSimParas (ws: WaveSimModel) =
         let newCurrCycle =  ws.StartCycle + ws.ShownCycles - 1
         {ws with CursorDisplayCycle = newCurrCycle; CursorExactClkCycle = newCurrCycle * ws.SamplingZoom}
     else ws
-    //|> (fun ws -> printfn $"currClk={ws.CurrClkCycle} detail = {ws.CurrClkCycleDetail}"; ws)
     |> validateScrollBarInfo
 
 let changeMultiplier newMultiplier (ws: WaveSimModel) =

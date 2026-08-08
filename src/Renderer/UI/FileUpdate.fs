@@ -64,7 +64,7 @@ let doActionWithSaveFileDialog (name: string) (nextAction: Msg)  model dispatch 
 let private createProjectAt (path: string) model dispatch =
     match tryCreateFolder path with
     | Error err ->
-        JSHelpers.log err
+        Log.error err
         displayFileErrorNotification err dispatch
     | Ok _ ->
         dispatch EndSimulation // End any running simulation.

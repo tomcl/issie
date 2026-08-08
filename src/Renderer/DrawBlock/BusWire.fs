@@ -77,70 +77,15 @@ module Constants =
 //-------------------------Debugging functions---------------------------------//
 //-----------------------------------------------------------------------------//
 
-/// Formats a SegmentId for logging purposes.
-let formatSegmentId ((index,wid): SegmentId) =
-    let (ConnectionId str) = wid
-    $"{index}:{str[0..2]}"
+// A shelf of print-and-return-unchanged combinators lived here - logSegment, logWire,
+// logIntersectionMaps, logSegmentInModel and the formatters they used - meant to be spliced
+// temporarily into a pipeline. Every one of them had been left with no callers. Splice a
+// Log.dbg Log.Wire line in when a wire misbehaves; a permanent shelf of them is not needed.
 
-/// Formats a WireId for logging purposes
-let formatWireId (id: ConnectionId) =
-    id
-    |> (fun (ConnectionId str) -> str)
-    |> (fun str -> str[0..2])
-
+/// Identifies a segment as wire:index, short enough to read in a log line.
 let logSegmentId (seg:Segment) =
     let (ConnectionId wIdStr) = seg.WireId
     $"{wIdStr[0..3]}:{seg.Index}"
-
-/// Logs the given Segment and returns it unchanged. Used for debugging.
-let logSegment (seg:Segment) =
-    printfn $"|{logSegmentId seg}|-Length: {seg.Length}"; seg
-
-/// Logs the given ConnectionId and returns it unchanged. Used for debugging.
-let logConnectionId (id:ConnectionId) =
-        id
-        |> (fun (ConnectionId str) -> str)
-        |> (fun str -> printfn $"{str[0..2]}"; id)
-
-/// Formats an intersection map for logging purposes.
-let formatIntersectionMap (m:Map<SegmentId, (ConnectionId * SegmentId) list>) =
-    m
-    |> Map.toList
-    |> List.map (fun (segId, lst) ->
-        List.map (snd >> formatSegmentId) lst
-        |> (fun segs -> sprintf $"""<{formatSegmentId segId}->[{String.concat ";" segs}]"""))
-        |> String.concat ";\n"
-
-/// Logs the intersection maps of a given model and returns it unchanged. Used for debugging
-let logIntersectionMaps (model:Model) =
-    let intersections =
-        let formatSegmentIntersections segments =
-            segments
-            |> List.collect (fun segment -> 
-                segment.IntersectOrJumpList
-                |> List.map (fun (_) -> logSegmentId segment))
-
-        model.Wires
-        |> Map.toList
-        |> List.map (fun (wId, wire) -> 
-            sprintf $"Wire {formatWireId wId}: {formatSegmentIntersections wire.Segments}")
-
-    printfn $"Intersections"
-    printfn $"{intersections}"
-    printfn "---- --------------"
-    model
-
-/// Formats an XYPos for logging purposes.
-let formatXY (xy: XYPos) = sprintf $"{(int(xy.X),int(xy.Y))}"
-
-/// Logs the given wire and returns it unchanged. Used for debugging.
-let logWire wire =
-    let formatSegments startPos endPos state seg = 
-        let entry = sprintf $"|{seg.Index}:{logSegmentId seg}| Start: {formatXY startPos}, End: {formatXY endPos}"
-        String.concat "\n" [state; entry]
-    let start = sprintf $"Wire: {formatWireId wire.WId}"
-    printfn $"{foldOverSegs formatSegments start wire}"
-    wire
 
 let inline getSegmentFromId (model: Model) (segId:SegmentId) =
     let index,Wid = segId
@@ -187,36 +132,6 @@ let inline getWireOutgoingEdge (wire:Wire) =
     | Vertical, true -> Edge.Bottom
     | Vertical, false -> Edge.Top
      
-/// Tries to find and log a segment identified by index in a wire identified by wireId in the current model.
-/// Assumes wireId can be found in the current model. Returns unit, used for debugging.
-let logSegmentInModel model wireId index  = 
-        let wire = model.Wires[wireId]
-        let findAndFormatSeg segStart segEnd (_state: string option) (seg: Segment) =
-            if seg.Index = index then 
-                let orientation = 
-                    match getSegmentOrientation segStart segEnd with
-                    | Vertical -> "V"
-                    | Horizontal -> "H"
-                Some (sprintf $"""[{logSegmentId seg}: {formatXY segStart}->{formatXY segEnd}]-{orientation}-{seg.Index}""")
-            else None
-
-        match foldOverSegs findAndFormatSeg None wire with
-        | Some str -> printfn $"{str}"
-        | _ -> printfn $"ERROR: Could not find segment {index} in wire {formatWireId wireId}"
-        
-
-
-/// Tries to find and log each segment to its corresponding wire identified in wireSegmentIdPairs in the current model.
-/// Returns the model unchanged. Used for debugging.
-let logSegmentsInModel (model: Model) (wireSegmentIdPairs: (int*ConnectionId) list)= 
-    wireSegmentIdPairs
-    |> List.map  ( fun (index,wireId) -> logSegmentInModel model wireId)
-    |> ignore
-    model
-
-
-
-
 //-------------------------------Implementation code----------------------------//
 
 /// Given the coordinates of two port locations that correspond
@@ -716,8 +631,8 @@ let renderRadialWire props =
 
 /// Function that will render all of the wires within the model, with the display type being set in Model.Type
 let view (model : Model) (dispatch : Dispatch<Msg>) =
-    let start = TimeHelpers.getTimeMs()
-    TimeHelpers.instrumentTime "WirePropsSort" start
+    // "WirePropsSort" was instrumented on the line after its start time was taken, so it measured
+    // nothing - once per render
     let rStart = TimeHelpers.getTimeMs()
     let wireProps wire =
         let outPortId = getOutputPortIdStr wire.OutputPort

@@ -249,9 +249,6 @@ let spLdComp (ldc: LoadedComponent) =
 let spProj (p:Project) =
     sprintf "PROJ||Sheet=%s\n%s||ENDP\n" p.OpenFileName (String.concat "\n" (List.map spLdComp p.LoadedComponents))
 
-let pp model =
-    printf "\n%s\n%s" (spCanvas model) (spOpt spProj model.CurrentProj)
-
 let spMess msg =
     match msg with
     //| SetProject p -> sprintf "MSG<<SetProject:%s>>ENDM" (spProj p)
@@ -310,10 +307,8 @@ let rec getWSModel model : WaveSimModel =
         Map.tryFind sheet model.WaveSim
         |> function
             | Some wsModel ->
-                // printf "Sheet %A found in model" model.WaveSimSheet
                 wsModel
             | None ->
-                // printf "Sheet %A not found in model" model.WaveSimSheet
                 initWSModel
     | None ->
         match getCurrFile model with
@@ -330,7 +325,7 @@ let setWSModel (wsModel: WaveSimModel) (model: Model) =
     | Some sheets, wsSheet ->
         failwithf $"What? can't find {wsSheet} in {sheets} to set WSModel"
     | None, _ ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
+        Log.warn $"cannot set the waveform simulator model for the current sheet: the project is closed"
         model
 
 /// This will - given a project is open - never fail. The getter returns the default WaveSimModel record if none
@@ -353,7 +348,7 @@ let updateWSModel (updateFn: WaveSimModel -> WaveSimModel) (model: Model) =
     | Some sheets, wsSheet ->
         failwithf $"What? can't find {wsSheet} in {sheets} to set WSModel"
     | None, _ ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
+        Log.warn $"cannot set the waveform simulator model for the current sheet: the project is closed"
         model
 
 /// Update WaveSimModel of given sheet - if it does not exist do nothing
@@ -363,11 +358,10 @@ let updateWSModelOfSheet (sheet: string) (updateFn: WaveSimModel -> WaveSimModel
         let ws = model.WaveSim[wsSheet]
         { model with WaveSim = Map.add wsSheet (updateFn ws) model.WaveSim }
     | None, _ ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, project is closed" model.WaveSimSheet
+        Log.warn $"cannot set the waveform simulator model for the current sheet: the project is closed"
         model
     | Some sheets, wsSheet ->
-        printfn "\n\n******* What? trying to set wsmod when WaveSimSheet '%A' is not valid, sheets=%A" wsSheet sheets
-        //failwithf "Help"
+        Log.warn $"cannot set the waveform simulator model for '{wsSheet}': it is not one of {sheets}"
         model
 
 /// a long function to be executed in a message after the view function has run at least once
@@ -382,13 +376,11 @@ let mutable asyncJobs: ViewableJob list = []
 
 let runAfterView (jobName:string) ( workFn: Model -> Model * Cmd<Msg>) =
     let job = {JobWork=workFn; ViewHasExecuted = false; JobName = jobName}
-    printfn $"scheduling {jobName}"
+    Log.dbg Log.Update $"scheduling deferred job {jobName}"
     asyncJobs <- List.append asyncJobs [job]
 
 let setAsyncJobsRunnable dispatch =
     dispatch DoNothing
-    if asyncJobs.Length > 0 then 
-        printfn "setting asynch jobs to vieHasExecuted"
     asyncJobs <- 
         asyncJobs 
         |> List.map (fun job -> {job with ViewHasExecuted = true}); 

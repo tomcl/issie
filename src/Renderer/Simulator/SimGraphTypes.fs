@@ -1020,11 +1020,10 @@ let getBits (msb: int) (lsb: int) (f: FastData) =
     | BigWord x ->
         let mask = bigIntMask outW
         let bits = (x >>> lsb) &&& mask
-        //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
         let dat =
             if outW <= 32 then
                 if bits < 0I || bits >= (1I <<< 32) then
-                    printf $"""HELP! weird bits = {bits.ToString("X")} mask = {mask} msb,lsb = ({msb},{lsb})"""
+                    Log.warn $"""bits out of range for the width: bits = {bits.ToString("X")} mask = {mask} msb,lsb = ({msb},{lsb})"""
 
                 Word((uint32 bits) &&& outWMask32)
             else
@@ -1056,7 +1055,6 @@ let getBitsFromBigInt (msb: int) (lsb: int) (x: bigint) =
 // #endif
     let mask = bigIntMask outW
     let bits = (x >>> lsb) &&& mask
-    //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
     bits &&& bigIntMask outW
 
 let getBitsFromBigIntToUInt32 (msb: int) (lsb: int) (x: bigint) =
@@ -1073,9 +1071,8 @@ let getBitsFromBigIntToUInt32 (msb: int) (lsb: int) (x: bigint) =
 // #endif
     let mask = bigIntMask outW
     let bits = (x >>> lsb) &&& mask
-    //printfn $"lsb={lsb},msb={msb},outW={outW}, mask={b2s mask}, x={b2s x},x/lsb = {b2s(x >>> lsb)} bits={b2s bits}, bits=%x{uint32 bits}"
     if bits < 0I || bits >= (1I <<< 32) then
-        printf $"""HELP! weird bits = {bits.ToString("X")} mask = {mask} msb,lsb = ({msb},{lsb})"""
+        Log.warn $"""bits out of range for the width: bits = {bits.ToString("X")} mask = {mask} msb,lsb = ({msb},{lsb})"""
 
     (uint32 bits) &&& outWMask32
 

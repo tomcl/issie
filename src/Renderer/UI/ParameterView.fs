@@ -474,13 +474,13 @@ let updateComponents
     let liveSlotValue (slot: ParamSlot) (exprSpec: ConstrainedExpr) =
         match Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols with
         | false ->
-            JSHelpers.log $"Skipping parameter slot of component {slot.CompId}, which is not on this sheet"
+            Log.warn $"Skipping parameter slot of component {slot.CompId}, which is not on this sheet"
             None
         | true ->
             match ParameterTypes.evaluateParamExpression newBindings exprSpec.Expression with
             | Ok value -> Some value
             | Error err ->
-                JSHelpers.log $"Skipping parameter slot of component {slot.CompId}: {err}"
+                Log.warn $"Skipping parameter slot of component {slot.CompId}: {err}"
                 None
 
     model
@@ -794,7 +794,7 @@ let private instanceCountOf (sheetName: string) (project: Project) =
 /// Creates a popup that allows a parameter integer value to be added.
 let addParameterBox model dispatch =
     match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: testAddParameterBox called when no project is currently open"
+    | None -> Log.warn "testAddParameterBox called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
         let title = "Add parameter"
@@ -877,7 +877,7 @@ let addParameterBox model dispatch =
 /// TODO: this should be a special cases of a more general popup for parameter expressions?
 let editParameterBox model parameterName dispatch   = 
     match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: testEditParameterBox called when no project is currently open"
+    | None -> Log.warn "testEditParameterBox called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
         let currentSheet = project.LoadedComponents
@@ -886,7 +886,7 @@ let editParameterBox model parameterName dispatch   =
         match getDefaultParamDefs currentSheet |> Map.tryFind (ParamName parameterName) with
         | None ->
             // the row was rendered from an older model in which the parameter still existed
-            JSHelpers.log $"Cannot edit parameter {parameterName}: it is not defined on this sheet"
+            Log.warn $"Cannot edit parameter {parameterName}: it is not defined on this sheet"
         | Some {Expression = (PParameter _ | PAdd _ | PSubtract _ | PMultiply _ | PDivide _ | PRemainder _)} ->
             dispatch <| SetPropertiesNotification (Notifications.errorPropsNotification
                 $"Parameter {parameterName} is bound to an expression. Only integer parameter values can be edited here.")
@@ -1019,7 +1019,7 @@ let removeParamFromInstances (sheetName: string) (name: ParamName) (model: Model
 /// design, so this refuses while any slot on the sheet still refers to it and says which ones.
 let deleteParameterBox model parameterName dispatch  =
     match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: deleteParameterBox called when no project is currently open"
+    | None -> Log.warn "deleteParameterBox called when no project is currently open"
     | Some project ->
         let name = ParamName parameterName
         let sheet = getCurrentSheet model

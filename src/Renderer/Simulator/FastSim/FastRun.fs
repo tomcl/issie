@@ -76,15 +76,6 @@ let printComp (fs: FastSimulation) (step: int) (fc: FastComponent) =
 
     sprintf "%25s %s %15s %A %A" fc.ShortId fc.FullName attr (canBeReduced fs step fc) ins
 
-/// print function for debugging
-let private printComps (step: int) (fs: FastSimulation) =
-
-    fs.FComps
-    |> mapValues
-    |> Array.map (fun fComp -> printComp fs step fComp)
-    |> String.concat "\n"
-    |> printfn "COMPONENTS\n----------------\n%s\n---------------"
-
 /// Create arrays of components in corrected format for efficient reduction
 /// Combinational components are ordered: clokced, constant, global input components are
 /// separated.
@@ -109,11 +100,9 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
     let initInput (fc: FastComponent) =
         // NB no default value is applied here - setInputstoDefault does that. A value was
         // computed at this point and discarded
-        //printfn "Init input..."
         // REVIEW - Input initialisation is no longer required
         // fc.InputLinks[0].FastDataStep
         // |> Array.iteri (fun i _ -> fc.InputLinks[0].FastDataStep[ i ] <- convertIntToFastData (fc.OutputWidth 0) 0u)
-        //printfn "Initialised input: %A" fc.InputLinks
         fastReduce fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
@@ -142,27 +131,11 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 | w when w <= 32 -> vec.UInt32Step[0] <- 0u
                 | w -> vec.BigIntStep[0] <- 0I)
 
-    /// print function for debugging
-    let pp (fL: FastComponent array) =
-        Array.map (fun fc -> sprintf "%A (%A)" fc.FullName fc.FType) fL
-        |> String.concat ","
-    //printComps 0 fs
-    //printfn "Ordering %d clocked outputs: " fs.FClockedComps.Length
     fs.FClockedComps |> Array.iter initClockedOuts
-    //printfn "Ordering %d constants" fs.FConstantComps.Length
     fs.FConstantComps |> Array.iter init
-    //printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
-    (*printfn "Loop init done"
-    //"%d constant, %d input, %d clocked, %d ready to reduce from %d"
-    fs.FConstantComps.Length
-    fs.FGlobalInputComps.Length
-    fs.FClockedComps.Length
-    readyToReduce.Length
-    fs.FComps.Count*)
 
     while readyToReduce.Length <> 0 do
-        //printf "Adding %d combinational components %A" nextBatch.Length (pp nextBatch)
         let readyL = readyToReduce
         readyToReduce <- []
 
@@ -204,10 +177,8 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
     let initInput (fc: FastComponent) =
         // NB no default value is applied here - setInputstoDefault does that. A value was
         // computed at this point and discarded
-        //printfn "Init input..."
         fc.InputLinks[0].FDataStep
         |> Array.iteri (fun i _ -> fc.InputLinks[0].FDataStep[ i ] <- Data(convertIntToFastData (fc.OutputWidth 0) 0u))
-        //printfn "Initialised input: %A" fc.InputLinks
         fastReduceFData fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
@@ -231,30 +202,11 @@ let private orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulatio
                 vec.FDataStep[0] <- Data(convertIntToFastData w 0u)
             | _, w -> vec.FDataStep[0] <- Data(convertIntToFastData w 0u))
 
-    /// print function for debugging
-    let pp (fL: FastComponent array) =
-        Array.map (fun fc -> sprintf "%A (%A)" fc.FullName fc.FType) fL
-        |> String.concat ","
-    //printComps 0 fs
-    //printfn "Ordering %d clocked outputs: " fs.FClockedComps.Length
     fs.FClockedComps |> Array.iter initClockedOuts
-    //printfn "Ordering %d constants" fs.FConstantComps.Length
     fs.FConstantComps |> Array.iter init
-    //printfn "Ordering %d global inputs" fs.FGlobalInputComps.Length
     fs.FGlobalInputComps |> Array.iter initInput
-    //printfn "Loop init done"
-    // debug trace, commented out as in the non-FData twin above: this was printing on every
-    // truth-table build
-    (*printfn
-        "%d constant, %d input, %d clocked, %d ready to reduce from %d"
-        fs.FConstantComps.Length
-        fs.FGlobalInputComps.Length
-        fs.FClockedComps.Length
-        readyToReduce.Length
-        fs.FComps.Count*)
 
     while readyToReduce.Length <> 0 do
-        //printf "Adding %d combinational components %A" nextBatch.Length (pp nextBatch)
         let readyL = readyToReduce
         readyToReduce <- []
 
@@ -308,16 +260,14 @@ let checkAndValidate (fs: FastSimulation) =
         |> Array.concat
 
     if (activeComps.Length <> inSimulationComps.Length) then
-        printf
-            "Validation problem: %d active components, %d components in simulation"
-            activeComps.Length
-            inSimulationComps.Length
-
-        inSimulationComps
-        |> Array.iter (fun fc -> printfn "Simulation: %s\n" (printComp fs 0 fc))
-
-        fs.FComps
-        |> Map.iter (fun fid fc -> printfn "FComps: %s\n" (printComp fs 0 fc))
+        // the counts are the fact; the per-component dump behind them ran to thousands of lines,
+        // on a path that already returns a cycle-detected error to the user
+        Log.warn $"{activeComps.Length} active components but {inSimulationComps.Length} in the simulation"
+        if Log.isOn Log.Sim then
+            inSimulationComps
+            |> Array.iter (fun fc -> Log.dbg Log.Sim $"simulation: {printComp fs 0 fc}")
+            fs.FComps
+            |> Map.iter (fun fid fc -> Log.dbg Log.Sim $"FComps: {printComp fs 0 fc}")
 
         let possibleCycleComps =
             Set(
@@ -382,16 +332,14 @@ let checkAndValidateFData (fs: FastSimulation) =
         |> Array.concat
 
     if (activeComps.Length <> inSimulationComps.Length) then
-        printf
-            "Validation problem: %d active components, %d components in simulation"
-            activeComps.Length
-            inSimulationComps.Length
-
-        inSimulationComps
-        |> Array.iter (fun fc -> printfn "Simulation: %s\n" (printComp fs 0 fc))
-
-        fs.FComps
-        |> Map.iter (fun fid fc -> printfn "FComps: %s\n" (printComp fs 0 fc))
+        // the counts are the fact; the per-component dump behind them ran to thousands of lines,
+        // on a path that already returns a cycle-detected error to the user
+        Log.warn $"{activeComps.Length} active components but {inSimulationComps.Length} in the simulation"
+        if Log.isOn Log.Sim then
+            inSimulationComps
+            |> Array.iter (fun fc -> Log.dbg Log.Sim $"simulation: {printComp fs 0 fc}")
+            fs.FComps
+            |> Map.iter (fun fid fc -> Log.dbg Log.Sim $"FComps: {printComp fs 0 fc}")
 
         let possibleCycleComps =
             Set(
@@ -575,7 +523,6 @@ let runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
 let runFastSimulation (timeOut: float option) (lastStepNeeded: int) (fs: FastSimulation) : float option =
     if fs.MaxArraySize = 0 then
         failwithf "ERROR: can't run a fast simulation with 0 length arrays!"
-    // printfn $"running sim clocktick={fs.ClockTick}, arraySize = {fs.MaxArraySize}, laststepneeded={lastStepNeeded}"
     let simStartTime = getTimeMs ()
     let stepsToDo = lastStepNeeded - fs.ClockTick
 

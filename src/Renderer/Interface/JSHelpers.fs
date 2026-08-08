@@ -44,7 +44,7 @@ let getProcessPrivateMemory() : int =
     |> Promise.iter (
         fun info ->
             memSize <- info?``private``/1024
-            printfn $"mem info: private= {memSize}, resident={info?``resident``}"
+            Log.dbg Log.Perf $"memory: private={memSize}, resident={info?``resident``}"
             )
     memSize
 
@@ -56,22 +56,6 @@ let globalGC : unit->unit = jsNative
 
 [<Emit("typeof $0")>]
 let jsType (var: obj) : unit = jsNative
-
-#if FABLE_COMPILER
-[<Emit("console.log($0)")>]
-let log msg : unit = jsNative
-#else
-/// Shared code is also hosted on .NET (the tests), where a Fable binding
-/// throws. Logging must never be the thing that brings a build tool down.
-let log msg : unit = printfn "%A" msg
-#endif
-
-let logString msg : unit =
-    log <| sprintf "%A" msg
-
-let logChain msg =
-    logString msg
-    msg
 
 [<Emit("alert($0)")>]
 let alert msg : unit = jsNative
@@ -182,22 +166,23 @@ let productionBuild = true
 let productionBuild = false
 #endif
 
-/// trace UI execution: "view" - mark view function. "update" print update messages.
-let mutable debugTraceUI: string Set = Set []
-
-/// Call debugAction() and print its result if debugTraceUI mutable contains string traceCode
-let traceIf traceCode debugAction =
-    if Set.contains traceCode debugTraceUI then printfn "%s" (debugAction())
-
 /// Hack to provide a constant global variable
 /// set from command line arguments of main process.
 /// 0 => production. 1 => dev. 2 => debug.
+///
+/// Also reads --log=wire,sim, which is the only way to have a log category on before the first
+/// line of startup runs - the Development menu and window.issieLog can only be reached later,
+/// by which time loading a project is already over.
 let setDebugLevel() =
     let hasSwitch swName = electronRemote.app.commandLine.hasSwitch swName
     if hasSwitch "debug" || hasSwitch "-d" then
         debugLevel <- 2
     elif hasSwitch "w" then
         debugLevel <- 1
+    if hasSwitch "log" then
+        electronRemote.app.commandLine.getSwitchValue "log"
+        |> Log.maskOfNames
+        |> Log.setCategories
 
 /// return a v4 (random) universally unique identifier (UUID)
 #if FABLE_COMPILER

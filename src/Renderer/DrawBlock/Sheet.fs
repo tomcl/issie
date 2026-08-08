@@ -128,16 +128,13 @@ module SheetInterface =
     type Model with
 
         member this.ChangeComponent (dispatch: Dispatch<Msg>) (symModel: SymbolT.Model) (compId: ComponentId) (compType:ComponentType) =
-            printf "Change component"
             let delPorts = SymbolPortHelpers.findDeletedPorts this.Wire.Symbol compId (this.GetComponentById compId) compType
-            printf $"{delPorts.Length} deleted ports: compType={compType}"
+            Log.dbg Log.Symbol $"changing component to {compType}, deleting {delPorts.Length} ports"
             let wireModel, wireMsgOpt =
                 BusWireUpdateHelpers.deleteWiresWithPort delPorts {this.Wire with Symbol = symModel}
                 |> (fun model -> BusWireSeparate.routeAndSeparateSymbolWires model compId)
                 |> BusWireUpdate.calculateBusWidths
-            printf "change complete"
             dispatch <| SetWireModel wireModel
-            printf "model changed"
             wireMsgOpt
             |> Option.iter (fun msg -> dispatch <| Wire msg)
 
@@ -557,7 +554,6 @@ let fitCircuitToWindowParas (model:Model) =
         |> max Constants.defaultCanvasSize
     let offsetToCentreCircuit =
         {X=newCanvasSize / 2.; Y = newCanvasSize/2.} - sBox.Centre()
-    //printfn $"CanvasSize=%.2f{model.CanvasSize}->%.2f{newCanvasSize}, Circuit move offset = (%.2f{offsetToCentreCircuit.X},%.2f{offsetToCentreCircuit.Y})"
     let modelWithMovedCircuit =
         {model with CanvasSize = newCanvasSize}
         |> moveCircuit offsetToCentreCircuit

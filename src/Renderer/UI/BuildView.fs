@@ -57,10 +57,8 @@ let verilogOutput (vType: Verilog.VMode) (profile: Verilog.CompilationProfile) (
                 match Simulator.startCircuitSimulation 2 proj.OpenFileName state proj.LoadedComponents with
                 | Ok sim -> 
                     let path = FilesIO.pathJoin [| proj.ProjectPath; proj.OpenFileName + ".v" |]
-                    printfn "should be compiling %s :: %s" proj.ProjectPath proj.OpenFileName
                     match tryCreateFolder <| pathJoin [| proj.ProjectPath; "/build" |] with
                     // TODO: No way to check for existence
-                    //| Error e -> printfn "Couldn't make build folder: %s" e
                     | _ -> 
                         try
                             let verilog = Verilog.getVerilog vType sim.FastSim profile
@@ -72,18 +70,17 @@ let verilogOutput (vType: Verilog.VMode) (profile: Verilog.CompilationProfile) (
                                     | (_, 0) -> [||]
                                     | (name, width) -> [0 .. width - 1] |> List.toArray |> Array.map (fun i -> $"{name}"))
                             dispatch (Sheet (SheetT.Msg.DebugUpdateMapping mappings))
-                            printfn "%s" verilog
                             FilesIO.writeFile path verilog
                         with
                         | e ->
-                            printfn $"Error in Verilog output: {e.Message}"
+                            Log.error $"generating Verilog output: {e.Message}"
                             Error e.Message
                         |> (function
                             | Ok () -> Sheet (SheetT.Msg.StartCompiling (proj.ProjectPath, proj.OpenFileName, profile)) |> dispatch
                             | Error e -> ()//oh no
                             )
                 | Error simError ->
-                   printfn $"Error in simulation prevents verilog output {(SimGraphTypes.errMsg simError.ErrType)}"
+                   Log.error $"simulation error prevents Verilog output: {(SimGraphTypes.errMsg simError.ErrType)}"
         | _ -> ()
 
 let viewBuild model dispatch =

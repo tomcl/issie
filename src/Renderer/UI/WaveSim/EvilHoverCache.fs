@@ -150,7 +150,7 @@ let changeToolTip tipName tipText (xPos:float) (yPos:float) (ttXMaxEdge: float) 
         shape.setAttributeNS("", "y", string y)
         shape.setAttributeNS("", "style", if show then "visibility: visible" else "visibility: hidden")
     if svgText = null then
-        printfn $"Can't find '{textSvgName}' element in DOM needed by changeToolTip with tipName='{tipName}'"
+        Log.warnOnce "tooltip-missing-element" $"the DOM element '{textSvgName}' needed by changeToolTip is not there"
     else
         svgText.textContent <- tipText
         let w = svgText?getComputedTextLength()

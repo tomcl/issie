@@ -261,47 +261,54 @@ let immediate threshold updateThreshold =
 let aggregate(printInterval: float ) =
     Aggregate {
         PrintInterval = printInterval
-        LastPrintTime = Fable.Core.JS.Constructors.Date.now()
+        LastPrintTime = getTimeMs()
         Times = Map.empty
         MinVals = Map.empty
         MaxVals = Map.empty
         Counts = Map.empty
     }
 
-/// Parameter that controls how recorded times are processed.                     
-let mutable instrumentation: InstrumentationControl = 
-    //aggregate 10000.  // for aggregate printing every 10s
-    immediate 10. 10. // for immediate printing
-    // Off // for no printing
+/// Parameter that controls how recorded times are processed.
+///
+/// Off, not immediate printing. Every instrumented interval in the app - width inference, wire
+/// jumps, fast-simulation build, waveform generation - shares this one setting, so a default of
+/// "print anything over 10ms" meant a released Issie narrated its own slow moments to a console
+/// nobody was reading. Turn it on from the Development menu for the run that needs it.
+let mutable instrumentation: InstrumentationControl =
+    Off
 
 /// print out the current aggregate of recorded times if this is requried. 
 /// Return initialised aggregate totals after print
 let printAgg (agg: AggregatedData) =
-    let now = Fable.Core.JS.Constructors.Date.now()
+    // getTimeMs, like every other clock in this file - printAgg used Date.now() while the
+    // intervals it was summarising came from performance.now()
+    let now = getTimeMs()
     let getData name =
         let num = mapFindWithDef  0 name agg.Counts
         let numF = float num
-        if num = 0 then 
-            0.,"" 
+        if num = 0 then
+            0.,""
         else
             let tot = (mapFindWithDef 0. name agg.Times)
             tot,
             $"%8.2f{tot/numF}%8.1f{mapFindWithDef 0. name agg.MaxVals}\
-            %8.1f{mapFindWithDef 0. name agg.MinVals}%8.1f{tot}  %s{name}"
+            %8.1f{mapFindWithDef 0. name agg.MinVals}%8.1f{tot}%6d{num}  %s{name}"
             
     let intv = now - agg.LastPrintTime
     if intv < agg.PrintInterval then
         agg // do nothing
     else
-        let head = sprintf "Interval times in ms after %.1fs\n      Av     Max     Min  Total    Name\n" (intv / 1000.)
-        let timeLines = 
+        let head = sprintf "Interval times in ms after %.1fs\n      Av     Max     Min  Total   Num  Name\n" (intv / 1000.)
+        // Sorted by total descending and unfiltered: the old version dropped anything under 10ms
+        // total and sorted ascending, so the two things you look for - the worst offender, and
+        // the cheap call made ten thousand times - were the two it hid.
+        let timeLines =
             (mapKeys agg.Counts)
             |> Seq.map getData
-            |> Seq.filter (fun (tot,_) -> tot > 10.)
-            |> Seq.sortBy fst
+            |> Seq.sortByDescending fst
             |> Seq.map snd
             |> String.concat "\n"
-        printfn "%s" (head + timeLines)
+        Log.dbg Log.Perf (head + timeLines)
         { agg with 
             LastPrintTime = now
             Counts = Map.empty
@@ -332,7 +339,7 @@ let instrumentTime (intervalName: string) (intervalStartTime: float) =
             then updateThreshold 
             else threshold 
         if interval > threshold then
-            printfn "%s" $"{intervalName}: %.1f{interval}ms"
+            Log.dbg Log.Perf $"{intervalName}: %.1f{interval}ms"
     | Aggregate agg ->
         let interval = getTimeMs() - intervalStartTime
         let agg = updateAgg intervalName interval agg

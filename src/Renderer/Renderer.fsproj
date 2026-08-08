@@ -21,6 +21,8 @@
   <ItemGroup>
     <!-- Common definitions -->
     <Compile Include="Common\EEExtensions.fs" />
+    <!-- Second, so that everything below can log -->
+    <Compile Include="Common\Log.fs" />
     <Compile Include="Common\Optics.fs" />
     <Compile Include="Common\ElectronAPI.fs" />
     <Compile Include="Common\HashMap.fs" />

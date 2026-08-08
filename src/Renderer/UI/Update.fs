@@ -83,12 +83,12 @@ let update (msg : Msg) oldModel =
     | ChangeWaveSimMultiplier key ->
         let table = Constants.multipliers
         if key < 0 || key >= table.Length then
-            printf $"Warning: Can't change multiplier to key = {key}"
+            Log.warn $"cannot change the waveform multiplier to key {key}"
             model, Cmd.none   
         else
            match model.WaveSimSheet with
            | None ->
-                printfn "Warning: can't change multiplier when there is no WaveSim sheet!"
+                Log.warn "cannot change the waveform multiplier: no waveform simulator sheet"
                 model, Cmd.none
            | Some sheet ->
                 model
@@ -102,7 +102,7 @@ let update (msg : Msg) oldModel =
         if JSHelpers.loggingMemory then
             let heapInBytes = JSHelpers.getProcessPrivateMemory()
             let hint = [$"{heapInBytes} MB"]
-            printfn $"Heap size {hint}"
+            Log.dbg Log.Perf $"heap size {hint}"
             {model with Sheet.Wire.Symbol.HintPane = Some hint}, Cmd.none
         else
             model, Cmd.none
@@ -111,7 +111,6 @@ let update (msg : Msg) oldModel =
     | FileCommand(fc,dispatch) ->
         FileUpdate.fileCommand fc dispatch model 
     | StartUICmd uiCmd ->
-        //printfn $"starting UI command '{uiCmd}"
         uiStartTime <- TimeHelpers.getTimeMs()
         match model.UIState with
         | None -> //if nothing is currently being processed, allow the ui command operation to take place
@@ -124,8 +123,6 @@ let update (msg : Msg) oldModel =
                 |> withMsg (Sheet (SheetT.SetSpinner true))
         | _ -> model, Cmd.none //otherwise discard the message
     | FinishUICmd ->
-        //printfn $"ending UI command '{model.UIState}"
-        //printf $"***UI Command: %.2f{TimeHelpers.getTimeMs() - uiStartTime} ***"
         let popup = CustomCompPorts.optCurrentSheetDependentsPopup model
         {model with UIState = None; PopupViewFunc = popup}
         |> withMsg (Sheet (SheetT.SetSpinner false))
@@ -167,7 +164,6 @@ let update (msg : Msg) oldModel =
         // in this case we do not want the save button to be active, because moving the circuit is not a "real" change
         // updating loaded component CanvasState to equal draw bloack canvasstate will ensure the button stays inactive.
         let canvas = model.Sheet.GetCanvasState ()
-        //printf "synchronising canvas..."
         // this should disable the saev button by making loadedcomponent and draw blokc canvas the same
         model
         |> map openLoadedComponentOfModel_ (fun ldc -> {ldc with CanvasState = canvas})
@@ -272,7 +268,7 @@ let update (msg : Msg) oldModel =
         let benchmark i =
             match model.CurrentProj with
             | Some p ->
-                printfn "Benchmarking on %20s, stepArraySize %8d, step %8d, warmup %3d, repeat %3d" (dirName p.ProjectPath) SimulationView.Constants.maxArraySize step warmup simulationRound
+                Log.out $"benchmarking {dirName p.ProjectPath}, stepArraySize {SimulationView.Constants.maxArraySize}, step {step}, warmup {warmup}, repeat {simulationRound}"
 
                 p.LoadedComponents
                 |> List.map (fun c ->
@@ -282,7 +278,7 @@ let update (msg : Msg) oldModel =
                     | Error err -> failwithf "Error occured when running startCircuitSimulation on %A, %A" c.Name err
                     | Ok simData ->
                         let comps = simData.FastSim.FComps.Values |> Seq.filter (fun fc -> match fc.FType with | IOLabel -> false | _ -> true) |> Seq.length
-                        printfn "Benchmarking with component: %s" c.Name
+                        Log.out $"benchmarking with component {c.Name}"
 
                         [ 1 .. (warmup + simulationRound) ]
                         |> List.map (fun _ ->
@@ -295,7 +291,7 @@ let update (msg : Msg) oldModel =
                         |> List.average
                         |> (fun time ->
                             let speed = float (comps * step) / time
-                            printfn "simulated %20s for %5d steps with %4d effective components, simulation finished in %8.3fms, average simulation speed: %10.3f (comp * step / ms)" c.Name step comps time speed
+                            Log.out $"simulated {c.Name} for {step} steps with {comps} effective components in %.3f{time}ms, average speed %.3f{speed} comp*step/ms"
                             speed))
                 |> geometricMean
 
@@ -303,7 +299,7 @@ let update (msg : Msg) oldModel =
 
         [ 1..benchmarkRound ]
         |> List.map (fun i -> benchmark i)
-        |> printfn "Geometric mean of simulation speed of ISSIE on current project: %A"
+        |> fun mean -> Log.out $"geometric mean of simulation speed on this project: {mean}"
 
         model, Cmd.none
 
@@ -418,7 +414,7 @@ let update (msg : Msg) oldModel =
             let model = removeAllSimulationsFromModel model
             match model.WaveSimSheet with
             | None | Some "" -> 
-                printfn "What? can't end WaveSim when it is already ended"
+                Log.warn "cannot end the waveform simulation: it has already ended"
                 model
             | Some sheet -> 
                 { model with 
@@ -470,7 +466,6 @@ let update (msg : Msg) oldModel =
         |> withNoMsg
 
     | SetProject project ->
-        // printf $"Setting project with component: '{project.OpenFileName}'"
         model
         |> set currentProj_ (Some project) 
         |> set (popupDialogData_ >-> projectPath_) project.ProjectPath
@@ -707,9 +702,7 @@ let update (msg : Msg) oldModel =
                 Elmish.Cmd.OfAsyncImmediate.perform (fun () -> async {
                 //wavesim - 0 sleep will never update cursor in time, 100 will SOMETIMES be enough, 300 always works
                 //this number only seems to affect the wavesim spinner cursor, it does not help with open project/change sheet spinner cursor
-                    do! (Async.Sleep 100) 
-                    if Set.contains "update" JSHelpers.debugTraceUI then
-                        printfn "Starting ExecFuncAsynch payload"
+                    do! (Async.Sleep 100)
                     let cmd = func ()
                     return (ExecCmd cmd)}) () id
              model, cmd'
@@ -753,7 +746,7 @@ let update (msg : Msg) oldModel =
         {model with IsLoading = b}, cmd
 
     | ReadUserData userAppDir ->
-        printfn $"Got user app dir of {userAppDir}"
+        Log.dbg Log.Files $"user app directory is {userAppDir}"
         let model,cmd = readUserData userAppDir model        
         model,cmd
 

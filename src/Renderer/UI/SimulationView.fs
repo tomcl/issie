@@ -72,14 +72,14 @@ let verilogOutputForSheet (sheetName: string) (vType: Verilog.VMode) (model: Mod
                             FilesIO.writeFile path code
                         with
                         | e ->
-                            printfn $"Error in Verilog output: {e.Message}"
+                            Log.error $"generating Verilog output: {e.Message}"
                             Error e.Message
                         |> Notifications.displayAlertOnError dispatch
                         dispatch <| ChangeRightTab Simulation
                         let note = successSimulationNotification $"verilog output written to file {path}"
                         dispatch  <| SetSimulationNotification note
                     | Error simError ->
-                       printfn $"Error in simulation prevents verilog output {(errMsg simError.ErrType)}"
+                       Log.error $"simulation error prevents Verilog output: {(errMsg simError.ErrType)}"
                        dispatch <| ChangeRightTab Simulation
                        // Highlight the affected components and connections only when they are on
                        // the sheet being displayed: the error may be in a sheet the user cannot
@@ -413,7 +413,7 @@ let viewSimulationError
         |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
         |> function | Some comp -> [comp]
                     | None ->
-                        printfn "Warning: errored component from simulation is missing - it will be ignored"
+                        Log.warn "an errored component from the simulation is missing, and will be ignored"
                         []
 
     let getConnectionByIdLstOpt connId =
@@ -421,7 +421,7 @@ let viewSimulationError
         |> List.tryFind (fun conn -> conn.Id = connId)
         |> function | Some comp -> [comp]
                     | None ->
-                        printfn "Warning: errored connection from simulation is missing - it will be ignored"
+                        Log.warn "an errored connection from the simulation is missing, and will be ignored"
                         []
 
 
@@ -625,7 +625,6 @@ let simulateWithProgressBar (simProg: SimulationProgress) (model:Model) =
         let clock = min simProg.FinalClock (simProg.ClocksPerChunk + oldClock)
         let t1 = getTimeMs()
         FastRun.runFastSimulation None clock simData.FastSim |> ignore
-        printfn $"clokctick after runFastSim {clock} from {oldClock} is {simData.FastSim.ClockTick}"
         let t2 = getTimeMs()
         let speed = if t2 = t1 then 0. else (float clock - float oldClock) * nComps / (t2 - t1)
         let messages =
@@ -697,7 +696,6 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         |> dispatch
     else
         FastRun.runFastSimulation None clock simData.FastSim |> ignore
-        printfn $"test2 clock={clock}, clockticknumber= {simData.ClockTickNumber}, {simData.FastSim.ClockTick}"
         [
             SetSimulationGraph(simData.Graph, simData.FastSim)
             IncrementSimulationClockTick (clock - simData.ClockTickNumber)
@@ -733,16 +731,9 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                     Button.Color IsSuccess
                     Button.Disabled (simData.ClockTickNumber = 0)
                     Button.OnClick (fun _ ->
-                        if GraphBuilder.simTrace then
-                            printfn "*********************Incrementing clock from simulator button******************************"
-                            printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
-                        printfn "clock %d "simData.ClockTickNumber
                         FastRun.runFastSimulation None (simData.ClockTickNumber-1) simData.FastSim |> ignore
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
-                        if GraphBuilder.simTrace then
-                            printfn "-------------------------------------------------------------------------------------------"
-                            printfn "*******************************************************************************************"
                         IncrementSimulationClockTick -1 |> dispatch
                     )
                 ] [ str "◀" ]
@@ -771,15 +762,9 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                 Button.button [
                     Button.Color IsSuccess
                     Button.OnClick (fun _ ->
-                        if GraphBuilder.simTrace then
-                            printfn "*********************Incrementing clock from simulator button******************************"
-                            printfn "-------------------------------------------------------------------------------------------"
                         //let graph = feedClockTick simData.Graph
                         FastRun.runFastSimulation None (simData.ClockTickNumber+1) simData.FastSim |> ignore
                         dispatch <| SetSimulationGraph(simData.Graph, simData.FastSim)                    
-                        if GraphBuilder.simTrace then
-                            printfn "-------------------------------------------------------------------------------------------"
-                            printfn "*******************************************************************************************"
                         IncrementSimulationClockTick 1 |> dispatch
                     )
                 ] [ str "▶" ]
@@ -850,6 +835,6 @@ let tryGetSimData isWaveSim canvasState model =
                 setFastSimInputsToDefault simData.FastSim
             Ok simData
         | Error simError, state ->
-            printfn $"ERROR:{simError}"
+            Log.dbg Log.Sim $"simulation error: {simError.ErrType}"
             Error simError
 

@@ -621,23 +621,6 @@ let getScalingFactorAndOffsetCentreGroup
     
     let xSC = getScalingFactorAndOffsetCentre oldMinX newMinX oldMaxX newMaxX
     let ySC = getScalingFactorAndOffsetCentre oldMinY newMinY oldMaxY newMaxY
-    // printfn "oneCompBoundsBothEdges:%A" oneCompBoundsBothEdges
-    // printfn "Max: OriginalX: %A" oldMaxX
-    // printfn "Max: XMatch: %A" newMaxX
-    // printfn "Min: OriginalX: %A" oldMinX
-    // printfn "Min: XMatch: %A" newMinX
-    // printfn "scaleFact: %A" (fst xSC)
-    // printfn "scaleC: %A" (snd xSC)
-    // printfn "Max: GotX: %A" (((oldMaxX- (snd xSC)) * (fst xSC)) + (snd xSC))
-    // printfn "Min: GotX: %A" (((oldMinX - (snd xSC)) * (fst xSC)) + (snd xSC))
-    // printfn "Max: OriginalY: %A" oldMaxY
-    // printfn "Max: YMatch: %A" newMaxY
-    // printfn "Min: OriginalY: %A" oldMinY
-    // printfn "Min: YMatch: %A" newMinY
-    // printfn "scaleFact: %A" (fst ySC)
-    // printfn "scaleC: %A" (snd ySC)
-    // printfn "Max: GotY: %A" (((oldMaxY- (snd ySC)) * (fst ySC)) + (snd ySC))
-    // printfn "Min: GotY: %A" (((oldMinY - (snd ySC)) * (fst ySC)) + (snd ySC))
     (xSC, ySC)
 
 let scaleSymbol
@@ -667,7 +650,6 @@ let groupNewSelectedSymsModel
     let UnselectedSymbols = model.Symbols |> Map.filter (fun x _ -> not (List.contains x compList))
 
     // let block = getBlock SelectedSymbols
-    // printfn "bbCentreX:%A" (block.Centre()).X
 
     // let newSymbols = List.map (modifySymbolFunc (block.Centre())) SelectedSymbols
     let newSymbols = List.map (modifySymbolFunc) selectedSymbols

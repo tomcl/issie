@@ -267,14 +267,12 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
             | _ ->
                 makeIOArray maxArraySize)
     
-    //printfn "Type: %A; ins array: %A" sComp.Type ins
     let outs =
         match sComp.Type, sComp.OutputWidths.Length with
         | IOLabel, 0 -> [| makeIOArray maxArraySize |] // NOTE - create dumpy Outputs array for inavtive IOLabels
         | _ ->
             sComp.OutputWidths
             |> Array.map (fun w -> makeIOArrayW w maxArraySize)
-    //printfn "Type: %A; outs array: %A" sComp.Type outs
 
     let state =
         if couldBeSynchronousComponent sComp.Type then
@@ -574,7 +572,6 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
     let numSteps = simulationArraySize
     stepArrayIndex <- -1
     let start = getTimeMs ()
-    //printfn $"Creating init fast comp phase of sim with {numSteps} array size"
 
     let makeFastComp fid =
         let comp, ap = g.AllComps[fid]
@@ -729,21 +726,16 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
     ///
     let rec getLinks ((cid, ap): FComponentId) (opn: OutputPortNumber) (ipnOpt: InputPortNumber option) =
         let sComp = getSComp (cid, ap)
-        //printfn "Getting links: %A %A %A" sComp.Type opn ipnOpt
         match isOutput sComp.Type, isCustom sComp.Type, ipnOpt with
         | true, _, None when apOf (cid, ap) = [] -> [||] // no links in this case from global output
         | true, _, None ->
-            //printfn "checking 1:%A %A" (g.getFullName(cid,ap)) (Map.map (fun k v -> g.getFullName k) g.CustomOutputCompLinks)
             let fid, opn = g.CustomOutputCompLinks[cid, ap]
 #if ASSERTS
             assertThat (isCustom (fst sComps[fid]).Type) "What? this should be a custom component output"
 #endif
             getLinks fid opn None // go from inner output to CC output and recurse
         | false, true, Some ipn ->
-            //printfn "checking 2:%A:IPN<%A>" (g.getFullName(cid,ap)) ipn
-            //printfn "CustomInCompLinks=\n%A" (Map.map (fun (vfid,vipn) fid ->
             //sprintf "%A:%A -> %A\n" (g.getFullName vfid) vipn (g.getFullName fid) ) g.CustomInputCompLinks |> mapValues)
-            //printfn "Done"
             [| g.CustomInputCompLinks[(cid, ap), ipn], opn, InputPortNumber 0 |] // go from CC input to inner input: must be valid
         | _, false, Some ipn -> [| (cid, ap), opn, ipn |] // must be a valid link
         | false, _, None ->

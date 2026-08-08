@@ -141,7 +141,8 @@ const GEOMETRY = `(() => {
 (async () => {
     const [, , cmd, arg] = process.argv;
     if (!cmd || ['-h', '--help', 'help'].includes(cmd)) {
-        console.log('usage: inspect-canvas.js raw | model | geometry | shot <out.png> | eval <expr.js>');
+        console.log('usage: inspect-canvas.js raw | model | geometry | shot <out.png> | eval <expr.js>'
+                    + ' | log [categories]');
         return;
     }
     const target = await pageTarget(DEFAULT_PORT);
@@ -167,6 +168,18 @@ const GEOMETRY = `(() => {
                 const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
                 require('fs').writeFileSync(arg, Buffer.from(data, 'base64'));
                 console.log('wrote ' + arg);
+                break;
+            }
+            // The app's own log, without DevTools. With no argument it prints what is in the ring
+            // buffer; with one it switches categories on first, so the next thing you do in the
+            // app is logged - see src/Renderer/Common/Log.fs.
+            case 'log': {
+                if (arg) {
+                    const on = await evaluate(cdp, `window.issieLog.on(${JSON.stringify(arg)})`);
+                    console.log(on);
+                }
+                const lines = await evaluate(cdp, 'window.issieLog.lines()');
+                console.log(lines.join('\n'));
                 break;
             }
             case 'eval': {

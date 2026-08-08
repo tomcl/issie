@@ -89,7 +89,7 @@ let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
         | Some None ->
             failwithf $"No driver found for wave {wave.DisplayName}"
         | None ->
-            printfn $"Error: index {wave.DriverIndex} not found in fast simulation array"
+            Log.error $"driver index {wave.DriverIndex} for wave {wave.DisplayName} is not in the fast simulation array"
             failwithf $"Wave {wave.DisplayName} not found in fast simulation"
 
     match width with
@@ -101,7 +101,6 @@ let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
             | _ ->
                 // TODO: Find better default value here
                 // TODO: Should probably make it so that you can't call this function in the first place.
-                //printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
                 {Dat = Word 0u; Width = width}
     | _ ->      
         Array.tryItem clkCycleDetail waveData.DriverData.UInt32Step
@@ -109,7 +108,6 @@ let getWaveValue (clkCycleDetail: int) (wave: Wave) (width: int) : FastData =
             | Some (fData) -> 
                 { Dat = Word fData; Width = width}
             | _ ->
-                //printf "Trying to access index %A in wave %A. Default to 0." clkCycleDetail wave.DisplayName
                 {Dat = Word 0u; Width = width}
 
 /// Make left and right x-coordinates for a clock cycle.
@@ -198,8 +196,7 @@ let calculateBinaryTransitionsUInt32 (waveValues: array<uint32>) (startCycle: in
         // in this case we can start one before the first data sample, end one after the last sample, to work out the first transition
         subSamp waveValues (startCyc-1) (endCyc-startCyc+2) multiplier
     | _ ->
-        printfn $"Before Bin failure: waveValues.Length {waveValues.Length} \
-                e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
+        Log.error $"binary transitions beyond the array: {waveValues.Length} values, start {startCycle}, shown {shownCycles}, multiplier {multiplier}"
         failwithf $"Shown cycles is beyond array bounds: startCyc={startCycle}, shown={shownCycles}, mult={multiplier}"
     |> Array.pairwise
     |> Array.map (fun (x, y) ->
@@ -219,8 +216,7 @@ let calculateNonBinaryTransitions (waveValues: array<'a>) (startCycle: int) (sho
         | startCyc, endCyc when (0 <= startCyc && startCyc <= endCyc && endCyc*multiplier < Array.length waveValues) ->
             subSamp waveValues (startCyc) (endCyc-startCyc+1) multiplier 
         | _ ->
-            printfn $"Before NonBinaryTransitions failure: waveValues.Length {waveValues.Length} \
-                    e*m: {(startCycle+shownCycles-1)*multiplier}  start {startCycle} shown {shownCycles} mult: {multiplier}"
+            Log.error $"non-binary transitions beyond the array: {waveValues.Length} values, start {startCycle}, shown {shownCycles}, multiplier {multiplier}"
             failwithf $"Shown cycles is beyond array bounds: start={startCycle} shown={shownCycles} mult={multiplier} length = {waveValues.Length}"
     sampledWaveValues
     |> Array.pairwise
@@ -261,12 +257,10 @@ let private isInsideLibraryComponent (fs: FastSimulation) (librarySheets: Set<st
 /// offered - see isInsideLibraryComponent.
 let getWaves (librarySheets: Set<string>) (ws: WaveSimModel) (fs: FastSimulation) : Map<WaveIndexT, Wave> =
     let start = TimeHelpers.getTimeMs ()
-    //printfn $"{fs.WaveIndex.Length} possible waves"
     fs.WaveIndex
     |> TimeHelpers.instrumentInterval "getAllPorts" start
     |> Array.filter (fun wi -> not (isInsideLibraryComponent fs librarySheets fs.WaveComps[wi.Id]))
     |> Array.map (fun wi -> wi, makeWave ws fs wi)
-    //|> fun x -> printfn $"Made waves!";x
     |> Map.ofArray
     |> TimeHelpers.instrumentInterval "makeWavePipeline" start
 
@@ -564,15 +558,11 @@ let makeWaveformsWithTimeOut
                 |> List.filter (fun width -> lowerLim <= width && width <= upperLim)
                 |> List.length
         
-            printfn "PERF:makeWaveformsWithTimeOut: generating visible only: %b" Constants.generateVisibleOnly
-            printfn "PERF:makeWaveformsWithTimeOut: making %d/%d waveforms" (List.length wavesToBeMade) (Map.count allWaves)
-            printfn "PERF:makeWaveformsWithTimeOut: binary = %d" (countWavesWithWidthRange 1 1)
-            printfn "PERF:makeWaveformsWithTimeOut: int32 = %d" (countWavesWithWidthRange 2 32)
-            printfn "PERF:makeWaveformsWithTimeOut: process took %.2fms" (finish-start)
+            Log.dbg Log.Perf $"makeWaveformsWithTimeOut: visible only {Constants.generateVisibleOnly}, {List.length wavesToBeMade}/{Map.count allWaves} waveforms, {countWavesWithWidthRange 1 1} binary, {countWavesWithWidthRange 2 32} int32, took %.2f{finish-start}ms"
         {| WSM={ws with AllWaves = allWaves}; NumberDone=numberDone; TimeTaken = timeTaken|}
     with
         | ex -> 
-            printfn $"Error in makeWaveformsWithTimeOut: {ex.Message}"
+            Log.error $"making waveforms: {ex.Message}"
             {| WSM=ws; NumberDone=0; TimeTaken= None |}
 
 

@@ -115,7 +115,6 @@ let getSyntaxErrorInfo error =
 
 
 let getErrorTable (errorList: ErrorInfo list) addButton =
-    //printfn "Generating error table"
 
 
     let getSuggestionLine suggestions replaceType line col= 

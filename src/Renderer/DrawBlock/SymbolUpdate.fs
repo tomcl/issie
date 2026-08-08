@@ -39,7 +39,6 @@ let rec extractIOPrefix (str : string) (charLst: char list) =
 let generateIOLabel (model: Model) (compType: ComponentType) (name:string) : string =
     let listSymbols = List.map snd (Map.toList model.Symbols)
     let newCompBaseName, newCompNo = extractIOPrefix name []
-    //printfn "s %s , n%i" newCompBaseName newCompNo
     let existingNumbers =
         listSymbols
         |> List.collect (fun sym ->
@@ -439,7 +438,7 @@ let createSymbolRecord ldcs theme comp =
         let xyPos = {X = comp.X; Y = comp.Y}
         let (h,w) =
             if comp.H = -1 && comp.W = -1 then
-                printfn $"Weird component {comp.Label}"
+                Log.warn $"component {comp.Label} has a type that cannot be copied"
                 let comp' = makeComponent xyPos comp.Type comp.Id comp.Label
                 comp'.H,comp'.W
             else
@@ -562,7 +561,7 @@ let inline writeMemoryType model compId memory =
         match comp.Type with
         | RAM1 _ | AsyncRAM1 _ | ROM1 _ | AsyncROM1 _ -> memory
         | _ -> 
-            printfn $"Warning: improper use of WriteMemoryType on {comp} ignored"
+            Log.warn $"improper use of WriteMemoryType on {comp.Label} ignored"
             comp.Type
     
     let newComp = { comp with Type = newCompType }
@@ -581,7 +580,7 @@ let inline updateMemory model compId updateFn =
         | AsyncROM1 m -> AsyncROM1 (updateFn m)
         | AsyncRAM1 m -> AsyncRAM1 (updateFn m)
         | _ -> 
-            printfn $"Warning: improper use of WriteMemoryType on {comp} ignored"
+            Log.warn $"improper use of WriteMemoryType on {comp.Label} ignored"
             comp.Type
     
     let newComp = { comp with Type = newCompType }
@@ -705,11 +704,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         // message used to update symbol bounding boxes in sheet.
         failwithf "What? This message is intercepted by Sheet update function and never found here"
     | DeleteSymbols compIds ->
-        // printfn "update msg: DeleteSymbol"
         (deleteSymbols model compIds), Cmd.none
 
     | AddSymbol (ldcs, pos,compType, lbl) ->
-        // printfn "update msg: AddSymbol"
         let (newModel, _) = addSymbol ldcs model pos compType lbl
         newModel, Cmd.none
 
@@ -740,7 +737,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         (symbolsHaveError model compList), Cmd.none
 
     | SelectSymbols compList ->
-        // printfn "update msg: selectsymbols"
         (selectSymbols model compList), Cmd.none  
 
     | ErrorSymbols (errorCompList,selectCompList,isDragAndDrop) -> 
@@ -801,7 +797,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newSymbol = changeCustom model compId oldComp newComp
         let newPorts = addToPortModel model newSymbol
         let newModel = {model with Ports = newPorts}
-        // printf $"{newSymbol}"
         (replaceSymbol newModel newSymbol compId), Cmd.none
     
     | ChangeBusCompare (compId, newVal, newText) -> 

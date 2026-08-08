@@ -239,54 +239,44 @@ let shortDisplayMsg (msg:Msg) =
 
 
 
-/// If debugTrace is on print out human readable info on message.
-/// Be careful not to do this on mouse moves (there are too many).
-/// be careful not to try to ptint simulation result arrays (that would crash the renderer!).
-/// optimise for very quick return in the case that debugLevel = 0 (production version)
-/// optimise for quick return if nothing is printed.
+/// Human-readable info on a message, or "" for one not worth showing.
+///
+/// Never `%A` on the message itself: a Msg can carry a whole FastSimulation, a Model or a canvas,
+/// and printing one of those crashes the renderer. shortDisplayMsg names every case by hand for
+/// exactly that reason. Mouse drags and moves are suppressed unless Log.Mouse is on, since they
+/// are the majority of all messages and would bury everything else.
 let getMessageTraceString (msg: Msg) =
-    let noDisplayMouseOp (op:DrawHelpers.MouseOp) = 
-        (op = DrawHelpers.Drag || op = DrawHelpers.Move) && not (Set.contains "mouse" JSHelpers.debugTraceUI)
+    let noDisplayMouseOp (op: DrawHelpers.MouseOp) =
+        (op = DrawHelpers.Drag || op = DrawHelpers.Move) && not (Log.isOn Log.Mouse)
     let noDisplayMessage = function
         | Sheet (SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.MouseMsg _ | SymbolT.ShowPorts _ ))) -> true
         | _ -> false
 
-    if JSHelpers.debugLevel = 0 ||
-       not (Set.contains "update" JSHelpers.debugTraceUI) ||
-       matchMouseMsg noDisplayMouseOp msg ||
-       noDisplayMessage msg then
+    if matchMouseMsg noDisplayMouseOp msg || noDisplayMessage msg then
         ""
-    else 
+    else
         match shortDisplayMsg msg with
         | Some shortName -> shortName
-        | None ->
-            Helpers.sprintInitial 70 $"{msg}"
+        | None -> Helpers.sprintInitial 70 $"{msg}"
 
-let mutable updateTimeTotal = 0.
-
-let traceMessage startOfUpdateTime (msg:Msg) ((model,cmdL): Model*Cmd<Msg>) =
-    if JSHelpers.debugLevel > 0 then
-        let str = getMessageTraceString msg
-        let rootOfMsg = 
-            match str.Split [|' ';'('|] with
-            | ss when ss.Length > 0 -> ss.[0]
-            | _ -> ""
-        TimeHelpers.instrumentInterval rootOfMsg startOfUpdateTime |> ignore
-        let updateTime = TimeHelpers.getTimeMs() - startOfUpdateTime
-        updateTimeTotal <- match updateTimeTotal > 1000. with | true -> 0. | false -> updateTimeTotal + updateTime
-        //if str <> "" then printfn "%s" $"**Upd:{str} %.1f{updateTime}ms ({int startOfUpdateTime % 10000}ms)"
-        if Set.contains "update" JSHelpers.debugTraceUI then           
-            let logMsg = sprintf ">>Cmd:%.0f %s" updateTimeTotal (getMessageTraceString msg)
-            TimeHelpers.instrumentInterval logMsg (startOfUpdateTime)  msg|> ignore
-
-    model,cmdL
+/// Count the message just handled, and trace it if Log.Update is on.
+///
+/// The counting is unconditional and costs an add and a compare: the message name is only built
+/// when this message was the slowest so far, which is what makes the periodic summary affordable.
+let traceMessage startOfUpdateTime (msg: Msg) ((model, cmdL): Model * Cmd<Msg>) =
+    let updateTime = TimeHelpers.getTimeMs() - startOfUpdateTime
+    Log.countMessage updateTime (fun () -> getMessageTraceString msg)
+    if Log.isOn Log.Update then
+        match getMessageTraceString msg with
+        | "" -> ()
+        | str -> Log.dbg Log.Update $"%6.1f{updateTime}ms {str}"
+    model, cmdL
 
 let mutable lastMemoryUpdateCheck = 0.
 
 let updateAllMemoryCompsIfNeeded (model:Model) =
     let time = TimeHelpers.getTimeMs()
     if time - lastMemoryUpdateCheck > Constants.memoryUpdateCheckTime && (getWSModel model).State = Success then
-        //printfn "checking update of memories"
         lastMemoryUpdateCheck <- time
         model
         |> MemoryEditorView.updateAllMemoryComps
@@ -417,7 +407,6 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
             |> Option.defaultValue NoMenu
         | _, elId, _ when String.startsWith "SheetMenuBreadcrumb:" elId ->
             let nameParts = elId.Split(":",System.StringSplitOptions.RemoveEmptyEntries)
-            //printfn "NameParts: %A"nameParts
             model.CurrentProj
             |> Option.map (fun p ->
                 Map.tryFind nameParts[1] (getSheetTrees false p) 
@@ -430,14 +419,12 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         | _, "WaveSimHelp", _ ->
             WaveSimHelp
         | SheetT.MouseOn.Canvas, "DrawBlockSVGTop", _ ->
-            //printfn "Draw block sheet 'canvas'"
             if mouseInScalingBox then  
                 DBScalingBox model.Sheet.SelectedComponents
             else 
                 DBCanvas sheetXYPos
 
         | SheetT.MouseOn.Canvas, x, _ ->
-            //printfn "Other issie element: type:'%A'-> id:'%A'" elType x
             IssieElement (element.ToString())
 
         | SheetT.MouseOn.Component compId, _, _->
@@ -494,7 +481,7 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     | WaveSimHelp ->
         "WaveSimHelp"
     | _ ->
-        printfn $"Clicked on '{drawOn.ToString()}'"
+        Log.dbg Log.Sheet $"right-clicked on '{drawOn.ToString()}', which has no context menu"
         "" // default is no menu
             
 
@@ -518,7 +505,6 @@ let processContextMenuClick
     let rotateDispatch = SheetT.Rotate >> sheetDispatch
     let flipDispatch = SheetT.Flip >> sheetDispatch
     let busWireDispatch (bMsg: BusWireT.Msg) = sheetDispatch (SheetT.Msg.Wire bMsg)
-    //printfn "context Menu: '%A'  : '%s'" rightClickElement item
 
     match rightClickElement,item with
     | SheetMenuBreadcrumb(sheet,_), "Rename" ->
@@ -548,25 +534,21 @@ let processContextMenuClick
         withNoCmd model
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock" ->
-        //printfn "locking %s" sheet.SheetName
         model
         |> changeLockState isSubSheet sheet (fun _ -> Locked)
         |> withNoCmd
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock" ->
-        //printfn "Unlocking %s" sheet.SheetName
         model
         |> changeLockState isSubSheet sheet (fun _ -> Unlocked)
         |> withNoCmd
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Lock Subtree" ->
-        //printfn "locking subtree %s" sheet.SheetName
         model
         |> changeSubtreeLockState isSubSheet sheet (fun _ -> Locked) 
         |> withNoCmd 
 
     | SheetMenuBreadcrumb(sheet,isSubSheet), "Unlock Subtree" ->
-        //printfn "Unlocking subtree %s" sheet.SheetName
         model
         |> changeSubtreeLockState isSubSheet sheet (fun _ -> Unlocked)
         |> withNoCmd 
@@ -712,7 +694,6 @@ let processContextMenuClick
         |> withNoCmd
     
     | DBCanvas pos, "Zoom-in (Ctrl+plus) and centre"  ->
-        printf "Zoom-in!!"
         model
         |> map (sheet_ >-> SheetT.zoom_)  (fun zoom -> min Sheet.Constants.maxMagnification (zoom*Sheet.Constants.zoomIncrement))
         |> withMsg (Sheet (SheetT.Msg.KeepZoomCentered pos))
@@ -753,7 +734,7 @@ let processContextMenuClick
         |> withNoCmd
 
     | _ ->
-        printfn "%s" $"Context menu item not implemented: {rightClickElement} -> {item}"
+        Log.warn $"context menu item not implemented: {rightClickElement} -> {item}"
         model
         |> withNoCmd
 
@@ -812,7 +793,7 @@ let readUserData (userAppDir: string) (model: Model) : Model * Cmd<Msg> =
             jsonRes
             |> Result.bind (fun json -> Json.tryParseNativeAs<UserData> json)
             |> Result.bind (fun (data: UserData) -> Ok {model with UserData = data})
-            |> (function | Ok model -> model | Error _ -> printfn "Error reading user data" ; model)
+            |> (function | Ok model -> model | Error _ -> Log.warn "could not read the saved user settings"; model)
             |> addAppDirToUserData 
             |> userDataToDrawBlockModel
             |> Some
@@ -832,7 +813,7 @@ let writeUserData (model:Model) =
         | e -> Error "Can't write settings on this PC because userAppDir does not exist"
         |> Result.bind (fun json -> writeFile (pathJoin [|userAppDir;"IssieSettings.json"|]) json)
         |> Result.mapError (fun mess -> $"Write error on directory {userAppDir}: %s{mess}")
-        |> function | Error mess -> printfn "%s" mess | _ -> ())
+        |> function | Error mess -> Log.error mess | _ -> ())
     |> ignore
     model
 
@@ -895,7 +876,6 @@ let updateTimeStamp model =
 
 let currentSheetIsOutOfDate (model : Model) : bool = 
     let last = model.LastChangeCheckTime // NB no check to reduce total findChange time implemented yet - TODO if needed
-    let start = TimeHelpers.getTimeMs()
 
     match model.CurrentProj with
     | None -> false

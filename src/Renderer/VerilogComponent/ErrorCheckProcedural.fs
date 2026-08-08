@@ -304,7 +304,6 @@ let checkCasesStatements
                     | Unsigned (n, loc) ->
                         "", "'d", string n, loc
                     | All (bits, numBase, allNumber, loc) ->
-                        // printfn "Checking case item number: %A, bits: %A, base: %A, allNumber: %A, loc: %A" caseNumber bits numBase allNumber loc
                         let baseText =
                             match numBase with
                             | Binary -> "'b"
@@ -518,8 +517,6 @@ let checkVariablesAlwaysAssigned
                     not (Set.contains varName loopVars))
             let variablesNotAssignedInAllBranches =
                 getVariablesAlwaysAssigned (AlwaysConstruct always)
-            // printfn "vars always assigned in all branches: %A in %A" variablesNotAssignedInAllBranches always
-            // printfn "all LHS variables: %A" allLHSVariables
             let undefVars =
                 Set.difference allLHSVariables variablesNotAssignedInAllBranches
                 |> Set.map (fun varBit -> (varBit.Split [|'['|])[0])
@@ -567,7 +564,6 @@ let checkExpressions
                     Map.add variable.Name (bStart - bEnd + 1) map'
             )
         )
-    // printfn "checkExpressions wireSizeMap: %A" wireSizeMap
     let expressions = foldAST getAllExpressions' [] (VerilogInput ast)
     let caseItemNums = foldAST getCaseItemNums [] (VerilogInput ast)
 
@@ -863,7 +859,6 @@ let checkVariablesUsed
         |> List.collect (fun modInst -> modInst.Connections |> Array.toList)
         |> List.collect (fun conn -> getPrimaryBits wireAndPortSizeMap conn.Primary)
         |> Set.ofList
-    // printfn "moduleInstantiationPorts: %A" moduleInstantiationPorts
     // let assignmentsLHS = 
     //     match ast with
     //     | VerilogInput as
@@ -873,8 +868,6 @@ let checkVariablesUsed
         |> Set.ofList
         |> Set.union moduleInstantiationPorts
     
-    // printf "declarations: %A" (foldAST getDeclarations [] (VerilogInput ast))
-    // printfn "AST: %A" ast
 
     // Assignments and reads label an array per word ("hist[2]"), not per vector bit, so the
     // declaration side must enumerate words for arrays: using the vector range reported

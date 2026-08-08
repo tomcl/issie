@@ -123,19 +123,6 @@ let verticesAreSame (fixedOffset:XYPos) tolerance (conns1: (float * float * bool
 /// allows easy access to specific connections - so it can be highlighted in GUI
 let mutable debugChangedConnections: ConnectionId list = []
 
-let printConnErrors (connFixedOffset: XYPos)=
-    List.mapi (fun i (c1,c2) ->
-        let lengthDiff = c1.Vertices.Length - c2.Vertices.Length
-        if c1.Id <> c2.Id then
-            printfn "*** Connection Ids don't match"
-        if lengthDiff <> 0 then
-            printf "%s" $"Conn {i} {logConnId (ConnectionId c1.Id)}: Length diff: {lengthDiff}"
-        else
-            printf "%s" $"Conn {i} {logConnId (ConnectionId c1.Id)}: \
-                Vertices don't match: fixedoffset = %.1f{connFixedOffset.X},%.1f{connFixedOffset.Y}"
-            printfn "Vertex deltas: %A" ((c1.Vertices,c2.Vertices) ||> List.map2 (fun (x1,y1,_) (x2,y2,_) -> (x1-x2),(y1-y2)))
-        c1,c2)
-
 /// Are two lists of connections identical
 let compareConns tolerance conns1 conns2 =
     let connIdA (conns: Connection List) = conns |> sortQBy (fun conn -> conn.Id)
@@ -152,16 +139,13 @@ let compareConns tolerance conns1 conns2 =
             {X=0.; Y=0.}
     match connsA1, connsA2 with
     | a,b when a.Length <> b.Length ->
-        //printfn "Connection list lengths don't match"
         false
     | a,b when not <| List.forall2 (fun c1 c2 -> verticesAreSame connFixedOffset tolerance c1.Vertices c2.Vertices) a b ->
         List.zip a b
         |> List.filter (fun (c1,c2) -> not <| verticesAreSame connFixedOffset tolerance c1.Vertices c2.Vertices)
-        //|> printConnErrors connFixedOffset
         |> List.map fst
         |> List.map (fun (badConn: Connection) -> ConnectionId badConn.Id)
         |> (fun lst ->
-            //printfn "%d bad connections" lst.Length
             debugChangedConnections <- lst)
         false
     | _ -> true
@@ -193,7 +177,6 @@ let compareCanvas (tolerance: float) ((comps1, conns1): CanvasState) ((comps2, c
     let connsOk = compareConns tolerance conns1 conns2
     let comparesEqual = compsOk && connsOk
     //if not comparesEqual then
-        //printf "%s" $"comps:{compsOk}, connsOk:{connsOk}" //>
     comparesEqual    
 
 /// Compare the name and IOs of two sheets as loadedcomponents
@@ -204,14 +187,10 @@ let compareIOs (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
 
 /// Is circuit (not geometry) the same for two LoadedComponents? They must also have the same name
 let loadedComponentIsEqual (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
-    let pp (name:string) (b:bool) = //++debug
-        if not b then
-            printfn $"Cache change: {name} {ldc1.Name}, {ldc2.Name}"
-        b
-    ldc1.InputLabels = ldc2.InputLabels //|> pp "Inputs"
-    && ldc1.OutputLabels = ldc2.OutputLabels //|> pp "Outputs"
-    && stateIsEqual ldc1.CanvasState ldc2.CanvasState //|> pp "State"
-    && ldc1.Name = ldc2.Name // |> pp "Names"
+    ldc1.InputLabels = ldc2.InputLabels
+    && ldc1.OutputLabels = ldc2.OutputLabels
+    && stateIsEqual ldc1.CanvasState ldc2.CanvasState
+    && ldc1.Name = ldc2.Name
 
 /// Is circuit (not geometry) the same for two LoadedComponents? They must also have the same name
 let loadedComponentIsEqualExInputDefault (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
@@ -229,16 +208,13 @@ let getOrderedCompLabels compType ((comps, _): CanvasState) =
 
             match comp.Type, compType with
             | Input1(n, defaultVal), Input1 _ -> 
-                // printfn $"Found Input1 component: Label={comp.Label}, Width={n}, DefaultVal={defaultVal}"
                 [ sortKey, (comp.Label, n) ]
             | Output n, Output _ -> 
-                // printfn $"Found Output component: Label={comp.Label}, Width={n}"
                 [ sortKey, (comp.Label, n) ]
             | _ -> [])
         |> List.sortBy fst
         |> List.map snd
     
-    // printfn $"getOrderedCompLabels result for {compType}: {result}"
     result
 
 /// Extract the labels and bus widths of the inputs and outputs nodes as a signature.
@@ -251,7 +227,6 @@ let parseDiagramSignature canvasState : (string * int) list * (string * int) lis
 /// extract the fields compared to check circuit equality
 let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
     let inputs, outputs = parseDiagramSignature canvas
-    //printfn "parsed component"
     let ldc =
         { Name = name
           TimeStamp = System.DateTime.Now

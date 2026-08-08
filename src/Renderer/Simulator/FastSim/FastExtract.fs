@@ -36,11 +36,9 @@ let changeInput (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: Fa
         | IAlg _ -> failwithf "Algebraic inputs not supported."
 
     setSimulationInput cid fd step fastSim
-    //printfn $"Changing {fastSim.FComps[cid,[]].FullName} to {fd}"
     runCombinationalLogic step fastSim
 
 let changeInputFData (cid: ComponentId) (input: FSInterface) (step: int) (fastSim: FastSimulation) =
-    //printfn "wd=%A" wd
     let fd =
         match input with
         | IData fd -> Data fd
@@ -116,7 +114,6 @@ let rec extractFastSimulationOutput
 
     match Map.tryFind (cid, ap) fs.FComps with
     | Some fc ->
-        //printfn $"Extracting port {opn} from {fc.FullName} in step {step}"
         match fc.OutputWidth n with
         | 0 ->
             failwithf
@@ -152,7 +149,6 @@ let rec extractFastSimulationOutputFData
 
     match Map.tryFind (cid, ap) fs.FComps with
     | Some fc ->
-        //printfn $"Extracting port {opn} from {fc.FullName} in step {step}"
         match Array.tryItem (step % fs.MaxArraySize) fc.Outputs[n].FDataStep with
         | None ->
             failwithf
@@ -208,7 +204,6 @@ let extractFastSimulationIOs
     |> List.map (fun ((cid, label, width) as io) ->
         let out =
             extractFastSimulationOutput fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0)
-        //printfn $"Extrcating: {io} --- {wd}"
         io, out)
 
 /// As extractFastSimulationIOs but for FData - used by truth table logic.
@@ -224,7 +219,6 @@ let extractFastSimulationIOsFData
     |> List.map (fun ((cid, label, width) as io) ->
         let out =
             extractFastSimulationOutputFData fs simulationData.ClockTickNumber (cid, []) (OutputPortNumber 0)
-        //printfn $"Extrcating: {io} --- {wd}"
         io, out)
 
 /// Extract a component's label and its full name which includes all of its path to root of simulation.

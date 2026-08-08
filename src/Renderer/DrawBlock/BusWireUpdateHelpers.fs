@@ -257,7 +257,6 @@ let makeEndsDraggable (segments: Segment list): Segment list =
 let coalesceInWire (wId: ConnectionId) (model:Model) =
     let wire = model.Wires[wId]
     let segments = wire.Segments
-    //printfn $"Before coalesce, seg lengths: {segments |> List.map (fun seg -> seg.Length)}"
     let segmentsToRemove =
         List.indexed segments
         |> List.filter (fun (i,seg) -> 
@@ -281,7 +280,6 @@ let coalesceInWire (wId: ConnectionId) (model:Model) =
                 segments')
         |> makeEndsDraggable
 
-    //printfn $"After coalesce, seg lengths: {newSegments |> List.map (fun seg -> seg.Length)}"
     Optic.set (wireOf_ wId >-> segments_) newSegments model
 
 /// If wire contains one or more manally routed segments return Some wire'
@@ -307,7 +305,7 @@ let moveSegment (model:Model) (seg:Segment) (distance:float) =
     let idx = seg.Index
 
     if idx <= 0 || idx >= segments.Length - 1 then // Should never happen
-        printfn $"Trying to move wire segment {seg.Index}:{logSegmentId seg}, out of range in wire length {segments.Length}"
+        Log.warn $"segment {seg.Index}:{logSegmentId seg} is out of range in a wire of {segments.Length} segments"
         wire
     else
         let safeDistance = getSafeDistanceForMove segments idx distance
@@ -489,8 +487,8 @@ let partitionSegments segs manualIdx =
 
     let changed, remaining = List.splitAt 2 tmp
     if (start @ changed @ remaining).Length <> segs.Length then 
-        printfn $"Bad partial routing partition: index=\
-                    {manualIdx}:{start.Length},{changed.Length},{remaining.Length} ({segs.Length})"
+        Log.warn $"bad partial routing partition: index=\
+                   {manualIdx}:{start.Length},{changed.Length},{remaining.Length} ({segs.Length})"
     (start, changed, remaining)
 
 /// Returns None if full autoroute is required or applies partial autorouting
@@ -626,7 +624,6 @@ let resetWireJumpsOrIntersections (wire:Wire) =
     {wire with Segments = newSegments}
 
 let resetModelJumpsOrIntersections (model: Model) : Model =
-    //printfn "resetting jumps or intersections"
     let newWires =
         model.Wires
         |> Map.map (fun _ w -> resetWireJumpsOrIntersections w)
@@ -779,7 +776,6 @@ let makeAllJumps (wiresWithNoJumps: ConnectionId list) (model: Model) =
     
         { model with Wires = wiresWithJumps }
     | Modern ->
-        printfn "Updating modern circles"
         updateCirclesOnAllNets model
     | Radial -> 
         model
@@ -839,10 +835,8 @@ let deleteWiresWithPort (delPorts: Port option list) (model: Model) =
             |> Optic.set (DrawModelType.BusWireT.symbol_  >-> symbols_) symbols
             |> Optic.set (DrawModelType.BusWireT.symbol_  >-> ports_) ports
             |> Optic.map DrawModelType.BusWireT.wires_ (fun wires ->
-                    printf $"{wires.Count} wires before deletion"
                     (wires, connIds)
-                    ||> List.fold (fun wires connId -> Map.remove connId wires)
-                    |> (fun wires -> printf $"{wires.Count} wires after deletion"; wires))
+                    ||> List.fold (fun wires connId -> Map.remove connId wires))
        
 
 

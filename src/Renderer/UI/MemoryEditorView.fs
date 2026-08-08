@@ -300,9 +300,7 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
             let maxDispLocWrapped = a + numLocsToDisplay - 1I
             let maxDispLoc = if maxDispLocWrapped > a then maxDispLocWrapped else twosComp memory.AddressWidth -1I
             a, min  maxDispLoc maxLocAddr
-    //printfn "makeEditorBody called"
 
-    //printfn "Making body with data=%A, dynamic %A" memory.Data dynamicMem
     // let memory = dynamicMem
     /// Comments written against locations in the .ram file this memory came from. They are shown
     /// here but not edited: the file is where they are written, as the data in a linked memory is.
@@ -313,13 +311,11 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
         let content =  // Need to keep the changes locally as well, since the model does not immediately get updated
             Map.tryFind (addr) memData
             |> Option.defaultValue 0I
-        //printfn "load"
         tr [ SpellCheck false; Style [  Display (if true then DisplayOptions.TableRow else DisplayOptions.None)] ] [
             td [] [ str <| viewNumA (addr) ]
             td [] [
                 let handleInput  (ev: Browser.Types.FocusEvent) =
                     let text = getTextEventValue ev
-                    //printfn "change"
                     match strToIntCheckWidth memory.WordWidth text with
                     | Ok value ->
                         // Close error notification.
@@ -329,14 +325,13 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                             let comp = model.Sheet.GetComponentById compId
                             comp.Type |> (function | (RAM1 d) | (ROM1 d) | (AsyncROM1 d) | (AsyncRAM1 d)-> d
                                                     | _ ->
-                                                       printfn "Should not be here"
+                                                       Log.warn $"a memory editor is open on {compId}, which is not a memory"
                                                        memory)
 
                         dynamicMem <- { dynamicMem with Data = Map.add addr value dynamicMem.Data }
                         model.Sheet.WriteMemoryLine sheetDispatch compId addr value // Only update one row
                         
                         dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)
-                        //printfn "setting value=%d, addr=%d" value addr                       
                     | Error err -> 
                         showError err dispatch
                 
@@ -390,7 +385,6 @@ let private makeFoot editMode dispatch (model: Model)=
     ]
 
 let private makeEditor memory compId model dispatch =
-    // printfn "makeEditor called"
     dynamicMem <- // Need to use a mutable dynamic memory and update it locally so that the shown values are correct since the model is not immediately updated
         match model.SelectedComponent with
         | Some {Type=RAM1 mem} | Some {Type=ROM1 mem} |Some {Type = AsyncROM1 mem} | Some {Type = AsyncRAM1 mem} -> mem

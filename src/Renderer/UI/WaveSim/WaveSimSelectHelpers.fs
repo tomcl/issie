@@ -69,11 +69,11 @@ let ensureWaveConsistency (ws: WaveSimModel) =
         Map.valuesL ws.AllWaves
         |> List.filter (fun wave -> Map.containsKey wave.WaveId.Id fs.WaveComps)
     if okWaves.Length <> ws.AllWaves.Count then
-        printfn "EnsureWaveConsistency: waves,Length=%d, ws.AllWaves.Count=%d" okWaves.Length ws.AllWaves.Count
+        Log.dbg Log.Wave $"wave consistency: {okWaves.Length} valid waves of {ws.AllWaves.Count}"
     let okSelectedWaves =
         ws.SelectedWaves |> List.filter (fun selW -> Map.containsKey selW ws.AllWaves)
     if okSelectedWaves.Length <> ws.SelectedWaves.Length then
-        printfn "ok selected waves length = %d <> selectedwaves length = %d" okSelectedWaves.Length ws.SelectedWaves.Length
+        Log.dbg Log.Wave $"wave consistency: {okSelectedWaves.Length} valid selected waves of {ws.SelectedWaves.Length}"
     okWaves, okSelectedWaves
 
 let isSubSheetOf (subSheetId: string) (sheets: string list) =

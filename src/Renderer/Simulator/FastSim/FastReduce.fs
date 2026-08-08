@@ -193,8 +193,6 @@ let inline  algGate gateType =
 let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =
     let componentType = comp.FType
 
-    // printfn "Reducing %-30A │ ID=%A │ Name=%20A │ Step=%6d │ clocked=%A"  comp.FType comp.ShortId comp.FullName numStep isClockedReduction
-    // printfn "Reducing %A...%A %A (step %d) clocked=%A"  comp.FType comp.ShortId comp.FullName numStep isClockedReduction
     let n = comp.InputLinks.Length
 
     let simStep = numStep % maxArraySize
@@ -204,7 +202,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         else
             simStep - 1
 #if ASSERTS
-    printfn "Warning: simulation is running with ASSERTS on for debugging -this will be very slow!"
+    Log.warn "simulation is running with ASSERTS on for debugging - this will be very slow"
 #endif
 
     ///  get data feom input i of component
@@ -329,9 +327,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | Input1(width, _), false ->
         if comp.Active then //REVIEW - is this neccessary?
             let bits = insUInt32 0
-            //printfn "Got input 0 = %A Links=<%A> len=%d" bits comp.InputLinks comp.InputLinks.Length
             checkWidth width (comp.InputWidth 0)
-            //printfn "output array = %A" comp.Outputs
             putUInt32 0 bits
     | Input1(width, _), true ->
         if comp.Active then
@@ -348,7 +344,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | Constant(width, cVal), true -> putBigInt 0 <| twosComp width cVal
     | Output width, false ->
         let bits = insUInt32 0
-        // printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width (comp.InputWidth 0)
         putUInt32 0 bits
     | Output width, true ->
@@ -357,7 +352,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         putBigInt 0 bits
     | Viewer width,false ->
         let bits = insUInt32 0
-        //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width (comp.InputWidth 0)
         putUInt32 0 bits
     | Viewer width,true ->
@@ -368,7 +362,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | IOLabel,false ->
         let bits = insUInt32 0
         //let bits = comp.InputLinks[0][simStep]
-        //printfn "Reducing IOLabel %A" comp.SimComponent.Label
         putUInt32 0 bits
     | IOLabel,true ->
         let bits = insBigInt 0
@@ -406,7 +399,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 putUInt32 0 outBits
     | BusCompare(width, compareVal), false
     | BusCompare1(width, compareVal, _), false ->
-        //printfn "Reducing compare %A" comp.SimComponent.Label
 #if ASSERTS
         let w = comp.InputWidth 0
         assertThat
@@ -1374,7 +1366,6 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             let mem = getRamStateMemory (numStep + 1) simStep comp.State memory
             let address = insUInt32 0
             let data = readMemoryAddrUInt32DataUInt32 mem address
-            //printfn $"reading {data} from addr={address} with state = {RamState mem}"
             putUInt32 0 data
     | AsyncRAM1 mem, true ->
 #if ASSERTS

@@ -73,7 +73,6 @@ let intersectionOpt (other: Interval) (this: Interval) =
     then
         None
     else
-        //printfn $"Intersecting {this} with {other} gives {startPos} to {endPos}"
         Some { Start = startPos; End = endPos }
 
 //--------------------------------------------------------------------------------//
@@ -199,7 +198,7 @@ let rec highlight (chars: MatchStream) : (string * HighlightT) list =
     | NormalMatch(normalPart, rest) ->
         (normalPart, Normal) :: highlight rest
     | c :: rest -> // this should never happen, because NormalMatch will.
-        printfn $"Warning: character '{c}' is not recognised by highlighter, default to Normal"
+        Log.warnOnce "highlighter-char" $"character '{c}' is not recognised by the highlighter, and is shown as normal text"
         (c.ToString(), Normal) :: highlight rest
 
 //----------------------------------------------------------------------------------------------//
@@ -313,9 +312,7 @@ let updateEditorOnKeyPress (keyPress: KeyPressInfo) (model: Model) =
             cursorY,
             beforeLines @ [ currentLine.Insert(insertIndex, key) ] @ afterLines
         | _, key ->
-            // printfn $"Key {key} with modifiers {modifiers} not handled"
             cursorX, cursorY, noChange
-    // printfn $"Updating model with cursor = char:{newCursorX} line:{newCursorY}"
     let state =
         model.CodeEditorState
         |> Option.defaultValue initCodeEditorState
@@ -400,7 +397,6 @@ type LineData =
 /// Renders a single line of code in the editor, with optional cursor and error indication.
 let renderOneEditorLine (data: LineData) : ReactElement =
     let { LineIndex = lineIndex; LineText = text; CursorX = cursorX; Errors = errors } = data
-    // printfn $"Rendering line {lineIndex} cursor={cursorX}"
     /// the line error indications as a list of react elements
     /// each comprising a string of invisible characters that is highlighted
     /// or not.

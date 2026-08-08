@@ -245,11 +245,8 @@ let getOutputName (withComp: bool) (comp: FastComponent) (port: OutputPortNumber
             bitLimsString (snd c.OutputLabels[getOutputPortNumber port] - 1, 0)
 
         | IOLabel ->
-            //printfn $"IOLabel name {comp.FLabel}"
             let drivingComp = fastSim.FIOActive[ComponentLabel comp.FLabel,snd comp.fId]
-            //printfn "driving compm done"
             let labelWidth = FastExtract.extractFastSimulationWidth fastSim (drivingComp.Id,snd drivingComp.fId) (OutputPortNumber 0)
-            //printfn "label width fdone"
             match labelWidth with
             | 0 ->
                 failwithf $"What? Can't find width for IOLabel {comp.FLabel}$ "
@@ -297,18 +294,15 @@ let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIn
 /// Make Wave for each component and port on sheet
 let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =
     let fc = fastSim.WaveComps[wi.Id]
-    //printfn $"Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}, SubSheet={fc.SubSheet}, SheetName={fc.SheetName}"
     let driver = 
         
         match fastSim.Drivers[wi.SimArrayIndex] with
         | Some d -> d
         | None ->
-            printfn "What? No driver!"
-            printfn $"ERROR Making wave for {fc.FullName}, portType={wi.PortType}, portNumber={wi.PortNumber}, SubSheet={fc.SubSheet}, SheetName={fc.SheetName}"
-            printfn $"Can't find simulation waveform driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}]"
+            Log.error $"no simulation waveform driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}] (subsheet {fc.SubSheet}, sheet {fc.SheetName})"
             failwithf "Aborting..."
     if driver.DriverWidth = 0 then 
-        printfn $"Warning! 0 width driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}]"
+        Log.warn $"zero-width driver for {fc.FullName}.{wi.PortType}[{wi.PortNumber}]"
     let dispName = getName wi fastSim
     let portLabel =
         match wi.PortType with

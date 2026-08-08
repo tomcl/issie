@@ -69,7 +69,6 @@ let private hexToBin (hStr: string) : string =
                 | 'e' | 'E' -> "1110"
                 | 'f' | 'F' -> "1111"
                 | c ->
-                    printf "Invalid char %c while converting hex %s to binary" c hStr
                     failwithf "Invalid char %c while converting hex %s to binary" c hStr
 
             digit + (convert h')
@@ -98,7 +97,6 @@ let private hexToBin (hStr: string) : string =
             | 'e' | 'E' -> "1110"
             | 'f' | 'F' -> "1111"
             | c ->
-                printf "Invalid char %c while converting hex %s to binary" c hStr
                 failwithf "Invalid char %c while converting hex %s to binary" c hStr
 
         firstDigit + (convert chars')
@@ -108,7 +106,7 @@ let private hexToBin (hStr: string) : string =
     
 
 /// Display a bignum as hex, always using 'x' prefix.
-/// NB - printf %x does bnot work for bignums
+/// NB - printf %x does not work for bignums
 let hexBignum (num: bigint) =
     /// string representation of the hex digits of num, without leading zero or prefix.
     /// Needed because "%x" does not work on bignums.
@@ -447,7 +445,7 @@ let convertFastDataToWireData (fastDat: FastData) =
     // looped forever on every BigWord
     let bigToWire width b =
         if b < 0I then
-            printfn $"Warning - invalid BigWord FastData case {b} < 0"
+            Log.warn $"invalid BigWord FastData case {b} < 0"
             []
         else
             convertIntToWireData width b

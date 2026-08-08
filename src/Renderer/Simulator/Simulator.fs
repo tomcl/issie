@@ -130,7 +130,6 @@ let saveStateInSimulation
     =
     let diagramName = openFileName
     let ldcs = getUpdatedLoadedComponentState diagramName canvasState loadedComponents
-    //printfn $"diagramName={diagramName}, sheetNames = {ldcs |> List.map (fun ldc -> ldc.Name)}"
     sheetsNeeded ldcs diagramName
     |> List.map (getSheet ldcs)
     |> (fun updatedLdcs ->
@@ -231,7 +230,7 @@ let startCircuitSimulation
                         ClockTickNumber = 0 }
             | Error e -> Error e
         with e ->
-            printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
+            Log.error $"exception during simulation: {e.Message}\n{e.StackTrace}"
 
             Error
                 {   ErrType = InternalError e
@@ -282,7 +281,7 @@ let startCircuitSimulationFData
                 with
                 | AlgebraNotImplemented e -> Error e
                 | e ->
-                    printfn "\nEXCEPTION:\n\n%A\n%A\n\n" e.Message e.StackTrace
+                    Log.error $"exception during simulation: {e.Message}\n{e.StackTrace}"
 
                     Error
                         { ErrType = InternalError e
@@ -391,7 +390,6 @@ let prepareSimulationMemoized
         (canvasState : CanvasState)
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationData, SimulationError> * CanvasState =
-    //printfn $"Diagram{diagramName}, open={openFileName}, deps = {loadedDependencies |> List.map (fun dp -> dp.Name)}"
     if isWaveSim then
         let storedArraySize = simCacheWS.FastSim.MaxArraySize
         
@@ -403,7 +401,7 @@ let prepareSimulationMemoized
         if  isSame then
             simCacheWS.StoredResult, canvasState
         else
-            printfn $"New Waveform simulation of {simulationArraySize} clocks"
+            Log.dbg Log.Sim $"new waveform simulation of {simulationArraySize} clocks"
             simCacheWS <- {simCacheWS with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
             let name, state, ldcs = getStateAndDependencies diagramName ldcs
             let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs
@@ -424,7 +422,7 @@ let prepareSimulationMemoized
         if  isSame then
             simCache.StoredResult, canvasState
         else
-            printfn $"New simulation of {simulationArraySize} clocks"
+            Log.dbg Log.Sim $"new simulation of {simulationArraySize} clocks"
             simCache <- {simCache with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
             let name, state, ldcs = getStateAndDependencies diagramName ldcs
             let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs

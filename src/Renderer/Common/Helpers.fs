@@ -77,7 +77,6 @@ open System.Text.RegularExpressions
         /// .dgm file, which would overwrite the sheet with garbage.
         let stateToJsonString (cState: CanvasState, waveInfo: SavedWaveInfo option, sheetInfo: SheetInfo option) : Result<string,string> =
             let time = System.DateTime.Now
-            //printfn "%A" cState
             try
                  let savedInfo = NewCanvasWithFileWaveSheetInfoAndNewConns (convStateToJC cState, waveInfo, sheetInfo, time)
                  #if FABLE_COMPILER
@@ -120,7 +119,7 @@ open System.Text.RegularExpressions
                         | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
                             Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)                               
                         | Error str -> 
-                            printfn "Error in Json parse of %s : %s" jsonString str
+                            Log.error $"could not parse saved JSON ({jsonString.Length} chars): {str}"
                             Error str)
             #else
             match Decode.Auto.fromString<LegacyCanvasState>(jsonString, extra = extraCoder) with
@@ -133,7 +132,7 @@ open System.Text.RegularExpressions
                     | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
                         Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)
                     | Error str ->
-                        printfn "Error in Json parse of %s : %s" jsonString str
+                        Log.error $"could not parse saved JSON ({jsonString.Length} chars): {str}"
                         Error str
             #endif
 
@@ -324,10 +323,6 @@ open Fable.Core
 
 /// Functions to print human-readable version of CanvasState
 module PrintSimple =
-
-    /// Print any object as Javascript for low-level debug
-    [<Emit("console.log($0)")>]
-    let JSPrint msg : unit = jsNative
 
     /// Crop a string to first n chars
     let crop (s:string) =

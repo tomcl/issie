@@ -387,12 +387,13 @@ let linkAndRemoveSameNetSegments (lines: Line array) (cluster: Cluster) =
     |> List.map (fun line -> line.Lid.Index)
     |> (fun newSegs -> {cluster with Segments = newSegs})
 
-/// print diagnostics in rare case that a segment gets "orphaned"
-/// this should probably never happened and be fixed if anything is printed.
-let printLostSegmentInCluster (msg:string) (lines: Line array) (lostIndex: int) (loc: Cluster) =
-    printf "%s" msg
-    // TODO: add diagnostic info here
-    ()
+/// Report the rare case of a segment getting "orphaned" - left out of every cluster.
+/// This should probably never happen, and should be fixed if it is ever seen.
+///
+/// Once per key, not once per occurrence: this is reached from the separation scan, which runs on
+/// every symbol move, so an unconditional complaint here would arrive at drag rate.
+let warnLostSegmentInCluster (msg: string) (lines: Line array) (lostIndex: int) (loc: Cluster) =
+    Log.warnOnce msg $"{msg} (segment index {lostIndex}, cluster of {loc.Segments.Length})"
 
 /// Scan through segments in P order creating a list of local Clusters.
 /// Within one cluster segments are adjacent and overlapping. Note that
@@ -425,7 +426,7 @@ let makeClusters (lines: Line array) : Cluster list =
             /// Return original cluster in a list with new cluster containing lost segment if needed.
             let handleLostNextIndex (msg: string) (loc: Cluster) =
                 if not <| List.contains nextIndex loc.Segments then
-                    printLostSegmentInCluster msg lines nextIndex loc
+                    warnLostSegmentInCluster msg lines nextIndex loc
                     let orphanLoc = {
                         Segments = [nextIndex]
                         UpperFix = None
@@ -458,7 +459,7 @@ let makeClusters (lines: Line array) : Cluster list =
                         else
                             // we have some loc1 segments (segs)  not captured by l2
                             if not <| List.contains nextIndex loc1LostSegs then
-                                printf "What? nextIndex has got lost from loc1! Trying to repair..."
+                                Log.warnOnce "cluster-lost-segment" "a segment was lost from a wire cluster during separation, and was repaired"
 
                             { loc1 with
                                 Segments = loc1LostSegs
@@ -543,16 +544,12 @@ let calcSegPositions model lines (loc: Cluster) =
     match loc.UpperFix, loc.LowerFix, nSeg with
     | None, None, 1 -> () // no change
     | Some bMax, Some bMin, n when (bMax - bMin) / (float n + 1.) < maxSep ->
-        //printf $"spread {nSeg} constrained"
         spreadFromMiddle ((bMax + bMin) / 2.) ((bMax - bMin) / (float n + 1.))
     | _, Some bMin, _ when bMin + maxSep > idealStart ->
-        //printf $"spread {nSeg} from start"
         spreadFromStart (bMin + maxSep) maxSep
     | Some bMax, _, n when bMax - maxSep < idealEnd ->
-        //printf $"spread {nSeg} from end - endP={bMax-maxSep}"
         spreadFromEnd (bMax - maxSep) maxSep
     | bMax, bMin, n ->
-        //printf $"spread {nSeg} from middle bmax= {bMax}, bMin={bMin}"
         spreadFromMiddle idealMidpoint maxSep
 
 
@@ -617,7 +614,7 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
                 let space1 = getSpacefromLine allLines line1 line2 2*maxSegmentSeparation
                 let space2 = getSpacefromLine allLines line2 line1 2*maxSegmentSeparation
                 if space1 < overlapTolerance && space2 < overlapTolerance then
-                    printf "WARNING: No space for fixed segment shifting overlap"
+                    Log.warnOnce "no-space-for-overlap" "no space to shift a fixed segment out of an overlap"
                 if abs space1 > abs space2 then
                     line1.P <- line1.P + space1 * 0.5
                 else
@@ -763,7 +760,6 @@ let isSegmentExtensionOk
         | Horizontal -> aSegStart.Y, aSegStart.X
     /// check there is room for the proposed segment extension
     let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min startC startC+newLength; MaxB = max startC startC+newLength}}
-    // printf $"P=%.0f{extension.ExtP}, ori={extension.ExtOri}, B=%A{extension.ExtB}"
     // a zero-length segment means the two segments on either side of it are parallel and may overlap.
     // if we change the length of a segment next to a zero-length segment we must ensure that it does not double back on itself.
     // usually that will mean coming thr wrong wau out of a component edge (inside the component)!
@@ -835,7 +831,6 @@ let removeCorner (info: LineInfo) (wc: WireCorner): LineInfo =
         |> List.removeManyAt start num
         |> (List.mapi (fun i seg -> if i > start - 1 then {seg with Index = i} else seg))
 
-    //printf $"**Removing corner: visible nub={getVisibleNubLength false wc.Wire}, {getVisibleNubLength true wc.Wire} **"
     let addLengthToSegment (delta:float) (seg: Segment)=
         {seg with Length = seg.Length + delta}
     let wire' = 
@@ -943,7 +938,6 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
         if wiresToRoute = [] then
             model // do nothing
         else
-            printfn "Separating all segments!"
             // Currently: separate all wires - not just those (in wiresToRoute) that
             // have changed. This prevents unrouted segments from pinning new segments.
             // TODO: see whetehr something better can be worked out, and whether routing segments
@@ -987,8 +981,8 @@ let updateWireSegmentJumpsAndSeparations wires model  =
 /// Uses partial routing if possible.
 let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
     let wires = filterWiresByCompMoved model [compId]
-    printfn "Routing and separating symbol wires:\n\
-        %d inputs, %d outputs, %d both" wires.Inputs.Length wires.Outputs.Length wires.Both.Length
+    Log.dbg Log.Wire $"routing and separating symbol wires: {wires.Inputs.Length} inputs, \
+                       {wires.Outputs.Length} outputs, {wires.Both.Length} both"
     let newWires =
         model.Wires
         |> Map.toList
@@ -1009,7 +1003,6 @@ let routeAndSeparateSymbolWires (model: Model) (compId: ComponentId) =
 /// all wires from comps have all segments made auto.
 /// then the separation logic is rerun on these wires
 let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
-    printfn "reseparating wires"
     let wires' =
         getConnectedWires model comps
         |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))
@@ -1023,7 +1016,6 @@ let reSeparateWiresFrom (comps: ComponentId list) (model: Model) =
 /// all wires from comps are autorouted from scratch
 /// then the separation logic is rerun on these wires
 let reRouteWiresFrom  (comps: ComponentId list) (model: Model) =
-    printfn "reroute wires"
     let wires' =
         getConnectedWires model comps
         |> List.collect (fun w -> Option.toList (resetWireToAutoKeepingPositionOpt w))

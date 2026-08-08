@@ -44,10 +44,15 @@ process.on('SIGINT', () => {
   shutdown(0);
 });
 
+// Switches that are not this script's own are meant for Electron, and start.js passes them on:
+// `npm run dev -- --log=wire` is how a log category is on before the app's first line runs.
+const ours = ['--once', '--asserts', '--no-app'];
+const forwarded = process.argv.slice(2).filter((a) => a.startsWith('--') && !ours.includes(a));
+
 function startApp() {
   if (appProc || noApp) return;
   console.log(`\x1b[32m[App]${reset} Starting webpack dev server and Electron...`);
-  appProc = spawn(process.execPath, [path.join(__dirname, 'start.js')], {
+  appProc = spawn(process.execPath, [path.join(__dirname, 'start.js'), ...forwarded], {
     cwd: root,
     stdio: 'inherit',
     env: { ...process.env, NODE_ENV: 'development', ELECTRON_ENABLE_LOGGING: 'true' },

@@ -65,7 +65,6 @@ let makeClickableReturner
             : MenuItemConstructorOptions =
     [|
         "click", unbox (Some (fun _  ->
-                    //printfn "dispatching: %s, %s" menuType s
                     ev.preventDefault()
                     dispatchToRenderer (menuType,s)
                     ev))
@@ -83,12 +82,11 @@ let makeMenu
     (args: ResizeArray<obj option>) =
     let menuType:string = unbox args
 
-    //printf "%A" menuType
     let cases =
         Map.tryFind menuType menuMap
         |> function
             | None ->
-                printfn "%s" $"Error: '{menuType}' must be a valid menu name: one of {menuMap |> Map.keys |> Seq.toList}"
+                Log.warn $"'{menuType}' is not a menu name: it must be one of {menuMap |> Map.keys |> Seq.toList}"
                 ["unknown_menu"]
             | Some cases ->
                 cases

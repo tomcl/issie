@@ -213,7 +213,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                                         {| WSM= res2.WSM; SpinnerPayload=None; NumToDo = numToDo - res2.NumberDone|}
                                     | numToDo, _ ->
                                         if res.NumberDone = 0 && numToDo > 0 then
-                                            printf $"No waves completed when {numToDo} are required. This is probably an error. Retrying refreshWaveSim"
+                                            Log.warn $"no waves completed when {numToDo} are required - retrying refreshWaveSim"
                                         let payload = Some ("Updating Waveform Display", refreshWaveSim false res.WSM >> fst)
                                         {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
 
@@ -327,8 +327,6 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
             div [Style [WhiteSpace WhiteSpaceOptions.Nowrap]]
                 [str text  ; span [Style [Color "#3e8ed0"; MarginLeft "5px"]] [str $"{sheet}"]]
     let wsModel = getWSModel model
-    //printfn $"Active wsModel sheet={model.WaveSimSheet}, state = {wsModel.State}"
-    //printfn $"""Wavesim states: {model.WaveSim |> Map.toList |> List.map (fun (sh, ws) -> sh, ws.State.ToString(),ws.Sheets)}"""
     let loading =
         match wsModel.State with
         | Loading -> true

@@ -173,7 +173,7 @@ let makeSourceMenu
     let projOpt = model.CurrentProj
     match dialog.MemorySetup with
     | None ->
-        printfn "Error: can't find memory setup in dialog data"
+        Log.warn "no memory setup in the dialog data"
         div [] []
     | Some (n1, n2, mem, nameOpt) ->
 
@@ -301,7 +301,7 @@ type SheetTree = {
 
      member this.SimName (fs:SimTypes.FastSimulation) =
         if not <| fs.SimSheetNameMap.ContainsKey this.SheetAccessPath then
-            printfn $"SheetTree.SimName: {this.LabelPath} not in map"
+            Log.warn $"sheet {this.LabelPath} is not in the simulation name map"
             "Error"
         else
             fs.SimSheetNameMap.[this.SheetAccessPath]
@@ -334,7 +334,6 @@ let rec makeBreadcrumbNamesUnique (tree: SheetTree) =
 
             
 let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> Model) (tree: SheetTree) (model: Model)=
-    printf "traversing %A" tree.SheetName
     model
     |> folder isSubSheet tree
     |> fun model -> List.fold (fun model tree -> foldOverTree false folder tree model) model tree.SubSheets
@@ -524,7 +523,6 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
         match readLastBackup comp with
         | Some( n, fp, path) -> n+1,fp, path
         | None -> 0, "", pathJoin [|comp.FilePath; "backup"|]
-    //printfn "seq=%d,name=%s,path=%s" nSeq backupFileName backFilePath
     let wantToWrite, oldFile =
         if backupFileName = "" then
             true, None
@@ -545,7 +543,7 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
                         true, Some oldBackupFile
                         
             | err -> 
-                printfn "Error: writeComponentToBackup\n%A" err
+                Log.error $"writing a component backup: {err}"
                 true, None
     if wantToWrite then
         let timestamp = System.DateTime.Now
@@ -582,7 +580,6 @@ let writeComponentToBackupFileNow (numCircuitChanges: int) (numHours:float) comp
         match readLastBackup comp with
         | Some( n, fp, path) -> n+1,fp, path
         | None -> 0, "", pathJoin [|comp.FilePath; "backup"|]
-    //printfn "seq=%d,name=%s,path=%s" nSeq backupFileName backFilePath
     let wantToWrite, oldFile =
         if backupFileName = "" then
             true, None
@@ -603,7 +600,7 @@ let writeComponentToBackupFileNow (numCircuitChanges: int) (numHours:float) comp
                         true, Some oldBackupFile
                         
             | err -> 
-                printfn "Error: writeComponentToBackup\n%A" err
+                Log.error $"writing a component backup: {err}"
                 true, None
     if wantToWrite then
         let timestamp = System.DateTime.Now
@@ -650,7 +647,6 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
     let ldcs = tryGetLoadedComponents model
     let name = compToSetup.Name
     let components, connections = compToSetup.CanvasState
-    //printfn "Loading..."
     let msgs = 
         [
             SetHighlighted([], []) // Remove current highlights.
@@ -662,7 +658,6 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
     
             // Finally load the new state in the canvas.
             SetIsLoading true
-            //printfn "Check 1..."
     
             //Load components
             Sheet (SheetT.Wire (BusWireT.Symbol (SymbolT.LoadComponents (ldcs,components ))))
@@ -671,11 +666,9 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
 
             Sheet SheetT.FlushCommandStack // Discard all undo/redo.
             // Run the a connection widths inference.
-            //printfn "Check 4..."
     
             Sheet (SheetT.Wire (BusWireT.BusWidths))
             // JSdispatch <| InferWidths()
-            //printfn "Check 5..."
             // Set no unsaved changes.
 
             Sheet SheetT.UpdateBoundingBoxes
@@ -707,7 +700,6 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
             // its declared defaults. Must follow the choice above, which can change the top.
             ApplyComputedDisplayValues
 
-            //printfn "Check 6..."
         ]
     //INFO - Currently the spinner will ALWAYS load after 'SetTopMenu x', probably it is the last command in a chain
     //Ideally it should happen before this, but it is not currently doing this despite the async call
@@ -988,17 +980,15 @@ let openDemoProjectFromPath (path:string) model dispatch =
 
     warnAppWidth dispatch (fun _ ->
 
-        traceIf "project" (fun () -> "loading files")
+        Log.dbg Log.Files $"loading demo project {path}"
         match loadAllComponentFiles path with
         | Error err ->
-            log err
+            Log.error err
             displayFileErrorNotification err dispatch
 
         | Ok (componentsToResolve: LoadStatus list) ->
-            traceIf "project" (fun () -> "resolving popups...")
-            
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
-            traceIf "project" (fun () ->  "project successfully opened.")
+            Log.dbg Log.Files $"opened project {path}"
 
     )
 
@@ -1006,18 +996,16 @@ let openDemoProjectFromPath (path:string) model dispatch =
 let openProjectFromPath (path:string) model dispatch =
     warnAppWidth dispatch (fun _ ->
     dispatch (ExecFuncAsynch <| fun () ->
-        traceIf "project" (fun () -> "loading files")
+        Log.dbg Log.Files $"loading project {path}"
         match loadAllComponentFiles path with
         | Error err ->
-            log err
+            Log.error err
             displayFileErrorNotification err dispatch
             model.UserData.RecentProjects
             |> Option.map (List.filter ((<>) path)) 
         | Ok (componentsToResolve: LoadStatus list) ->
-            traceIf "project" (fun () -> "resolving popups...")
-            
             resolveComponentOpenPopup path [] componentsToResolve model dispatch
-            traceIf "project" (fun () ->  "project successfully opened.")
+            Log.dbg Log.Files $"opened project {path}"
             addToRecents path model.UserData.RecentProjects
         |> fun recents ->
                 dispatch <| SetUserData {
@@ -1042,7 +1030,7 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
     let n = List.tryFindIndex (fun (lc: LoadedComponent) -> lc.Name = name) lcLst
     match n with
     | None -> 
-        printf "In updateLoadedcomponents can't find name='%s' in components:%A" name lcLst
+        Log.warn $"updateLoadedComponents cannot find a sheet named '{name}'"
         lcLst
     | Some n ->
         let oldLc = lcLst[n]
@@ -1089,8 +1077,6 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
     | _, None -> None
     | canvasState, Some project ->
         // "DEBUG: Saving Sheet"
-        // printfn "DEBUG: %A" project.ProjectPath
-        // printfn "DEBUG: %A" project.OpenFileName
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
         // slots of components deleted from the canvas must not be saved
         let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description ; ParameterDefinitions= CanvasExtractor.tidyParamSlots canvasState ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet} //only user defined sheets are editable and thus saveable
@@ -1138,8 +1124,6 @@ let saveOpenFileToModel model =
     | _, None -> None
     | canvasState, Some project ->
         // "DEBUG: Saving Sheet"
-        // printfn "DEBUG: %A" project.ProjectPath
-        // printfn "DEBUG: %A" project.OpenFileName
         let ldc = project.LoadedComponents |> List.find (fun lc -> lc.Name = project.OpenFileName)
         // slots of components deleted from the canvas must not be saved
         let sheetInfo: SheetInfo = {Form = ldc.Form; Description = ldc.Description; ParameterDefinitions= CanvasExtractor.tidyParamSlots canvasState ldc.LCParameterSlots; IsTopSheet = Some ldc.IsTopSheet} //only user defined sheets are editable and thus saveable
@@ -1189,9 +1173,8 @@ let saveOpenProjectInNewFormat (model: Model) =
             let sheetInfo = {Form=comp.Form;Description=comp.Description; ParameterDefinitions= comp.LCParameterSlots; IsTopSheet = Some comp.IsTopSheet}
             let savedState = comp.CanvasState, None, Some sheetInfo
             match saveStateToFileExperimental project.ProjectPath comp.Name savedState with
-            | Ok _ -> printfn "Successfully saved %s" comp.Name
-            | Error errr -> printfn "Error on saving %s: %s" comp.Name errr)
-        |> fun _ -> printfn "Done"
+            | Ok _ -> Log.dbg Log.Files $"saved {comp.Name}"
+            | Error errr -> Log.error $"saving {comp.Name}: {errr}")
 
 /// save current open file, updating model etc, and returning the loaded component and the saved (unreduced) canvas state
 let saveOpenFileActionWithModelUpdate (model: Model) (dispatch: Msg -> Unit) =
@@ -1222,7 +1205,7 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
     let newModel = {model with CurrentProj = Some project}
     match getFileInProject name project with
     | None ->
-        printf "%s" $"Anomalous project: sheet {name}.dgm not found"
+        Log.warn $"sheet {name}.dgm is not in the project"
         SetFilesNotification <| errorFilesNotification 
            $"Warning: Issie could not find the file '{name}.dgm' in the project. Did you delete a file manually?"
         |> dispatch
@@ -1315,12 +1298,10 @@ let removeFileInProject name project model dispatch =
         failwithf "What? - this cannot happen"
     | nc, true ->
         // open one of the undeleted loadedcomponents
-        //printfn $"remove sheet '{name}'"
         //printSheetNames {model with CurrentProj = Some project'}
         openFileInProject' false project'.LoadedComponents[0].Name project' model dispatch
     | nc, false ->
         // nothing chnages except LoadedComponents
-        //printfn $"remove sheet '{name}'"
         //printSheetNames {model with CurrentProj = Some project'}
         openFileInProject' false project'.OpenFileName project' model dispatch
     dispatch FinishUICmd

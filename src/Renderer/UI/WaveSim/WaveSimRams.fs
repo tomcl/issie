@@ -41,7 +41,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
     | Some fc -> 
         let step = wsModel.CursorExactClkCycle
         if fs.ClockTick < step then
-            printf "Extending Fast Simulation to cycle %d\n in ramTable" step
+            Log.dbg Log.Wave $"extending the fast simulation to cycle {step} for the RAM table"
         //FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
         // in some cases fast sim is run for one cycle less than currClockCycle
         let memData =
@@ -52,10 +52,10 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             | AsyncRAM1 mem -> 
                 match FastExtract.extractFastSimulationState fs wsModel.CursorExactClkCycle ramId with
                 |RamState mem -> mem
-                | x -> printf $"What? Unexpected state from cycle {wsModel.CursorExactClkCycle} \
-                        in RAM component '{ramLabel}'. FastSim step = {fs.ClockTick}"
-                       printfn $"State is {x}"
-                       failwithf "unexpected Error in ramTable - see printed message"
+                | x ->
+                    Log.warn $"unexpected state {x} from cycle {wsModel.CursorExactClkCycle} in RAM \
+                               component '{ramLabel}' (fast sim step {fs.ClockTick})"
+                    failwithf $"unexpected state in the RAM table for '{ramLabel}'"
             | _ ->
                 failwithf $"Given a component {fc.FType} which is not a vaild RAM"
         let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
@@ -265,7 +265,7 @@ let ramTables (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model): Re
                     |> function 
                         | [a;b] -> [str "Key: Memory location is " ; a; str ", or " ;b; str ". Click waveforms or use cursor control to change current cycle."] 
                         | x ->
-                            printfn $"Unexpected failure in ramTables: x = {x}"
+                            Log.warn $"unexpected header row in ramTables: {x}"
                             failwithf "What? Can't happen!"
                 List.map (fun ram -> td [Style [BorderColor "white"]] [ramTable dispatch wsModel model ram])  selectedRams
                 |> (fun tables -> [tbody [] [tr [] [th [ColSpan selectedRams.Length] [inlineStyle [] headerRow]]; tr [Style [Border "10px"]] tables]])
@@ -280,7 +280,7 @@ let ramTables (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model): Re
         // An error here is probably because the view code is displaying RAMs before simulation had finished.
         // It is not fatal, and does no harm to the simulation. This error boundary ignores the error printing
         // a message to the console, and displaying a blank div.
-        | e -> printfn "Error in ramTables display: %A" e.Message
+        | e -> Log.dbg Log.Wave $"RAM table drawn before the simulation finished: {e.Message}"
                div [] []
     |> TimeHelpers.instrumentInterval "ramTables" start
 

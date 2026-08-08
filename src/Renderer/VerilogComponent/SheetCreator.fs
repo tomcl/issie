@@ -400,26 +400,20 @@ let fixConsecutiveWires (oldCanvasState: CanvasState) =
     snd oldCanvasState
     |> List.iter (fun conn ->
         if not (Set.contains conn.Source.HostId componentIds) then
-            printfn "Missing source component %s in connection %A"
-                conn.Source.HostId conn
+            Log.warn $"missing source component {conn.Source.HostId} in a connection"
 
         if not (Set.contains conn.Target.HostId componentIds) then
-            printfn "Missing target component %s in connection %A"
-                conn.Target.HostId conn
+            Log.warn $"missing target component {conn.Target.HostId} in a connection"
     )
 
     // get connections between wires
     let wireConns = 
         snd oldCanvasState
         |> List.filter(fun conn -> 
-            // printfn "component map %A" componentMap
-            // printfn "source: %A, target: %A" conn.Source.HostId conn.Target.HostId
             let src = Map.tryFind conn.Source.HostId componentMap
             let dst = Map.find conn.Target.HostId componentMap
             match src with
             | None -> 
-                printfn "component map %A" componentMap
-                // printfn "source %A" conn.Source.
                 failwithf "source: %A, target: %A" conn.Source.HostId conn.Target.HostId
             | Some a -> a.Type = IOLabel && dst.Type = IOLabel
             // let src, dst = (Map.find conn.Source.HostId componentMap), (Map.find conn.Target.HostId componentMap)
@@ -648,7 +642,6 @@ let createNumberCircuit (number:Number) =
                 | Hex -> "0x"+digits
                 | Decimal -> digits
             bits, text
-    // printf "widht: %i, text: %s" width text
     let constValue =
         match NumberHelpers.strToIntCheckWidth width text with
         |Ok n -> n
@@ -809,16 +802,12 @@ let getExprWidths (varSizeMap: Map<string, int>)(paramMap: Map<string, int>)(exp
                         match Map.tryFind id.Name varSizeMap, None with
                         | Some width, _ -> width, None, false
                         | None, _ -> 
-                            printf "primary %s" id.Name
-                            // printf "CHECK PARAM IS RIGHT?? paramname = %s, value = %i" id.Name (Map.find id.Name paramMap)
                             1, None, true
                     | IdentifierArray (id, _, bStart, bEnd) ->
                         (bStart - bEnd + 1), None, false
                         // match Map.tryFind id.Name varSizeMap, None with
                         // | Some width, _ -> width, None, false
                         // | None, _ -> 
-                        //     printf "primary %s" id.Name
-                        //     // printf "CHECK PARAM IS RIGHT?? paramname = %s, value = %i" id.Name (Map.find id.Name paramMap)
                         //     1, None, true
                         // // TODO: fail gracefully if not found in either map
                     | IdentifierBit _ ->
@@ -833,8 +822,6 @@ let getExprWidths (varSizeMap: Map<string, int>)(paramMap: Map<string, int>)(exp
                         1, Some (getMinWidthsExpr expr), false
                     | VariableArrayBitSel (id, indices, idx) ->
                         1, Some (getMinWidthsExpr idx), false
-                        // printf "primary %s" id.Name
-                        // printfn "varsize map %A" varSizeMap
                         // match Map.tryFind id.Name varSizeMap, None with
                         // | Some width, _ -> width, None, false
                         // | None, _ -> 1, None, true
@@ -878,8 +865,6 @@ let getExprWidths (varSizeMap: Map<string, int>)(paramMap: Map<string, int>)(exp
 
 let extendCircuit (target:int) (circuit: Circuit)  =
     let widthDiff = target-circuit.OutWidth
-    // printf "ERROR CHECK WIDTH: target = %i, circuit width = %i" target circuit.OutWidth
-    // printf "circuit wrong: %A" circuit
     if widthDiff<0 then failwithf "Target width is smaller than circuit width!"
     elif widthDiff=0 then circuit
     else 
@@ -980,7 +965,6 @@ let mainExpressionCircuitBuilder (expr:ExpressionDU) ioAndWireToCompMap varSizeM
         | EUnary -> 
             buildUnaryCircuit (Option.get expr.Unary) targetWidth
             |> extendCircuit targetWidth
-            // printf "ERROR CHECK: unarywidth = %i" (Option.get expr.Unary).Width
         | ENegation ->
             let (c1:Circuit) = buildUnaryCircuit (Option.get expr.Unary) targetWidth |> extendCircuit targetWidth
             let topComp = buildExpressionComponent expr c1.OutWidth
@@ -1067,10 +1051,8 @@ let mainExpressionCircuitBuilder (expr:ExpressionDU) ioAndWireToCompMap varSizeM
                 createArrayCircuit (Option.get unary.Primary) ioAndWireToCompMap arraySizeMap compList
             | None ->
                 //handle variable bitselect:
-                // printf("checking for vbs, primary: %A, expr: %A") unary.Primary unary.Expression
                 match unary.Primary, unary.Expression with
                 | Some (VariableBitSelect (id, _)), Some expr -> 
-                    // printfn("vbs hit, expr: %A") expr
                     // let index = checkForParamsInExpr expr paramMap
                     let index = buildExpressionCircuit expr expr.Width
                     let (primaryComp: Component) = Map.find id.Name ioAndWireToCompMap
@@ -1825,8 +1807,6 @@ let getInitialMapAndCircuits (veriloginput: VerilogInput) (project:Project) para
     let varSizeMap = Map.fold (fun acc key value -> Map.add key value acc) wireSizeMap portSizeMap
     let combVars = getCombinationalVars veriloginput project
     let clockedVars = getClockedVars veriloginput
-    // printf "Combinational vars: %A\n" combVars
-    // printf "Clocked vars: %A\n" clockedVars
     let varToCompMap = 
         (ioToCompMap, combVars)
         ||> List.fold ( fun map var ->
@@ -1836,7 +1816,6 @@ let getInitialMapAndCircuits (veriloginput: VerilogInput) (project:Project) para
                 let wireComp = createComponent IOLabel var
                 Map.add var wireComp map
             )
-    // printfn "varToCompMap %A" varToCompMap
     let combArrays = 
         combVars
         |> List.filter (fun var -> Map.containsKey var arraySizeMap) 
@@ -1859,7 +1838,7 @@ let getInitialMapAndCircuits (veriloginput: VerilogInput) (project:Project) para
                 Map.add var regComp varMap, arrayMap
             | _ -> match Map.tryFind var arraySizeMap with
                     | Some s ->
-                        printfn "Adding array %s to component map with size %A" var s
+                        Log.dbg Log.Misc $"adding array {var} to the component map with size {s}"
                         let vectorWidth = fst s
                         let arrayDims = snd s
                         let addressWidth = int (ceil (System.Math.Log (float arrayDims[0], 2.0)))
@@ -1897,14 +1876,12 @@ let getInitialMapAndCircuits (veriloginput: VerilogInput) (project:Project) para
         )
         |> Map.filter (fun var _ -> var <> "clk")
     
-    // printfn "initialCircuits %A" initialCircuits
 
     // add in array circuits
     let initialArrayCircuits =
         (Map.empty, arraySizeMap)
         ||> Map.fold (fun map var dims ->
             // dims = (vector width, array dims)
-            // printf "Adding initial circuit for array %s with dims %A\n" var dims
             match Set.contains var inputs, Set.contains  var clockedVarsSet with
             | true, _ -> failwithf "Arrays should not be accepted as IO"
             | false, false ->
@@ -1928,7 +1905,6 @@ let getInitialMapAndCircuits (veriloginput: VerilogInput) (project:Project) para
             |> Map.filter (fun var _ -> var <> "clk")
         )
 
-    // printf "Initial array circuits: %A\n" initialArrayCircuits
 
 
     let ioVars = 
@@ -1954,7 +1930,6 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
         | ContStatement contAssign ->
             compileModuleRec (Assignment contAssign.Assignment) varToCompMap currCircuits currArrayCircuits
         | Assignment assign -> 
-            // printfn "Compiling assignment: %A" assign
             let outPort = assign.LHS.PrimaryType |> getPrimaryName
 
             let arrayBool =
@@ -2397,7 +2372,6 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                                 match tryLoadComponentFromPath path2 with
                                 |Ok comp -> comp
                                 |Error _ -> failwithf "failed to load the created Verilog file"
-                            // printf "initial project: %A" project
 
                             let updateParentCanvasStates (project: Project) (parentName: string) (oldName: string) (newName: string) =
                                 let updateComp (comp: Component) =
@@ -2423,7 +2397,6 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                             let updatedProject =
                                 updateParentCanvasStates updatedProject compName modInst.Module.Name name
                                 
-                            // printf "updated project: %A" updatedProject.LoadedComponents
                             openFileInProject project.OpenFileName updatedProject model dispatch
                             // failwithf "nested comp %A" nestedComponent
                             // failwithf "project: %A" project
@@ -2470,7 +2443,6 @@ let rec compileModule (node: ASTNode) (varToCompMap: Map<string,Component>) (ioT
                 ||> List.fold (fun circuits (primary, port) ->
                     let outPort = getPrimaryName primary
                     let bits = sliceFromBitsPrimary primary varToCompMap varSizeMap paramMap// need different logic for variable indexed bit select
-                    // printf "outPort: %s, inputCircuit: %A, bits: %A" outPort inputCircuit bits
                     let circuit = {inputCircuit with Out=port; OutWidth=(bits.MSB-bits.LSB+1)}
                     let currCircuit = 
                         match Map.tryFind outPort circuits with
@@ -2516,7 +2488,6 @@ let createSheet (veriloginput:VerilogInput) (project:Project) model dispatch=
         |> Map.toList
         |> List.sortBy (fun (s,c) -> Option.defaultValue -1 (List.tryFindIndex (fun var -> var=s) ioVars))
        
-    // printfn "peritemcircuits %A" perItemCircuits
 
     // list of canvas states, one per output
     // here all slices are merged together with mergeWires to create one CanvasState per output
@@ -2524,7 +2495,6 @@ let createSheet (veriloginput:VerilogInput) (project:Project) model dispatch=
     let csList = 
         perItemCircuits
         |> List.map (fun (portName,circuit) ->
-            // if (portName = "i") then printfn "circuit %A" circuit
             
             attachToOutput varToCompMap ioToCompMap circuit portName
         )
@@ -2562,7 +2532,6 @@ let createSheet (veriloginput:VerilogInput) (project:Project) model dispatch=
    
     // components
     // |> List.iter (fun comp ->
-    //     // printfn "component label = %s" comp.Label
     // )
 
     let finalCanvasState =

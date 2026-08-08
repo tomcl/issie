@@ -37,10 +37,10 @@ let init () =
 let dragSegment wire index (mMsg: MouseT) model =
     match List.tryItem index wire.Segments with
     | None -> 
-        printfn "Bad segment in Dragsegment... ignoring drag"
+        Log.warnOnce "drag-bad-segment" "bad segment in DragSegment - the drag was ignored"
         model
     | Some seg when index < 1 || index > wire.Segments.Length-2 ->
-        printfn "Bad index - can't move that segment"
+        Log.warnOnce "drag-bad-index" "bad segment index in DragSegment - the drag was ignored"
         model
     | Some seg ->        
         let (startPos,endPos) = getAbsoluteSegmentPos wire index
@@ -55,7 +55,7 @@ let dragSegment wire index (mMsg: MouseT) model =
 
             { model with Wires = newWires }
         else
-            printfn "Can't move undraggable"
+            Log.dbg Log.Wire "segment is not draggable"
             model
 
 let newWire inputId outputId model =
@@ -77,7 +77,6 @@ let newWire inputId outputId model =
             // wire already exists
             model, None
         else
-            printfn "Separating new wire"
             let newModel = 
                 model
                 |> Optic.set (wireOf_ nWire.WId) nWire
@@ -85,7 +84,6 @@ let newWire inputId outputId model =
             newModel, Some BusWidths
 
 let calculateBusWidths model =
-        //printfn "BusWidths Message"
         // (1) Call Issie bus inference
         // (2) Add widths to maps on symbols on wires
         let processConWidths (connWidths: ConnectionsWidth) =
@@ -408,7 +406,6 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
         |> withMsg (MakeJumps (false,connIds))
 
     | UpdateWireDisplayType (style: WireType) ->
-        printfn "Updating wire display type (=> reseparation of wires)"
         {model with Type = style }
         |> BusWireSeparate.updateWireSegmentJumpsAndSeparations []
         |> fun model -> {issieModel with Sheet={ issieModel.Sheet with Wire=model}}
@@ -420,7 +417,6 @@ let update (msg : Msg) (issieModel : ModelType.Model) : ModelType.Model*Cmd<Mode
     | UpdateConnectedWires (componentIds: ComponentId list) ->
         // partial or full autoroutes all ends of wires conencted to given symbols
         // typically used after rotating or flipping symbols
-        printfn "Updating connected wires"
         let updatePortIdMessages: seq<Cmd<ModelType.Msg>> = 
             componentIds
             |> Symbol.getPortLocations model.Symbol

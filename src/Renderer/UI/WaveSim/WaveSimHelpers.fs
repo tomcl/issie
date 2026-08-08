@@ -339,7 +339,6 @@ let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) 
         | false, false -> "Start Simulation", IsSuccess
         | true, _ -> "EndSimulation", IsDanger
 
-    //printfn $"Running= {running}, Dirty={isDirty}"
 
     
     {

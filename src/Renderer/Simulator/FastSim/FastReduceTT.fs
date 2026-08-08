@@ -35,7 +35,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         else
             simStep - 1
 #if ASSERTS
-    printfn "Warning: simulation is running with ASSERTS on for debugging -this will be very slow!"
+    Log.warn "simulation is running with ASSERTS on for debugging - this will be very slow"
 #endif
 
     ///  get data feom input i of component
@@ -218,29 +218,23 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     | Input1(width, _) ->
         if comp.Active then
             let bits = ins 0
-            //printfn "Got input 0 = %A Links=<%A> len=%d" bits comp.InputLinks comp.InputLinks.Length
             checkWidth width bits
-            //printfn "output array = %A" comp.Outputs
             put 0 bits
-    //printfn "Finished!"
 
     | Constant1(width, cVal, _)
     | Constant(width, cVal) -> put 0 <| Data(convertBigintToFastData width cVal)
     | Output width ->
         let bits = ins 0
-        //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width bits
         put 0 bits
     | Viewer width ->
         let bits = ins 0
-        //printfn "In output bits=%A, ins = %A" bits comp.InputLinks
         checkWidth width bits
         put 0 bits
 
     | IOLabel ->
         let bits = ins 0
         //let bits = comp.InputLinks[0][simStep]
-        //printfn "Reducing IOLabel %A" comp.SimComponent.Label
         put 0 bits
     | NotConnected -> ()
     | Not ->
@@ -272,7 +266,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 0 <| Alg newExp
 
     | BusCompare(width, compareVal) ->
-        //printfn "Reducing compare %A" comp.SimComponent.Label
         match (ins 0) with
         | Data bits ->
 #if ASSERTS
@@ -298,7 +291,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
 #endif
             put 0 <| Alg(ComparisonExp(exp, Equals, compareVal))
     | BusCompare1(width, compareVal, dialogText) ->
-        //printfn "Reducing compare %A" comp.SimComponent.Label
         match (ins 0) with
         | Data bits ->
 #if ASSERTS
@@ -1344,7 +1336,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | Alg _ -> raise (AlgebraNotImplemented err)
 
             let data = readMemoryFData mem (Data address)
-            //printfn $"reading {data} from addr={address} with state = {RamState mem}"
             put 0 data
     | _ -> failwithf $"simulation error: deprecated component type {componentType}"
 

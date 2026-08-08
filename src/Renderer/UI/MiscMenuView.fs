@@ -701,7 +701,7 @@ let pathsWithDependencies destProjectDir paths sourceProjectDir =
 /// Example: nameOf = (fun s -> s + "_adder"), text "old" -> sheet "old_adder" in file old_adder.dgm.
 let copySheetIntoProjectPopup title placeholder buttonText notes nameOf oldPath afterCopy model dispatch =
     match model.CurrentProj with
-    | None -> JSHelpers.log "Warning: copySheetIntoProjectPopup called when no project is currently open"
+    | None -> Log.warn "copySheetIntoProjectPopup called when no project is currently open"
     | Some project ->
         // sheet names are always lower case, so validation and the preview use the name that will be created
         let newNameOf (dialogData: PopupDialogData) = nameOf ((getText dialogData).ToLower())
@@ -758,7 +758,7 @@ let renameSheetBeforeImportPopup oldPath model dispatch =
 /// rather than quietly written in its last-saved state.
 let saveAsLibraryComponent (sheetName: string) (model: Model) dispatch =
     match model.CurrentProj with
-    | None -> JSHelpers.log "A project must be open to save a sheet as a library component"
+    | None -> Log.warn "A project must be open to save a sheet as a library component"
     | Some project ->
         let byName = project.LoadedComponents |> List.map (fun ldc -> ldc.Name, ldc) |> Map.ofList
 
@@ -846,7 +846,7 @@ let saveAsLibraryComponent (sheetName: string) (model: Model) dispatch =
 
 let duplicateSheet (sheetName: string) model dispatch =
     match model.CurrentProj with
-    | None -> JSHelpers.log "Current project must be open for a sheet to be duplicated"
+    | None -> Log.warn "Current project must be open for a sheet to be duplicated"
     | Some project ->
         // the new sheet is loaded from the copied file and added to the project, leaving other sheets alone
         let afterCopy newName (model': Model) =
@@ -960,7 +960,7 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
                         | "" -> ()
                         | path -> copySheetWithNewIds oldSheetPath path )
 
-            JSHelpers.log destProjectDir
+            Log.dbg Log.Files $"importing into {destProjectDir}"
 
             if dirName destProjectDir = "demos" then
                 openDemoProjectFromPath destProjectDir model' dispatch
@@ -979,7 +979,7 @@ let importSheetPopup destProjectDir paths sourceProjectDir dispatch =
 /// Import sheet from directory, ask user to sort out dependency issues
 let importSheet model dispatch =
     match model.CurrentProj with
-    | None -> JSHelpers.log "Current project must be open for sheet to be imported to it"
+    | None -> Log.warn "Current project must be open for sheet to be imported to it"
     | Some project -> 
         let projectDir = project.ProjectPath
 

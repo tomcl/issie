@@ -128,5 +128,15 @@ defaults would teach the wrong pattern.
   a canvas of your own. Prefer asserting draw block *structure* — ports, edges, overlap,
   orthogonality — since a pixel width is only ever as good as that table.
 - **Memory components** need special handling for RAM/ROM initialisation from `.ram` files.
-- **Debug tracing** is gated on `JSHelpers.debugTraceUI`; memory monitoring on the `CheckMemory`
-  message.
+- **Nothing prints unconditionally.** `src/Renderer/Common/Log.fs` is the only way to the console:
+  `Log.warn` and `Log.error` always show, `Log.dbg Log.Wire $"..."` (and the other categories)
+  shows only when that category is on, and `Log.out` is for a Development-menu item whose output
+  *is* the point. Categories are switched live, with no rebuild — from the Development > Log menu,
+  from `--log=wire,sim` at launch, or from `window.issieLog.on "wire"` in a console. The last few
+  hundred lines are kept in a ring buffer readable from outside the app:
+  `node scripts/inspect-canvas.js log`. A new `printf` outside a short allowlist fails
+  `Tests/Issie.Tests/SourceHygiene.fs`, which is what keeps this true.
+- **Timing instrumentation is off by default.** `TimeHelpers.instrumentation` is `Off`; the
+  Development > Play menu turns on either per-interval times or the 10-second aggregate table.
+  Message and render counts are always kept (five numbers in `Log.fs`) and summarised by the
+  `perf` category. Memory monitoring is on the `CheckMemory` message.

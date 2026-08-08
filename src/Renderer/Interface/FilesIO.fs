@@ -121,8 +121,7 @@ let mkdir (folderPath: string) =
     #if FABLE_COMPILER
     fs.mkdirSync folderPath
     #else
-    let dirInfo = Directory.CreateDirectory folderPath
-    printfn "created directory: %A" dirInfo
+    Directory.CreateDirectory folderPath |> ignore
     #endif
 
 let readdir (folderPath: string) =
@@ -291,10 +290,10 @@ let readFilesFromDirectory (path:string) : string list =
             |> Seq.toList
         with
             | e ->
-                printf $"Warning: readFilesFromDirectory has used readdir on 'path'='{path}' with an exception {e.Message}"
+                Log.warn $"could not read the directory '{path}': {e.Message}"
                 []
     else
-        printf $"Warning: readFilesFromDirectory has 'path'='{path}' and this directory does not exist."
+        Log.warn $"could not read the directory '{path}': it does not exist"
         []
 
 #if FABLE_COMPILER
@@ -329,7 +328,7 @@ let readSubdirectories (folderPath: string) : string list =
             Directory.GetDirectories folderPath |> Array.toList
             #endif
         with e ->
-            printf $"Warning: readSubdirectories failed on '{folderPath}': {e.Message}"
+            Log.warn $"could not list the subdirectories of '{folderPath}': {e.Message}"
             []
 
 let hasExtn extn fName =
@@ -339,7 +338,7 @@ let hasExtn extn fName =
 let copyFile (sourcePath: string) (newPath: string) =
     match readFile sourcePath |> writeFile newPath with
     | Ok _ -> ()
-    | Error msg -> log <| msg
+    | Error msg -> Log.error msg
 
 
 let readFilesFromDirectoryWithExtn (path:string) (extn:string) : string list =
@@ -870,14 +869,14 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
             match memData with
             | Ok (memDat, comments) ->
                 if memDat <> mem.Data then
-                    printfn "%s" $"Warning! RAM file {fPath} has changed so component {comp.Label} is now different"
+                    Log.warn $"RAM file {fPath} has changed, so component {comp.Label} is now different"
                 let mem =
                     {mem with
                         Data = memDat
                         Comments = (if Map.isEmpty comments then None else Some comments)}
                 {comp with Type = getMemType comp.Type mem}
             | Error msg ->
-                printfn $"Error reloading component {comp.Label} from its file {fPath}:\n{msg}"
+                Log.error $"reloading component {comp.Label} from its file {fPath}: {msg}"
                 comp // ignore errors for now
         | _ -> comp
     | _ -> comp
@@ -886,16 +885,13 @@ let checkMemoryContents (projectPath:string) (comp: Component) : Component =
 let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp waveInfo (sheetInfo:SheetInfo option) =
     let projectPath = dirName filePath
     let inputs, outputs = CanvasExtractor.parseDiagramSignature canvas
-    //printfn "parsed component"
     let comps,conns = canvas
     let comps' = List.map (checkMemoryContents projectPath) comps
-    //printfn "checked component"
     let canvas = comps',conns
     let ramChanges = 
         List.zip comps' comps
         |> List.filter (fun (c1,c2) -> c1.Type <> c2.Type)
         |> List.map fst
-    //printfn "ram changes processed"
     let form,description = match sheetInfo with |None -> (Some User),None |Some sI -> sI.Form,sI.Description
     let ldc =
         {
@@ -941,7 +937,7 @@ let tryLoadComponentFromPath filePath : Result<LoadedComponent, string> =
 let copySheetWithNewIds (sourcePath: string) (newPath: string) =
     match tryLoadComponentFromPath sourcePath with
     | Error msg ->
-        log msg
+        Log.error msg
         copyFile sourcePath newPath
     | Ok ldc ->
         let ldc' = RegenerateIds.regenerateSheetIds ldc
@@ -949,7 +945,7 @@ let copySheetWithNewIds (sourcePath: string) (newPath: string) =
         let sheetInfo: SheetInfo = {Form = ldc'.Form; Description = ldc'.Description; ParameterDefinitions = ldc'.LCParameterSlots; IsTopSheet = None}
         match saveStateToFile (dirName newPath) (baseNameWithoutExtension newPath) (ldc'.CanvasState, ldc'.WaveInfo, Some sheetInfo) with
         | Ok _ -> ()
-        | Error msg -> log <| msg
+        | Error msg -> Log.error msg
 
 type LoadStatus =
     | Resolve  of LoadedComponent * LoadedComponent
@@ -977,10 +973,9 @@ let loadAllComponentFiles (folderPath:string)  =
                     File names used as sheets must contain only alphanumeric and space characters before the '.dgm' extension" fileName folderPath
                 else 
                     let filePath = pathJoin [| folderPath; fileName |]
-                    printfn $"loading {fileName}"
                     let ldComp =  filePath |> tryLoadComponentFromPath
                     let autoComp = filePath + "auto" |> tryLoadComponentFromPath
-                    printfn $"{fileName} Loaded"
+                    Log.dbg Log.Files $"loaded {fileName}"
                     match (ldComp, autoComp) with
                     | Ok ldComp, Ok autoComp when ldComp.TimeStamp < autoComp.TimeStamp ->
                         Resolve(ldComp,autoComp) |> Ok

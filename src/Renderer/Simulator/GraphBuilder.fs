@@ -274,19 +274,6 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
         mapInputPortIdToPortNumber components
     let mapper = buildSimulationComponent sourceToTargetPort portIdToPortNumber
 
-    let debugPrint() =
-        printfn "Building Simulation Graph for Debug"
-        List.map (fun (id, comp) ->
-            printfn
-                "Built sComp %A │ %-30A │ %-25A │ %A"
-                comp.Id
-                (match comp.Type with
-                 | Custom c -> c.Name
-                 | t -> sprintf "%A" t)
-                comp.Label
-                (comp.OutputWidths |> Array.toList)
-            (id, comp))
-
     components
     |> List.map (fun comp ->
         // find output widths for this component
@@ -297,7 +284,6 @@ let private buildSimulationGraph (canvasState: CanvasState) outputWidths : (Simu
             |> Array.sortBy fst
             |> Array.map snd
         ComponentId comp.Id, mapper comp ws)
-    // |> debugPrint() // NOTE - for debugging only
     |> Map.ofList
     |> addInputWidthsToInputs
 // Find out width of outputs of components from ConnectionsWidth map. Map<ConnectionId, "Width" option> -> Map<(ComponentId * "PortNumber"), "Width">
@@ -366,8 +352,6 @@ let runCanvasStateChecksAndBuildGraph
         Ok
         <| buildSimulationGraph canvasState outputsWidth
     | None, None -> failwith "This should not happen, connections width should be available if no error was found."
-
-let mutable simTrace = false 
 
 
 

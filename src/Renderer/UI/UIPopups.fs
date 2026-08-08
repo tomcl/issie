@@ -774,7 +774,7 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
         let wsm = getWSModel model
         if changeConfig then
             let dialog = wsm.WSConfigDialog
-            if dialog = None then printf $"Unexpected WSConfigDialog = None when closing configuration popup. changeConfig = {changeConfig}"
+            if dialog = None then Log.warn "no WSConfigDialog when closing the waveform configuration popup"
             dispatch <| UpdateModel (Optic.set (waveSimModel_ >-> wSConfig_) (Option.defaultValue wsm.WSConfig dialog))
         dispatch <| ClosePopup
         dispatch <| UpdateModel (Optic.map (waveSimModel_ >-> wSConfigDialog_) (fun _ -> None))

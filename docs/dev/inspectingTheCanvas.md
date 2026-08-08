@@ -22,11 +22,25 @@ node scripts/inspect-canvas.js model            # a readable summary of the same
 node scripts/inspect-canvas.js geometry         # what the SVG actually contains
 node scripts/inspect-canvas.js shot out.png     # screenshot the renderer window
 node scripts/inspect-canvas.js eval expr.js     # evaluate a file's contents in the page
+node scripts/inspect-canvas.js log              # the app's log: the last few hundred lines
+node scripts/inspect-canvas.js log wire,sim     # switch categories on first, then print
 ```
 
 `raw` and `model` need a debug build: `MainView.displayView` publishes `window.issie` only when
-`JSHelpers.debugLevel > 0`, which `npm run dev` gives you. `geometry`, `shot` and `eval` work
-against any build with the port open.
+`JSHelpers.debugLevel > 0`, which `npm run dev` gives you. `geometry`, `shot`, `eval` and `log`
+work against any build with the port open.
+
+### log
+
+Issie prints nothing but warnings and errors unless a category is switched on - see
+`src/Renderer/Common/Log.fs`. `log` reads the ring buffer that every emitted line goes into, so
+you get the history whether or not anything was watching at the time, and with a category argument
+it turns categories on first so that whatever you do next is recorded. `window.issieLog.off()`
+stops it again. Categories: `update view wire symbol sheet sim wave files misc perf mouse all`.
+
+This is the whole of the console without DevTools, and it is the quickest way to find out what the
+app thinks it is doing - `log update` gives one line per Elmish message with its duration, and
+`log perf` gives a summary line every ten seconds with the message and render counts.
 
 Both are published as functions rather than as data, so nothing is computed unless something asks.
 A render costs one closure and one object.

@@ -163,7 +163,6 @@ let view
         (overlay: ReactElement list)
         (dispatch : Msg -> unit)
             : ReactElement =
-    let start = TimeHelpers.getTimeMs()
     let wDispatch wMsg = dispatch (Wire wMsg)
     let wireSvg = BusWire.view model.Wire wDispatch
 
@@ -312,7 +311,6 @@ let view
 
     match model.Action, model.ScalingBox with // Display differently depending on what state Sheet is in
     | Selecting, _ ->
-        // printfn "displaying selectingBox"
         displaySvgWithZoom model headerHeight style ( displayElements @ [ dragToSelectBox ] ) dispatch
     | ConnectingInput _, None | ConnectingOutput _, None ->
         displaySvgWithZoom model headerHeight style ( displayElements @ connectingPortsWire ) dispatch
@@ -327,10 +325,8 @@ let view
     | MovingWire _,_ -> 
         displaySvgWithZoom model headerHeight style (displayElements @ snaps) dispatch
     | Scaling, _ -> 
-        // printfn "displaying scalingBox when action = scaling"
         displaySvgWithZoom model headerHeight style ( displayElements @  scalingBox ) dispatch
     | _ , Some _ -> 
-        // printfn "displaying scalingBox when action is not scaling"
         displaySvgWithZoom model headerHeight style ( displayElements @  scalingBox ) dispatch
 
     | _ ->

@@ -39,11 +39,6 @@ open MenuHelpers
 open Optics
 
 
-let printSheetNames (model:Model) =
-    model.CurrentProj
-    |> Option.map (fun p -> 
-        printf $"SHEETS:{p.LoadedComponents |> List.map (fun ldc -> ldc.Name)}--->{p.OpenFileName}")
-    |> ignore
 
 
 let getCorrectFileName (project:Project) = 
@@ -183,7 +178,6 @@ let ioCompareSigs (sig1: Signature) (sig2: Signature) =
                 | None, Some _ -> "Port and old connections deleted"
                 | Some _, None -> "New Port will be added"
                 | _ -> failwithf $"What? never happens: {newLW} {oldLW}"
-            // printfn "message: %s" message
             {
                 Message = message
                 Direction = fst m
@@ -317,7 +311,7 @@ let deleteIncompleteConnections ((comps,conns): CanvasState) =
         Set.contains conn.Source.Id okPorts && 
         Set.contains conn.Target.Id okPorts) conns
     if conns <> conns' then
-        printfn "%d Connections deleted" (conns.Length - conns'.Length)
+        Log.dbg Log.Files $"{conns.Length - conns'.Length} connections deleted"
     comps,conns'
 
 // Updating custom component instances changes the input and output port specifications.
@@ -447,7 +441,7 @@ let updateInstance (inst: Instance) (p: Project) =
                 if currentSig = newSig then
                     comp
                 elif mapPair List.sort currentSig = mapPair List.sort newSig then
-                    printfn $"Reordering {comp.Label}"
+                    Log.dbg Log.Files $"reordering the ports of {comp.Label}"
                     let newIn,newOut = newSig
                     let oldIn,oldOut = currentSig
                     let newInPorts = reorderPorts newIn oldIn comp.InputPorts
@@ -456,7 +450,7 @@ let updateInstance (inst: Instance) (p: Project) =
                     {comp with Type = Custom ct'; InputPorts=newInPorts; OutputPorts=newOutPorts}
 
                 else
-                    printfn "What? Signatures do not match after changes are made"
+                    Log.warn $"the signature of {comp.Label} still does not match after its ports were updated"
                     comp
         // | Custom ct when ct.Form = Some (Verilog _) ->
 

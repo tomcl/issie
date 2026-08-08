@@ -37,7 +37,7 @@ this is about module-level state.
 | `Simulator.fs` | `simCache`, `simCacheWS` |
 | `FastSim/FastCreate.fs` | `stepArrayIndex` |
 | `UI/TruthTable/TruthTableView.fs` | `selCache` |
-| `Common/TimeHelpers.fs`, `Common/EEEHelpers.fs` | `executionStats`, `instrumentation` |
+| `Common/TimeHelpers.fs` | `executionStats`, `instrumentation` |
 
 `Common/Helpers.fs` has a `lastKey` / `lastValue` pair inside `memoizeBy`. It is local to each
 memoised function rather than module-level, so it is out of scope here — noted only because it
@@ -51,11 +51,11 @@ looks like the exception and is not one.
 | `DrawBlock/Sheet.fs` | `recentProgrammaticScrollPos`, `scrollSequence`, `viewIsAfterUpdateScroll` — scroll bookkeeping driven by DOM events |
 | `Main/Main.fs` | `mainWindow`, `closeAfterSave` — Electron main process, no Elmish model there |
 | `UI/KeyBindings.fs` | `modelContext` — a cached projection of the model for DOM handlers, which cannot see it and must decide `preventDefault` synchronously; `ctrlHeld` — physical modifier state, wanted on its edges and across focus loss; `keyLog` — debug-only log of what the dispatcher decided |
-| `Interface/JSHelpers.fs` | `debugLevel`, `debugTraceUI`, `loggingMemory`, `memSize` |
-| `Simulator/GraphBuilder.fs` | `simTrace` |
+| `Interface/JSHelpers.fs` | `debugLevel`, `loggingMemory`, `memSize` |
+| `Common/Log.fs` | `enabled` — which log categories are on, switched from a menu, a command-line flag or the console; `ring` / `ringNext` — a fixed buffer of the last few hundred lines, written one slot at a time so that logging allocates nothing, and read from outside the app the way `KeyBindings.keyLog` is; `warnedKeys`; the five counters (`msgCount`, `renderCount`, `updateMsTotal`, `slowestMs`, `slowestName`) and `lastSummary`, updated on every message and every render, which is exactly the write frequency that rules out a model field |
 | `Simulator/CanvasExtractor.fs` | `debugChangedConnections` — records what a change check saw, for tracing only |
 | `Playground.fs` | `Memory.modelCopy` — memory-leak investigation; never read, and its only writer is commented out in `Renderer.fs` |
-| `UI/Update.fs`, `UI/UpdateHelpers.fs` | `uiStartTime`, `updateTimeTotal`, `lastMemoryUpdateCheck` — timing instrumentation |
+| `UI/Update.fs`, `UI/UpdateHelpers.fs` | `uiStartTime`, `lastMemoryUpdateCheck` — timing instrumentation |
 | `UI/MainView.fs` | `lastDragModeOn`, `lastMemoryCheckTime` — view-time bookkeeping |
 | `UI/ModelHelpers.fs` | `asyncJobs` — async job queue |
 

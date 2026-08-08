@@ -41,8 +41,6 @@ let updateVerilogFileAction newCS name model (dispatch: Msg -> Unit)=
     | None -> failwithf "No project"
     | Some project ->
         // "DEBUG: Saving Sheet"
-        // printfn "DEBUG: %A" project.ProjectPath
-        // printfn "DEBUG: %A" project.OpenFileName
         // regenerating the file must not clear a previously chosen top-sheet flag
         let wasTop =
             project.LoadedComponents
@@ -175,7 +173,6 @@ let renameSheet oldName newName (model:Model) dispatch =
             |> displayAlertOnError dispatch)
         let proj' = renameSheetsInProject oldName newName p
         setupProjectFromComponents false proj'.OpenFileName proj'.LoadedComponents model dispatch
-        //printfn "???Sheets after rename"
         //printSheetNames {model with CurrentProj = Some proj'}
         // save all the other files
         saveAllProjectFilesFromLoadedComponentsToDisk proj'
@@ -185,7 +182,7 @@ let renameSheet oldName newName (model:Model) dispatch =
 /// rename file
 let renameFileInProject name project model dispatch =
     match model.CurrentProj with
-    | None -> log "Warning: renameFileInProject called when no project is currently open"
+    | None -> Log.warn "renameFileInProject called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
         let title = "Rename sheet in project"
@@ -229,7 +226,7 @@ let renameFileInProject name project model dispatch =
 /// Create a new file in this project and open it automatically.
 let addFileToProject model dispatch =
     match model.CurrentProj with
-    | None -> log "Warning: addFileToProject called when no project is currently open"
+    | None -> Log.warn "addFileToProject called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
         let title = "Add sheet to project"
@@ -306,7 +303,7 @@ let loadDemoProject model dispatch basename =
         | Error msg ->
             displayFileErrorNotification $"The demo could not be opened: {msg}" dispatch
         | Ok newDir ->
-        printf "%s" $"loading demo {sourceDir} into {newDir}"
+        Log.dbg Log.Files $"loading demo {sourceDir} into {newDir}"
 
         readFilesFromDirectory newDir
         |> List.iter (fun path -> unlink <| pathJoin[|newDir; path|])
@@ -558,7 +555,6 @@ let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
     | Some el ->
         let height = el.offsetHeight - 50.0
         let width = el.offsetWidth - 50.0
-        //printf "%s" $"Height={height}, width={width}"
 
         [div 
             [Style 
@@ -729,7 +725,6 @@ let viewTopMenu model dispatch =
             else
                 Constants.minNumPathChars
 
-    //printfn "FileView"
     let style = Style [ Width "100%" ; BorderBottom "2px solid lightgray"] //leftSectionWidth model
     let styleNoBorder = Style [Width "100%"]
     let projectPath, fileName =
@@ -756,9 +751,7 @@ let viewTopMenu model dispatch =
             let allRoots = allRootSheets sTrees
             let isSubSheet sh = not <| Set.contains sh allRoots
             let openSheetAction  (sheet:SheetTree) dispatch =
-                //printfn "Trying to open %s with %A" sheet.SheetName sheet.SheetNamePath
                 dispatch (StartUICmd ChangeSheet)
-                //printfn "Starting UI Cmd"
                 dispatch <| ExecFuncInMessage(
                     (fun model dispatch -> 
                         let p = Option.get model.CurrentProj
@@ -818,7 +811,6 @@ let viewTopMenu model dispatch =
                   Navbar.Item.Props
                       [ OnClick(fun _ ->
                           //printSheetNames model
-                          //printfn "OnClick - inverting TopMenuOpenState when current state is: %A" model.TopMenuOpenState
                           if topMenuOpenState = Files then Closed else Files
                           |> SetTopMenu
                           |> dispatch)

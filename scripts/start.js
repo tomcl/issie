@@ -50,7 +50,15 @@ let electronStarted = false;
       // by `npm run build` or by a packaged app, so no released build ever listens on this port.
       const debugPort = process.env.ISSIE_DEBUG_PORT || '9222';
 
-      const electron = spawn(electronPath, [`--remote-debugging-port=${debugPort}`, buildFile],{stdio: 'inherit', shell:true});
+      // Switches this script was given are passed on to Electron, so that `npm run dev -- --log=wire`
+      // reaches JSHelpers.setDebugLevel. It is the only way to have a log category on before the
+      // first line of startup runs, which the menu and window.issieLog cannot be.
+      const passedThrough = process.argv.slice(2).filter(a => a.startsWith('--'));
+
+      const electron = spawn(
+          electronPath,
+          [`--remote-debugging-port=${debugPort}`, ...passedThrough, buildFile],
+          {stdio: 'inherit', shell:true});
 
       electron.on('exit', function () {
           process.exit(0);

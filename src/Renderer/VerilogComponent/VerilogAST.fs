@@ -439,7 +439,6 @@ and convertUnary (raw: UnaryT) : UnaryDU =
     | s -> failwith $"Unknown unary type: {s}"
 
 and convertPrimary (raw: PrimaryT) : PrimaryDU =
-    // printfn "converting pri: %A" raw
     match raw.PrimaryType with
     | "identifier" -> 
         Identifier raw.Primary
@@ -500,7 +499,6 @@ and convertPrimary (raw: PrimaryT) : PrimaryDU =
     | s -> failwith $"Unknown primary type: {s}"
 
 and convertArraySelect (raw: ArraySelectT) : ArraySelect =
-    // printfn "converting array: %A" raw
     match raw.ArrayType with
     | "const_array" -> ConstArraySelect (int (raw.WordSelect |> Option.get))
     | "var_array" -> VarArraySelect (convertExpression (raw.VariableArraySelect |> Option.get))
@@ -625,7 +623,6 @@ let convertModuleInstantiation (raw: VerilogTypes.ModuleInstantiationT) : Module
 
 // ====== Module Item conversion ======
 let convertItem (raw: VerilogTypes.ItemT) : ItemDU =
-    // printfn "converting item: %A" raw
     match raw.IODecl, raw.ParamDecl, raw.Decl, raw.Statement, raw.AlwaysConstruct, raw.ModuleInstantiation with
     | Some io, None, None, None, None, None -> ItemDU.IOItem (convertIOItem io)
     | None, Some param, None, None, None, None -> ItemDU.ParamDecl (convertParameterItem param)
@@ -841,7 +838,6 @@ let rec substLoopVar (loopVarName:string) (value:int) (width:int) (stmt:Statemen
             | VariableArrayBitSel _ -> vbs
             | _ -> None
 
-        // printf "substituted lhs %A" lhs
         { lhs with PrimaryType = primary'; VariableBitSelect = vbs' }
 
     // TODO: allow loop variable to be initialised inside the loop decl (this is part of system verilog)
@@ -1102,7 +1098,6 @@ let rec foldAST folder state (node: ASTNode) =
 //     | _ ->
 
 let rec foldParams (paramMap: Map<string, int>) (node: ASTNode) : ASTNode =
-    printfn "node %A" node
     match node with
     | Primary pri ->
         let name = getPrimaryName pri
@@ -1181,7 +1176,6 @@ let rec foldParams (paramMap: Map<string, int>) (node: ASTNode) : ASTNode =
         let newItems =
             items.ItemList
             |> Array.map (fun item ->
-                printfn "item %A" item
                 match foldParams paramMap (Item item) with
                 | IOItem i -> ItemDU.IOItem i
                 | ParamDecl i -> ItemDU.ParamDecl i

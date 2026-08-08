@@ -53,7 +53,6 @@ let createErrorMessage
     let line = prevIndex+1
     let prevLineLocation = newLinesLocations[prevIndex]
     let length = String.length name
-    // printfn "name of error: %s" name
     
     [{Line = line; Col=currLocation-prevLineLocation+1;Length=length;Message = message;ExtraErrors=Some extraMessages}]
 
@@ -534,7 +533,6 @@ let getWidthOfExpr
             | VariableArrayBitSel _
             | VariableBitSelect _ -> 1
             | IdentifierBit (id, idx) -> 
-                // printf "checking primary width for %s with map: %A" id.Name arraySizeMap
                 match Map.tryFind id.Name arraySizeMap with
                 | Some (arrayWidth, arrayDims) -> arrayWidth
                 | None -> 1
@@ -706,13 +704,11 @@ let checkPrimariesWidths linesLocations currentInputWireSizeMap (arraySizeMap: M
                     localErrors @ arrayWidthErrors
                 else localErrors @ arrayIndexErrors
             | VariableBitSelect (id, idx) ->
-                // printf "checking primary width for %s with index %A\n" id.Name idx
                 let checkedIndex =
                     try
                         Some (evalExprWithParams idx paramMap)
                     with
                     | _ -> None
-                // printf "checked index: %A\n" checkedIndex
                 match checkedIndex, Map.tryFind id.Name currentInputWireSizeMap with
                 | Some bitIndex, Some size ->
                     if (bitIndex < size) && (bitIndex >= 0) then
@@ -979,7 +975,6 @@ let getLHSWidth (assign:Assignment) (varSizeMap: Map<string, int>) (arraySizeMap
     | VariableBitSelect (id, _) ->
         match Map.tryFind id.Name arraySizeMap with
         | Some (arrayWidth, arrayDims) -> 
-            // printfn "arraywidth: %i for variable %s" arrayWidth id.Name
             arrayWidth
         | None -> 1
     | IdentifierArray (id, _, bStart, bEnd) ->

@@ -362,15 +362,6 @@ let shortPSComp (comp: SimulationComponent) =
     | Custom sc -> sprintf "%s:Custom.(%s.%A->%A)" lab sc.Name sc.InputLabels sc.OutputLabels
     | _ -> sprintf "%s:%A" lab comp.Type
 
-let printSimGraph (sg: SimulationGraph) =
-    printfn
-        "%s"
-        (String.concat
-            "\n"
-            (sg
-             |> Map.toList
-             |> List.map (fun (ComponentId id, comp) -> sprintSimComponent comp + id)))
-
 let tryGetCompLabel (compId: ComponentId) (sg: SimulationGraph) =
     Map.tryPick (fun k v -> if k = compId then Some v else None) sg
     |> Option.map (fun comp -> comp.Label)

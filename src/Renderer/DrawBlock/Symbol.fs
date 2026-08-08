@@ -568,7 +568,6 @@ let autoScaleHAndW (sym:Symbol) : Symbol =
                         float (portLabels[Bottom].Length + 1) * bottomLength
                     ] |> List.max |> (*) 1.1
                 let w = maxW
-                //printfn $"MaxW = {maxW}"
                 let scaledW = max w (float Constants.gridSize * 4.) //Ensures a minimum width if the labels are very small
                 let scaledH = max h (float Constants.gridSize*2.)
                 {sym with
@@ -804,7 +803,6 @@ let getPortPos (sym: Symbol) (port: Port) : XYPos =
     let baseOffset = getPortBaseOffset sym side  //offset of the side component is on
     let baseOffset' = baseOffset + getMuxSelOffset sym side
     let portDimension = float ports.Length - 1.0
-    //printfn "symbol %A portDimension %f" sym.Component.Type portDimension
     let h,w = getRotatedHAndW sym
     match side with
     | Left ->
@@ -825,7 +823,6 @@ let inline getPortPosToRender (sym: Symbol) (port: Port) : XYPos =
     match sym.MovingPort with
     | Some movingPort when port.Id = movingPort.PortId -> movingPort.CurrPos - sym.Pos
     | _ -> 
-        //printfn "symbol %A portDimension %A" sym.Component.Type (getPortPos sym port)
         getPortPos sym port
 
 let inline getPortPosModel (model: Model) (port:Port) =
@@ -843,7 +840,7 @@ let getPortLocation (defPos: XYPos option) (model: Model) (portId : string) : XY
     match defPos, symOpt, portOpt with
     | _, Some sym, Some port -> getPortPos sym port + sym.Pos
     | Some pos, _, _ ->
-        printfn $"Can't find port or symbol: Port='{portOpt}', Symbol='{symOpt}"
+        Log.warn $"cannot find port or symbol: port='{portOpt}', symbol='{symOpt}'"
         pos       
     | _ -> failwithf $"Can't find port or symbol: Port='{portOpt}', Symbol='{symOpt}"
 

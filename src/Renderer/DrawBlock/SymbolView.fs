@@ -594,7 +594,6 @@ let view (model : Model) (dispatch : Msg -> unit) =
             |> List.map snd
         listNotMoving @ listMoving
 
-    let start = TimeHelpers.getTimeMs()
     model.Symbols
     |> toListOfNotMovingAndMoving
     |> List.map (fun ({Id = ComponentId id} as symbol) ->

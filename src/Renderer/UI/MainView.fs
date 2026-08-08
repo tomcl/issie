@@ -353,7 +353,6 @@ let private  viewRightTab canvasState model dispatch =
 let inline setDragMode (modeIsOn:bool) (dividerDragMode: DragMode) dispatch =
     fun (ev: Browser.Types.MouseEvent) ->        
         dispatch SelectionHasChanged
-        //printfn "START X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         match modeIsOn, dividerDragMode with
         | true, DragModeOff ->  
             dispatch <| SetDragMode (DragModeOn (int ev.clientX))
@@ -469,7 +468,6 @@ let displayView model dispatch =
             "canvas" ==> (fun () -> ModelHelpers.canvasInspection model)
             "raw" ==> (fun () -> ModelHelpers.canvasRaw model)
         ]
-    //JSHelpers.traceIf "view" (fun _ -> $"View Function... ({time}ms)")
     let windowX,windowY =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
 
@@ -486,7 +484,6 @@ let displayView model dispatch =
     if float wsViewerWidth > screenWidth() - 10. then
         dispatch <| SetViewerWidth (int (screenWidth()) - 10)
     let inline processMouseMove (keyUp: bool) (ev: Browser.Types.MouseEvent) =
-        //printfn "X=%d, buttons=%d, mode=%A, width=%A, " (int ev.clientX) (int ev.buttons) model.DragMode model.ViewerWidth
         if ev.buttons = 1. then 
             dispatch SelectionHasChanged
         match dividerDragMode, ev.buttons, keyUp with

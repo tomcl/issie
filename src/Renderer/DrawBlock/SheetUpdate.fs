@@ -61,7 +61,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         // Executed every update so performance is important.
         // Since normally state will be correct it is only necessary to make the checking
         // fast.
-        let start = TimeHelpers.getTimeMs()
         let sModel = Optic.get symbol_ model
         let inputModel =
             sModel.Symbols
@@ -299,7 +298,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         let requiredOffset = oldScreenCentre - newScreenCentre
 
         // Update screen so that the zoom is centred around the middle of the screen.
-        printf "KeepZoomCentred"
         canvas.scrollLeft <- canvas.scrollLeft + requiredOffset.X * model.Zoom
         canvas.scrollTop <- canvas.scrollTop + requiredOffset.Y * model.Zoom
         model, Cmd.none
@@ -330,7 +328,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
             if edgeDistance < scrollMargin && mMov >= -0.0000001 // just in case there are FP rounding errors
             then
-                //printf "automaticScrolling adjustment..."
                 scrollSpeed * (scrollMargin - edgeDistance) / scrollMargin // Speed should be faster the closer the mouse is to the screen edge
             else 0.0
         canvas.scrollLeft <- canvas.scrollLeft - (checkForAutomaticScrolling1D leftScreenEdge mPosX -mMovX) // Check left-screen edge
@@ -374,7 +371,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | Rotate rotation ->
         //Replaced normal rotation, so individual and block rotation is correct
         //HLP23: Author Ismagilov
-        // printfn "Running Rotate %A" rotation
         let rotmodel = 
             {model with Wire = {model.Wire with Symbol = (RotateScale.rotateBlock model.SelectedComponents model.Wire.Symbol rotation)}
                         TmpModel = Some model
@@ -459,7 +455,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     // ---------------------------- Issie Messages ---------------------------- //
 
     | InitialiseCreateComponent (ldcs, compType, lbl, addParamComp) ->
-        // printfn "InitialiseCreateComponent update received testmsg: '%A'" testMsg
         match compType with
         | IsGate -> 
             { model with
@@ -542,7 +537,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         else {model with CursorType = Default}, Cmd.none
 
     | StartCompiling (path, name, profile) ->
-        printfn "starting compiling %s :: %s" path name
+        Log.dbg Log.Misc $"starting compilation of {name} in {path}"
         {model with
             Compiling = true
             CompilationStatus = {
@@ -555,8 +550,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             DebugState = match profile with | Verilog.Debug -> Paused | Verilog.Release -> NotDebugging
         }, sheetCmd (StartCompilationStage (Synthesis, path, name, profile))
     | StartCompilationStage (stage, path, name, profile) ->
-        printfn "are we compiling? %A" model.Compiling
-        printfn "do we have process? %A" (model.CompilationProcess |> Option.map (fun c -> c.pid))
         if not model.Compiling then
             model, Cmd.none
         else 
@@ -566,7 +559,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 |true -> cwd+"/static/hdl"
                 |false -> cwd+"/resources/static/hdl" 
             
-            printfn "include_path: %s" include_path
 
             let pcf,deviceType,devicePackage,USBdevice =
                 match model.DebugDevice, profile with
@@ -600,11 +592,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
             let options = {| shell = false |} |> toPlainJsObj
             let child = node.childProcess.spawn (prog, args |> ResizeArray, options);
-            //printfn "child pid: %A" child.pid
 
             let startComp dispatch =
                 let dispatchS msg = dispatch (ModelType.Sheet msg)
-                printf "starting stage %A" stage
+                Log.dbg Log.Misc $"starting compilation stage {stage}"
                 Async.StartImmediate(async {
                 let exit_code = ref 0
                 try
@@ -612,7 +603,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
                     // TODO: record data and display it in special tab
                     child.stdout.on ("data", fun _ -> ()) |> ignore
-                    child.stderr.on ("data", fun e -> printfn "Error: %s" e) |> ignore
+                    child.stderr.on ("data", fun e -> Log.error $"compilation: {e}") |> ignore
                     child.on("exit", fun code ->
                         keepGoing.Value <- false
                         exit_code.Value <- code
@@ -620,10 +611,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
                     while keepGoing.Value do
                         do! Async.Sleep 1000
-                        printf "state of child: %A" keepGoing.Value
                         dispatchS <| TickCompilation child.pid
                 finally
-                    printf "Child finished with exit code: %i" exit_code.Value
+                    Log.dbg Log.Misc $"compilation stage finished with exit code {exit_code.Value}"
                     if exit_code.Value = 0 then
                         dispatchS <| FinishedCompilationStage
                         match stage with
@@ -638,7 +628,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
             {model with CompilationProcess = Some child}, Cmd.ofEffect <| startComp
     | StopCompilation ->
-        //printfn "stopping compilation"
         match model.CompilationProcess with
         | Some child -> child.kill()
         | _ -> ()
@@ -659,7 +648,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             CompilationProcess = None
         }, Cmd.none
     | TickCompilation pid ->
-        //printfn "ticking %A while process is %A" pid (model.CompilationProcess |> Option.map (fun c -> c.pid))
         let correctPid =
             model.CompilationProcess
             |> Option.map (fun child -> child.pid = pid) 
@@ -709,7 +697,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
 
         model, Cmd.none
     | DebugSingleStep ->
-        //printfn "mappings: %A" model.DebugMappings
         let remainder = (Array.length model.DebugMappings) % 8
         let viewerNo = 
             match remainder with
@@ -718,7 +705,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         
         model, sheetCmd (DebugStepAndRead viewerNo)
     | DebugStepAndRead n ->
-        //printfn "reading"
         
         let readSingleStep viewers dispatch =
             
@@ -731,7 +717,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 r.``then``(fun v -> 
                     v
                     |> Array.iteri (fun i reading -> 
-                        //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
                         dispatch <| ModelType.Sheet (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
                     ) 
                 ) |> ignore
@@ -743,7 +728,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         
         model, Cmd.ofEffect (readSingleStep n)
     | DebugRead n ->
-        //printfn "reading"
         
         let readSingleStep viewers dispatch =
             
@@ -756,7 +740,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 r.``then``(fun v -> 
                     v
                     |> Array.iteri (fun i reading -> 
-                        //printfn "got : %s" (reading[0].ToString() + reading[1].ToString())
                         dispatch <| ModelType.Sheet (OnDebugRead (hextoInt (reading[0].ToString() + reading[1].ToString()),i))
                     ) 
                 ) |> ignore
@@ -794,7 +777,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             DebugIsConnected = true
         }, Cmd.ofEffect (connectAndRead viewerNo)
     | DebugDisconnect ->
-        printfn "Closing device"
+        Log.dbg Log.Misc "closing the debug device"
         disconnect()
 
         { model with DebugIsConnected = false}, Cmd.none
@@ -806,7 +789,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             |> List.map (fun i -> Some <| (data / (pown 2 i)) % 2)
             |> List.map (fun b -> b.ToString())
             |> String.concat ","
-        //printfn $"read {data} from {part} ([{bits}])"
         { model with
             DebugData = List.insertAt part data (List.removeAt part model.DebugData)
         }, Cmd.none
@@ -815,14 +797,14 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | DebugContinue ->
         //fs.writeFileSync ("/dev/ttyUSB1", "C")
         continuedOp ()
-        printfn "Continued execution"
+        Log.dbg Log.Misc "debug execution continued"
         
 
         {model with DebugState = Running}, Cmd.none
     | DebugPause ->
         //fs.writeFileSync ("/dev/ttyUSB1", "P")
         pause()
-        printfn "Continued execution Stopped"
+        Log.dbg Log.Misc "debug execution paused"
         let remainder = (Array.length model.DebugMappings) % 8
         let viewerNo = 
             match remainder with

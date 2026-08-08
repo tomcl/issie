@@ -49,7 +49,6 @@ let softInitialise model dispatch =
     //dispatch (UpdateModel(fun _ -> fst (init())))
     //let userAppDir = getUserAppDir()
     //dispatch <| ReadUserData userAppDir
-    //printfn $"INIT: rpsc={Sheet.recentProgrammaticScrollPos.Length}, dm= {MemoryEditorView.dynamicMem.Data.Count}"
     //Sheet.recentProgrammaticScrollPos <- []
     //MemoryEditorView.dynamicMem <- {MemoryEditorView.dynamicMem with Data = Map.empty}
     ()
@@ -190,18 +189,25 @@ let devMenu (dispatch) =
                 dispatch <| SetFilesNotification
                     (Notifications.errorFilesNotification $"No user library directory: {e}"))
         makeCondRoleItem (debugLevel <> 0 && not isMac) "Hard Restart Issie" None MenuItemRole.ForceReload
-        makeWinDebugItem "Trace All" None (fun _ -> debugTraceUI <- Set.ofList ["update"; "view"])
-        makeWinDebugItem "Trace View Function" None (fun _ -> debugTraceUI <- Set.ofList ["view"])
-        makeWinDebugItem "Trace Update Function" None (fun _ -> debugTraceUI <- Set.ofList ["update"])
-        makeWinDebugItem "Trace Mouse Messages" None (fun _ -> debugTraceUI <- debugTraceUI + Set.ofList ["mouse"])
-        makeWinDebugItem "Trace Off" None (fun _ -> debugTraceUI <- Set.ofList [])
+        // One item per log category. The same switches are reachable as window.issieLog.on "wire"
+        // from a console, and as --log=wire at launch, which is the only one of the three that is
+        // on before a project loads.
+        makeMenuGen (debugLevel > 0) false "Log" (
+            [ makeDebugItem "Off" None (fun _ -> Log.setCategories 0)
+              makeDebugItem "Everything" None (fun _ -> Log.setCategories Log.All) ]
+            @ (Log.categoryNames
+               |> List.filter (fun name -> name <> "all")
+               |> List.map (fun name ->
+                    makeDebugItem (name[0..0].ToUpper() + name[1..]) None
+                        (fun _ -> Log.setCategories (Log.maskOfNames name)))))
         makeMenuGen (debugLevel > 0) false "Play" [
             makeDebugItem "Heap" None
                 (fun _ ->
                     let usedHeapSize = () |> usedHeap |> float |> (fun v -> v / 1000000.)
                     let maxHeapSize = () |> maxHeap |> float |> (fun v -> v / 1000000.)
                     let heapUsage = usedHeapSize / maxHeapSize * 100.
-                    printfn $"Used Heap:%.2f{usedHeapSize}MB; Max Heap:%.2f{maxHeapSize}MB; Usage:%.2f{heapUsage}%%\n")
+                    Log.out $"used heap %.2f{usedHeapSize}MB, max heap %.2f{maxHeapSize}MB, \
+                              usage %.2f{heapUsage}%%")
             makeDebugItem "Initialise" None
                 (fun _ -> dispatch <| ExecFuncInMessage(softInitialise, dispatch))
             // for writing libraries: normally a component's sheets are not the user's business
@@ -210,26 +216,23 @@ let devMenu (dispatch) =
             makeDebugItem "Screen Reset" None
                 (fun _ ->
                     let usedHeapSize = () |> usedHeap |> float |> (fun v -> v / 1000000.)
-                    printfn $"Used Heap; Heap size before screen reset:%.2f{usedHeapSize}MB\n"
+                    Log.out $"used heap before screen reset: %.2f{usedHeapSize}MB"
                     dispatch (SetTopMenu TransientClosed))
             makeDebugItem "Set Scroll" None
                 (fun _ -> SheetDisplay.writeCanvasScroll {X=1000.; Y=1000.} |> ignore)
-            makeDebugItem "Trace All Times" None
-                (fun _ ->
-                    TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(0.1, 0.1)
-                    if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update"; "view"])
-            makeDebugItem "Trace Short, Medium & Long Times" None
+            // Two, not four thresholds - and neither turns message tracing on behind your back,
+            // which the four used to do. The summary says whether anything is slow; the table
+            // says what, and is the one to reach for second.
+            makeDebugItem "Time Every Interval Over 1.5ms" None
                 (fun _ ->
                     TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(1.5, 1.5)
-                    if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update"; "view"])
-            makeDebugItem "Trace Medium & Long Times" None
+                    Log.setCategories (Log.enabled ||| Log.Perf))
+            makeDebugItem "Summarise Times Every 10s" None
                 (fun _ ->
-                    TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(3.0, 3.0)
-                    if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update"; "view"])
-            makeDebugItem "Trace Long Times" None
-                (fun _ ->
-                    TimeHelpers.instrumentation <- TimeHelpers.ImmediatePrint(20.0, 20.0)
-                    if debugTraceUI = Set.ofList [] then debugTraceUI <- Set.ofList ["update"; "view"])
+                    TimeHelpers.instrumentation <- TimeHelpers.aggregate 10000.
+                    Log.setCategories (Log.enabled ||| Log.Perf))
+            makeDebugItem "Times Off" None
+                (fun _ -> TimeHelpers.instrumentation <- TimeHelpers.Off)
             makeDebugItem "Print Misc Performance Info" None
                 (fun _ ->
                     Playground.Memory.printListeners()
@@ -253,10 +256,10 @@ let devMenu (dispatch) =
         makeMenuGen (debugLevel > 0) false "Verilog" [
             makeDebugItem "Run Verilog Tests" None (fun _ ->
                 runCompilerTests ()
-                printfn "Compiler tests done")
+                Log.out "compiler tests done")
             makeDebugItem "Run Verilog Performance Tests" None (fun _ ->
                 runPerformanceTests ()
-                printfn "Performance tests done")
+                Log.out "performance tests done")
             makeDebugItem "Generate Driver Modules" None (fun _ -> genDriverFiles ())
             makeDebugItem "Icarus Compile Testcases" None (fun _ -> icarusCompileTestCases ())
             makeDebugItem "Icarus Run testcases" None (fun _ -> icarusRunTestCases ())
@@ -298,6 +301,7 @@ let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
 
     attachExitHandler dispatch
     KeyBindings.publishKeyLog()
+    Log.publish()
     let userAppDir = getUserAppDir()
     dispatch <| ReadUserData userAppDir
     { new System.IDisposable with member _.Dispose() = () }
@@ -312,13 +316,11 @@ type Messages = ModelType.Msg
 
 
 // -- Create View
-let addDebug dispatch (msg:Msg) =
-    let str = UpdateHelpers.getMessageTraceString msg
-    //if str <> "" then printfn ">>Dispatch %s" str else ()
-    dispatch msg
+// addDebug, which wrapped this dispatch, is gone: it built a message trace string and then threw
+// it away, on every dispatch the view made. What it was for - a line per message - is done at the
+// update function, which is the only place every message passes through anyway.
+let view model dispatch = DiagramMainView.displayView model dispatch
 
-let view model dispatch = DiagramMainView.displayView model (addDebug dispatch)
-//let view (model:Model) (dispatch: Msg -> unit) = Playground.Misc.displayEditor () 
 // -- Update Model
 
 let update msg model =
@@ -330,13 +332,14 @@ let update msg model =
     KeyBindings.setContextFromModel model'
     model',cmd
 
-//printfn "Starting renderer..."
-
 let view' model dispatch =
+    // Counted unconditionally - one increment - because a re-render storm is Issie's classic
+    // performance failure and nothing used to count renders at all.
+    Log.countRender()
     let start = TimeHelpers.getTimeMs()
     view model dispatch
     |> (fun view ->
-        if Set.contains "view" JSHelpers.debugTraceUI then
+        if Log.isOn Log.View then
             TimeHelpers.instrumentInterval ">>>View" start view
         else
             view)
@@ -374,7 +377,6 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
     let subRightClick =
         domListenerSub "contextmenu" (fun dispatch -> unbox (fun (e:Browser.Types.MouseEvent) ->
             e.preventDefault()
-            //printfn "Context Menu listener sending to main..."
             dispatch (ContextMenuAction e)))
 
     let subContextMenuCommand (dispatch: Msg -> unit) =
@@ -382,13 +384,12 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
             let arg:string = unbox args |> Array.map string |> String.concat ""
             match arg.Split [|','|] |> Array.toList with
             | [ menuType ; item ] ->
-                //printfn "%A" $"Renderer context menu callback: {menuType} --> {item}"
                 dispatch <| ContextMenuItemClick(menuType,item,dispatch)
-            | _ -> printfn "Unexpected callback argument sent from main.") |> ignore
+            | _ -> Log.warn "unexpected callback argument sent from the main process") |> ignore
         // the listener lives as long as the app: nothing worth tearing down
         { new System.IDisposable with member _.Dispose() = () }
 
-    /// Why does this not work in production?
+    // Why does this not work in production?
     // let periodicMemoryCheckCommand dispatch =
     //     JSHelpers.periodicDispatch dispatch UpdateHelpers.Constants.memoryUpdateCheckTime CheckMemory |> ignore
 

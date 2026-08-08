@@ -6,6 +6,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Renderer\Common\ElectronAPI.fs" Link="ElectronAPI.fs" />
+    <!-- Shared with the renderer, and needed here because ContextMenus.fs is shared too and
+         logs. It also puts both processes on one clock: Log stamps process.uptime(), which is
+         what Main.stampStartup prints. window.issieLog is a renderer thing and publish() is
+         simply never called here. -->
+    <Compile Include="..\Renderer\Common\Log.fs" Link="Log.fs" />
     <Compile Include="..\Renderer\UI\ContextMenus.fs" Link="ContextMenus.fs" />
     <Compile Include="Main.fs" />
     <None Include="main.js" />

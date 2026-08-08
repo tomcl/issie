@@ -697,7 +697,6 @@ let getDebugController (profile: CompilationProfile) (fs: FastSimulation) =
             let hexString = i32.ToString("x2");
             $"    \"{hexString}\": tx_byte <= {{ {s} }};")
     
-    //printfn "comps: %A"
     let comps = 
         Array.append comps [|"    default: tx_byte <= 8'hFF;"|]
         |> String.concat "\n"

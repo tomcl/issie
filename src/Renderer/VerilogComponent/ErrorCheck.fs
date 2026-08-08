@@ -340,7 +340,6 @@ let checkParamsUsed
         |> List.map (fun p -> p.Identifier.Name)
         |> Set.ofList
     
-    // printfn "decls %A, params: %A" decls paramSet
 
     let varOverlapErrors =
         decls
@@ -482,7 +481,6 @@ let checkForLoopVar
     let checkForStatement (forStmt, location) =
         let loopVarName = getPrimaryName forStmt.Initialisation.LHS.PrimaryType
         let assignments = foldAST getAssignments' [] (Statement forStmt.Statement)
-        // printfn "loop assignments %A" assignments
         let loopVarAssignments = 
             assignments
             |> List.filter (fun assign -> 
@@ -525,7 +523,6 @@ let checkForLoopUnrollCost (ast: VerilogInput) (paramMap: Map<string, int>) (lin
                 let extraMessages = [| {Text="For loop step must be an addition or subtraction.";Copy=false;Replace=NoReplace} |]
                 Error "Invalid for loop step", createErrorMessage linesLocations f.Location "For loop step must be an addition or subtraction." extraMessages (getPrimaryName f.Initialisation.LHS.PrimaryType)
         let condRes =
-            // printfn "Condition: %A" f.Condition
             match f.Condition with
             | Comparison (op, _, rhs) -> Ok (op, rhs)
             | _ -> Error "For loop condition must be a comparison."
@@ -547,7 +544,6 @@ let checkForLoopUnrollCost (ast: VerilogInput) (paramMap: Map<string, int>) (lin
                     | Lte -> Ok (stepV, int (floor (endFloat - startFloat + 1.0)/stepFloat)), localErrors
                     | Gte -> Ok (stepV, int (floor (startFloat - endFloat + 1.0)/stepFloat)), localErrors
                     | Gt -> 
-                        // printfn "startV: %d, endV: %d, stepV: %d" startV endV stepV
                         Ok (stepV, int (floor (startFloat - endFloat)/stepFloat)), localErrors
                     // | Gt -> Error "Infinite for loop", List.append localErrors (createErrorMessage linesLocations f.Location "Infinite for loop!" [| {Text="For loop bounds must produce a finite number of iterations." ;Copy=false;Replace=NoReplace} |] (getPrimaryName f.Initialisation.LHS.PrimaryType))
                     // | Gte -> Ok (stepV, startV - endV + 1), localErrors
@@ -617,7 +613,6 @@ let checkForLoopUnrollCost (ast: VerilogInput) (paramMap: Map<string, int>) (lin
             match tryGetIterations f with
             | Error msg, localErrors ->
                 // let localErrors = List.append localErrors (mkError f.Location loopVarName "Invalid for loop bounds" msg)
-                // printfn "Local errors: %A" localErrors
                 let newError = mkError f.Location loopVarName "Invalid for loop bounds" msg
                 localErrors @ newError, 0
                 // List.append errorList localErrors, 0
@@ -1370,7 +1365,6 @@ let getSemanticErrorsNoParamOverride (ast: VerilogTypes.VerilogInput) linesLocat
         loopErr
     else
         let declarations = foldAST getDeclarations [] (VerilogInput(ast))
-        // printfn "Declarations: %A" declarations
         let wireSizeMap =
             (wireSizeMap, declarations)
             ||> List.fold (fun map decl ->
@@ -1383,7 +1377,6 @@ let getSemanticErrorsNoParamOverride (ast: VerilogTypes.VerilogInput) linesLocat
                         Map.add variable.Name (bStart - bEnd + 1) map'
                 )
             )
-        // printfn "Wire Size Map: %A" wireSizeMap
         let wireNameList = getWireNames items
         let wireLocationMap = getWireLocationMap items //need to add declarations
         let wireLocationMap = 
@@ -1446,7 +1439,6 @@ let getExtraParamErrors (ast: VerilogTypes.VerilogInput) wireSizeMap portSizeMap
             ||> Array.fold (fun map param ->
                 Map.add param.Identifier.Name (evalExpr param.Value) map
             )
-        // printf "params for component %A: %A" comp.Name parameters
         // // if param in parammap doesnt exist in override map, then add from param map
         // let overrideMap = 
         //     (overrideMap, givenParamMap)
@@ -1454,7 +1446,6 @@ let getExtraParamErrors (ast: VerilogTypes.VerilogInput) wireSizeMap portSizeMap
         //         if Map.containsKey key overrideMap then map
         //         else Map.add key value map
         //     )
-        // printf "Override map: %A" overrideMap
         match parsedAST with
         | Some parsedAST ->
             let expectedParams = // type set

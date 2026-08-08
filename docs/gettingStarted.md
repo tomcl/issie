@@ -2,7 +2,7 @@
 title: Getting Started
 category: Documentation
 categoryindex: 1
-index: 2
+index: 3
 ---
 
 # Getting Started

@@ -2,7 +2,7 @@
 title: ISSIE-Stick FPGA hardware
 category: Documentation
 categoryindex: 1
-index: 8
+index: 9
 ---
 
 # Synthesis to FPGAs (e.g. the ISSIE-Stick hardware)

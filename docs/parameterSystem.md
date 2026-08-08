@@ -1,3 +1,10 @@
+---
+title: Parameter System
+category: Documentation
+categoryindex: 1
+index: 8
+---
+
 # Parameter System Documentation
 
 ## Overview

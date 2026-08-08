@@ -2,29 +2,77 @@
 title: Schematic Editor Features
 category: Documentation
 categoryindex: 1
-index: 3
+index: 5
 ---
 
 # Summary of Schematic Editor Operations
 
-ISSIE features developed over several years to help you create readable schematics very quickly. These are summarised in the table below:
+ISSIE features developed over several years to help you create readable schematics very quickly.
 
-| Feature | How | Explanation   |
-| :----:      |    :----:   |    :----:     |
-| **Size-to-fit** | `Ctrl-W` | Most often used keyboard shortcut to zoom and centre schematic so it is all fitted onto the screen at the correct zoom.
-| **Change port location on Custom Components** | Press `CTRL` and use your mouse to drag a port to another position on the outline of the symbol | Custom components may end up having a large number of ports. You can move them to your desired location on the outline to create nicer schematics |
-| **Resizing of Custom Components** | Change `Width Scale` and `Height Scale` on the properties pane | If default sizing makes port legends overlap you can scale custom component width and height in Properties |
-| **Move component's label** | Simply drag the component's label to your desired location on the canvas | |
-| **Rotate and flip components** | `Ctrl + left arrow`: <br> `Ctrl + right arrow`:  <br> `Ctrl + up arrow`:  <br> `Ctrl + down arrow`: | Rotate clockwise <br> Rotate anti-clockwise <br> Flip vertically <br> Flip horizontally |
-| **Truth Table for combinational logic** | `Simulations` -> `Truth Table` | View the truth table for a combinational logic circuit. This can be either a full sheet or a sub-set by selecting the components you want to be included in the truth table |  
-| **Add a description on your sheets** | De-select all components and click on properties. Click the `Add Description` button| Sheet description will appear on the sheet list as an &#9432; button and will be displayed on properties when that sheet is used as a custom component |
-| **Themes** | `View` -> `Theme` | Choose between the 3 supported themes: `Grayscale`, `Light` or `Colourful`  |
-| **Grid** | `View` -> `Toggle grid` | Choose whether you want a grid to appear on your sheets  |
-| **Wire Type** | `View` -> `Wire Type` | Choose between the 3 supported wire types: `Jump`, `Radiussed` or `Modern` wires  |
-| **Wire Arrows** | `View` -> `Toggle Wire Arrows` | Choose whether you want arrows at the end-points of your wires to show the direction of signals |
-| **Auto-routing with fixed segments** |     | Issie will **nearly always** route and separate all schematic connections neatly with no manual routing required. Any wire segment can be manually dragged to a desired position and "fixed" with other segments and wires auto-routed around it.|
-| **Right-click context menus** | Right-click on any schematic component or the background sheet will give you useful actions |
-| **Keyboard shortcuts** | Most actions have shortcuts documented from the main **info** button or individually on menus. |
+> Keys below are given for Windows and Linux. On macOS `Ctrl` is usually `Cmd`, and a few chords
+> differ. **The authoritative list for your platform is generated from the code**: press **Info**
+> → *Keyboard Shortcuts*. The same actions are also on the **Edit** and **View** menus, and on the
+> right-click menus, each labelled with its key.
+
+## Placing and editing components
+
+| Feature | How | Explanation |
+| :---- | :---- | :---- |
+| **Place a component** | Click it in the Catalogue, then click the canvas — or **drag it straight from the Catalogue** and drop it where you want it | While you drag, a ghost of the real symbol follows the cursor. A drop onto space already occupied by another symbol is refused rather than overlapping them |
+| **Component tooltips** | Hover any Catalogue entry, or any field label in **Properties** | Every component explains what it is for, and every field explains what it sets and what people get wrong about it |
+| **Find a component** | Type in the Catalogue's search box | Matches the explanations as well as the names, so "subtract" finds the N bits XOR. Sections holding a match open themselves |
+| **Size-to-fit** | `Ctrl-W` | Most often used keyboard shortcut: zooms and centres the schematic so it all fits on screen |
+| **Zoom / pan the canvas** | `Alt`+`Up` / `Alt`+`Down`; `Ctrl`+mouse wheel; `Shift`+drag (or two-finger scroll) | Zoom in, zoom out, and pan |
+| **Rotate and flip components** | `Ctrl`+`Right`: rotate clockwise <br> `Ctrl`+`Left`: rotate anti-clockwise <br> `Ctrl`+`Up`: flip vertically <br> `Ctrl`+`Down`: flip horizontally | Also on the Edit menu and on a component's right-click menu |
+| **Undo / redo** | `Ctrl-Z` / `Ctrl-Y`, or the on-screen buttons | |
+| **Copy / paste** | `Ctrl-C` / `Ctrl-V`, or the on-screen buttons | Duplicates keep the label with an incremented number. Works across sheets |
+| **Move a component's label** | Drag the label; `Ctrl-Shift-Right` rotates it | |
+| **Change port location on custom components** | Hold `Ctrl` and drag a port to another position on the outline — or use *Move ports* on the component's right-click menu | Custom components can have a lot of ports; move them to make a readable symbol |
+| **Resize a custom component** | Hold `Ctrl` and drag a corner, use *Resize symbol* on its right-click menu, or set `Width Scale` / `Height Scale` in Properties | Auto-sizing keeps port legends from overlapping; override it when you want a particular shape |
+| **Change anything about a component** | Select it and use the **Properties** tab | Labels, bus widths, number of gate inputs, MUX input order, optional adder/counter ports, memory contents, Verilog source |
+| **Align / distribute** | `Ctrl-Shift-A` / `Ctrl-Shift-D` | Same-type components in the selection are aligned or evenly spaced; other types are left alone |
+| **Rotate or scale a block** | Drag a selection rectangle, then use the handles on the selection box | `Shift`-click adds or removes one component from the selection |
+
+## Wires and connections
+
+| Feature | How | Explanation |
+| :---- | :---- | :---- |
+| **Auto-routing with fixed segments** | Automatic | Issie will **nearly always** route and separate all schematic connections neatly with no manual routing required. Any wire segment can be manually dragged to a desired position and "fixed", with other segments and wires auto-routed around it |
+| **Unfix a wire** | Right-click the wire → *Unfix Wire* | Returns a hand-routed wire to auto-routing |
+| **Re-separate / re-route** | Edit menu, or *Reroute all wires* on the canvas right-click menu | Applies the whole-sheet tidy-up to the selection, or to everything |
+| **Wire type** | `View` → `Wire Type` | `Jump`, `Radiussed` or `Modern` wires. Purely a display choice — it does not change the design |
+| **Wire arrows** | `View` → `Toggle Wire Arrows` | Show the direction of signals at wire end-points |
+| **Net labels** | Catalogue → `Input / Output` → `Net Label` | Every net label with the same name is one net, joined without wires. Use for long connections and high fan-out. Exactly one label in a same-name set must be driven |
+| **Terminate an unused output** | `Not Connected` component, or a `Viewer` | Issie will otherwise report the dangling output — and offer to insert the `Not Connected` for you |
+
+## Sheets, hierarchy and the project
+
+| Feature | How | Explanation |
+| :---- | :---- | :---- |
+| **Custom components** | Catalogue → `This project` | Any design sheet can be placed in another sheet, any number of times |
+| **Design hierarchy tree** | The **Sheet** menu | The whole project drawn as a tree with connector lines, showing which sheet contains which. The same tree appears in the waveform simulator |
+| **Sheet right-click menu** | Right-click a sheet in that tree | *Rename*, *Duplicate*, *Delete*, *Set as top*, *Save as library component*, *Write design as Verilog* |
+| **Add a description to a sheet** | De-select everything, open **Properties**, click `Add Description` | The description appears against the sheet as an &#9432; button, and is shown in Properties wherever the sheet is used as a custom component |
+| **Sheet parameters** | **Properties** with nothing selected → `Add Parameter` | Named integer parameters, used in arithmetic expressions for bus widths, constants and memory sizes. Each instance of the sheet supplies its own values. See [Parameter System](parameterSystem.html) |
+| **Component libraries** | Catalogue → `Library` | Ready-made parameterised components. Choosing one copies its sheet into your project and asks for its parameter values, so it stays an ordinary editable sheet |
+| **Import a sheet** | `Sheet` → `Import Sheet` | Copy a sheet in from another project |
+| **Project browser** | `Project` → `New project` / `Open project` | An in-app file browser: the projects inside a folder are listed and can be opened with the arrow keys and `Enter` |
+| **Automatic backups** | Automatic | Every sheet is continuously snapshotted into a `backup/` subdirectory of the project |
+
+## Simulation, appearance and help
+
+| Feature | How | Explanation |
+| :---- | :---- | :---- |
+| **Step simulation** | `Simulations` → `Step Simulation` | Set inputs and read outputs immediately. `Viewer` components expose signals from any subsheet |
+| **Truth table for combinational logic** | `Simulations` → `Truth Tables` | For a full sheet, or for just the components you select. Reduce it with input constraints, hidden columns, redundancy removal, or algebraic inputs |
+| **Waveform simulation** | `Simulations` → `Wave Simulation` | See [Features](features.html) for what it can do |
+| **Add waveforms from the schematic** | Right-click a component while a wave simulation is running → *Add waveforms to viewer* | |
+| **Read a value off the schematic** | Rest the mouse on a wire while either simulator is running | The value that wire carries appears beside the pointer — at the waveform cursor's cycle, or at the step simulator's current clock tick — in that simulator's radix. Nothing is shown for a wire on a sheet the simulation holds more than one copy of, since there would be no single answer |
+| **Themes** | `View` → `Theme` | `Grayscale`, `Light` or `Colourful` |
+| **Grid** | `View` → `Toggle grid` | |
+| **Right-click context menus** | Right-click a component, a custom component, a wire, the canvas, a sheet in the tree, or the project path | Each offers exactly the actions that apply there, labelled with their shortcuts |
+| **Keyboard shortcuts** | **Info** → *Keyboard Shortcuts* | Generated from the same table the app dispatches keys with, for your platform, so it is always correct |
+| **Errors** | Automatic | Every error names what is wrong and how to correct it, highlights the components and connections responsible on the canvas, and where the fix is unambiguous offers a button that applies it and restarts the simulation |
 
 <br><br>
 
@@ -71,7 +119,8 @@ The on-screen copy & paste buttons can duplicate single components, or selected 
 
 ### Canvas zooming
 
-The canvas can be zoomed in or out, or auto-zoomed and panned to fit the whole circuit using `Ctrl-W` (`Cmd-W`).
+The canvas can be zoomed in or out, or auto-zoomed and panned to fit the whole circuit using
+`Ctrl-W` (macOS: `Cmd-Alt-0`).
 
 ### Symbol rotation
 
@@ -79,14 +128,14 @@ Individual symbols can be rotated or flipped using the right-click menu or the I
 
 ### Wire display types
 
-Wires can be displayed as radial, modern, or old-style jump. Switching display types can be done at any time and does not chnage the schematic.
+Wires can be displayed as radial, modern, or old-style jump. Switching display types can be done at any time and does not change the schematic.
 
-Radial wires are the mots interesting (and readable) form of wire display. Wire bends have small quadrant connections thus distinguishing between wires that cross and a wire joining two perpendicular wires. Visually, radial display makes connectivity easier to follow. The default radius for the wire quadrants is defined as `static member radius = 5.0` in `Wire` type. However, for very small wires, this radius is changed to prevent visual bugs. When drawing radii, the length of the smallest segment the curve connects to is checked, and if its length is <5, the radius is shrunk to match it. Due to the limitations of drawing Arcs in SVG, these radii can only be integer valued, leading to small inconsistencies when a segment is a small non integer value (i.e. 1.5).
+Radial wires are the most interesting (and readable) form of wire display. Wire bends have small quadrant connections thus distinguishing between wires that cross and a wire joining two perpendicular wires. Visually, radial display makes connectivity easier to follow. The default radius for the wire quadrants is defined as `static member radius = 5.0` in `Wire` type. However, for very small wires, this radius is changed to prevent visual bugs. When drawing radii, the length of the smallest segment the curve connects to is checked, and if its length is <5, the radius is shrunk to match it. Due to the limitations of drawing Arcs in SVG, these radii can only be integer valued, leading to small inconsistencies when a segment is a small non integer value (i.e. 1.5).
 
 
 ### Symbol auto-sizing
 
-Custom components (symbols) are dynamically resized depending on their port configuration. The minimum distance distance between 2 ports is set as `GridSize = 30`, which is defined as a `[<Literal>]` at the top of `Symbol.fs`. The dimensions of a component are determined as follows:
+Custom components (symbols) are dynamically resized depending on their port configuration. The minimum distance between 2 ports is set as `GridSize = 30`, which is defined as a `[<Literal>]` at the top of `Symbol.fs`. The dimensions of a component are determined as follows:
 
 - **Height:** Determined purely from the maximum number of ports on the left or right edge (n), setting the height to (n+1)`GridSize`, and spreading the ports GridSize apart.
 - **Width:** The distance between ports is determined by the maximum between the largest port label and `GridSize`. This ensures that the labels of the ports cannot overlap, whilst still being a minimum distance apart. The width can be calculated for both the Top and Bottom edges using the same approach as above using the maximum value, and taking the largest of these 2 values. In addition, the length of the longest labels from the Left and Right sides, as well as the component label (displayed in the center of the component) are added up and compared to the width obtained from the previous calculation. By selecting the component width as the maximum of these values, it can be ensured that labels associated with the component / ports do not overlap.

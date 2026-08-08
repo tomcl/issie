@@ -278,7 +278,7 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
         | None -> div [] []
         | Some browser ->
             let folder = browser.Folder
-            let recents = model'.UserData.RecentProjects |> Option.defaultValue []
+            let recents = recentProjects model'
             let goTo (path: string) = dispatch <| SetProjectBrowserFolder path
             let openIt (path: string) =
                 dispatch ClosePopup
@@ -287,7 +287,7 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                 // recent list to add to it, and the popup outlives whatever else has happened
                 openChosenFolder path model' dispatch
             /// Places on the left, contents on the right - the layout every file dialog has,
-            /// borrowed because it solves a real problem here: ten recents stacked above the
+            /// borrowed because it solves a real problem here: a stack of recents above the
             /// listing pushed the folder's own contents below the fold.
             let places =
                 div [Style [Width "180px"; MarginRight "12px"; Flex "0 0 auto"]] [
@@ -298,17 +298,7 @@ and private viewProjectBrowser (startFolder: string) model dispatch =
                         Menu.menu [] [
                             Menu.list []
                                 (recents |> List.map (fun path ->
-                                    Menu.Item.li
-                                        [ Menu.Item.IsActive false
-                                          Menu.Item.OnClick (fun _ -> openIt path) ]
-                                        // both axes hidden: hiding only one makes CSS force the
-                                        // other to auto, which put a scrollbar on every row
-                                        [ div [ HTMLAttr.Title path
-                                                Style [OverflowX OverflowOptions.Hidden
-                                                       OverflowY OverflowOptions.Hidden
-                                                       TextOverflow "ellipsis"
-                                                       WhiteSpace WhiteSpaceOptions.Nowrap] ]
-                                              [str (baseName path)] ]))
+                                    recentProjectItem path (str (baseName path)) openIt model' dispatch))
                         ]
                 ]
 

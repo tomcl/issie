@@ -27,9 +27,10 @@ module Constants =
     let minAppWidth = 1060.
     let typicalAppWidth = 1600.
 
-    /// Recent projects are now a panel in the project browser rather than a few lines on the
-    /// startup screen, and a term's work is more than five projects.
-    let numberOfRecentProjects: int  = 10
+    /// A shortlist, not a history: past the first few, a name in it is no faster to pick out than
+    /// the project browser next to it would find the folder. Entries beyond this are dropped on
+    /// display as well as on write, so lowering it takes effect on a list already saved to disk.
+    let numberOfRecentProjects: int  = 5
     let maxDisplayedPathLengthInRecentProjects: int  = 60
     /// canvas width < this => use fewer chars in path
     let largeScreenCanvasWidth = 1000
@@ -917,13 +918,70 @@ let rec resolveComponentOpenPopup
     | OkComp comp ::rLst -> 
         resolveComponentOpenPopup pPath (comp::components) rLst model dispatch
 
+/// Hold a recent list to its limit. Applied on every read as well as on every write, since a
+/// longer list saved by an earlier version is still in IssieSettings.json and nothing else would
+/// ever shorten it.
+let private trimRecents (recents: string list) =
+    List.truncate Constants.numberOfRecentProjects recents
+
 let addToRecents path recents =
     recents
     |> Option.defaultValue []
     |> List.filter ((<>) path)
-    |> List.truncate Constants.numberOfRecentProjects
     |> List.insertAt 0 path
+    // trimmed after the insert, not before it: truncating first left room for the new entry to
+    // make the list one longer than the limit, every time
+    |> trimRecents
     |> Some
+
+/// The recent projects to offer, newest first. Read the list through this rather than from
+/// UserData directly.
+let recentProjects (model: Model) : string list =
+    model.UserData.RecentProjects
+    |> Option.defaultValue []
+    |> trimRecents
+
+/// Take one project off the recent list. The project itself is untouched.
+let forgetRecentProject (path: string) (model: Model) dispatch =
+    dispatch <| SetUserData {
+        model.UserData with
+            RecentProjects =
+                model.UserData.RecentProjects
+                |> Option.map (List.filter ((<>) path) >> trimRecents)
+        }
+
+/// One row of a recent-projects list: the project, which opens on a click, and a cross that takes
+/// it off the list.
+///
+/// Only opening a project ever put one here, and only opening four others ever took it away - so a
+/// project opened once by mistake, or one whose folder has since been moved or deleted, sat at the
+/// top of the list of five for as long as it took to open five more. The cross is worded and
+/// coloured as removal from a list rather than deletion, because that is all it is: nothing on
+/// disk changes.
+let recentProjectItem (path: string) (label: ReactElement) (openIt: string -> unit) model dispatch =
+    Menu.Item.li
+        [ Menu.Item.IsActive false
+          Menu.Item.OnClick (fun _ -> openIt path) ]
+        [ div [Class "recentItem"] [
+            // both overflow axes hidden: hiding only one makes CSS force the other to auto, which
+            // puts a scrollbar on every row
+            div [ HTMLAttr.Title path
+                  Style [ Flex "1"; MinWidth "0"
+                          OverflowX OverflowOptions.Hidden
+                          OverflowY OverflowOptions.Hidden
+                          TextOverflow "ellipsis"
+                          WhiteSpace WhiteSpaceOptions.Nowrap ] ]
+                [ label ]
+            span [ Class "recentForget"
+                   HTMLAttr.Title $"Remove '{baseName path}' from this list. The project itself is \
+                                    not deleted."
+                   OnClick (fun ev ->
+                        // the row underneath this opens the project: forgetting one must not also
+                        // be the last time it is opened
+                        ev.stopPropagation()
+                        forgetRecentProject path model dispatch) ]
+                [ str "✕" ]
+          ] ]
 
 /// open an existing demo project from its path
 let openDemoProjectFromPath (path:string) model dispatch =

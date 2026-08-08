@@ -274,3 +274,35 @@ th, td {
 #PropertiesPane .button {
   margin: 0.2rem 0.4rem 0.2rem 0;
 }
+
+/* ---------------------------------------------------------------------------
+   Recent projects: the cross that takes one off the list.
+
+   Faint rather than hidden-until-hover: a control nobody can see is one nobody
+   knows is there, and this list is the first thing a returning user looks at.
+   It darkens with the row and turns red under the pointer, so what it will act
+   on is never in doubt - the rows are close together and the wrong one is one
+   project's worth of annoyance.
+   --------------------------------------------------------------------------- */
+.recentItem {
+  display: flex;
+  align-items: center;
+}
+
+.recentItem .recentForget {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  padding: 0 2px;
+  color: #d0d0d0;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.recentItem:hover .recentForget {
+  color: #8a8a8a;
+}
+
+.recentItem .recentForget:hover {
+  color: #cc0f35;
+}

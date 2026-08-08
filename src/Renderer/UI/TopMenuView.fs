@@ -442,14 +442,14 @@ let viewNoProjectMenu model dispatch =
         |> List.map(fun basename ->
             (basename, 0, 0))
 
-    let recentsList = 
-        model.UserData
-        |> (fun ud -> ud.RecentProjects)
-        |> Option.defaultValue []
-        |> List.map (fun path -> 
-                        menuItem 
-                            (cropToLength  Constants.maxDisplayedPathLengthInRecentProjects false path) 
-                            (fun _ -> openProjectFromPath path model dispatch))
+    let recentsList =
+        recentProjects model
+        |> List.map (fun path ->
+                        let label =
+                            str (cropToLength Constants.maxDisplayedPathLengthInRecentProjects false path)
+                        recentProjectItem path label
+                            (fun path -> openProjectFromPath path model dispatch)
+                            model dispatch)
 
     /// Somebody opening Issie for the first time is looking at this menu, and nothing on it used
     /// to suggest that the Info window - which has the tutorial, the tips and the shortcut table -

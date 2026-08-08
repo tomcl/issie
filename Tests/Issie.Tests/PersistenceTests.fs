@@ -110,6 +110,27 @@ let tests =
                     "nor does a path that is not there")
         }
 
+        // The recent projects list is user data that survives restarts, so a list one too long, or
+        // one holding the same project twice, is a fault that outlives the session that caused it.
+        test "opening a project puts it at the top of the recents, once, within the limit" {
+            let limit = MenuHelpers.Constants.numberOfRecentProjects
+            let paths = [1..limit + 3] |> List.map (fun i -> $"/projects/p{i}")
+            let recents = paths |> List.fold (fun acc path -> MenuHelpers.addToRecents path acc) None
+            match recents with
+            | None -> failtest "opening a project must produce a list"
+            | Some recents ->
+                Expect.equal (List.length recents) limit
+                    "the list is capped: it used to keep one more than the limit, since it made \
+                     room before adding rather than after"
+                Expect.equal (List.head recents) (List.last paths) "newest first"
+                Expect.equal recents (List.distinct recents) "no project appears twice"
+                // reopening the oldest one still listed moves it up rather than duplicating it
+                let reopened = MenuHelpers.addToRecents (List.last recents) (Some recents)
+                Expect.equal (Option.map List.length reopened) (Some limit) "still capped"
+                Expect.equal (Option.map List.head reopened) (Some (List.last recents))
+                    "the reopened project is now the newest"
+        }
+
         test "a project's marker is named after its folder" {
             let path = FilesIO.projectMarkerPath (FilesIO.pathJoin [| "some"; "where"; "adder" |])
             Expect.equal (FilesIO.baseName path) "adder.dprj" "the marker takes the folder's name"

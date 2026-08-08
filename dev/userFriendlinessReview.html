@@ -400,9 +400,9 @@ its competitors — the <em>Fix by …</em> buttons in
 shortcut table, the per-component tooltips and the context menus are all genuinely unusual. What
 follows is only where it falls short of its own standard.</p>
 <p>Findings are ordered by (cost to fix) ÷ (benefit), best first.</p>
-<p><strong>Status, August 2026:</strong> all of section A and all of section B have been fixed — each entry says
-how. Section C and D1–D2 remain open; C is deliberately deferred, since remapping keys is a change
-users have to absorb and is worth doing all at once. D3 is settled.</p>
+<p><strong>Status, August 2026:</strong> sections A, B and C are all done — each entry says how. C was deferred
+once and then done in one pass, which is what it wanted: remapping keys is a change users have to
+absorb, so it is worth doing all at once. D1–D2 remain open. D3 is settled.</p>
 <hr />
 <h2><a name="A-Defects-places-that-contradict-the-principle" class="anchor" href="#A-Defects-places-that-contradict-the-principle">A. Defects — places that contradict the principle</a></h2>
 <h3><a name="A1-A-help-menu-item-that-says-Feature-not-explained" class="anchor" href="#A1-A-help-menu-item-that-says-Feature-not-explained">A1. A help menu item that says "Feature not explained"</a></h3>
@@ -583,23 +583,32 @@ waveforms and the schematic.</p>
 <hr />
 <h2><a name="C-Consistency" class="anchor" href="#C-Consistency">C. Consistency</a></h2>
 <h3><a name="C1-Two-zooms-and-the-obvious-keys-drive-the-wrong-one" class="anchor" href="#C1-Two-zooms-and-the-obvious-keys-drive-the-wrong-one">C1. Two zooms, and the obvious keys drive the wrong one</a></h3>
-<p><code>Ctrl+=</code> / <code>Ctrl+-</code> (<code>ScAppZoomIn</code>, <code>KeyTypes.fs:345</code>) scale the <strong>whole application</strong> via
-Electron's <code>setZoomLevel</code>. The <strong>schematic</strong> zoom is <code>Alt+Up</code> / <code>Alt+Down</code> on Windows and Linux
-(<code>ScDiagramZoomIn</code>, <code>KeyTypes.fs:331</code>).</p>
+<p><code>Ctrl+=</code> / <code>Ctrl+-</code> scaled the <strong>whole application</strong> via Electron's <code>setZoomLevel</code>. The
+<strong>schematic</strong> zoom was <code>Alt+Up</code> / <code>Alt+Down</code> on Windows and Linux, and <code>Cmd+Opt+=</code> / <code>Cmd+Opt+-</code> on
+macOS — so the two platforms had no chord shape in common either.</p>
 <p><code>Ctrl+=</code>/<code>Ctrl+-</code> is what a user reaches for to zoom a drawing, in every drawing application there
-is. In Issie it silently rescales the entire UI instead, which looks like the canvas zooming until
-the menu bar changes size too. Consider swapping them, or at least binding <code>Ctrl+=</code>/<code>Ctrl+-</code> to the
-diagram when the pointer is over the canvas.</p>
+is. In Issie it silently rescaled the entire UI instead, which looks like the canvas zooming until
+the menu bar changes size too. Worse, Issie's own <code>Ctrl</code>+wheel already zoomed the diagram, so the
+same modifier meant two different things depending on whether a wheel or a key carried it.</p>
+<p><strong>FIXED, as one rule: Primary with <code>+</code> <code>-</code> <code>0</code> zooms whatever you are looking at, and adding <code>Alt</code>
+zooms the whole application.</strong> "Whatever you are looking at" is the schematic in the sheet
+contexts and the <strong>waveforms</strong> in the wave simulator — which the in-app help already promised and
+did not have: what those keys did there was zoom the application.</p>
+<p><code>Ctrl+W</code> is retired. It stays in the table bound to nothing, so that the host cannot read it as
+close-window — which on an application with one window means quit. Not bound on macOS, where
+<code>Cmd+W</code> closing a window is a real convention rather than a browser habit.</p>
+<p><code>Shift+=</code> is <code>+</code> on most layouts, so those two must always be the same action; that is what stops
+application zoom living on <code>Primary+Shift</code> and puts it on <code>Primary+Alt</code>.</p>
 <h3><a name="C2-is-taken-from-macOS" class="anchor" href="#C2-is-taken-from-macOS">C2. <code>Cmd+H</code> is taken from macOS</a></h3>
-<p><code>spec ScAbout (macOnly [ ch Mods.prim (letter 'H') ])</code> (<code>KeyTypes.fs:374</code>) opens the Info window,
-and shortcuts <code>preventDefault</code> by default. On macOS <code>Cmd+H</code> hides the front application in every program — this
-is one of the most ingrained system shortcuts there is, and Issie quietly takes it.</p>
-<p>Meanwhile Windows and Linux have <strong>no key for help at all</strong>, and <code>F1</code> is unbound everywhere.
-Suggest: <code>F1</code> (and <code>Cmd+/</code> or <code>Shift+Cmd+/</code> on macOS) for Info; release <code>Cmd+H</code>.</p>
+<p><code>ScAbout</code> was <code>macOnly [ Cmd+H ]</code>, and shortcuts <code>preventDefault</code> by default. On macOS <code>Cmd+H</code>
+hides the front application in every program — one of the most ingrained system shortcuts there
+is, and Issie quietly took it. Meanwhile Windows and Linux had <strong>no key for help at all</strong>, and
+<code>F1</code> was unbound everywhere.</p>
+<p><strong>FIXED.</strong> <code>F1</code> on both platforms; <code>Cmd+H</code> released.</p>
 <h3><a name="C3-Grid-and-wire-arrows-have-keys-only-on-macOS" class="anchor" href="#C3-Grid-and-wire-arrows-have-keys-only-on-macOS">C3. Grid and wire arrows have keys only on macOS</a></h3>
-<p><code>ScToggleGrid</code> and <code>ScToggleWireArrows</code> are <code>macOnly</code> (<code>KeyTypes.fs:357–360</code>). Windows and Linux users get menu items only,
-and the generated shortcut table shows them a row with "(none)" against it. Either bind them on all
-platforms or drop them from the table.</p>
+<p><code>ScToggleGrid</code> and <code>ScToggleWireArrows</code> were <code>macOnly</code>. Windows and Linux users got menu items
+only, and the generated shortcut table showed them a row reading "(none)".</p>
+<p><strong>FIXED.</strong> <code>Primary+Alt+G</code> and <code>Primary+Alt+W</code> on both platforms.</p>
 <h3><a name="C4-Small-naming-mismatches" class="anchor" href="#C4-Small-naming-mismatches">C4. Small naming mismatches</a></h3>
 <ul>
 <li>
@@ -612,6 +621,24 @@ arithmetic; the section named <strong>"Gates"</strong> holds only the 1-bit vers
 wide AND will look in Gates.
 </li>
 </ul>
+<h3><a name="C5-The-same-action-different-chords-on-the-two-platforms" class="anchor" href="#C5-The-same-action-different-chords-on-the-two-platforms">C5. The same action, different chords on the two platforms</a></h3>
+<p>Rotate and flip were <code>Ctrl</code>+arrows on Windows but <code>Cmd</code>+<strong><code>Opt</code></strong>+arrows on macOS; align and
+distribute <code>Ctrl+Shift+A</code>/<code>D</code> against <code>Cmd+Opt+A</code>/<code>D</code>; rotate-label used a different <em>key</em>
+altogether, <code>Ctrl+Shift+Right</code> against <code>Cmd+Opt+R</code>. <code>Mods.Primary</code> exists precisely so that
+Ctrl-against-Cmd needs no thought, so none of these had a reason — they are accidents of the
+migration from the Electron menus, whose accelerators the table was written to preserve.</p>
+<p><strong>FIXED.</strong> All three are one chord for both platforms. A test asserts the general rule: a
+shortcut's Windows and macOS chords must be identical unless its id is on a short list of ones
+that differ for a real platform convention (Backspace deletes on macOS, redo is <code>Cmd+Shift+Z</code>,
+full screen, quit, dev tools, and the Windows-only <code>Ctrl+W</code> swallow).</p>
+<h3><a name="C6-Space-did-nothing-but-suppress-scrolling" class="anchor" href="#C6-Space-did-nothing-but-suppress-scrolling">C6. Space did nothing but suppress scrolling</a></h3>
+<p><code>Space</code> was bound only to stop the page scrolling under the canvas. In every drawing application
+<code>Space</code>+drag pans; Issie panned with <code>Shift</code>+drag alone, which is the less-guessed of the two.</p>
+<p><strong>FIXED.</strong> <code>Space</code>+drag pans as well. Tracked as held state beside <code>ctrlHeld</code> in <code>KeyBindings</code>
+rather than as a chord — the table resolves one press to one action and has nowhere to say "while
+down". Only in the sheet contexts, so a space in a text box is still a space. The cursor shows the
+mode, and pan mode outranks whatever is under the pointer, so it cannot offer to grab a wire when
+the next drag is going to pan.</p>
 <hr />
 <h2><a name="D-Documentation-and-release-information" class="anchor" href="#D-Documentation-and-release-information">D. Documentation and release information</a></h2>
 <h3><a name="D1-stops-at-v0-5-0" class="anchor" href="#D1-stops-at-v0-5-0">D1. <code>RELEASE_NOTES.md</code> stops at v0.5.0</a></h3>
@@ -753,6 +780,16 @@ open one and read it.
   <li class="level-3">
     <a href="#C4-Small-naming-mismatches">
       C4. Small naming mismatches
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#C5-The-same-action-different-chords-on-the-two-platforms">
+      C5. The same action, different chords on the two platforms
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#C6-Space-did-nothing-but-suppress-scrolling">
+      C6. Space did nothing but suppress scrolling
     </a>
   </li>
   <li class="level-2">

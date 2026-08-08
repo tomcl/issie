@@ -422,55 +422,60 @@ right-click menus, each labelled with its key.</p>
 </tr>
 <tr class="even">
 <td align="left"><p><strong>Size-to-fit</strong></p></td>
-<td align="left"><p><code>Ctrl-W</code></p></td>
+<td align="left"><p><code>Ctrl-0</code></p></td>
 <td align="left"><p>Most often used keyboard shortcut: zooms and centres the schematic so it all fits on screen</p></td>
 </tr>
 <tr class="odd">
-<td align="left"><p><strong>Zoom / pan the canvas</strong></p></td>
-<td align="left"><p><code>Alt</code>+<code>Up</code> / <code>Alt</code>+<code>Down</code>; <code>Ctrl</code>+mouse wheel; <code>Shift</code>+drag (or two-finger scroll)</p></td>
-<td align="left"><p>Zoom in, zoom out, and pan</p></td>
+<td align="left"><p><strong>Zoom the canvas</strong></p></td>
+<td align="left"><p><code>Ctrl</code>+<code>+</code> / <code>Ctrl</code>+<code>-</code>; <code>Ctrl</code>+mouse wheel</p></td>
+<td align="left"><p><code>Ctrl</code> with <code>+</code> <code>-</code> <code>0</code> zooms whatever you are looking at — the schematic, or the waveforms in the wave simulator. Add <code>Alt</code> to zoom the whole application instead</p></td>
 </tr>
 <tr class="even">
+<td align="left"><p><strong>Pan the canvas</strong></p></td>
+<td align="left"><p><code>Space</code>+drag or <code>Shift</code>+drag (or two-finger scroll)</p></td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
 <td align="left"><p><strong>Rotate and flip components</strong></p></td>
 <td align="left"><p><code>Ctrl</code>+<code>Right</code>: rotate clockwise <br> <code>Ctrl</code>+<code>Left</code>: rotate anti-clockwise <br> <code>Ctrl</code>+<code>Up</code>: flip vertically <br> <code>Ctrl</code>+<code>Down</code>: flip horizontally</p></td>
 <td align="left"><p>Also on the Edit menu and on a component's right-click menu</p></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Undo / redo</strong></p></td>
 <td align="left"><p><code>Ctrl-Z</code> / <code>Ctrl-Y</code>, or the on-screen buttons</p></td>
 <td align="left"></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><p><strong>Copy / paste</strong></p></td>
 <td align="left"><p><code>Ctrl-C</code> / <code>Ctrl-V</code>, or the on-screen buttons</p></td>
 <td align="left"><p>Duplicates keep the label with an incremented number. Works across sheets</p></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Move a component's label</strong></p></td>
 <td align="left"><p>Drag the label; <code>Ctrl-Shift-Right</code> rotates it</p></td>
 <td align="left"></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><p><strong>Change port location on custom components</strong></p></td>
 <td align="left"><p>Hold <code>Ctrl</code> and drag a port to another position on the outline — or use <em>Move ports</em> on the component's right-click menu</p></td>
 <td align="left"><p>Custom components can have a lot of ports; move them to make a readable symbol</p></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Resize a custom component</strong></p></td>
 <td align="left"><p>Hold <code>Ctrl</code> and drag a corner, use <em>Resize symbol</em> on its right-click menu, or set <code>Width Scale</code> / <code>Height Scale</code> in Properties</p></td>
 <td align="left"><p>Auto-sizing keeps port legends from overlapping; override it when you want a particular shape</p></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><p><strong>Change anything about a component</strong></p></td>
 <td align="left"><p>Select it and use the <strong>Properties</strong> tab</p></td>
 <td align="left"><p>Labels, bus widths, number of gate inputs, MUX input order, optional adder/counter ports, memory contents, Verilog source</p></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><p><strong>Align / distribute</strong></p></td>
-<td align="left"><p><code>Ctrl-Shift-A</code> / <code>Ctrl-Shift-D</code></p></td>
+<td align="left"><p><code>Ctrl-Shift-A</code> / <code>Ctrl-Shift-D</code>; rotate a label with <code>Ctrl-Shift-R</code></p></td>
 <td align="left"><p>Same-type components in the selection are aligned or evenly spaced; other types are left alone</p></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><p><strong>Rotate or scale a block</strong></p></td>
 <td align="left"><p>Drag a selection rectangle, then use the handles on the selection box</p></td>
 <td align="left"><p><code>Shift</code>-click adds or removes one component from the selection</p></td>
@@ -676,8 +681,9 @@ right-click menus, each labelled with its key.</p>
 <h3><a name="Copy-and-paste" class="anchor" href="#Copy-and-paste">Copy and paste</a></h3>
 <p>The on-screen copy &amp; paste buttons can duplicate single components, or selected sets of components (see selection below). They can also be used to copy components from one design sheet to a new one.</p>
 <h3><a name="Canvas-zooming" class="anchor" href="#Canvas-zooming">Canvas zooming</a></h3>
-<p>The canvas can be zoomed in or out, or auto-zoomed and panned to fit the whole circuit using
-<code>Ctrl-W</code> (macOS: <code>Cmd-Alt-0</code>).</p>
+<p>The canvas can be zoomed in or out with <code>Ctrl</code>+<code>+</code> and <code>Ctrl</code>+<code>-</code>, or auto-zoomed and panned to fit
+the whole circuit with <code>Ctrl-0</code>. The same chords work on macOS with <code>Cmd</code>. Adding <code>Alt</code> to any of
+the three zooms the whole application rather than the schematic.</p>
 <h3><a name="Symbol-rotation" class="anchor" href="#Symbol-rotation">Symbol rotation</a></h3>
 <p>Individual symbols can be rotated or flipped using the right-click menu or the Issie edit menu.</p>
 <h3><a name="Wire-display-types" class="anchor" href="#Wire-display-types">Wire display types</a></h3>

@@ -23,6 +23,119 @@ module Constants =
     let memoryCheckMinTime = 500.
 
 
+//--------------------------------------------------------------------------------------//
+//----------------The value on the wire under the cursor, during a simulation-----------//
+//--------------------------------------------------------------------------------------//
+
+(*
+    Reading a value off the schematic itself is the thing users of every schematic simulator ask
+    for first, and until now Issie could only answer it in the waveform table or the step
+    simulator's panel - both of which mean looking away from the circuit and finding the signal
+    again by name.
+
+    This is the join between the two halves and belongs at the seam: the draw block knows which
+    wire the mouse is resting on (SheetT.Model.HoveredWire) and nothing about simulation; a
+    simulator knows every value and nothing about the canvas. Neither can do this alone, and giving
+    either one the other's knowledge would be worse than the small function here.
+
+    Both simulators are answered, by the same code. All the probe needs is a FastSimulation, a
+    cycle and a radix, and each simulator has all three; WaveSimSelect.probeLabelForWire does the
+    rest. The waveform simulator is preferred when both are running, because its cursor is a
+    deliberate choice of cycle whereas the step simulator's is just wherever the clock has got to.
+*)
+
+module Probe =
+    open DrawModelType
+
+    /// The simulation to read, the cycle to read it at, and the radix to write it in.
+    ///
+    /// The waveform simulator first: when both are running, its cursor is where the user has
+    /// deliberately put it, and it is the one they are looking at. The step simulator's clock tick
+    /// is simply how far it has been stepped, which is still the right answer when it is the only
+    /// simulation there is.
+    let private source (model: Model) : (SimTypes.FastSimulation * int * NumberBase) option =
+        let ws = ModelHelpers.getWSModel model
+        match ws.State with
+        | WaveSimState.Success ->
+            Some(Simulator.getFastSim (), ws.CursorExactClkCycle, ws.Radix)
+        | _ ->
+            match model.CurrentStepSimulationStep with
+            // ClockTickNumber, not fs.ClockTick: it is the tick the step simulator is showing and
+            // has written on its own button, so the probe and the panel cannot disagree
+            | Some(Ok simData) -> Some(simData.FastSim, simData.ClockTickNumber, simData.NumberBase)
+            | _ -> None
+
+    /// The font the label is written in. Named once because its width has to be measured with the
+    /// same one it is drawn with, or the box and the text inside it disagree.
+    let private labelFont =
+        { DrawHelpers.defaultText with
+            TextAnchor = "start"
+            FontSize = "11px"
+            FontFamily = "helvetica"
+            Fill = "#443300" }
+
+    /// The horizontal span of the schematic the user can actually see, in draw block coordinates.
+    ///
+    /// Read from the DOM rather than the model, because only half of it is in the model: the
+    /// scroll position is copied there, but the width of the window being scrolled inside is not,
+    /// and it changes with the divider bar and the window. `getVisibleScreenCentre` reads the same
+    /// element for the same reason.
+    let private visibleXSpan (zoom: float) : (float * float) option =
+        match Browser.Dom.document.getElementById "Canvas" with
+        | null -> None
+        | canvas when canvas.clientWidth <= 0.0 -> None
+        | canvas -> Some(canvas.scrollLeft / zoom, (canvas.scrollLeft + canvas.clientWidth) / zoom)
+
+    /// A label drawn beside the cursor giving the value on the wire under it. Empty unless a
+    /// simulation of this sheet's design is running and the mouse is resting on a wire whose value
+    /// that simulation knows.
+    let view (model: Model) : ReactElement list =
+        match model.Sheet.HoveredWire, source model, model.Sheet.Action with
+        // only while nothing is being dragged: during a gesture the cursor is doing something else
+        // and a label following it is in the way
+        | Some cid, Some(fs, cycle, radix), SheetT.CurrentAction.Idle ->
+            match WaveSimSelect.probeLabelForWire fs cycle radix model.Sheet.Wire cid with
+            | None -> []
+            | Some text ->
+                let pos = model.Sheet.LastMousePos
+                // measured, not counted: the width decides where the label is allowed to sit, so a
+                // per-character guess would clip the very case this is here to prevent
+                let padding = 5.0
+                let w = DrawHelpers.getTextWidthInPixels labelFont text + 2.0 * padding
+                let h = 18.0
+                let y = pos.Y - h - 6.0
+                // Beside the cursor, but never off the side of the window. Slid rather than
+                // flipped to the other side of the pointer: the label stays where the eye already
+                // is, and only the last few pixels of travel differ. Vertical needs no such care -
+                // the label sits above the cursor, and a wire at the very top of the window is
+                // reached by scrolling, which moves the label with it.
+                let x =
+                    let preferred = pos.X + 12.0
+                    match visibleXSpan model.Sheet.Zoom with
+                    | None -> preferred
+                    | Some(visibleLeft, visibleRight) ->
+                        let margin = 4.0
+                        // min first, then max: a label too wide for the window keeps its left edge
+                        // on screen, which is the readable end of "NAME = value"
+                        preferred
+                        |> min (visibleRight - w - margin)
+                        |> max (visibleLeft + margin)
+                // the label must never be what the mouse is over: it follows the cursor, so a
+                // label that took the pointer would take it away from the wire it is describing
+                // and the two would chase each other
+                [ g [ Style [ CSSProp.PointerEvents "none" ] ] [
+                    rect [
+                        X x; Y y
+                        SVGAttr.Width w; SVGAttr.Height h
+                        SVGAttr.Rx 3.0
+                        SVGAttr.Fill "#fffbe6"
+                        SVGAttr.Stroke "#b0a060"
+                        SVGAttr.StrokeWidth 0.8
+                    ] []
+                    DrawHelpers.makeText (x + padding) (y + 4.0) text labelFont
+                  ] ]
+        | _ -> []
+
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
 
@@ -95,6 +208,7 @@ let init() = {
     TopSheetChoiceDeclined = Set.empty
     ComponentLibraries = ComponentLibraries.findLibraries ()
     OpenLibrary = None
+    CatalogueSearch = ""
     ShowLibrarySheets = false
     PopupViewFunc = None
     PopupDialogData = {
@@ -493,7 +607,8 @@ let displayView model dispatch =
                             ()
                         );
                 ] [
-                    SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model) sheetDispatch
+                    SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model)
+                        (Probe.view model) sheetDispatch
                 ]
 
             Notifications.viewNotifications model dispatch

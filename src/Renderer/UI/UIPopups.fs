@@ -109,7 +109,20 @@ let makeInfoPopupButton (title: string) (info: ReactElement) dispatch =
 //-------------------------------------------------------------------------------------------------------------------//
 
 
-let viewInfoPopup dispatch =
+/// The Issie documentation website. Depth lives there, not in this popup: a page can be as long as
+/// it needs to be, is kept in step with the code by the same pull request, and is readable before
+/// Issie is downloaded at all. What belongs here is the short path that gets somebody started
+/// without leaving the application.
+let private docsSite = "https://tomcl.github.io/issie"
+
+/// A link out to one page of the documentation site, with a sentence saying what is on it.
+let private docsLink (page: string) (name: string) (what: string) =
+    li [Style [MarginBottom "4px"]] [
+        a [OnClick <| openInBrowser $"{docsSite}/{page}"] [str name]
+        str $" — {what}"
+    ]
+
+let viewInfoPopupAtTab (startTab: int) dispatch =
 
     let title = "ISSIE: Interactive Schematic Simulator and Integrated Editor"
 
@@ -144,22 +157,84 @@ let viewInfoPopup dispatch =
             ]    
         ]
 
-    let intro = div [] [
-        str "Issie designs are hierarchical, made of one main sheet and optional subsheets. Include the hardware defined on one sheet in another \
-        by adding any number of  'custom components' from the 'My Project' section of the Catalog. The Sheet menu shows the hierarchy." 
-        br []; br []
-        str "Issie supports step simulation for all circuits, and waveform simulation to view the waveforms of clocked circuits. \
-        Use whichever works for you." 
-        br []; br [];
-        str "In Issie all clocked components (blue fill) use the same clock signal Clk. \
-        Clk connections are not shown: all Clk ports are \
-        automatically connected together. In the waveform display active clock edges, 1 per clock cycle, are indicated \
-        by vertical lines through the waveforms."
-        br []  ; br [];  
-        button 
-            [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"] 
-            [ str "See the Issie Github Repo for more information"]
-        br [] ; br [] ]
+    /// The first five minutes, in order, plus the two things about Issie that cannot be worked out
+    /// by looking at the screen. This is what a first run opens on, so it says what to DO before it
+    /// says what Issie is: somebody who has just launched an application wants to get somewhere,
+    /// and the acknowledgments and the technology stack are one tab away for when they do not.
+    let gettingStarted =
+        let step n what =
+            li [Style [MarginBottom "6px"]] [ b [] [str $"{n}. "]; what ]
+        div [] [
+            makeH "The first few minutes"
+            ol [Style [ListStyle "none"; MarginLeft "0"]] [
+                step 1 (span [] [
+                    str "Press "; b [] [str "Open demo project"]
+                    str " and pick one. Five worked designs ship with Issie, from a full adder to a \
+                         CPU running a program. They reset every time you open them, so nothing you \
+                         do to them can be broken. Or press "
+                    b [] [str "New project"]; str " and start your own." ])
+                step 2 (span [] [
+                    str "Place components from the "; b [] [str "Catalogue"]
+                    str " on the right: drag one onto the sheet, or click it and click where you \
+                         want it. Hover any of them to read what it does, or type in the search box \
+                         to find one by what it is for." ])
+                step 3 (span [] [
+                    str "Wire them up by dragging from one port to another. Issie routes and tidies \
+                         the wires itself; drag a wire segment if you want it somewhere else." ])
+                step 4 (span [] [
+                    str "Select a component and open "; b [] [str "Properties"]
+                    str " to set its width, its label and its options. Every field there explains \
+                         itself when you hover its name." ])
+                step 5 (span [] [
+                    str "Press "; b [] [str "Simulations"]; str " → "; b [] [str "Step Simulation"]
+                    str " to set inputs and read outputs, or "; b [] [str "Wave Simulation"]
+                    str " to watch a clocked design over time." ])
+            ]
+
+            makeH "If something is wrong, Issie will say so"
+            str "You do not have to find mistakes yourself. Every error names what is wrong and how \
+                 to correct it, highlights the components and wires responsible on the schematic, \
+                 and where the correction is unambiguous offers a button that makes it for you."
+            br []; br []
+
+            makeH "Two things worth knowing early"
+            ul [Style [ListStyle "disc"; MarginLeft "24px"]] [
+                li [] [str "Designs are hierarchical. Any sheet can be used inside another as a \
+                            'custom component', any number of times - they are in the 'This \
+                            project' section of the Catalogue. The Sheet menu draws the whole \
+                            hierarchy as a tree."]
+                li [] [str "Every clocked component (drawn with a blue fill) uses the same clock, \
+                            Clk. You never wire a clock up: all Clk ports are connected together \
+                            automatically. In the waveform viewer the vertical lines are the active \
+                            clock edges, one per cycle."]
+            ]
+            br []
+
+            makeH "Where to read more"
+            ul [Style [ListStyle "disc"; MarginLeft "24px"]] [
+                docsLink "userGuide.html" "User Tutorial"
+                    "one page you can follow at the keyboard, building a design from an AND gate up \
+                     to a clocked circuit with a waveform simulation"
+                docsLink "features.html" "Features"
+                    "what Issie can do, in one page"
+                docsLink "coolFeatures.html" "Schematic Editor Features"
+                    "every editing operation and the key that does it"
+                docsLink "parameterSystem.html" "Parameter System"
+                    "building one sheet that works at any bus width"
+                docsLink "verilogComp.html" "Verilog Components"
+                    "writing a component's logic in SystemVerilog instead of drawing it"
+            ]
+            br []
+            str "The other tabs of this window are worth a minute of your time: "
+            b [] [str "Tips & Features"]
+            str " lists the things people most often do not find, and "
+            b [] [str "Keyboard Shortcuts"]
+            str " is generated from the keys this build actually uses, for this platform."
+            br []; br []
+            button
+                [OnClick <| openInBrowser "https://github.com/tomcl/ISSIE"]
+                [ str "Issie on GitHub"]
+            br [] ; br [] ]
 
     let tips = div [] [
         Table.table [] [
@@ -168,7 +243,34 @@ let viewInfoPopup dispatch =
                         td [] [str "Right-Click Menus"]
                         td [] [str "Explore the Right-Click Menus to find context-dependent operations"]
                     ]
- 
+                    tr [] [
+                        td [] [str "Search the Catalogue"]
+                        td [] [str "The Catalogue's search box matches what a component is for as well as its name, \
+                                    so 'subtract' finds the N bits XOR and 'invert' finds Not"]
+                    ]
+                    tr [] [
+                        td [] [str "Hover a Properties field"]
+                        td [] [str "Every field in the Properties tab explains what it sets, and what people get \
+                                    wrong about it, when you hover its name"]
+                    ]
+                    tr [] [
+                        td [] [str "Drag from the Catalogue"]
+                        td [] [str "Drag a component out of the Catalogue and drop it where you want it, rather \
+                                    than clicking twice"]
+                    ]
+                    tr [] [
+                        td [] [str "Probe a wire"]
+                        td [] [str "With either simulator running, rest the mouse on any wire of the schematic to \
+                                    read the value it carries - at the waveform cursor's cycle, or at the step \
+                                    simulator's current clock tick"]
+                    ]
+                    tr [] [
+                        td [] [str "Waveforms and the schematic"]
+                        td [] [str "Hover a waveform's name to light up its component and wires on the schematic; \
+                                    the button beside the name opens the sheet it lives on. Right-click a component \
+                                    on the schematic to add its waveforms to the viewer"]
+                    ]
+
                     tr [] [
                         td [] [str "Ctrl-W"]
                         td [] [str "Use Ctrl-W to fit the current sheet to the window so you can see all the components"]
@@ -376,37 +478,37 @@ let viewInfoPopup dispatch =
         let dialogData = model.PopupDialogData
         let tab = dialogData.Int
 
+        // Getting Started first, and so the default: this window is most valuable to somebody who
+        // has not used Issie before, and what they need is what to do next. The version number and
+        // the acknowledgments are worth having but nobody opened this window for them.
+        let tabNames =
+            [ "Getting Started"; "Tips & Features"; "Keyboard Shortcuts"; "About Issie"; "Bug Reports" ]
+
         div [] [
-            Tabs.tabs 
+            Tabs.tabs
                 [ Tabs.IsFullWidth
                   Tabs.IsBoxed ]
-                [ Tabs.tab [ Tabs.Tab.IsActive (tab = Some 0) ]
-                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 0)) ]
-                    [ str "About Issie" ] ]
-                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 1) ]
-                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 1)) ]
-                    [ str "Introduction" ] ] 
-                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 2) ]
-                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 2)) ]
-                    [ str "Tips & Features" ] ]  
-                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 3) ]
-                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 3)) ]
-                    [ str "Keyboard Shortcuts" ] ]
-                  Tabs.tab [ Tabs.Tab.IsActive (tab = Some 4) ]
-                    [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some 4)) ]
-                    [ str "Bug Reports" ] ] ]
+                (tabNames
+                 |> List.mapi (fun i name ->
+                     Tabs.tab [ Tabs.Tab.IsActive (tab = Some i) ]
+                         [ a [ OnClick (fun _ -> dispatch <| SetPopupDialogInt (Some i)) ] [ str name ] ]))
 
             match tab with
-            | Some 0 -> about
-            | Some 1 -> intro
-            | Some 2 -> tips
-            | Some 3 -> keys
+            | Some 0 -> gettingStarted
+            | Some 1 -> tips
+            | Some 2 -> keys
+            | Some 3 -> about
             | Some 4 -> bugReport
             | _ -> dispatch <| SetPopupDialogInt (Some 0)
         ]
 
     let foot _ = div [] []
+    // the tab is remembered between openings, so a caller that wants a particular one must say so
+    dispatch <| SetPopupDialogInt (Some startTab)
     dynamicClosablePopup title body foot [Width 900] dispatch
+
+/// The Info window, on the tab it is most useful to open on.
+let viewInfoPopup dispatch = viewInfoPopupAtTab 0 dispatch
 
 let viewWaveInfoPopup dispatch feature =
     let makeH h =
@@ -421,6 +523,10 @@ let viewWaveInfoPopup dispatch feature =
 
     let title = feature
 
+    // The names matched below are what the user clicked on. Three of them come from the
+    // "WaveSimHelp" right-click menu in ContextMenus.fs and must stay spelled the same as the items
+    // there - see the note beside that list. "Getting Started" and "Instructions" come from the
+    // viewer's own Info button in WaveSimTop.
     let waveInfo =
         div [] [
         match feature with
@@ -429,8 +535,10 @@ let viewWaveInfoPopup dispatch feature =
 
             ul [Style [ListStyle "disc"; MarginLeft "30px"]] [
                 li [] [str "The waveform viewer can show waveforms selected from "; bSpan  " any sheet"; str " in the design being simulated."]         
-                li [] [str "Choose the top sheet you want to simulate. Press"; bSpan " Start"; str " to start the viewer. Then press the";
-                       bSpan " Select Waves "; str " button to select or change which waveforms are viewed. See the selection popup info button for more info."]                    
+                li [] [str "Choose the top sheet you want to simulate and press"; bSpan " Start"; str ". \
+                            The top sheet's own inputs and outputs are shown straight away. Press the";
+                       bSpan " Select Waves "; str "button to change which waveforms are viewed - any signal on \
+                       any sheet can be shown. See the selection popup info button for more info."]
                 // The Schematic Editor zoom keys differ between Windows and macOS, so name the one
                 // place that always has them right rather than writing one platform's keys here.
                 li [] [str "Use Ctrl/Shift/- and Ctrl/Shift/+ buttons to resize the viewer so you can comfortably see the correct number of \
@@ -493,10 +601,18 @@ let viewWaveInfoPopup dispatch feature =
                 li [] [str "The waveform radix can be changed. When waveforms are too small to fit binary this will be changed to hex. \
                             Numeric values not displayed on the waveform can be viewed using the cursor and the righthand panel."]
             ]
-        | _ ->
-            p [] [str "Feature not explained"]
+        | unknown ->
+            // Reached only if the two lists above have drifted apart. Say what to do next rather
+            // than leaving the user in the help system with nothing.
+            p [] [
+                str $"There is no help written for '{unknown}' - this is a fault in Issie, and we \
+                      would like to know about it (Info -> Bug Reports)."
+                br []
+                str "The Info button at the top of the waveform viewer has instructions covering \
+                     everything it can do."
+            ]
     ]
-   
+
     let body (model: Model) =
         waveInfo
     let foot _ = div [] []

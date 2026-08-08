@@ -42,7 +42,12 @@ let contextMenus = [
         "ComponentWaveSim", componentItems @ [addWavesItem]
         "Canvas", ["Zoom-in (Alt+Up) and centre" ; "Zoom-out (Alt+Down)" ; "Fit to window (Ctrl+W)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
         "Wire", ["Unfix Wire"]
-        "WaveSimHelp", ["Waveform and RAM selection"; "Waveform Operations"; "Miscellaneous"]
+        // Each of these is the name of a case in UIPopups.viewWaveInfoPopup, which is given the
+        // item clicked on verbatim. A name here that has no case there reaches its catch-all, so
+        // the two lists must be changed together. They cannot be one list: this file is compiled
+        // into the main process, which has none of the renderer, and UIPopups is compiled long
+        // before this file in the renderer itself.
+        "WaveSimHelp", ["Waveform and RAM selection"; "Viewing Waveforms"; "Miscellaneous"]
         "", [] // Empty string for no context menu.
     ]
 

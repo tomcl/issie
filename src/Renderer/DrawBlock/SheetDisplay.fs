@@ -152,11 +152,16 @@ let displaySvgWithZoom
         ]
 
 /// View function, displays symbols / wires and possibly also a grid / drag-to-select box / connecting ports line / snap-to-grid visualisation
-let view 
-        (model:Model) 
-        (headerHeight: float) 
-        (style: CSSProp list) 
-        (dispatch : Msg -> unit) 
+/// `overlay` is drawn on top of the wires, in draw block coordinates, so it pans and zooms with
+/// the schematic. It exists for things the draw block cannot work out for itself - at present the
+/// value on the wire under the cursor, which only the UI layer knows, because only it knows a
+/// simulation is running. Empty the rest of the time.
+let view
+        (model:Model)
+        (headerHeight: float)
+        (style: CSSProp list)
+        (overlay: ReactElement list)
+        (dispatch : Msg -> unit)
             : ReactElement =
     let start = TimeHelpers.getTimeMs()
     let wDispatch wMsg = dispatch (Wire wMsg)
@@ -297,9 +302,10 @@ let view
         ]
 
     let displayElements =
+        // overlay last, so it is drawn over the wires it is describing
         if model.ShowGrid
-        then [ grid; wireSvg ]
-        else [ wireSvg ]
+        then [ grid; wireSvg ] @ overlay
+        else [ wireSvg ] @ overlay
 
     // uncomment the display model react for visbility of all snaps
     let snaps = snapIndicatorLineX @ snapIndicatorLineY // snapDisplay model

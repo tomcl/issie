@@ -91,6 +91,9 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
             |> Option.defaultValue Set.empty
         let createWaves (wsModel: WaveSimModel) =
             {wsModel with AllWaves = WaveSimSVGs.getWaves librarySheets wsModel (Simulator.getFastSim())}
+            // a viewer with nothing in it is never what the user wants: give a first start the top
+            // sheet's own ports. Does nothing once anything at all has been selected.
+            |> WaveSimSelect.withDefaultSelectionIfEmpty (Simulator.getFastSim())
         validateSimParas wsModel
         |> if newSimulation then createWaves else id
 

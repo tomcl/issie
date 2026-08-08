@@ -451,6 +451,18 @@ let viewNoProjectMenu model dispatch =
                             (cropToLength  Constants.maxDisplayedPathLengthInRecentProjects false path) 
                             (fun _ -> openProjectFromPath path model dispatch))
 
+    /// Somebody opening Issie for the first time is looking at this menu, and nothing on it used
+    /// to suggest that the Info window - which has the tutorial, the tips and the shortcut table -
+    /// exists. It is offered here rather than opened for them: a second window in front of the
+    /// first one, before they have asked for anything, is an interruption rather than help. The
+    /// line is worded for a newcomer but shown to everyone, because it costs one row and the
+    /// window is worth reopening.
+    let helpItem =
+        Menu.Item.li
+            [ Menu.Item.IsActive false
+              Menu.Item.OnClick(fun _ -> UIPopups.viewInfoPopupAtTab 0 dispatch) ]
+            [ str "New to Issie? Start here" ]
+
     let initialMenu =
         Menu.menu []
             [ Menu.list []
@@ -458,7 +470,8 @@ let viewNoProjectMenu model dispatch =
                      menuItem "Open project" (fun _ -> dispatch <| FileCommand(FileOpenProject false, dispatch))
                      menuItem "Open demo project" (fun _ -> dispatch <| FileCommand(FileShowDemos demosInfo, dispatch))]
                   @ (if recentsList <> [] then [hr []] else [])
-                  @ recentsList)
+                  @ recentsList
+                  @ [ hr []; helpItem ])
             ]
 
     match model.CurrentProj with

@@ -127,8 +127,33 @@ let private checkCombinatorialCycle
                         with e ->
                             []
 
+                // Name the loop and say what to do about it. A combinational loop is one of the
+                // commonest mistakes a beginner makes, and "cycle detected" on its own leaves them
+                // with nowhere to go: the components are highlighted, but not what is wrong with
+                // them being joined up that way, nor what would fix it.
+                let loop =
+                    cycle
+                    |> List.map (fun cid ->
+                        match Map.tryFind cid graph with
+                        | Some { Label = ComponentLabel label } -> label
+                        | None -> "?")
+                    |> String.concat " -> "
+
                 Some
-                    { ErrType = CycleDetected "Cycle detected in combinatorial logic."
+                    { ErrType =
+                        CycleDetected(
+                            sprintf
+                                "There is a combinational loop in this circuit: the highlighted \
+                                 components feed back into themselves without passing through any \
+                                 clocked component.\n\n\
+                                 %s -> (back to the start)\n\n\
+                                 Such a circuit has no defined value - each output depends on \
+                                 itself - so it cannot be simulated, and real hardware built this \
+                                 way would oscillate. Break the loop: either remove one of the \
+                                 connections above, or put a clocked component (a D flip-flop or a \
+                                 register) into the path so that the feedback is delayed by one \
+                                 clock cycle."
+                                loop)
                       InDependency = inDependency
                       ComponentsAffected = cycle
                       ConnectionsAffected = connectionsAffected }

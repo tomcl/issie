@@ -131,6 +131,7 @@
     <Compile Include="UI\TruthTable\TruthTableView.fs" />
     <Compile Include="UI\TruthTable\TruthTableUpdate.fs" />
     <Compile Include="UI\BuildView.fs" />
+    <Compile Include="UI\PropertiesHelp.fs" />
     <Compile Include="UI\ParameterView.fs" />
     <Compile Include="UI\CatalogueView.fs" />
     <Compile Include="UI\SelectedComponentView.fs" />

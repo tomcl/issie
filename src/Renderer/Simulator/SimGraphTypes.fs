@@ -105,14 +105,38 @@ type SimulationError =
 type PortRmInfo =
     | Unremovable
     | Removable of ComponentType // specify original type and type after port removal
+/// "input"/"output" as a user would write it. Used instead of %A so that a message cannot change
+/// shape if PortType ever gains a field, and so that it reads as prose rather than as F#.
+let private portTypeName (pType: PortType) =
+    match pType with
+    | PortType.Input -> "input"
+    | PortType.Output -> "output"
+
+/// Said after the port-consistency errors below. None of them can be caused by anything the user
+/// did in the editor, so telling them to correct it - as every other error here does - would send
+/// them looking for something that is not there.
+let private damagedSheetAdvice =
+    "\n\nThis is not something that can be caused by editing a schematic: the sheet file is \
+     probably damaged. Try the most recent snapshot in the project's 'backup' folder, and please \
+     report it (Info -> Bug Reports)."
+
 let errMsg (errType: SimulationErrorType) =
     match errType with
     | PortNumMissing correctType ->
-        sprintf "%A port appears to have no port number" correctType
+        sprintf "This component has an %s port with no port number.%s"
+            (portTypeName correctType) damagedSheetAdvice
     | WrongPortType (correctType, port) ->
-        sprintf "%A port %d appears to be an %A port" correctType (Option.get port.PortNumber) port.PortType 
+        // Option.get here would throw inside the code that renders an error, which is the worst
+        // place to throw: the user would lose the error as well as having it.
+        let which =
+            match port.PortNumber with
+            | Some n -> sprintf "Port %d of this component" n
+            | None -> "A port of this component"
+        sprintf "%s should be an %s port but is recorded as an %s port.%s"
+            which (portTypeName correctType) (portTypeName port.PortType) damagedSheetAdvice
     | ConnTypeHasNum (correctType, portNum) ->
-        sprintf "%A port appears to have a port number: %d" correctType portNum
+        sprintf "This component has an %s port carrying a port number (%d) that it should not have.%s"
+            (portTypeName correctType) portNum damagedSheetAdvice
     | LabelConnect ->
         sprintf
             "You can't connect two Net Labels with a wire. Delete the connecting wire. If you want to join two net labels \
@@ -126,13 +150,19 @@ let errMsg (errType: SimulationErrorType) =
         sprintf "Can't find a design sheet named %s for the custom component of this name" compName
     | InPortMismatch (compName, instIns, compIns) ->
         sprintf
-            "Sheet %s is used as a custom component. Instance In ports: %A are different from Component In ports: %A."
+            "This component is an instance of sheet '%s', but its inputs no longer match that \
+             sheet's - the sheet has been edited since the instance was placed.\n\n\
+             Instance inputs: %s\nSheet inputs: %s\n\n\
+             Delete this component and place it again from the Catalogue to bring it up to date."
             compName
             instIns
             compIns
     | OutPortMismatch (compName, instOuts, compOuts) ->
         sprintf
-            "Sheet %s is used as a custom component. Instance Out ports: %A are different from Component Out ports: %A."
+            "This component is an instance of sheet '%s', but its outputs no longer match that \
+             sheet's - the sheet has been edited since the instance was placed.\n\n\
+             Instance outputs: %s\nSheet outputs: %s\n\n\
+             Delete this component and place it again from the Catalogue to bring it up to date."
             compName
             instOuts
             compOuts
@@ -152,7 +182,14 @@ let errMsg (errType: SimulationErrorType) =
             "A component output port must have at least one connection. If the component output \
                 is meant to be disconnected you can add a \"Not Connected\" component to stop this error"
         else
-            sprintf "%d" count
+            // Not currently reachable: checkPortsAreConnectedProperly raises this only for a count
+            // of 0. It is written out anyway so that widening that check cannot leave the user
+            // reading a bare number, which is what stood here before.
+            sprintf
+                "A component output port has %d connections, which is more than this check allows. \
+                 An output may drive any number of inputs, so if you are seeing this please report \
+                 it (Info -> Bug Reports)."
+                count
     | LabelConnError count ->
         if count = 0 then
             "A set of labelled wires must be driven (on the input of one of the labels): but no such driver was found"
@@ -174,7 +211,14 @@ let errMsg (errType: SimulationErrorType) =
     | WrongSelection msg -> msg
     | UnnecessaryNC -> "Unnecessary 'Not Connected' components at adder COUTs"
     | InternalError e ->
-        sprintf "\nInternal ERROR in Issie fast simulation: %A\n\n%A\n" e.Message e.StackTrace
+        // The user cannot act on a stack trace, but they are the only person who can report it.
+        // Frame it as a request rather than dumping it and leaving them to guess.
+        sprintf
+            "Issie's simulator has hit an internal problem. This is a fault in Issie, not in your \
+             design, and we would like to know about it: please report it with the text below and \
+             your project (Info -> Bug Reports).\n\n%s\n\n%s"
+            e.Message
+            e.StackTrace
     | GenericSimError msg -> msg
 
 /// Wrapper for Javascript (Diagram) component. Why here?

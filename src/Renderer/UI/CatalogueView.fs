@@ -381,18 +381,20 @@ let private startPlacingLibraryComponent
             dispatch <| ExecFuncInMessage ((fun model' dispatch' ->
                 startPlacingCustomComponent toPlace model' dispatch'), dispatch)
 
-let private makeCustomList styles model dispatch =
+/// `keep` is the catalogue's search filter, applied to a sheet's name and its description.
+let private makeCustomList keep styles model dispatch =
     match model.CurrentProj with
     | None -> []
     | Some project ->
         // Do no show the open component in the catalogue.
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        |> List.filter (fun comp -> 
+        |> List.filter (fun comp ->
             match JSHelpers.debugLevel <> 0 with
             |true -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel || comp.Form = Some ProtectedSubSheet)
             |false -> (comp.Form = Some User || comp.Form = Some ProtectedTopLevel)
         )
+        |> List.filter (fun comp -> keep comp.Name (Option.defaultValue "" comp.Description))
         |> List.sortBy (fun x -> x.Name)
         |> List.map (makeCustom styles model dispatch)
 
@@ -401,7 +403,7 @@ let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)
     placementItem styles (customGhost loadedComponent) loadedComponent.Name
         (placeSheetOnGesture loadedComponent dispatch) model dispatch
 
-let private makeVerilogList styles model dispatch =
+let private makeVerilogList keep styles model dispatch =
     match model.CurrentProj with
     | None -> []
     | Some project ->
@@ -409,6 +411,7 @@ let private makeVerilogList styles model dispatch =
         project.LoadedComponents
         |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
         |> List.filter (fun comp -> match comp.Form with Some (Verilog _)-> true |_ -> false)
+        |> List.filter (fun comp -> keep comp.Name (Option.defaultValue "" comp.Description))
         |> List.map (makeVerilog styles model dispatch)
 
 
@@ -1296,24 +1299,38 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
     dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton isDisabled extra dispatch
 
 
-let private makeMenuGroup title menuList =
-    details [Open false] [
-        summary [menuLabelStyle] [ str title ]
-        Menu.list [] menuList
-    ]
+/// One section of the catalogue.
+///
+/// `isOpen` is true while a search is running, so that what matched is visible without the user
+/// opening nine sections to find it. A section whose items have all been filtered out is not drawn
+/// at all - a row of empty headings tells the user nothing about where their component is.
+let private makeMenuGroupOpen isOpen title menuList =
+    match menuList with
+    | [] -> null
+    | menuList ->
+        details [Open isOpen] [
+            summary [menuLabelStyle] [ str title ]
+            Menu.list [] menuList
+        ]
 
+let private makeMenuGroup title menuList = makeMenuGroupOpen false title menuList
 
+let private makeMenuGroupWithTipOpen isOpen styles title tip menuList =
+    match menuList with
+    | [] -> null
+    | menuList ->
+        details [
+            Open isOpen;
+            HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+            Tooltip.dataTooltip tip
+            Style styles
+        ] [
+            summary [menuLabelStyle] [ str title ]
+            Menu.list [] menuList
+        ]
 
-let private makeMenuGroupWithTip styles  title tip menuList =
-    details [
-        Open false;
-        HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
-        Tooltip.dataTooltip tip
-        Style styles
-    ] [
-        summary [menuLabelStyle] [ str title ]
-        Menu.list [] menuList
-    ]
+let private makeMenuGroupWithTip styles title tip menuList =
+    makeMenuGroupWithTipOpen false styles title tip menuList
 
 /// The component a catalogue drag is carrying, drawn following the cursor.
 ///
@@ -1421,19 +1438,61 @@ let viewCatalogue model dispatch =
             /// holds, so these values are never seen: the real ones are asked for by the popup.
             let ghostMemory = { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map.empty; Comments = None }
 
+            /// What the user has typed, lower-cased once.
+            let searchTerm = model.CatalogueSearch.Trim().ToLower()
+            let searching = searchTerm <> ""
+
+            /// Whether a component is shown. The tooltip is searched as well as the name, because
+            /// the name is Issie's word for the thing and the tooltip is usually the user's: a
+            /// search for "subtract" finds the N bits XOR, and "invert" finds Not.
+            let keep (name: string) (tip: string) =
+                not searching
+                || name.ToLower().Contains searchTerm
+                || tip.ToLower().Contains searchTerm
+
             /// One catalogue component. `ghost` is what the item draws while it is being carried:
             /// the component it places, at the parameters that component would have if the popup,
             /// where there is one, were simply accepted.
-            let catTip1 name (ghost: ComponentType) func (tip:string) =
-                let react = placementItem styles (GhostSymbol ghost) name (fun () -> func ()) model dispatch
-                div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
-                      Tooltip.dataTooltip tip
-                      Style styles
+            ///
+            /// A list rather than one element, so that a component filtered out by the search
+            /// contributes nothing to its section and a section left with nothing in it can tell.
+            let catTip1 name (ghost: ComponentType) func (tip:string) : ReactElement list =
+                match keep name tip with
+                | false -> []
+                | true ->
+                    let react = placementItem styles (GhostSymbol ghost) name (fun () -> func ()) model dispatch
+                    [ div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
+                            Tooltip.dataTooltip tip
+                            Style styles
+                          ]
+                          [ react ] ]
+
+            /// A catalogue section. Open while a search is running, so what matched can be seen.
+            let group title items = makeMenuGroupOpen searching title (List.concat items)
+            let groupWithTip title tip items =
+                makeMenuGroupWithTipOpen searching styles title tip items
+
+            /// The search box. Kept outside the scrolling menu below it so that it stays put while
+            /// the components scroll.
+            let searchBox =
+                div [Style [Padding "0 6px 6px 6px"]] [
+                    Input.text [
+                        Input.Placeholder "Search components"
+                        Input.Value model.CatalogueSearch
+                        Input.Size IsSmall
+                        Input.OnChange (fun ev ->
+                            let text: string = JSHelpers.getTextEventValue ev
+                            dispatch <| UpdateModel (Optics.Optic.set catalogueSearch_ text))
                     ]
-                    [ react ]
-            Menu.menu [Props [Class "py-1"; Style ([Height "calc(100vh - 200px)"; OverflowY OverflowOptions.Auto] @ styles)]]  [
-                // TODO
-                    makeMenuGroup
+                ]
+
+            /// Said instead of an empty catalogue, which otherwise looks like a fault.
+            let noMatches =
+                div [Style [Padding "10px"; Color "grey"]]
+                    [str $"No component matches '{model.CatalogueSearch.Trim()}'."]
+
+            let sections = [
+                    group
                         "Input / Output"
                         [ catTip1 "Input" (Input1 (1, None))  (fun _ -> dispatchAsFunc (createInputPopup "input" Input1)) "Input connection to current sheet: one or more bits"
                           catTip1 "Output" (Output 1) (fun  _ -> dispatchAsFunc (createIOPopup true "output" Output)) "Output connection from current sheet: one or more bits"
@@ -1448,7 +1507,7 @@ let viewCatalogue model dispatch =
                                                                                                                          exactly one driving input. A net label can also be used \
                                                                                                                          to terminate an unused output"
                           catTip1 "Not Connected" (NotConnected) (fun  _ -> dispatchAsFunc (createComponent (NotConnected) "" None)) "Not connected component to terminate unused output."]                          
-                    makeMenuGroup
+                    group
                         "Buses"
                         [ 
                         catTip1 "MergeWires" (MergeWires)  (fun  _ -> dispatchAsFunc (createComponent MergeWires "" None)) "Use Mergewires when you want to \
@@ -1472,7 +1531,7 @@ let viewCatalogue model dispatch =
                         catTip1 "Bus Compare" (BusCompare1 (1, 0I, "0")) (fun  _ -> dispatchAsFunc (createBusComparePopup)) "Bus compare outputs 1 if the input bus \
                                                                                                  matches a constant value as written in decimal, hex, or binary." 
                         catTip1 "N bits spreader" (NbitSpreader 1) (fun  _ -> dispatchAsFunc (createNbitSpreaderPopup)) "Replicates a 1 bit input onto all N bits of an output bus"]
-                    makeMenuGroup
+                    group
                         "Gates"
                         [ catTip1 "Not" (Not)  (fun  _ -> dispatchAsFunc (createCompStdLabel Not None) ) "Invertor: output is negation of input"
                           catTip1 "And" (GateN (And, 2))  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (And, 2)) None))
@@ -1487,7 +1546,7 @@ let viewCatalogue model dispatch =
                                                 "Output is 0 if any of the inputs are 1. Use Properties to add more inputs"
                           catTip1 "Xnor" (GateN (Xnor, 2)) (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xnor, 2)) None))
                                                 "Output is 1 if an even number of inputs are 1. Use Properties to add more inputs"]
-                    makeMenuGroup
+                    group
                         "Mux / Demux"
                         [ catTip1 "2-Mux" (Mux2) (fun  _ -> dispatchAsFunc (createCompStdLabel Mux2 None)) <| muxTipMessage "two"
                           catTip1 "4-Mux" (Mux4) (fun  _ -> dispatchAsFunc (createCompStdLabel Mux4 None)) <| muxTipMessage "four"
@@ -1495,7 +1554,7 @@ let viewCatalogue model dispatch =
                           catTip1 "2-Demux" (Demux2) (fun  _ -> dispatchAsFunc (createCompStdLabel Demux2 None))  <| deMuxTipMessage "two"  
                           catTip1 "4-Demux" (Demux4) (fun  _ -> dispatchAsFunc (createCompStdLabel Demux4 None))  <| deMuxTipMessage "four"
                           catTip1 "8-Demux" (Demux8) (fun  _ -> dispatchAsFunc (createCompStdLabel Demux8 None))  <| deMuxTipMessage "eight" ]
-                    makeMenuGroup
+                    group
                         "Arithmetic"
                         [ catTip1 "N bits adder" (NbitsAdder 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAdder 1)) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
                           catTip1 "N bits XOR" (NbitsXor (1, None)) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsXor (1, None))) "N bit XOR gates - use to make subtractor or comparator"
@@ -1505,7 +1564,7 @@ let viewCatalogue model dispatch =
                           catTip1 "N bits shift" (Shift (1, 1, LSL)) (fun  _ -> dispatchAsFunc (createShiftPopup)) "N bit shifter: shifts the input by the number of positions on the SHIFT input. \
                                                     The kind of shift - logical left (LSL), logical right (LSR) or arithmetic right (ASR) - is chosen when the component is created"]
 
-                    makeMenuGroup
+                    group
                         "Flip Flops and Registers"
                         [ catTip1 "D-flip-flop" (DFF) (fun  _ -> dispatchAsFunc (createCompStdLabel DFF None)) "D flip-flop - note that clock is assumed always connected to a global clock, \
                                                                                                    so ripple counters cannot be implemented in Issie"
@@ -1513,7 +1572,7 @@ let viewCatalogue model dispatch =
                           catTip1 "Register" (Register 1) (fun  _ -> dispatchAsFunc (createRegisterPopup (Register 0))) "N D flip-flops with inputs and outputs combined into single N bit busses"
                           catTip1 "Register with enable" (RegisterE 1) (fun  _ -> dispatchAsFunc (createRegisterPopup (RegisterE 0))) "As register but outputs stay the same if En is 0"
                           catTip1 "Counter" (Counter 1) (fun  _ -> dispatchAsFunc (createRegisterPopup (Counter 0))) "N-bits counter with customisable enable and load inputs"]
-                    makeMenuGroup
+                    group
                         "Memories"
                         [ catTip1 "ROM (asynchronous)" (AsyncROM1 ghostMemory) (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncROM1)) "This is combinational: \
                                                     the output is available in the same clock cycle that the address is presented"
@@ -1524,37 +1583,48 @@ let viewCatalogue model dispatch =
                           catTip1 "RAM (async read)" (AsyncRAM1 ghostMemory) (fun  _ -> dispatchAsFunc (createMemoryPopup AsyncRAM1))  "A RAM whose output contains the addressed \
                                                    data in the same clock cycle as address is presented" ]
 
-                    makeMenuGroupWithTip styles
+                    groupWithTip
                         "This project"
                         "Every design sheet is available for use in other sheets as a custom component: \
                         it can be added any number of times, each instance replicating the sheet logic"
-                        (makeCustomList styles model dispatch)
+                        (makeCustomList keep styles model dispatch)
 
-                    makeMenuGroupWithTip
-                        styles
+                    groupWithTip
                         "Verilog"
                         "Write combinational or synchronous logic in Verilog and use it as a Custom Component.
                          To edit/delete a verilog component add it in a sheet and click on 'properties'"
                         (List.append
-                            [menuItem styles "New Verilog Component" (
-                                fun _ -> dispatchAsFunc(fun model _ -> createVerilogPopup model true None None NewVerilogFile dispatch)) ]
-                            (makeVerilogList styles model dispatch))
+                            // "New Verilog Component" makes a component rather than placing one, so
+                            // it is not something a search for a component should turn up.
+                            (if searching then [] else
+                                [menuItem styles "New Verilog Component" (
+                                    fun _ -> dispatchAsFunc(fun model _ -> createVerilogPopup model true None None NewVerilogFile dispatch)) ])
+                            (makeVerilogList keep styles model dispatch))
 
-                    match model.ComponentLibraries with
-                    | [] -> null
-                    | libraries ->
-                        makeMenuGroupWithTip styles
-                            "Library"
-                            "Ready-made parameterised components. Choosing one adds its sheet to \
-                             this project and asks for the values its parameters should take."
-                            (libraries |> List.map (fun lib ->
-                                // the components are read HERE, when the library is opened. This
-                                // is an event handler, not the render function, so it may read the
-                                // disk; startup knows only that the library exists.
-                                menuItem styles lib.Name (fun _ ->
-                                    let opened = ComponentLibraries.openLibrary lib
-                                    dispatch <| UpdateModel (Optics.Optic.set openLibrary_ (Some opened)))))
+                    // A library's components are not read until it is opened, so there are no
+                    // component names here to search: the libraries themselves are matched instead.
+                    groupWithTip
+                        "Library"
+                        "Ready-made parameterised components. Choosing one adds its sheet to \
+                         this project and asks for the values its parameters should take."
+                        (model.ComponentLibraries
+                         |> List.filter (fun lib -> keep lib.Name "")
+                         |> List.map (fun lib ->
+                            // the components are read HERE, when the library is opened. This
+                            // is an event handler, not the render function, so it may read the
+                            // disk; startup knows only that the library exists.
+                            menuItem styles lib.Name (fun _ ->
+                                let opened = ComponentLibraries.openLibrary lib
+                                dispatch <| UpdateModel (Optics.Optic.set openLibrary_ (Some opened)))))
                     ]
+
+            div [Style styles] [
+                searchBox
+                Menu.menu [Props [Class "py-1"; Style ([Height "calc(100vh - 240px)"; OverflowY OverflowOptions.Auto] @ styles)]]
+                    (match sections |> List.filter (fun s -> not (isNull (box s))) with
+                     | [] -> [noMatches]
+                     | drawn -> drawn)
+            ]
 
         /// The catalogue body replaced by one opened library's components, grouped into sections
         /// as the catalogue itself is. Back returns to the catalogue.

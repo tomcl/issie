@@ -877,17 +877,21 @@ let mMoveUpdate
             match model.SymbolEdit with
             | Some (compId, EditSize) -> Some compId
             | _ -> None
+        // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
+        // Worked out once and used twice: it decides the cursor, and which wire (if any) is being
+        // rested on, so that the value it carries can be shown during a simulation.
+        let hovering = mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos
         let newCursor =
             match model.CursorType, model.Action with
             | Spinner,_ -> Spinner
             | _ ->
-                match mouseOn { model with NearbyComponents = nearbyComponents } mMsg.Pos with // model.NearbyComponents can be outdated e.g. if symbols have been deleted -> send with updated nearbyComponents.
+                match hovering with
                 | InputPort (_, p) | OutputPort (_, p) -> ClickablePort // Change cursor if on port
                 // | InputPort _ | OutputPort _ -> ClickablePort // Change cursor if on port
                 | Label _ -> GrabLabel
                 | Connection _ -> GrabWire
-                | Component compId -> 
-                    match model.Wire.Symbol.Symbols[compId].Annotation with 
+                | Component compId ->
+                    match model.Wire.Symbol.Symbols[compId].Annotation with
                     | Some ScaleButton -> ResizeNESW
                     | _ -> GrabSymbol
                 | ComponentCorner (cId,_,idx) when resizingSymbol = Some cId ->
@@ -898,9 +902,10 @@ let mMoveUpdate
         let newModel = {
             model with
                 NearbyComponents = nearbyComponents;
+                HoveredWire = (match hovering with | Connection cid -> Some cid | _ -> None)
                 CursorType = newCursor;
                 LastMousePos = mMsg.Pos;
-                ScrollingLastMousePos = {Pos=mMsg.Pos; Move=mMsg.ScreenMovement} } 
+                ScrollingLastMousePos = {Pos=mMsg.Pos; Move=mMsg.ScreenMovement} }
         // While a symbol edit mode is running its affordance stays on that one symbol, and no
         // other symbol shows ports: the mouse moving near something else must not take the mode's
         // display away, which is exactly what happened when this followed a held key instead.

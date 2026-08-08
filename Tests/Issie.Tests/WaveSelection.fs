@@ -40,6 +40,38 @@ let private top =
            conn twin1 0 twin2 0
            conn twin2 0 out 0 ])
 
+//-------------------------------------------------------------------------------------------//
+// A second design, for the fallback: a top sheet with no ports of its own.
+//
+// A whole CPU is often like this - a memory, some subsystem instances, wired to each other and to
+// nothing outside - so there is nothing for a first start to select from the top sheet, and the
+// Viewers in the design are what it falls back to. The `3cpu` demo's `eep1` is the real example.
+//-------------------------------------------------------------------------------------------//
+
+/// A subsheet with a Viewer on the net inside it, so the design has a signal somebody has said is
+/// worth watching, and it is not on the top sheet.
+let private probed =
+    let i = makeComp "probed-in" 0 1 (Input1(1, None)) "A"
+    let n = makeComp "probed-not" 1 1 Not "N"
+    let v = makeComp "probed-view" 1 0 (Viewer 1) "PROBE"
+    let o = makeComp "probed-out" 1 0 (Output 1) "Y"
+    makeLdc "probed" None ([ i; n; v; o ], [ conn i 0 n 0; conn n 0 v 0; conn n 0 o 0 ])
+
+/// Top sheet with no Input, Output or Viewer on it: a constant drives an instance, whose output is
+/// terminated rather than brought out.
+let private closed =
+    let c = makeComp "closed-const" 0 1 (Constant1(1, 1I, "1")) "C1"
+    let inst = makeComp "closed-inst" 1 1 (customOf probed [ "A", 1 ] [ "Y", 1 ] None) "PROBED1"
+    let nc = makeComp "closed-nc" 1 0 NotConnected "NC1"
+    makeLdc "closed" None ([ c; inst; nc ], [ conn c 0 inst 0; conn inst 0 nc 0 ])
+
+let private closedSimulation =
+    lazy
+        (match Simulator.startCircuitSimulation maxArraySize "closed" closed.CanvasState [ closed; probed ] with
+         | Error e -> failwith $"Simulation setup failed: %A{e}"
+         | Ok simData ->
+             simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
+
 /// The simulation and every wave the wave simulator would offer from it. Built once: making a
 /// FastSimulation is not cheap, and the tests only read it.
 let private simulation =
@@ -143,4 +175,88 @@ let tests =
               | wave :: _ ->
                   Expect.equal (WaveSimHelpers.sheetOfWave fs wave) (Some "top") "the simulated top sheet"
                   Expect.isNonEmpty (WaveSimHelpers.connsOfWave fs wave) "and its connections are found"
-              | [] -> failtest "expected waves for the gate on the top sheet" ]
+              | [] -> failtest "expected waves for the gate on the top sheet"
+
+          //-----------------------------------------------------------------------------------//
+          // What the viewer shows before the user has chosen anything
+          //-----------------------------------------------------------------------------------//
+
+          testCase "a first start shows the top sheet's own inputs and outputs"
+          <| fun () ->
+              let fs, allWaves = simulation.Force()
+              let chosen =
+                  WaveSimSelect.defaultSelectedWaves fs allWaves
+                  |> List.map (fun wi -> WaveSimSelect.getName wi fs)
+              // IN before OUT: inputs are ranked before outputs, and each group is sorted by label
+              Expect.equal chosen [ "IN"; "OUT" ] "the top sheet's ports, inputs first"
+
+          testCase "a first start shows nothing from inside a subsheet"
+          <| fun () ->
+              let fs, allWaves = simulation.Force()
+              Expect.all
+                  (WaveSimSelect.defaultSelectedWaves fs allWaves)
+                  (fun wi -> snd wi.Id = [])
+                  "every default wave is on the simulated top sheet, not inside an instance"
+
+          testCase "a first start does not offer components that are not ports"
+          <| fun () ->
+              let fs, allWaves = simulation.Force()
+              Expect.all
+                  (WaveSimSelect.defaultSelectedWaves fs allWaves)
+                  (fun wi -> fst wi.Id <> ComponentId "top-not")
+                  "TOPNOT is on the top sheet but is not one of its ports"
+
+          testCase "a selection the user already has is left alone"
+          <| fun () ->
+              let fs, allWaves = simulation.Force()
+              let mine = [ (Map.toList allWaves |> List.head |> fst) ]
+              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves; SelectedWaves = mine }
+              Expect.equal
+                  (WaveSimSelect.withDefaultSelectionIfEmpty fs ws).SelectedWaves
+                  mine
+                  "a chosen selection is never added to"
+
+          testCase "no waves but a chosen RAM counts as a selection"
+          <| fun () ->
+              // Otherwise a user who wants only RAM contents gets a screenful of waveforms back
+              // every time the simulation is refreshed.
+              let fs, allWaves = simulation.Force()
+              let ws =
+                  { ModelHelpers.initWSModel with
+                      AllWaves = allWaves
+                      SelectedWaves = []
+                      SelectedRams = Map [ (ComponentId "someRam", []), "RAM1" ] }
+              Expect.isEmpty
+                  (WaveSimSelect.withDefaultSelectionIfEmpty fs ws).SelectedWaves
+                  "nothing is added when the user has selected a RAM"
+
+          testCase "an empty selection is filled in"
+          <| fun () ->
+              let fs, allWaves = simulation.Force()
+              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves; SelectedWaves = [] }
+              Expect.isNonEmpty
+                  (WaveSimSelect.withDefaultSelectionIfEmpty fs ws).SelectedWaves
+                  "the viewer never opens empty when the top sheet has ports"
+
+          testCase "a top sheet with no ports of its own falls back to the design's Viewers"
+          <| fun () ->
+              let fs, allWaves = closedSimulation.Force()
+              let chosen =
+                  WaveSimSelect.defaultSelectedWaves fs allWaves
+                  |> List.map (fun wi -> WaveSimSelect.getName wi fs)
+              // the Viewer is inside the instance, which is exactly the point: it is the one signal
+              // the author of the design said was worth watching, and nothing on the top sheet is
+              Expect.equal chosen [ "PROBE" ] "the Viewer in the subsheet"
+
+          testCase "the fallback is only a fallback"
+          <| fun () ->
+              // the first design has both top-level ports and no Viewers to be distracted by, so
+              // this only checks that having ports stops the search there
+              let fs, allWaves = simulation.Force()
+              Expect.all
+                  (WaveSimSelect.defaultSelectedWaves fs allWaves)
+                  (fun wi ->
+                      match Map.tryFind wi.Id fs.WaveComps with
+                      | Some fc -> fc.AccessPath = []
+                      | None -> false)
+                  "a design with top-level ports never reaches into its subsheets" ]

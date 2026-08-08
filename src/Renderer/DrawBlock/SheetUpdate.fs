@@ -471,6 +471,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             SelectedComponents = []
             SelectedWires = []
             NearbyComponents = []
+            HoveredWire = None
             ErrorComponents = []
             DragToSelectBox = {TopLeft={X=0.0; Y=0.0}; H=0.0; W=0.0}
             ConnectPortsLine = {X=0.0; Y=0.0}, {X=0.0; Y=0.0}
@@ -851,6 +852,7 @@ let init () =
         SelectedLabel = None
         SelectedWires = []
         NearbyComponents = []
+        HoveredWire = None
         ErrorComponents = []
         DragToSelectBox = {TopLeft = {X=0.0; Y=0.0}; H=0.0; W=0.0}
         ConnectPortsLine = {X=0.0; Y=0.0}, {X=0.0; Y=0.0}

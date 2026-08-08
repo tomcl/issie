@@ -648,6 +648,11 @@ module SheetT =
         SelectedComponents: CommonTypes.ComponentId List
         SelectedWires: CommonTypes.ConnectionId list
         NearbyComponents: CommonTypes.ComponentId list
+        /// The wire the mouse is resting on, when it is resting on one and nothing is being
+        /// dragged. Recorded so that the value it carries can be shown beside the cursor while a
+        /// simulation is running - which is the draw block's only interest in it: the value itself
+        /// is worked out by the UI layer, which is the only part that knows a simulation exists.
+        HoveredWire: CommonTypes.ConnectionId option
         ErrorComponents: CommonTypes.ComponentId list
         DragToSelectBox: BoundingBox
         ConnectPortsLine: XYPos * XYPos // Visual indicator for connecting ports, defines two vertices to draw a line in-between.

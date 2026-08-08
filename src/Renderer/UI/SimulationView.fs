@@ -404,14 +404,10 @@ let viewSimulationError
     let changeCounterType (compId: ComponentId) (targetType: ComponentType) (model: Model) _ =
         model.Sheet.ChangeCounterComp sheetDispatch compId (targetType)
 
-    // this does not use tryFind because the IDs given in the error component list
-    // should exist
-    let getComponentById (compId: ComponentId) =
-        comps
-        |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
-        |> Option.defaultWith (fun _ -> failwith "viewSimulationError: given component ID does not exist")
-
-    // more robust version which returns empty list if there are no components
+    // Only the list-returning lookups below. The two that threw when an id was missing are gone:
+    // they were unused, and throwing inside the code that renders an error would have lost the
+    // user the error as well as whatever caused it. A component named by an error can genuinely be
+    // absent, having been deleted between the simulation and this render.
     let getComponentByIdListOpt (compId: ComponentId) =
         comps
         |> List.tryFind (fun comp -> ComponentId comp.Id = compId)
@@ -420,14 +416,6 @@ let viewSimulationError
                         printfn "Warning: errored component from simulation is missing - it will be ignored"
                         []
 
-    // this does not use tryFind because the IDs given in the error connection list
-    // should exist    
-    let getConnectionById connId =
-        conns
-        |> List.tryFind (fun conn -> conn.Id = connId)
-        |> Option.defaultWith (fun _ -> failwith "viewSimulationError: given connection ID does not exist")
-
-    // more robust version which returns empty list if there are no connections
     let getConnectionByIdLstOpt connId =
         conns
         |> List.tryFind (fun conn -> conn.Id = connId)

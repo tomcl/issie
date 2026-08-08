@@ -857,6 +857,10 @@ type Model = {
     /// The library the catalogue is showing instead of its own contents, if any, with the
     /// component headers read when it was opened.
     OpenLibrary : ComponentLibraries.OpenedLibrary option
+    /// What the user has typed into the catalogue's search box. Empty shows the catalogue whole,
+    /// with its sections closed as before; anything else shows only components whose name or
+    /// tooltip contains it, with the sections holding them open.
+    CatalogueSearch : string
     /// Whether the sheets of placed library components appear in the Sheets menu. False at
     /// startup and not settable from the ordinary UI: a library component is meant to be one
     /// thing, and seeing its innards listed beside the user's own sheets is confusing rather
@@ -921,6 +925,7 @@ let dragPlacement_ = Lens.create (fun a -> a.DragPlacement) (fun s a -> {a with 
 let projectBrowser_ = Lens.create (fun a -> a.ProjectBrowser) (fun s a -> {a with ProjectBrowser = s})
 let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (fun s a -> {a with TopSheetChoiceDeclined = s})
 let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
+let catalogueSearch_ = Lens.create (fun a -> a.CatalogueSearch) (fun s a -> {a with CatalogueSearch = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})

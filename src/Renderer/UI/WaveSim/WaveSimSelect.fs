@@ -537,6 +537,157 @@ let compWavesToOffer (model: Model) (compId: ComponentId) : Wave list =
         | _ -> []
     | _ -> []
 
+//--------------------------------------------------------------------------------------------------------//
+//---------------------------Reading one value off the schematic (the probe)------------------------------//
+//--------------------------------------------------------------------------------------------------------//
+
+// Both simulators can answer this, and neither needs anything built for it: every FastSimulation
+// carries WaveIndex, WaveComps and Drivers, because buildFastSimulation ends in
+// addWavesToFastSimulation whichever simulator asked for it. So the whole probe is two map lookups
+// and an array read, and the step simulator and the waveform simulator differ only in which
+// simulation and which cycle are handed in.
+
+/// The signal a wire of the open sheet carries, as an index into a simulation's waves.
+///
+/// A wire is driven by one output port, so the wire's value is that port's. Which copy of the port
+/// depends on how many times the open sheet is instantiated in the design being simulated: with
+/// more than one there is no single answer, so none is given - the same rule wavesOfComponent
+/// applies to the schematic's right-click menu.
+let waveIndexOfWire
+        (fs: FastSimulation)
+        (wireModel: DrawModelType.BusWireT.Model)
+        (cid: ConnectionId)
+            : WaveIndexT option =
+    match Map.tryFind cid wireModel.Wires with
+    | None -> None
+    | Some wire ->
+        match Map.tryFind (BlockHelpers.outputPortStr wire.OutputPort) wireModel.Symbol.Ports with
+        | None -> None
+        | Some port ->
+            match port.PortNumber with
+            | None -> None
+            | Some portNum ->
+                let copies =
+                    fs.WaveComps
+                    |> Map.toList
+                    |> List.filter (fun (fId, _) -> fst fId = ComponentId port.HostId)
+                match copies with
+                | [ fId, _ ] ->
+                    fs.WaveIndex
+                    |> Array.tryFind (fun wi ->
+                        wi.Id = fId && wi.PortType = PortType.Output && wi.PortNumber = portNum)
+                | _ -> None
+
+/// The value of one wave at one cycle, written as the waveform viewer's value column writes it.
+///
+/// The step index wraps: the step simulator uses its data arrays as a circular buffer, so a long
+/// step simulation is holding only the last MaxArraySize cycles. The waveform simulator does not
+/// wrap - its array is sized for the whole run - so there the modulo does nothing.
+let waveValueAt (fs: FastSimulation) (cycle: int) (radix: NumberBase) (wi: WaveIndexT) : string option =
+    match Array.tryItem wi.SimArrayIndex fs.Drivers with
+    | Some (Some driver) ->
+        let index = if fs.MaxArraySize > 0 then cycle % fs.MaxArraySize else cycle
+        match driver.DriverWidth with
+        | w when w > 32 ->
+            Array.tryItem index driver.DriverData.BigIntStep
+            |> Option.map (fun d -> { Dat = BigWord d; Width = w })
+        | w ->
+            Array.tryItem index driver.DriverData.UInt32Step
+            |> Option.map (fun d -> { Dat = Word d; Width = w })
+        // padded to a width nothing will be truncated at: unlike the viewer's value column, the
+        // probe label sizes itself to its text rather than the text to a column
+        |> Option.map (fun fd -> (NumberHelpers.fastDataToPaddedString 60 radix fd).Trim())
+    | _ -> None
+
+/// What to write beside the cursor for the wire it is resting on: the signal's name and its value
+/// at `cycle`. None when the simulation cannot answer - the wire is on a sheet it holds more than
+/// one copy of, carries no wave of its own, or has not been simulated as far as this cycle.
+///
+/// getName, not nameWithSheet: the waveform viewer prefixes the sheet because its rows are drawn
+/// away from the design and come from all over it, so a bare "Q" there could be any of them. Here
+/// the label is on the wire, on the sheet the user is looking at, and the sheet name is the one
+/// thing the position already says. It is also the longest part of the name, on a label that has
+/// to fit beside the pointer without covering the circuit.
+let probeLabelForWire
+        (fs: FastSimulation)
+        (cycle: int)
+        (radix: NumberBase)
+        (wireModel: DrawModelType.BusWireT.Model)
+        (cid: ConnectionId)
+            : string option =
+    waveIndexOfWire fs wireModel cid
+    |> Option.bind (fun wi ->
+        waveValueAt fs cycle radix wi
+        |> Option.map (fun text -> $"{getName wi fs} = {text}"))
+
+//--------------------------------------------------------------------------------------------------------//
+//------------------------------What is shown before anything has been chosen-----------------------------//
+//--------------------------------------------------------------------------------------------------------//
+
+/// Most waves a first start will select for itself. A design with more top-level ports than this
+/// gets the first few rather than a screenful of waveforms nobody asked for; Select Waves is one
+/// click away for the rest.
+let private maxDefaultWaves = 12
+
+/// The waves of every component of the simulation that `rank` gives a place to, in that order and
+/// then by label, capped.
+let private wavesRanked
+        (rank: FastComponent -> int option)
+        (fs: FastSimulation)
+        (allWaves: Map<WaveIndexT, Wave>)
+            : WaveIndexT list =
+    allWaves
+    |> Map.toList
+    |> List.choose (fun (wi, _) ->
+        Map.tryFind wi.Id fs.WaveComps
+        |> Option.bind (fun fc -> rank fc |> Option.map (fun r -> (r, fc.FLabel, wi))))
+    |> List.sortBy (fun (r, label, _) -> r, label)
+    |> List.truncate maxDefaultWaves
+    |> List.map (fun (_, _, wi) -> wi)
+
+/// The waves to show when a wave simulation starts with nothing chosen.
+///
+/// An empty viewer is never what the user wants: it makes the first thing they see after pressing
+/// Start a sentence telling them to press a different button.
+///
+/// First choice is the simulated top sheet's own ports - inputs, then outputs, then Viewers. They
+/// are the signals every design has and the ones a beginner came to look at. An access path is
+/// empty exactly for components that are not inside any custom component instance, which is how
+/// "on the top sheet" is decided.
+///
+/// A top sheet can have no ports at all: a whole CPU is often a ROM, a RAM and a couple of
+/// subsystem instances, wired to each other and to nothing outside. The `3cpu` demo's `eep1` is
+/// exactly that. Falling back to Viewers **anywhere in the design** answers it, because a Viewer is
+/// placed for one reason only - somebody wanted to watch that net - so wherever they are, they are
+/// the signals the author of the design thought were worth looking at.
+let defaultSelectedWaves (fs: FastSimulation) (allWaves: Map<WaveIndexT, Wave>) : WaveIndexT list =
+    /// Ports of the simulated top sheet: inputs, then outputs, then Viewers - the order they are
+    /// read in, and the order a schematic is drawn in.
+    let topSheetPort (fc: FastComponent) =
+        match fc.AccessPath, fc.FType with
+        | [], Input1 _ -> Some 0
+        | [], Output _ -> Some 1
+        | [], Viewer _ -> Some 2
+        | _ -> None
+
+    /// Every Viewer in the design, at whatever depth.
+    let anyViewer (fc: FastComponent) =
+        match fc.FType with
+        | Viewer _ -> Some 0
+        | _ -> None
+
+    match wavesRanked topSheetPort fs allWaves with
+    | [] -> wavesRanked anyViewer fs allWaves
+    | topPorts -> topPorts
+
+/// Choose waves for a wave simulation that has none. Applied only when the user has selected
+/// nothing at all - no waves and no RAMs - so a deliberately pared-down selection is never added
+/// to, and a selection saved with the sheet is never overridden.
+let withDefaultSelectionIfEmpty (fs: FastSimulation) (wsModel: WaveSimModel) : WaveSimModel =
+    match List.isEmpty wsModel.SelectedWaves && Map.isEmpty wsModel.SelectedRams with
+    | false -> wsModel
+    | true -> { wsModel with SelectedWaves = defaultSelectedWaves fs wsModel.AllWaves }
+
 /// Modal that, when active, shows the ports of one component picked on the schematic, which of
 /// them are displayed as waveforms, and allows that to be changed. Opened from the right-click
 /// menu on that component.

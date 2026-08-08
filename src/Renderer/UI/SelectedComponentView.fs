@@ -44,7 +44,7 @@ module Constants =
 /// things depending on where the caret happens to be.
 let private textFormField isRequired name defaultValue isBad onChange =
     Field.div [] [
-        Label.label [] [ str name ]
+        PropertiesHelp.fieldLabel name
         Input.text [
             Input.Props [
                 Id "labelInputElement";
@@ -63,7 +63,7 @@ let private textFormField isRequired name defaultValue isBad onChange =
 
 let private textFormFieldSimple name defaultValue onChange =
     Field.div [] [
-        Label.label [] [ str name ]
+        PropertiesHelp.fieldLabel name
         Input.text [
             // no AutoFocus: selecting a component must leave the keyboard on the schematic, or
             // every canvas shortcut dies the moment you click a Constant. You click into a box to
@@ -78,7 +78,7 @@ let private textFormFieldSimple name defaultValue onChange =
 
 let private intFormField name (width:string) (defaultValue: bigint) (minValue: int)  onChange =
     Field.div [] [
-        Label.label [] [ str name ]
+        PropertiesHelp.fieldLabel name
         Input.number [
             Input.Props [Style [Width width]; Min minValue]
             Input.DefaultValue <| sprintf "%A" defaultValue
@@ -105,7 +105,7 @@ let private intFormField2 name bits (width: string) defaultValue1 defaultValue2 
 
 let private floatFormField name (width:string) defaultValue minValue onChange =
     Field.div [] [
-        Label.label [] [ str name ]
+        PropertiesHelp.fieldLabel name
         Input.number [
             Input.Props [Style [Width width]; Min minValue]
             Input.DefaultValue <| sprintf "%A" defaultValue
@@ -398,7 +398,7 @@ let private changeAdderType model (comp:Component) dispatch =
                 |_ -> failwithf "Cannot change adder type from non-adder component"
 
         div [] [
-            Label.label [] [ str "Optional Ports"]
+            PropertiesHelp.fieldLabel "Optional Ports"
             
             Table.table [] [
                 tr [] [
@@ -458,7 +458,7 @@ let private changeCounterType model (comp:Component) dispatch =
                 |_ -> failwithf "Cannot change adder type from non-adder component"
 
         div [] [
-            Label.label [] [ str "Optional Inputs"]
+            PropertiesHelp.fieldLabel "Optional Inputs"
             Table.table [] [
                 tr [] [
                     td [Style [BorderStyle "solid"]] [str "Load"]
@@ -553,7 +553,7 @@ let private makeNumberOfInputsField model (comp: Component) dispatch =
     // component has, and changing it deletes the wires on any port that goes away. Parameter
     // slots record a value, not a change of topology, so this cannot be parameterised.
     Field.div [] [
-        Label.label [] [ str prompt ]
+        PropertiesHelp.fieldLabel prompt
         Input.number [
             Input.Props [ Style [ Width "60px" ]; Min 2; Max maxGateInputs ]
             Input.DefaultValue (string nInp)
@@ -591,7 +591,7 @@ let private changeMergeN model (comp:Component) dispatch =
         // component has, and changing it deletes the wires on any port that goes away. Parameter
         // slots record a value, not a change of topology, so this cannot be parameterised.
         Field.div [] [
-            Label.label [] [ str title ]
+            PropertiesHelp.fieldLabel title
             Input.number [
                 Input.Props [ Style [ Width "60px" ]; Min 2; Max Constants.maxSplitMergeBranches ]
                 Input.DefaultValue (string nInp)
@@ -645,7 +645,7 @@ let private changeSplitN model (comp:Component) dispatch =
 
         // Plain numeric input for number of outputs (no parameter box)
         Field.div [] [
-            Label.label [] [ str title ]
+            PropertiesHelp.fieldLabel title
             Input.number [
                 Input.Props [ Style [ Width "80px" ]; Min 2; Max Constants.maxSplitMergeBranches ]
                 Input.DefaultValue (string nInp)
@@ -973,7 +973,7 @@ let private makePortSummary (custom:CustomComponentType) =
     | [], [] -> null
     | ins, outs ->
         div [Style [MarginBottom "10px"]] [
-            Label.label [] [str "Ports"]
+            PropertiesHelp.fieldLabel "Ports"
             group "in" ins
             group "out" outs
         ]
@@ -1231,7 +1231,7 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                             dispatchWithModel (fun model _ -> createSheetDescriptionPopup model sheetDescription sheetName dispatch)) ]
                         [str "Edit Description"]
             div [] [
-                Label.label [] [str "Sheet Description"]
+                PropertiesHelp.fieldLabel "Sheet Description"
                 (match sheetDescription with
                  | None -> null
                  | Some descr -> p [] [str descr])

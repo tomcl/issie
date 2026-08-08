@@ -427,7 +427,7 @@ let paramInputField
 
     // Field name, input box, and potential error message
     Field.div [] [
-        Label.label [] [str prompt]
+        PropertiesHelp.fieldLabel prompt
         Field.div [Field.Option.HasAddons] [
             Control.div [] [
                 Input.text [

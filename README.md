@@ -327,7 +327,14 @@ To reinstall the build environment (without changing project code) rerun `build.
 
 ## Creating binaries
 
-`npm run dist` will generate the correct binaries for your system under `/dist`. 
+`npm run dist` will generate the correct binaries for your system under `/dist`.
+
+## Licence
+
+Issie is free software under the **GNU General Public License v3 or later** — see
+[LICENSE.md](LICENSE.md) for the full text. `package.json` declared `LGPL-3.0-or-later` for some
+years, which was never right: the licence text in the repository has been the GPL throughout, and
+the SPDX identifier now matches it. 
 
 
 

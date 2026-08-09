@@ -114,9 +114,6 @@ compiled reducers (`e09aa9b17`); "new" is this design.
 | **V8** (Electron renderer) | 11.2 | 132.9 | 11.9x |
 | **V8 / .NET** | 7.4x slower | **1.6x slower** | |
 
-These supersede any earlier figures, including ones quoted on other designs or at intermediate
-stages of the work.
-
 The bottom row is the point. Most of what the old simulator cost in V8 was overhead .NET never
 paid: a 100kB dispatcher V8 could not inline, fable-library's bounds-checked `item`/`setItem` on
 every port access, and heap `BigInt` for constants and bus compares. Removing those leaves the two
@@ -130,20 +127,19 @@ both. A change measured only under .NET would have looked five times less valuab
 ## Measuring it
 
 Simulation speed must be measured **in the app**, not under .NET - see the two speedup columns
-above. Both directions of error happened during this work: .NET once made a change look like a 5x
-win that was worth 1.2x in Chromium, and later understated a real 11.9x as 2.5x.
+above. Errors in both directions are easy to make: .NET can make a change look like a 5x win that
+is worth 1.2x in Chromium, and can understate a real 11.9x as 2.5x.
 
-What worked:
+What works:
 
 - Drive the app over the DevTools protocol (`scripts/inspect-canvas.js` and the CDP directly).
   `Profiler` gives self time per function; `HeapProfiler.startSampling` gives allocation by site.
 - **`FilesIO.loadAllComponentFiles` reads a project headlessly**, so a benchmark or a script can
-  open the demos with nothing running. It could not until August 2026: `Helpers.jsonStringToState`
-  had a .NET branch, but it used Thoth's `Decode.Auto`, and Thoth cannot read what the app's writer
-  produced - Thoth encodes a union as an array and the vendored SimpleJson as a single-key object -
-  so every `.dgm` in existence failed with ``Error at: `$` ``. `Common/SimpleJsonDotNet.fs` now
-  reads SimpleJson's encoding by reflection, and `jsonStringToState` tries it before Thoth. Sheets
-  the .NET side wrote itself are Thoth-encoded, which is why both are tried.
+  open the demos with nothing running. `Helpers.jsonStringToState` tries `Common/SimpleJsonDotNet.fs`
+  before Thoth: the app's writer is the vendored SimpleJson, which encodes a union as a single-key
+  object where Thoth's `Decode.Auto` expects an array, so a Thoth-only .NET branch fails on every
+  `.dgm` the app has ever written. Sheets the .NET side wrote itself are Thoth-encoded, which is
+  why both are tried.
 - **Check the design is actually computing.** The `5eratosthenes` demo's `sievesmall` program
   finishes in well under 25,000 cycles and then spins in a self-jump; timing it measures a halted
   CPU. Use the large `sieve` program, and confirm activity — RAM words written, distinct values
@@ -170,11 +166,11 @@ dominated by gathering and linking. It scales with component count, and with ROM
 than ROM count: a ROM's lookup table is `2^AddressWidth` words, capped by
 `maxRomTableAddressWidth`, above which the component keeps the general path.
 
-One trap already sprung here: `reducerFor` takes no clocked/combinational flag, and must not
-acquire one it does not read. It had one, nothing used it, and `installReducers` therefore built
-every reducer twice — which for a ROM meant building and retaining two copies of its table. If a
-reducer is added that genuinely depends on the pass (the hybrid asynchronous RAM is the only
-candidate), the flag comes back and the caller must go back to two calls *for that component only*.
+One trap to keep clear of: `reducerFor` takes no clocked/combinational flag, and must not acquire
+one it does not read. An unread flag makes `installReducers` build every reducer twice — which for
+a ROM means building and retaining two copies of its lookup table. If a reducer is added that
+genuinely depends on the pass (the hybrid asynchronous RAM is the only candidate), the flag comes
+back and the caller goes to two calls *for that component only*.
 
 ## Known debt
 

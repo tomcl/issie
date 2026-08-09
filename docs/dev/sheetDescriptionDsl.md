@@ -105,9 +105,7 @@ process. Three things had to be true for that, and now are:
   the same way. The `.dgm` body inside it does hold unions, and both directions work: SimpleJson's
   reader accepts either encoding, and on .NET `Common/SimpleJsonDotNet.fs` reads SimpleJson's.
 
-Each side therefore reads what the other writes. It was one-way until August 2026 — .NET could
-write a sheet Issie opened, but not open one Issie had written.
-
+Each side therefore reads what the other writes, in both directions.
 `SheetDescriptionTests.fs` writes an `.ldgm` this way and reads it back, with nothing running.
 
 ## Verifying a generated sheet

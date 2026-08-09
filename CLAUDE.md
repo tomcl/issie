@@ -24,12 +24,11 @@ There is no lint command; the F# compiler is the check.
 
 Fable skips recompiling (or in watch mode, starts the app before the silent background
 recompile) only when every `.fs.js` is strictly newer than its `.fs` — see
-[docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md). A source touched without changing its
-emitted JS used to keep a permanently stale `.fs.js`, since Fable rewrites an output only when its
-content changes; `scripts/refresh-stale-output.js` now bumps those after every compile. The
-remaining trap is that watch mode adds the `DEBUG` define, so alternating
-`dev`/`dev:once`/`compile` recompiles on each switch — `npm run app` sidesteps it by going
-wherever the tree already is. **When verifying that a change still compiles under Fable, use
+[docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md). `scripts/refresh-stale-output.js` runs
+after every compile to keep that true for a source whose emitted JS did not change. The trap that
+remains is that watch mode adds the `DEBUG` define, so alternating `dev`/`dev:once`/`compile`
+recompiles on each switch — `npm run app` sidesteps it by going wherever the tree already is.
+**When verifying that a change still compiles under Fable, use
 `node scripts/dev.js --once --no-app`, not `npm run compile`**: the latter leaves the tree in
 `PRODUCTION` and costs whoever runs the app next a full recompile.
 
@@ -50,13 +49,14 @@ It reaches the whole of `Renderer.fsproj`, so simulation, parameter resolution, 
 even UI-module helpers can all be tested. Use it: a fix to simulation or parameter behaviour can
 be pinned by a test rather than argued about.
 
-**Don't run the whole suite by default — it is ~60s, and one group is seconds.** Per-group
-timings and what to run when are in [Tests/README.md](Tests/README.md); `--filter Issie.<Group>`
-runs one group: `dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock`.
-Two-thirds of the suite's time is `Issie.VerilogCompiler`, which spawns node per parse — run it
-when touching `src/Renderer/VerilogComponent/`, and note it is skipped automatically when the
-`CI` environment variable is set (so CI runners never pay for it, and `CI=true npm run test` is
-the fast full-suite run locally, ~20s).
+**Don't run the whole suite by default — it is 396 tests and ~100s, and one group is seconds.**
+Per-group timings and what to run when are in [Tests/README.md](Tests/README.md);
+`--filter Issie.<Group>` runs one group:
+`dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock`. Over a third of
+the suite's time is `Issie.VerilogCompiler`, which spawns node per parse — run it when touching
+`src/Renderer/VerilogComponent/`, and note it is skipped automatically when the `CI` environment
+variable is set (so CI runners never pay for it, and `CI=true npm run test` is the fast
+full-suite run locally: 385 tests, ~26s).
 
 Adding a test file takes two edits, and missing either fails silently: list it in
 `Tests/Issie.Tests/Issie.Tests.fsproj` (compile order matters) and add its `tests` value to the
@@ -82,9 +82,9 @@ type) → `Sheet.fs` (mouse placement) → `Symbol.fs` (visual representation an
 bindings, so a custom component instance's port widths are a fact about the INSTANCE, not the
 sheet: two instances of one sheet are meant to differ. `CanvasExtractor.signatureOfInstance` is the
 only place that works them out, and placement, the properties pane, the simulator's custom
-component check and `CustomCompPorts` all go through it — they held separate copies before, and the
-copies disagreed. "Instance out of date" means differs from what its OWN bindings give it; compared
-against the sheet instead, every parameterised design reports as changed.
+component check and `CustomCompPorts` all go through it — keep it that way. "Instance out of date"
+means differs from what its OWN bindings give it; compared against the sheet instead, every
+parameterised design reports as changed.
 
 **Fable emits `.fs.js` and `.fs.js.map` next to every `.fs`.** When JS behaviour disagrees with the
 F# you just wrote, read the emitted `.fs.js`.
@@ -93,7 +93,10 @@ F# you just wrote, read the emitted `.fs.js`.
 
 **All file I/O goes through the Electron main process**, not the renderer.
 
-**The Verilog grammar is Nearley**: `VerilogGrammar.ne`, compiled with `npx nearleyc`.
+**The Verilog grammar is Nearley**: `VerilogGrammar.ne`, compiled with `npx nearleyc`. The emitter
+and the input compiler are separate halves speaking different dialects, and **no external Verilog
+tool runs in the test suite** — both are checked only against Issie's own simulator. What is
+covered and what is not is in [docs/dev/verilogTesting.md](docs/dev/verilogTesting.md).
 
 ## File formats
 
@@ -152,3 +155,24 @@ defaults would teach the wrong pattern.
   Development > Play menu turns on either per-interval times or the 10-second aggregate table.
   Message and render counts are always kept (five numbers in `Log.fs`) and summarised by the
   `perf` category. Memory monitoring is on the `CheckMemory` message.
+
+## Deliberate choices a tidy-up would break
+
+Each of these looks like something to simplify and is not.
+
+- **A *Fix by …* button applies the fix and restarts the simulation.** Doing only the first turns
+  help back into a suggestion.
+- **The keyboard shortcut table shown in Info is generated from the dispatch table** the key
+  dispatcher reads, for the running platform. It cannot list a key that does not work.
+- **Parameter descriptions are compulsory and constraint error text is author-written.** They are
+  what someone placing the component reads at the moment they choose a value.
+- **Tooltips are written as sentences, not labels.** The net label tooltip teaches the concept; a
+  two-word label would not.
+- **Library components are materialised into the project, not linked.** A student can open one and
+  read it.
+- **A drop onto occupied space is refused** rather than silently overlapping two symbols.
+- **`EvalReference` is the specification.** Nothing is deleted from it as the other evaluators
+  grow; it is what they are checked against.
+
+Known rough edges, kept short and deleted as they are fixed:
+[docs/dev/openIssues.md](docs/dev/openIssues.md).

@@ -27,7 +27,7 @@ The application is mostly written in F#, which gets transpiled to JavaScript via
 [Webpack 5](https://webpack.js.org/) is the module bundler responsible for the JavaScript concatenation and automated building process: the build 
 is automated using the scripts under the [scripts](scripts/) directory.
 
-The drawing capabilities are provided (now) by a custom schematic editor library implemented in F# and specialised for digital components.
+The drawing capabilities are provided by a custom schematic editor library implemented in F# and specialised for digital components.
 
 The choice of F# as main programming language for the app has been dictated by a few factors:
 
@@ -43,9 +43,8 @@ If you just want to run the app go to the [releases page](https://github.com/tom
 download and run the latest prebuilt binary for your platform (Windows, macOS or Linux). Issie will require in total about 200M of disk space.
 
 That page is also where to find out what changed: every release is published there with its notes,
-written from the commits it contains. There is no release-notes file in the repository — one
-existed, stopped being updated at v0.5.0 in 2020, and was answering for a version five years out of
-date, which is worse than not being there.
+written from the commits it contains. There is deliberately no release-notes file in the
+repository — one more place to forget to update.
 
 * Windows: unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
     * If you get a security warning saying something like: *Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.
@@ -110,10 +109,10 @@ the npm scripts directly - they are much faster:
 * `npm run dev:once` - compile once and start the app, with no watcher: the fastest way to just
   run Issie from source.
 * `npm run debug` - dev mode with runtime assertions enabled; noticeably slower.
-* `npm run test` - the Expecto test suite: ~209 tests in about a minute, covering simulation,
-  parameter resolution, the Verilog subsystem and the draw block, all under plain .NET with no
-  Electron. `npm run test -- --filter Issie.<GroupName>` runs one group, which is usually a couple
-  of seconds - see [Tests/README.md](Tests/README.md) for the per-group timings.
+* `npm run test` - the Expecto test suite: 396 tests in about a hundred seconds, covering
+  simulation, parameter resolution, the Verilog subsystem and the draw block, all under plain .NET
+  with no Electron. `npm run test -- --filter Issie.<GroupName>` runs one group, which is usually a
+  couple of seconds - see [Tests/README.md](Tests/README.md) for the per-group timings.
 * `npm run typecheck` - type-check the renderer under .NET without Fable: the quickest way to
   find out whether a change compiles, with better error messages than Fable's.
 * `npm run dist` - production binaries for your platform, under `dist/`.
@@ -125,9 +124,9 @@ Other points:
 
 * To exit dev mode, close the app window and Ctrl-C the watch script in the terminal.
 * Orphan `fable watch`, webpack and Electron processes survive unusual terminations - a stray
-  watcher still holds an F# compiler in memory - so kill them with `npm run clean-dev` (all
-  platforms; `clean-dev-win` and `clean-dev-mac` remain as aliases). `npm run clean-dev -- --list`
-  shows what it would kill without killing anything.
+  watcher still holds an F# compiler in memory - so kill them with `npm run clean-dev`, which works
+  on all platforms (`clean-dev-win` and `clean-dev-mac` are aliases for it).
+  `npm run clean-dev -- --list` shows what it would kill without killing anything.
 * If you change `package.json`, run `npm install` to update `package-lock.json`, and commit both.
 * Why a dev start is sometimes near-instant and sometimes a full recompile - Fable's caching
   rules and the things that silently defeat them - is explained in
@@ -204,35 +203,16 @@ Electron bundles Chromium (View) and node.js (Engine), therefore as in every nod
 * dependencies: node libraries that the executable code (and development code) needs
 * dev-dependencies: node libraries only needed by development tools
 
-Additionally, the section `"scripts"`:
-```
-"scripts": {
-    "clean-dev": "node scripts/clean-dev.js",
-    "compile": "node scripts/parallel-compile.js",
-    "debug": "node scripts/dev.js --asserts",
-    "app": "node scripts/app.js",
-    "dev": "node scripts/dev.js",
-    "dev:once": "node scripts/dev.js --once",
-    "start": "cross-env NODE_ENV=development node scripts/start.js",
-    "build": "cross-env NODE_ENV=production ELECTRON_ENABLE_LOGGING=true node scripts/build.js",
-    "pack": "npm run compile && npm run build && electron-builder --dir",
-    "audit:prod": "npm audit --omit=dev",
-    "predist": "npm run audit:prod",
-    "dist": "npm run compile && npm run build && electron-builder",
-    "buildonly": "electron-builder",
-    "preversion": "node scripts/sync-version.js --preflight",
-    "version": "node scripts/sync-version.js && git add src/Renderer/Interface/Version.fs",
-    "postversion": "git push origin master --follow-tags",
-    "test": "dotnet run --project Tests/Issie.Tests -c Release",
-    "typecheck": "dotnet build src/Renderer/Renderer.fsproj --no-restore"
-  }
-```
-Defines the in-project shortcut commands as a set of `<key> : <value>` lines, so that when we use `npm run <script_key>` it is equivalent to calling `<script_value>`.
+Its `"scripts"` section defines the in-project shortcuts, so `npm run <key>` runs the command
+against that key. The ones worth knowing are listed under
+[Day-to-day development](#day-to-day-development) above; `npm run` with no arguments prints them
+all.
 
-The `pre`/`post` prefixes are npm's own: `predist` runs before `dist`, and `preversion`,
-`version` and `postversion` are the three hooks npm runs around `npm version`, which is what makes
-a release one command. `npm run test` and `npm run typecheck` are the two checks to run before a
-PR, since CI runs neither (it only checks that the app still compiles).
+Some of those names are npm's own hooks rather than things you invoke: `predist` runs
+automatically before `dist`, and `preversion`, `version` and `postversion` are the three hooks npm
+runs around `npm version`, which is what makes a release one command. `npm run test` and
+`npm run typecheck` are the two checks to run before a PR, since CI runs neither (it only checks
+that the app still compiles).
 
 `npm run dev` runs [dev.js](scripts/dev.js), which starts `dotnet fable watch` for the main and
 renderer processes *in parallel*, transpiling the F# to javascript and watching the F# files for
@@ -310,7 +290,7 @@ If you've built the docs and want to access the server again, you can run `dotne
 
 ### `Tests` folder
 
-The Expecto test suite: `npm run test` (which runs `dotnet run --project Tests/Issie.Tests -c Release` — Expecto uses `dotnet run`, **not** `dotnet test`). It compiles the whole renderer project under .NET, so simulation, parameter resolution, the draw block and UI helpers are all testable without Electron or a browser — around 209 tests in about a minute, of which two thirds is the `Issie.VerilogCompiler` group (it spawns node per parse, and is skipped when the `CI` environment variable is set). To add a test file, list it in `Tests/Issie.Tests/Issie.Tests.fsproj` **and** add its `tests` value to the list in `Main.fs`; missing either fails silently.
+The Expecto test suite: `npm run test` (which runs `dotnet run --project Tests/Issie.Tests -c Release` — Expecto uses `dotnet run`, **not** `dotnet test`). It compiles the whole renderer project under .NET, so simulation, parameter resolution, the draw block and UI helpers are all testable without Electron or a browser — 396 tests in about a hundred seconds, of which over a third is the `Issie.VerilogCompiler` group (it spawns node per parse, and is skipped when the `CI` environment variable is set, so `CI=true npm run test` is 385 tests in ~26s). To add a test file, list it in `Tests/Issie.Tests/Issie.Tests.fsproj` **and** add its `tests` value to the list in `Main.fs`; missing either fails silently.
 
 
 ### `Static` folder
@@ -339,9 +319,4 @@ To reinstall the build environment (without changing project code) rerun `build.
 ## Licence
 
 Issie is free software under the **GNU General Public License v3 or later** — see
-[LICENSE.md](LICENSE.md) for the full text. `package.json` declared `LGPL-3.0-or-later` for some
-years, which was never right: the licence text in the repository has been the GPL throughout, and
-the SPDX identifier now matches it. 
-
-
-
+[LICENSE.md](LICENSE.md) for the full text.

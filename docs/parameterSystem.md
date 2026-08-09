@@ -123,9 +123,9 @@ Manages all parameter-related user interactions:
 
 #### Parameter Evaluation
 - **`evaluateConstraints`**: Validate expressions against constraints. A **pure function**: the
-  constraints that are not met are returned, not dispatched. It used to send a notification from
-  inside a `List.filter`, and `editParameterBox`'s `isDisabled` calls it *while rendering* — so an
-  unevaluable bound dispatched from a render, re-rendered, and dispatched again
+  constraints that are not met are returned, not dispatched. It must stay that way —
+  `editParameterBox`'s `isDisabled` calls it *while rendering*, so anything it dispatched would
+  re-render and dispatch again
 - **`updateComponents`**: Batch update all parameterized components
 - **`markSheetParamsChanged`**: Flag the open sheet as needing saving. An edit confined to what a
   sheet declares leaves the canvas identical, and `UpdateHelpers.currentSheetIsOutOfDate` compares
@@ -158,9 +158,12 @@ the custom components it contains:
 
 ### Design-Time Analysis (`ParameterAnalysis.fs`)
 
-Implements the analysis-plus-UI layer of [parameterSystemPlan.md](parameterSystemPlan.md).
-Elaboration semantics are untouched: only explicit per-instance bindings exist, and everything
-here is derived display state and consented repair.
+This whole layer is analysis and UI. **Elaboration semantics are untouched**: only explicit
+per-instance bindings exist, and everything here is derived display state and consented repair.
+(The alternative — auto-binding unbound parameters outward by name, i.e. dynamic scoping along the
+instance path — reaches the same end state implicitly, and brings name capture, accidental
+unification of unrelated same-named parameters, a "local" opt-out marker, and new semantics to
+teach.)
 
 - **`analyseUnderTop`** walks the instance tree under a top sheet over `LoadedComponent`s (the
   same binding walk `GraphMerger.resolveSheet` performs, without building graphs), recording for
@@ -194,16 +197,16 @@ here is derived display state and consented repair.
   deliberately does not have: it elaborates at the sheet's own declared value, which is a fact
   about the sheet rather than about the instance, and it makes "default" a concept the user has to
   reason about. `everyInstanceBindsEveryParam` is the invariant; it is false only for a project
-  saved before it was required, or one edited by hand.
+  written by an older Issie or edited by hand.
 - **Bind-to-top button** (`findBindOffers` / `ParameterView.applyBindOffers`): where an instance's
   parameter is bound to a **plain number** and a same-named parameter exists on an ancestor sheet
   along the instance path under the top (the evidence gate), a button in that instance's
   properties materialises the chain - ordinary parameters and explicit `PParameter` bindings along
-  every instance path from that ancestor down. (The trigger was an *unbound* parameter until
-  binding became total, which made the offer unable to fire at all. A literal is the right trigger
-  in its own right: the offer exists to help follow an outer parameter of the same name, and
-  typing that name in by hand fails whenever a sheet in between does not declare it, parameter
-  scoping being single-level.) It is a button rather than a popup so the user meets it when they
+  every instance path from that ancestor down. A literal is the right trigger: the offer exists to
+  help follow an outer parameter of the same name, and typing that name in by hand fails whenever
+  a sheet in between does not declare it, parameter scoping being single-level. The evidence gate
+  matters as much as the trigger — a same name on an unrelated sheet is coincidence, and
+  parameter-free projects never see the offer at all. It is a button rather than a popup so the user meets it when they
   look at the instance, and nothing has to guess when to interrupt them; it is hidden while a
   simulation is open, since accepting changes the design being simulated. Applying updates both
   stores of each binding (parent-sheet `CustomCompParam` slot and the instance's
@@ -247,10 +250,10 @@ invariant is per instance:
 `updateInstance` brings each to its own signature. The dialog reports ports added, deleted and
 renamed — facts about the sheet — and separately names the instances whose widths alone change.
 
-This module previously assumed the opposite: that every instance must equal the sheet. On any
-parameterised design that raised "you have changed the inputs or outputs" on **every save**, and
-accepting it forced each instance to the sheet's *declared* widths while leaving its bindings
-alone — a design the simulator then rejects with `BadInputs`.
+The tempting simplification here — that every instance must equal the sheet — is wrong, and wrong
+loudly: it raises "you have changed the inputs or outputs" on **every save** of any parameterised
+design, and accepting that forces each instance to the sheet's *declared* widths while leaving its
+bindings alone, which the simulator then rejects with `BadInputs`.
 
 ### Component Creation (`CatalogueView.fs`)
 
@@ -362,11 +365,11 @@ The parser uses recursive descent with separate functions for each precedence le
 
 **One name rule.** `ParameterTypes.isValidParamName` (`[a-zA-Z][a-zA-Z0-9]*`) is both what the
 "Add parameter" dialog accepts and what the tokenizer reads as a name, because a name that cannot
-be written in an expression is of no use. They used to differ — names were accepted as
-`[a-zA-Z0-9]+` while the tokenizer read letters-then-digits — so `W2X` could be declared and then
-never referred to, and a name beginning with a digit was shown in red and accepted anyway. A
-number run directly into a name (`2W`) is reported as such, since it is either a missing `*` or a
-name from before the rule.
+be written in an expression is of no use. Two rules diverging breaks it in both directions: a name
+the dialog takes but the tokenizer will not read can be declared and never referred to, and one the
+tokenizer reads but the dialog marks invalid is shown in red and accepted anyway. A number run
+directly into a name (`2W`) is reported as such, since it is either a missing `*` or a name from a
+file written under a looser rule.
 
 **Negation** is `PSubtract (PInt 0, e)`, not a new AST case: subtraction from zero is the same
 expression, so every function over `ParamExpression` already handles it and no saved file changes.
@@ -453,12 +456,10 @@ Two other mappings are likewise single:
 - **`CanvasExtractor.signatureOfInstance`** — the only calculation of a custom component
   instance's ports.
 
-*This section used to describe a "three-tier evaluation architecture", the third tier being a
-minimal `PInt`/`PParameter`-only evaluator inside `CanvasStateAnalyser`. It was not an
-optimisation but a fourth copy of the resolution logic, and it had drifted: it required an `IO`
-slot's stored label to still match its component's label, so a renamed port silently lost its
-parameterised width. It is gone; `checkCustomComponentForOkIOs` calls
-`signatureOfInstanceWithCertainty` like everything else.*
+Keep it that way. Each of these has been three or four copies at some point, and each time the
+copies drifted apart and the drift was a bug: a slot applied by the canvas and ignored by the
+simulator, an instance placed at the child's default widths, a renamed port silently losing its
+parameterised width.
 
 ## Persistence
 
@@ -485,8 +486,8 @@ its canvas against the saved one, plus the `LoadedComponentIsOutOfDate` flag. A 
 `LCParameterSlots` — a parameter declared, a description written, an unused one deleted, or a slot
 given an expression that works out to the width already shown — leaves the canvas *identical*, so
 it is invisible to that comparison. Every path that edits parameter data therefore sets the flag,
-through `ParameterView.markSheetParamsChanged`. Without it the save button stayed dark, switching
-sheets did not save, and the work was silently dropped.
+through `ParameterView.markSheetParamsChanged`. A new such path that forgets to call it leaves the
+save button dark and the work is dropped on leaving the sheet, with nothing to say so.
 
 ### Drawing at computed values, and saving what was declared
 
@@ -503,8 +504,16 @@ The open sheet is drawn at the values its parameters take under the current top 
   derived from the slot value: a `CustomCompParam` slot binds a parameter of the sheet *inside*
   the instance, and the port widths follow from that binding by way of the child sheet, which
   `ComponentSlots.setSlotValue` cannot reach. Without it a sheet saved while showing computed
-  values wrote an instance whose ports contradicted its own bindings — exactly what
+  values writes an instance whose ports contradict its own bindings — exactly what
   `checkCustomComponentForOkIOs` rejects.
+
+The direction matters and is forced by React caching. `SymbolView.renderSymbol` is a
+`FunctionComponent.Of(..., "Symbol", equalsButFunctions)` whose memo key is the whole `Symbol`
+record, so holding the computed value anywhere outside the symbol — a model-level map consulted at
+draw time — leaves every `Symbol` structurally unchanged when the top sheet changes, and the canvas
+silently goes stale. Putting the computed value in `Symbol.Component` makes the memo correct by
+construction, and every existing reader (`drawComponent`, port geometry, `H`/`W`, width inference,
+`GetComponentById`) gets real values with no change.
 
 ## Component Support
 
@@ -661,39 +670,21 @@ groups, runnable individually with `--filter Issie.<name>`:
 
 ### Debug Helpers
 
-`JSHelpers.debugTraceUI` is a `string Set` of enabled trace codes, and `traceIf` prints when one
-is present:
+Nothing prints unconditionally. `Common/Log.fs` is the only route to the console: `Log.warn` and
+`Log.error` always show, and category logging shows only when its category is switched on — from
+Development > Log, from `--log=sim` at launch, or from `window.issieLog.on "sim"` in a console.
 
 ```fsharp
-JSHelpers.traceIf "params" (fun () -> $"Parameter evaluation: %A{expr} -> %A{value}")
+Log.dbg Log.Sim $"Parameter evaluation: %A{expr} -> %A{value}"
 ```
+
+A new `printf` outside a short allowlist fails `Tests/Issie.Tests/SourceHygiene.fs`.
 
 ### Common Issues
 1. **Forward references**: Resolved by merging all graphs before resolving parameters
 2. **Circular dependencies**: Detected and reported
 3. **Constraint conflicts**: Validated before application
 4. **Type mismatches**: Caught by F# type system
-
-## Future Extensions
-
-Potential enhancements identified in the codebase:
-
-### Type System
-- **BigInt support**: For constants > 32 bits
-- **Float parameters**: For analog simulations
-- **String parameters**: For labels and identifiers
-
-### Advanced Features
-- **Parameter inheritance**: Across sheet hierarchy
-- **Complex constraints**: Relationships between parameters
-- **Expression optimization**: Caching and simplification
-- **Parameter templates**: Reusable parameter sets
-
-### UI Improvements
-- **Visual expression builder**: Drag-drop interface
-- **Parameter preview**: Real-time evaluation display
-- **Batch parameter updates**: Apply to multiple components
-- **Parameter search**: Find usage across project
 
 ## API Reference
 
@@ -762,7 +753,7 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> Result<Unit, Param
 - `src/Renderer/Common/ParameterTypes.fs`: Types (`ParamExpression`, `ParamConstraint`, `ParamSlot`, `ParameterDefs`), parser (`parseExpression`) and its name rule (`isValidParamName`), evaluator (`evaluateParamExpression`), renderer (`renderParamExpression`), slot identity (`sameSlot`, `tryFindSlot`, `addSlot`, `removeSlot`), and `bindingsOf`, which every evaluation environment is derived through.
 - `src/Renderer/Simulator/CanvasExtractor.fs`: what a custom component instance's ports are (`signatureOfInstance`, `signatureOfInstanceWithCertainty`, `effectiveInstanceBindings`, `resolveCanvasAtBindings`), and `tidyParamSlots`, which puts a sheet's slots in order against its canvas on every save.
 - `src/Renderer/UI/CustomCompPorts.fs`: keeping instances in step with the sheet inside them - `getOutOfDateDependents` (per instance, against its own bindings), `updateInstance`, and the confirmation dialog.
-- `src/Renderer/Common/ComponentSlots.fs`: the one mapping from a `CompSlotName` to a field of a `ComponentType`, used by the properties pane, by elaboration and by the sheet-description DSL. Three copies of this mapping used to exist and had drifted apart.
+- `src/Renderer/Common/ComponentSlots.fs`: the one mapping from a `CompSlotName` to a field of a `ComponentType`, used by the properties pane, by elaboration and by the sheet-description DSL.
 - `src/Renderer/Common/SheetDescription.fs`, `src/Renderer/DrawBlock/SheetLayout.fs`: sheets written as data - components, logical connections, parameters and slots - laid out and saved without Issie running. See [dev/sheetDescriptionDsl.md](dev/sheetDescriptionDsl.md).
 - `src/Renderer/Common/ParameterAnalysis.fs`: Design-time instance-tree analysis under a top sheet (`analyseUnderTop`, `displayValues`), top-sheet inference (`effectiveTopSheet`, `instanceForestRoots`), and bind-to-top chain computation (`findBindOffers`).
 - `src/Renderer/UI/ParameterView.fs`: Sheet defaults and slot bindings CRUD, constraint checking, component updates, parameter UI fields/popups, display-value annotations, the placement popup (`customComponentParamPopup`), the bind-to-top button action (`applyBindOffers`), and the top-choice popup (`topSheetChoiceCheck`).
@@ -770,23 +761,10 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> Result<Unit, Param
 - `src/Renderer/Simulator/GraphMerger.fs`: Two-stage resolution during merge; graphs merged first, then one recursive `resolveSheet` walk that applies each sheet's slots and descends with each instance's bindings, memoised on the diff from defaults.
 - `src/Renderer/Simulator/CanvasStateAnalyser.fs`: Checks each custom component instance's ports against `signatureOfInstanceWithCertainty`, comparing names only where the widths cannot be known without the parent sheet.
 
-## Early development history
-
-The commits that first built the system. Later work — display values, the top sheet, component
-libraries, and the instance-signature reconciliation described above — is in `git log` and is not
-listed here.
-- a67fa72f Fix parameter resolution in simulation graph creation
-  - Passes `loadedDependencies` into merger; applies instance-specific `ParameterBindings` for custom components.
-- 83bb0b0b Fix forward reference issue in parameter resolution
-  - Introduces two-stage resolution: resolve custom component instance bindings first, then sheet-level defaults.
-- b510fe4b Parameter System Redo
-  - Reworks UI binding flow and simulation integration; clearer separation of concerns.
-- edf61e87 Parameter System Support
-  - Integrates `ParameterTypes.fs`, updates merger/validation, and adds comprehensive documentation.
-
 ## Known Limitations
 
-- Integer-only parameters today (`ParamInt = int`); very large constants may require future `bigint`.
+- Integer-only parameters (`ParamInt = int`); a constant wider than 32 bits cannot be expressed as
+  a parameter.
 - Parameter names are unqualified, and **scoping is single-level**: an instance binding is an
   expression in the parameters of the sheet the instance sits on, and nothing further out is in
   scope. Following a design-wide constant down a hierarchy means a parameter on every sheet in
@@ -802,8 +780,17 @@ listed here.
   that shape is caught at simulation rather than at load.
 - A pasted non-custom component whose width was parameterised freezes at its resolved value when
   pasted onto another sheet, and nothing reports it: neither `Model.Clipboard` nor
-  `SymbolT.Model.CopiedSymbols` records which sheet the copy came from. See finding 6 in
-  [parameterReviewFindings.md](parameterReviewFindings.md).
+  `SymbolT.Model.CopiedSymbols` records which sheet the copy came from. A custom component instance
+  that loses bindings the same way *does* warn.
+- **Memories are not parameterisable**: RAM and ROM address and word widths are plain numbers, not
+  parameter slots. An input count is likewise not a slot — the number of inputs of a gate or a
+  merge sets how many ports a symbol has, so a computed value would make `SymbolInfo.PortOrder`
+  name ports the saved type does not have.
+- A sheet can be viewed only at one set of values. Opening it *as a particular instance*
+  (`CPU_TOP > FetchUnit > Adder(W=16)`) is the strong answer for a multi-valued sheet and does not
+  exist.
+
+Smaller rough edges are in [dev/openIssues.md](dev/openIssues.md).
 
 ## Best Practices
 

@@ -21,9 +21,9 @@ undo, and it makes the update function's behaviour depend on history that is not
 
 **Before adding one, check the performance claim rather than assuming it.** `ModelHelpers.reduce`
 and `reduceApprox` enumerate fields explicitly rather than comparing whole records, so adding a
-`Model` field costs nothing for view memoisation. An update function that already rebuilds the
-model record pays nothing for one more field. Both of the mutables removed in the parameter-system
-work turned out to have no performance argument at all.
+`Model` field costs nothing for view memoisation, and an update function that already rebuilds the
+model record pays nothing for one more field. Every mutable removed from this list so far turned
+out to have no performance argument at all.
 
 ## Audit
 
@@ -72,15 +72,7 @@ would need the same judgement applied before moving: confirm the write frequency
   `PopupDialogData` already holds dialog state and is the obvious home. Note this one may be
   written per keystroke in a large memory table, so measure before moving.
 
-### Done
-
-- `UI/ParameterView.fs` — `topChoiceDeclinedFor` → `Model.TopSheetChoiceDeclined`. Read once per
-  sheet open; as a global it also survived closing and reopening a project, which was a latent bug.
-- `UI/UpdateHelpers.fs` — `pendingAddedComponents` → `Model.PendingDragAddition`. Read and written
-  in `sheetMsg`, which already rebuilds the model record, so the move was free.
-- `UI/Update.fs` — `evilUIState`, and `Renderer.fs` — `firstPress`. Both were absorbed by the
-  keyboard dispatcher in `UI/KeyBindings.fs`. `evilUIState` held a three-case approximation of the
-  UI context for the sole purpose of deciding whether to swallow the space bar, and got that wrong
-  in text entry; `modelContext` is the real thing, derived from the model rather than maintained by
-  hand. `firstPress` marked the Ctrl/Cmd key-down edge and is now `ctrlHeld`. Neither moved into
-  `Model`: the problem both were solving is that a DOM handler cannot read one.
+Not everything in this position moves into `Model`. A mutable that exists because a **DOM handler
+cannot read the model** — it must decide `preventDefault` synchronously, and the model is not
+reachable from inside the handler — belongs in the "not model state" table above instead. That is
+what `KeyBindings.modelContext` and `ctrlHeld` are.

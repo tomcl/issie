@@ -41,7 +41,10 @@ Current limitations:
 - The emitted Verilog is *not* accepted by ISSIE's own [Verilog component input](verilogComp.html),
   which reads a different (SystemVerilog-flavoured) subset — so a design exported from ISSIE
   cannot currently be re-imported as a Verilog component. The gap between the two is analysed in
-  [docs/dev/verilogRoundTrip.md](https://github.com/tomcl/issie/blob/master/docs/dev/verilogRoundTrip.md).
+  [docs/dev/verilogTesting.md](https://github.com/tomcl/issie/blob/master/docs/dev/verilogTesting.md).
+- The output is checked against ISSIE's own simulator, not against an external Verilog tool. No
+  automatic test runs the emitted text through a real simulator or synthesiser — see the same page
+  for what that would take.
 
 The generating code (`src/Renderer/VerilogComponent/Verilog.fs`) is simple and easily changed;
 it is exercised by the `Issie.VerilogOutput` test group. Please add issues if what currently

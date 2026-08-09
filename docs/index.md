@@ -26,7 +26,7 @@ See [Parameter System](parameterSystem.html) for a detailed explanation of symbo
    - We find that EEE-educated internal PhD candidates starting with schematic logic designs usually have a better understanding of what **digital hardware is** than those from other institutions starting with HDL.
 * ISSIE has as a design principle that it should be easy to use by a novice, with all errors well highlighted. Error messages telling the user what the error is and how precisely to correct it, so a novice user can make the correction — and where the correction is unambiguous, Issie offers a button that makes it. Keeping to this principle has been challenging but worthwhile. We also wanted a complete system capable of real design work: good user interface is separate from large-scale features and performance and there is no reason they cannot both be implemented.
 * ISSIE is developed **by undergraduate students and staff at Imperial College London**. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac and Linux platforms.
-* ISSIE is implemented using over 55K lines of code (84K lines including comments) in the Functional-first language F#, the equivalent of some 150K lines in a typical OOP language. ISSIE's implementation is (almost) pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has **its own digital simulator**, which uses **write-once semantics** on mutable (JS typed) arrays to combine the robustness of functional programming with high performance.
+* ISSIE is implemented in about 75K lines of code (112K lines including comments and blanks) in the Functional-first language F#, the equivalent of some 200K lines in a typical OOP language, with a further 4K lines of automatic tests. ISSIE's implementation is (almost) pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has **its own digital simulator**, which uses **write-once semantics** on mutable (JS typed) arrays to combine the robustness of functional programming with high performance.
 * ISSIE uses the [FABLE F# to Javascript compiler](https://fable.io/), [Elmish MVU framework](https://elmish.github.io/elmish/), and [Electron](https://www.electronjs.org/). This tool chain creates seamless cross-platform applications with simple and highly productive coding.
 * ISSIE can generate synthesisable Verilog output to drive FPGAs with your own toolchain. An integrated build flow for **ISSIE-Stick** hardware also exists, from an earlier project, but is [no longer maintained](issiestick.html).
 * ISSIE can also accept Verilog source, using this to define and simulate equivalent schematic components.
@@ -35,30 +35,32 @@ See [Parameter System](parameterSystem.html) for a detailed explanation of symbo
 
 <br>
 
-## ISSIE Development Roadmap
+## What is new
 
-#### 2024 
-* Workaround unexpected & undocumented React 17 memory leak
-* Better user interface to Waveform Simulator
-* Longer simulation times keeping waveforms in memory
-* Automatic whole-circuit wire segment separation for almost perfect auto-routing
+ISSIE has recently gained [sheet parameters](parameterSystem.html) with per-instance bindings and
+constraints, reusable [component libraries](features.html) in the Catalogue, one in-app
+keyboard and menu system with its shortcut help generated from the dispatch table, an in-app
+project browser with drag-and-drop placement and a design hierarchy tree, a rewritten fast
+simulator, and an automatic test suite covering the simulator, the parameter system and the
+schematic editor. It runs on .NET 10, Fable 5, Elmish 4 and React 18.
 
-#### 2025
+Every release and what changed in it is on the
+[releases page](https://github.com/tomcl/issie/releases).
 
-* New Waveform Selector for waveform simulations (complete)
-* Tooltips on waveform simulator waveforms (complete)
-* Symbolic parameters to make component bit-widths etc adjustable (complete)
-* Improvements to Verilog parser and to-Issie synthesis (complete)
+## Future work
 
-#### 2026
-
-* Sheet parameters, per-instance bindings and parameter constraints (complete)
-* Reusable [component libraries](features.html) offered in the Catalogue (complete)
-* One in-app keyboard/menu system, with the shortcut help generated from it (complete)
-* In-app project browser, drag-and-drop component placement, design hierarchy tree (complete)
-* Move to .NET 10, Fable 5, Elmish 4 and React 18 (complete)
-* An Expecto test suite covering the simulator, parameters and the draw block (complete)
-* See [Issue 506](https://github.com/tomcl/issie/issues/506) for possible other changes.
+* **Automated Verilog testing against an external tool.** ISSIE's Verilog output is currently
+  checked only against ISSIE's own simulator, so nothing establishes that a real Verilog tool
+  agrees with it. An Icarus Verilog corpus runner exists but has to be driven by hand. See
+  [Testing the Verilog subsystem](dev/verilogTesting.html) for what is covered today, and the three
+  routes to closing the gap — automating the existing Icarus differential test of the input
+  compiler, adding an Icarus check of the *emitter*, and making ISSIE's Verilog output readable
+  again by its own Verilog input.
+* Broader test coverage of the waveform simulator, the truth-table UI and wire routing, none of
+  which the [test suite](https://github.com/tomcl/issie/blob/master/Tests/README.md) reaches today.
+* Viewing a parameterised sheet *as a particular instance*, and parameterising memory sizes —
+  see [Parameter System](parameterSystem.html).
+* [Issue 506](https://github.com/tomcl/issie/issues/506) collects other possible changes.
 
 
 <br>

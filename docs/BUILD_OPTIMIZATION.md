@@ -35,19 +35,17 @@ Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file 
 
 ## What breaks it
 
-- **A stale `.fs.js` timestamp** — *now fixed automatically; this is what it was.* Fable rewrites
-  an output file only when its *content* changed, and the up-to-date check above is about
-  timestamps, so the two can disagree. A `.fs` whose mtime moves without its emitted JS changing —
-  a comment or warning-only edit, a `git checkout`, a rebase — leaves an output that is perfectly
-  current and still fails the check. **The recompile does not fix it**: nothing changed, so
-  nothing is written, so the next startup pays the full ~1 minute again, and so does the one after
-  that. Measured on this repo: one such file in `src/Renderer`, two consecutive full compiles,
-  the output never rewritten either time.
+- **A stale `.fs.js` timestamp**, which [`scripts/refresh-stale-output.js`](../scripts/refresh-stale-output.js)
+  exists to prevent. Fable rewrites an output file only when its *content* changed, and the
+  up-to-date check above is about timestamps, so the two can disagree. A `.fs` whose mtime moves
+  without its emitted JS changing — a comment or warning-only edit, a `git checkout`, a rebase —
+  leaves an output that is perfectly current and still fails the check. **A recompile does not fix
+  it**: nothing changed, so nothing is written, so every subsequent startup pays the full ~1 minute
+  again, indefinitely.
 
-  [`scripts/refresh-stale-output.js`](../scripts/refresh-stale-output.js) closes the loop by
-  bumping those timestamps after a successful compile, when every output is current by
-  construction. `dev.js` and `parallel-compile.js` both call it, and it prints what it touched. To
-  run it by hand, or on a directory of your own:
+  So `dev.js` and `parallel-compile.js` both run `refresh-stale-output.js` after a successful
+  compile, when every output is current by construction, and it prints what it touched. To run it
+  by hand, or on a directory of your own:
 
   ```bash
   node scripts/refresh-stale-output.js [dir ...]

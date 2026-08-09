@@ -292,6 +292,25 @@ let tests =
             let outs = simulateClocked (AsyncRAM1 mem) [ 4; 8; 1 ] [ 8 ] asyncRamStimuli
             Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
         }
+        // The ROMs: contents fixed, so FastReducers reads them into a table at build time.
+        // The last tick reads an address the memory has no entry for, which must give 0.
+        let romMem =
+            { Init = FromData
+              AddressWidth = 4
+              WordWidth = 8
+              Data = Map [ 1I, 11I; 2I, 22I; 3I, 33I ]
+              Comments = None }
+        test "ROM1" {
+            let stimuli = [ [ 1I ]; [ 2I ]; [ 3I ]; [ 0I ]; [ 0I ] ]
+            let outs = simulateClocked (ROM1 romMem) [ 4 ] [ 8 ] stimuli
+            Expect.equal outs [ [ 0I ]; [ 11I ]; [ 22I ]; [ 33I ]; [ 0I ] ]
+                "synchronous ROM reads the address presented on the previous clock edge"
+        }
+        test "AsyncROM1" {
+            for addr, expected in [ 1I, 11I; 2I, 22I; 3I, 33I; 0I, 0I; 15I, 0I ] do
+                Expect.equal (simulate (AsyncROM1 romMem) [ 4 ] [ 8 ] [ addr ]) [ expected ]
+                    $"asynchronous ROM reads address {addr} combinationally"
+        }
         test "AsyncRAM1 with >32-bit address" {
             // bigint address, uint32 data: exercises the mixed-width FastSim path
             let mem = { Init = FromData; AddressWidth = 33; WordWidth = 8; Data = Map.empty; Comments = None }

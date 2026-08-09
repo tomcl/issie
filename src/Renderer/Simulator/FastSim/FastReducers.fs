@@ -77,6 +77,25 @@ let inline private maskOf (w: int) =
 let inline private sliceOf (msb: int) (lsb: int) =
     struct (lsb, maskOf (msb - lsb + 1))
 
+/// Above this width a ROM lookup table stops being a sensible thing to hold in memory
+/// (2^16 words is 256kB), and the component keeps the general path.
+let private maxRomTableAddressWidth = 16
+
+/// A ROM read out into a flat table, once. Its contents never change - they are part of the
+/// component type - so every read afterwards is an array index. fastReduce instead builds a
+/// bigint from the address, looks it up in a Map keyed by bigint, and converts the result
+/// back, on every read of every step.
+/// Built from the entries the memory actually has rather than by probing every address, so
+/// this costs the size of the data and not the size of the address space.
+let private romTable (mem: Memory1) : uint32 array =
+    let table = Array.zeroCreate<uint32> (1 <<< mem.AddressWidth)
+    // unwritten addresses read as 0, which is what zeroCreate has already put there
+    mem.Data
+    |> Map.iter (fun addr value ->
+        if addr >= 0I && addr < bigint table.Length then
+            table[int addr] <- convertBigintToUInt32 mem.WordWidth value)
+    table
+
 /// n outputs of a demultiplexer: the selected one gets the input, the rest 0
 let private demuxU (fc: FastComponent) (n: int) =
     let src = inU fc 0
@@ -408,5 +427,80 @@ let reducerFor (fc: FastComponent) (isClockedReduction: bool) : (StepIndex -> un
     | CounterNoLoad width, false -> counterU fc width false true
     | CounterNoEnableLoad width, false -> counterU fc width false false
 
-    // Everything else - the bigint paths, memories, shifts - is left to fastReduce
+    // --- shifts -----------------------------------------------------------------------
+
+    // Input 0 is the data, input 1 the shift amount. Shifting by the bus width or more gives
+    // 0, or all sign bits for ASR. One closure per shift kind, so the kind is not re-examined
+    // every step, and the mask is worked out once.
+    | Shift(width, _, shiftType), false ->
+        let src = inU fc 0
+        let amtIn = inU fc 1
+        let dst = outU fc 0
+        let mask = maskOf width
+        let signBit = width - 1
+
+        match shiftType with
+        | LSL ->
+            Some(fun step ->
+                let s = step.SimStep
+                let bits = getA src s &&& mask
+                let amt = getA amtIn s
+
+                setA dst s (
+                    if amt >= uint32 width then
+                        0u
+                    else
+                        (bits <<< int amt) &&& mask))
+        | LSR ->
+            Some(fun step ->
+                let s = step.SimStep
+                let bits = getA src s &&& mask
+                let amt = getA amtIn s
+
+                setA dst s (
+                    if amt >= uint32 width then
+                        0u
+                    else
+                        bits >>> int amt))
+        | ASR ->
+            Some(fun step ->
+                let s = step.SimStep
+                let bits = getA src s &&& mask
+                let amt = getA amtIn s
+                let signSet = (bits >>> signBit) &&& 1u = 1u
+
+                setA dst s (
+                    if amt = 0u then
+                        bits
+                    elif amt >= uint32 width then
+                        (if signSet then mask else 0u)
+                    elif signSet then
+                        let a = int amt
+                        (bits >>> a) ||| (mask &&& (mask <<< (width - a)))
+                    else
+                        bits >>> int amt))
+
+    // --- read-only memories -------------------------------------------------------------
+
+    | AsyncROM1 mem, false when mem.AddressWidth <= maxRomTableAddressWidth ->
+        let src = inU fc 0
+        let dst = outU fc 0
+        let table = romTable mem
+        // the address bus is AddressWidth wide and its stored value is within that width, so
+        // it always indexes the table
+        Some(fun step ->
+            let s = step.SimStep
+            setA dst s (getA table (int (getA src s))))
+
+    | ROM1 mem, false when mem.AddressWidth <= maxRomTableAddressWidth ->
+        // synchronous: the address is the one presented on the previous clock edge
+        let src = inU fc 0
+        let dst = outU fc 0
+        let table = romTable mem
+        Some(fun step -> setA dst step.SimStep (getA table (int (oldU src step))))
+
+    // Everything else is left to fastReduce: the bigint paths, the read/write memories, and
+    // ROMs too wide to tabulate. RAM needs its state representation changed before it can have
+    // a reducer of this kind - the per-step history it writes for the waveform viewer is a Map
+    // keyed by bigint, and that Map, not the reducer, is what a RAM read costs.
     | _ -> None

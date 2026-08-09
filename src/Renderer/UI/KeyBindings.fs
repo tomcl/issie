@@ -210,24 +210,29 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     let stepAppZoom delta =
         let wc = webContents ()
         wc.setZoomLevel (max -9.0 (min 9.0 (wc.getZoomLevel () + delta)))
+    /// An editing shortcut does nothing on a library component's sheet, which can only be looked
+    /// at. Decided inside a message because a key handler has no way to see the model - the same
+    /// reason zoom above goes through one.
+    let ifEditable (act: unit -> unit) =
+        dispatch <| ExecFuncInMessage((fun m _ -> if not (openSheetIsReadOnly m) then act ()), dispatch)
 
     match id with
     // ---- sheet editing ----
-    | ScCopy -> keyDispatch SheetT.KeyboardMsg.CtrlC
-    | ScPaste -> keyDispatch SheetT.KeyboardMsg.CtrlV
+    | ScCopy -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlC)
+    | ScPaste -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlV)
     | ScSelectAll -> keyDispatch SheetT.KeyboardMsg.CtrlA
-    | ScDelete -> keyDispatch SheetT.KeyboardMsg.DEL
-    | ScRotateClockwise -> sheetDispatch (SheetT.Rotate CommonTypes.Degree90)
-    | ScRotateAnticlockwise -> sheetDispatch (SheetT.Rotate CommonTypes.Degree270)
-    | ScFlipVertical -> sheetDispatch (SheetT.Flip SymbolT.FlipVertical)
-    | ScFlipHorizontal -> sheetDispatch (SheetT.Flip SymbolT.FlipHorizontal)
-    | ScAlign -> sheetDispatch (SheetT.Arrangement SheetT.AlignSymbols)
-    | ScDistribute -> sheetDispatch (SheetT.Arrangement SheetT.DistributeSymbols)
-    | ScRotateLabel -> sheetDispatch SheetT.RotateLabels
-    | ScUndo -> keyDispatch SheetT.KeyboardMsg.CtrlZ
-    | ScRedo -> keyDispatch SheetT.KeyboardMsg.CtrlY
-    | ScSeparateWires -> wireOf BusWireSeparate.reSeparateWiresFrom
-    | ScRerouteWires -> wireOf BusWireSeparate.reRouteWiresFrom
+    | ScDelete -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.DEL)
+    | ScRotateClockwise -> ifEditable (fun () -> sheetDispatch (SheetT.Rotate CommonTypes.Degree90))
+    | ScRotateAnticlockwise -> ifEditable (fun () -> sheetDispatch (SheetT.Rotate CommonTypes.Degree270))
+    | ScFlipVertical -> ifEditable (fun () -> sheetDispatch (SheetT.Flip SymbolT.FlipVertical))
+    | ScFlipHorizontal -> ifEditable (fun () -> sheetDispatch (SheetT.Flip SymbolT.FlipHorizontal))
+    | ScAlign -> ifEditable (fun () -> sheetDispatch (SheetT.Arrangement SheetT.AlignSymbols))
+    | ScDistribute -> ifEditable (fun () -> sheetDispatch (SheetT.Arrangement SheetT.DistributeSymbols))
+    | ScRotateLabel -> ifEditable (fun () -> sheetDispatch SheetT.RotateLabels)
+    | ScUndo -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlZ)
+    | ScRedo -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlY)
+    | ScSeparateWires -> ifEditable (fun () -> wireOf BusWireSeparate.reSeparateWiresFrom)
+    | ScRerouteWires -> ifEditable (fun () -> wireOf BusWireSeparate.reRouteWiresFrom)
     | ScMovePortsHelp ->
         dispatch
         <| ShowStaticInfoPopup(

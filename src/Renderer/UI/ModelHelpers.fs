@@ -136,6 +136,137 @@ let userDataToDrawBlockModel (model: Model) =
                             model.Sheet.Wire.Symbol with Theme = userData.Theme
                         }}}}
 
+//-------------------------------------------------------------------------------------------//
+//------------------------READ-ONLY SHEETS (VIEWED LIBRARY COMPONENTS)-----------------------//
+//-------------------------------------------------------------------------------------------//
+
+/// Whether the sheet now open is a library sheet the user asked to look inside, and so must not
+/// be editable.
+let openSheetIsReadOnly (model: Model) =
+    match model.CurrentProj with
+    | Some p -> Set.contains p.OpenFileName model.OpenedLibrarySheets
+    | None -> false
+
+/// The draw block state to hold a read-only sheet at. Taken once the sheet has settled, never
+/// while it loads: loading recomputes symbol sizes, reroutes wires whose ports have moved and
+/// centres the circuit, all of which are changes the pin would otherwise undo one by one until
+/// the sheet never finished opening.
+let pinnedCanvasOf (sheet: DrawModelType.SheetT.Model): PinnedCanvas =
+    let sym = sheet.Wire.Symbol
+    {
+        Symbols = sym.Symbols
+        Ports = sym.Ports
+        InputPortsConnected = sym.InputPortsConnected
+        OutputPortsConnected = sym.OutputPortsConnected
+        CopiedSymbols = sym.CopiedSymbols
+        Wires = sheet.Wire.Wires
+        CopiedWires = sheet.Wire.CopiedWires
+        BoundingBoxes = sheet.BoundingBoxes
+    }
+
+/// One symbol held at its pinned state, keeping from the live one the fields that are never
+/// saved. Appearance is colour, opacity, port visibility and corner handles - everything
+/// selection and hover change - and the InWidth fields are recomputed by width inference, so all
+/// of those stay free. Component, Pos, PortMaps, STransform, the scales and the label geometry
+/// reach the .dgm and so come from the pin, as do MovingPort and Moving: transient, but left
+/// free a port drag would paint a preview that then vanished.
+let private pinSymbol (pinned: DrawModelType.SymbolT.Symbol) (live: DrawModelType.SymbolT.Symbol) =
+    { pinned with
+        Appearance = live.Appearance
+        InWidth0 = live.InWidth0
+        InWidth1 = live.InWidth1
+        InWidths = live.InWidths
+        IsClocked = live.IsClocked
+        CentrePos = live.CentrePos
+        OffsetFromBBCentre = live.OffsetFromBBCentre }
+
+/// Write the pinned state back over the live draw block, so that nothing which would be saved
+/// can change while a library sheet is being viewed.
+///
+/// This is the whole of read-only enforcement. It restores rather than refuses because there are
+/// too many ways to edit to block them one at a time and be sure: 58 mutating cases across the
+/// three draw block Msg types, half a dozen places that write model.Sheet directly through
+/// Optic.map without reaching any update function, and UpdateModel, which carries an arbitrary
+/// Model -> Model and cannot be inspected at all. Undoing the change afterwards catches every
+/// one of those, and goes on catching messages added later. Everything the user can reach that
+/// would be reverted is separately disabled, so nothing appears to work and then springs back.
+///
+/// Called after every message, so it first asks whether anything it pins was touched at all: the
+/// maps are persistent, so an untouched one is still the same object and the usual case costs
+/// seven reference comparisons and no allocation.
+let pinSheet (pinned: PinnedCanvas) (sheet: DrawModelType.SheetT.Model) =
+    let wire = sheet.Wire
+    let sym = wire.Symbol
+    let same a b = LanguagePrimitives.PhysicalEquality a b
+    if same sym.Symbols pinned.Symbols
+       && same sym.Ports pinned.Ports
+       && same sym.CopiedSymbols pinned.CopiedSymbols
+       && same wire.Wires pinned.Wires
+       && same wire.CopiedWires pinned.CopiedWires
+       && same sheet.BoundingBoxes pinned.BoundingBoxes
+       && List.isEmpty sheet.UndoList && List.isEmpty sheet.RedoList && sheet.TmpModel.IsNone
+    then
+        sheet
+    else
+        // Map over the PINNED symbols, not the live ones: a symbol the sheet has deleted must
+        // come back, and one it has added must not survive.
+        let symbols =
+            if same sym.Symbols pinned.Symbols then
+                pinned.Symbols
+            else
+                pinned.Symbols
+                |> Map.map (fun cId pinnedSym ->
+                    match Map.tryFind cId sym.Symbols with
+                    | Some liveSym -> pinSymbol pinnedSym liveSym
+                    | None -> pinnedSym)
+        { sheet with
+            Wire =
+                { wire with
+                    Wires = pinned.Wires
+                    CopiedWires = pinned.CopiedWires
+                    Symbol =
+                        { sym with
+                            Symbols = symbols
+                            Ports = pinned.Ports
+                            InputPortsConnected = pinned.InputPortsConnected
+                            OutputPortsConnected = pinned.OutputPortsConnected
+                            CopiedSymbols = pinned.CopiedSymbols } }
+            BoundingBoxes = pinned.BoundingBoxes
+            // A read-only sheet has no history to step through, and letting the lists grow would
+            // leave Ctrl+Z restoring a model the pin then had to undo again.
+            UndoList = []
+            RedoList = []
+            TmpModel = None }
+
+/// pinSheet applied to the draw block of the whole model. The model is returned untouched when the
+/// sheet is, so a message that changed nothing pinned allocates nothing.
+let pinDrawBlock (pinned: PinnedCanvas) (model: Model) =
+    let sheet = pinSheet pinned model.Sheet
+    if LanguagePrimitives.PhysicalEquality sheet model.Sheet then model
+    else Optic.set sheet_ sheet model
+
+/// Whether a message moves the whole circuit without changing the design.
+///
+/// Fit to window recentres the schematic by translating every symbol and wire (Sheet.moveCircuit),
+/// so a plain pin would put them all back and the one navigation command that matters on a sheet
+/// the user can only look at would appear to do nothing. Nothing about the design changes, and a
+/// viewed sheet is never written, so the pin is taken again at the new positions instead. This is
+/// a list of view operations, not an exception to read-only: everything absent from it is pinned,
+/// which is why it can stay this short without going stale.
+let private movesWholeCircuit (msg: Msg) =
+    match msg with
+    | Sheet (DrawModelType.SheetT.KeyPress DrawModelType.SheetT.KeyboardMsg.CtrlW) -> true
+    | _ -> false
+
+/// Hold the draw block at its pinned state if the open sheet is being viewed read-only. Applied
+/// to the result of every message.
+let pinIfReadOnly (msg: Msg) (model: Model) =
+    match model.ReadOnlyBaseline with
+    | None -> model
+    | Some _ when movesWholeCircuit msg ->
+        Optic.set readOnlyBaseline_ (Some (pinnedCanvasOf model.Sheet)) model
+    | Some pinned -> pinDrawBlock pinned model
+
 let reduce (this: Model) = {|
          RightTab = this.RightPaneTabVisible
          Hilighted = this.Hilighted

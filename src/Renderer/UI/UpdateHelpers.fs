@@ -84,6 +84,7 @@ let shortDisplayMsg (msg:Msg) =
     | FileCommand(fc,_) -> Some $"{fc}"
     | UpdateUISheetTrail _
     | ShowExitDialog
+    | PinReadOnlyCanvas
     | SynchroniseCanvas -> None
     | Sheet sheetMsg -> shortDSheetMsg sheetMsg
     | JSDiagramMsg (InitCanvas _ )-> Some "JSDiagramMsg.InitCanvas"
@@ -463,21 +464,45 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
     let ifWavesToOffer (sym: SymbolT.Symbol) (waveSimMenu: string) (menu: string) =
         if WaveSimSelect.compWavesToOffer model sym.Id <> [] then waveSimMenu else menu
 
+    /// Whether the sheet a custom component instantiates came from a component library, and so is
+    /// reachable only by asking to view it.
+    let instantiatesLibrarySheet (ct: CustomComponentType) =
+        model.CurrentProj
+        |> Option.bind (getFileInProject ct.Name)
+        |> Option.map ComponentLibraries.isLibrarySheet
+        |> Option.defaultValue false
+
+    /// The sheet on screen cannot be edited, so every menu on it is a reduced one.
+    let readOnly = openSheetIsReadOnly model
+
     match rightClickElement with
+    | SheetMenuBreadcrumb (sheet, _) when Set.contains sheet.SheetName model.OpenedLibrarySheets ->
+        "SheetMenuBreadcrumbLibrary"
     | SheetMenuBreadcrumb _ ->
         if JSHelpers.debugLevel > 0 then "SheetMenuBreadcrumbDev" else "SheetMenuBreadcrumb"
     | ProjectPathBreadcrumb _ ->
         "ProjectPath"
-    | DBScalingBox _ -> 
-        "ScalingBox"
+    | DBScalingBox _ ->
+        // every item on it rotates, flips, deletes, copies or moves
+        if readOnly then "" else "ScalingBox"
+    | DBCustomComp (sym, ct) when instantiatesLibrarySheet ct ->
+        let viewed = Set.contains ct.Name model.OpenedLibrarySheets
+        match readOnly, viewed with
+        | true, true -> "LibraryInstanceOpenReadOnly"
+        | true, false -> "LibraryInstanceReadOnly"
+        | false, true -> ifWavesToOffer sym "LibraryInstanceOpenWaveSim" "LibraryInstanceOpen"
+        | false, false -> ifWavesToOffer sym "LibraryInstanceWaveSim" "LibraryInstance"
     | DBCustomComp (sym, _) ->
-        ifWavesToOffer sym "CustomComponentWaveSim" "CustomComponent"
+        if readOnly then "ComponentReadOnly"
+        else ifWavesToOffer sym "CustomComponentWaveSim" "CustomComponent"
     | DBComp sym ->
-        ifWavesToOffer sym "ComponentWaveSim" "Component"
+        if readOnly then "ComponentReadOnly"
+        else ifWavesToOffer sym "ComponentWaveSim" "Component"
     | DBCanvas _ ->
-        "Canvas"
+        if readOnly then "CanvasReadOnly" else "Canvas"
     | DBWire _ ->
-        "Wire"
+        // its only item unfixes the wire's routing
+        if readOnly then "" else "Wire"
     | WaveSimHelp ->
         "WaveSimHelp"
     | _ ->
@@ -485,6 +510,54 @@ let getContextMenu (e: Browser.Types.MouseEvent) (model: Model) : string =
         "" // default is no menu
             
 
+
+/// Open a library component's sheet to be looked at, and go to it.
+///
+/// The sheet becomes visible in the Sheets menu and stays reachable until the project is closed,
+/// but is read-only throughout: it is not the user's to change, and a library component that
+/// differed from the library it came from would not be one. Only this sheet is opened - a
+/// component built from other library components keeps them shut, each needing the same
+/// deliberate click of its own.
+let viewLibrarySheet (name: string) (model: Model) (dispatch: Msg -> unit) =
+    let p = Option.get model.CurrentProj
+    let model = map openedLibrarySheets_ (Set.add name) model
+    openFileInProject name p model dispatch
+    map uISheetTrail_ (fun trail -> p.OpenFileName :: trail) model
+
+/// Put a viewed library component's sheet away again.
+///
+/// If it is the sheet on screen the user has to be taken off it first, since it is about to
+/// become unreachable: back the way they came, or failing that to any sheet of their own. With
+/// nowhere at all to go the sheet stays open, rather than stranding the user on a sheet the rest
+/// of Issie has stopped believing in.
+///
+/// The order matters. Leaving a sheet writes it back - to the loaded components, and to a backup
+/// file - and what stops that for a library sheet is its being in OpenedLibrarySheets. So the
+/// sheet is left while it is still marked, and put away only in the model this returns.
+let hideLibrarySheet (name: string) (model: Model) (dispatch: Msg -> unit) =
+    let p = Option.get model.CurrentProj
+    let putAway model = map openedLibrarySheets_ (Set.remove name) model
+    if p.OpenFileName <> name then
+        putAway model
+    else
+        let goTo =
+            model.UISheetTrail
+            |> List.filter (fun sheet ->
+                sheet <> name && List.exists (fun ldc -> ldc.Name = sheet) p.LoadedComponents)
+            |> List.tryHead
+            |> Option.orElseWith (fun () ->
+                p.LoadedComponents
+                |> List.tryFind (fun ldc -> ldc.Name <> name && not (ComponentLibraries.isLibrarySheet ldc))
+                |> Option.map (fun ldc -> ldc.Name))
+        match goTo with
+        | None ->
+            Log.warn $"there is no sheet to return to, so '{name}' has been left open"
+            model
+        | Some sheet ->
+            openFileInProject sheet p model dispatch
+            model
+            |> putAway
+            |> map uISheetTrail_ (List.filter (fun s -> s <> sheet))
 
 /// Function that implement action based on context menu item click.
 /// menuType is the menu from chooseContextMenu.
@@ -591,6 +664,18 @@ let processContextMenuClick
         |> withMsgs
             (Sheet(SheetT.Msg.Wire(BusWireT.Msg.Symbol(SymbolT.SelectSymbols [sym.Id])))
              :: (show |> List.map (fun m -> Sheet(SheetT.Msg.Wire(BusWireT.Msg.Symbol m)))))
+
+    | DBCustomComp(_,ct), item when item = ContextMenus.viewLibraryItem ->
+        viewLibrarySheet ct.Name model dispatch
+        |> withNoCmd
+
+    | DBCustomComp(_,ct), item when item = ContextMenus.hideLibraryItem ->
+        hideLibrarySheet ct.Name model dispatch
+        |> withNoCmd
+
+    | SheetMenuBreadcrumb(sheet,_), item when item = ContextMenus.hideLibraryItem ->
+        hideLibrarySheet sheet.SheetName model dispatch
+        |> withNoCmd
 
     | DBCustomComp(_,ct), "Go to sheet" ->
         let p = Option.get model.CurrentProj

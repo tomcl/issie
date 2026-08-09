@@ -147,8 +147,10 @@ type CCForm =
     /// L<n>_<CompName> so that it cannot clash with a user sheet, and that name is what the user
     /// sees on the canvas and in the waveform simulator; the library and component names are kept
     /// here so the catalogue can show the real name and the origin stays recoverable.
-    /// Library sheets are hidden from the Sheets menu and cannot be opened, but are otherwise
-    /// ordinary sheets: parameter analysis, width inference and simulation all see them.
+    /// Library sheets are hidden from the Sheets menu, and are reached only by asking to view one
+    /// from an instance's right-click menu - which opens it read-only, and only until the project
+    /// is closed (Model.OpenedLibrarySheets). They are otherwise ordinary sheets: parameter
+    /// analysis, width inference and simulation all see them.
     |Library of LibName: string * CompName: string
     |ProtectedTopLevel
     |ProtectedSubSheet

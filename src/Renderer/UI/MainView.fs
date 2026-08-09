@@ -136,6 +136,35 @@ module Probe =
                   ] ]
         | _ -> []
 
+//------------------Banner over a library component's sheet-----------------------------//
+//--------------------------------------------------------------------------------------//
+
+/// Says, for as long as it applies, that the sheet on screen is a library component being looked
+/// at rather than one of the user's own.
+///
+/// A banner and not a confirmation before opening: nothing here is destructive or hard to undo, so
+/// there is nothing to confirm, and the question would come at the one moment the user has not yet
+/// seen what they are being asked about. This answers the question they will actually ask, which
+/// is why they cannot edit what is in front of them.
+///
+/// Named by the library and component their author gave them, not by the L<n>_ sheet the project
+/// keeps them in - that name is a detail of how the component is stored.
+let viewReadOnlyBanner (model: Model) =
+    match model.CurrentProj with
+    | Some p when ModelHelpers.openSheetIsReadOnly model ->
+        let origin =
+            p.LoadedComponents
+            |> List.tryFind (fun ldc -> ldc.Name = p.OpenFileName)
+            |> Option.bind (fun ldc ->
+                match ldc.Form with
+                | Some (Library (libName, compName)) -> Some $"{compName} · {libName} library"
+                | _ -> None)
+            |> Option.defaultValue p.OpenFileName
+        div [ canvasReadOnlyBannerStyle model ] [
+            str $"👁 {origin} — read-only, and open only until this project is closed"
+        ]
+    | _ -> null
+
 //------------------Buttons overlaid on Draw2D Diagram----------------------------------//
 //--------------------------------------------------------------------------------------//
 
@@ -143,21 +172,27 @@ let viewOnDiagramButtons model dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let dispatch = SheetT.KeyPress >> sheetDispatch
 
+    // All four edit the sheet, so on a library component being looked at they are shown disabled
+    // rather than hidden: the buttons are a fixed landmark on the canvas, and one that came and
+    // went would be more startling than one that is plainly unavailable.
+    let readOnly = ModelHelpers.openSheetIsReadOnly model
+
     div [ canvasSmallMenuStyle ] [
-        let canvasBut func label = 
-            Button.button [ 
-                Button.Props [ canvasSmallButtonStyle; OnClick func ] 
+        let canvasBut func label =
+            Button.button [
+                Button.Props [ canvasSmallButtonStyle; OnClick (fun ev -> if not readOnly then func ev) ]
+                Button.Disabled readOnly
                 Button.Modifiers [
                     //Modifier.TextWeight TextWeight.Bold
                     Modifier.TextColor IsLight
                     Modifier.BackgroundColor IsSuccess
                     ]
-                ] 
+                ]
                 [ str label ]
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlZ ) "< undo" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlY ) "redo >" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlC ) "copy" 
-        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlV ) "paste" 
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlZ ) "< undo"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlY ) "redo >"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlC ) "copy"
+        canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlV ) "paste"
 
     ]
 
@@ -210,6 +245,8 @@ let init() = {
     OpenLibrary = None
     CatalogueSearch = ""
     ShowLibrarySheets = false
+    OpenedLibrarySheets = Set.empty
+    ReadOnlyBaseline = None
     PopupViewFunc = None
     PopupDialogData = {
         DialogState= None
@@ -302,9 +339,9 @@ let private  viewRightTab canvasState model dispatch =
                 let comp = SymbolUpdate.displayedComponent model.Sheet.Wire.Symbol compId
                 let blurb =
                     match comp.Type with
-                    // A library component is not presented as an instance of a sheet: its sheet
-                    // cannot be opened, and naming it here would put back the L<n>_ name the
-                    // header deliberately leaves out.
+                    // A library component is not presented as an instance of a sheet: that sheet
+                    // is not part of the design the user navigates, and naming it here would put
+                    // back the L<n>_ name the header deliberately leaves out.
                     | Custom {Form = Some (Library _)} -> None
                     | Custom custom ->
                         Some $"One instance of sheet {custom.Name}. These values apply to this instance only."
@@ -619,6 +656,9 @@ let displayView model dispatch =
                 // Top bar with buttons and menus: some subfunctions are fed in here as parameters because the
                 // main top bar function is early in compile order
                 TopMenuView.viewTopMenu model dispatch
+
+                // says that the sheet below belongs to a library component and cannot be changed
+                viewReadOnlyBanner model
 
                 // editing buttons overlaid bottom-left on canvas
                 viewOnDiagramButtons model dispatch

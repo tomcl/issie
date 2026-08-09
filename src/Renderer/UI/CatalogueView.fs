@@ -181,6 +181,14 @@ let private placementItem styles (ghost: DragGhost) label (place: unit -> unit) 
 /// entry - and it means a drop onto an occupied space settles into the same follow-the-cursor
 /// state a click would have left it in, rather than being refused.
 let private startPlacement (placeMsg: SheetT.Msg) (model: Model) dispatch =
+    // Nothing can be added to a library component's sheet, which is here to be looked at. Refused
+    // at the one place every placement starts, rather than by disabling the catalogue: the ghost
+    // that follows the cursor is drawn by the sheet, so a placement begun and then held at the
+    // pinned state would leave a component visibly there and then gone.
+    if ModelHelpers.openSheetIsReadOnly model then
+        dispatch EndDragPlacement
+    else
+
     dispatch (Sheet placeMsg)
     match model.DragPlacement with
     | Some (DroppedAt pos) ->

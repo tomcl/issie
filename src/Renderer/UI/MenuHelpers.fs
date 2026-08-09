@@ -341,19 +341,22 @@ let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> M
 
 /// Get the subsheet tree for all sheets in the current project.
 /// Returns a map from sheet name to tree of SheetTree nodes.
-/// showLibrarySheets: when false, sheets that came from a component library are left out, and so
-/// are the instances that would put them in someone else's tree - a library component is one
-/// thing, not a sheet with innards. It has to be decided here rather than by filtering the project
-/// first: the tree is built by walking each sheet's canvas, so a sheet removed from
-/// LoadedComponents still leaves its instance making a node, with nothing in it.
-let getSheetTreesFiltered (showLibrarySheets: bool) (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
+/// showLibrarySheet: a library sheet it answers false for is left out, and so are the instances
+/// that would put it in someone else's tree - a library component is one thing, not a sheet with
+/// innards. It has to be decided here rather than by filtering the project first: the tree is
+/// built by walking each sheet's canvas, so a sheet removed from LoadedComponents still leaves
+/// its instance making a node, with nothing in it.
+///
+/// A predicate rather than one flag for the lot, because a library component the user has asked
+/// to look inside appears in the Sheets menu while the rest of the library stays hidden.
+let getSheetTreesFiltered (showLibrarySheet: string -> bool) (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
     let ldcMap =
         p.LoadedComponents
         |> List.map (fun ldc -> ldc.Name,ldc)
         |> Map.ofList
 
     let hidden (sheet: string) =
-        not showLibrarySheets
+        not (showLibrarySheet sheet)
         && (Map.tryFind sheet ldcMap |> Option.map ComponentLibraries.isLibrarySheet |> Option.defaultValue false)
 
     let rec subSheets (path: string list) (sheet: string) (labelPath: string list) (sheetPath: ComponentId list): SheetTree=
@@ -401,7 +404,12 @@ let getSheetTreesFiltered (showLibrarySheets: bool) (allowAllInstances: bool) (p
 
 /// Get the subsheet tree for all sheets in the current project, library sheets included.
 let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
-    getSheetTreesFiltered true allowAllInstances p
+    getSheetTreesFiltered (fun _ -> true) allowAllInstances p
+
+/// Which library sheets the Sheets menu and the design hierarchy show: none, unless the developer
+/// toggle is on, or the user has asked to look inside that particular component.
+let librarySheetsShown (model: Model) (sheet: string) =
+    model.ShowLibrarySheets || Set.contains sheet model.OpenedLibrarySheets
 
 
 
@@ -465,8 +473,14 @@ let sweepUnusedLibrarySheets (model: Model) : Model =
         | [] -> model
         | unused ->
             let unusedNames = unused |> List.map (fun ldc -> ldc.Name) |> Set.ofList
-            // never remove the sheet the user is looking at, whatever its form
-            let toRemove = unusedNames |> Set.remove project.OpenFileName
+            // never remove the sheet the user is looking at, whatever its form - nor one they
+            // have opened to look inside, which would otherwise be taken away mid-session by
+            // deleting the last instance of it. It is swept on the next save after they put it
+            // away, or in the next session, since nothing stays viewed across a project reopen.
+            let toRemove =
+                unusedNames
+                |> Set.remove project.OpenFileName
+                |> Set.filter (fun name -> not (Set.contains name model.OpenedLibrarySheets))
             toRemove
             |> Set.iter (fun name ->
                 match project.LoadedComponents |> List.tryFind (fun ldc -> ldc.Name = name) with
@@ -647,10 +661,17 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
     let ldcs = tryGetLoadedComponents model
     let name = compToSetup.Name
     let components, connections = compToSetup.CanvasState
-    let msgs = 
+    let msgs =
         [
+            // First of all, before the canvas is touched: stop holding the sheet being left at
+            // what it loaded with, if it was a library component being viewed. Everything below
+            // changes the canvas, and a pin still armed would put the old sheet's symbols back as
+            // fast as the new sheet's were loaded. PinReadOnlyCanvas at the end of this list arms
+            // it again if the sheet now being opened is one too.
+            UpdateModel (Optic.set readOnlyBaseline_ None)
+
             SetHighlighted([], []) // Remove current highlights.
-    
+
             // Clear the canvas.
             Sheet SheetT.ResetModel
             Sheet (SheetT.Wire BusWireT.ResetModel)
@@ -699,6 +720,11 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
             // draw the sheet at the parameter values it takes under that top sheet rather than at
             // its declared defaults. Must follow the choice above, which can change the top.
             ApplyComputedDisplayValues
+
+            // last of all: if this sheet is a library sheet being viewed, hold it at what it has
+            // just become. Everything above changes the canvas as part of loading it, so nothing
+            // may be pinned until they have all run.
+            PinReadOnlyCanvas
 
         ]
     //INFO - Currently the spinner will ALWAYS load after 'SetTopMenu x', probably it is the last command in a chain
@@ -1042,6 +1068,10 @@ let updateLoadedComponents name (setFun: LoadedComponent -> LoadedComponent) (lc
 /// Do not update model.
 let updateProjectFromCanvas (model:Model) (dispatch:Msg -> Unit) =
     match model.Sheet.GetCanvasState() with
+    // A library component being looked at is not the user's to change and is held at what it
+    // loaded with, so there is nothing here to take back - and this writes a backup .dgm every
+    // time it is called, which is on every sheet switch.
+    | _ when openSheetIsReadOnly model -> model.CurrentProj
     | ([], []) -> model.CurrentProj
     | canvasState ->  
         canvasState
@@ -1074,6 +1104,9 @@ let getSavedWave (model: Model) : SavedWaveInfo option =
 /// update Symbol model with new RAM contents.
 let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
     match model.Sheet.GetCanvasState (), model.CurrentProj with
+    // A library component's sheet is never written back, whatever asks: it belongs to the
+    // library, not to this project, and it cannot have changed anyway.
+    | _ when openSheetIsReadOnly model -> None
     | _, None -> None
     | canvasState, Some project ->
         // "DEBUG: Saving Sheet"
@@ -1121,6 +1154,8 @@ let saveOpenFileAction isAuto model (dispatch: Msg -> Unit)=
 /// this could be changed by using the Notification field in the returned model
 let saveOpenFileToModel model =
     match model.Sheet.GetCanvasState (), model.CurrentProj with
+    // as saveOpenFileAction: a library component's sheet is never written back
+    | _ when openSheetIsReadOnly model -> None
     | _, None -> None
     | canvasState, Some project ->
         // "DEBUG: Saving Sheet"
@@ -1216,11 +1251,15 @@ let openFileInProject' saveCurrent name project (model:Model) dispatch =
         |> dispatch
         dispatch FinishUICmd
     // A library sheet is kept out of sight everywhere else - the Sheets menu, the design
-    // hierarchy, the waveform simulator - but the custom component context menu offers "Go to
-    // sheet" for any instance, which reached one anyway. The guard belongs here rather than at
-    // that one caller: this is the single funnel every way of opening a sheet passes through.
-    // The developer toggle still lets it through, as it does everywhere else.
-    | Some lc when ComponentLibraries.isLibrarySheet lc && not model.ShowLibrarySheets ->
+    // hierarchy, the waveform simulator - so it can be opened only by asking to view it, which
+    // puts it in OpenedLibrarySheets and makes it read-only for as long as the project is open.
+    // The guard belongs here rather than at the callers: this is the single funnel every way of
+    // opening a sheet passes through. The developer toggle still lets it through, as it does
+    // everywhere else.
+    | Some lc when
+        ComponentLibraries.isLibrarySheet lc
+        && not model.ShowLibrarySheets
+        && not (Set.contains name model.OpenedLibrarySheets) ->
         SetFilesNotification <| errorFilesNotification
             $"'{name}' is part of a component library, so it cannot be opened."
         |> dispatch

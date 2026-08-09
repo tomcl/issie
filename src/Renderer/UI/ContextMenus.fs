@@ -22,11 +22,24 @@ open ElectronAPI
 /// this file cannot see the model. See UpdateHelpers.getContextMenu.
 let addWavesItem = "Add waveforms to viewer"
 
+/// Items offered on an instance of a library component, which take the place of "Go to sheet".
+/// A library component is meant to be one thing rather than a sheet with innards, so its sheet is
+/// normally unreachable; these open it read-only, and put it away again. Which of the two is
+/// offered depends on whether that sheet is already being viewed, so as with the waveform item
+/// above the renderer decides by asking for a different menu.
+let viewLibraryItem = "View library component"
+let hideLibraryItem = "Hide library component"
+
 let private componentItems =
     ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)" ; "Delete (DEL)"; "Copy (Ctrl+C)"; "Properties"]
 
 let private customComponentItems =
     ["Go to sheet" ; "Properties" ; "Move ports" ; "Resize symbol"]
+
+/// As customComponentItems, for an instance of a library component: the instance itself sits on an
+/// ordinary sheet and can be moved and resized like any other, so only the first item differs.
+let private libraryInstanceItems (openItem: string) =
+    [openItem ; "Properties" ; "Move ports" ; "Resize symbol"]
 
 /// The context menu info is a map of menu name -> list of menu items
 /// menu and item names can be arbitrary strings
@@ -37,6 +50,10 @@ let contextMenus = [
         "ProjectPath", ["Copy path"; "Open directory"]
         "CustomComponent", customComponentItems
         "CustomComponentWaveSim", customComponentItems @ [addWavesItem]
+        "LibraryInstance", libraryInstanceItems viewLibraryItem
+        "LibraryInstanceWaveSim", libraryInstanceItems viewLibraryItem @ [addWavesItem]
+        "LibraryInstanceOpen", libraryInstanceItems hideLibraryItem
+        "LibraryInstanceOpenWaveSim", libraryInstanceItems hideLibraryItem @ [addWavesItem]
         "ScalingBox", ["Rotate Clockwise (Ctrl+Right)"; "Rotate AntiClockwise (Ctrl+Left)" ; "Flip Vertical (Ctrl+Up)"; "Flip Horizontal (Ctrl+Down)"; "Delete Box (DEL)"; "Copy Box (Ctrl+C)"; "Move Box (Drag any component)"]
         "Component", componentItems
         "ComponentWaveSim", componentItems @ [addWavesItem]
@@ -44,6 +61,16 @@ let contextMenus = [
         // hand - this file cannot see it, being compiled into the main process as well.
         "Canvas", ["Zoom-in (Ctrl+plus) and centre" ; "Zoom-out (Ctrl+minus)" ; "Fit to window (Ctrl+0)" ; "Paste (Ctrl+V)"; "Reroute all wires"; "Properties"]
         "Wire", ["Unfix Wire"]
+        // Menus offered while a library component's sheet is being viewed. Every item that would
+        // change the sheet is absent rather than disabled, because the sheet is held at what it
+        // loaded with and the change would be silently undone. A wire and the scaling box have
+        // nothing left at all, so they are given no menu. Fit to window stays: it moves the whole
+        // circuit rather than editing it, and is allowed for that reason.
+        "ComponentReadOnly", ["Properties"]
+        "LibraryInstanceReadOnly", [viewLibraryItem; "Properties"]
+        "LibraryInstanceOpenReadOnly", [hideLibraryItem; "Properties"]
+        "CanvasReadOnly", ["Zoom-in (Ctrl+plus) and centre" ; "Zoom-out (Ctrl+minus)" ; "Fit to window (Ctrl+0)" ; "Properties"]
+        "SheetMenuBreadcrumbLibrary", [hideLibraryItem]
         // Each of these is the name of a case in UIPopups.viewWaveInfoPopup, which is given the
         // item clicked on verbatim. A name here that has no case there reaches its catch-all, so
         // the two lists must be changed together. They cannot be one list: this file is compiled

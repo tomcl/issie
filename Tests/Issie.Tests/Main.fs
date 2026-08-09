@@ -18,6 +18,7 @@ let main argv =
         SheetDescriptionTests.tests
         DrawBlockTests.tests
         LibraryTests.tests
+        ReadOnlySheetTests.tests
         ParameterUI.tests
         InstanceSignatures.tests
         WaveSelection.tests

@@ -1440,9 +1440,9 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
     | false ->
         let heading =
             match custom.Form with
-            // On a library component these are simply its settings. The sheet they belong to
-            // cannot be opened, so calling them parameters explains nothing and spends a word of
-            // vocabulary the user does not otherwise need.
+            // On a library component these are simply its settings. The sheet they belong to is
+            // not one the user works on, so calling them parameters explains nothing and spends a
+            // word of vocabulary they do not otherwise need.
             | Some (Library _) -> null
             | _ -> Label.label [] [str $"Values for {custom.Name}'s parameters"]
         div [] (heading :: (childDefs |> Map.toList |> List.map (fun (key, def) -> entry key def)))
@@ -1474,8 +1474,9 @@ let customComponentParamPopup
     let childDefs = getDefaultParamDefs childLdc
     // This popup is the FIRST parameter UI a novice meets, because placing a parameterised library
     // component raises it. For a library component the values are simply its settings: the sheet
-    // they belong to cannot be opened, so the parameter names and the vocabulary around them
-    // explain nothing, and the description alone is what the author wrote to be read here.
+    // they belong to is not one the user works on, so the parameter names and the vocabulary
+    // around them explain nothing, and the description alone is what the author wrote to be read
+    // here.
     // (The bind-to-parent toggle needs no separate gate: it appears only where the sheet being
     // placed onto declares a parameter of the same name, which cannot happen in a project that has
     // no parameters of its own.)

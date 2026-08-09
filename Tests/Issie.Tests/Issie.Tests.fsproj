@@ -21,6 +21,7 @@
     <Compile Include="SheetDescriptionTests.fs" />
     <Compile Include="DrawBlockTests.fs" />
     <Compile Include="LibraryTests.fs" />
+    <Compile Include="ReadOnlySheetTests.fs" />
     <Compile Include="ParameterUI.fs" />
     <Compile Include="InstanceSignatures.fs" />
     <Compile Include="WaveSelection.fs" />

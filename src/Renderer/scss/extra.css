@@ -72,6 +72,35 @@ th, td {
   color: white;
 }
 
+/* sheet-menu pill colours for a library component opened to be looked at: neither the user's own
+   sheet nor a locked one, so a colour of its own rather than a shade of an existing meaning - the
+   greens above already say "top sheet" twice over. Lighter when it is the sheet on screen, as the
+   other pairs are. */
+.is-mediumpurple {
+  background-color: #8f6bc4;
+  color: white;
+}
+
+.is-rebeccapurple {
+  background-color: #5f3d92;
+  color: white;
+}
+
+/* Field tooltips in the Properties pane.
+
+   Bulma centres a tooltip on the thing it explains. These explain short labels down the left edge
+   of a pane about 300px wide, and a multiline tooltip is 15rem, so centred on "Name" half of it
+   lands outside the pane - and the pane scrolls, which means overflow is not visible on one axis
+   and therefore clipped on both. Anchored to the label's left edge it opens into the pane instead.
+
+   The selector has to out-specify bulma-tooltip's own, which is
+   [data-tooltip]:not(.is-loading).has-tooltip-bottom::before. The arrow is left centred on the
+   label: it points at the word, and the box now starts under it rather than around it. */
+.field-tip[data-tooltip].has-tooltip-bottom.has-tooltip-multiline::before {
+  left: 0;
+  transform: translate(0, 100%);
+}
+
 /* ---------------------------------------------------------------------------
    Top menu bar density.
 

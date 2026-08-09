@@ -292,7 +292,7 @@ let waveSelectBreadcrumbs
                 // A library component is opaque here whatever the Sheets menu is set to show: none
                 // of its innards are offered as waves, so it must not appear in the hierarchy that
                 // selects them either.
-                ShowLibrarySheets = false
+                ShowLibrarySheet = fun _ -> false
                 BreadcrumbText = Some sheetName
         }
         let hierarchyText =

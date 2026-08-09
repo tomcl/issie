@@ -582,16 +582,24 @@ let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
 /// global. because an opened module here shadows the Node namespace
 let private isMacPlatform = global.Node.Api.``process``.platform = global.Node.Base.Darwin
 
-/// A dropdown item labelled with the keyboard shortcut that also invokes it.
-let private itemWithKey (label: string) (id: KeyTypes.ShortcutId) (action: unit -> unit) =
+/// A dropdown item labelled with the keyboard shortcut that also invokes it. Greyed and inert
+/// when not enabled, which is how a sheet that can only be looked at shows that an editing
+/// command is unavailable, rather than letting it be clicked and quietly undone.
+let private itemWithKeyIf (enabled: bool) (label: string) (id: KeyTypes.ShortcutId) (action: unit -> unit) =
     Navbar.Item.a
         [ Navbar.Item.Props
-            [ OnClick(fun _ -> action ())
-              Style [ Display DisplayOptions.Flex; JustifyContent "space-between" ] ] ]
+            [ if enabled then OnClick(fun _ -> action ())
+              Style [ Display DisplayOptions.Flex
+                      JustifyContent "space-between"
+                      if not enabled then Opacity "0.4"
+                      if not enabled then Cursor "default" ] ] ]
         [ str label
           span
               [ Style [ MarginLeft "2.5em"; Opacity "0.5"; FontSize "90%"; WhiteSpace WhiteSpaceOptions.Nowrap ] ]
               [ str (KeyTypes.idLabel isMacPlatform id) ] ]
+
+let private itemWithKey (label: string) (id: KeyTypes.ShortcutId) (action: unit -> unit) =
+    itemWithKeyIf true label id action
 
 /// A non-clickable heading grouping the items under it. Bulma's navbar has no nested dropdown, so
 /// what were submenus on the Electron menus are flat groups here.
@@ -618,38 +626,43 @@ let private topMenuEntry (name: string) (thisMenu: TopMenu) (openState: TopMenu)
         [ Navbar.Link.a [] [ str name ]
           dropdown (openState = thisMenu) items ]
 
-let private editMenuItems dispatch =
+let private editMenuItems (model: Model) dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let keyDispatch = SheetT.KeyPress >> sheetDispatch
     let wireOf (f: ComponentId list -> BusWireT.Model -> BusWireT.Model) =
         dispatch
         <| UpdateModel(fun m -> m |> Optic.map (sheet_ >-> SheetT.wire_) (f m.Sheet.SelectedComponents))
 
-    [ itemWithKey "Undo" KeyTypes.ScUndo (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlZ)
-      itemWithKey "Redo" KeyTypes.ScRedo (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlY)
+    /// Everything on this menu changes the sheet, so on a library component being looked at only
+    /// selection and the help item are left. Copy goes too: the clipboard is held along with the
+    /// rest, so nothing can be taken out of a library component and pasted into a design.
+    let editItem = itemWithKeyIf (not (openSheetIsReadOnly model))
+
+    [ editItem "Undo" KeyTypes.ScUndo (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlZ)
+      editItem "Redo" KeyTypes.ScRedo (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlY)
       Navbar.divider [] []
       itemWithKey "Select all" KeyTypes.ScSelectAll (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlA)
-      itemWithKey "Copy" KeyTypes.ScCopy (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlC)
-      itemWithKey "Paste" KeyTypes.ScPaste (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlV)
-      itemWithKey "Delete" KeyTypes.ScDelete (fun () -> keyDispatch SheetT.KeyboardMsg.DEL)
+      editItem "Copy" KeyTypes.ScCopy (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlC)
+      editItem "Paste" KeyTypes.ScPaste (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlV)
+      editItem "Delete" KeyTypes.ScDelete (fun () -> keyDispatch SheetT.KeyboardMsg.DEL)
       Navbar.divider [] []
-      itemWithKey "Rotate clockwise" KeyTypes.ScRotateClockwise (fun () ->
+      editItem "Rotate clockwise" KeyTypes.ScRotateClockwise (fun () ->
           sheetDispatch (SheetT.Rotate CommonTypes.Degree90))
-      itemWithKey "Rotate anticlockwise" KeyTypes.ScRotateAnticlockwise (fun () ->
+      editItem "Rotate anticlockwise" KeyTypes.ScRotateAnticlockwise (fun () ->
           sheetDispatch (SheetT.Rotate CommonTypes.Degree270))
-      itemWithKey "Flip vertically" KeyTypes.ScFlipVertical (fun () ->
+      editItem "Flip vertically" KeyTypes.ScFlipVertical (fun () ->
           sheetDispatch (SheetT.Flip SymbolT.FlipVertical))
-      itemWithKey "Flip horizontally" KeyTypes.ScFlipHorizontal (fun () ->
+      editItem "Flip horizontally" KeyTypes.ScFlipHorizontal (fun () ->
           sheetDispatch (SheetT.Flip SymbolT.FlipHorizontal))
-      itemWithKey "Align" KeyTypes.ScAlign (fun () ->
+      editItem "Align" KeyTypes.ScAlign (fun () ->
           sheetDispatch (SheetT.Arrangement SheetT.AlignSymbols))
-      itemWithKey "Distribute" KeyTypes.ScDistribute (fun () ->
+      editItem "Distribute" KeyTypes.ScDistribute (fun () ->
           sheetDispatch (SheetT.Arrangement SheetT.DistributeSymbols))
-      itemWithKey "Rotate label" KeyTypes.ScRotateLabel (fun () -> sheetDispatch SheetT.RotateLabels)
+      editItem "Rotate label" KeyTypes.ScRotateLabel (fun () -> sheetDispatch SheetT.RotateLabels)
       Navbar.divider [] []
-      itemWithKey "Separate wires from selection" KeyTypes.ScSeparateWires (fun () ->
+      editItem "Separate wires from selection" KeyTypes.ScSeparateWires (fun () ->
           wireOf BusWireSeparate.reSeparateWiresFrom)
-      itemWithKey "Reroute wires from selection" KeyTypes.ScRerouteWires (fun () ->
+      editItem "Reroute wires from selection" KeyTypes.ScRerouteWires (fun () ->
           wireOf BusWireSeparate.reRouteWiresFrom)
       Navbar.divider [] []
       itemWithKey "How to move component ports" KeyTypes.ScMovePortsHelp (fun () ->
@@ -745,8 +758,10 @@ let viewTopMenu model dispatch =
             // of a catalogue component, added and removed with its instances, and cannot be
             // opened. Everything else - parameter analysis, width inference, simulation - still
             // sees them, because they are ordinary sheets. A library author does need to see them,
-            // so the developer menu can turn them back on.
-            let sTrees = getSheetTreesFiltered model.ShowLibrarySheets false updatedProject
+            // so the developer menu can turn them back on, and so does anyone who has asked to
+            // look inside one component - that one appears here, read-only, until the project is
+            // closed.
+            let sTrees = getSheetTreesFiltered (librarySheetsShown model) false updatedProject
 
             let allRoots = allRootSheets sTrees
             let isSubSheet sh = not <| Set.contains sh allRoots
@@ -776,10 +791,18 @@ let viewTopMenu model dispatch =
                 |> Option.map (namesIn >> Set.ofList)
                 |> Option.defaultValue Set.empty
 
+            /// A library component being looked at is neither the user's sheet nor locked in the
+            /// sense the other colours mean, so it gets one of its own rather than a shade of an
+            /// existing meaning - the greens already say "top sheet" twice over.
+            let isViewedLibrarySheet (sheet: SheetTree) =
+                Set.contains sheet.SheetName model.OpenedLibrarySheets
+
             let sheetColor (sheet:SheetTree) =
                 let isTop = topSheet = Some sheet.SheetName
                 let outsideTop = topSheet.IsSome && not (Set.contains sheet.SheetName sheetsUnderTop)
                 match sheet.SheetName = project.OpenFileName, sheetIsLocked sheet.SheetName updatedModel with
+                | _ when isViewedLibrarySheet sheet ->
+                    IColor.IsCustomColor (if sheet.SheetName = project.OpenFileName then "mediumpurple" else "rebeccapurple")
                 | true, true -> IColor.IsCustomColor "pink"
                 | true, false when isTop -> IColor.IsSuccess
                 | true, false -> IColor.IsInfo
@@ -793,7 +816,14 @@ let viewTopMenu model dispatch =
                 MiscMenuView.Constants.defaultConfig with
                     ClickAction = openSheetAction
                     ColorFun = sheetColor
-                    ShowLibrarySheets = model.ShowLibrarySheets
+                    ShowLibrarySheet = librarySheetsShown model
+                    // Marked as well as coloured: the colour says which kind of sheet this is,
+                    // and one more colour in a menu that already has six is not something to
+                    // rely on by itself.
+                    BreadcrumbText =
+                        Some (fun sheet ->
+                            if isViewedLibrarySheet sheet then $"👁 {sheet.SheetName}"
+                            else sheet.SheetName)
                     BreadcrumbIdPrefix = "SheetMenuBreadcrumb"
                 }
 
@@ -911,7 +941,7 @@ let viewTopMenu model dispatch =
                       // every pixel of width it can get.
                       fileTab model
 
-                      topMenuEntry "Edit" Edit topMenuOpenState dispatch (editMenuItems dispatch)
+                      topMenuEntry "Edit" Edit topMenuOpenState dispatch (editMenuItems model dispatch)
                       topMenuEntry "View" View topMenuOpenState dispatch (viewMenuItems dispatch)
 
                       // make the path in the navbar responsive

@@ -440,7 +440,10 @@ let forceCloseProject (model:Model) dispatch =
         fun model ->
             { model with
                 RightPaneTabVisible = Properties
-                Pending = []}
+                Pending = []
+                // Any library component opened for viewing closes with the project it was in.
+                OpenedLibrarySheets = Set.empty
+                ReadOnlyBaseline = None}
                 )
     dispatch FinishUICmd
 

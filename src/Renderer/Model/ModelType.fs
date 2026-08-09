@@ -483,6 +483,12 @@ type Msg =
     | UpdateUISheetTrail of (string list -> string list)
     | SheetBackAction of (Msg -> unit)
     | SynchroniseCanvas
+    /// Sent as the last message of every sheet load. Arms the read-only pin if the sheet just
+    /// opened is a library sheet being viewed, and clears it otherwise - see
+    /// ModelHelpers.pinDrawBlock. Its own message rather than part of SynchroniseCanvas because
+    /// loading is not finished there: ApplyComputedDisplayValues still follows, and a pin armed
+    /// before it would revert the parameter values the sheet is meant to be drawn at.
+    | PinReadOnlyCanvas
     | JSDiagramMsg of JSDiagramMsg
     | Benchmark
     | StartSimulation of Result<SimulationData, SimulationError>
@@ -775,6 +781,31 @@ type ProjectBrowserState = {
 /// Which half of the window the keyboard is pointing at.
 type Pane = | LeftPane | RightPane
 
+/// The draw block state a read-only sheet is held at, captured once the sheet has finished
+/// loading and written back over the live model after every message - see
+/// ModelHelpers.pinDrawBlock.
+///
+/// Exactly the state a sheet is SAVED from, and nothing else. SymbolUpdate.extractComponent is
+/// the sole path from symbols to saved state, and it ignores Symbol.Appearance, so colour,
+/// opacity, port visibility and corner handles are all absent here and stay free to change:
+/// selection and hover go on working on a read-only sheet at no cost. The bounding boxes are
+/// here only because they are derived from the symbols, and would otherwise follow symbols that
+/// did not move.
+///
+/// The two clipboards are here for a different reason: pinning them is what stops anything being
+/// copied OUT of a library sheet, since a copy writes the clipboard and nothing else. Whatever
+/// the user had copied before they looked inside survives, which is what they would expect.
+type PinnedCanvas = {
+    Symbols: Map<ComponentId, DrawModelType.SymbolT.Symbol>
+    Ports: Map<string, Port>
+    InputPortsConnected: Set<InputPortId>
+    OutputPortsConnected: Map<OutputPortId, int>
+    CopiedSymbols: Map<ComponentId, DrawModelType.SymbolT.Symbol>
+    Wires: Map<ConnectionId, DrawModelType.BusWireT.Wire>
+    CopiedWires: Map<ConnectionId, DrawModelType.BusWireT.Wire>
+    BoundingBoxes: Map<ComponentId, BoundingBox>
+}
+
 type Model = {
     /// Which pane last received a mouse-down, and so where unmodified keys go.
     /// Set on mouse-down only - never on mouse-move - so it cannot change under the user's hand
@@ -868,6 +899,20 @@ type Model = {
     /// what a component brought with it. The waveform simulator ignores this: library sheets
     /// are never offered there.
     ShowLibrarySheets : bool
+    /// The library sheets the user has asked to look inside, by name. A library component is an
+    /// abstraction and its sheet is not normally reachable at all, but understanding how one
+    /// works is a fair thing to want, so an instance's right-click menu can open its sheet
+    /// read-only. Held here rather than on the sheet's CCForm because Form is written to the
+    /// .dgm on every save: this state is meant to last only as long as the project is open, and
+    /// storing it in the file would both outlive that and let the Sheets menu's Unlock turn a
+    /// library sheet into an ordinary editable one.
+    OpenedLibrarySheets : Set<string>
+    /// What the open sheet's draw block is pinned to, when it is one of the above and has
+    /// finished loading. None for every ordinary sheet, and while a read-only one is still
+    /// loading - loading legitimately changes the canvas, recomputing symbol sizes, rerouting
+    /// wires whose ports moved and centring the circuit, so the pin cannot be armed until that
+    /// has settled. See ModelHelpers.pinDrawBlock.
+    ReadOnlyBaseline : PinnedCanvas option
     /// the project contains, as loadable components, the state of each of its sheets
     CurrentProj : Project option
     /// function to create popup pane if present
@@ -927,6 +972,8 @@ let topSheetChoiceDeclined_ = Lens.create (fun a -> a.TopSheetChoiceDeclined) (f
 let openLibrary_ = Lens.create (fun a -> a.OpenLibrary) (fun s a -> {a with OpenLibrary = s})
 let catalogueSearch_ = Lens.create (fun a -> a.CatalogueSearch) (fun s a -> {a with CatalogueSearch = s})
 let showLibrarySheets_ = Lens.create (fun a -> a.ShowLibrarySheets) (fun s a -> {a with ShowLibrarySheets = s})
+let openedLibrarySheets_ = Lens.create (fun a -> a.OpenedLibrarySheets) (fun s a -> {a with OpenedLibrarySheets = s})
+let readOnlyBaseline_ = Lens.create (fun a -> a.ReadOnlyBaseline) (fun s a -> {a with ReadOnlyBaseline = s})
 
 let currentProj_ = Lens.create (fun a -> a.CurrentProj) (fun s a -> {a with CurrentProj = s})
 let openLoadedComponentOfModel_ = currentProj_ >-> Optics.Option.value_ >?> openLoadedComponent_

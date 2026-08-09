@@ -38,8 +38,9 @@ let mutable uiStartTime: float = 0.
 //-----------------------------------------------UPDATE-----------------------------------------------------------//
 //----------------------------------------------------------------------------------------------------------------//
 
-/// Main MVU model update function
-let update (msg : Msg) oldModel =
+/// Main MVU model update function, before a read-only sheet is held at its pinned state.
+/// Call `update`, not this.
+let updateUnpinned (msg : Msg) oldModel =
 
     let withNoMsg (model: Model) = model, Cmd.none
 
@@ -167,6 +168,18 @@ let update (msg : Msg) oldModel =
         // this should disable the saev button by making loadedcomponent and draw blokc canvas the same
         model
         |> map openLoadedComponentOfModel_ (fun ldc -> {ldc with CanvasState = canvas})
+        |> withNoMsg
+
+    | PinReadOnlyCanvas ->
+        // Sent as the last message of a sheet load. Loading a sheet legitimately changes its
+        // canvas - symbol sizes are recomputed, wires whose ports have moved are rerouted,
+        // inferred widths are written back, the circuit is centred, and parameterised sheets are
+        // redrawn at the values computed for the top sheet - so this is the first moment at which
+        // "unchanged" means anything. Armed any earlier, the pin would undo the load itself.
+        // Always sent, so that opening an ordinary sheet clears the previous sheet's pin.
+        let baseline =
+            if openSheetIsReadOnly model then Some (pinnedCanvasOf model.Sheet) else None
+        set readOnlyBaseline_ baseline model
         |> withNoMsg
         
     // special messages for mouse control of screen vertical dividing bar, active when Wavesim is selected as rightTab
@@ -466,9 +479,22 @@ let update (msg : Msg) oldModel =
         |> withNoMsg
 
     | SetProject project ->
+        // Which library components have been opened for viewing is deliberately forgotten when
+        // the project changes: looking inside one is meant to last no longer than the session
+        // that asked for it, so a project reopened is a project with its abstractions intact.
+        let leavingProject =
+            match model.CurrentProj with
+            | Some p -> p.ProjectPath <> project.ProjectPath
+            | None -> true
         model
-        |> set currentProj_ (Some project) 
+        |> set currentProj_ (Some project)
         |> set (popupDialogData_ >-> projectPath_) project.ProjectPath
+        |> (fun model ->
+                if leavingProject then
+                    model
+                    |> set openedLibrarySheets_ Set.empty
+                    |> set readOnlyBaseline_ None
+                else model)
         |> withNoMsg
 
     | UpdateProject update ->
@@ -792,3 +818,16 @@ let update (msg : Msg) oldModel =
     |> map fst_ (fun model' -> resetDialogIfSelectionHasChanged model' oldModel)
     |> UpdateHelpers.traceMessage startOfUpdateTime msg
     |> ModelHelpers.execOneAsyncJobIfPossible
+
+/// Main MVU model update function.
+///
+/// Wraps the dispatch so that a library sheet opened for viewing is held at the state it loaded
+/// with - see ModelHelpers.pinDrawBlock. It has to be done here rather than inside Sheet.update:
+/// the three draw block update functions nest, so gating there would catch every message, but a
+/// handful of places edit model.Sheet directly with Optic.map and reach none of them - the
+/// separate/reroute wires actions in Renderer.fs, KeyBindings.fs and TopMenuView.fs, two context
+/// menu items in UpdateHelpers.fs, the simulator's "save input values as default", and the
+/// memory refresh that runs on every message. All of those pass through here.
+let update (msg : Msg) oldModel =
+    updateUnpinned msg oldModel
+    |> map fst_ (ModelHelpers.pinIfReadOnly msg)

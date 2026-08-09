@@ -126,6 +126,30 @@ let canvasVisibleStyleList model =
         background
     ]
 
+/// The strip across the top of the canvas saying that the sheet below is a library component being
+/// looked at and cannot be changed.
+///
+/// Placed over the canvas rather than above it so that nothing moves when it appears, and it takes
+/// no pointer events: it sits on top of the schematic, and a band the mouse could not draw through
+/// would be worse than no banner.
+let canvasReadOnlyBannerStyle model = Style [
+    Position PositionOptions.Absolute
+    Top headerHeight
+    Left "0px"
+    Right (rightSectionWidth model)
+    CSSProp.PointerEvents "none"
+    ZIndex 10
+    Padding "4px 10px"
+    FontSize "12px"
+    TextAlign TextAlignOptions.Center
+    Color "#4b2e83"
+    BackgroundColor "rgba(147,112,219,0.16)"
+    BorderBottom "1px solid rgba(102,51,153,0.45)"
+    WhiteSpace WhiteSpaceOptions.Nowrap
+    OverflowX OverflowOptions.Hidden
+    TextOverflow "ellipsis"
+]
+
 let canvasSmallMenuStyle = Style [
     Display DisplayOptions.Block
     Position PositionOptions.Absolute // Required to work.

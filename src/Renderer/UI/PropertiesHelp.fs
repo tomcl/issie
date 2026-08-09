@@ -103,22 +103,28 @@ let private fieldTips: Map<string, string> =
 
 /// A field label carrying its explanation, where there is one to give.
 ///
-/// Marked with a dotted underline and a help cursor, so that a label with something to say looks
-/// different from one without: an invisible tooltip is one nobody hovers.
+/// The help cursor is the only marking: a dotted underline under every explained label put a row
+/// of broken rules down a pane that is mostly labels, which read as structure that was not there.
+///
+/// The tooltip goes on a span INSIDE the label rather than on the label itself, because it needs
+/// an element that shrinks to the width of the words - a tooltip anchored to a full-width box
+/// points at nothing in particular - and a label made inline-block to achieve that stops being a
+/// line of its own, so the field's input box comes up beside it and covers the words.
 let fieldLabel (name: string) : ReactElement =
     match Map.tryFind name fieldTips with
     | None -> Label.label [] [ str name ]
     | Some tip ->
-        Label.label [
-            Label.Props [
+        Label.label [] [
+            span [
                 // bottom rather than the default top: the pane is tall and narrow, and a field
-                // near its top edge would put a tooltip above it off the screen
-                HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsTooltipBottom}"
+                // near its top edge would put a tooltip above it off the screen. field-tip opens
+                // it to the right rather than centred - see extra.css.
+                HTMLAttr.ClassName
+                    $"field-tip {Tooltip.ClassName} {Tooltip.IsMultiline} {Tooltip.IsTooltipBottom}"
                 Tooltip.dataTooltip tip
                 Style [
                     Cursor "help"
-                    BorderBottom "1px dotted #9a9a9a"
                     Display DisplayOptions.InlineBlock
                 ]
-            ]
-        ] [ str name ]
+            ] [ str name ]
+        ]

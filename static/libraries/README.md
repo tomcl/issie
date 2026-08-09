@@ -72,9 +72,16 @@ component naming another component of the same library is repointed at that comp
 without which a multi-sheet component would arrive holding instances of sheets that are not there.
 
 Library sheets are hidden from the Sheets menu, so a component looks like one thing rather than a
-sheet with innards. A library author can see them: **Play → Toggle Showing Library Sheets** in the
-developer menu (debug builds only, off at startup) puts them back, along with the subsheets under
-them. They are never shown in the waveform simulator, whatever that is set to.
+sheet with innards. Someone who wants to understand how one works can look inside it:
+**right-click an instance → View library component** opens that sheet, read-only, and it stays in
+the Sheets menu (purple, marked 👁) until the project is closed. Only that sheet is opened — a
+component built from other library components keeps them shut, each needing the same deliberate
+click of its own — and nothing on it can be changed, copied out, or saved. **Hide library
+component** puts it away again.
+
+A library author wants all of them at once, and editable: **Play → Toggle Showing Library Sheets**
+in the developer menu (debug builds only, off at startup) puts them back, along with the subsheets
+under them. They are never shown in the waveform simulator, whatever any of this is set to.
 
 When the last instance of a library component is deleted and the project is saved, its sheets are
 removed again.

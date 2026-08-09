@@ -49,15 +49,24 @@ let tests =
             // The instances have to be skipped during the walk rather than the sheets removed
             // beforehand: dropping a sheet from LoadedComponents still leaves its instance making
             // a node, and that node is a stub with no name and no contents.
-            let hidden = getSheetTreesFiltered false false project |> namesIn
+            let hidden = getSheetTreesFiltered (fun _ -> false) false project |> namesIn
             Expect.equal hidden (Set.ofList [ "top" ]) "only the user's own sheet survives"
         }
 
         test "shown library sheets appear as roots and as subsheets" {
-            let shown = getSheetTreesFiltered true false project |> namesIn
+            let shown = getSheetTreesFiltered (fun _ -> true) false project |> namesIn
             Expect.equal shown (Set.ofList [ "top"; "L1_fullAdd"; "L1_halfAdd" ])
                 "the component and the sheet it uses are both there"
             Expect.equal (getSheetTrees false project |> namesIn) shown
                 "getSheetTrees, which everything else uses, shows them"
+        }
+
+        test "a library component opened for viewing appears without its own innards" {
+            // What the right-click "View library component" item asks for: this sheet and no
+            // more. A component built from other library components keeps them shut, each
+            // needing the same deliberate click of its own.
+            let viewed = getSheetTreesFiltered (fun name -> name = "L1_fullAdd") false project |> namesIn
+            Expect.equal viewed (Set.ofList [ "top"; "L1_fullAdd" ])
+                "the component being looked at is there; the sheet it is built from is not"
         }
     ]

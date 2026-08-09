@@ -162,26 +162,42 @@ let componentTypeName (ct: ComponentType) : string =
     | Shift (_, _, ASR) -> "Arithmetic shift right"
     | Custom custom -> custom.Name
 
+/// A sheet or component name written as a heading.
+///
+/// Issie lowercases a sheet name when the sheet is created, so a custom component is called "alu"
+/// and a library component "reg16x8". That is the right name to match on and the wrong one to head
+/// a pane with, where it sits between two capitalised headings. Only the first letter is touched:
+/// the rest of the name is the author's, and "regFile8" must not become "Regfile8".
+let private asHeading (name: string) =
+    match name with
+    | "" -> ""
+    | _ -> string (System.Char.ToUpper name[0]) + name[1..]
+
 /// The identity line at the top of the pane: what this component is, and where it came from.
 ///
+/// Sized between the pane's own heading and the field labels below it, because that is where it
+/// belongs in the hierarchy: it names the thing whose fields follow.
+///
 /// A library component is named by the component and library its author gave it, not by the
-/// L<n>_ sheet the project keeps it in. That sheet cannot be opened, so its name is an
-/// implementation detail; showing it here named the one thing the user can never look at.
+/// L<n>_ sheet the project keeps it in. That sheet is not part of the design the user navigates -
+/// it can only be reached by asking to view it, read-only - so its name is an implementation
+/// detail rather than the name of the thing in front of them.
 let private makeComponentHeader (comp: Component) =
     let name, origin =
         match comp.Type with
         | Custom custom ->
             match custom.Form with
-            | Some (Library (libName, compName)) -> compName, Some $"library · {libName}"
-            | Some (Verilog vName) -> vName, Some "Verilog"
-            | _ -> custom.Name, Some "instance of sheet"
+            | Some (Library (libName, compName)) -> asHeading compName, Some $"library · {libName}"
+            | Some (Verilog vName) -> asHeading vName, Some "Verilog"
+            | _ -> asHeading custom.Name, Some "instance of sheet"
         | ct -> componentTypeName ct, None
     div [Style [
             Display DisplayOptions.Flex
             AlignItems AlignItemsOptions.Baseline
             JustifyContent "space-between"
             MarginBottom "12px"]] [
-        span [Style [FontWeight "bold"; FontSize "15px"]] [str name]
+        // between the pane heading (Bulma title is-4, 1.5rem) and a field label (1rem)
+        span [Style [FontWeight "bold"; FontSize "1.125rem"]] [str name]
         (match origin with
          | None -> null
          | Some tag ->
@@ -742,6 +758,11 @@ let makeConstantDialog (model:Model) (comp: Component) (text:string) (dispatch: 
         let reactMsg, compTOpt = CatalogueView.parseConstant Constants.maxIssieBusWidth w cText
         match compTOpt with
         | None -> ()
+        // The dispatch below happens while rendering, whenever the dialog's value differs from the
+        // component's. On a sheet held at what it loaded with, the change would be undone, the
+        // pane would render again, and it would dispatch again: not a dead control but a loop. So
+        // the test is here, not on the input box.
+        | Some _ when ModelHelpers.openSheetIsReadOnly model -> ()
         | Some (Constant1(w,cVal,cText) as compT) ->
             if compT <> comp.Type then
                 model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
@@ -773,6 +794,9 @@ let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch
         let reactMsg, compTOpt = CatalogueView.parseBusCompareValue Constants.maxIssieBusWidth w cText
         match compTOpt with
         | None -> ()
+        // as makeConstantDialog: this dispatches while rendering, so on a read-only sheet it would
+        // dispatch, be undone, render, and dispatch again
+        | Some _ when ModelHelpers.openSheetIsReadOnly model -> ()
         | Some (BusCompare1(w,cVal,cText) as compT) ->
             if compT <> comp.Type then
                 model.Sheet.ChangeWidth (Sheet >> dispatch) (ComponentId comp.Id) w
@@ -941,8 +965,9 @@ let private describeComponent (comp:Component) model : ReactElement list =
             | None -> []
         let portOrder =
             match custom.Form with
-            // A library component's sheet cannot be opened, so an explanation given in terms of
-            // where things sit on that sheet tells the user nothing they can act on.
+            // A library component's sheet is not part of the design the user navigates, so an
+            // explanation given in terms of where things sit on it tells them nothing they can
+            // act on - and if they do go and look, it is read-only when they get there.
             | Some (Library _) -> []
             | Some (Verilog _) ->
                 [p [Style [FontStyle "italic"]] [
@@ -1051,7 +1076,9 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
     // the read-only description. Its parameter values are now edited exactly as a built-in width is.
     | Custom custom ->
         // Being able to go to the sheet is the plainest way of saying that this component IS an
-        // instance of one. Absent for a library component, whose sheet cannot be opened.
+        // instance of one. Absent for a library component, which is meant to be one thing: its
+        // sheet can be looked at, but only from the right-click menu, which keeps that the
+        // deliberate and uncommon act it should be.
         let openSheetButton =
             match custom.Form with
             | Some (Library _) -> null
@@ -1242,4 +1269,18 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 ParameterView.viewParameters model dispatch
                 ]
         |None -> null
+    // A library component's sheet can be looked at but not changed, and the pane is most of the
+    // reason to look: it is where the widths, constants, parameter bindings and memory contents
+    // are. So the values stay visible and readable, and only the controls go dead.
+    //
+    // A disabled fieldset does that natively and in one place - it disables every input, select
+    // and button below it, whatever renders them, and needs no flag threaded through the thirty
+    // or so fields the pane can show. Text stays selectable, which pointer-events would have cost.
+    |> (fun react ->
+            if ModelHelpers.openSheetIsReadOnly model then
+                fieldset
+                    [ HTMLAttr.Disabled true
+                      Style [Border "none"; Padding "0"; Margin "0"; MinWidth "0"; Opacity "0.85"] ]
+                    [react]
+            else react)
     |> (fun react -> div [Style [Height "calc(100vh - 150px)"; OverflowY OverflowOptions.Auto]] [react])

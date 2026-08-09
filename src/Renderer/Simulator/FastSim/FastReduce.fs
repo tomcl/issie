@@ -198,28 +198,6 @@ let inline  algGate gateType =
 //--------------------------------------fastReduce---------------------------------------//
 //---------------------------------------------------------------------------------------//
 
-/// Where one clock step sits in the circular simulation arrays: the step number itself, its
-/// index into the arrays, and the index of the step before it. All three follow from the step
-/// number, so the simulation loop works them out once per step and hands the same value to
-/// every component - numStep % maxArraySize is an integer division, and it used to be redone
-/// for every component of every step. A struct so that passing it costs nothing.
-[<Struct>]
-type StepIndex =
-    { NumStep: int
-      SimStep: int
-      SimStepOld: int }
-
-let inline stepIndexOf (maxArraySize: int) (numStep: int) =
-    let simStep = numStep % maxArraySize
-
-    { NumStep = numStep
-      SimStep = simStep
-      SimStepOld =
-        if simStep = 0 then
-            maxArraySize - 1
-        else
-            simStep - 1 }
-
 /// Given a component, compute its outputs from its inputs, which must already be evaluated.
 /// Outputs and inputs are both contained as time sequences in arrays. This function will calculate
 /// simStep outputs from (previously calculated) simStep outputs and clocked (simStep-1) outputs.

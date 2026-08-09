@@ -76,6 +76,32 @@ let printComp (fs: FastSimulation) (step: int) (fc: FastComponent) =
 
     sprintf "%25s %s %15s %A %A" fc.ShortId fc.FullName attr (canBeReduced fs step fc) ins
 
+/// Bind each simulated component's reducer to the component itself, once, when the simulation
+/// is built. The loop then calls a component's own code rather than dispatching on FType for
+/// every component of every step. FastReducers.reducerFor returns None for a type it does not
+/// handle yet, and that component keeps the general fastReduce.
+///
+/// This must run last. The reducers capture the step arrays their ports currently point at, and
+/// linkFastComponents, reLinkIOLabels and addWavesToFastSimulation all re-point ports; a reducer
+/// installed before them could hold an array the simulation no longer uses. It is also why only
+/// the components that are actually reduced get one - the custom-component FastComponents that
+/// addWavesToFastSimulation re-points exist for waveform display and are never reduced.
+let installReducers (fs: FastSimulation) : FastSimulation =
+    let install (fc: FastComponent) =
+        fc.ReduceComb <-
+            match FastReducers.reducerFor fc false with
+            | Some reduce -> reduce
+            | None -> fun step -> fastReduce step false fc
+
+        fc.ReduceClocked <-
+            match FastReducers.reducerFor fc true with
+            | Some reduce -> reduce
+            | None -> fun step -> fastReduce step true fc
+
+    Array.iter install fs.FClockedComps
+    Array.iter install fs.FOrderedComps
+    fs
+
 /// Create arrays of components in corrected format for efficient reduction
 /// Combinational components are ordered: clokced, constant, global input components are
 /// separated.
@@ -429,6 +455,7 @@ let buildFastSimulation
     |> orderCombinationalComponents simulationArraySize
     |> checkAndValidate
     |> Result.map addWavesToFastSimulation
+    |> Result.map installReducers
 
 let buildFastSimulationFData
     (simulationArraySize: int)
@@ -492,8 +519,8 @@ let private stepSimulation (fs: FastSimulation) =
     let step = stepIndexOf fs.MaxArraySize (fs.ClockTick + 1)
 
     propagateInputsFromLastStep step.SimStep fs
-    Array.iter (fastReduce step true) fs.FClockedComps
-    Array.iter (fastReduce step false) fs.FOrderedComps
+    Array.iter (fun fc -> fc.ReduceClocked step) fs.FClockedComps
+    Array.iter (fun fc -> fc.ReduceComb step) fs.FOrderedComps
 
     fs.ClockTick <- step.NumStep
 
@@ -501,8 +528,8 @@ let private stepSimulation (fs: FastSimulation) =
 let private restartSimulation (fs: FastSimulation) =
     let step = stepIndexOf fs.MaxArraySize 0
     setInputstoDefault fs
-    Array.iter (fastReduce step true) fs.FClockedComps
-    Array.iter (fastReduce step false) fs.FOrderedComps
+    Array.iter (fun fc -> fc.ReduceClocked step) fs.FClockedComps
+    Array.iter (fun fc -> fc.ReduceComb step) fs.FOrderedComps
 
     fs.ClockTick <- 0
 
@@ -512,7 +539,7 @@ let runCombinationalLogic (stepNum: int) (fastSim: FastSimulation) =
     let step = stepIndexOf fastSim.MaxArraySize stepNum
 
     fastSim.FOrderedComps
-    |> Array.iter (fastReduce step false)
+    |> Array.iter (fun fc -> fc.ReduceComb step)
 
 let runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
     fastSim.FOrderedComps

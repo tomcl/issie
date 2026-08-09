@@ -309,6 +309,11 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
       SimSheetName = ""
       SimSheetNamePath = []
       SheetName = []
+      // placeholders: the real reducers need FastReduce, which is compiled after this, and
+      // cannot be built until widths and bigint state are known anyway. installReducers puts
+      // them in once the simulation is linked.
+      ReduceComb = fun _ -> failwithf "Reducer for %A was never installed" sComp.Type
+      ReduceClocked = fun _ -> failwithf "Reducer for %A was never installed" sComp.Type
       Touched = false
       DrivenComponents = []
       NumMissingInputValues = reduceIfHybrid sComp inPortNum

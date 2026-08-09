@@ -115,9 +115,54 @@ let goldenTest (projectName: string) (topSheet: string) (ticks: int) =
                 failtest $"Golden mismatch for {projectName}/{topSheet}:\n{diffs}"
     }
 
+/// Every component has two reducers: the one FastReducers builds for its type, which the
+/// simulation actually runs, and the general fastReduce, which is the definition of what that
+/// reducer must do. This drives two independent simulations of the same design, one through
+/// each, and requires that every output of every component agrees on every step held in the
+/// circular buffer. It is what makes converting another component type to a specialised
+/// reducer a safe change: get it wrong and this fails, whatever the goldens say.
+let reducerAgreementTest (projectName: string) (topSheet: string) (ticks: int) =
+    test $"reducers agree {projectName}/{topSheet}" {
+        let ldcs = loadProject projectName
+        let top = ldcs |> List.find (fun ldc -> ldc.Name = topSheet)
+        let build () =
+            match Simulator.startCircuitSimulation maxArraySize topSheet top.CanvasState ldcs with
+            | Error e -> failwith $"Simulation of {projectName}/{topSheet} failed: %A{e}"
+            | Ok simData -> simData.FastSim
+
+        let viaGeneral = build ()
+        let viaInstalled = build ()
+
+        for tick in 1..ticks do
+            let step = stepIndexOf viaGeneral.MaxArraySize tick
+            Array.iter (FastReduce.fastReduce step true) viaGeneral.FClockedComps
+            Array.iter (FastReduce.fastReduce step false) viaGeneral.FOrderedComps
+            viaGeneral.ClockTick <- tick
+            Array.iter (fun (fc: FastComponent) -> fc.ReduceClocked step) viaInstalled.FClockedComps
+            Array.iter (fun (fc: FastComponent) -> fc.ReduceComb step) viaInstalled.FOrderedComps
+            viaInstalled.ClockTick <- tick
+
+        let outputsOf (fs: FastSimulation) =
+            Array.append fs.FClockedComps fs.FOrderedComps
+            |> Array.collect (fun fc ->
+                fc.Outputs
+                |> Array.mapi (fun i o -> $"{fc.FullName}:{i}", o.UInt32Step, o.BigIntStep))
+
+        let disagreeing =
+            Array.zip (outputsOf viaGeneral) (outputsOf viaInstalled)
+            |> Array.filter (fun ((_, u1, b1), (_, u2, b2)) -> u1 <> u2 || b1 <> b2)
+            |> Array.map (fun ((name, _, _), _) -> name)
+
+        Expect.isEmpty disagreeing
+            $"after {ticks} ticks these outputs differ between the installed reducer and fastReduce"
+    }
+
 let tests =
     testList "GoldenModel" [
         goldenTest "1fulladder" "fulladd" 8
         goldenTest "adder4" "fa4" 8
         goldenTest "3cpu" "eep1" 50
+        reducerAgreementTest "1fulladder" "fulladd" 200
+        reducerAgreementTest "adder4" "fa4" 200
+        reducerAgreementTest "3cpu" "eep1" 500
     ]

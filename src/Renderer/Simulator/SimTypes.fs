@@ -55,6 +55,28 @@ type IOArray =
       Width: int
       Index: int }
 
+/// Where one clock step sits in the circular simulation arrays: the step number itself, its
+/// index into the arrays, and the index of the step before it. All three follow from the step
+/// number, so the simulation loop works them out once per step and hands the same value to
+/// every component - numStep % maxArraySize is an integer division, and it used to be redone
+/// for every component of every step. A struct so that passing it costs nothing.
+[<Struct>]
+type StepIndex =
+    { NumStep: int
+      SimStep: int
+      SimStepOld: int }
+
+let inline stepIndexOf (maxArraySize: int) (numStep: int) =
+    let simStep = numStep % maxArraySize
+
+    { NumStep = numStep
+      SimStep = simStep
+      SimStepOld =
+        if simStep = 0 then
+            maxArraySize - 1
+        else
+            simStep - 1 }
+
 /// Used for efficiency reasons.
 /// For a given normal simulation these arrays show whether the corresponding
 /// component input or output is a bigint or a unint32 type bus, and therefore
@@ -68,6 +90,11 @@ type BigIntState =
 /// in the simulation.
 /// Arrays on FastComponent are filled up with simulation data per clock step as a clocked
 /// simulation progresses.
+/// Equality is by reference: a FastComponent is a mutable object with an identity, holding
+/// step arrays that can run to megabytes, so comparing two of them field by field would be
+/// both meaningless and ruinous. It also carries its own reducers, which are functions and
+/// so have no structural equality at all.
+[<ReferenceEquality>]
 type FastComponent =
     {
       /// contains component path to root of simulation - unique
@@ -115,6 +142,13 @@ type FastComponent =
       /// sheet this component is in) or SimSheetNamePath (that sheet's path from the root).
       /// SubSheet below drops the last element to give just the enclosing instances.
       SheetName: string list
+      /// This component's reducer, bound to this component, as a combinational and as a
+      /// clocked reduction. Installed once by installReducers when the simulation is built,
+      /// so that the loop calls the component's own code instead of dispatching on FType for
+      /// every component of every step. Only the hybrid components (asynchronous RAM) differ
+      /// between the two.
+      mutable ReduceComb: StepIndex -> unit
+      mutable ReduceClocked: StepIndex -> unit
       // these fields are used only to determine component ordering for correct evaluation
       mutable Touched: bool // legacy field
       mutable DrivenComponents: FastComponent list

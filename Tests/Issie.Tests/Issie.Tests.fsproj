@@ -20,6 +20,7 @@
     <Compile Include="PersistenceTests.fs" />
     <Compile Include="SheetDescriptionTests.fs" />
     <Compile Include="DrawBlockTests.fs" />
+    <Compile Include="MarkdownTests.fs" />
     <Compile Include="LibraryTests.fs" />
     <Compile Include="ReadOnlySheetTests.fs" />
     <Compile Include="ParameterUI.fs" />

@@ -36,6 +36,8 @@
     <Compile Include="Common\SimpleJson\Json.Converter.fs" />
     <Compile Include="Common\ParameterTypes.fs" />
     <Compile Include="Common\CommonTypes.fs" />
+    <Compile Include="Common\Markdown.fs" />
+    <Compile Include="Common\AppMessages.fs" />
     <Compile Include="Common\KeyTypes.fs" />
     <Compile Include="Common\ComponentSlots.fs" />
     <Compile Include="Common\SheetDescription.fs" />

@@ -236,12 +236,7 @@ let rec openChosenFolder (path: string) model dispatch =
         giveUp ()
         choicePopup
             "Add the missing project file?"
-            (div [] [
-                str $"'{baseName path}' holds Issie sheets but no .dprj project file, which is \
-                      what marks a folder as an Issie project."
-                br []; br []
-                str $"Issie can open it either way. Adding {baseName path}.dprj lets it be \
-                      recognised as a project in future." ])
+            (UIPopups.helpText (AppMessages.Confirm.missingProjectFile (baseName path)))
             "Add it and open"
             "Open without it"
             (fun addMarker _ ->

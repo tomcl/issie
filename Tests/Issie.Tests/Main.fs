@@ -17,6 +17,7 @@ let main argv =
         PersistenceTests.tests
         SheetDescriptionTests.tests
         DrawBlockTests.tests
+        MarkdownTests.tests
         LibraryTests.tests
         ReadOnlySheetTests.tests
         ParameterUI.tests

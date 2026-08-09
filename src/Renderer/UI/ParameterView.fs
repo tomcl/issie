@@ -1147,21 +1147,7 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
             match projectUsesParams with
             | true -> addParameterBox model dispatch
             | false ->
-                let body =
-                    div [] [
-                        p [] [str "A parameter is a named value a sheet is built around - a width, \
-                                   a count - so that one sheet can serve a family of designs."]
-                        br []
-                        p [] [str "Each place this sheet is used gives its own value for the \
-                                   parameter, so the same sheet can appear at several sizes in one \
-                                   design."]
-                        br []
-                        p [] [str "The value you set here is the one used when this sheet is \
-                                   simulated on its own."]
-                        br []
-                        p [] [str "This is an advanced feature: designs that do not need it are \
-                                   unaffected by it."]
-                    ]
+                let body = UIPopups.helpText AppMessages.Confirm.usingParameters
                 confirmationPopup "Using parameters" "Add a parameter" body
                     (fun _ ->
                         dispatch ClosePopup

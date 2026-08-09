@@ -859,11 +859,7 @@ let duplicateSheet (sheetName: string) model dispatch =
             | _, Error err -> displayFileErrorNotification err dispatch
             | _ -> ()
 
-        let advice =
-            div []
-                [ str "Duplicating a sheet is only necessary if you intend to implement similar but \
-                       different versions of the sheet. If you want copies of sheet hardware you can add \
-                       the sheet multiple times as a component from this Project in the Catalog." ]
+        let advice = UIPopups.helpText AppMessages.Confirm.duplicateSheet
 
         match getFileInProject sheetName project with
         | Some ({Form = Some User} as sheet) ->

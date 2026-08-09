@@ -83,13 +83,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -266,13 +266,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -1605,6 +1605,82 @@
 
  Platform is always a parameter, never read here, so this module has no dependency on how the
  host discovers it.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="Log">
+              <a href="/issie/reference/global-log.html">
+                Log (Module)
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Log`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Log\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Log.fs#L13-13" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Issie's logging.
+
+ It is compiled second, after EEExtensions and before everything else, so the simulator, the
+ draw block, file I/O and the UI can all reach it.
+
+ The rule it exists to enforce: **a run prints a warning or an error, and nothing else.**
+ Anything else belongs to a category that is off until someone turns it on - from the
+ Development menu, from --log on the command line, or from window.issieLog in a console. No
+ rebuild and no restart, because the run worth reading is always the one already happening.
+
+ This replaced 239 ad-hoc printfn calls, of which 219 fired unconditionally: under Fable every
+ printfn is a console.log, so a symbol drag used to narrate itself.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="Log">
+              <a href="/issie/reference/global-log-0.html">
+                Log (Module)
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Log`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Log\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Log.fs#L13-13" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Issie's logging.
+
+ It is compiled second, after EEExtensions and before everything else, so the simulator, the
+ draw block, file I/O and the UI can all reach it.
+
+ The rule it exists to enforce: **a run prints a warning or an error, and nothing else.**
+ Anything else belongs to a category that is off until someone turns it on - from the
+ Development menu, from --log on the command line, or from window.issieLog in a console. No
+ rebuild and no restart, because the run worth reading is always the one already happening.
+
+ This replaced 239 ad-hoc printfn calls, of which 219 fired unconditionally: under Fable every
+ printfn is a console.log, so a symbol drag used to narrate itself.
             </p>
           </div>
         </td>

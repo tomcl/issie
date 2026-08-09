@@ -82,14 +82,14 @@
     Parameter System
   </a>
 </li>             
-<li class="nav-item active">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
-  </a>
-</li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/reports.html">
     Technical Reports
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -265,14 +265,14 @@
     Parameter System
   </a>
 </li>             
-<li class="nav-item active">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
-  </a>
-</li>             
 <li class="nav-item ">
   <a class="nav-link" href="/issie/reports.html">
     Technical Reports
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -387,11 +387,35 @@
 <main>
     <div id="content">
         
-<h1><a name="Synthesis-to-FPGAs-e-g-the-ISSIE-Stick-hardware" class="anchor" href="#Synthesis-to-FPGAs-e-g-the-ISSIE-Stick-hardware">Synthesis to FPGAs (e.g. the ISSIE-Stick hardware)</a></h1>
-<p>The Issie Stick is a USB plug-in that will interface with ISSIE to run ISSIE hardware on an FPGA.</p>
-<p>To use this, <code>Sheet -&gt; Verilog output</code></p>
-<p>The instructions there reference the README of a separate github project <a href="https://github.com/edstott/issie-synth">issie-synth</a>.</p>
-<p>More documentation needed here!</p>
+<h1><a name="ISSIE-Stick-and-the-FPGA-build-flow" class="anchor" href="#ISSIE-Stick-and-the-FPGA-build-flow">ISSIE-Stick and the FPGA build flow</a></h1>
+<p><strong>This page describes older work that still exists in ISSIE but is no longer maintained.</strong> The
+code is all there and the flow has worked; the hardware, the toolchain versions and the
+instructions have not been kept up with the rest of ISSIE, so expect to do some work before it
+runs. It is recorded here so that anyone picking it up knows what was built and where to look —
+not as a feature to reach for. If you want Verilog for an FPGA today, use
+<a href="verilogGenerate.html">Verilog Output</a> and your own toolchain.</p>
+<h2><a name="What-it-is" class="anchor" href="#What-it-is">What it is</a></h2>
+<p>The ISSIE-Stick is a USB plug-in board that lets an ISSIE design run on a real FPGA. Two revisions
+exist, v0.1 (iCE40 HX4K, TQ144) and v1.0 (iCE40 HX8K, BG121); the Lattice IceStick (HX1K) is
+supported by the same flow.</p>
+<h2><a name="What-is-still-in-the-app" class="anchor" href="#What-is-still-in-the-app">What is still in the app</a></h2>
+<p>A <strong>Build</strong> tab drives the open-source iCE40 flow directly — yosys for synthesis, nextpnr-ice40
+for place and route, icepack to make the bitstream, iceprog to program the board. It is hidden by
+default and turned on from the View menu, which is a fair reflection of how finished it is: the
+tools have to be installed and on the path yourself, and nothing checks for them until the build
+runs. The pin constraint files for all three boards ship with ISSIE, under <code>static/hdl</code>.</p>
+<p>Writing the Verilog itself is separate from any of this and is maintained: <code>Sheet</code> →
+<code>Write design as Verilog</code>, choosing <strong>Synthesis Verilog</strong>. That output is ordinary synthesisable
+Verilog and needs nothing from this page.</p>
+<h2><a name="Where-the-rest-of-it-is" class="anchor" href="#Where-the-rest-of-it-is">Where the rest of it is</a></h2>
+<p>The board design and the toolchain instructions live in a separate repository,
+<a href="https://github.com/edstott/issie-synth">issie-synth</a>, whose README is the real documentation for
+building or obtaining the hardware.</p>
+<h2><a name="What-updating-this-would-mean" class="anchor" href="#What-updating-this-would-mean">What updating this would mean</a></h2>
+<p>Someone reviving this should expect to: check the flow against current yosys and nextpnr releases,
+say plainly which tool versions are known to work and how to install them on each platform, replace
+the failure that occurs when a tool is missing with a message that says what to install, and write
+the walkthrough from a design to a programmed board that this page has never had.</p>
 
         
     </div>
@@ -400,8 +424,28 @@
     <p id="on-this-page">On this page</p>
     <ul>
   <li class="level-1">
-    <a href="#Synthesis-to-FPGAs-e-g-the-ISSIE-Stick-hardware">
-      Synthesis to FPGAs (e.g. the ISSIE-Stick hardware)
+    <a href="#ISSIE-Stick-and-the-FPGA-build-flow">
+      ISSIE-Stick and the FPGA build flow
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-it-is">
+      What it is
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-is-still-in-the-app">
+      What is still in the app
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Where-the-rest-of-it-is">
+      Where the rest of it is
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-updating-this-would-mean">
+      What updating this would mean
     </a>
   </li>
 </ul>

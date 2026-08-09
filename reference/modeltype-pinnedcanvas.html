@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="ComponentType (issie)" />
+    <meta property="og:title" content="PinnedCanvas (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="ComponentType (issie)">
+    <meta name="twitter:title" content="PinnedCanvas (issie)">
     
-    <title>ComponentType (issie) | issie</title>
+    <title>PinnedCanvas (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -83,13 +83,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -266,13 +266,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -388,7 +388,7 @@
     <div id="content">
         <div>
   <h2>
-    ComponentType Type
+    PinnedCanvas Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -402,8 +402,8 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/version-testdu.html">
-        TestDU
+      <a href="/issie/reference/global-modeltype.html">
+        ModelType
       </a>
     </dt>
     <dt>
@@ -412,11 +412,11 @@
     </dt>
     <dt>
       All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/version-testdu-componenttype.html">ComponentType</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/modeltype-pinnedcanvas.html">PinnedCanvas</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
       , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/version-testdu-componenttype.html">ComponentType</a>&gt;</span></code>
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/modeltype-pinnedcanvas.html">PinnedCanvas</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
       , 
@@ -426,22 +426,36 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-        
+         The draw block state a read-only sheet is held at, captured once the sheet has finished
+ loading and written back over the live model after every message - see
+ ModelHelpers.pinDrawBlock.
+
+ Exactly the state a sheet is SAVED from, and nothing else. SymbolUpdate.extractComponent is
+ the sole path from symbols to saved state, and it ignores Symbol.Appearance, so colour,
+ opacity, port visibility and corner handles are all absent here and stay free to change:
+ selection and hover go on working on a read-only sheet at no cost. The bounding boxes are
+ here only because they are derived from the symbols, and would otherwise follow symbols that
+ did not move.
+
+ The two clipboards are here for a different reason: pinning them is what stops anything being
+ copied OUT of a library sheet, since a copy writes the clipboard and nothing else. Whatever
+ the user had copied before they looked inside survives, which is what they would expect.
       </p>
     </div>
   </div>
   <div></div>
   <div></div>
   <div></div>
+  <div></div>
   <div>
     <h3>
-      Union cases
+      Record fields
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Union case
+            Record Field
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -452,316 +466,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6427', 6427)" onmouseover="showTip(event, '6427', 6427)">
+              <code onmouseout="hideTip(event, '4986', 4986)" onmouseover="showTip(event, '4986', 4986)">
                 <p>
-                  <a id="IOLabel">
-                    <a href="#IOLabel">
-                      <code><span>IOLabel</span></code>
+                  <a id="BoundingBoxes">
+                    <a href="#BoundingBoxes">
+                      <code>BoundingBoxes</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6427">
+              <div class="fsdocs-tip" id="4986">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>IOLabel</span></code>
-                  <br/>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <div class="fsdocs-summary">
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/Version.fs#L22-22" class="fsdocs-source-link" title="Source on GitHub">
-                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-              </a>
-              <p class="fsdocs-summary">
-                
-              </p>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6428', 6428)" onmouseover="showTip(event, '6428', 6428)">
-                <p>
-                  <a id="Input">
-                    <a href="#Input">
-                      <code><span>Input(<span>BusWidth,&#32;DefaultValue</span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6428">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>Input(<span>BusWidth,&#32;DefaultValue</span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        BusWidth
-                      </b>
-                      :
-                      <code>int</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        DefaultValue
-                      </b>
-                      :
-                      <code><span>int&#32;option</span></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  BusWidth
-                </span>
-                :
-                <code>int</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  DefaultValue
-                </span>
-                :
-                <code><span>int&#32;option</span></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6429', 6429)" onmouseover="showTip(event, '6429', 6429)">
-                <p>
-                  <a id="Input1">
-                    <a href="#Input1">
-                      <code><span>Input1&#32;BusWidth</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6429">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>Input1&#32;BusWidth</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        BusWidth
-                      </b>
-                      :
-                      <code>int</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  BusWidth
-                </span>
-                :
-                <code>int</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6430', 6430)" onmouseover="showTip(event, '6430', 6430)">
-                <p>
-                  <a id="NotConnected">
-                    <a href="#NotConnected">
-                      <code><span>NotConnected</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6430">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>NotConnected</span></code>
-                  <br/>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <div class="fsdocs-summary">
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/Version.fs#L23-23" class="fsdocs-source-link" title="Source on GitHub">
-                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-              </a>
-              <p class="fsdocs-summary">
-                
-              </p>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6431', 6431)" onmouseover="showTip(event, '6431', 6431)">
-                <p>
-                  <a id="Output">
-                    <a href="#Output">
-                      <code><span>Output&#32;BusWidth</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6431">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>Output&#32;BusWidth</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        BusWidth
-                      </b>
-                      :
-                      <code>int</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  BusWidth
-                </span>
-                :
-                <code>int</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6432', 6432)" onmouseover="showTip(event, '6432', 6432)">
-                <p>
-                  <a id="Viewer">
-                    <a href="#Viewer">
-                      <code><span>Viewer&#32;BusWidth</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6432">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>Viewer&#32;BusWidth</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        BusWidth
-                      </b>
-                      :
-                      <code>int</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  BusWidth
-                </span>
-                :
-                <code>int</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div></div>
-  <div></div>
-  <div></div>
-  <div>
-    <h3>
-      Instance members
-    </h3>
-    <table class="table outer-list fsdocs-member-list">
-      <thead>
-        <tr>
-          <td class="fsdocs-member-list-header">
-            Instance member
-          </td>
-          <td class="fsdocs-member-list-header">
-            Description
-          </td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '6433', 6433)" onmouseover="showTip(event, '6433', 6433)">
-                <p>
-                  <a id="IsIOLabel">
-                    <a href="#IsIOLabel">
-                      <code><span>this.IsIOLabel</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="6433">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsIOLabel</span></code>
+                  <code>BoundingBoxes</code>
                   <br/>
                   <br/>
                   <span>
-                    Returns: 
-                    <code>bool</code>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -772,9 +494,9 @@
             <dl class="fsdocs-returns">
               <dt>
                 <span class="fsdocs-return-name">
-                  Returns: 
+                  Field type: 
                 </span>
-                <code>bool</code>
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></span>&gt;</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -783,24 +505,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6434', 6434)" onmouseover="showTip(event, '6434', 6434)">
+              <code onmouseout="hideTip(event, '4987', 4987)" onmouseover="showTip(event, '4987', 4987)">
                 <p>
-                  <a id="IsInput">
-                    <a href="#IsInput">
-                      <code><span>this.IsInput</span></code>
+                  <a id="CopiedSymbols">
+                    <a href="#CopiedSymbols">
+                      <code>CopiedSymbols</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6434">
+              <div class="fsdocs-tip" id="4987">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsInput</span></code>
+                  <code>CopiedSymbols</code>
                   <br/>
                   <br/>
                   <span>
-                    Returns: 
-                    <code>bool</code>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -811,9 +533,9 @@
             <dl class="fsdocs-returns">
               <dt>
                 <span class="fsdocs-return-name">
-                  Returns: 
+                  Field type: 
                 </span>
-                <code>bool</code>
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></span>&gt;</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -822,24 +544,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6435', 6435)" onmouseover="showTip(event, '6435', 6435)">
+              <code onmouseout="hideTip(event, '4988', 4988)" onmouseover="showTip(event, '4988', 4988)">
                 <p>
-                  <a id="IsInput1">
-                    <a href="#IsInput1">
-                      <code><span>this.IsInput1</span></code>
+                  <a id="CopiedWires">
+                    <a href="#CopiedWires">
+                      <code>CopiedWires</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6435">
+              <div class="fsdocs-tip" id="4988">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsInput1</span></code>
+                  <code>CopiedWires</code>
                   <br/>
                   <br/>
                   <span>
-                    Returns: 
-                    <code>bool</code>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a>,&#32;<a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a></span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -850,9 +572,9 @@
             <dl class="fsdocs-returns">
               <dt>
                 <span class="fsdocs-return-name">
-                  Returns: 
+                  Field type: 
                 </span>
-                <code>bool</code>
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a>,&#32;<a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a></span>&gt;</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -861,24 +583,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6436', 6436)" onmouseover="showTip(event, '6436', 6436)">
+              <code onmouseout="hideTip(event, '4989', 4989)" onmouseover="showTip(event, '4989', 4989)">
                 <p>
-                  <a id="IsNotConnected">
-                    <a href="#IsNotConnected">
-                      <code><span>this.IsNotConnected</span></code>
+                  <a id="InputPortsConnected">
+                    <a href="#InputPortsConnected">
+                      <code>InputPortsConnected</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6436">
+              <div class="fsdocs-tip" id="4989">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsNotConnected</span></code>
+                  <code>InputPortsConnected</code>
                   <br/>
                   <br/>
                   <span>
-                    Returns: 
-                    <code>bool</code>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpset-1">Set</a>&lt;<a href="/issie/reference/commontypes-inputportid.html">InputPortId</a>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -889,9 +611,9 @@
             <dl class="fsdocs-returns">
               <dt>
                 <span class="fsdocs-return-name">
-                  Returns: 
+                  Field type: 
                 </span>
-                <code>bool</code>
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpset-1">Set</a>&lt;<a href="/issie/reference/commontypes-inputportid.html">InputPortId</a>&gt;</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -900,24 +622,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6437', 6437)" onmouseover="showTip(event, '6437', 6437)">
+              <code onmouseout="hideTip(event, '4990', 4990)" onmouseover="showTip(event, '4990', 4990)">
                 <p>
-                  <a id="IsOutput">
-                    <a href="#IsOutput">
-                      <code><span>this.IsOutput</span></code>
+                  <a id="OutputPortsConnected">
+                    <a href="#OutputPortsConnected">
+                      <code>OutputPortsConnected</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6437">
+              <div class="fsdocs-tip" id="4990">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsOutput</span></code>
+                  <code>OutputPortsConnected</code>
                   <br/>
                   <br/>
                   <span>
-                    Returns: 
-                    <code>bool</code>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-outputportid.html">OutputPortId</a>,&#32;int</span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -928,9 +650,9 @@
             <dl class="fsdocs-returns">
               <dt>
                 <span class="fsdocs-return-name">
-                  Returns: 
+                  Field type: 
                 </span>
-                <code>bool</code>
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-outputportid.html">OutputPortId</a>,&#32;int</span>&gt;</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -939,24 +661,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '6438', 6438)" onmouseover="showTip(event, '6438', 6438)">
+              <code onmouseout="hideTip(event, '4991', 4991)" onmouseover="showTip(event, '4991', 4991)">
                 <p>
-                  <a id="IsViewer">
-                    <a href="#IsViewer">
-                      <code><span>this.IsViewer</span></code>
+                  <a id="Ports">
+                    <a href="#Ports">
+                      <code>Ports</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="6438">
+              <div class="fsdocs-tip" id="4991">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsViewer</span></code>
+                  <code>Ports</code>
                   <br/>
                   <br/>
                   <span>
-                    Returns: 
-                    <code>bool</code>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<a href="/issie/reference/commontypes-port.html">Port</a></span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -967,9 +689,87 @@
             <dl class="fsdocs-returns">
               <dt>
                 <span class="fsdocs-return-name">
-                  Returns: 
+                  Field type: 
                 </span>
-                <code>bool</code>
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;<a href="/issie/reference/commontypes-port.html">Port</a></span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4992', 4992)" onmouseover="showTip(event, '4992', 4992)">
+                <p>
+                  <a id="Symbols">
+                    <a href="#Symbols">
+                      <code>Symbols</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4992">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Symbols</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></span>&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;<a href="/issie/reference/drawmodeltype-symbolt-symbol.html">Symbol</a></span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '4993', 4993)" onmouseover="showTip(event, '4993', 4993)">
+                <p>
+                  <a id="Wires">
+                    <a href="#Wires">
+                      <code>Wires</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="4993">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Wires</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a>,&#32;<a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a></span>&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-connectionid.html">ConnectionId</a>,&#32;<a href="/issie/reference/drawmodeltype-buswiret-wire.html">Wire</a></span>&gt;</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -978,6 +778,9 @@
       </tbody>
     </table>
   </div>
+  <div></div>
+  <div></div>
+  <div></div>
   <div></div>
 </div>
         

@@ -86,13 +86,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -269,13 +269,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -440,7 +440,7 @@ this is about module-level state.</p>
 <td><p><code>selCache</code></p></td>
 </tr>
 <tr class="even">
-<td><p><code>Common/TimeHelpers.fs</code>, <code>Common/EEEHelpers.fs</code></p></td>
+<td><p><code>Common/TimeHelpers.fs</code></p></td>
 <td><p><code>executionStats</code>, <code>instrumentation</code></p></td>
 </tr>
 </tbody>
@@ -476,11 +476,11 @@ looks like the exception and is not one.</p>
 </tr>
 <tr class="odd">
 <td><p><code>Interface/JSHelpers.fs</code></p></td>
-<td><p><code>debugLevel</code>, <code>debugTraceUI</code>, <code>loggingMemory</code>, <code>memSize</code></p></td>
+<td><p><code>debugLevel</code>, <code>loggingMemory</code>, <code>memSize</code></p></td>
 </tr>
 <tr class="even">
-<td><p><code>Simulator/GraphBuilder.fs</code></p></td>
-<td><p><code>simTrace</code></p></td>
+<td><p><code>Common/Log.fs</code></p></td>
+<td><p><code>enabled</code> — which log categories are on, switched from a menu, a command-line flag or the console; <code>ring</code> / <code>ringNext</code> — a fixed buffer of the last few hundred lines, written one slot at a time so that logging allocates nothing, and read from outside the app the way <code>KeyBindings.keyLog</code> is; <code>warnedKeys</code>; the five counters (<code>msgCount</code>, <code>renderCount</code>, <code>updateMsTotal</code>, <code>slowestMs</code>, <code>slowestName</code>) and <code>lastSummary</code>, updated on every message and every render, which is exactly the write frequency that rules out a model field</p></td>
 </tr>
 <tr class="odd">
 <td><p><code>Simulator/CanvasExtractor.fs</code></p></td>
@@ -492,7 +492,7 @@ looks like the exception and is not one.</p>
 </tr>
 <tr class="odd">
 <td><p><code>UI/Update.fs</code>, <code>UI/UpdateHelpers.fs</code></p></td>
-<td><p><code>uiStartTime</code>, <code>updateTimeTotal</code>, <code>lastMemoryUpdateCheck</code> — timing instrumentation</p></td>
+<td><p><code>uiStartTime</code>, <code>lastMemoryUpdateCheck</code> — timing instrumentation</p></td>
 </tr>
 <tr class="even">
 <td><p><code>UI/MainView.fs</code></p></td>

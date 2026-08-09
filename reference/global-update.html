@@ -83,13 +83,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -266,13 +266,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -427,7 +427,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2410', 2410)" onmouseover="showTip(event, '2410', 2410)">
+              <code onmouseout="hideTip(event, '2454', 2454)" onmouseover="showTip(event, '2454', 2454)">
                 <p>
                   <a id="uiStartTime">
                     <a href="#uiStartTime">
@@ -436,7 +436,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2410">
+              <div class="fsdocs-tip" id="2454">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>uiStartTime&#32;<span></span></span></code>
@@ -466,7 +466,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2411', 2411)" onmouseover="showTip(event, '2411', 2411)">
+              <code onmouseout="hideTip(event, '2455', 2455)" onmouseover="showTip(event, '2455', 2455)">
                 <p>
                   <a id="update">
                     <a href="#update">
@@ -475,7 +475,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2411">
+              <div class="fsdocs-tip" id="2455">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>update&#32;<span>msg&#32;oldModel</span></span></code>
@@ -520,11 +520,115 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Update.update\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Update.fs#L42-42" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Update.fs#L831-831" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Main MVU model update function
+                     Main MVU model update function.
+
+ Wraps the dispatch so that a library sheet opened for viewing is held at the state it loaded
+ with - see ModelHelpers.pinDrawBlock. It has to be done here rather than inside Sheet.update:
+ the three draw block update functions nest, so gating there would catch every message, but a
+ handful of places edit model.Sheet directly with Optic.map and reach none of them - the
+ separate/reroute wires actions in Renderer.fs, KeyBindings.fs and TopMenuView.fs, two context
+ menu items in UpdateHelpers.fs, the simulator's "save input values as default", and the
+ memory refresh that runs on every message. All of those pass through here.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    msg
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-msg.html">Msg</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    oldModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/modeltype-model.html">Model</a>&#32;*&#32;<span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '2456', 2456)" onmouseover="showTip(event, '2456', 2456)">
+                <p>
+                  <a id="updateUnpinned">
+                    <a href="#updateUnpinned">
+                      <code><span>updateUnpinned&#32;<span>msg&#32;oldModel</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="2456">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>updateUnpinned&#32;<span>msg&#32;oldModel</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        msg
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-msg.html">Msg</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        oldModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/modeltype-model.html">Model</a>&#32;*&#32;<span>Cmd&lt;<a href="/issie/reference/modeltype-msg.html">Msg</a>&gt;</span></span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Update.updateUnpinned`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Update.updateUnpinned\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/Update.fs#L43-43" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Main MVU model update function, before a read-only sheet is held at its pinned state.
+ Call `update`, not this.
                   </p>
                 </div>
               </summary>

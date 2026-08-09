@@ -83,13 +83,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -266,13 +266,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -438,7 +438,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1699', 1699)" onmouseover="showTip(event, '1699', 1699)">
+              <code onmouseout="hideTip(event, '1745', 1745)" onmouseover="showTip(event, '1745', 1745)">
                 <p>
                   <a id="fieldLabel">
                     <a href="#fieldLabel">
@@ -447,7 +447,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1699">
+              <div class="fsdocs-tip" id="1745">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fieldLabel&#32;<span>name</span></span></code>
@@ -484,14 +484,19 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PropertiesHelp.fieldLabel\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/PropertiesHelp.fs#L108-108" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/PropertiesHelp.fs#L113-113" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      A field label carrying its explanation, where there is one to give.
 
- Marked with a dotted underline and a help cursor, so that a label with something to say looks
- different from one without: an invisible tooltip is one nobody hovers.
+ The help cursor is the only marking: a dotted underline under every explained label put a row
+ of broken rules down a pane that is mostly labels, which read as structure that was not there.
+
+ The tooltip goes on a span INSIDE the label rather than on the label itself, because it needs
+ an element that shrinks to the width of the words - a tooltip anchored to a full-width box
+ points at nothing in particular - and a label made inline-block to achieve that stops being a
+ line of its own, so the field's input box comes up beside it and covers the words.
                   </p>
                 </div>
               </summary>

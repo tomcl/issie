@@ -83,13 +83,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -266,13 +266,13 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/issiestick.html">
-    ISSIE-Stick FPGA hardware
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/reports.html">
-    Technical Reports
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
   </a>
 </li>             
 <li class="nav-item ">
@@ -397,8 +397,9 @@ flavours, and help on using each:</p>
 <ul>
 <li>
 <strong>Synthesis Verilog</strong> — inputs and <code>clk</code> are module ports; suitable for synthesis tools such
-as yosys, and used by ISSIE's own FPGA build flow (see <a href="issiestick.html">the ISSIE-Stick page</a>,
-and the <strong>Build</strong> tab, which drives yosys/nextpnr/icepack/iceprog directly).
+as yosys. This is the output to use with your own FPGA toolchain. ISSIE also has a <strong>Build</strong>
+tab that drives yosys/nextpnr/icepack/iceprog itself, from an earlier ISSIE-Stick project; it
+is hidden by default and <a href="issiestick.html">no longer maintained</a>.
 </li>
 <li>
 <strong>Simulation Verilog</strong> — inputs become internal registers initialised to the values they had

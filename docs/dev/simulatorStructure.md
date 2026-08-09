@@ -101,16 +101,47 @@ Three layers, in increasing breadth:
   makes converting another component type to a compiled reducer a safe change. Adding a reducer
   without it is not.
 
+## What it runs at
+
+The benchmark is the `5eratosthenes` demo — the EEP1 CPU, 349 component reductions per clock —
+running the **large** `sieve` program for its first 100,000 cycles. Warmed past the optimising
+tiers, median of three, `runFastSimulation` as the entry point. "Old" is the simulator before
+compiled reducers (`e09aa9b17`); "new" is this design.
+
+| cycles/ms | old | new | new/old |
+|---|---:|---:|---:|
+| **.NET** (`DOTNET_TieredCompilation=0`) | 82.9 | 211.3 | 2.5x |
+| **V8** (Electron renderer) | 11.2 | 132.9 | 11.9x |
+| **V8 / .NET** | 7.4x slower | **1.6x slower** | |
+
+These supersede any earlier figures, including ones quoted on other designs or at intermediate
+stages of the work.
+
+The bottom row is the point. Most of what the old simulator cost in V8 was overhead .NET never
+paid: a 100kB dispatcher V8 could not inline, fable-library's bounds-checked `item`/`setItem` on
+every port access, and heap `BigInt` for constants and bus compares. Removing those leaves the two
+runtimes doing much the same work, and .NET keeps only the structural edge its real structs and
+cheap non-virtual dispatch give it.
+
+Note also how far apart the two *speedups* are: 2.5x against 11.9x for the same change. The .NET
+figure is diluted by RAM, which is still on the general path in both designs and costs the same in
+both. A change measured only under .NET would have looked five times less valuable than it is.
+
 ## Measuring it
 
-Simulation speed must be measured **in the app**, not under .NET. The two runtimes disagreed by a
-factor of four on the same change during the work that produced this layout, and the .NET number
-was the misleading one: it made a change look like a 5x win that was worth 1.2x in Chromium.
+Simulation speed must be measured **in the app**, not under .NET - see the two speedup columns
+above. Both directions of error happened during this work: .NET once made a change look like a 5x
+win that was worth 1.2x in Chromium, and later understated a real 11.9x as 2.5x.
 
 What worked:
 
 - Drive the app over the DevTools protocol (`scripts/inspect-canvas.js` and the CDP directly).
   `Profiler` gives self time per function; `HeapProfiler.startSampling` gives allocation by site.
+- **Loading a project headlessly needs the .NET reader.** `FilesIO.tryLoadComponentFromPath`, and
+  so `loadAllComponentFiles`, reads with the vendored SimpleJson and is Fable-only: under .NET it
+  fails with ``Error at: `$` `` on any sheet. `Tests/Issie.Tests/TestFixtures.loadLoadedComponent`
+  is the reader that works. `FilesIO` can still *write* a `.dgm` under .NET - the asymmetry is set
+  out in [sheetDescriptionDsl.md](sheetDescriptionDsl.md).
 - **Check the design is actually computing.** The `5eratosthenes` demo's `sievesmall` program
   finishes in well under 25,000 cycles and then spins in a self-jump; timing it measures a halted
   CPU. Use the large `sieve` program, and confirm activity — RAM words written, distinct values

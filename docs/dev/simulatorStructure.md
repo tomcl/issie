@@ -122,6 +122,27 @@ What worked:
 - Steady state allocates about 1 byte per clock. If a change makes the loop allocate, that is a
   bug in the change.
 
+## What building a simulation costs
+
+Compiled reducers move work from the run loop to the build, so the build is where to look for a
+regression. On `3cpu` (349 components, one 16-bit ROM), under .NET:
+
+| | |
+|---|---:|
+| whole `startCircuitSimulation` | 16.0 ms |
+| of which `installReducers` | 0.38 ms (2.4%) |
+
+So the per-component reducers cost a low single-digit percentage of a build that is itself
+dominated by gathering and linking. It scales with component count, and with ROM *size* rather
+than ROM count: a ROM's lookup table is `2^AddressWidth` words, capped by
+`maxRomTableAddressWidth`, above which the component keeps the general path.
+
+One trap already sprung here: `reducerFor` takes no clocked/combinational flag, and must not
+acquire one it does not read. It had one, nothing used it, and `installReducers` therefore built
+every reducer twice — which for a ROM meant building and retaining two copies of its table. If a
+reducer is added that genuinely depends on the pass (the hybrid asynchronous RAM is the only
+candidate), the flag comes back and the caller must go back to two calls *for that component only*.
+
 ## Known debt
 
 Roughly in order of how much it costs.

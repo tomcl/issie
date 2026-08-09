@@ -27,15 +27,15 @@ open FastValidate
 /// addWavesToFastSimulation re-points exist for waveform display and are never reduced.
 let installReducers (fs: FastSimulation) : FastSimulation =
     let install (fc: FastComponent) =
-        fc.ReduceComb <-
-            match EvalCompiled.reducerFor fc false with
-            | Some reduce -> reduce
-            | None -> fun step -> fastReduce step false fc
-
-        fc.ReduceClocked <-
-            match EvalCompiled.reducerFor fc true with
-            | Some reduce -> reduce
-            | None -> fun step -> fastReduce step true fc
+        // built once and used for both passes - see EvalCompiled.reducerFor. Only the fallback
+        // distinguishes them, because only the hybrid components it serves need it to.
+        match EvalCompiled.reducerFor fc with
+        | Some reduce ->
+            fc.ReduceComb <- reduce
+            fc.ReduceClocked <- reduce
+        | None ->
+            fc.ReduceComb <- fun step -> fastReduce step false fc
+            fc.ReduceClocked <- fun step -> fastReduce step true fc
 
     Array.iter install fs.FClockedComps
     Array.iter install fs.FOrderedComps

@@ -163,9 +163,13 @@ let private counterU (fc: FastComponent) (width: int) (hasLoad: bool) (hasEnable
             else incrementWithinWidth width lastOut))
 
 /// Build the reducer for one component, or None to leave it to fastReduce.
-/// isClockedReduction distinguishes the two passes the hybrid (asynchronous RAM) components
-/// need; every other component ignores it.
-let reducerFor (fc: FastComponent) (isClockedReduction: bool) : (StepIndex -> unit) option =
+/// One reducer serves both the combinational and the clocked pass. Only the hybrid components -
+/// asynchronous RAM, which is reduced once as each - need to tell the two apart, and they are not
+/// handled here, so they fall back to EvalReference where the flag still applies. Taking the flag
+/// as a parameter here would be worse than useless: it was one, nothing read it, and the caller
+/// duly built every reducer twice - which for a ROM meant building and keeping two copies of its
+/// lookup table. Anything added here that does depend on the pass must take the flag back.
+let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
     match fc.FType, fc.UseBigInt with
 
     // --- straight copies -------------------------------------------------------------

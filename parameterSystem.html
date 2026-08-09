@@ -112,18 +112,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -136,8 +124,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -154,8 +142,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -301,18 +289,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -325,8 +301,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -343,8 +319,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -505,9 +481,9 @@ field (a <code>SplitN</code>'s width and LSB lists, a custom component's binding
 <ul>
 <li>
 *<em><code>evaluateConstraints</code>*</em>: Validate expressions against constraints. A <strong>pure function</strong>: the
-constraints that are not met are returned, not dispatched. It used to send a notification from
-inside a <code>List.filter</code>, and <code>editParameterBox</code>'s <code>isDisabled</code> calls it <em>while rendering</em> — so an
-unevaluable bound dispatched from a render, re-rendered, and dispatched again
+constraints that are not met are returned, not dispatched. It must stay that way —
+<code>editParameterBox</code>'s <code>isDisabled</code> calls it <em>while rendering</em>, so anything it dispatched would
+re-render and dispatch again
 </li>
 <li>*<em><code>updateComponents</code>*</em>: Batch update all parameterized components</li>
 <li>
@@ -546,9 +522,12 @@ tree recurring in several places is walked once, and the common all-defaults cas
 </li>
 </ul>
 <h3><a name="Design-Time-Analysis" class="anchor" href="#Design-Time-Analysis">Design-Time Analysis (<code>ParameterAnalysis.fs</code>)</a></h3>
-<p>Implements the analysis-plus-UI layer of <a href="parameterSystemPlan.html">parameterSystemPlan.md</a>.
-Elaboration semantics are untouched: only explicit per-instance bindings exist, and everything
-here is derived display state and consented repair.</p>
+<p>This whole layer is analysis and UI. <strong>Elaboration semantics are untouched</strong>: only explicit
+per-instance bindings exist, and everything here is derived display state and consented repair.
+(The alternative — auto-binding unbound parameters outward by name, i.e. dynamic scoping along the
+instance path — reaches the same end state implicitly, and brings name capture, accidental
+unification of unrelated same-named parameters, a "local" opt-out marker, and new semantics to
+teach.)</p>
 <ul>
 <li>
 *<em><code>analyseUnderTop</code>*</em> walks the instance tree under a top sheet over <code>LoadedComponent</code>s (the
@@ -591,18 +570,18 @@ already has instances would otherwise leave. An unbound parameter is a state the
 deliberately does not have: it elaborates at the sheet's own declared value, which is a fact
 about the sheet rather than about the instance, and it makes "default" a concept the user has to
 reason about. <code>everyInstanceBindsEveryParam</code> is the invariant; it is false only for a project
-saved before it was required, or one edited by hand.
+written by an older Issie or edited by hand.
 </li>
 <li>
 <strong>Bind-to-top button</strong> (<code>findBindOffers</code> / <code>ParameterView.applyBindOffers</code>): where an instance's
 parameter is bound to a <strong>plain number</strong> and a same-named parameter exists on an ancestor sheet
 along the instance path under the top (the evidence gate), a button in that instance's
 properties materialises the chain - ordinary parameters and explicit <code>PParameter</code> bindings along
-every instance path from that ancestor down. (The trigger was an <em>unbound</em> parameter until
-binding became total, which made the offer unable to fire at all. A literal is the right trigger
-in its own right: the offer exists to help follow an outer parameter of the same name, and
-typing that name in by hand fails whenever a sheet in between does not declare it, parameter
-scoping being single-level.) It is a button rather than a popup so the user meets it when they
+every instance path from that ancestor down. A literal is the right trigger: the offer exists to
+help follow an outer parameter of the same name, and typing that name in by hand fails whenever
+a sheet in between does not declare it, parameter scoping being single-level. The evidence gate
+matters as much as the trigger — a same name on an unrelated sheet is coincidence, and
+parameter-free projects never see the offer at all. It is a button rather than a popup so the user meets it when they
 look at the instance, and nothing has to guess when to interrupt them; it is hidden while a
 simulation is open, since accepting changes the design being simulated. Applying updates both
 stores of each binding (parent-sheet <code>CustomCompParam</code> slot and the instance's
@@ -661,10 +640,10 @@ invariant is per instance:</p>
 <p><code>getOutOfDateDependents</code> tests each instance against its <code>signatureOfInstance</code>, and
 <code>updateInstance</code> brings each to its own signature. The dialog reports ports added, deleted and
 renamed — facts about the sheet — and separately names the instances whose widths alone change.</p>
-<p>This module previously assumed the opposite: that every instance must equal the sheet. On any
-parameterised design that raised "you have changed the inputs or outputs" on <strong>every save</strong>, and
-accepting it forced each instance to the sheet's <em>declared</em> widths while leaving its bindings
-alone — a design the simulator then rejects with <code>BadInputs</code>.</p>
+<p>The tempting simplification here — that every instance must equal the sheet — is wrong, and wrong
+loudly: it raises "you have changed the inputs or outputs" on <strong>every save</strong> of any parameterised
+design, and accepting that forces each instance to the sheet's <em>declared</em> widths while leaving its
+bindings alone, which the simulator then rejects with <code>BadInputs</code>.</p>
 <h3><a name="Component-Creation" class="anchor" href="#Component-Creation">Component Creation (<code>CatalogueView.fs</code>)</a></h3>
 <p>Integrates parameters during component instantiation:
 - Raises <code>ParameterView.customComponentParamPopup</code> for a sheet that declares parameters, asking
@@ -766,11 +745,11 @@ has an id</p>
 - <code>parseExpressionTokens</code>: Handles addition and subtraction</p>
 <p><strong>One name rule.</strong> <code>ParameterTypes.isValidParamName</code> (<code>[a-zA-Z][a-zA-Z0-9]*</code>) is both what the
 "Add parameter" dialog accepts and what the tokenizer reads as a name, because a name that cannot
-be written in an expression is of no use. They used to differ — names were accepted as
-<code>[a-zA-Z0-9]+</code> while the tokenizer read letters-then-digits — so <code>W2X</code> could be declared and then
-never referred to, and a name beginning with a digit was shown in red and accepted anyway. A
-number run directly into a name (<code>2W</code>) is reported as such, since it is either a missing <code>*</code> or a
-name from before the rule.</p>
+be written in an expression is of no use. Two rules diverging breaks it in both directions: a name
+the dialog takes but the tokenizer will not read can be declared and never referred to, and one the
+tokenizer reads but the dialog marks invalid is shown in red and accepted anyway. A number run
+directly into a name (<code>2W</code>) is reported as such, since it is either a missing <code>*</code> or a name from a
+file written under a looser rule.</p>
 <p><strong>Negation</strong> is <code>PSubtract (PInt 0, e)</code>, not a new AST case: subtraction from zero is the same
 expression, so every function over <code>ParamExpression</code> already handles it and no saved file changes.
 A negated literal is folded to <code>PInt -n</code> so it renders back as the user typed it.</p>
@@ -871,12 +850,10 @@ between contexts is the environment it is given and what a failure means:</p>
 instance's ports.
 </li>
 </ul>
-<p><em>This section used to describe a "three-tier evaluation architecture", the third tier being a
-minimal <code>PInt</code>/<code>PParameter</code>-only evaluator inside <code>CanvasStateAnalyser</code>. It was not an
-optimisation but a fourth copy of the resolution logic, and it had drifted: it required an <code>IO</code>
-slot's stored label to still match its component's label, so a renamed port silently lost its
-parameterised width. It is gone; <code>checkCustomComponentForOkIOs</code> calls
-<code>signatureOfInstanceWithCertainty</code> like everything else.</em></p>
+<p>Keep it that way. Each of these has been three or four copies at some point, and each time the
+copies drifted apart and the drift was a bug: a slot applied by the canvas and ignored by the
+simulator, an instance placed at the child's default widths, a renamed port silently losing its
+parameterised width.</p>
 <h2><a name="Persistence" class="anchor" href="#Persistence">Persistence</a></h2>
 <p>Parameter data is stored across multiple locations:</p>
 <h3><a name="File-Storage" class="anchor" href="#File-Storage">File Storage</a></h3>
@@ -909,8 +886,8 @@ its canvas against the saved one, plus the <code>LoadedComponentIsOutOfDate</cod
 <code>LCParameterSlots</code> — a parameter declared, a description written, an unused one deleted, or a slot
 given an expression that works out to the width already shown — leaves the canvas <em>identical</em>, so
 it is invisible to that comparison. Every path that edits parameter data therefore sets the flag,
-through <code>ParameterView.markSheetParamsChanged</code>. Without it the save button stayed dark, switching
-sheets did not save, and the work was silently dropped.</p>
+through <code>ParameterView.markSheetParamsChanged</code>. A new such path that forgets to call it leaves the
+save button dark and the work is dropped on leaving the sheet, with nothing to say so.</p>
 <h3><a name="Drawing-at-computed-values-and-saving-what-was-declared" class="anchor" href="#Drawing-at-computed-values-and-saving-what-was-declared">Drawing at computed values, and saving what was declared</a></h3>
 <p>The open sheet is drawn at the values its parameters take under the current top sheet
 (<code>ParameterView.applyComputedDisplayValues</code>), but what is written to the <code>.dgm</code> is unaffected.
@@ -928,10 +905,17 @@ the label — is saved as it stands.
 derived from the slot value: a <code>CustomCompParam</code> slot binds a parameter of the sheet <em>inside</em>
 the instance, and the port widths follow from that binding by way of the child sheet, which
 <code>ComponentSlots.setSlotValue</code> cannot reach. Without it a sheet saved while showing computed
-values wrote an instance whose ports contradicted its own bindings — exactly what
+values writes an instance whose ports contradict its own bindings — exactly what
 <code>checkCustomComponentForOkIOs</code> rejects.
 </li>
 </ul>
+<p>The direction matters and is forced by React caching. <code>SymbolView.renderSymbol</code> is a
+<code>FunctionComponent.Of(..., "Symbol", equalsButFunctions)</code> whose memo key is the whole <code>Symbol</code>
+record, so holding the computed value anywhere outside the symbol — a model-level map consulted at
+draw time — leaves every <code>Symbol</code> structurally unchanged when the top sheet changes, and the canvas
+silently goes stale. Putting the computed value in <code>Symbol.Component</code> makes the memo correct by
+construction, and every existing reader (<code>drawComponent</code>, port geometry, <code>H</code>/<code>W</code>, width inference,
+<code>GetComponentById</code>) gets real values with no change.</p>
 <h2><a name="Component-Support" class="anchor" href="#Component-Support">Component Support</a></h2>
 <h3><a name="Currently-Parameterizable-Components" class="anchor" href="#Currently-Parameterizable-Components">Currently Parameterizable Components</a></h3>
 <h4><a name="Width-Configurable-Components" class="anchor" href="#Width-Configurable-Components">Width-Configurable Components</a></h4>
@@ -1098,10 +1082,12 @@ groups, runnable individually with <code>--filter Issie.&lt;name&gt;</code>:</p>
 </table>
 
 <h3><a name="Debug-Helpers" class="anchor" href="#Debug-Helpers">Debug Helpers</a></h3>
-<p><code>JSHelpers.debugTraceUI</code> is a <code>string Set</code> of enabled trace codes, and <code>traceIf</code> prints when one
-is present:</p>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">JSHelpers</span><span class="pn">.</span><span class="id">traceIf</span> <span class="s">&quot;params&quot;</span> <span class="pn">(</span><span class="k">fun</span> <span class="pn">(</span><span class="pn">)</span> <span class="k">-&gt;</span> <span class="s">$&quot;Parameter evaluation: %A{</span><span class="id">expr</span><span class="s">} -&gt; %A{</span><span class="id">value</span><span class="s">}&quot;</span><span class="pn">)</span>
+<p>Nothing prints unconditionally. <code>Common/Log.fs</code> is the only route to the console: <code>Log.warn</code> and
+<code>Log.error</code> always show, and category logging shows only when its category is switched on — from
+Development &gt; Log, from <code>--log=sim</code> at launch, or from <code>window.issieLog.on "sim"</code> in a console.</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">Log</span><span class="pn">.</span><span class="id">dbg</span> <span class="id">Log</span><span class="pn">.</span><span class="id">Sim</span> <span class="s">$&quot;Parameter evaluation: %A{</span><span class="id">expr</span><span class="s">} -&gt; %A{</span><span class="id">value</span><span class="s">}&quot;</span>
 </code></pre>
+<p>A new <code>printf</code> outside a short allowlist fails <code>Tests/Issie.Tests/SourceHygiene.fs</code>.</p>
 <h3><a name="Common-Issues" class="anchor" href="#Common-Issues">Common Issues</a></h3>
 <ol>
 <li><strong>Forward references</strong>: Resolved by merging all graphs before resolving parameters</li>
@@ -1109,28 +1095,6 @@ is present:</p>
 <li><strong>Constraint conflicts</strong>: Validated before application</li>
 <li><strong>Type mismatches</strong>: Caught by F# type system</li>
 </ol>
-<h2><a name="Future-Extensions" class="anchor" href="#Future-Extensions">Future Extensions</a></h2>
-<p>Potential enhancements identified in the codebase:</p>
-<h3><a name="Type-System" class="anchor" href="#Type-System">Type System</a></h3>
-<ul>
-<li><strong>BigInt support</strong>: For constants &gt; 32 bits</li>
-<li><strong>Float parameters</strong>: For analog simulations</li>
-<li><strong>String parameters</strong>: For labels and identifiers</li>
-</ul>
-<h3><a name="Advanced-Features" class="anchor" href="#Advanced-Features">Advanced Features</a></h3>
-<ul>
-<li><strong>Parameter inheritance</strong>: Across sheet hierarchy</li>
-<li><strong>Complex constraints</strong>: Relationships between parameters</li>
-<li><strong>Expression optimization</strong>: Caching and simplification</li>
-<li><strong>Parameter templates</strong>: Reusable parameter sets</li>
-</ul>
-<h3><a name="UI-Improvements" class="anchor" href="#UI-Improvements">UI Improvements</a></h3>
-<ul>
-<li><strong>Visual expression builder</strong>: Drag-drop interface</li>
-<li><strong>Parameter preview</strong>: Real-time evaluation display</li>
-<li><strong>Batch parameter updates</strong>: Apply to multiple components</li>
-<li><strong>Parameter search</strong>: Find usage across project</li>
-</ul>
 <h2><a name="API-Reference" class="anchor" href="#API-Reference">API Reference</a></h2>
 <h3><a name="Key-Functions" class="anchor" href="#Key-Functions">Key Functions</a></h3>
 <h4><a name="Expression-Parsing" class="anchor" href="#Expression-Parsing">Expression Parsing</a></h4>
@@ -1180,7 +1144,7 @@ child sheet's name, and the instance's bindings.</p>
 <li><code>src/Renderer/Common/ParameterTypes.fs</code>: Types (<code>ParamExpression</code>, <code>ParamConstraint</code>, <code>ParamSlot</code>, <code>ParameterDefs</code>), parser (<code>parseExpression</code>) and its name rule (<code>isValidParamName</code>), evaluator (<code>evaluateParamExpression</code>), renderer (<code>renderParamExpression</code>), slot identity (<code>sameSlot</code>, <code>tryFindSlot</code>, <code>addSlot</code>, <code>removeSlot</code>), and <code>bindingsOf</code>, which every evaluation environment is derived through.</li>
 <li><code>src/Renderer/Simulator/CanvasExtractor.fs</code>: what a custom component instance's ports are (<code>signatureOfInstance</code>, <code>signatureOfInstanceWithCertainty</code>, <code>effectiveInstanceBindings</code>, <code>resolveCanvasAtBindings</code>), and <code>tidyParamSlots</code>, which puts a sheet's slots in order against its canvas on every save.</li>
 <li><code>src/Renderer/UI/CustomCompPorts.fs</code>: keeping instances in step with the sheet inside them - <code>getOutOfDateDependents</code> (per instance, against its own bindings), <code>updateInstance</code>, and the confirmation dialog.</li>
-<li><code>src/Renderer/Common/ComponentSlots.fs</code>: the one mapping from a <code>CompSlotName</code> to a field of a <code>ComponentType</code>, used by the properties pane, by elaboration and by the sheet-description DSL. Three copies of this mapping used to exist and had drifted apart.</li>
+<li><code>src/Renderer/Common/ComponentSlots.fs</code>: the one mapping from a <code>CompSlotName</code> to a field of a <code>ComponentType</code>, used by the properties pane, by elaboration and by the sheet-description DSL.</li>
 <li><code>src/Renderer/Common/SheetDescription.fs</code>, <code>src/Renderer/DrawBlock/SheetLayout.fs</code>: sheets written as data - components, logical connections, parameters and slots - laid out and saved without Issie running. See <a href="dev/sheetDescriptionDsl.html">dev/sheetDescriptionDsl.md</a>.</li>
 <li><code>src/Renderer/Common/ParameterAnalysis.fs</code>: Design-time instance-tree analysis under a top sheet (<code>analyseUnderTop</code>, <code>displayValues</code>), top-sheet inference (<code>effectiveTopSheet</code>, <code>instanceForestRoots</code>), and bind-to-top chain computation (<code>findBindOffers</code>).</li>
 <li><code>src/Renderer/UI/ParameterView.fs</code>: Sheet defaults and slot bindings CRUD, constraint checking, component updates, parameter UI fields/popups, display-value annotations, the placement popup (<code>customComponentParamPopup</code>), the bind-to-top button action (<code>applyBindOffers</code>), and the top-choice popup (<code>topSheetChoiceCheck</code>).</li>
@@ -1188,21 +1152,12 @@ child sheet's name, and the instance's bindings.</p>
 <li><code>src/Renderer/Simulator/GraphMerger.fs</code>: Two-stage resolution during merge; graphs merged first, then one recursive <code>resolveSheet</code> walk that applies each sheet's slots and descends with each instance's bindings, memoised on the diff from defaults.</li>
 <li><code>src/Renderer/Simulator/CanvasStateAnalyser.fs</code>: Checks each custom component instance's ports against <code>signatureOfInstanceWithCertainty</code>, comparing names only where the widths cannot be known without the parent sheet.</li>
 </ul>
-<h2><a name="Early-development-history" class="anchor" href="#Early-development-history">Early development history</a></h2>
-<p>The commits that first built the system. Later work — display values, the top sheet, component
-libraries, and the instance-signature reconciliation described above — is in <code>git log</code> and is not
-listed here.
-- a67fa72f Fix parameter resolution in simulation graph creation
-- Passes <code>loadedDependencies</code> into merger; applies instance-specific <code>ParameterBindings</code> for custom components.
-- 83bb0b0b Fix forward reference issue in parameter resolution
-- Introduces two-stage resolution: resolve custom component instance bindings first, then sheet-level defaults.
-- b510fe4b Parameter System Redo
-- Reworks UI binding flow and simulation integration; clearer separation of concerns.
-- edf61e87 Parameter System Support
-- Integrates <code>ParameterTypes.fs</code>, updates merger/validation, and adds comprehensive documentation.</p>
 <h2><a name="Known-Limitations" class="anchor" href="#Known-Limitations">Known Limitations</a></h2>
 <ul>
-<li>Integer-only parameters today (<code>ParamInt = int</code>); very large constants may require future <code>bigint</code>.</li>
+<li>
+Integer-only parameters (<code>ParamInt = int</code>); a constant wider than 32 bits cannot be expressed as
+a parameter.
+</li>
 <li>
 Parameter names are unqualified, and <strong>scoping is single-level</strong>: an instance binding is an
 expression in the parameters of the sheet the instance sits on, and nothing further out is in
@@ -1225,10 +1180,22 @@ that shape is caught at simulation rather than at load.
 <li>
 A pasted non-custom component whose width was parameterised freezes at its resolved value when
 pasted onto another sheet, and nothing reports it: neither <code>Model.Clipboard</code> nor
-<code>SymbolT.Model.CopiedSymbols</code> records which sheet the copy came from. See finding 6 in
-<a href="parameterReviewFindings.html">parameterReviewFindings.md</a>.
+<code>SymbolT.Model.CopiedSymbols</code> records which sheet the copy came from. A custom component instance
+that loses bindings the same way <em>does</em> warn.
+</li>
+<li>
+<strong>Memories are not parameterisable</strong>: RAM and ROM address and word widths are plain numbers, not
+parameter slots. An input count is likewise not a slot — the number of inputs of a gate or a
+merge sets how many ports a symbol has, so a computed value would make <code>SymbolInfo.PortOrder</code>
+name ports the saved type does not have.
+</li>
+<li>
+A sheet can be viewed only at one set of values. Opening it <em>as a particular instance</em>
+(<code>CPU_TOP &gt; FetchUnit &gt; Adder(W=16)</code>) is the strong answer for a multi-valued sheet and does not
+exist.
 </li>
 </ul>
+<p>Smaller rough edges are in <a href="dev/openIssues.html">dev/openIssues.md</a>.</p>
 <h2><a name="Best-Practices" class="anchor" href="#Best-Practices">Best Practices</a></h2>
 <ol>
 <li>
@@ -1650,26 +1617,6 @@ type Result&lt;&#39;T,&#39;TError&gt; =
     </a>
   </li>
   <li class="level-2">
-    <a href="#Future-Extensions">
-      Future Extensions
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Type-System">
-      Type System
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Advanced-Features">
-      Advanced Features
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#UI-Improvements">
-      UI Improvements
-    </a>
-  </li>
-  <li class="level-2">
     <a href="#API-Reference">
       API Reference
     </a>
@@ -1712,11 +1659,6 @@ type Result&lt;&#39;T,&#39;TError&gt; =
   <li class="level-2">
     <a href="#Developer-Notes-Files-amp-Responsibilities">
       Developer Notes (Files &amp; Responsibilities)
-    </a>
-  </li>
-  <li class="level-2">
-    <a href="#Early-development-history">
-      Early development history
     </a>
   </li>
   <li class="level-2">

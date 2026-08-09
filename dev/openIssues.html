@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Known rough edges
+" />
+    <meta property="og:url" content="/issie/dev/openIssues.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Known rough edges
+">
+    
+    <title>Known rough edges
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Known-rough-edges" class="anchor" href="#Known-rough-edges">Known rough edges</a></h1>
+<p>Small defects and unfinished corners that are worth knowing about before working near them, and
+that are too minor to have their own page. Each was checked against the code, not inherited from an
+older list. Design-level limitations of the parameter system are in
+<a href="../parameterSystem.md#known-limitations">parameterSystem.md</a> instead.</p>
+<p>Delete an entry when it is fixed. A list that keeps its history stops being read.</p>
+<h2><a name="Parameters" class="anchor" href="#Parameters">Parameters</a></h2>
+<ul>
+<li>
+*<em><code>ParameterAnalysis.chainActionsForInstance</code> picks the wrong declarer.*</em>
+<code>Set.minElement declarers</code> is the <em>alphabetically first</em> sheet that declares the parameter, not
+the outermost one. The default value and the description copied onto the intermediate sheets of a
+materialised bind-to-top chain therefore come from an arbitrary sheet.
+</li>
+<li>
+<strong>Deleting a parameter checks slots but not other parameters.</strong> <code>ParameterView.deleteParameterBox</code>
+lists the <code>ParamSlots</code> that use the parameter and refuses while any remain, but does not look in
+<code>DefaultBindings</code>, so a parameter defined in terms of another can be orphaned. Only reachable
+through a hand-edited file today, since the UI writes only <code>PInt</code> defaults — but
+<code>editParameterBox</code> handles expression-valued defaults, so the system claims to support them.
+</li>
+<li>
+<strong>Adding a parameter does not reject a duplicate name.</strong> <code>addParameterBox</code> uses <code>Map.add</code>, which
+silently replaces the existing declaration and its description.
+</li>
+<li>
+*<em><code>ReloadSelectedComponent</code> is fed the wrong number.*</em> For a <code>BusSelection</code> LSB or a <code>BusCompare</code>
+value it receives that number as "most recent bus width", which is what the properties pane then
+offers as the default width for the next component.
+</li>
+</ul>
+<h2><a name="Component-libraries" class="anchor" href="#Component-libraries">Component libraries</a></h2>
+<ul>
+<li>
+<strong>A typed library name becomes a directory name unchecked.</strong>
+<code>MiscMenuView.saveAsLibraryComponent</code> joins the user's text onto the libraries directory with no
+validation beyond non-empty, so a name containing a path separator or <code>..</code> writes outside the
+intended directory. Sheet names are validated by <code>maybeWarning</code>; library names are not.
+</li>
+<li>
+<strong>Name collisions have no rule.</strong> <code>CustomComponentType.Name</code> refers to sheets by name, so a
+library <code>Adder</code> and a user <code>Adder</code> cannot coexist in one project. Namespacing or rename-on-import
+is the missing piece.
+</li>
+<li>
+<strong>Sweeping a library sheet leaves its backups.</strong> <code>MenuHelpers.sweepUnusedLibrarySheets</code> removes
+the <code>.dgm</code> when the last instance goes, but the sheet's files under <code>backup/</code> stay.
+</li>
+<li>
+<strong>A copied-in library sheet does not track the library.</strong> Once materialised it is an ordinary
+project sheet and never sees a later version of the library component. This is probably what is
+wanted, but it is nowhere stated to the user.
+</li>
+</ul>
+<h2><a name="Refactoring-worth-doing" class="anchor" href="#Refactoring-worth-doing">Refactoring worth doing</a></h2>
+<ul>
+<li>
+<code>SheetLayout.saveSheet</code> and <code>sheetBody</code> are the same function twice, differing only in
+<code>saveStateToFile</code> versus <code>stateToJsonString</code>; both also evaluate <code>paramDefsOf</code> a second time
+after <code>toCanvasState</code> has already done it.
+</li>
+<li>
+"The custom components named in a canvas" is written three times:
+<code>ComponentLibraries.customSheetsUsedBy</code>, the same <code>List.choose</code> inline in
+<code>ComponentLibraries.unusedLibrarySheets</code>, and <code>SheetLayout.saveLibraryComponent</code>'s <code>requiredBy</code>.
+</li>
+<li>
+<code>LibraryHeader</code> is built field by field in both <code>MiscMenuView.saveAsLibraryComponent</code> and
+<code>SheetLayout.saveLibraryComponent</code>. The format is versioned, so the two writers drifting matters.
+</li>
+<li><code>GraphMerger.applySlotValue</code> is a one-line alias for <code>ComponentSlots.setSlotValue</code>.</li>
+<li><code>SheetLayout.applySlotValues</code> rebuilds the whole component list once per slot.</li>
+<li>
+<code>MiscMenuView.maybeWarning</code> calls <code>ComponentLibraries.reservedPrefixOf</code> twice and then uses
+<code>.IsSome</code>/<code>.Value</code>, against the <code>Option</code>-throughout convention.
+</li>
+<li>
+<code>FilesIO.modifiedTimeMs</code> has no callers. It was written for a library-index scheme that was
+dropped in favour of lazy reading.
+</li>
+<li>
+<code>VerilogComponent/TestParser.fs</code> (937 lines) is a hand-driven test runner that compiles into the
+shipped renderer, reads paths that exist only in a dev checkout, and keeps <code>printf</code> on the
+<code>SourceHygiene</code> allowlist. It should go once its corpus runner is in Expecto — see
+<a href="verilogTesting.md#route-a-automate-the-existing-icarus-differential-test">verilogTesting.md</a>.
+</li>
+</ul>
+<h2><a name="Documentation" class="anchor" href="#Documentation">Documentation</a></h2>
+<ul>
+<li>
+<strong>The screenshots on the documentation site are a version behind.</strong> <code>docs/img/homePage/*</code> and
+<code>docs/img/userGuide/*</code> show a <strong>Sheets</strong> menu and an Electron application menu bar that no longer
+exist — the bar is now <code>Project | Sheet | Edit | View</code>, drawn inside the app. The workflows are
+unchanged, so they are still usable. <code>scripts/inspect-canvas.js</code> can screenshot the running app,
+so a refresh can be scripted rather than done by hand.
+</li>
+</ul>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Known-rough-edges">
+      Known rough edges
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Parameters">
+      Parameters
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Component-libraries">
+      Component libraries
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Refactoring-worth-doing">
+      Refactoring worth doing
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Documentation">
+      Documentation
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

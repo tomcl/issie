@@ -115,18 +115,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -139,8 +127,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -157,8 +145,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -304,18 +292,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -328,8 +304,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -346,8 +322,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -561,8 +537,6 @@ compiled reducers (<code>e09aa9b17</code>); "new" is this design.</p>
 </tbody>
 </table>
 
-<p>These supersede any earlier figures, including ones quoted on other designs or at intermediate
-stages of the work.</p>
 <p>The bottom row is the point. Most of what the old simulator cost in V8 was overhead .NET never
 paid: a 100kB dispatcher V8 could not inline, fable-library's bounds-checked <code>item</code>/<code>setItem</code> on
 every port access, and heap <code>BigInt</code> for constants and bus compares. Removing those leaves the two
@@ -573,9 +547,9 @@ figure is diluted by RAM, which is still on the general path in both designs and
 both. A change measured only under .NET would have looked five times less valuable than it is.</p>
 <h2><a name="Measuring-it" class="anchor" href="#Measuring-it">Measuring it</a></h2>
 <p>Simulation speed must be measured <strong>in the app</strong>, not under .NET - see the two speedup columns
-above. Both directions of error happened during this work: .NET once made a change look like a 5x
-win that was worth 1.2x in Chromium, and later understated a real 11.9x as 2.5x.</p>
-<p>What worked:</p>
+above. Errors in both directions are easy to make: .NET can make a change look like a 5x win that
+is worth 1.2x in Chromium, and can understate a real 11.9x as 2.5x.</p>
+<p>What works:</p>
 <ul>
 <li>
 Drive the app over the DevTools protocol (<code>scripts/inspect-canvas.js</code> and the CDP directly).
@@ -583,12 +557,11 @@ Drive the app over the DevTools protocol (<code>scripts/inspect-canvas.js</code>
 </li>
 <li>
 *<em><code>FilesIO.loadAllComponentFiles</code> reads a project headlessly*</em>, so a benchmark or a script can
-open the demos with nothing running. It could not until August 2026: <code>Helpers.jsonStringToState</code>
-had a .NET branch, but it used Thoth's <code>Decode.Auto</code>, and Thoth cannot read what the app's writer
-produced - Thoth encodes a union as an array and the vendored SimpleJson as a single-key object -
-so every <code>.dgm</code> in existence failed with <code>Error at: `$`</code>. <code>Common/SimpleJsonDotNet.fs</code> now
-reads SimpleJson's encoding by reflection, and <code>jsonStringToState</code> tries it before Thoth. Sheets
-the .NET side wrote itself are Thoth-encoded, which is why both are tried.
+open the demos with nothing running. <code>Helpers.jsonStringToState</code> tries <code>Common/SimpleJsonDotNet.fs</code>
+before Thoth: the app's writer is the vendored SimpleJson, which encodes a union as a single-key
+object where Thoth's <code>Decode.Auto</code> expects an array, so a Thoth-only .NET branch fails on every
+<code>.dgm</code> the app has ever written. Sheets the .NET side wrote itself are Thoth-encoded, which is
+why both are tried.
 </li>
 <li>
 <strong>Check the design is actually computing.</strong> The <code>5eratosthenes</code> demo's <code>sievesmall</code> program
@@ -633,11 +606,11 @@ regression. On <code>3cpu</code> (349 components, one 16-bit ROM), under .NET:</
 dominated by gathering and linking. It scales with component count, and with ROM <em>size</em> rather
 than ROM count: a ROM's lookup table is <code>2^AddressWidth</code> words, capped by
 <code>maxRomTableAddressWidth</code>, above which the component keeps the general path.</p>
-<p>One trap already sprung here: <code>reducerFor</code> takes no clocked/combinational flag, and must not
-acquire one it does not read. It had one, nothing used it, and <code>installReducers</code> therefore built
-every reducer twice — which for a ROM meant building and retaining two copies of its table. If a
-reducer is added that genuinely depends on the pass (the hybrid asynchronous RAM is the only
-candidate), the flag comes back and the caller must go back to two calls <em>for that component only</em>.</p>
+<p>One trap to keep clear of: <code>reducerFor</code> takes no clocked/combinational flag, and must not acquire
+one it does not read. An unread flag makes <code>installReducers</code> build every reducer twice — which for
+a ROM means building and retaining two copies of its lookup table. If a reducer is added that
+genuinely depends on the pass (the hybrid asynchronous RAM is the only candidate), the flag comes
+back and the caller goes to two calls <em>for that component only</em>.</p>
 <h2><a name="Known-debt" class="anchor" href="#Known-debt">Known debt</a></h2>
 <p>Roughly in order of how much it costs.</p>
 <p>*<em><code>EvalAlgebraic</code> duplicates <code>EvalReference</code>.*</em> ~2,500 lines expressing one set of component

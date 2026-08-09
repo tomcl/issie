@@ -115,18 +115,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -139,8 +127,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -157,8 +145,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -304,18 +292,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -328,8 +304,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -346,8 +322,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -448,18 +424,16 @@ the app in seconds either way.
 <h2><a name="What-breaks-it" class="anchor" href="#What-breaks-it">What breaks it</a></h2>
 <ul>
 <li>
-<p><strong>A stale <code>.fs.js</code> timestamp</strong> — <em>now fixed automatically; this is what it was.</em> Fable rewrites
-an output file only when its <em>content</em> changed, and the up-to-date check above is about
-timestamps, so the two can disagree. A <code>.fs</code> whose mtime moves without its emitted JS changing —
-a comment or warning-only edit, a <code>git checkout</code>, a rebase — leaves an output that is perfectly
-current and still fails the check. <strong>The recompile does not fix it</strong>: nothing changed, so
-nothing is written, so the next startup pays the full ~1 minute again, and so does the one after
-that. Measured on this repo: one such file in <code>src/Renderer</code>, two consecutive full compiles,
-the output never rewritten either time.</p>
-<p><a href="../scripts/refresh-stale-output.js"><code>scripts/refresh-stale-output.js</code></a> closes the loop by
-bumping those timestamps after a successful compile, when every output is current by
-construction. <code>dev.js</code> and <code>parallel-compile.js</code> both call it, and it prints what it touched. To
-run it by hand, or on a directory of your own:</p>
+<p><strong>A stale <code>.fs.js</code> timestamp</strong>, which <a href="../scripts/refresh-stale-output.js"><code>scripts/refresh-stale-output.js</code></a>
+exists to prevent. Fable rewrites an output file only when its <em>content</em> changed, and the
+up-to-date check above is about timestamps, so the two can disagree. A <code>.fs</code> whose mtime moves
+without its emitted JS changing — a comment or warning-only edit, a <code>git checkout</code>, a rebase —
+leaves an output that is perfectly current and still fails the check. <strong>A recompile does not fix
+it</strong>: nothing changed, so nothing is written, so every subsequent startup pays the full ~1 minute
+again, indefinitely.</p>
+<p>So <code>dev.js</code> and <code>parallel-compile.js</code> both run <code>refresh-stale-output.js</code> after a successful
+compile, when every output is current by construction, and it prints what it touched. To run it
+by hand, or on a directory of your own:</p>
 <table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">node scripts/refresh-stale-output.js [dir ...]
 </code></pre></td></tr></table>
 </li>

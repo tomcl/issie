@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Testing the Verilog subsystem
+" />
+    <meta property="og:url" content="/issie/dev/verilogTesting.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Testing the Verilog subsystem
+">
+    
+    <title>Testing the Verilog subsystem
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Testing-the-Verilog-subsystem" class="anchor" href="#Testing-the-Verilog-subsystem">Testing the Verilog subsystem</a></h1>
+<p>Issie's Verilog subsystem is two independent halves — an <strong>emitter</strong> (<code>VerilogComponent/Verilog.fs</code>,
+writing classic Verilog-2001 aimed at yosys/Icarus) and an <strong>input compiler</strong>
+(<code>VerilogGrammar.ne</code> + <code>ErrorCheck*.fs</code> + <code>SheetCreator.fs</code>, reading a SystemVerilog-flavoured
+subset with <code>bit</code>, <code>always_comb</code>, <code>always_ff</code>). They were developed separately and speak different
+dialects.</p>
+<p>This page is what is tested today, what is not, and the three routes to closing the gap. The
+largest of those gaps is that <strong>no external Verilog tool ever runs</strong>, in the test suite or in CI.</p>
+<h2><a name="What-runs-automatically-today" class="anchor" href="#What-runs-automatically-today">What runs automatically today</a></h2>
+<p>Both groups are plain Expecto under .NET, in <code>npm run test</code>.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>Group</p></th>
+<th align="right"><p>Tests</p></th>
+<th><p>What it does</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>Issie.VerilogOutput</code></p></td>
+<td align="right"><p>45</p></td>
+<td><p>Emits synthesis Verilog for 59 component cases in isolation — 41 listed explicitly, plus every gate type at 2, 3 and 4 inputs — via <code>dutCanvas</code> (the component with one Input per input and one Output per output), and for mixed sheets, then reads the text back.</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Issie.VerilogCompiler</code></p></td>
+<td align="right"><p>11</p></td>
+<td><p>Source → real nearley parse (<code>node run_parser.mjs</code>, the same parse the editor runs) → <code>ErrorCheck.getSemanticErrors</code> → <code>SheetCreator.createSheet</code> → simulate the resulting sheet and assert on outputs.</p></td>
+</tr>
+</tbody>
+</table>
+
+<p><code>VerilogOutput</code> makes three kinds of check, in increasing order of usefulness:</p>
+<ul>
+<li>
+<strong>structural invariants over every component</strong> — sized literals fit their declared width, no
+identifier over 50 characters, <code>module</code>/<code>endmodule</code> balanced, instance names unique, each
+component written exactly once, no undeclared net used, every declared net driven exactly once;
+</li>
+<li>
+<strong>semantic checks</strong> — for gates, the emitted expression is parsed out and evaluated against the
+same reference <code>Issie.ComponentSemantics</code> holds the simulator to;
+</li>
+<li>
+<strong>regression assertions</strong> pinning individual constructs (constants in hex, bus compare against a
+hex constant, <code>$signed</code> on ASR, memory module well-formedness, the synchronous RAM reading its
+pre-write value, the debug-profile uart).
+</li>
+</ul>
+<p><code>VerilogCompiler</code> covers operators (<code>~^</code>/<code>^~</code> as the complement of xor, <code>~&amp;</code>/<code>~|</code> reductions),
+identifiers (<code>$</code> and leading <code>_</code> accepted, leading <code>$</code> rejected), whitespace rules, arrays whose
+vector width differs from their word count, and a corpus check that every <code>.sv</code> in
+<code>test/input/valid</code> still parses.</p>
+<h2><a name="What-is-not-covered" class="anchor" href="#What-is-not-covered">What is not covered</a></h2>
+<ul>
+<li>
+<strong>No external Verilog tool runs anywhere in the suite or in CI.</strong> The emitter is checked against
+Issie's own reference evaluator, so a misunderstanding of Verilog semantics <em>shared</em> by the
+emitter and that reference is invisible. Nothing establishes that a real simulator or synthesiser
+agrees with Issie about what the emitted text means.
+</li>
+<li>
+<strong>The emitter's <code>ForSimulation</code> mode is barely covered</strong> — one test that inputs are assigned
+procedurally and one that a clock and testbench are declared. The testbench itself is never run.
+</li>
+<li>
+<strong>Most of the input compiler's corpus is unreachable from the suite.</strong> <code>test/input/valid</code>
+(24 files) is checked only for "still parses"; the 75-file <code>input/codegen</code> corpus, whose expected
+outputs came from Icarus, and the 52-file <code>input/semantic</code> error corpus are not read at all.
+</li>
+<li>
+<strong>Nothing checks the two halves against each other.</strong> See <a href="#route-c-the-round-trip">the round trip</a>
+below; today 0 of 48 emitted files parse.
+</li>
+<li>
+The subsystem is ~8,000 lines of F# plus the Nearley grammar. Both groups pin specific
+behaviours; neither is broad coverage.
+</li>
+</ul>
+<h2><a name="The-manual-machinery-that-already-exists" class="anchor" href="#The-manual-machinery-that-already-exists">The manual machinery that already exists</a></h2>
+<p><code>src/Renderer/VerilogComponent/TestParser.fs</code> is a test runner that predates the Expecto suite and
+is reachable only from <strong>Development &gt; Verilog</strong> in a debug build. Nothing in <code>npm run test</code> reads
+any of it — <code>grep -rn "VerilogComponent/test" Tests/</code> is empty.</p>
+<p>Its corpus, under <code>src/Renderer/VerilogComponent/test/</code>:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>Directory</p></th>
+<th align="right"><p>Files</p></th>
+<th><p>What it is</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>input/codegen/single</code></p></td>
+<td align="right"><p>75 <code>.sv</code></p></td>
+<td><p>single-module Verilog sources for the input compiler</p></td>
+</tr>
+<tr class="even">
+<td><p><code>input/codegen/multiple</code></p></td>
+<td align="right"><p>4 dirs</p></td>
+<td><p>multi-module cases, one directory each</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>input/driver</code></p></td>
+<td align="right"><p>71 <code>.sv</code></p></td>
+<td><p>generated testbenches: drive N input vectors, <code>$display</code> the outputs as JSON</p></td>
+</tr>
+<tr class="even">
+<td><p><code>input/semantic</code></p></td>
+<td align="right"><p>52 <code>.sv</code></p></td>
+<td><p>sources whose expected <em>errors</em> are the thing under test</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>input/valid</code></p></td>
+<td align="right"><p>24 <code>.sv</code></p></td>
+<td><p>sources that must parse — the only part the Expecto suite uses</p></td>
+</tr>
+<tr class="even">
+<td><p><code>ref/codegen</code></p></td>
+<td align="right"><p>66 <code>.json</code></p></td>
+<td><p>expected outputs, <strong>produced by Icarus</strong></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>ref/semantic</code></p></td>
+<td align="right"><p>54 <code>.json</code></p></td>
+<td><p>expected error lists</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Note <code>ref/codegen</code> has 66 entries against 75 sources: nine cases have no reference at all, so
+<code>runCodeGenTests</code> fails on them with "Couldn't open codegen reference output!" rather than
+reporting them as uncovered.</p>
+<p><strong>Icarus is already the oracle for the input compiler — by hand.</strong> The four menu items are:</p>
+<ul>
+<li>
+<em>Generate Driver Modules</em> → <code>genDriverFiles ()</code> writes a <code>top_module</code> testbench per source,
+holding input vectors as arrays and printing each output's values as JSON;
+</li>
+<li><em>Icarus Compile Testcases</em> → <code>iverilog -Wall -g 2012 -o &lt;bin&gt; -s top_module &lt;driver&gt; &lt;src&gt;</code>;</li>
+<li><em>Icarus Run testcases</em> → <code>vvp &lt;bin&gt;</code>, stdout redirected into <code>ref/codegen/&lt;name&gt;.json</code>;</li>
+<li>
+<em>Run Verilog Tests</em> → <code>runCompilerTests ()</code>: the semantic suite against <code>ref/semantic</code>, then
+<code>runCodeGenTests ()</code>, which compiles each source <strong>through Issie</strong> and simulates the resulting
+sheet, comparing its per-cycle outputs against <code>ref/codegen</code>.
+</li>
+</ul>
+<p>So the differential test — <em>same source, Icarus versus Issie's compiler</em> — exists and works. It is
+just not automated, and it is fragile in specific ways:</p>
+<ul>
+<li>
+<code>executeCommand</code> spawns the child process and returns immediately, so compile and run are two
+separate menu clicks with no sequencing between them and no way to tell when either finished;
+</li>
+<li>failures print to a console and are counted, but nothing exits non-zero;</li>
+<li>paths are relative to the repo root, so it only works from a dev build;</li>
+<li>
+<strong>the <code>.json</code> references are committed with no record of the Icarus version or the flags that
+produced them</strong>, so nothing distinguishes "the compiler regressed" from "the reference was
+generated by a different tool";
+</li>
+<li>
+<code>TestParser.fs</code> compiles into the shipped renderer, and is on the <code>printf</code> allowlist in
+<code>Tests/Issie.Tests/SourceHygiene.fs</code> because of it.
+</li>
+</ul>
+<h2><a name="Route-A-automate-the-existing-Icarus-differential-test" class="anchor" href="#Route-A-automate-the-existing-Icarus-differential-test">Route A: automate the existing Icarus differential test</a></h2>
+<p>Cheapest by a wide margin — the corpus, the drivers and the comparison logic all exist. What is
+needed:</p>
+<ol>
+<li>
+<strong>Move the runner into Expecto.</strong> <code>runCodeGenTests</code>/<code>semanticErrorTests</code> become an
+<code>Issie.VerilogCompilerCorpus</code> group. The parse step already has a .NET route
+(<code>VerilogCompiler.parseVerilog</code> shells out to <code>node run_parser.mjs</code>), and
+<code>SheetCreator.createSheet</code> plus <code>Simulator.startCircuitSimulation</code> are reachable under .NET, so
+the Issie side needs no app. Resolve corpus paths from <code>__SOURCE_DIRECTORY__</code> as
+<code>VerilogCompiler.fs</code> does, not from the process working directory.
+</li>
+<li>
+<strong>Make Icarus a checked prerequisite, not an assumption.</strong> Probe for <code>iverilog</code> and <code>vvp</code> once;
+if absent, skip the group with a message naming them — the pattern <code>Issie.VerilogCompiler</code>
+already needs for <code>node</code>, and the same pattern as the <code>CI</code> skip.
+</li>
+<li>
+<strong>Replace <code>executeCommand</code> with a synchronous, exit-code-checked run.</strong> Under .NET this is
+<code>Process.Start</code> + <code>WaitForExit</code> + assert on <code>ExitCode</code>, capturing stderr into the failure
+message. The async-spawn-and-hope shape cannot be made reliable.
+</li>
+<li>
+<strong>Regenerate references as part of the test, not ahead of it.</strong> Run Icarus and Issie on the same
+source in the same test and compare, rather than comparing against a committed file. That
+removes the version-provenance problem entirely and makes <code>ref/codegen</code> unnecessary. Keep a
+<code>ISSIE_UPDATE_GOLDEN</code>-style escape only if a committed reference is wanted for the
+Icarus-less case.
+</li>
+<li>
+<strong>Fill in the nine sources that have no reference, or drop them.</strong> Failing with "Couldn't open
+codegen reference output!" is worse than either.
+</li>
+<li>
+<strong>Decide what runs in CI.</strong> Icarus is one <code>apt-get install iverilog</code> on Linux and a package on
+the other two platforms, but 75 sources × (compile + run) is not a per-push cost. The natural
+split is: skipped by default like <code>VerilogCompiler</code> is, run on a schedule or a label.
+</li>
+<li>
+<strong>Then delete <code>TestParser.fs</code></strong> and its Development menu items. It is 937 lines compiled into
+the shipped binary, reading paths that do not exist in a packaged build, and its only reason to
+exist is that this work has not been done.
+</li>
+</ol>
+<h2><a name="Route-B-an-Icarus-check-of-the-emitter" class="anchor" href="#Route-B-an-Icarus-check-of-the-emitter">Route B: an Icarus check of the <em>emitter</em></a></h2>
+<p>This does not exist in any form, and it is the emitter's only possible independent oracle. Route A
+validates the input compiler; nothing validates that what Issie <em>writes</em> means what Issie thinks.</p>
+<p>What it needs:</p>
+<ol>
+<li>
+<strong>A driver generator for an emitted sheet.</strong> <code>TestParser.genDriver</code> already writes exactly this
+shape — input vectors as arrays, a clock loop, outputs printed as JSON — but from the input
+compiler's port information. It needs a version that takes a <code>FastSimulation</code>'s top-level ports,
+which is the same information <code>Verilog.getVerilog</code> itself works from.
+</li>
+<li>
+<strong>Stimulus shared with the Issie side.</strong> Generate one set of input vectors, drive both the
+emitted Verilog under <code>vvp</code> and the <code>FastSimulation</code> with it, compare outputs cycle by cycle —
+the pattern <code>Tests/Issie.Tests/GoldenModel.fs</code> uses, with Icarus in place of the stored file.
+</li>
+<li>
+<strong>A decision about <code>ForSimulation</code> versus <code>ForSynthesis</code>.</strong> <code>ForSimulation</code> already emits a
+testbench with <code>$display</code>/<code>$time</code> and <code>#5</code> delays, so it is closer to runnable — but the mode
+that matters to users is <code>ForSynthesis</code>, since that is what goes to an FPGA toolchain. Test
+<code>ForSynthesis</code> with a generated driver; treat <code>ForSimulation</code> as a second, cheaper case that
+needs no driver at all.
+</li>
+<li>
+<strong>A fixture set.</strong> <code>Tests/fixtures/</code> already holds three whole projects (<code>1fulladder</code>, <code>adder4</code>,
+<code>3cpu</code>) that give 24 sheets covering gates, adders, muxes, comparators, shifts, registers,
+memories and custom-component hierarchy — and <code>GoldenModel.fs</code> already simulates them. Emitting
+and checking each one is the natural scope.
+</li>
+<li>
+<strong>Memories are where this will first fail.</strong> The emitter writes one module per memory with
+<code>initial</code> blocks and <code>for</code> fill loops; Icarus handles that, but a 64K-word ROM like <code>3cpu</code>'s is
+a large elaboration. Cap the fixture memories or accept the runtime.
+</li>
+</ol>
+<p>Doing Route B would also settle, with evidence rather than reading, whether yosys accepts the
+synthesis output — the claim on which <a href="../verilogGenerate.html">Verilog Output</a> rests.</p>
+<h2><a name="Route-C-the-round-trip" class="anchor" href="#Route-C-the-round-trip">Route C: the round trip</a></h2>
+<p><em>Can Issie's Verilog output be fed back into its Verilog input?</em> <strong>No — 0 of 48 tried files
+parse</strong> — and the reasons are systematic, not incidental.</p>
+<p>A working round trip would give the subsystem a self-checking harness needing no external tool at
+all: every fixture project becomes a test of <em>both</em> halves, with the <code>FastSimulation</code> of the
+original sheet as the reference for the recompiled one.</p>
+<h3><a name="How-to-re-run-the-experiment" class="anchor" href="#How-to-re-run-the-experiment">How to re-run the experiment</a></h3>
+<p>Emission runs under plain .NET (<code>Verilog.getVerilog</code> is pure F#; <code>Issie.VerilogOutput</code> already does
+this), so no app is needed:</p>
+<ol>
+<li>Build the tests: <code>dotnet build Tests/Issie.Tests/Issie.Tests.fsproj -c Release</code>.</li>
+<li>
+In an fsx referencing <code>Tests/Issie.Tests/bin/Release/net10.0/{Renderer,Issie.Tests,Expecto,Newtonsoft.Json}.dll</code>:
+for each sheet of each fixture project (<code>TestFixtures.loadProject</code>), run
+<code>Simulator.startCircuitSimulation</code> and <code>Verilog.getVerilog</code> in both <code>ForSynthesis</code> and
+<code>ForSimulation</code> modes, and write the results to files. The three fixture projects give 24 sheets, so 48 files.
+</li>
+<li>
+Parse each file with the input compiler's own parser:
+<code>require("src/Renderer/VerilogComponent/parser.js").parseFromFile(src)</code> under node.
+</li>
+</ol>
+<p>Every file fails at the parse stage, and gap 1 below alone accounts for all of them.</p>
+<h3><a name="The-gaps-in-blocking-order" class="anchor" href="#The-gaps-in-blocking-order">The gaps, in blocking order</a></h3>
+<p>Emitted construct (left) vs what the input grammar accepts (right). Each row was re-checked
+against the current parser with a minimal source file, by the method in
+<a href="#quick-checks-while-working">Quick checks</a>:</p>
+<table>
+<thead>
+<tr class="header">
+<th><h1><a name="header" class="anchor" href="#header"></a></h1></th>
+<th><p>Emitter writes</p></th>
+<th><p>Input compiler accepts</p></th>
+<th><p>Affects</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>1</p></td>
+<td><p><code>input clk;</code> / <code>input [7:0] X;</code></p></td>
+<td><p><code>bit</code> keyword mandatory: <code>input bit [7:0] X;</code></p></td>
+<td><p>every file</p></td>
+</tr>
+<tr class="even">
+<td><p>2</p></td>
+<td><p><code>reg [7:0] RG = 8'h0;</code> declarations</p></td>
+<td><p>no <code>reg</code> at all; <code>bit</code>/<code>wire</code>, no reset-value initialisers</p></td>
+<td><p>every register, every simulation-mode input</p></td>
+</tr>
+<tr class="odd">
+<td><p>3</p></td>
+<td><p><code>always @(posedge clk) X &lt;= …;</code></p></td>
+<td><p>only <code>always_ff @(posedge clk)</code> (clock literally named <code>clk</code>)</p></td>
+<td><p>every sequential sheet</p></td>
+</tr>
+<tr class="even">
+<td><p>4</p></td>
+<td><p><code>assign { COUT,SUM } = A + B + CIN;</code></p></td>
+<td><p>concatenation not allowed on an LHS</p></td>
+<td><p>every adder with carry-out</p></td>
+</tr>
+<tr class="odd">
+<td><p>5</p></td>
+<td><p>nested ternaries for <code>Mux4</code>/<code>Mux8</code></p></td>
+<td><p>a <code>?:</code> arm cannot contain another <code>?:</code> (nor can parens: <code>(a ? b : c)</code> is also rejected)</p></td>
+<td><p>4- and 8-way muxes</p></td>
+</tr>
+<tr class="even">
+<td><p>6</p></td>
+<td><p><code>assign O = !(A &amp; B);</code> for Nand/Nor/Xnor</p></td>
+<td><p>bare <code>!</code> prefix is a syntax error (only <code>(!x)</code> reduction form)</p></td>
+<td><p>every inverting gate</p></td>
+</tr>
+<tr class="odd">
+<td><p>7</p></td>
+<td><p><code>assign O = $signed(I) &gt;&gt;&gt; S;</code></p></td>
+<td><p>no <code>$signed</code></p></td>
+<td><p>arithmetic shift right</p></td>
+</tr>
+<tr class="even">
+<td><p>8</p></td>
+<td><p>one generated module per memory + <code>module main</code></p></td>
+<td><p>exactly one module per file</p></td>
+<td><p>every sheet with RAM/ROM</p></td>
+</tr>
+<tr class="odd">
+<td><p>9</p></td>
+<td><p>positional instantiation <code>RM_mem RM_inst (RM, A, clk);</code></p></td>
+<td><p>named connections only, and the module must already exist as a project component</p></td>
+<td><p>every memory instance</p></td>
+</tr>
+<tr class="even">
+<td><p>10</p></td>
+<td><p>memory internals: <code>initial</code> blocks, <code>integer i</code>, <code>for</code> fill loops, unsized decimal preloads</p></td>
+<td><p>none of these</p></td>
+<td><p>every memory module</p></td>
+</tr>
+<tr class="odd">
+<td><p>11</p></td>
+<td><p>simulation flavour: testbench <code>initial</code> block, <code>#5</code> delays, <code>$display</code>/<code>$time</code></p></td>
+<td><p>out of scope for a synthesisable-subset compiler</p></td>
+<td><p>every <code>ForSimulation</code> file</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Two things that used to be on this list are <strong>not</strong> gaps: the lexer takes standard Verilog
+identifiers, so the <code>$</code> the emitter puts in generated names (<code>A$5</code> from subsheet flattening,
+<code>ADD$o1</code> for a multi-output component) parses — only a <em>leading</em> <code>$</code> is rejected, so system tasks
+still error; and no whitespace is required after <code>input</code>/<code>output</code>/<code>bit</code>/<code>wire</code>, so
+<code>output bit[15:0] o;</code> parses.</p>
+<p>Beyond parsing, two semantic mismatches surface next:</p>
+<ul>
+<li>
+The emitter always emits a <code>clk</code> port, but the input checker rejects unused inputs, forbids <code>clk</code>
+anywhere except <code>@(posedge clk)</code>, and requires it only when <code>always_ff</code> exists.
+</li>
+<li>
+The input compiler has no RAM/ROM inference (arrays become register banks; the RAM path in
+<code>SheetCreator.fs</code> is commented out), so memory components cannot survive a round trip as
+memories.
+</li>
+</ul>
+<h3><a name="What-a-golden-cycle-would-take" class="anchor" href="#What-a-golden-cycle-would-take">What a golden cycle would take</a></h3>
+<p>The cheapest path is a new emitter mode (say <code>ForVerilogComponent</code>) targeting the input dialect,
+plus one input-compiler change, rather than teaching the input compiler all of Verilog-2001.</p>
+<p>Emitter side, all local to <code>Verilog.fs</code>:</p>
+<ul>
+<li>emit <code>input bit</code>/<code>output bit</code>/<code>bit</code> instead of bare directions, <code>reg</code> and <code>wire</code>;</li>
+<li>
+emit <code>always_ff @(posedge clk)</code> with the reset-value initialisers dropped (Issie registers reset
+to 0 implicitly in the input compiler too);
+</li>
+<li>split concat-LHS adder lines into two assigns via a temporary of width n+1;</li>
+<li>expand Mux4/Mux8 into if/else chains inside <code>always_comb</code>, or a temporary per level;</li>
+<li>
+emit <code>~(…)</code> (bitwise) instead of <code>!(…)</code> for inverting gates — equal-width operands make them
+equivalent here;
+</li>
+<li>
+emit ASR-by-constant without <code>$signed</code> (the sign-spread construction the input compiler itself
+uses), and suppress <code>clk</code> for purely combinational sheets.
+</li>
+</ul>
+<p>Input-compiler side, only memories are left. The cheapest route is the <em>emitter</em> lowering them into
+the dialect the compiler already handles — a RAM as an array with a clocked write, a ROM as
+<code>always_comb case</code> over literal labels. That is behaviourally exact and needs no compiler change,
+but it costs ~3-4 components per word (the compiler expands arrays to register banks with per-word
+selection), so it only suits small memories: a 64K-word fixture like <code>3cpu</code>'s code memory would
+explode into hundreds of thousands of components. RAM/ROM inference from arrays (the commented-out
+path in <code>SheetCreator.fs</code>) — genuinely tricky — is only needed if emitted memories must come back
+<em>as</em> memory components, with sparse simulation and usable sheets.</p>
+<p>With the emitter mode in place, the golden test is straightforward under plain .NET + node: emit
+each fixture sheet, run the emitted text through <code>parser.js</code> and the error checker, build a sheet
+with <code>SheetCreator.createSheet</code>, simulate both sheets for N cycles and compare outputs — the same
+pattern <code>Tests/Issie.Tests/GoldenModel.fs</code> uses today.</p>
+<h2><a name="Which-route-first" class="anchor" href="#Which-route-first">Which route first</a></h2>
+<p>Route A is a day's work on machinery that already exists and turns 75 hand-run cases into a suite.
+Route B is the only thing that can tell you the emitter is right, and reuses Route A's process
+handling. Route C is the most work and needs no external tool, so it is the one that could run on
+every push — but it changes the emitter, which Route B should be watching by then.</p>
+<h2><a name="Quick-checks-while-working" class="anchor" href="#Quick-checks-while-working">Quick checks while working</a></h2>
+<p><code>run_parser.mjs</code> answers "does this source parse?" in milliseconds — the quickest way to check any
+candidate Verilog without opening the app, and how the gap table above was verified:</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">cd src/Renderer/VerilogComponent
+printf 'module main(a,o); input bit a; output bit o; assign o = a; endmodule' &gt; /tmp/t.sv
+node run_parser.mjs /tmp/t.sv        # prints {"Ok": …} or {"Err": …}
+</code></pre></td></tr></table>
+<p><code>parser.js</code> also runs under node directly
+(<code>require("./parser.js").parseFromFile(source)</code> from the same directory) if the AST is wanted
+rather than the pass/fail.</p>
+<p>Two things to point at when a generated sheet looks wrong. The grammar actions index into
+positional token arrays, so an off-by-one there silently <em>discards</em> a construct rather than failing
+— <code>#(parameter ...)</code> headers and constant array word-selects (<code>arr[2][0]</code>) were both lost this way.
+And <code>checkVariablesUsed</code> tracks assignment per array <em>word</em> while a declaration's <code>Range</code> is its
+<em>vector bits</em>: an array whose vector width differs from its word count (<code>bit [7:0] hist [3:0]</code>) is
+the shape that catches confusion between the two. The intended rule is that every array word must
+be both written and read.</p>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Testing-the-Verilog-subsystem">
+      Testing the Verilog subsystem
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-runs-automatically-today">
+      What runs automatically today
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-is-not-covered">
+      What is not covered
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-manual-machinery-that-already-exists">
+      The manual machinery that already exists
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Route-A-automate-the-existing-Icarus-differential-test">
+      Route A: automate the existing Icarus differential test
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Route-C-the-round-trip">
+      Route C: the round trip
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#How-to-re-run-the-experiment">
+      How to re-run the experiment
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-gaps-in-blocking-order">
+      The gaps, in blocking order
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-a-golden-cycle-would-take">
+      What a golden cycle would take
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Which-route-first">
+      Which route first
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Quick-checks-while-working">
+      Quick checks while working
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

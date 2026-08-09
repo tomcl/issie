@@ -115,18 +115,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -139,8 +127,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -157,8 +145,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -304,18 +292,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -328,8 +304,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -346,8 +322,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -507,9 +483,8 @@ the same way. The <code>.dgm</code> body inside it does hold unions, and both di
 reader accepts either encoding, and on .NET <code>Common/SimpleJsonDotNet.fs</code> reads SimpleJson's.
 </li>
 </ul>
-<p>Each side therefore reads what the other writes. It was one-way until August 2026 — .NET could
-write a sheet Issie opened, but not open one Issie had written.</p>
-<p><code>SheetDescriptionTests.fs</code> writes an <code>.ldgm</code> this way and reads it back, with nothing running.</p>
+<p>Each side therefore reads what the other writes, in both directions.
+<code>SheetDescriptionTests.fs</code> writes an <code>.ldgm</code> this way and reads it back, with nothing running.</p>
 <h2><a name="Verifying-a-generated-sheet" class="anchor" href="#Verifying-a-generated-sheet">Verifying a generated sheet</a></h2>
 <p><code>npm run test</code> covers port resolution, error messages, non-overlap, I/O order, block ordering,
 simulation and a save/reload round trip. For anything about how it <em>looks</em>, open it and use

@@ -112,18 +112,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -136,8 +124,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -154,8 +142,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -301,18 +289,6 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterReviewFindings.html">
-    Review findings: parameter, library and simulator code
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/parameterSystemPlan.html">
-    Parameter System: Planned Redesign
-
-  </a>
-</li>             
-<li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
 
@@ -325,8 +301,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
-    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -343,8 +319,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
-    User-friendliness review
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -435,7 +411,12 @@ outputs.</p>
 The emitted Verilog is <em>not</em> accepted by ISSIE's own <a href="verilogComp.html">Verilog component input</a>,
 which reads a different (SystemVerilog-flavoured) subset — so a design exported from ISSIE
 cannot currently be re-imported as a Verilog component. The gap between the two is analysed in
-<a href="https://github.com/tomcl/issie/blob/master/docs/dev/verilogRoundTrip.md">docs/dev/verilogRoundTrip.md</a>.
+<a href="https://github.com/tomcl/issie/blob/master/docs/dev/verilogTesting.md">docs/dev/verilogTesting.md</a>.
+</li>
+<li>
+The output is checked against ISSIE's own simulator, not against an external Verilog tool. No
+automatic test runs the emitted text through a real simulator or synthesiser — see the same page
+for what that would take.
 </li>
 </ul>
 <p>The generating code (<code>src/Renderer/VerilogComponent/Verilog.fs</code>) is simple and easily changed;

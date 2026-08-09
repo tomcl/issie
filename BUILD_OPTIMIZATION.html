@@ -406,6 +406,12 @@
 <h2><a name="The-scripts" class="anchor" href="#The-scripts">The scripts</a></h2>
 <ul>
 <li>
+<code>npm run app</code> — <a href="../scripts/app.js"><code>scripts/app.js</code></a>: starts the app in whichever of <code>dev</code> /
+<code>dev:once</code> the generated JS already belongs to, so there is no mode to keep track of. Use this
+unless you specifically want one of them. <code>npm run app -- --which</code> says what it would pick and
+why without starting anything; anything else after <code>--</code> goes through to Electron.
+</li>
+<li>
 <code>npm run dev</code> — <a href="../scripts/dev.js"><code>scripts/dev.js</code></a> runs <code>dotnet fable watch</code> for <code>src/Main</code>
 and <code>src/Renderer</code> <strong>in parallel</strong>, then starts webpack + Electron
 (<a href="../scripts/start.js"><code>scripts/start.js</code></a>) as soon as both projects' generated JS is safe to
@@ -442,21 +448,33 @@ the app in seconds either way.
 <h2><a name="What-breaks-it" class="anchor" href="#What-breaks-it">What breaks it</a></h2>
 <ul>
 <li>
-<p><strong>A stale <code>.fs.js</code> timestamp.</strong> Fable only rewrites an output file whose <em>content</em> changed. If a
-<code>.fs</code> file's mtime is refreshed without changing its emitted JS — a comment or warning-only
-edit, a <code>git checkout</code>/rebase touching the file — its output stays older than it forever, and
-that single file forces the full recompile on <strong>every</strong> startup. Find offenders (run in
-<code>src/Renderer</code> and <code>src/Main</code>) and touch the listed outputs' <code>.fs.js</code> files:</p>
-<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">find . -name "*.fs" -not -path "./obj/*" | while read f; do
-  [ -f "$f.js" ] &amp;&amp; [ ! "$f.js" -nt "$f" ] &amp;&amp; echo "$f"
-done
+<p><strong>A stale <code>.fs.js</code> timestamp</strong> — <em>now fixed automatically; this is what it was.</em> Fable rewrites
+an output file only when its <em>content</em> changed, and the up-to-date check above is about
+timestamps, so the two can disagree. A <code>.fs</code> whose mtime moves without its emitted JS changing —
+a comment or warning-only edit, a <code>git checkout</code>, a rebase — leaves an output that is perfectly
+current and still fails the check. <strong>The recompile does not fix it</strong>: nothing changed, so
+nothing is written, so the next startup pays the full ~1 minute again, and so does the one after
+that. Measured on this repo: one such file in <code>src/Renderer</code>, two consecutive full compiles,
+the output never rewritten either time.</p>
+<p><a href="../scripts/refresh-stale-output.js"><code>scripts/refresh-stale-output.js</code></a> closes the loop by
+bumping those timestamps after a successful compile, when every output is current by
+construction. <code>dev.js</code> and <code>parallel-compile.js</code> both call it, and it prints what it touched. To
+run it by hand, or on a directory of your own:</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">node scripts/refresh-stale-output.js [dir ...]
 </code></pre></td></tr></table>
 </li>
 <li>
 <p><strong>Switching build modes.</strong> <code>fable watch</code> implicitly adds the <code>DEBUG</code> define (this is what
-enables Elmish HMR), so <code>dev</code>, <code>dev:once</code> and <code>compile</code> are three different builds. Each switch
-between them invalidates the up-to-date state and costs one full recompile; staying in one mode
-stays fast.</p>
+enables Elmish HMR), so <code>dev</code>, <code>dev:once</code>, <code>debug</code> (<code>ASSERTS</code>) and <code>compile</code> (<code>PRODUCTION</code>) are
+four different builds. Each switch between them invalidates the up-to-date state and costs one
+full recompile; staying in one mode stays fast. <code>npm run app</code> avoids the question by going
+wherever the tree already is.</p>
+<p>Which mode the tree is in is recorded per project in <code>fable_modules</code>, and only one cache exists
+at a time: watch writes <code>project_cracked_debug.json</code>, every other mode writes
+<code>project_cracked.json</code> holding the defines it used. <code>npm run app -- --which</code> reads them out.</p>
+<p>Note for anyone verifying a change compiles: <code>npm run compile</code> leaves the tree in <code>PRODUCTION</code>,
+so the next <code>dev</code> or <code>dev:once</code> pays a full recompile. <code>node scripts/dev.js --once --no-app</code> is
+the same check without that cost.</p>
 </li>
 <li>
 <p><strong>Changed compiler options.</strong> Any option change — defines, <code>--verbose</code>, source maps — is

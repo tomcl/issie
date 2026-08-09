@@ -2741,6 +2741,46 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="SimpleJsonDotNet">
+              <a href="/issie/reference/global-simplejsondotnet.html">
+                SimpleJsonDotNet
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:SimpleJsonDotNet`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:SimpleJsonDotNet\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/SimpleJsonDotNet.fs#L21-21" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Deserialises the JSON encoding used by Fable.SimpleJson, which is what the app writes into
+ every .dgm file. Without this, nothing running under .NET can open a sheet, because
+ Thoth.Json.Net - what `Helpers.jsonStringToState` otherwise uses there - cannot read what the
+ app wrote. The two encodings disagree about unions (Thoth writes an array; SimpleJson writes a
+ bare string for a nullary case and a single-property object otherwise), about options (Thoth
+ wraps the value; SimpleJson writes the value itself, or null) and about maps with structural
+ keys (SimpleJson writes an array of pairs).
+
+ Rather than enumerate the `SavedInfo` schema - which would mean every `ComponentType` case, and
+ a new one every time a component is added - this walks the target type by reflection, so it
+ covers whatever the types say.
+
+ Fable never sees any of this: under Fable the app calls SimpleJson itself, and Newtonsoft is not
+ available. Under .NET it reaches this project transitively through Thoth.Json.Net.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="SimTypes">
               <a href="/issie/reference/global-simtypes.html">
                 SimTypes

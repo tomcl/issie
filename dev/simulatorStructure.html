@@ -582,11 +582,13 @@ Drive the app over the DevTools protocol (<code>scripts/inspect-canvas.js</code>
 <code>Profiler</code> gives self time per function; <code>HeapProfiler.startSampling</code> gives allocation by site.
 </li>
 <li>
-<strong>Loading a project headlessly needs the .NET reader.</strong> <code>FilesIO.tryLoadComponentFromPath</code>, and
-so <code>loadAllComponentFiles</code>, reads with the vendored SimpleJson and is Fable-only: under .NET it
-fails with <code>Error at: `$`</code> on any sheet. <code>Tests/Issie.Tests/TestFixtures.loadLoadedComponent</code>
-is the reader that works. <code>FilesIO</code> can still <em>write</em> a <code>.dgm</code> under .NET - the asymmetry is set
-out in <a href="sheetDescriptionDsl.html">sheetDescriptionDsl.md</a>.
+*<em><code>FilesIO.loadAllComponentFiles</code> reads a project headlessly*</em>, so a benchmark or a script can
+open the demos with nothing running. It could not until August 2026: <code>Helpers.jsonStringToState</code>
+had a .NET branch, but it used Thoth's <code>Decode.Auto</code>, and Thoth cannot read what the app's writer
+produced - Thoth encodes a union as an array and the vendored SimpleJson as a single-key object -
+so every <code>.dgm</code> in existence failed with <code>Error at: `$`</code>. <code>Common/SimpleJsonDotNet.fs</code> now
+reads SimpleJson's encoding by reflection, and <code>jsonStringToState</code> tries it before Thoth. Sheets
+the .NET side wrote itself are Thoth-encoded, which is why both are tried.
 </li>
 <li>
 <strong>Check the design is actually computing.</strong> The <code>5eratosthenes</code> demo's <code>sievesmall</code> program

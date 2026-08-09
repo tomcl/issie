@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="CustomComponentError (issie)" />
+    <meta property="og:title" content="SimpleJsonDotNet (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="CustomComponentError (issie)">
+    <meta name="twitter:title" content="SimpleJsonDotNet (issie)">
     
-    <title>CustomComponentError (issie) | issie</title>
+    <title>SimpleJsonDotNet (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -400,7 +400,7 @@
     <div id="content">
         <div>
   <h2>
-    CustomComponentError Type
+    SimpleJsonDotNet Module
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -412,48 +412,36 @@
     <dt>
       Assembly: Renderer.dll
     </dt>
-    <dt>
-      Parent Module: 
-      <a href="/issie/reference/global-canvasstateanalyser.html">
-        CanvasStateAnalyser
-      </a>
-    </dt>
-    <dt>
-      Base Type: 
-      <code>obj</code>
-    </dt>
-    <dt>
-      All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/canvasstateanalyser-customcomponenterror.html">CustomComponentError</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
-      , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/canvasstateanalyser-customcomponenterror.html">CustomComponentError</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
-    </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-        
+         Deserialises the JSON encoding used by Fable.SimpleJson, which is what the app writes into
+ every .dgm file. Without this, nothing running under .NET can open a sheet, because
+ Thoth.Json.Net - what `Helpers.jsonStringToState` otherwise uses there - cannot read what the
+ app wrote. The two encodings disagree about unions (Thoth writes an array; SimpleJson writes a
+ bare string for a nullary case and a single-property object otherwise), about options (Thoth
+ wraps the value; SimpleJson writes the value itself, or null) and about maps with structural
+ keys (SimpleJson writes an array of pairs).
+
+ Rather than enumerate the `SavedInfo` schema - which would mean every `ComponentType` case, and
+ a new one every time a component is added - this walks the target type by reflection, so it
+ covers whatever the types say.
+
+ Fable never sees any of this: under Fable the app calls SimpleJson itself, and Newtonsoft is not
+ available. Under .NET it reaches this project transitively through Thoth.Json.Net.
       </p>
     </div>
   </div>
-  <div></div>
-  <div></div>
-  <div></div>
   <div>
     <h3>
-      Union cases
+      Functions and values
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Union case
+            Function or value
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -464,184 +452,26 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '3088', 3088)" onmouseover="showTip(event, '3088', 3088)">
+              <code onmouseout="hideTip(event, '2088', 2088)" onmouseover="showTip(event, '2088', 2088)">
                 <p>
-                  <a id="BadInputs">
-                    <a href="#BadInputs">
-                      <code><span>BadInputs(<span>ComponentSheet,&#32;InstLists,&#32;CompLists</span>)</span></code>
+                  <a id="tryDeserialise">
+                    <a href="#tryDeserialise">
+                      <code><span>tryDeserialise&#32;<span>json</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="3088">
+              <div class="fsdocs-tip" id="2088">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>BadInputs(<span>ComponentSheet,&#32;InstLists,&#32;CompLists</span>)</span></code>
+                  <code><span>tryDeserialise&#32;<span>json</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        ComponentSheet
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        InstLists
-                      </b>
-                      :
-                      <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        CompLists
-                      </b>
-                      :
-                      <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  ComponentSheet
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  InstLists
-                </span>
-                :
-                <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  CompLists
-                </span>
-                :
-                <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '3089', 3089)" onmouseover="showTip(event, '3089', 3089)">
-                <p>
-                  <a id="BadOutputs">
-                    <a href="#BadOutputs">
-                      <code><span>BadOutputs(<span>ComponentSheet,&#32;InstLists,&#32;CompLists</span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="3089">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>BadOutputs(<span>ComponentSheet,&#32;InstLists,&#32;CompLists</span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        ComponentSheet
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        InstLists
-                      </b>
-                      :
-                      <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        CompLists
-                      </b>
-                      :
-                      <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  ComponentSheet
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  InstLists
-                </span>
-                :
-                <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  CompLists
-                </span>
-                :
-                <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '3090', 3090)" onmouseover="showTip(event, '3090', 3090)">
-                <p>
-                  <a id="NoSheet">
-                    <a href="#NoSheet">
-                      <code><span>NoSheet&#32;string</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="3090">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>NoSheet&#32;string</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item
+                        json
                       </b>
                       :
                       <code>string</code>
@@ -649,21 +479,54 @@
                     <br/>
                   </ul>
                   <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>'T,&#32;string</span>&gt;</span></code>
+                  </span>
+                  <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('```cref:M:SimpleJsonDotNet.tryDeserialise``1```')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimpleJsonDotNet.tryDeserialise``1\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/SimpleJsonDotNet.fs#L161-161" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Read json as a 'T, or say why it is not one. Failure is an ordinary outcome here, not a bug:
+ jsonStringToState works out which of three formats a sheet file is in by trying each in turn.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    json
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>'T,&#32;string</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
       </tbody>
@@ -672,142 +535,10 @@
   <div></div>
   <div></div>
   <div></div>
-  <div>
-    <h3>
-      Instance members
-    </h3>
-    <table class="table outer-list fsdocs-member-list">
-      <thead>
-        <tr>
-          <td class="fsdocs-member-list-header">
-            Instance member
-          </td>
-          <td class="fsdocs-member-list-header">
-            Description
-          </td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '3091', 3091)" onmouseover="showTip(event, '3091', 3091)">
-                <p>
-                  <a id="IsBadInputs">
-                    <a href="#IsBadInputs">
-                      <code><span>this.IsBadInputs</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="3091">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsBadInputs</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '3092', 3092)" onmouseover="showTip(event, '3092', 3092)">
-                <p>
-                  <a id="IsBadOutputs">
-                    <a href="#IsBadOutputs">
-                      <code><span>this.IsBadOutputs</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="3092">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsBadOutputs</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '3093', 3093)" onmouseover="showTip(event, '3093', 3093)">
-                <p>
-                  <a id="IsNoSheet">
-                    <a href="#IsNoSheet">
-                      <code><span>this.IsNoSheet</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="3093">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsNoSheet</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
   <div></div>
 </div>
         

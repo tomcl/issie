@@ -503,11 +503,12 @@ directory and drops it from the recent list. <code>saveProject</code> writes it.
 *<em><code>.ldgm</code> encoding.*</em> Fable writes it with the vendored SimpleJson and .NET with <code>Thoth.Json.Net</code>.
 The two disagree about discriminated unions — Thoth writes an array, SimpleJson a single-key
 object — but an <code>.ldgm</code> holds none: a record, a string and a list of strings, which both encode
-the same way. The <code>.dgm</code> body inside it does hold unions, and that direction works because
-SimpleJson's <em>reader</em> accepts either encoding. So .NET writes what Issie reads; the reverse is
-not true, and <code>tryReadComponentFile</code> is the only part that has a Fable-only path.
+the same way. The <code>.dgm</code> body inside it does hold unions, and both directions work: SimpleJson's
+reader accepts either encoding, and on .NET <code>Common/SimpleJsonDotNet.fs</code> reads SimpleJson's.
 </li>
 </ul>
+<p>Each side therefore reads what the other writes. It was one-way until August 2026 — .NET could
+write a sheet Issie opened, but not open one Issie had written.</p>
 <p><code>SheetDescriptionTests.fs</code> writes an <code>.ldgm</code> this way and reads it back, with nothing running.</p>
 <h2><a name="Verifying-a-generated-sheet" class="anchor" href="#Verifying-a-generated-sheet">Verifying a generated sheet</a></h2>
 <p><code>npm run test</code> covers port resolution, error messages, non-overlap, I/O order, block ordering,

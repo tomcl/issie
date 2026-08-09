@@ -132,6 +132,19 @@ let inline bitNot bit = bit ^^^ 1u
 
 let inline bitNotB width bit = (1I <<< width) - 1I - bit
 
+/// Increment, wrapping to 0 at 2^width. Used by the counters on the uint32 path, which
+/// counted in bigint and so allocated several heap bigints per component per step on what
+/// is meant to be the fast path. At width 32 uint32 addition wraps to 0 of its own accord,
+/// which is the wanted result, and the wrap test cannot be written there in any case since
+/// 1u <<< 32 is 1u.
+let inline incrementWithinWidth (width: int) (lastOut: uint32) =
+    let next = lastOut + 1u
+
+    if width < 32 && next = (1u <<< width) then
+        0u
+    else
+        next
+
 let inline bitAnd bit0 bit1 = bit0 &&& bit1
 
 let inline bitOr bit0 bit1 = bit0 ||| bit1
@@ -185,22 +198,39 @@ let inline  algGate gateType =
 //--------------------------------------fastReduce---------------------------------------//
 //---------------------------------------------------------------------------------------//
 
+/// Where one clock step sits in the circular simulation arrays: the step number itself, its
+/// index into the arrays, and the index of the step before it. All three follow from the step
+/// number, so the simulation loop works them out once per step and hands the same value to
+/// every component - numStep % maxArraySize is an integer division, and it used to be redone
+/// for every component of every step. A struct so that passing it costs nothing.
+[<Struct>]
+type StepIndex =
+    { NumStep: int
+      SimStep: int
+      SimStepOld: int }
+
+let inline stepIndexOf (maxArraySize: int) (numStep: int) =
+    let simStep = numStep % maxArraySize
+
+    { NumStep = numStep
+      SimStep = simStep
+      SimStepOld =
+        if simStep = 0 then
+            maxArraySize - 1
+        else
+            simStep - 1 }
+
 /// Given a component, compute its outputs from its inputs, which must already be evaluated.
 /// Outputs and inputs are both contained as time sequences in arrays. This function will calculate
 /// simStep outputs from (previously calculated) simStep outputs and clocked (simStep-1) outputs.
 /// Memory has state separate from simStep-1 output, for this the state is recalculated.
 /// Inputs and outputs come from either UInt32Step or BigIntStep arrays in IOArray record.
-let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =
+let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent) : Unit =
     let componentType = comp.FType
+    let numStep = step.NumStep
+    let simStep = step.SimStep
+    let simStepOld = step.SimStepOld
 
-    let n = comp.InputLinks.Length
-
-    let simStep = numStep % maxArraySize
-    let simStepOld =
-        if simStep = 0 then
-            maxArraySize - 1
-        else
-            simStep - 1
 #if ASSERTS
     Log.warn "simulation is running with ASSERTS on for debugging - this will be very slow"
 #endif
@@ -845,11 +875,12 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
     | NbitsNot numberOfBits, false ->
         let a = insUInt32 0
         let w = comp.InputWidth 0
-        let minusOne = (1u <<< w) - 1u
-        let res = 
-            match w with 
+        let res =
+            match w with
             | 32 -> ~~~a
-            | _ -> minusOne &&& (~~~a)
+            // the mask belongs here: at w = 32 it was computed and discarded, and 1u <<< 32
+            // being 1u would have made it 0
+            | _ -> ((1u <<< w) - 1u) &&& (~~~a)
         putUInt32 0 res
     | NbitsNot numberOfBits, true ->
         let a = insBigInt 0
@@ -950,22 +981,24 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                 let bits0, bits1 = insBigInt 0, insBigInt 1
                 let res = (bits1 <<< comp.InputWidth 0) ||| bits0
                 putBigInt 0 res
-    | MergeN n , false -> 
-        let mergeTwoValues (width: int) (value1: uint32) (value2: uint32) =
-            (value1 <<< width) ||| value2
-        let res = List.fold2 (fun acc width input ->
-            mergeTwoValues width acc (insUInt32 input)) 0u (List.rev (List.map (fun x -> comp.InputWidth x) [0..n-1])) [for x in n-1..-1..0 -> x]
+    // Little endian, input 0 occupies the least significant bits. Folding over the indices
+    // downwards shifts each input above the ones already accumulated. The lists of widths and
+    // of indices this used to fold over were rebuilt from constants on every step, which cost
+    // two list allocations per component per step to do a shift and an or.
+    | MergeN n , false ->
+        let mutable res = 0u
+        for i = n - 1 downto 0 do
+            res <- (res <<< comp.InputWidth i) ||| insUInt32 i
         putUInt32 0 res
     | MergeN n , true ->
         match comp.BigIntState with
         | None -> failwith "MergeN with BigIntState"
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
-            // Little endian, input 0 occupies the least significant bits.
             // Total width > 32 so the output is always a bigint; each input may be either.
-            let getInput i = if ins[i] then insBigInt i else bigint (insUInt32 i)
-            let res =
-                (0I, [ n - 1 .. -1 .. 0 ])
-                ||> List.fold (fun acc i -> (acc <<< comp.InputWidth i) ||| getInput i)
+            let mutable res = 0I
+            for i = n - 1 downto 0 do
+                let input = if ins[i] then insBigInt i else bigint (insUInt32 i)
+                res <- (res <<< comp.InputWidth i) ||| input
             putBigInt 0 res
     | SplitWire topWireWidth, false ->
         let bits = insUInt32 0
@@ -981,19 +1014,20 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         // Little endian, bits leaving from the top wire are the least significant.
         putUInt32 0 bits0
         putUInt32 1 bits1
-    | SplitN (n, outputWidths, lsBits), false -> 
-        let msBits = List.map2(fun width lsb -> width+lsb-1) outputWidths lsBits
+    // Each output's msb is width + lsb - 1, derived here from the two constant lists rather
+    // than from a third list of msbs built on every step
+    | SplitN (n, outputWidths, lsBits), false ->
         let bits = insUInt32 0
 #if ASSERTS
-        let maxMsb = List.max msBits
+        let maxMsb = List.map2 (fun width lsb -> width + lsb - 1) outputWidths lsBits |> List.max
         let w = comp.InputWidth 0
         assertThat (w >= maxMsb+1)
         <| sprintf "SplitWire received too few bits: expected at least %d but got %d" (maxMsb + 1) w
 #endif
-        (lsBits, msBits)
+        (outputWidths, lsBits)
         ||> List.iteri2 (
-            fun index lsb msb -> 
-                let outBits = getBitsFromUInt32 msb lsb bits
+            fun index width lsb ->
+                let outBits = getBitsFromUInt32 (width + lsb - 1) lsb bits
                 putUInt32 index outBits)
     | SplitN(n, outputWidths, lsBits), true ->
         match comp.BigIntState with
@@ -1001,16 +1035,16 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
             // Outputs are slices of the input, so a bigint state means the input is a bigint;
             // each output may be either.
-            let msBits = List.map2 (fun width lsb -> width + lsb - 1) outputWidths lsBits
             let bits = insBigInt 0
 #if ASSERTS
-            let maxMsb = List.max msBits
+            let maxMsb = List.map2 (fun width lsb -> width + lsb - 1) outputWidths lsBits |> List.max
             let w = comp.InputWidth 0
             assertThat (w >= maxMsb + 1)
             <| sprintf "SplitN received too few bits: expected at least %d but got %d" (maxMsb + 1) w
 #endif
-            (lsBits, msBits)
-            ||> List.iteri2 (fun index lsb msb ->
+            (outputWidths, lsBits)
+            ||> List.iteri2 (fun index width lsb ->
+                let msb = width + lsb - 1
                 if outs[index] then
                     putBigInt index (getBitsFromBigInt msb lsb bits)
                 else
@@ -1101,17 +1135,9 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let bits, load, enable = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
         let res =
             match enable, load with
-            | 1u, 0u ->
-                let lastOut = getLastCycleOutUInt32 0
-                let n = (bigint lastOut) + 1I
-                if n = (1I <<< width) then
-                    0u
-                else
-                    uint32 n
-            | 1u, 1u ->
-                bits
-            | _ ->
-                getLastCycleOutUInt32 0
+            | 1u, 0u -> incrementWithinWidth width (getLastCycleOutUInt32 0)
+            | 1u, 1u -> bits
+            | _ -> getLastCycleOutUInt32 0
         putUInt32 0 res
     | Counter width, true ->
 #if ASSERTS
@@ -1141,15 +1167,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let bits, load = insOldUInt32 0, insOldUInt32 1
         let res =
             match load with
-            | 0u ->
-                let lastOut = getLastCycleOutUInt32 0
-                let n = (bigint lastOut) + 1I
-                if n = (1I <<< width) then
-                    0u
-                else
-                    uint32 n
-            | 1u ->
-                bits
+            | 0u -> incrementWithinWidth width (getLastCycleOutUInt32 0)
+            | 1u -> bits
             | _ -> failwithf "CounterNoEnable received invalid load value: %A" load
         putUInt32 0 res
     | CounterNoEnable width, true ->
@@ -1175,15 +1194,8 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
         let enable = insOldUInt32 0
         let res =
             match enable with
-            | 1u ->
-                let lastOut = getLastCycleOutUInt32 0
-                let n = (bigint lastOut) + 1I
-                if n = (1I <<< width) then
-                    0u
-                else
-                    uint32 n
-            | 0u ->
-                getLastCycleOutUInt32 0
+            | 1u -> incrementWithinWidth width (getLastCycleOutUInt32 0)
+            | 0u -> getLastCycleOutUInt32 0
             | _ -> failwithf "CounterNoLoad received invalid enable value: %A" enable
         putUInt32 0 res
     | CounterNoLoad width, true ->
@@ -1202,14 +1214,7 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
             | _ -> failwithf "CounterNoLoad received invalid enable value: %A" enable
         putBigInt 0 res
     | CounterNoEnableLoad width, false ->
-        let lastOut = getLastCycleOutUInt32 0
-        let n = (bigint lastOut) + 1I
-        let res =
-            if n = (1I <<< width) then
-                0u
-            else
-                uint32 n
-        putUInt32 0 res
+        putUInt32 0 (incrementWithinWidth width (getLastCycleOutUInt32 0))
     | CounterNoEnableLoad width, true ->
         let lastOut = getLastCycleOutBigInt 0
         let n = lastOut + 1I
@@ -1424,4 +1429,10 @@ let fastReduce (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (co
                     let data = readMemoryAddrBigIntDataUInt32 mem address
                     putUInt32 0 data
     | _ -> failwithf $"simulation error: deprecated component type {componentType}"
+
+/// fastReduce for a one-off reduction, working out the step indices for itself. Anything
+/// reducing many components, or the same component over many steps, should compute them once
+/// with simStepOf and simStepOldOf and call fastReduce directly.
+let fastReduceStep (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =
+    fastReduce (stepIndexOf maxArraySize numStep) isClockedReduction comp
 

@@ -93,7 +93,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
                 readyToReduce <- fc' :: readyToReduce)
 
     let init fc =
-        fastReduce 1 0 false fc
+        fastReduceStep 1 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -103,7 +103,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
         // REVIEW - Input initialisation is no longer required
         // fc.InputLinks[0].FastDataStep
         // |> Array.iteri (fun i _ -> fc.InputLinks[0].FastDataStep[ i ] <- convertIntToFastData (fc.OutputWidth 0) 0u)
-        fastReduce fs.MaxArraySize 0 false fc
+        fastReduceStep fs.MaxArraySize 0 false fc
         fc.Touched <- true
         propagateEval fc
 
@@ -141,7 +141,7 @@ let private orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : 
 
         readyL
         |> List.iter (fun fc ->
-            fastReduce fs.MaxArraySize 0 false fc // this is always a combinational reduction
+            fastReduceStep fs.MaxArraySize 0 false fc // this is always a combinational reduction
             orderedComps <- fc :: orderedComps
             fc.Touched <- true
             propagateEval fc)
@@ -487,27 +487,32 @@ let private setInputstoDefault (fastSim: FastSimulation) =
 
 /// advance the simulation one step
 let private stepSimulation (fs: FastSimulation) =
-    let index = (fs.ClockTick + 1) % fs.MaxArraySize // index of circular array
-    
-    propagateInputsFromLastStep index fs
-    Array.iter (fastReduce fs.MaxArraySize (fs.ClockTick + 1) true) fs.FClockedComps
-    Array.iter (fastReduce fs.MaxArraySize (fs.ClockTick + 1) false) fs.FOrderedComps
+    // where this step sits in the circular arrays, worked out once for the whole step rather
+    // than again for each of its components
+    let step = stepIndexOf fs.MaxArraySize (fs.ClockTick + 1)
 
-    fs.ClockTick <- fs.ClockTick + 1
+    propagateInputsFromLastStep step.SimStep fs
+    Array.iter (fastReduce step true) fs.FClockedComps
+    Array.iter (fastReduce step false) fs.FOrderedComps
+
+    fs.ClockTick <- step.NumStep
 
 /// set simulation data for clock tick 0 when regenerating data
 let private restartSimulation (fs: FastSimulation) =
+    let step = stepIndexOf fs.MaxArraySize 0
     setInputstoDefault fs
-    Array.iter (fastReduce fs.MaxArraySize 0 true) fs.FClockedComps
-    Array.iter (fastReduce fs.MaxArraySize 0 false) fs.FOrderedComps
+    Array.iter (fastReduce step true) fs.FClockedComps
+    Array.iter (fastReduce step false) fs.FOrderedComps
 
     fs.ClockTick <- 0
 
 /// Re-evaluates the combinational logic for the given timestep - used if a combinational
 /// input has changed
-let runCombinationalLogic (step: int) (fastSim: FastSimulation) =
+let runCombinationalLogic (stepNum: int) (fastSim: FastSimulation) =
+    let step = stepIndexOf fastSim.MaxArraySize stepNum
+
     fastSim.FOrderedComps
-    |> Array.iter (fastReduce fastSim.MaxArraySize step false)
+    |> Array.iter (fastReduce step false)
 
 let runCombinationalLogicFData (step: int) (fastSim: FastSimulation) =
     fastSim.FOrderedComps

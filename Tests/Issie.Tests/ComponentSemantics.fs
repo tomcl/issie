@@ -233,6 +233,49 @@ let tests =
             let outs = simulateClocked (Counter w) [ w; 1; 1 ] [ w ] stimuli
             Expect.equal outs [ [ 0I ]; [ 1I ]; [ 2I ]; [ 3I ]; [ 4I ] ] "counter increments when enabled"
         }
+        // Every counter wraps to 0 at 2^width, and each variant has its own copy of the
+        // increment. Width 32 is the case to watch: the wrap cannot be tested against
+        // 1 <<< width there, since at 32 bits that is 1.
+        let countUp ticks = [ 0 .. ticks - 1 ] |> List.map (fun i -> [ bigint (i % (1 <<< w)) ])
+        test "Counter wraps at the bus width" {
+            let stimuli = List.replicate 10 [ 0I; 0I; 1I ]
+            let outs = simulateClocked (Counter w) [ w; 1; 1 ] [ w ] stimuli
+            Expect.equal outs (countUp 10) "counter wraps to 0 after 2^w - 1"
+        }
+        test "Counter wraps at width 32" {
+            // load the top value, then count past it
+            let top = 4294967295I
+            let stimuli = [ [ top; 1I; 1I ]; [ 0I; 0I; 1I ]; [ 0I; 0I; 1I ] ]
+            let outs = simulateClocked (Counter 32) [ 32; 1; 1 ] [ 32 ] stimuli
+            Expect.equal outs [ [ 0I ]; [ top ]; [ 0I ] ] "32-bit counter wraps to 0 after 2^32 - 1"
+        }
+        test "CounterNoEnable" {
+            // inputs: load data, load - counts on every cycle it is not loading
+            let stimuli = [ [ 5I; 1I ]; [ 0I; 0I ]; [ 0I; 0I ]; [ 0I; 0I ] ]
+            let outs = simulateClocked (CounterNoEnable w) [ w; 1 ] [ w ] stimuli
+            Expect.equal outs [ [ 0I ]; [ 5I ]; [ 6I ]; [ 7I ] ] "loads, then counts from the loaded value"
+        }
+        test "CounterNoEnable wraps at the bus width" {
+            let stimuli = List.replicate 10 [ 0I; 0I ]
+            let outs = simulateClocked (CounterNoEnable w) [ w; 1 ] [ w ] stimuli
+            Expect.equal outs (countUp 10) "counter wraps to 0 after 2^w - 1"
+        }
+        test "CounterNoLoad" {
+            // input: enable
+            let stimuli = [ [ 1I ]; [ 1I ]; [ 0I ]; [ 1I ] ]
+            let outs = simulateClocked (CounterNoLoad w) [ 1 ] [ w ] stimuli
+            Expect.equal outs [ [ 0I ]; [ 1I ]; [ 2I ]; [ 2I ] ] "counts when enabled, holds when not"
+        }
+        test "CounterNoLoad wraps at the bus width" {
+            let stimuli = List.replicate 10 [ 1I ]
+            let outs = simulateClocked (CounterNoLoad w) [ 1 ] [ w ] stimuli
+            Expect.equal outs (countUp 10) "counter wraps to 0 after 2^w - 1"
+        }
+        test "CounterNoEnableLoad wraps at the bus width" {
+            // no inputs at all: free running
+            let outs = simulateClocked (CounterNoEnableLoad w) [] [ w ] (List.replicate 10 [])
+            Expect.equal outs (countUp 10) "counter wraps to 0 after 2^w - 1"
+        }
 
         // AsyncRAM1: writes land in the state one cycle later; the async read must use the
         // *current* cycle's address. Ticks 1-3 read a different address from the one driven

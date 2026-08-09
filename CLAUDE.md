@@ -11,6 +11,7 @@ simulation application written in F#, transpiled to JavaScript by Fable and run 
 build.cmd          # Windows: full setup - installs dependencies, builds, starts dev mode
 build.sh           # Linux/Mac equivalent
 
+npm run app        # start the app in whichever mode is already compiled - no recompile to switch
 npm run dev        # hot reload; Main and Renderer compile in parallel
 npm run dev:once   # one-shot compile + app, no watcher; near-instant when nothing changed
 npm run debug      # includes assertions - slower
@@ -27,7 +28,10 @@ recompile) only when every `.fs.js` is strictly newer than its `.fs` — see
 emitted JS used to keep a permanently stale `.fs.js`, since Fable rewrites an output only when its
 content changes; `scripts/refresh-stale-output.js` now bumps those after every compile. The
 remaining trap is that watch mode adds the `DEBUG` define, so alternating
-`dev`/`dev:once`/`compile` recompiles on each switch.
+`dev`/`dev:once`/`compile` recompiles on each switch — `npm run app` sidesteps it by going
+wherever the tree already is. **When verifying that a change still compiles under Fable, use
+`node scripts/dev.js --once --no-app`, not `npm run compile`**: the latter leaves the tree in
+`PRODUCTION` and costs whoever runs the app next a full recompile.
 
 **You can see what the running app is drawing.** `npm run dev` opens a DevTools-protocol port, and
 `scripts/inspect-canvas.js` reads the canvas through it — the whole draw block model serialised with

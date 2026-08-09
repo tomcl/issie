@@ -28,22 +28,31 @@ function* fsharpSources(dir) {
   }
 }
 
-/// Bump the mtime of every generated file that is not strictly newer than its source.
-/// Returns the paths touched.
-function refreshStaleOutput(dirs) {
-  const now = new Date();
-  const refreshed = [];
+/// Generated files that are not strictly newer than their source - the condition that makes Fable
+/// recompile. Before a compile these are the files it will look at; after one they are all
+/// false alarms.
+function findStaleOutput(dirs) {
+  const stale = [];
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue;
     for (const source of fsharpSources(dir)) {
       const output = source + '.js';
       if (!fs.existsSync(output)) continue; // a module Fable emits nothing for
       if (fs.statSync(output).mtime > fs.statSync(source).mtime) continue;
-      fs.utimesSync(output, now, now);
-      refreshed.push(path.relative(process.cwd(), output));
+      stale.push(output);
     }
   }
-  return refreshed;
+  return stale;
+}
+
+/// Bump the mtime of every generated file that is not strictly newer than its source.
+/// Returns the paths touched. ONLY safe straight after a successful compile - doing it before one
+/// would tell Fable a genuinely out-of-date output is current, and the app would run stale code.
+function refreshStaleOutput(dirs) {
+  const now = new Date();
+  const refreshed = findStaleOutput(dirs);
+  for (const output of refreshed) fs.utimesSync(output, now, now);
+  return refreshed.map((output) => path.relative(process.cwd(), output));
 }
 
 /// Do it and say so. Silence would make the next slow startup unexplainable.
@@ -58,7 +67,7 @@ function reportRefreshStaleOutput(dirs) {
   return refreshed;
 }
 
-module.exports = { refreshStaleOutput, reportRefreshStaleOutput };
+module.exports = { findStaleOutput, refreshStaleOutput, reportRefreshStaleOutput };
 
 // Usable on its own: node scripts/refresh-stale-output.js [dir ...]
 if (require.main === module) {

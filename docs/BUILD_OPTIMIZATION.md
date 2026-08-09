@@ -4,6 +4,10 @@ How the dev build gets fast startup, and what silently makes it slow again.
 
 ## The scripts
 
+- `npm run app` — [`scripts/app.js`](../scripts/app.js): starts the app in whichever of `dev` /
+  `dev:once` the generated JS already belongs to, so there is no mode to keep track of. Use this
+  unless you specifically want one of them. `npm run app -- --which` says what it would pick and
+  why without starting anything; anything else after `--` goes through to Electron.
 - `npm run dev` — [`scripts/dev.js`](../scripts/dev.js) runs `dotnet fable watch` for `src/Main`
   and `src/Renderer` **in parallel**, then starts webpack + Electron
   ([`scripts/start.js`](../scripts/start.js)) as soon as both projects' generated JS is safe to
@@ -50,9 +54,18 @@ Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file 
   ```
 
 - **Switching build modes.** `fable watch` implicitly adds the `DEBUG` define (this is what
-  enables Elmish HMR), so `dev`, `dev:once` and `compile` are three different builds. Each switch
-  between them invalidates the up-to-date state and costs one full recompile; staying in one mode
-  stays fast.
+  enables Elmish HMR), so `dev`, `dev:once`, `debug` (`ASSERTS`) and `compile` (`PRODUCTION`) are
+  four different builds. Each switch between them invalidates the up-to-date state and costs one
+  full recompile; staying in one mode stays fast. `npm run app` avoids the question by going
+  wherever the tree already is.
+
+  Which mode the tree is in is recorded per project in `fable_modules`, and only one cache exists
+  at a time: watch writes `project_cracked_debug.json`, every other mode writes
+  `project_cracked.json` holding the defines it used. `npm run app -- --which` reads them out.
+
+  Note for anyone verifying a change compiles: `npm run compile` leaves the tree in `PRODUCTION`,
+  so the next `dev` or `dev:once` pays a full recompile. `node scripts/dev.js --once --no-app` is
+  the same check without that cost.
 
 - **Changed compiler options.** Any option change — defines, `--verbose`, source maps — is
   recorded in the cracking cache and defeats output reuse for the next run. In particular a

@@ -124,8 +124,10 @@ the npm scripts directly - they are much faster:
 Other points:
 
 * To exit dev mode, close the app window and Ctrl-C the watch script in the terminal.
-* Orphan node/dotnet processes occasionally survive unusual terminations; kill them with
-  `npm run clean-dev-win` (Windows) or `npm run clean-dev-mac` (macOS).
+* Orphan `fable watch`, webpack and Electron processes survive unusual terminations - a stray
+  watcher still holds an F# compiler in memory - so kill them with `npm run clean-dev` (all
+  platforms; `clean-dev-win` and `clean-dev-mac` remain as aliases). `npm run clean-dev -- --list`
+  shows what it would kill without killing anything.
 * If you change `package.json`, run `npm install` to update `package-lock.json`, and commit both.
 * Why a dev start is sometimes near-instant and sometimes a full recompile - Fable's caching
   rules and the things that silently defeat them - is explained in
@@ -205,10 +207,10 @@ Electron bundles Chromium (View) and node.js (Engine), therefore as in every nod
 Additionally, the section `"scripts"`:
 ```
 "scripts": {
-    "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
-    "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
+    "clean-dev": "node scripts/clean-dev.js",
     "compile": "node scripts/parallel-compile.js",
     "debug": "node scripts/dev.js --asserts",
+    "app": "node scripts/app.js",
     "dev": "node scripts/dev.js",
     "dev:once": "node scripts/dev.js --once",
     "start": "cross-env NODE_ENV=development node scripts/start.js",

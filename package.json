@@ -14,8 +14,9 @@
     "url": "https://github.com/tomcl/issie.git"
   },
   "scripts": {
-    "clean-dev-mac": "sudo killall -9 node && sudo killall -9 dotnet && sudo killall -9 issie",
-    "clean-dev-win": "taskkill /f /im node.exe && taskkill /f /im dotnet.exe && taskkill /f /im issie.exe",
+    "clean-dev": "node scripts/clean-dev.js",
+    "clean-dev-mac": "node scripts/clean-dev.js",
+    "clean-dev-win": "node scripts/clean-dev.js",
     "compile": "node scripts/parallel-compile.js",
     "debug": "node scripts/dev.js --asserts",
     "app": "node scripts/app.js",

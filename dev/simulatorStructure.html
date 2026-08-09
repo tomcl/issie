@@ -525,15 +525,68 @@ makes converting another component type to a compiled reducer a safe change. Add
 without it is not.
 </li>
 </ul>
+<h2><a name="What-it-runs-at" class="anchor" href="#What-it-runs-at">What it runs at</a></h2>
+<p>The benchmark is the <code>5eratosthenes</code> demo — the EEP1 CPU, 349 component reductions per clock —
+running the <strong>large</strong> <code>sieve</code> program for its first 100,000 cycles. Warmed past the optimising
+tiers, median of three, <code>runFastSimulation</code> as the entry point. "Old" is the simulator before
+compiled reducers (<code>e09aa9b17</code>); "new" is this design.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>cycles/ms</p></th>
+<th align="right"><p>old</p></th>
+<th align="right"><p>new</p></th>
+<th align="right"><p>new/old</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>*<em>.NET*</em> (<code>DOTNET_TieredCompilation=0</code>)</p></td>
+<td align="right"><p>82.9</p></td>
+<td align="right"><p>211.3</p></td>
+<td align="right"><p>2.5x</p></td>
+</tr>
+<tr class="even">
+<td><p><strong>V8</strong> (Electron renderer)</p></td>
+<td align="right"><p>11.2</p></td>
+<td align="right"><p>132.9</p></td>
+<td align="right"><p>11.9x</p></td>
+</tr>
+<tr class="odd">
+<td><p><strong>V8 / .NET</strong></p></td>
+<td align="right"><p>7.4x slower</p></td>
+<td align="right"><p><strong>1.6x slower</strong></p></td>
+<td align="right"></td>
+</tr>
+</tbody>
+</table>
+
+<p>These supersede any earlier figures, including ones quoted on other designs or at intermediate
+stages of the work.</p>
+<p>The bottom row is the point. Most of what the old simulator cost in V8 was overhead .NET never
+paid: a 100kB dispatcher V8 could not inline, fable-library's bounds-checked <code>item</code>/<code>setItem</code> on
+every port access, and heap <code>BigInt</code> for constants and bus compares. Removing those leaves the two
+runtimes doing much the same work, and .NET keeps only the structural edge its real structs and
+cheap non-virtual dispatch give it.</p>
+<p>Note also how far apart the two <em>speedups</em> are: 2.5x against 11.9x for the same change. The .NET
+figure is diluted by RAM, which is still on the general path in both designs and costs the same in
+both. A change measured only under .NET would have looked five times less valuable than it is.</p>
 <h2><a name="Measuring-it" class="anchor" href="#Measuring-it">Measuring it</a></h2>
-<p>Simulation speed must be measured <strong>in the app</strong>, not under .NET. The two runtimes disagreed by a
-factor of four on the same change during the work that produced this layout, and the .NET number
-was the misleading one: it made a change look like a 5x win that was worth 1.2x in Chromium.</p>
+<p>Simulation speed must be measured <strong>in the app</strong>, not under .NET - see the two speedup columns
+above. Both directions of error happened during this work: .NET once made a change look like a 5x
+win that was worth 1.2x in Chromium, and later understated a real 11.9x as 2.5x.</p>
 <p>What worked:</p>
 <ul>
 <li>
 Drive the app over the DevTools protocol (<code>scripts/inspect-canvas.js</code> and the CDP directly).
 <code>Profiler</code> gives self time per function; <code>HeapProfiler.startSampling</code> gives allocation by site.
+</li>
+<li>
+<strong>Loading a project headlessly needs the .NET reader.</strong> <code>FilesIO.tryLoadComponentFromPath</code>, and
+so <code>loadAllComponentFiles</code>, reads with the vendored SimpleJson and is Fable-only: under .NET it
+fails with <code>Error at: `$`</code> on any sheet. <code>Tests/Issie.Tests/TestFixtures.loadLoadedComponent</code>
+is the reader that works. <code>FilesIO</code> can still <em>write</em> a <code>.dgm</code> under .NET - the asymmetry is set
+out in <a href="sheetDescriptionDsl.html">sheetDescriptionDsl.md</a>.
 </li>
 <li>
 <strong>Check the design is actually computing.</strong> The <code>5eratosthenes</code> demo's <code>sievesmall</code> program
@@ -655,6 +708,11 @@ decided as part of a rewrite of the execution layer than retrofitted.</p>
   <li class="level-2">
     <a href="#How-a-simulation-is-checked">
       How a simulation is checked
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-it-runs-at">
+      What it runs at
     </a>
   </li>
   <li class="level-2">

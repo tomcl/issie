@@ -137,11 +137,17 @@ What worked:
 
 - Drive the app over the DevTools protocol (`scripts/inspect-canvas.js` and the CDP directly).
   `Profiler` gives self time per function; `HeapProfiler.startSampling` gives allocation by site.
-- **Loading a project headlessly needs the .NET reader.** `FilesIO.tryLoadComponentFromPath`, and
-  so `loadAllComponentFiles`, reads with the vendored SimpleJson and is Fable-only: under .NET it
-  fails with ``Error at: `$` `` on any sheet. `Tests/Issie.Tests/TestFixtures.loadLoadedComponent`
-  is the reader that works. `FilesIO` can still *write* a `.dgm` under .NET - the asymmetry is set
-  out in [sheetDescriptionDsl.md](sheetDescriptionDsl.md).
+- **`FilesIO` cannot read a `.dgm` under .NET**, so `loadAllComponentFiles` fails headlessly with
+  ``Error at: `$` `` on any sheet. Not for want of a .NET branch: `Helpers.jsonStringToState` has
+  one, and it uses Thoth's `Decode.Auto`. The problem is that Thoth's reader cannot read what the
+  app's writer produced - Thoth encodes a union as an array and the vendored SimpleJson as a
+  single-key object, the asymmetry set out in [sheetDescriptionDsl.md](sheetDescriptionDsl.md) -
+  and every `.dgm` in the repo was written by the app. Writing a `.dgm` from .NET does work.
+  `Tests/Issie.Tests/TestFixtures.loadLoadedComponent` is the reader that works headlessly: its
+  `SimpleJsonFormat` module is a reflection-based Newtonsoft decoder of SimpleJson's encoding,
+  written for exactly this. Making `FilesIO` work under .NET means moving that module into the
+  Renderer project behind `#if !FABLE_COMPILER` and calling it from `jsonStringToState`'s `#else`
+  branch; Newtonsoft is already available there transitively through `Thoth.Json.Net`.
 - **Check the design is actually computing.** The `5eratosthenes` demo's `sievesmall` program
   finishes in well under 25,000 cycles and then spins in a self-jump; timing it measures a halted
   CPU. Use the large `sieve` program, and confirm activity — RAM words written, distinct values

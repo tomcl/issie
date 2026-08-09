@@ -1,0 +1,163 @@
+# How the simulator is put together
+
+A map of `src/Renderer/Simulator`, what each layer is responsible for, and which of the seams are
+deliberate. Written for someone about to change the fast simulator rather than someone using it.
+
+## The two graphs, and the bridge
+
+Issie has two representations of a circuit and the most common mistake is treating them as one.
+
+- **Canvas state** — `Component list * Connection list`, what a `.dgm` holds, full of geometry.
+- **The simulation graph** — the electrical structure, no layout.
+
+`CanvasExtractor.fs` is the bridge, and `CanvasExtractor.signatureOfInstance` is the only place
+that works out a custom component instance's port widths. A parameterised sheet has a *family* of
+signatures, one per set of bindings, so a port width is a fact about the instance and not about
+the sheet.
+
+## Layers, in compile order
+
+F# compile order is linear, so the order in `Renderer.fsproj` **is** the dependency layering: a
+module can only use what is above it, and an illegal dependency is a compile error rather than a
+convention. The order below is chosen for that reason.
+
+| | |
+|---|---|
+| `SimGraphTypes.fs` | the simulation graph, value representations (`FastData`, `FData`), bit-extraction helpers |
+| `SimTypes.fs` | `IOArray`, `StepIndex`, `FastComponent`, `FastSimulation` |
+| `NumberHelpers.fs` | number formatting and conversion |
+| `CanvasExtractor.fs` | canvas → graph, and instance signatures |
+| `SynchronousUtils.fs`, `CanvasStateAnalyser.fs`, `GraphBuilder.fs`, `GraphMerger.fs`, `SimulationGraphAnalyser.fs` | building and checking the graph |
+| `FastSim/…` | the fast simulator, below |
+| `Simulator.fs` | entry point for starting a simulation |
+
+### FastSim
+
+```
+FastCreate      allocate components and step arrays, link ports to driver arrays
+EvalKernel      the primitives every evaluator is built from
+EvalReference   the match on component type - the executable specification
+EvalCompiled    per-component reducers, built once when the simulation is built
+EvalAlgebraic   the FData backend, of which truth tables are one user
+FastOrder       the order combinational components must be reduced in
+FastValidate    checks on a built simulation
+FastBuild       assemble: arrays, order, validate, install reducers
+FastRun         the run loop
+FastExtract     read results out
+```
+
+## The three evaluators
+
+All three compute the same component semantics. They differ only in what a value is and when the
+work is decided.
+
+**`EvalReference`** is one `match` over component type and `UseBigInt`, evaluated per component
+per clock step. It is the specification: when the other two disagree with it, they are wrong.
+Nothing should be deleted from it as other evaluators grow — it is what they are checked against.
+
+**`EvalCompiled`** builds a closure per component when the simulation is built, which has already
+resolved everything that cannot change: the component's type, whether it is on the uint32 or
+bigint path, its bus masks, and which step arrays its ports live in. Its body is only what differs
+from step to step. `reducerFor` returns `None` for a type it does not handle, and that component
+keeps `EvalReference`, so the file can be filled in a type at a time.
+
+**`EvalAlgebraic`** is the `FData` backend, which carries algebraic values alongside data. It is a
+near-copy of `EvalReference` for a different value representation, and the two must move together.
+That duplication is the largest single piece of debt here — see below.
+
+### Two rules `EvalCompiled` depends on
+
+- **Reducers capture step arrays.** They must therefore be installed after every re-linking pass,
+  including the one `addWavesToFastSimulation` does for custom components, and only for components
+  that are actually reduced. `FastBuild.installReducers` runs last for this reason. Installing
+  earlier would capture an array the simulation no longer uses, and the simulation would quietly
+  compute the wrong signal.
+- **The masking invariant.** Every value in a step array is already within its bus width. Readers
+  never mask; a reducer masks its result exactly when its own operation can overflow, and not
+  otherwise. On the uint32 path width exactly 32 needs care, since `1u <<< 32` is `1u`.
+
+### The Fable-specific part
+
+`EvalCompiled` indexes step arrays through `getA`/`setA`, which are raw JS indexing under Fable and
+ordinary checked indexing under .NET. This is not a micro-optimisation: profiling the app found
+fable-library's `item`/`setItem` taking **70%** of all simulation time, because an `arr[i]` on a
+local binding compiles to a bounds-checked call. `EvalReference` escapes it by accident, writing
+through a property chain, which Fable emits as a raw index.
+
+Every index involved is either a step index, below `MaxArraySize` by construction, or a
+multiplexer select, kept in range by the masking invariant. On a port to .NET the `#else` branch
+is already plain indexing, so the shim disappears rather than needing to be unpicked.
+
+## How a simulation is checked
+
+Three layers, in increasing breadth:
+
+- `ComponentSemantics.fs` — each component type against an independent reference, exhaustively at
+  small widths; `Properties.fs` drives the >32-bit paths with FsCheck.
+- `GoldenModel.fs` `golden …` — whole fixture projects, every output on every cycle, against a
+  stored file.
+- `GoldenModel.fs` `reducers agree …` — **two simulations of the same design, one driven through
+  `EvalReference` and one through the installed reducers, compared output by output.** This is what
+  makes converting another component type to a compiled reducer a safe change. Adding a reducer
+  without it is not.
+
+## Measuring it
+
+Simulation speed must be measured **in the app**, not under .NET. The two runtimes disagreed by a
+factor of four on the same change during the work that produced this layout, and the .NET number
+was the misleading one: it made a change look like a 5x win that was worth 1.2x in Chromium.
+
+What worked:
+
+- Drive the app over the DevTools protocol (`scripts/inspect-canvas.js` and the CDP directly).
+  `Profiler` gives self time per function; `HeapProfiler.startSampling` gives allocation by site.
+- **Check the design is actually computing.** The `5eratosthenes` demo's `sievesmall` program
+  finishes in well under 25,000 cycles and then spins in a self-jump; timing it measures a halted
+  CPU. Use the large `sieve` program, and confirm activity — RAM words written, distinct values
+  taken by clocked components — rather than assuming.
+- **Time the same work every repetition.** The sieve's cost varies by phase, so successive windows
+  of one long run measure different things. Build a fresh simulation per measurement and time the
+  first N cycles.
+- **Median, not minimum.** The distribution is a tight cluster with occasional 2x-fast outliers.
+- Steady state allocates about 1 byte per clock. If a change makes the loop allocate, that is a
+  bug in the change.
+
+## Known debt
+
+Roughly in order of how much it costs.
+
+**`EvalAlgebraic` duplicates `EvalReference`.** ~2,500 lines expressing one set of component
+semantics twice, kept in step only by discipline. The build path duplicates with it:
+`orderCombinationalComponents`/`…FData`, `checkAndValidate`/`…FData`,
+`buildFastSimulation`/`…FData` differ only in which reducer is called and which array is
+initialised. Parameterising the build path on a small `Evaluator` record would delete the twins;
+the indirect call would land on the build path only, and the run loop must keep calling
+`fc.ReduceComb` directly or the dispatch this design removes comes straight back.
+
+**RAM is still on `EvalReference`.** Not because of the reducer but because of the state: a `Map`
+keyed by `bigint`, written every step for the waveform viewer, plus a `RamState` allocation per
+step whether or not anything is written. On the sieve this is ~11% of CPU and essentially all
+remaining allocation. Fixing it means changing that representation, which touches `FastExtract`
+and `WaveSimRams`. A mutable read cache alongside the map is not a shortcut — it desynchronises
+when the simulation restarts or replays through the circular buffer.
+
+**`FastComponent` carries five unrelated concerns**: step data, the reducers, ordering scratch
+(`Touched`, `NumMissingInputValues`, `DrivenComponents`), naming (`FullName`, `SimSheetName`,
+`SimSheetNamePath`, `SheetName`, `FLabel`) and Verilog output names. Only the first two are needed
+once the build is over. The ordering scratch is the easy one — it is build-only state on a hot
+record and could live in a table inside `FastOrder`.
+
+**The façade is notional.** `Simulator.fs` is nominally the entry point, but twelve modules
+outside `Simulator/` reach into `FastRun`, `FastExtract`, `FastCreate` and the evaluators. Some of
+that is legitimate: the waveform viewer needs bulk access to step arrays and routing it through a
+narrow API would mean copying. The honest position is two supported entry points — `Simulator` for
+run control, `FastExtract` for reading results — and nothing outside `Simulator/` touching
+`FastCreate`, `FastOrder`, `FastBuild` or the evaluators.
+
+**`GraphBuilder` defines its own `extractBit`/`packBit`,** duplicating `EvalKernel`'s.
+
+**The per-component loop scaffolding** — `Array.iter` with a closure per component — is around a
+fifth of run time on the sieve. It was left alone deliberately: the ways to remove it either spread
+the unchecked-indexing shim out of `EvalCompiled`, or add a precomputed flat array of reducers that
+duplicates `FClockedComps`/`FOrderedComps` and must be kept in step with them. Both are better
+decided as part of a rewrite of the execution layer than retrofitted.

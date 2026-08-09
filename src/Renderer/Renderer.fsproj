@@ -66,6 +66,9 @@
     <Compile Include="Simulator\FastSim\EvalReference.fs" />
     <Compile Include="Simulator\FastSim\EvalCompiled.fs" />
     <Compile Include="Simulator\FastSim\EvalAlgebraic.fs" />
+    <Compile Include="Simulator\FastSim\FastOrder.fs" />
+    <Compile Include="Simulator\FastSim\FastValidate.fs" />
+    <Compile Include="Simulator\FastSim\FastBuild.fs" />
     <Compile Include="Simulator\FastSim\FastRun.fs" />
     <Compile Include="Simulator\FastSim\FastExtract.fs" />
     <Compile Include="Simulator\Simulator.fs" />

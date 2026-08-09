@@ -3,6 +3,7 @@ open CommonTypes
 open TimeHelpers
 open SimGraphTypes
 open SimTypes
+open FastBuild
 open TruthTableTypes
 open SynchronousUtils
 open NumberHelpers
@@ -163,7 +164,7 @@ let truthTable
         if isRegeneration then 
             simData
         else
-            match FastRun.buildFastSimulationFData 2 ""  simData.Graph with
+            match FastBuild.buildFastSimulationFData 2 ""  simData.Graph with
             | Ok fs -> 
                 {simData with FastSim = fs}
             | _ -> 

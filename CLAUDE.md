@@ -62,6 +62,13 @@ list in `Main.fs`.
 **Canvas is not the simulation graph.** `CanvasExtractor.fs` bridges them, stripping visual layout
 to produce the electrical graph. Treating the two as interchangeable is the most common mistake.
 
+**The fast simulator has three evaluators of the same component semantics** — `EvalReference` (the
+specification), `EvalCompiled` (per-component reducers built when the simulation is built) and
+`EvalAlgebraic` (the `FData` backend) — over a shared `EvalKernel`. Before changing any of them,
+read [docs/dev/simulatorStructure.md](docs/dev/simulatorStructure.md): it has the layering, the two
+invariants a compiled reducer depends on, how the three are held to agree, and how to measure
+simulation speed without being misled (measure in the app, not under .NET).
+
 **Component creation flows across four files** in this order: `CatalogueView.fs` (user picks a
 type) → `Sheet.fs` (mouse placement) → `Symbol.fs` (visual representation and ports) →
 `CanvasExtractor.fs` (simulation node).

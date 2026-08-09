@@ -21,6 +21,7 @@ open SimulationView
 open SimGraphTypes
 open SimTypes
 open SheetCreator
+open FastBuild
 open FastRun
 open GraphBuilder
 open Node.Api

@@ -9,6 +9,7 @@ module Simulator
 open CommonTypes
 open SimGraphTypes
 open SimTypes
+open FastBuild
 open SynchronousUtils
 open GraphBuilder
 open GraphMerger
@@ -213,7 +214,7 @@ let startCircuitSimulation
     | Error e -> Error e
     | Ok graph ->
         try
-            match FastRun.buildFastSimulation simulationArraySize diagramName graph with
+            match FastBuild.buildFastSimulation simulationArraySize diagramName graph with
             | Ok fs ->
                 let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
                 let components, _ = canvasState
@@ -265,7 +266,7 @@ let startCircuitSimulationFData
             | Some err -> Error err
             | None ->
                 try
-                    match FastRun.buildFastSimulationFData simulationArraySize diagramName graph with
+                    match FastBuild.buildFastSimulationFData simulationArraySize diagramName graph with
                     | Ok fs ->
                         let fs = saveStateInSimulation canvasState diagramName loadedDependencies fs
 

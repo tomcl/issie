@@ -11,6 +11,7 @@ open CommonTypes
 open SimGraphTypes
 open SimTypes
 open Helpers
+open FastBuild
 open FastRun
 open NumberHelpers
 

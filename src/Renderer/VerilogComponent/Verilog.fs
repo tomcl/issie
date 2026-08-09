@@ -5,6 +5,7 @@ open SimGraphTypes
 open SimTypes
 open SynchronousUtils
 open EEExtensions
+open FastBuild
 open FastRun
 open Helpers
 open NumberHelpers

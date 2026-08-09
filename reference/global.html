@@ -406,6 +406,72 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="AppMessages">
+              <a href="/issie/reference/global-appmessages.html">
+                AppMessages
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:AppMessages`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:AppMessages\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/AppMessages.fs#L43-43" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <pre> The words Issie says to the user, where they are long enough to be worth reading as prose.
+
+ WHAT IS HERE. The Info window's four written tabs, the waveform simulator's five help panels,
+ the memory help, the twenty field explanations in the Properties pane, and the confirmation
+ popups whose body is several sentences rather than one - thirty-five messages, about 25,000
+ characters. They were spread through the view functions that show them, written as React
+ element trees with the words threaded between `str` and `bSpan` and `li` - fine to render and
+ very hard to read, which is a problem for text whose only job is to read well. Written as
+ markdown here, the whole of Issie's long-form help can be read end to end and reviewed as
+ writing.
+
+ WHAT IS NOT HERE, and should not be moved in.
+
+ - Short labels, button captions and headings. A caption is easier to judge beside the button it
+   sits on than in a list of thirty other strings.
+ - The Catalogue's component tooltips. They are short, they are one per component, and each sits
+   beside the component type it describes, which is what makes them easy to keep true.
+ - One-line confirmation bodies - "The current sheet has unsaved changes." A sentence that short
+   belongs with the buttons it is explaining.
+ - `failwithf` and `Log` messages. They are addressed to whoever is maintaining Issie, not to
+   the user, and belong at the point that fails.
+ - Anything assembled from a design: the components in a combinational loop, the ports of a
+   mismatched instance. The sentence around such a list can live here; the list cannot.
+ - The Keyboard Shortcuts tab, which is generated from the shortcut table so that it cannot
+   drift from the keys that actually fire.
+
+ THE RISK THIS RUNS. Text kept away from the code that shows it goes stale - Issie has had that
+ exact bug, a help menu item whose name had drifted from the panel it opened, so that choosing
+ it said "Feature not explained". What limits it is that only the words moved: which message to
+ show, and when, stays at the point that shows it, so a message cannot be reached by a route
+ this module knows nothing about. Every entry also carries a comment saying what it is and where
+ it appears, which is what makes an entry that no longer matches its use site noticeable while
+ reading.
+
+ That is weaker than a check. `MarkdownTests` reads every message here and fails on one that
+ will not render, but nothing yet fails on an entry that has quietly stopped being used, or on a
+ comment that has stopped being true. Both would be worth adding - the first is a source scan
+ for each entry's name, of the kind `SourceHygiene` already does for printf.
+
+ Markdown is rendered by `Markdown.render` - see that module for the subset supported. Tooltips
+ are the exception: they are drawn by CSS from a `data-tooltip` attribute, which can hold text
+ and nothing else, so tooltip entries are plain sentences with no markup.</pre>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="BlockHelpers">
               <a href="/issie/reference/global-blockhelpers.html">
                 BlockHelpers
@@ -1708,6 +1774,59 @@
             </a>
             <p class="fsdocs-summary">
               
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="Markdown">
+              <a href="/issie/reference/global-markdown.html">
+                Markdown
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Markdown`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Markdown\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/Markdown.fs#L28-28" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               A small markdown renderer for Issie's in-app help.
+
+ Issie's longer help text - the Info window, the waveform simulator's help panels, the bodies of
+ confirmation popups - used to be written as React element trees: `str` and `bSpan` and `li`
+ interleaved with the words, several hundred lines of it. Read as prose it was unreadable, which
+ is a problem for text whose whole job is to read well. It is now written as markdown in
+ AppMessages and rendered here.
+
+ The subset is not a guess: it is what that text was already doing, counted. Headings, bold,
+ italic, inline code, links, bullet and numbered lists, and tables - which is core GitHub
+ markdown with nothing left over. There are no images and no nested lists, so there is no
+ support for them; a line that tries will render as its own text rather than silently vanish.
+
+ TWO THINGS THIS DELIBERATELY DOES NOT DO.
+
+ It does not produce an HTML string. Rendering markdown by handing HTML to
+ `dangerouslySetInnerHTML` is the usual shortcut, and in a renderer with node integration, for
+ messages that interpolate sheet names the user chose, it is a bad trade. `render` builds React
+ elements, so there is no path from message text to executed markup.
+
+ It does not open links itself. A markdown link becomes an anchor with an `onClick` supplied by
+ the caller, because in Electron an ordinary `href` navigates the application window away from
+ Issie. Keeping the handler out here also keeps this module free of Electron and of anything
+ above it in compile order.
+
+ `parse` is pure and returns data, so the tests can read every message in AppMessages under
+ plain .NET without a browser. `render` is the only part that needs one.
             </p>
           </div>
         </td>

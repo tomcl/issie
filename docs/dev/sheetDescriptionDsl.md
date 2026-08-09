@@ -102,9 +102,11 @@ process. Three things had to be true for that, and now are:
 - **`.ldgm` encoding.** Fable writes it with the vendored SimpleJson and .NET with `Thoth.Json.Net`.
   The two disagree about discriminated unions — Thoth writes an array, SimpleJson a single-key
   object — but an `.ldgm` holds none: a record, a string and a list of strings, which both encode
-  the same way. The `.dgm` body inside it does hold unions, and that direction works because
-  SimpleJson's *reader* accepts either encoding. So .NET writes what Issie reads; the reverse is
-  not true, and `tryReadComponentFile` is the only part that has a Fable-only path.
+  the same way. The `.dgm` body inside it does hold unions, and both directions work: SimpleJson's
+  reader accepts either encoding, and on .NET `Common/SimpleJsonDotNet.fs` reads SimpleJson's.
+
+Each side therefore reads what the other writes. It was one-way until August 2026 — .NET could
+write a sheet Issie opened, but not open one Issie had written.
 
 `SheetDescriptionTests.fs` writes an `.ldgm` this way and reads it back, with nothing running.
 

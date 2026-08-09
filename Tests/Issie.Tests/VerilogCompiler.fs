@@ -49,7 +49,12 @@ let parseVerilog (source: string) : Result<VerilogTypes.VerilogInput * int list,
         p.WaitForExit()
         if p.ExitCode <> 0 then
             failtestf "node run_parser.mjs failed (%d): %s" p.ExitCode stderr
-        let envelope = SimpleJsonFormat.deserialise<ParseEnvelope> stdout
+        // the parser prints plain JS-shaped JSON, which the reflective reader written for
+        // SimpleJson's encoding also reads
+        let envelope =
+            match SimpleJsonDotNet.tryDeserialise<ParseEnvelope> stdout with
+            | Ok envelope -> envelope
+            | Error msg -> failtestf "could not read run_parser.mjs output: %s\n%s" msg stdout
         match envelope.Ok, envelope.Err with
         | Some ast, _ ->
             Ok(ast, envelope.NewLinesIndex |> Option.defaultValue [||] |> Array.toList)

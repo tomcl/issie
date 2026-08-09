@@ -136,6 +136,36 @@ let tests =
             Expect.equal (FilesIO.baseName path) "adder.dprj" "the marker takes the folder's name"
         }
 
+        // Every .dgm that exists was written by the app, that is by Fable.SimpleJson, whose
+        // encoding of unions and options Thoth cannot read - so for a long time no sheet at all
+        // could be opened outside Electron. This is what holds that open: the shipped demos, read
+        // by the production loader, with nothing running.
+        test "FilesIO reads every demo project's sheets under .NET" {
+            let demosDir =
+                System.IO.Path.GetFullPath(
+                    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos"))
+            let projects = System.IO.Directory.GetDirectories demosDir |> Array.sort
+            Expect.isGreaterThan projects.Length 0 $"no demo projects under {demosDir}"
+            projects
+            |> Array.iter (fun projectPath ->
+                let project = System.IO.Path.GetFileName projectPath
+                match FilesIO.loadAllComponentFiles projectPath with
+                | Error msg -> failtest $"{project}: {msg}"
+                | Ok statuses ->
+                    Expect.isGreaterThan statuses.Length 0 $"{project} loaded no sheets"
+                    statuses
+                    |> List.iter (fun status ->
+                        let ldc =
+                            match status with
+                            | FilesIO.OkComp ldc
+                            | FilesIO.OkAuto ldc
+                            | FilesIO.Resolve(ldc, _) -> ldc
+                        // a decoder that quietly produced an empty canvas would pass a mere
+                        // "it did not throw" check
+                        Expect.isNonEmpty (fst ldc.CanvasState)
+                            $"{project}/{ldc.Name} loaded with no components"))
+        }
+
         test "stateToJsonString round-trips a canvas through jsonStringToState" {
             let inComp = makeComp "in0" 0 1 (Input1(3, None)) "I0"
             let dut = makeComp "not" 1 1 (NbitsNot 3) "N1"

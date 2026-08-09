@@ -100,6 +100,20 @@ open System.Text.RegularExpressions
             | e ->
                 Error $"JSON serialisation of the sheet failed, so it was not saved: {e.Message}"
 
+        #if !FABLE_COMPILER
+        /// Read one of the sheet formats under .NET, where SimpleJson - which is what the app uses,
+        /// and so what wrote almost every .dgm in existence - cannot run. SimpleJsonDotNet reads
+        /// those; Thoth is kept as a second attempt because stateToJsonString writes with Thoth
+        /// when it is itself running under .NET, so a sheet written by the tests is in that format.
+        let inline private decodeSaved< ^T> (jsonString: string) : Result< ^T, string> =
+            match SimpleJsonDotNet.tryDeserialise< ^T> jsonString with
+            | Ok state -> Ok state
+            | Error simpleJsonMsg ->
+                match Decode.Auto.fromString< ^T>(jsonString, extra = extraCoder) with
+                | Ok state -> Ok state
+                | Error thothMsg -> Error $"not SimpleJson ({simpleJsonMsg}); not Thoth ({thothMsg})"
+        #endif
+
         /// NB tryParseNativeAs, not tryParseAs. Both are SimpleJson and both end in the same
         /// AST-to-value conversion; they differ only in how the AST is built. tryParseAs uses
         /// Fable.Parsimmon parser combinators over the whole file and measured ~8x slower than the
@@ -122,13 +136,13 @@ open System.Text.RegularExpressions
                             Log.error $"could not parse saved JSON ({jsonString.Length} chars): {str}"
                             Error str)
             #else
-            match Decode.Auto.fromString<LegacyCanvasState>(jsonString, extra = extraCoder) with
+            match decodeSaved<LegacyCanvasState> jsonString with
             | Ok state -> Ok (CanvasOnly state)
             | Error _ ->
-                match Decode.Auto.fromString<SavedInfo>(jsonString, extra = extraCoder) with
+                match decodeSaved<SavedInfo> jsonString with
                 | Ok state -> Ok state
                 | Error str ->
-                    match Decode.Auto.fromString<SavedCanvasUnknownWaveInfo<obj>>(jsonString, extra = extraCoder) with
+                    match decodeSaved<SavedCanvasUnknownWaveInfo<obj>> jsonString with
                     | Ok (SavedCanvasUnknownWaveInfo.NewCanvasWithFileWaveSheetInfoAndNewConns(cState,_,sheetInfo,time)) ->
                         Ok <| NewCanvasWithFileWaveSheetInfoAndNewConns(cState,None,sheetInfo,time)
                     | Error str ->

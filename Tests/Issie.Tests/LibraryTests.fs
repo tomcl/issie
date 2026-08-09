@@ -61,6 +61,38 @@ let tests =
                 "getSheetTrees, which everything else uses, shows them"
         }
 
+        // Materialising a library component is "write the body out as a .dgm, then load it with
+        // the ordinary loader". Both halves now run with nothing running, which they did not while
+        // the .dgm reader was Fable-only - so a shipped component can be checked here rather than
+        // by clicking through the catalogue.
+        test "every shipped library component's sheet loads under .NET" {
+            let librariesDir =
+                System.IO.Path.GetFullPath(
+                    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "libraries"))
+            let components =
+                System.IO.Directory.GetFiles(librariesDir, "*.ldgm", System.IO.SearchOption.AllDirectories)
+                |> Array.sort
+            Expect.isGreaterThan components.Length 0 $"no .ldgm files under {librariesDir}"
+            components
+            |> Array.iter (fun path ->
+                match ComponentLibraries.tryReadComponentFile path with
+                | Error msg -> failtest msg
+                | Ok(header, body) ->
+                    let folder =
+                        System.IO.Path.Combine(
+                            System.IO.Path.GetTempPath(), $"issie-lib-{System.Guid.NewGuid()}")
+                    System.IO.Directory.CreateDirectory folder |> ignore
+                    try
+                        let dgm = System.IO.Path.Combine(folder, header.Name + ".dgm")
+                        System.IO.File.WriteAllText(dgm, body)
+                        match FilesIO.tryLoadComponentFromPath dgm with
+                        | Error msg -> failtest $"{header.Name}: {msg}"
+                        | Ok ldc ->
+                            Expect.isNonEmpty (fst ldc.CanvasState) $"{header.Name} has no components"
+                    finally
+                        try System.IO.Directory.Delete(folder, true) with _ -> ())
+        }
+
         test "a library component opened for viewing appears without its own innards" {
             // What the right-click "View library component" item asks for: this sheet and no
             // more. A component built from other library components keeps them shut, each

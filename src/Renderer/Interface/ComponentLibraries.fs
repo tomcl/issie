@@ -113,7 +113,8 @@ let tryReadComponentFile (path: string) : Result<LibraryFile, string> =
         #else
         // Thoth on the .NET side, as for writing. An .ldgm holds no discriminated unions - a
         // record, a string, and a list of strings - which is the one case where the two libraries
-        // agree, so a file written by either can be read by either.
+        // agree, so a file written by either can be read by either. The body is not decoded here,
+        // so its own encoding does not matter until it is loaded as a sheet.
         let parsed =
             Thoth.Json.Net.Decode.Auto.fromString<LibraryFile> contents
         #endif
@@ -138,9 +139,9 @@ let writeComponentFile (libPath: string) (header: LibraryHeader) (body: string) 
     #else
     // SimpleJson does not run on .NET - its converter is JS all the way down - so the .NET side
     // writes with Thoth, as the .dgm path does. The two disagree about unions, but not about
-    // anything in an .ldgm: a tuple is an array and a record is an object in both. Fable reads
-    // what .NET writes because SimpleJson's reader takes either union encoding; the reverse does
-    // not hold, which is why tryReadComponentFile is still Fable only.
+    // anything in an .ldgm: a tuple is an array and a record is an object in both, so either side
+    // reads what the other wrote. The .dgm body inside does hold unions; reading that on .NET is
+    // SimpleJsonDotNet's job.
     let json = Thoth.Json.Net.Encode.Auto.toString (0, file)
     #endif
     writeFile (componentPath libPath header.Name) json

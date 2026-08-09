@@ -60,13 +60,13 @@ simulation, parameter resolution, persistence, the draw block and UI-module help
 | `KeyBindingTests.fs` | 7 | The shortcut table: every `ShortcutId` bound, nothing shadowed, nothing that can never fire — all invisible at runtime otherwise. |
 | `DrawBlockTests.fs` | 5 | Symbols built and wires routed with nothing running, plus the .NET text-width reconstruction checked against widths recorded from a real browser. |
 | `GoldenModel.fs` | 3 | Whole fixture projects simulated for many cycles, every output and clocked value compared against a stored golden file. |
-| `LibraryTests.fs` | 2 | What a library sheet shows of itself in the sheet trees. |
-| `PersistenceTests.fs` | 1 | A canvas through the `.dgm` save path and back in through the load path. |
+| `LibraryTests.fs` | 4 | What a library sheet shows of itself in the sheet trees, and every shipped `.ldgm` read and its sheet loaded. |
+| `PersistenceTests.fs` | 10 | Project names and directories, the recent list, a canvas through the `.dgm` save path and back in through the load path, and every demo project loaded by `FilesIO`. |
 
-Support files, which hold no tests: `TestFixtures.fs` loads fixture projects from disk (it
-reimplements the few file primitives it needs, because `FilesIO` initialisation requires Electron);
-`CanvasBuilder.fs` builds canvases, loaded components and symbols programmatically; `Main.fs` is the
-entry point and the list of test groups.
+Support files, which hold no tests: `TestFixtures.fs` loads fixture projects from disk, through
+`FilesIO` exactly as the app does — so a fixture that loads is itself evidence the production
+loader works headlessly; `CanvasBuilder.fs` builds canvases, loaded components and symbols
+programmatically; `Main.fs` is the entry point and the list of test groups.
 
 ## Adding a test
 

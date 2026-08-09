@@ -137,17 +137,13 @@ What worked:
 
 - Drive the app over the DevTools protocol (`scripts/inspect-canvas.js` and the CDP directly).
   `Profiler` gives self time per function; `HeapProfiler.startSampling` gives allocation by site.
-- **`FilesIO` cannot read a `.dgm` under .NET**, so `loadAllComponentFiles` fails headlessly with
-  ``Error at: `$` `` on any sheet. Not for want of a .NET branch: `Helpers.jsonStringToState` has
-  one, and it uses Thoth's `Decode.Auto`. The problem is that Thoth's reader cannot read what the
-  app's writer produced - Thoth encodes a union as an array and the vendored SimpleJson as a
-  single-key object, the asymmetry set out in [sheetDescriptionDsl.md](sheetDescriptionDsl.md) -
-  and every `.dgm` in the repo was written by the app. Writing a `.dgm` from .NET does work.
-  `Tests/Issie.Tests/TestFixtures.loadLoadedComponent` is the reader that works headlessly: its
-  `SimpleJsonFormat` module is a reflection-based Newtonsoft decoder of SimpleJson's encoding,
-  written for exactly this. Making `FilesIO` work under .NET means moving that module into the
-  Renderer project behind `#if !FABLE_COMPILER` and calling it from `jsonStringToState`'s `#else`
-  branch; Newtonsoft is already available there transitively through `Thoth.Json.Net`.
+- **`FilesIO.loadAllComponentFiles` reads a project headlessly**, so a benchmark or a script can
+  open the demos with nothing running. It could not until August 2026: `Helpers.jsonStringToState`
+  had a .NET branch, but it used Thoth's `Decode.Auto`, and Thoth cannot read what the app's writer
+  produced - Thoth encodes a union as an array and the vendored SimpleJson as a single-key object -
+  so every `.dgm` in existence failed with ``Error at: `$` ``. `Common/SimpleJsonDotNet.fs` now
+  reads SimpleJson's encoding by reflection, and `jsonStringToState` tries it before Thoth. Sheets
+  the .NET side wrote itself are Thoth-encoded, which is why both are tried.
 - **Check the design is actually computing.** The `5eratosthenes` demo's `sievesmall` program
   finishes in well under 25,000 cycles and then spins in a self-jump; timing it measures a halted
   CPU. Use the large `sieve` program, and confirm activity — RAM words written, distinct values

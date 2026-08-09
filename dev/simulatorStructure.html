@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="How the simulator is put together
+" />
+    <meta property="og:url" content="/issie/dev/simulatorStructure.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="How the simulator is put together
+">
+    
+    <title>How the simulator is put together
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterReviewFindings.html">
+    Review findings: parameter, library and simulator code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystemPlan.html">
+    Parameter System: Planned Redesign
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
+    Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/userFriendlinessReview.html">
+    User-friendliness review
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="How-the-simulator-is-put-together" class="anchor" href="#How-the-simulator-is-put-together">How the simulator is put together</a></h1>
+<p>A map of <code>src/Renderer/Simulator</code>, what each layer is responsible for, and which of the seams are
+deliberate. Written for someone about to change the fast simulator rather than someone using it.</p>
+<h2><a name="The-two-graphs-and-the-bridge" class="anchor" href="#The-two-graphs-and-the-bridge">The two graphs, and the bridge</a></h2>
+<p>Issie has two representations of a circuit and the most common mistake is treating them as one.</p>
+<ul>
+<li><strong>Canvas state</strong> — <code>Component list * Connection list</code>, what a <code>.dgm</code> holds, full of geometry.</li>
+<li><strong>The simulation graph</strong> — the electrical structure, no layout.</li>
+</ul>
+<p><code>CanvasExtractor.fs</code> is the bridge, and <code>CanvasExtractor.signatureOfInstance</code> is the only place
+that works out a custom component instance's port widths. A parameterised sheet has a <em>family</em> of
+signatures, one per set of bindings, so a port width is a fact about the instance and not about
+the sheet.</p>
+<h2><a name="Layers-in-compile-order" class="anchor" href="#Layers-in-compile-order">Layers, in compile order</a></h2>
+<p>F# compile order is linear, so the order in <code>Renderer.fsproj</code> <strong>is</strong> the dependency layering: a
+module can only use what is above it, and an illegal dependency is a compile error rather than a
+convention. The order below is chosen for that reason.</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>SimGraphTypes.fs</code></p></td>
+<td><p>the simulation graph, value representations (<code>FastData</code>, <code>FData</code>), bit-extraction helpers</p></td>
+</tr>
+<tr class="even">
+<td><p><code>SimTypes.fs</code></p></td>
+<td><p><code>IOArray</code>, <code>StepIndex</code>, <code>FastComponent</code>, <code>FastSimulation</code></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>NumberHelpers.fs</code></p></td>
+<td><p>number formatting and conversion</p></td>
+</tr>
+<tr class="even">
+<td><p><code>CanvasExtractor.fs</code></p></td>
+<td><p>canvas → graph, and instance signatures</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>SynchronousUtils.fs</code>, <code>CanvasStateAnalyser.fs</code>, <code>GraphBuilder.fs</code>, <code>GraphMerger.fs</code>, <code>SimulationGraphAnalyser.fs</code></p></td>
+<td><p>building and checking the graph</p></td>
+</tr>
+<tr class="even">
+<td><p><code>FastSim/…</code></p></td>
+<td><p>the fast simulator, below</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Simulator.fs</code></p></td>
+<td><p>entry point for starting a simulation</p></td>
+</tr>
+</tbody>
+</table>
+
+<h3><a name="FastSim" class="anchor" href="#FastSim">FastSim</a></h3>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">FastCreate</span>      <span class="id">allocate</span> <span class="id">components</span> <span class="k">and</span> <span class="id">step</span> <span class="id">arrays</span><span class="pn">,</span> <span class="id">link</span> <span class="id">ports</span> <span class="k">to</span> <span class="id">driver</span> <span class="id">arrays</span>
+<span class="id">EvalKernel</span>      <span class="id">the</span> <span class="id">primitives</span> <span class="id">every</span> <span class="id">evaluator</span> <span class="id">is</span> <span class="id">built</span> <span class="id">from</span>
+<span class="id">EvalReference</span>   <span class="id">the</span> <span class="k">match</span> <span class="id">on</span> <span class="id">component</span> <span class="k">type</span> <span class="o">-</span> <span class="id">the</span> <span class="id">executable</span> <span class="id">specification</span>
+<span class="id">EvalCompiled</span>    <span class="id">per</span><span class="o">-</span><span class="id">component</span> <span class="id">reducers</span><span class="pn">,</span> <span class="id">built</span> <span class="id">once</span> <span class="k">when</span> <span class="id">the</span> <span class="id">simulation</span> <span class="id">is</span> <span class="id">built</span>
+<span class="id">EvalAlgebraic</span>   <span class="id">the</span> <span class="id">FData</span> <span class="id">backend</span><span class="pn">,</span> <span class="k">of</span> <span class="id">which</span> <span class="id">truth</span> <span class="id">tables</span> <span class="id">are</span> <span class="id">one</span> <span class="id">user</span>
+<span class="id">FastOrder</span>       <span class="id">the</span> <span class="id">order</span> <span class="id">combinational</span> <span class="id">components</span> <span class="id">must</span> <span class="id">be</span> <span class="id">reduced</span> <span class="k">in</span>
+<span class="id">FastValidate</span>    <span class="id">checks</span> <span class="id">on</span> <span class="id">a</span> <span class="id">built</span> <span class="id">simulation</span>
+<span class="id">FastBuild</span>       <span class="id">assemble</span><span class="pn">:</span> <span class="id">arrays</span><span class="pn">,</span> <span class="id">order</span><span class="pn">,</span> <span class="id">validate</span><span class="pn">,</span> <span class="id">install</span> <span class="id">reducers</span>
+<span class="id">FastRun</span>         <span class="id">the</span> <span class="id">run</span> <span class="id">loop</span>
+<span class="id">FastExtract</span>     <span class="id">read</span> <span class="id">results</span> <span class="id">out</span>
+</code></pre>
+<h2><a name="The-three-evaluators" class="anchor" href="#The-three-evaluators">The three evaluators</a></h2>
+<p>All three compute the same component semantics. They differ only in what a value is and when the
+work is decided.</p>
+<p>*<em><code>EvalReference</code>*</em> is one <code>match</code> over component type and <code>UseBigInt</code>, evaluated per component
+per clock step. It is the specification: when the other two disagree with it, they are wrong.
+Nothing should be deleted from it as other evaluators grow — it is what they are checked against.</p>
+<p>*<em><code>EvalCompiled</code>*</em> builds a closure per component when the simulation is built, which has already
+resolved everything that cannot change: the component's type, whether it is on the uint32 or
+bigint path, its bus masks, and which step arrays its ports live in. Its body is only what differs
+from step to step. <code>reducerFor</code> returns <code>None</code> for a type it does not handle, and that component
+keeps <code>EvalReference</code>, so the file can be filled in a type at a time.</p>
+<p>*<em><code>EvalAlgebraic</code>*</em> is the <code>FData</code> backend, which carries algebraic values alongside data. It is a
+near-copy of <code>EvalReference</code> for a different value representation, and the two must move together.
+That duplication is the largest single piece of debt here — see below.</p>
+<h3><a name="Two-rules-depends-on" class="anchor" href="#Two-rules-depends-on">Two rules <code>EvalCompiled</code> depends on</a></h3>
+<ul>
+<li>
+<strong>Reducers capture step arrays.</strong> They must therefore be installed after every re-linking pass,
+including the one <code>addWavesToFastSimulation</code> does for custom components, and only for components
+that are actually reduced. <code>FastBuild.installReducers</code> runs last for this reason. Installing
+earlier would capture an array the simulation no longer uses, and the simulation would quietly
+compute the wrong signal.
+</li>
+<li>
+<strong>The masking invariant.</strong> Every value in a step array is already within its bus width. Readers
+never mask; a reducer masks its result exactly when its own operation can overflow, and not
+otherwise. On the uint32 path width exactly 32 needs care, since <code>1u &lt;&lt;&lt; 32</code> is <code>1u</code>.
+</li>
+</ul>
+<h3><a name="The-Fable-specific-part" class="anchor" href="#The-Fable-specific-part">The Fable-specific part</a></h3>
+<p><code>EvalCompiled</code> indexes step arrays through <code>getA</code>/<code>setA</code>, which are raw JS indexing under Fable and
+ordinary checked indexing under .NET. This is not a micro-optimisation: profiling the app found
+fable-library's <code>item</code>/<code>setItem</code> taking <strong>70%</strong> of all simulation time, because an <code>arr[i]</code> on a
+local binding compiles to a bounds-checked call. <code>EvalReference</code> escapes it by accident, writing
+through a property chain, which Fable emits as a raw index.</p>
+<p>Every index involved is either a step index, below <code>MaxArraySize</code> by construction, or a
+multiplexer select, kept in range by the masking invariant. On a port to .NET the <code>#else</code> branch
+is already plain indexing, so the shim disappears rather than needing to be unpicked.</p>
+<h2><a name="How-a-simulation-is-checked" class="anchor" href="#How-a-simulation-is-checked">How a simulation is checked</a></h2>
+<p>Three layers, in increasing breadth:</p>
+<ul>
+<li>
+<code>ComponentSemantics.fs</code> — each component type against an independent reference, exhaustively at
+small widths; <code>Properties.fs</code> drives the &gt;32-bit paths with FsCheck.
+</li>
+<li>
+<code>GoldenModel.fs</code> <code>golden …</code> — whole fixture projects, every output on every cycle, against a
+stored file.
+</li>
+<li>
+<code>GoldenModel.fs</code> <code>reducers agree …</code> — <strong>two simulations of the same design, one driven through
+<code>EvalReference</code> and one through the installed reducers, compared output by output.</strong> This is what
+makes converting another component type to a compiled reducer a safe change. Adding a reducer
+without it is not.
+</li>
+</ul>
+<h2><a name="Measuring-it" class="anchor" href="#Measuring-it">Measuring it</a></h2>
+<p>Simulation speed must be measured <strong>in the app</strong>, not under .NET. The two runtimes disagreed by a
+factor of four on the same change during the work that produced this layout, and the .NET number
+was the misleading one: it made a change look like a 5x win that was worth 1.2x in Chromium.</p>
+<p>What worked:</p>
+<ul>
+<li>
+Drive the app over the DevTools protocol (<code>scripts/inspect-canvas.js</code> and the CDP directly).
+<code>Profiler</code> gives self time per function; <code>HeapProfiler.startSampling</code> gives allocation by site.
+</li>
+<li>
+<strong>Check the design is actually computing.</strong> The <code>5eratosthenes</code> demo's <code>sievesmall</code> program
+finishes in well under 25,000 cycles and then spins in a self-jump; timing it measures a halted
+CPU. Use the large <code>sieve</code> program, and confirm activity — RAM words written, distinct values
+taken by clocked components — rather than assuming.
+</li>
+<li>
+<strong>Time the same work every repetition.</strong> The sieve's cost varies by phase, so successive windows
+of one long run measure different things. Build a fresh simulation per measurement and time the
+first N cycles.
+</li>
+<li><strong>Median, not minimum.</strong> The distribution is a tight cluster with occasional 2x-fast outliers.</li>
+<li>
+Steady state allocates about 1 byte per clock. If a change makes the loop allocate, that is a
+bug in the change.
+</li>
+</ul>
+<h2><a name="What-building-a-simulation-costs" class="anchor" href="#What-building-a-simulation-costs">What building a simulation costs</a></h2>
+<p>Compiled reducers move work from the run loop to the build, so the build is where to look for a
+regression. On <code>3cpu</code> (349 components, one 16-bit ROM), under .NET:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>whole <code>startCircuitSimulation</code></p></td>
+<td align="right"><p>16.0 ms</p></td>
+</tr>
+<tr class="even">
+<td><p>of which <code>installReducers</code></p></td>
+<td align="right"><p>0.38 ms (2.4%)</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>So the per-component reducers cost a low single-digit percentage of a build that is itself
+dominated by gathering and linking. It scales with component count, and with ROM <em>size</em> rather
+than ROM count: a ROM's lookup table is <code>2^AddressWidth</code> words, capped by
+<code>maxRomTableAddressWidth</code>, above which the component keeps the general path.</p>
+<p>One trap already sprung here: <code>reducerFor</code> takes no clocked/combinational flag, and must not
+acquire one it does not read. It had one, nothing used it, and <code>installReducers</code> therefore built
+every reducer twice — which for a ROM meant building and retaining two copies of its table. If a
+reducer is added that genuinely depends on the pass (the hybrid asynchronous RAM is the only
+candidate), the flag comes back and the caller must go back to two calls <em>for that component only</em>.</p>
+<h2><a name="Known-debt" class="anchor" href="#Known-debt">Known debt</a></h2>
+<p>Roughly in order of how much it costs.</p>
+<p>*<em><code>EvalAlgebraic</code> duplicates <code>EvalReference</code>.*</em> ~2,500 lines expressing one set of component
+semantics twice, kept in step only by discipline. The build path duplicates with it:
+<code>orderCombinationalComponents</code>/<code>…FData</code>, <code>checkAndValidate</code>/<code>…FData</code>,
+<code>buildFastSimulation</code>/<code>…FData</code> differ only in which reducer is called and which array is
+initialised. Parameterising the build path on a small <code>Evaluator</code> record would delete the twins;
+the indirect call would land on the build path only, and the run loop must keep calling
+<code>fc.ReduceComb</code> directly or the dispatch this design removes comes straight back.</p>
+<p><strong>RAM is still on <code>EvalReference</code>.</strong> Not because of the reducer but because of the state: a <code>Map</code>
+keyed by <code>bigint</code>, written every step for the waveform viewer, plus a <code>RamState</code> allocation per
+step whether or not anything is written. On the sieve this is ~11% of CPU and essentially all
+remaining allocation. Fixing it means changing that representation, which touches <code>FastExtract</code>
+and <code>WaveSimRams</code>. A mutable read cache alongside the map is not a shortcut — it desynchronises
+when the simulation restarts or replays through the circular buffer.</p>
+<p>*<em><code>FastComponent</code> carries five unrelated concerns*</em>: step data, the reducers, ordering scratch
+(<code>Touched</code>, <code>NumMissingInputValues</code>, <code>DrivenComponents</code>), naming (<code>FullName</code>, <code>SimSheetName</code>,
+<code>SimSheetNamePath</code>, <code>SheetName</code>, <code>FLabel</code>) and Verilog output names. Only the first two are needed
+once the build is over. The ordering scratch is the easy one — it is build-only state on a hot
+record and could live in a table inside <code>FastOrder</code>.</p>
+<p><strong>The façade is notional.</strong> <code>Simulator.fs</code> is nominally the entry point, but twelve modules
+outside <code>Simulator/</code> reach into <code>FastRun</code>, <code>FastExtract</code>, <code>FastCreate</code> and the evaluators. Some of
+that is legitimate: the waveform viewer needs bulk access to step arrays and routing it through a
+narrow API would mean copying. The honest position is two supported entry points — <code>Simulator</code> for
+run control, <code>FastExtract</code> for reading results — and nothing outside <code>Simulator/</code> touching
+<code>FastCreate</code>, <code>FastOrder</code>, <code>FastBuild</code> or the evaluators.</p>
+<p>*<em><code>GraphBuilder</code> defines its own <code>extractBit</code>/<code>packBit</code>,*</em> duplicating <code>EvalKernel</code>'s.</p>
+<p><strong>The per-component loop scaffolding</strong> — <code>Array.iter</code> with a closure per component — is around a
+fifth of run time on the sieve. It was left alone deliberately: the ways to remove it either spread
+the unchecked-indexing shim out of <code>EvalCompiled</code>, or add a precomputed flat array of reducers that
+duplicates <code>FClockedComps</code>/<code>FOrderedComps</code> and must be kept in step with them. Both are better
+decided as part of a rewrite of the execution layer than retrofitted.</p>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#How-the-simulator-is-put-together">
+      How the simulator is put together
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-two-graphs-and-the-bridge">
+      The two graphs, and the bridge
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Layers-in-compile-order">
+      Layers, in compile order
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#FastSim">
+      FastSim
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-three-evaluators">
+      The three evaluators
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-Fable-specific-part">
+      The Fable-specific part
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#How-a-simulation-is-checked">
+      How a simulation is checked
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Measuring-it">
+      Measuring it
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-building-a-simulation-costs">
+      What building a simulation costs
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Known-debt">
+      Known debt
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

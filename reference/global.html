@@ -142,6 +142,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
@@ -321,6 +327,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/verilogRoundTrip.html">
     Can ISSIE&#39;s Verilog output be fed back into its Verilog input?
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
 
   </a>
 </li>             
@@ -1255,6 +1267,134 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="EvalAlgebraic">
+              <a href="/issie/reference/global-evalalgebraic.html">
+                EvalAlgebraic
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:EvalAlgebraic`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:EvalAlgebraic\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/EvalAlgebraic.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+              
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="EvalCompiled">
+              <a href="/issie/reference/global-evalcompiled.html">
+                EvalCompiled
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:EvalCompiled`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:EvalCompiled\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/EvalCompiled.fs#L24-24" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <pre> Per-component reducers, chosen and bound once when the simulation is built.
+
+ fastReduce works out afresh, for every component of every clock step, things that were
+ settled when the simulation was built: which component type this is, whether it is on the
+ uint32 or the bigint path, which of its inputs are bigints, what its bus masks are, and
+ which arrays its ports live in. A reducer built here has all of that already: it closes
+ over the step arrays themselves and over the constants, and its body is only the work that
+ actually differs from step to step.
+
+ reducerFor returns None for a component type it does not handle, and the caller falls back
+ to fastReduce. So this file can be filled in a type at a time, and the fallback is always
+ the definition of what a reducer must do.
+
+ Two rules the closures depend on, both guaranteed by the caller (see installReducers):
+
+  - The step arrays captured here must be the ones the simulation actually uses. Reducers
+    are therefore installed after every re-linking pass, including the one
+    addWavesToFastSimulation does for custom components, and only for components that are
+    reduced. Capturing an array that is later re-pointed would silently simulate the wrong
+    signal.
+  - Values in the step arrays are already within their bus width (the masking invariant), so
+    a reducer masks its result exactly when its own operation can overflow, and reads
+    without masking. On the uint32 path a width of exactly 32 needs care: 1u <<< 32 is 1u.</pre>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="EvalKernel">
+              <a href="/issie/reference/global-evalkernel.html">
+                EvalKernel
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:EvalKernel`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:EvalKernel\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/EvalKernel.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+              
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="EvalReference">
+              <a href="/issie/reference/global-evalreference.html">
+                EvalReference
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:EvalReference`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:EvalReference\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/EvalReference.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+              
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="EvilHoverCache">
               <a href="/issie/reference/global-evilhovercache.html">
                 EvilHoverCache
@@ -1271,6 +1411,33 @@
               <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
             </div>
             <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/EvilHoverCache.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+              
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="FastBuild">
+              <a href="/issie/reference/global-fastbuild.html">
+                FastBuild
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:FastBuild`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:FastBuild\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastBuild.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
               <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
             </a>
             <p class="fsdocs-summary">
@@ -1336,49 +1503,22 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
-            <a name="FastReduce">
-              <a href="/issie/reference/global-fastreduce.html">
-                FastReduce
+            <a name="FastOrder">
+              <a href="/issie/reference/global-fastorder.html">
+                FastOrder
               </a>
             </a>
           </p>
         </td>
         <td class="fsdocs-entity-xmldoc">
           <div>
-            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:FastReduce`')">
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:FastOrder`')">
               <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
             </div>
-            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:FastReduce\'/>')">
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:FastOrder\'/>')">
               <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
             </div>
-            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastReduce.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
-              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-            </a>
-            <p class="fsdocs-summary">
-              
-            </p>
-          </div>
-        </td>
-      </tr>
-      <tr>
-        <td class="fsdocs-entity-name">
-          <p>
-            <a name="FastReduceTT">
-              <a href="/issie/reference/global-fastreducett.html">
-                FastReduceTT
-              </a>
-            </a>
-          </p>
-        </td>
-        <td class="fsdocs-entity-xmldoc">
-          <div>
-            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:FastReduceTT`')">
-              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-            </div>
-            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:FastReduceTT\'/>')">
-              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-            </div>
-            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastReduceTT.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastOrder.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
               <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
             </a>
             <p class="fsdocs-summary">
@@ -1406,6 +1546,33 @@
               <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
             </div>
             <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastRun.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+              
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="FastValidate">
+              <a href="/issie/reference/global-fastvalidate.html">
+                FastValidate
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:FastValidate`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:FastValidate\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/FastSim/FastValidate.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
               <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
             </a>
             <p class="fsdocs-summary">

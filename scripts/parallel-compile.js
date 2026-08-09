@@ -1,5 +1,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const { reportRefreshStaleOutput } = require('./refresh-stale-output');
+
+const root = path.join(__dirname, '..');
 
 console.log('Starting parallel compilation...');
 
@@ -44,6 +47,8 @@ const compileRenderer = new Promise((resolve, reject) => {
 Promise.all([compileMain, compileRenderer])
   .then(() => {
     console.log('✓ All compilations completed successfully');
+    // every output is current now, so anything that still looks old only has an old timestamp
+    reportRefreshStaleOutput([path.join(root, 'src', 'Main'), path.join(root, 'src', 'Renderer')]);
     process.exit(0);
   })
   .catch((error) => {

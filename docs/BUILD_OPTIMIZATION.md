@@ -31,16 +31,22 @@ Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file 
 
 ## What breaks it
 
-- **A stale `.fs.js` timestamp.** Fable only rewrites an output file whose *content* changed. If a
-  `.fs` file's mtime is refreshed without changing its emitted JS — a comment or warning-only
-  edit, a `git checkout`/rebase touching the file — its output stays older than it forever, and
-  that single file forces the full recompile on **every** startup. Find offenders (run in
-  `src/Renderer` and `src/Main`) and touch the listed outputs' `.fs.js` files:
+- **A stale `.fs.js` timestamp** — *now fixed automatically; this is what it was.* Fable rewrites
+  an output file only when its *content* changed, and the up-to-date check above is about
+  timestamps, so the two can disagree. A `.fs` whose mtime moves without its emitted JS changing —
+  a comment or warning-only edit, a `git checkout`, a rebase — leaves an output that is perfectly
+  current and still fails the check. **The recompile does not fix it**: nothing changed, so
+  nothing is written, so the next startup pays the full ~1 minute again, and so does the one after
+  that. Measured on this repo: one such file in `src/Renderer`, two consecutive full compiles,
+  the output never rewritten either time.
+
+  [`scripts/refresh-stale-output.js`](../scripts/refresh-stale-output.js) closes the loop by
+  bumping those timestamps after a successful compile, when every output is current by
+  construction. `dev.js` and `parallel-compile.js` both call it, and it prints what it touched. To
+  run it by hand, or on a directory of your own:
 
   ```bash
-  find . -name "*.fs" -not -path "./obj/*" | while read f; do
-    [ -f "$f.js" ] && [ ! "$f.js" -nt "$f" ] && echo "$f"
-  done
+  node scripts/refresh-stale-output.js [dir ...]
   ```
 
 - **Switching build modes.** `fable watch` implicitly adds the `DEBUG` define (this is what

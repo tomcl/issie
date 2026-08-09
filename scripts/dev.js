@@ -13,6 +13,7 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
+const { reportRefreshStaleOutput } = require('./refresh-stale-output');
 
 const root = path.join(__dirname, '..');
 const once = process.argv.includes('--once');
@@ -66,7 +67,13 @@ function onReady(p) {
   p.ready = true;
   readyCount += 1;
   console.log(`${p.color}[${p.name}]${reset} ready`);
-  if (readyCount === projects.length) startApp();
+  if (readyCount === projects.length) {
+    // Ready means either nothing needed compiling - so nothing can be stale - or the compile
+    // finished. Either way every generated file is current, and one that still looks older than
+    // its source would cost a full recompile on every future startup. See refresh-stale-output.js.
+    reportRefreshStaleOutput(projects.map((proj) => path.join(root, proj.dir)));
+    startApp();
+  }
 }
 
 for (const p of projects) {

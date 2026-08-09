@@ -22,11 +22,12 @@ npm version patch  # release (master only): sync Version.fs, commit, tag, push -
 There is no lint command; the F# compiler is the check.
 
 Fable skips recompiling (or in watch mode, starts the app before the silent background
-recompile) only when every `.fs.js` is strictly newer than its `.fs`. Two traps defeat that and
-force the full ~1-minute compile every time — see
-[docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md): a source touched without changing its
-emitted JS keeps a permanently stale `.fs.js` (fix by touching the output file), and watch mode
-adds the `DEBUG` define, so alternating `dev`/`dev:once`/`compile` recompiles on each switch.
+recompile) only when every `.fs.js` is strictly newer than its `.fs` — see
+[docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md). A source touched without changing its
+emitted JS used to keep a permanently stale `.fs.js`, since Fable rewrites an output only when its
+content changes; `scripts/refresh-stale-output.js` now bumps those after every compile. The
+remaining trap is that watch mode adds the `DEBUG` define, so alternating
+`dev`/`dev:once`/`compile` recompiles on each switch.
 
 **You can see what the running app is drawing.** `npm run dev` opens a DevTools-protocol port, and
 `scripts/inspect-canvas.js` reads the canvas through it — the whole draw block model serialised with

@@ -115,7 +115,7 @@ let goldenTest (projectName: string) (topSheet: string) (ticks: int) =
                 failtest $"Golden mismatch for {projectName}/{topSheet}:\n{diffs}"
     }
 
-/// Every component has two reducers: the one FastReducers builds for its type, which the
+/// Every component has two reducers: the one EvalCompiled builds for its type, which the
 /// simulation actually runs, and the general fastReduce, which is the definition of what that
 /// reducer must do. This drives two independent simulations of the same design, one through
 /// each, and requires that every output of every component agrees on every step held in the
@@ -135,8 +135,8 @@ let reducerAgreementTest (projectName: string) (topSheet: string) (ticks: int) =
 
         for tick in 1..ticks do
             let step = stepIndexOf viaGeneral.MaxArraySize tick
-            Array.iter (FastReduce.fastReduce step true) viaGeneral.FClockedComps
-            Array.iter (FastReduce.fastReduce step false) viaGeneral.FOrderedComps
+            Array.iter (EvalReference.fastReduce step true) viaGeneral.FClockedComps
+            Array.iter (EvalReference.fastReduce step false) viaGeneral.FOrderedComps
             viaGeneral.ClockTick <- tick
             Array.iter (fun (fc: FastComponent) -> fc.ReduceClocked step) viaInstalled.FClockedComps
             Array.iter (fun (fc: FastComponent) -> fc.ReduceComb step) viaInstalled.FOrderedComps

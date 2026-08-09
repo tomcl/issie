@@ -1,4 +1,4 @@
-﻿module FastReduceTT
+module EvalAlgebraic
 
 open CommonTypes
 open SimGraphTypes
@@ -6,11 +6,11 @@ open SimTypes
 open NumberHelpers
 open System
 open Helpers
-open FastReduce
+open EvalKernel
 
 //-----------------------------------------------------------------------------------------------------//
 //---------------------------------TRUTH TABLE SIMULATION FUNCTION-------------------------------------//
-//----------------------------------------FastReduceFData----------------------------------------------//
+//----------------------------------------EvalReferenceFData----------------------------------------------//
 //-----------------------------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------------------------//
 
@@ -18,7 +18,7 @@ open FastReduce
 /// and simulates using posibly algebraic data.
 /// Given the input port values for a component comp, work out its output in the same clock cycle.
 /// Used by TruthTable simulations, which use FData type that includes algebraic data.
-/// Because TruthTable simulations are only combinational the match statement is much simpler than normal FastReduce.
+/// Because TruthTable simulations are only combinational the match statement is much simpler than normal EvalReference.
 /// Clocked operations need not be implemented.
 let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool) (comp: FastComponent) : Unit =
 
@@ -205,7 +205,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     // NB CustomComponent is not needed since these are removed in the FastComponent
     // generation stage - being replaced by the relavant sheet logic.
     //
-    // MASKING INVARIANT: as in FastReduce, every Data value stored is already within its bus
+    // MASKING INVARIANT: as in EvalReference, every Data value stored is already within its bus
     // width, and nothing masks on read. A case must mask its result exactly when its
     // operation can overflow the width (add, multiply, not, shift, constants) and, for
     // speed, not otherwise. NB on the uint32 path a width of exactly 32 needs care:
@@ -861,7 +861,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 0 <| Data(convertBigintToFastData width res)
         | Alg exp, Data amtIn ->
             // a shift by a KNOWN amount is exactly representable with bit ranges and
-            // appends (AppendExp is MSB-first), matching FastReduce semantics including
+            // appends (AppendExp is MSB-first), matching EvalReference semantics including
             // shifting by the bus width or more
             let amt = convertFastDataToInt amtIn
             let signBit = UnaryExp(BitRangeOp(width - 1, width - 1), exp)

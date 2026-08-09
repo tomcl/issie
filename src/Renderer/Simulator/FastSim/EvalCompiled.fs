@@ -21,12 +21,12 @@
 ///  - Values in the step arrays are already within their bus width (the masking invariant), so
 ///    a reducer masks its result exactly when its own operation can overflow, and reads
 ///    without masking. On the uint32 path a width of exactly 32 needs care: 1u <<< 32 is 1u.
-module FastReducers
+module EvalCompiled
 
 open CommonTypes
 open SimTypes
 open NumberHelpers
-open FastReduce
+open EvalKernel
 open Fable.Core
 open Fable.Core.JsInterop
 

@@ -62,9 +62,10 @@
     <Compile Include="Simulator\GraphMerger.fs" />
     <Compile Include="Simulator\SimulationGraphAnalyser.fs" />
     <Compile Include="Simulator\FastSim\FastCreate.fs" />
-    <Compile Include="Simulator\FastSim\FastReduce.fs" />
-    <Compile Include="Simulator\FastSim\FastReducers.fs" />
-    <Compile Include="Simulator\FastSim\FastReduceTT.fs" />
+    <Compile Include="Simulator\FastSim\EvalKernel.fs" />
+    <Compile Include="Simulator\FastSim\EvalReference.fs" />
+    <Compile Include="Simulator\FastSim\EvalCompiled.fs" />
+    <Compile Include="Simulator\FastSim\EvalAlgebraic.fs" />
     <Compile Include="Simulator\FastSim\FastRun.fs" />
     <Compile Include="Simulator\FastSim\FastExtract.fs" />
     <Compile Include="Simulator\Simulator.fs" />

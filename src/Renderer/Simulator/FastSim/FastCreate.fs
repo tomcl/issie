@@ -1,4 +1,4 @@
-﻿module FastCreate
+module FastCreate
 open EEExtensions
 open CommonTypes
 open TimeHelpers
@@ -309,7 +309,7 @@ let createFastComponent (maxArraySize: int) (sComp: SimulationComponent) (access
       SimSheetName = ""
       SimSheetNamePath = []
       SheetName = []
-      // placeholders: the real reducers need FastReduce, which is compiled after this, and
+      // placeholders: the real reducers need EvalReference, which is compiled after this, and
       // cannot be built until widths and bigint state are known anyway. installReducers puts
       // them in once the simulation is linked.
       ReduceComb = fun _ -> failwithf "Reducer for %A was never installed" sComp.Type

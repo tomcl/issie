@@ -292,7 +292,7 @@ let tests =
             let outs = simulateClocked (AsyncRAM1 mem) [ 4; 8; 1 ] [ 8 ] asyncRamStimuli
             Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
         }
-        // The ROMs: contents fixed, so FastReducers reads them into a table at build time.
+        // The ROMs: contents fixed, so EvalCompiled reads them into a table at build time.
         // The last tick reads an address the memory has no entry for, which must give 0.
         let romMem =
             { Init = FromData

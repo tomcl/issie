@@ -1,6 +1,6 @@
 /// Tests for the FData ("truth table") fast simulation. This is a second, independent
 /// implementation of every component reducer, so its main risk is silently drifting away
-/// from the uint32/bigint reducer in FastReduce.fs. The parity tests below run the same
+/// from the uint32/bigint reducer in EvalReference.fs. The parity tests below run the same
 /// circuit through both and require them to agree.
 module TruthTableSimTests
 

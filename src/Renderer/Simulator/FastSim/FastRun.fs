@@ -7,8 +7,8 @@ open SimTypes
 open SynchronousUtils
 open NumberHelpers
 open FastCreate
-open FastReduce
-open FastReduceTT
+open EvalReference
+open EvalAlgebraic
 open Helpers
 open System.Numerics
 
@@ -78,7 +78,7 @@ let printComp (fs: FastSimulation) (step: int) (fc: FastComponent) =
 
 /// Bind each simulated component's reducer to the component itself, once, when the simulation
 /// is built. The loop then calls a component's own code rather than dispatching on FType for
-/// every component of every step. FastReducers.reducerFor returns None for a type it does not
+/// every component of every step. EvalCompiled.reducerFor returns None for a type it does not
 /// handle yet, and that component keeps the general fastReduce.
 ///
 /// This must run last. The reducers capture the step arrays their ports currently point at, and
@@ -89,12 +89,12 @@ let printComp (fs: FastSimulation) (step: int) (fc: FastComponent) =
 let installReducers (fs: FastSimulation) : FastSimulation =
     let install (fc: FastComponent) =
         fc.ReduceComb <-
-            match FastReducers.reducerFor fc false with
+            match EvalCompiled.reducerFor fc false with
             | Some reduce -> reduce
             | None -> fun step -> fastReduce step false fc
 
         fc.ReduceClocked <-
-            match FastReducers.reducerFor fc true with
+            match EvalCompiled.reducerFor fc true with
             | Some reduce -> reduce
             | None -> fun step -> fastReduce step true fc
 

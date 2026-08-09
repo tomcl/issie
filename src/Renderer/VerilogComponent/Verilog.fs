@@ -1,4 +1,4 @@
-﻿module Verilog
+module Verilog
 
 open CommonTypes
 open SimGraphTypes
@@ -298,7 +298,7 @@ let getVerilogGateOp gateType =
 
 /// Implement an n-input gate.
 /// The inputs are combined with the un-negated operator and the result inverted once, which is
-/// what an n-input NAND/NOR/XNOR gate means, and what getNInpBinaryGateReducer in FastReduce does.
+/// what an n-input NAND/NOR/XNOR gate means, and what getNInpBinaryGateReducer in EvalReference does.
 /// Folding the negated operator pairwise instead would give different logic for n > 2.
 let getVerilogNInputBinaryOp cType portConversionFn =
     match cType with

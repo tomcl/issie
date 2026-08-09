@@ -28,7 +28,7 @@ See [Parameter System](parameterSystem.html) for a detailed explanation of symbo
 * ISSIE is developed **by undergraduate students and staff at Imperial College London**. The code is cross-platform and binaries are released for Windows and Silicon (Arm64) Mac and Linux platforms.
 * ISSIE is implemented using over 55K lines of code (84K lines including comments) in the Functional-first language F#, the equivalent of some 150K lines in a typical OOP language. ISSIE's implementation is (almost) pure functional programming without assignment. This makes the codebase very maintainable! ISSIE has **its own digital simulator**, which uses **write-once semantics** on mutable (JS typed) arrays to combine the robustness of functional programming with high performance.
 * ISSIE uses the [FABLE F# to Javascript compiler](https://fable.io/), [Elmish MVU framework](https://elmish.github.io/elmish/), and [Electron](https://www.electronjs.org/). This tool chain creates seamless cross-platform applications with simple and highly productive coding.
-* ISSIE can generate Verilog output to drive FPGAs and has an integrated system to do this directly using **ISSIE-Stick** hardware.
+* ISSIE can generate synthesisable Verilog output to drive FPGAs with your own toolchain. An integrated build flow for **ISSIE-Stick** hardware also exists, from an earlier project, but is [no longer maintained](issiestick.html).
 * ISSIE can also accept Verilog source, using this to define and simulate equivalent schematic components.
 * For acronym geeks, ISSIE stands for: *Interactive Schematic Simulator with Integrated Editor*.
   

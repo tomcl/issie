@@ -1553,7 +1553,14 @@ let viewCatalogue model dispatch =
                           catTip1 "Nor" (GateN (Nor, 2))  (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Nor, 2)) None))
                                                 "Output is 0 if any of the inputs are 1. Use Properties to add more inputs"
                           catTip1 "Xnor" (GateN (Xnor, 2)) (fun  _ -> dispatchAsFunc (createCompStdLabel (GateN (Xnor, 2)) None))
-                                                "Output is 1 if an even number of inputs are 1. Use Properties to add more inputs"]
+                                                "Output is 1 if an even number of inputs are 1. Use Properties to add more inputs"
+                          // The bus-wide versions belong beside the gates they repeat, not under
+                          // Arithmetic where they used to sit: a wide AND is a row of AND gates,
+                          // and someone wanting one looks for it here.
+                          catTip1 "N bits NOT" (NbitsNot 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsNot 1)) "N bit NOT gates: one per bit of the input and output busses"
+                          catTip1 "N bits AND" (NbitsAnd 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAnd 1)) "N bit AND gates: one per bit of the input and output busses"
+                          catTip1 "N bits OR" (NbitsOr 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsOr 1)) "N bit OR gates: one per bit of the input and output busses"
+                          catTip1 "N bits XOR" (NbitsXor (1, None)) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsXor (1, None))) "N bit XOR gates - use to make subtractor or comparator"]
                     group
                         "Mux / Demux"
                         [ catTip1 "2-Mux" (Mux2) (fun  _ -> dispatchAsFunc (createCompStdLabel Mux2 None)) <| muxTipMessage "two"
@@ -1564,11 +1571,10 @@ let viewCatalogue model dispatch =
                           catTip1 "8-Demux" (Demux8) (fun  _ -> dispatchAsFunc (createCompStdLabel Demux8 None))  <| deMuxTipMessage "eight" ]
                     group
                         "Arithmetic"
+                        // The N-bit AND, OR, NOT and XOR that used to be here are under Gates,
+                        // which is where someone looking for a wide gate goes. What is left is
+                        // what actually computes on the value of a bus rather than bit by bit.
                         [ catTip1 "N bits adder" (NbitsAdder 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAdder 1)) "N bit Binary adder with carry in to bit 0 and carry out from bit N-1"
-                          catTip1 "N bits XOR" (NbitsXor (1, None)) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsXor (1, None))) "N bit XOR gates - use to make subtractor or comparator"
-                          catTip1 "N bits AND" (NbitsAnd 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsAnd 1)) "N bit AND gates"
-                          catTip1 "N bits OR" (NbitsOr 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsOr 1)) "N bit OR gates"
-                          catTip1 "N bits NOT" (NbitsNot 1) (fun  _ -> dispatchAsFunc (createArithmeticPopup <| NbitsNot 1)) "N bit NOT gates"
                           catTip1 "N bits shift" (Shift (1, 1, LSL)) (fun  _ -> dispatchAsFunc (createShiftPopup)) "N bit shifter: shifts the input by the number of positions on the SHIFT input. \
                                                     The kind of shift - logical left (LSL), logical right (LSR) or arithmetic right (ASR) - is chosen when the component is created"]
 

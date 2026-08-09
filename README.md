@@ -42,6 +42,11 @@ The choice of F# as main programming language for the app has been dictated by a
 If you just want to run the app go to the [releases page](https://github.com/tomcl/issie/releases) and
 download and run the latest prebuilt binary for your platform (Windows, macOS or Linux). Issie will require in total about 200M of disk space.
 
+That page is also where to find out what changed: every release is published there with its notes,
+written from the commits it contains. There is no release-notes file in the repository — one
+existed, stopped being updated at v0.5.0 in 2020, and was answering for a version five years out of
+date, which is worse than not being there.
+
 * Windows: unzip \*.zip anywhere and double-click the top-level `Issie.exe` application in the unzipped files.
     * If you get a security warning saying something like: *Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.
 More info* then:

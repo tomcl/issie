@@ -189,8 +189,9 @@ sheet, so it simulates exactly like the equivalent schematic. See
 [Verilog Components](verilogComp.html).
 
 **Out:** write any sheet and everything below it as synthesisable Verilog from its right-click menu,
-for an FPGA toolchain — or drive [ISSIE-Stick](issiestick.html) hardware directly from the app.
-See [Verilog Output](verilogGenerate.html).
+for an FPGA toolchain. See [Verilog Output](verilogGenerate.html). An integrated build flow for
+[ISSIE-Stick](issiestick.html) hardware also exists, from an earlier project, but is no longer
+maintained.
 
 ![](img/homePage/verilogComp.PNG)
 

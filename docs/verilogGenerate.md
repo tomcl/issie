@@ -16,8 +16,9 @@ sheets at the top of the canvas) and choose **Write design as Verilog**. A dialo
 flavours, and help on using each:
 
 - **Synthesis Verilog** — inputs and `clk` are module ports; suitable for synthesis tools such
-  as yosys, and used by ISSIE's own FPGA build flow (see [the ISSIE-Stick page](issiestick.html),
-  and the **Build** tab, which drives yosys/nextpnr/icepack/iceprog directly).
+  as yosys. This is the output to use with your own FPGA toolchain. ISSIE also has a **Build**
+  tab that drives yosys/nextpnr/icepack/iceprog itself, from an earlier ISSIE-Stick project; it
+  is hidden by default and [no longer maintained](issiestick.html).
 - **Simulation Verilog** — inputs become internal registers initialised to the values they had
   in the ISSIE simulator, and a testbench `initial` block runs the clock and `$display`s the
   outputs each cycle; suitable for running under a Verilog simulator such as Icarus Verilog.

@@ -15,7 +15,11 @@ Findings are ordered by (cost to fix) ÷ (benefit), best first.
 
 **Status, August 2026:** sections A, B and C are all done — each entry says how. C was deferred
 once and then done in one pass, which is what it wanted: remapping keys is a change users have to
-absorb, so it is worth doing all at once. D1–D2 remain open. D3 is settled.
+absorb, so it is worth doing all at once. Of D, only **D2** remains open: the screenshots. D1, D3
+and D4 are settled.
+
+(An earlier version of this line claimed A, B and C were done while C4 had not been touched, and
+listed D1–D2 as the open ones while saying nothing about D4. Both are now true.)
 
 ---
 
@@ -286,6 +290,12 @@ only, and the generated shortcut table showed them a row reading "(none)".
   arithmetic; the section named **"Gates"** holds only the 1-bit versions. A user looking for a
   wide AND will look in Gates.
 
+**FIXED.** The sub-tab is now **"Truth Table"**, singular — which is what the panel inside it says,
+and what its two neighbours are ("Step Simulation", "Wave Simulation"); the two documentation pages
+that named the tab follow. `N bits NOT`, `AND`, `OR` and `XOR` have moved to **Gates**, below the
+1-bit gates they repeat. What is left under Arithmetic is what computes on the value of a bus
+rather than bit by bit: the adder and the shifter.
+
 ### C5. The same action, different chords on the two platforms
 
 Rotate and flip were `Ctrl`+arrows on Windows but `Cmd`+**`Opt`**+arrows on macOS; align and
@@ -324,6 +334,11 @@ the in-app menu and keyboard system, the project browser, the Fable 5 / .NET 10 
 **Fix:** either keep the file current (the git log is already written in a style that would
 generate it) or delete it and point at the GitHub releases page, which *is* current.
 
+**FIXED, by deleting it.** Nothing in the repository referenced it, and the releases page carries
+notes for every release already. The README's *Getting Started* section, which is where a user is
+sent to download a build, now says that is also where to read what changed, and why there is no
+file — so the next person to look for one finds the answer rather than the question.
+
 ### D2. The screenshots on the documentation site are a version behind
 
 `docs/img/homePage/*` and `docs/img/userGuide/*` show a **Sheets** menu and an Electron application
@@ -352,6 +367,15 @@ decision, and it would mean replacing `LICENSE`/`LICENSE.md`, not editing a JSON
 
 The ISSIE-Stick page is nine lines and admits it is incomplete, while the feature is advertised on
 the home page. Either write it or fold it into the Verilog Output page.
+
+**FIXED, by saying what it is: older work that still exists but is not maintained.** Writing the
+page properly would mean reviving the flow first — checking it against current yosys and nextpnr,
+saying which versions work — and folding it into Verilog Output would put unmaintained work beside
+the maintained kind. So the page now leads with the fact that it is unmaintained, records what was
+built and where the code and the hardware repository are, and ends with what reviving it would
+involve. It has stopped being advertised as a current feature on the home page, in Features and in
+Verilog Output, each of which now sends the user to their own toolchain and mentions the build flow
+as history; and it moves below Technical Reports in the nav.
 
 ---
 

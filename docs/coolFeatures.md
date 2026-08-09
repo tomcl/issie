@@ -65,7 +65,7 @@ ISSIE features developed over several years to help you create readable schemati
 | Feature | How | Explanation |
 | :---- | :---- | :---- |
 | **Step simulation** | `Simulations` → `Step Simulation` | Set inputs and read outputs immediately. `Viewer` components expose signals from any subsheet |
-| **Truth table for combinational logic** | `Simulations` → `Truth Tables` | For a full sheet, or for just the components you select. Reduce it with input constraints, hidden columns, redundancy removal, or algebraic inputs |
+| **Truth table for combinational logic** | `Simulations` → `Truth Table` | For a full sheet, or for just the components you select. Reduce it with input constraints, hidden columns, redundancy removal, or algebraic inputs |
 | **Waveform simulation** | `Simulations` → `Wave Simulation` | See [Features](features.html) for what it can do |
 | **Add waveforms from the schematic** | Right-click a component while a wave simulation is running → *Add waveforms to viewer* | |
 | **Read a value off the schematic** | Rest the mouse on a wire while either simulator is running | The value that wire carries appears beside the pointer — at the waveform cursor's cycle, or at the step simulator's current clock tick — in that simulator's radix. Nothing is shown for a wire on a sheet the simulation holds more than one copy of, since there would be no single answer |

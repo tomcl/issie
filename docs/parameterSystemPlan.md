@@ -18,6 +18,13 @@ deferrals:
   pass-through-chain listing remains a possible extension.
 - **Undo/redo** restores whole model snapshots, so re-doing a placement does not re-fire the
   component-added trigger. The next qualifying event re-checks.
+- **A library sheet can now be opened after all**, though not edited. The plan below says they
+  "cannot be opened", and that was the behaviour until it met the argument that Issie is a
+  teaching tool, where wanting to see how a library component works is fair. An instance's
+  right-click menu offers *View library component*, which opens that one sheet read-only and lists
+  it in the Sheets menu until the project is closed. Nothing about the sheet can change, nothing is
+  copied out of it, and nothing survives a reopen, so the sheet is still not part of the design the
+  user works on - which is what the restriction was protecting.
 - The **later extensions** (instance-path viewing, memory parametrisation) are not implemented.
 
 Two behaviour changes beyond the plan text:
@@ -284,6 +291,10 @@ library sheet(s) to the project if not already present.
 Library sheets are ordinary sheets with restrictions. They do not appear in the Sheets menu and
 cannot be opened. When the last custom component referencing a library sheet is deleted, the sheet
 is removed from the project.
+
+> As implemented, one of those restrictions is looser: a sheet can be opened read-only by asking
+> for it from an instance's right-click menu, and appears in the Sheets menu while it is. See the
+> implementation status at the top.
 
 `CCForm.Library` already exists in `CommonTypes` and is currently unused, so it is free to carry
 exactly this meaning. Hiding is a UI property only: parameter analysis, width inference and

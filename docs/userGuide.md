@@ -297,7 +297,7 @@ Now, keeping the simulation open,  add an extra register between the counter and
 
 One of ISSIE's features is the ability to view the truth table for a small combinational circuit. 
 
-- Click on `Simulations` and then `Truth Tables`
+- Click on `Simulations` and then `Truth Table`
 - Select the `DECODER` component
 - Click on `Generate Truth Table` button on the 'Truth Table for selected logic' section
 - Click on `Remove Redundancies`

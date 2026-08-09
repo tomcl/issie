@@ -367,7 +367,9 @@ let private  viewRightTab canvasState model dispatch =
 
                     (Tabs.tab // truth table tab to display truth table for combinational logic
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = TruthTable) ]
-                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Tables"] ])
+                    // singular, as its two neighbours are and as the panel inside it is: the tab
+                    // read "Truth Tables" and then headed itself "Truth Table"
+                    [ a [  OnClick (fun _ -> dispatch <| ChangeSimSubTab TruthTable ) ] [str "Truth Table"] ])
 
                     (Tabs.tab // wavesim tab
                     [ Tabs.Tab.IsActive (model.SimSubTabVisible = WaveSim) ]

@@ -49,14 +49,35 @@ let electronStarted = false;
       // by `npm run build` or by a packaged app, so no released build ever listens on this port.
       const debugPort = process.env.ISSIE_DEBUG_PORT || '9222';
 
-      // Switches this script was given are passed on to Electron, so that `npm run dev -- --log=wire`
-      // reaches JSHelpers.setDebugLevel. It is the only way to have a log category on before the
-      // first line of startup runs, which the menu and window.issieLog cannot be.
-      const passedThrough = process.argv.slice(2).filter(a => a.startsWith('--'));
+      // Switches this script was given are passed on, so that `npm run dev -- --log=wire` reaches
+      // JSHelpers.setDebugLevel. It is the only way to have a log category on before the first line
+      // of startup runs, which the Development menu and window.issieLog cannot be.
+      //
+      // Where they go matters. Electron reads everything BEFORE the app path as an instruction to
+      // itself or to node, and `--debug` there is taken by node's own bootstrap, which rejects it
+      // as the long-removed spelling of --inspect and stops the app from ever starting. Arguments
+      // AFTER the app path are the application's, and reach it through process.argv - which is
+      // where Bridge.fs and Main.hasDebugArgs both read them from.
+      //
+      // So Issie's own switches go after, and anything else stays before, since a genuine Chromium
+      // flag such as --no-sandbox is no use to us and every use to the browser.
+      const passedThrough = process.argv.slice(2).filter(a => a.startsWith('-'));
+      const isIssieSwitch = a =>
+          ['--debug', '-d', '--w', '-w'].includes(a.toLowerCase()) || a.toLowerCase().startsWith('--log=');
+
+      // `--debug` is the spelling anyone reaches for, and it is also the long-removed node flag for
+      // --inspect. Electron's embedded node rejects it wherever it appears - before the app path or
+      // after it - and refuses to start, so no amount of reordering makes that exact string safe.
+      // It is translated instead: -d means the same thing to Main.hasDebugArgs and to Bridge, and
+      // node has no opinion about it. Users keep typing --debug; Electron never sees it.
+      const toElectron = a => (a.toLowerCase() === '--debug' ? '-d' : a);
+
+      const forApp = passedThrough.filter(isIssieSwitch).map(toElectron);
+      const forChromium = passedThrough.filter(a => !isIssieSwitch(a));
 
       const electron = spawn(
           electronPath,
-          [`--remote-debugging-port=${debugPort}`, ...passedThrough, buildFile],
+          [`--remote-debugging-port=${debugPort}`, ...forChromium, buildFile, ...forApp],
           {stdio: 'inherit', shell:true});
 
       electron.on('exit', function () {

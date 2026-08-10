@@ -47,8 +47,10 @@ process.on('SIGINT', () => {
 
 // Switches that are not this script's own are meant for Electron, and start.js passes them on:
 // `npm run dev -- --log=wire` is how a log category is on before the app's first line runs.
+// A single dash counts too, so that -d and -w survive the trip - filtering on '--' silently ate
+// them, which is half of why `npm run dev -- -d` never turned the Development menu on.
 const ours = ['--once', '--asserts', '--no-app'];
-const forwarded = process.argv.slice(2).filter((a) => a.startsWith('--') && !ours.includes(a));
+const forwarded = process.argv.slice(2).filter((a) => a.startsWith('-') && !ours.includes(a));
 
 function startApp() {
   if (appProc || noApp) return;

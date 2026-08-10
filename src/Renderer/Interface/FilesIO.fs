@@ -20,8 +20,7 @@ open Fable.SimpleJson
 open JSHelpers
 open System.IO
 
-[<Emit("process.cwd()")>]
-let getCWD (u:unit): string = jsNative
+let getCWD (u:unit): string = Bridge.cwd
 
 //----------------Static Asset Handling------------------------------//
 
@@ -30,71 +29,54 @@ Static assets come from file ./static in repo but are then placed differently
 in porduction and dvelopmnet builds.
 *)
 
-/// This will only work for development
-[<Emit("__static")>]
-let staticDirFromStatic() :string = jsNative
-
-/// This uses a fixed directory for production as a hack.
-/// it is dependent on the electron build which positions static assets there.
-/// productionbuild is defined in JSHelpers to be true for production (binary) builds only
-let staticDir() =
-    /// This identifies macos builds (arm64 too I hope!)
-    /// on MacOs we think it should be ../Resources/static
-    /// we hope staticDir will give this?
-    let isMac = Node.Api.``process``.platform = Node.Base.Darwin
-    if productionBuild && not isMac then
-        "./resources/static"
-    elif productionBuild && isMac then
-        path.join [|__dirname; ".."; ".."; "static"|]
-    else
-        staticDirFromStatic()
+/// Absolute path to the static asset directory.
+///
+/// This used to be worked out here, three ways: __static in development, a bare
+/// "./resources/static" relative to the working directory for production on Windows and Linux, and
+/// __dirname/../../static for production on macOS. All three land on the same place as the main
+/// process's process.resourcesPath, and __static in particular is a webpack substitution that
+/// expands to an expression over `path` and `process` - so it could not survive contextIsolation
+/// even in principle. Main resolves it once now and sends the answer; see Bridge.staticDirectory.
+let staticDir() = Bridge.staticDir
 
 /// absolute path to repo directory ./static
 /// NB this path is not fixed (even as relative path) between
 /// production and dev builds, so this must be used to access static
 /// assets.
-/// This is a module-level binding, so it is evaluated the first time anything in this file is
-/// touched. staticDir() is an Electron notion and would throw on .NET, taking the whole of FilesIO
-/// with it, so code that runs on .NET - the tests - gets an empty path and must be given the
-/// directory it works on explicitly.
+/// Empty under plain .NET - the tests - which have no Electron to ask and are given the directory
+/// they work on explicitly.
 let staticFileDirectory =
     #if FABLE_COMPILER
-    staticDir()
+    Bridge.staticDir
     #else
     ""
     #endif
 
-let pathJoin (args: string array) =
-    #if FABLE_COMPILER
-    path.join args
-    #else
-    Path.Join args
-    #endif
+// Path arithmetic is pure string work with no privilege attached to it, so it is one shared
+// implementation rather than node's `path` here and System.IO.Path there - see PathHelpers.fs.
+let pathJoin (args: string array) = PathHelpers.join args
 
-let baseName (filePath: string) =
-    #if FABLE_COMPILER
-    path.basename filePath
-    #else
-    Path.GetFileName filePath
-    #endif
+let baseName (filePath: string) = PathHelpers.basename filePath
 
-let dirName (filePath: string) =
-    #if FABLE_COMPILER
-    path.dirname filePath
-    #else
-    Path.GetDirectoryName filePath
-    #endif
+let dirName (filePath: string) = PathHelpers.dirname filePath
 
 let readFile (filePath: string) =
     #if FABLE_COMPILER
-    fs.readFileSync(filePath, "utf8")
+    Bridge.fsReadFile filePath
     #else
     File.ReadAllText(filePath, System.Text.Encoding.UTF8)
     #endif
 
+/// False rather than an exception for a path main will not let Issie see. Every caller treats this
+/// as a question about whether to go on, and a throw here would turn a refusal into a crash - but it
+/// is logged, because "the file is not there" and "you may not look" are different problems.
 let exists (filePath: string) =
     #if FABLE_COMPILER
-    fs.existsSync (U2.Case1 filePath)
+    try
+        Bridge.fsExists filePath
+    with e ->
+        Log.warn $"exists '{filePath}': {e.Message}"
+        false
     #else
     // a directory exists too: File.Exists alone is false for one, which made every directory
     // read fail when this code is hosted on .NET (the tests)
@@ -105,42 +87,41 @@ let exists (filePath: string) =
 /// there at all, so it is safe to use as a filter before reading a directory's contents.
 let isDirectory (filePath: string) =
     #if FABLE_COMPILER
-    fs.existsSync (U2.Case1 filePath) && fs.lstatSync(U2.Case1 filePath).isDirectory ()
+    try
+        Bridge.fsIsDirectory filePath
+    with e ->
+        Log.warn $"isDirectory '{filePath}': {e.Message}"
+        false
     #else
     Directory.Exists filePath
     #endif
 
-let extName (filePath: string) =
-    #if FABLE_COMPILER
-    path.extname filePath
-    #else
-    Path.GetExtension filePath
-    #endif
+let extName (filePath: string) = PathHelpers.extname filePath
 
 let mkdir (folderPath: string) =
     #if FABLE_COMPILER
-    fs.mkdirSync folderPath
+    Bridge.fsMkdir folderPath
     #else
     Directory.CreateDirectory folderPath |> ignore
     #endif
 
 let readdir (folderPath: string) =
     #if FABLE_COMPILER
-    fs.readdirSync (U2.Case1 folderPath)
+    Bridge.fsReaddir folderPath
     #else
     Directory.GetFiles folderPath |> Array.map Path.GetFileName
     #endif
 
 let unlink (folderPath: string) =
     #if FABLE_COMPILER
-    fs.unlink (U2.Case1 folderPath, ignore) // Asynchronous.
+    Bridge.fsUnlink folderPath
     #else
     File.Delete folderPath
     #endif
 
 let rename (oldPath: string) (newPath: string) =
     #if FABLE_COMPILER
-    fs.renameSync (oldPath, newPath) // Asynchronous.
+    Bridge.fsRename oldPath newPath
     #else
     File.Move(oldPath, newPath, false)
     #endif
@@ -153,14 +134,20 @@ let ensureDirectory dPath =
 /// Works on a directory as well as a file. NB a directory's time changes when an entry is added
 /// to it, removed from it or renamed - NOT when a file already in it is rewritten in place.
 let modifiedTimeMs (filePath: string) : float option =
+    #if FABLE_COMPILER
+    // one round trip rather than two: main answers null for a path that is not there, so the
+    // exists check that used to guard this is folded into the same call
+    try
+        Bridge.fsModifiedTimeMs filePath
+    with e ->
+        Log.warn $"modifiedTimeMs '{filePath}': {e.Message}"
+        None
+    #else
     match exists filePath with
     | false -> None
     | true ->
-        #if FABLE_COMPILER
-        Some (unbox<float> (fs.lstatSync (U2.Case1 filePath))?mtimeMs)
-        #else
         Some (File.GetLastWriteTimeUtc filePath - System.DateTime(1970, 1, 1)).TotalMilliseconds
-        #endif
+    #endif
 
 /// Make a directory if it is not there, saying why if that could not be done. Creating a
 /// directory can genuinely fail - a read-only or full disk, a permissions policy - and the
@@ -184,7 +171,7 @@ let tryEnsureDirectory (dPath: string) : Result<string, string> =
 /// development build, which is exactly the kind of bug that ships.
 let tryUserDataDirectory () : Result<string, string> =
     try
-        electronRemote.app.getPath AppGetPath.UserData |> tryEnsureDirectory
+        Bridge.userData |> tryEnsureDirectory
     with e ->
         Error $"could not find the user data directory: {e.Message}"
 
@@ -214,19 +201,11 @@ let tryUserLibrariesDirectory () : Result<string, string> = tryUserSubdirectory 
 /// non-empty message rather than by rejecting - so saying nothing would make a failure look like
 /// success.
 let openFolderInFileManager (path: string) (onError: string -> unit) : unit =
-    match Node.Api.``process``.platform with
-    | Node.Base.Win32 ->
-        // explorer.exe exits non-zero even when it succeeds, and for a path that is not there it
-        // silently opens a default folder rather than reporting anything - so there is no result
-        // worth reading back, and the path is checked up front instead.
-        if isDirectory path then
-            let options = {| detached = true; stdio = "ignore"; shell = false |} |> toPlainJsObj
-            Node.Api.childProcess.spawn ("explorer.exe", ResizeArray [ path ], options) |> ignore
-        else
-            onError "the directory is no longer there"
-    | _ ->
-        electron.shell.openPath path
-        |> Promise.iter (fun error -> if error <> "" then onError error)
+    // The platform difference, and the explorer.exe spawn it needs on Windows, now live in main -
+    // see Bridge.revealInFileManager, which this comment used to describe. It answers a promise of
+    // the reason it could not be shown so that a failure still cannot look like success.
+    Bridge.revealInFileManager path
+    |> Promise.iter (fun error -> if error <> "" then onError error)
 
 let pathWithoutExtension filePath =
     let ext = extName filePath
@@ -269,9 +248,9 @@ let tryReadFileSync fPath =
 let writeFile (path: string) (data: string) =
     try
         #if FABLE_COMPILER
-        // createObj is a Fable binding: building it outside this branch threw on .NET
-        let options = createObj ["encoding" ==> "utf8"] |> Some
-        fs.writeFileSync(path, data, options)
+        // utf8 with no byte order mark, which is what main writes - see the .NET branch below for
+        // why that matters
+        Bridge.fsWriteFile path data
         #else
         // UTF8Encoding(false), not Encoding.UTF8: the latter emits a byte order mark, and
         // fs.writeFileSync on the Fable side does not. A .dgm written from .NET with a BOM is
@@ -297,10 +276,10 @@ let readFilesFromDirectory (path:string) : string list =
         []
 
 #if FABLE_COMPILER
-/// readdirSync asked for Dirent entries, which each say whether they are a directory, and reduced
-/// to the names of those that are. One call, no stat of anything.
-[<Emit("$0.readdirSync($1, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name)")>]
-let private subdirectoryNamesOf (fsModule: obj) (folderPath: string) : string array = jsNative
+/// Main asks readdirSync for Dirent entries, which each say whether they are a directory, and
+/// reduces to the names of those that are. One call, no stat of anything.
+let private subdirectoryNamesOf (folderPath: string) : string array =
+    Bridge.fsReaddirDirectories folderPath
 #endif
 
 /// The immediate subdirectories of a folder, as full paths. [] if it cannot be read.
@@ -321,7 +300,7 @@ let readSubdirectories (folderPath: string) : string list =
     else
         try
             #if FABLE_COMPILER
-            subdirectoryNamesOf fs folderPath
+            subdirectoryNamesOf folderPath
             |> Array.toList
             |> List.map (fun name -> pathJoin [| folderPath; name |])
             #else
@@ -524,16 +503,13 @@ let askForExistingProjectPath (defaultPath: string option) : string option =
     options.properties <- Some [| OpenDialogOptionsPropertiesArray.OpenDirectory |]
     options.defaultPath <-
         defaultPath
-        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+        |> Option.defaultValue Bridge.documents
         |> Some
-    let w = electronRemote.getCurrentWindow()
-    electronRemote.dialog.showOpenDialogSync(w,options)
-    |> Option.bind (
-        Seq.toList
-        >> function
+    Bridge.dialogOpen options
+    |> Array.toList
+    |> function
         | [] -> Option.None
         | p :: _ -> Some p
-    )
 
 /// Ask the user to choose a folder, for a caller that knows what it wants one for.
 /// Return None if the user exits without choosing one.
@@ -547,11 +523,13 @@ let askForFolder (title: string) (buttonLabel: string) (defaultPath: string opti
         |]
     options.defaultPath <-
         defaultPath
-        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+        |> Option.defaultValue Bridge.documents
         |> Some
-    let w = electronRemote.getCurrentWindow()
-    electronRemote.dialog.showOpenDialogSync(w,options)
-    |> Option.bind (Seq.toList >> function [] -> Option.None | p :: _ -> Some p)
+    Bridge.dialogOpen options
+    |> Array.toList
+    |> function
+        | [] -> Option.None
+        | p :: _ -> Some p
 
 /// ask for existing sheet paths
 let askForExistingSheetPaths (defaultPath: string option) : string list option =
@@ -559,17 +537,16 @@ let askForExistingSheetPaths (defaultPath: string option) : string list option =
     options.filters <- Some (makeFileFilters "ISSIE sheet" "dgm" |> ResizeArray)
     options.defaultPath <-
         defaultPath
-        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+        |> Option.defaultValue Bridge.documents
         |> Some
     options.properties <- Some [|
         OpenDialogOptionsPropertiesArray.OpenFile
         OpenDialogOptionsPropertiesArray.MultiSelections
         |]
-    let w = electronRemote.getCurrentWindow()
-    electronRemote.dialog.showOpenDialogSync(w,options)
-    |> Option.bind (
-        Seq.toList
-        >> function
+    Bridge.dialogOpen options
+    |> Array.toList
+    |> (
+        function
         | [] -> None
         | paths -> Some <| paths
     )
@@ -999,9 +976,10 @@ let rec askForNewFile (projectPath: string) : string option =
     options.properties <- Some [|
         SaveDialogOptionsPropertiesArray.ShowOverwriteConfirmation
         |] 
-    match electronRemote.getCurrentWindow() with
-    | w ->
-        electronRemote.dialog.showSaveDialogSync(options)
+    // main answers "" for a cancelled dialog, where the remote API answered None
+    match Bridge.dialogSave options with
+    | "" -> Option.None
+    | chosen -> Some chosen
         
 let saveAllProjectFilesFromLoadedComponentsToDisk (proj: Project) =
     proj.LoadedComponents

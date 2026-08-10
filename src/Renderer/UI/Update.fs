@@ -753,7 +753,7 @@ let updateUnpinned (msg : Msg) oldModel =
 
     | ContextMenuAction e ->
         let menuType = getContextMenu e model
-        renderer.ipcRenderer.send("show-context-menu", [|unbox menuType|])
+        Bridge.showContextMenu menuType
         model, Cmd.none
 
     | ContextMenuItemClick(menuType, item, dispatch) ->

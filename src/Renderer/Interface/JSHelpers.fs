@@ -174,13 +174,14 @@ let productionBuild = false
 /// line of startup runs - the Development menu and window.issieLog can only be reached later,
 /// by which time loading a project is already over.
 let setDebugLevel() =
-    let hasSwitch swName = electronRemote.app.commandLine.hasSwitch swName
-    if hasSwitch "debug" || hasSwitch "-d" then
+    // The switches themselves are read by the main process and delivered in the bootstrap record,
+    // so app.commandLine never has to be reachable from here.
+    if Bridge.hasDebugSwitch then
         debugLevel <- 2
-    elif hasSwitch "w" then
+    elif Bridge.hasWSwitch then
         debugLevel <- 1
-    if hasSwitch "log" then
-        electronRemote.app.commandLine.getSwitchValue "log"
+    if Bridge.logSwitch <> "" then
+        Bridge.logSwitch
         |> Log.maskOfNames
         |> Log.setCategories
 

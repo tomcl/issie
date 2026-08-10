@@ -580,7 +580,7 @@ let addVerticalScrollBars (el: Browser.Types.HTMLElement option) r =
 // documents the keys and cannot drift from what actually fires.
 
 /// global. because an opened module here shadows the Node namespace
-let private isMacPlatform = global.Node.Api.``process``.platform = global.Node.Base.Darwin
+let private isMacPlatform = Bridge.isMac
 
 /// A dropdown item labelled with the keyboard shortcut that also invokes it. Greyed and inert
 /// when not enabled, which is how a sheet that can only be looked at shows that an editing
@@ -683,17 +683,15 @@ let private viewMenuItems dispatch =
     // The Electron roles these replace acted on the *zoom level*, stepping by 0.5, so match that
     // rather than scaling a factor - otherwise the steps feel different from what users had.
     let stepAppZoom delta =
-        let wc = JSHelpers.electronRemote.getCurrentWebContents ()
-        wc.setZoomLevel (max -9.0 (min 9.0 (wc.getZoomLevel () + delta)))
+        Bridge.setZoomLevel (max -9.0 (min 9.0 (Bridge.getZoomLevel () + delta)))
 
     [ itemWithKey "Enter/exit fullscreen" KeyTypes.ScFullScreen (fun () ->
-          let w = JSHelpers.electronRemote.getCurrentWindow ()
-          w.setFullScreen (not (w.isFullScreen ())))
+          Bridge.toggleFullScreen ())
       Navbar.divider [] []
       itemWithKey "Zoom application in" KeyTypes.ScAppZoomIn (fun () -> stepAppZoom 0.5)
       itemWithKey "Zoom application out" KeyTypes.ScAppZoomOut (fun () -> stepAppZoom -0.5)
       itemWithKey "Zoom application reset" KeyTypes.ScAppZoomReset (fun () ->
-          JSHelpers.electronRemote.getCurrentWebContents().setZoomLevel 0.0)
+          Bridge.setZoomLevel 0.0)
       Navbar.divider [] []
       // The menu is on the schematic's side of the window, so these always mean the diagram -
       // unlike the keys, which follow whatever the user is looking at (KeyBindings.zoom).

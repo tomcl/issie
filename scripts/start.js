@@ -1,6 +1,7 @@
 const webpack = require('webpack');
 const WebpackDevServer = require('webpack-dev-server');
 const configMain = require('../webpack.config.main');
+const configPreload = require('../webpack.config.preload');
 const configRenderer = require('../webpack.config.renderer');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -71,11 +72,23 @@ let electronStarted = false;
 
       if(!electronStarted){
         electronStarted = true;
-        compilerMain.run((err, stats) => {
-            console.log('> Starting Electron (main)');
-        });
+        // The preload has to be on disk before the first window is created, and it is not watched:
+        // it is a few lines of marshalling that change once a stage rather than once an edit. Built
+        // before main so that Electron never starts against a missing one.
+        webpack(configPreload).run((err, stats) => {
+            if (err || stats.hasErrors()) {
+                console.error('> Preload bundle failed:',
+                    err || stats.toString({ all: false, errors: true }));
+                process.exit(1);
+            }
+            console.log('> Built preload');
 
-        compilerMain.hooks.afterEmit.tap('on-main-build', startElectron);
+            compilerMain.run((err, stats) => {
+                console.log('> Starting Electron (main)');
+            });
+
+            compilerMain.hooks.afterEmit.tap('on-main-build', startElectron);
+        });
       }
       
       return;

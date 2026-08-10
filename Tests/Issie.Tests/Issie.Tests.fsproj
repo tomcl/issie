@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="PathHelperTests.fs" />
     <Compile Include="TestFixtures.fs" />
     <Compile Include="CanvasBuilder.fs" />
     <Compile Include="GoldenModel.fs" />

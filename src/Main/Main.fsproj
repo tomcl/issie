@@ -12,6 +12,7 @@
          simply never called here. -->
     <Compile Include="..\Renderer\Common\Log.fs" Link="Log.fs" />
     <Compile Include="..\Renderer\UI\ContextMenus.fs" Link="ContextMenus.fs" />
+    <Compile Include="Bridge.fs" />
     <Compile Include="Main.fs" />
     <None Include="main.js" />
   </ItemGroup>

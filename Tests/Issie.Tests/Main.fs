@@ -7,6 +7,7 @@ let main argv =
     // Sequenced: building a FastSimulation is not re-entrant (FastCreate.stepArrayIndex is
     // a module-level mutable), so tests that simulate cannot run in parallel
     testList "Issie" [
+        PathHelperTests.tests
         Properties.tests
         AlgebraTests.tests
         NumberHelpersTests.tests

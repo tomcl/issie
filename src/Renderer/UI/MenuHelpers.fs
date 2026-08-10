@@ -579,8 +579,11 @@ let writeComponentToBackupFile (numCircuitChanges: int) (numHours:float) comp (d
         // if necessary delete the old backup file
         match oldFile with
         | Some oldPath when oldPath <> backupPath ->
-            if Node.Api.fs.existsSync (Fable.Core.U2.Case1 oldPath) then
-                Node.Api.fs.unlink (Fable.Core.U2.Case1 oldPath, ignore) // Asynchronous.
+            // through FilesIO rather than node directly: these were the only two filesystem calls
+            // in the app that bypassed the wrappers, and after contextIsolation there is no node
+            // here to bypass them with
+            if FilesIO.exists oldPath then
+                FilesIO.unlink oldPath
             else
                 ()
         | _ -> ()
@@ -636,8 +639,11 @@ let writeComponentToBackupFileNow (numCircuitChanges: int) (numHours:float) comp
         // if necessary delete the old backup file
         match oldFile with
         | Some oldPath when oldPath <> backupPath ->
-            if Node.Api.fs.existsSync (Fable.Core.U2.Case1 oldPath) then
-                Node.Api.fs.unlink (Fable.Core.U2.Case1 oldPath, ignore) // Asynchronous.
+            // through FilesIO rather than node directly: these were the only two filesystem calls
+            // in the app that bypassed the wrappers, and after contextIsolation there is no node
+            // here to bypass them with
+            if FilesIO.exists oldPath then
+                FilesIO.unlink oldPath
             else
                 ()
         | _ -> ()

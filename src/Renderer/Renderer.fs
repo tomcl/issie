@@ -29,7 +29,7 @@ open ContextMenus
 importSideEffects "./scss/main.css"
 importSideEffects "./scss/extra.css"
 
-let isMac = Node.Api.``process``.platform = Node.Base.Darwin
+let isMac = Bridge.isMac
 
 
 
@@ -41,8 +41,9 @@ let init() =
     JSHelpers.setDebugLevel()
     DiagramMainView.init(), Cmd.none
 
-let getUserAppDir () : string =
-    unbox <| renderer.ipcRenderer.sendSync("get-user-data",None)
+/// Already in the bootstrap record, which main fills from the same app.getPath call the old
+/// get-user-data channel made - so this is now a lookup rather than a round trip.
+let getUserAppDir () : string = Bridge.userData
 
 let softInitialise model dispatch =
     //Playground.Memory.modelCopy <- None
@@ -68,14 +69,11 @@ let menuSeparator =
 // Set up window close interlock using IPC from/to main process
 let attachExitHandler dispatch =
     // set up callback called when attempt is made to close main window
-    renderer.ipcRenderer.on ("closingWindow", (fun (event: Event)->
+    Bridge.onClosingWindow (fun () ->
         // send a message which will process the request to exit
-        dispatch <| MenuAction(MenuExit,dispatch)
-        )) |> ignore
-    renderer.ipcRenderer.on ("windowLostFocus", (fun (event: Event)->
-        // send a message which will process the request to exit
-        dispatch <| MenuAction(MenuLostFocus,dispatch)
-        )) |> ignore
+        dispatch <| MenuAction(MenuExit, dispatch))
+    Bridge.onWindowLostFocus (fun () ->
+        dispatch <| MenuAction(MenuLostFocus, dispatch))
 (*
 // Set up window close interlock using IPC from/to main process
 let attachGetAppHandler dispatch =
@@ -87,12 +85,30 @@ let attachGetAppHandler dispatch =
 
 
 
+/// What each application-menu item does, keyed by the id main sends back when it is clicked.
+///
+/// The menu lives in the main process now, and a main-process menu item cannot hold an F# closure -
+/// so the closure stays here and only its id makes the trip. Not model state: these belong to a menu
+/// that is built once and lives as long as the app (docs/mutableState.md).
+let mutable private menuActions: Map<string, KeyboardEvent -> unit> = Map.empty
+let mutable private nextMenuId = 0
+
+/// Look up and run whatever main says was clicked.
+let runMenuAction (id: string) =
+    match Map.tryFind id menuActions with
+    | Some action -> action (unbox null)
+    | None -> Log.warn $"application menu: no action registered for '{id}'"
+
 /// Make action menu item from name, opt key to trigger, and action.
 let makeItem (label : string) (accelerator : string option) (iAction : KeyboardEvent -> unit) =
    let item = createEmpty<Electron.MenuItemConstructorOptions>
    item.label <- Some label
    item.accelerator <- accelerator
-   item.click <- Some (fun _ _ keyEvent -> iAction keyEvent)
+   // an id rather than item.click: see menuActions above
+   nextMenuId <- nextMenuId + 1
+   let id = $"issieMenu{nextMenuId}"
+   item.id <- Some id
+   menuActions <- Map.add id iAction menuActions
    item
 
 /// Make role menu from name, opt key to trigger, and action.
@@ -291,12 +307,9 @@ let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
             match template with
             | [] -> ()
             | items ->
-                electronRemote.app.applicationMenu <-
-                    items
-                    |> List.map U2.Case1
-                    |> Array.ofList
-                    |> electronRemote.Menu.buildFromTemplate
-                    |> Some),
+                // main attaches the click handlers, which send the item's id back to runMenuAction
+                Bridge.onApplicationMenuCommand runMenuAction
+                items |> List.map box |> Array.ofList |> Bridge.setApplicationMenu),
         dispatch)
 
     attachExitHandler dispatch
@@ -380,8 +393,7 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
             dispatch (ContextMenuAction e)))
 
     let subContextMenuCommand (dispatch: Msg -> unit) =
-        renderer.ipcRenderer.on("context-menu-command", fun ev args ->
-            let arg:string = unbox args |> Array.map string |> String.concat ""
+        Bridge.onContextMenuCommand (fun arg ->
             match arg.Split [|','|] |> Array.toList with
             | [ menuType ; item ] ->
                 dispatch <| ContextMenuItemClick(menuType,item,dispatch)

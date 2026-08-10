@@ -628,7 +628,7 @@ let processContextMenuClick
 
     | ProjectPathBreadcrumb path, "Copy path" ->
         // the bar shows a cropped path, so confirm what actually reached the clipboard
-        electron.clipboard.writeText path
+        Bridge.clipboardWrite path
         model
         |> withMsgs
             [ SetFilesNotification (Notifications.successNotification $"Copied {path}" CloseFilesNotification)
@@ -1008,7 +1008,7 @@ let updateComponentMemory (addr:bigint) (data:bigint) (compOpt: Component option
 let exitApp (model:Model) =
     // send message to main process to initiate window close and app shutdown
     writeUserData model |> ignore
-    renderer.ipcRenderer.send("exit-the-app",[||])
+    Bridge.quit ()
 
 /// Tests physical equality on two objects.
 /// Used because Msg type does not support structural equality.

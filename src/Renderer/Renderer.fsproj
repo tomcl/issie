@@ -78,6 +78,8 @@
 
     <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
+    <Compile Include="Interface\Bridge.fs" />
+    <Compile Include="Interface\PathHelpers.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
     <Compile Include="Interface\FilesIO.fs" />
     <Compile Include="Interface\ComponentLibraries.fs" />

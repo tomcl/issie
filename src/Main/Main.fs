@@ -278,6 +278,11 @@ let createMainWindow () =
             jsOptions<WebPreferences> <| fun o ->
                 o.nodeIntegration <- Some true
                 o.contextIsolation <- Some false
+                // Every operation the renderer is allowed to ask the OS for comes through this
+                // script and its partner Bridge.fs. It is loaded now, while nodeIntegration is still
+                // on and nothing depends on it, so that each stage of the migration can move call
+                // sites onto a bridge already proven to work.
+                o.preload <- Some (Bridge.preloadPath ())
                 o.devTools <- Some true) // allow dev tools to be opened
 
     let window = mainProcess.BrowserWindow.Create options
@@ -313,6 +318,10 @@ let startRenderer (doAfterReady: BrowserWindow -> Unit) =
         // has to be built since its items dispatch into the app.
         stampStartup "app ready"
         mainProcess.Menu.setApplicationMenu None
+
+        // Before any window exists, so that the preload's own bootstrap call - which runs as the
+        // window's contents start loading - always finds a handler waiting.
+        Bridge.register ()
 
         let startApp () =
             if not appStarted then

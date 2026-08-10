@@ -19,7 +19,7 @@ open Optics
 open Optics.Operators
 open KeyTypes
 
-let isMac = global.Node.Api.``process``.platform = global.Node.Base.Darwin
+let isMac = Bridge.isMac
 
 /// The chord table for this platform, built once.
 let private platformTable = KeyTypes.table isMac
@@ -206,10 +206,8 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     let wireOf f =
         dispatch
         <| UpdateModel(fun m -> m |> Optic.map (sheet_ >-> SheetT.wire_) (f m.Sheet.SelectedComponents))
-    let webContents () = JSHelpers.electronRemote.getCurrentWebContents ()
     let stepAppZoom delta =
-        let wc = webContents ()
-        wc.setZoomLevel (max -9.0 (min 9.0 (wc.getZoomLevel () + delta)))
+        Bridge.setZoomLevel (max -9.0 (min 9.0 (Bridge.getZoomLevel () + delta)))
     /// An editing shortcut does nothing on a library component's sheet, which can only be looked
     /// at. Decided inside a message because a key handler has no way to see the model - the same
     /// reason zoom above goes through one.
@@ -263,10 +261,8 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     // factor, so match that or the steps feel different from what users had
     | ScAppZoomIn -> stepAppZoom 0.5
     | ScAppZoomOut -> stepAppZoom -0.5
-    | ScAppZoomReset -> webContents().setZoomLevel 0.0
-    | ScFullScreen ->
-        let w = JSHelpers.electronRemote.getCurrentWindow ()
-        w.setFullScreen (not (w.isFullScreen ()))
+    | ScAppZoomReset -> Bridge.setZoomLevel 0.0
+    | ScFullScreen -> Bridge.toggleFullScreen ()
     | ScToggleGrid -> sheetDispatch SheetT.Msg.ToggleGrid
     | ScToggleWireArrows -> busWireDispatch BusWireT.Msg.ToggleArrowDisplay
     | ScWireTypeJump -> sheetDispatch (SheetT.WireType SheetT.WireTypeMsg.Jump)
@@ -289,19 +285,19 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
 
     // ---- text entry: macOS only, where these keys are otherwise delivered by the application
     // menu that no longer exists. Elsewhere they are unbound and Chromium handles them.
-    | ScTextCopy -> webContents().copy ()
-    | ScTextCut -> webContents().cut ()
-    | ScTextPaste -> webContents().paste ()
-    | ScTextSelectAll -> webContents().selectAll ()
-    | ScTextUndo -> webContents().undo ()
-    | ScTextRedo -> webContents().redo ()
+    | ScTextCopy -> Bridge.editCommand "copy"
+    | ScTextCut -> Bridge.editCommand "cut"
+    | ScTextPaste -> Bridge.editCommand "paste"
+    | ScTextSelectAll -> Bridge.editCommand "selectAll"
+    | ScTextUndo -> Bridge.editCommand "undo"
+    | ScTextRedo -> Bridge.editCommand "redo"
 
     // ---- infrastructure ----
     // preventDefault is the whole point of these two: space would otherwise scroll the canvas,
     // and Ctrl+W might be read as close-window by the host
     | ScSuppressScroll -> ()
     | ScSwallowCloseWindow -> ()
-    | ScDevTools -> renderer.ipcRenderer.send ("toggle-dev-tools", [||]) |> ignore
+    | ScDevTools -> Bridge.toggleDevTools ()
 
     // ---- gestures have no chord, so can never be resolved to ----
     | GsCtrlWheelZoom

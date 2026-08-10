@@ -109,7 +109,7 @@ let private newProject model dispatch =
     let defaultParent =
         model.UserData.LastUsedDirectory
         |> Option.map dirName
-        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+        |> Option.defaultValue Bridge.documents
     dispatch <| SetPopupDialogText (Some "")
     dispatch <| SetPopupDialogText2 (Some defaultParent)
 
@@ -418,7 +418,7 @@ let private openProject model dispatch =
         model.UserData.LastUsedDirectory
         |> Option.filter isDirectory
         |> Option.map dirName
-        |> Option.defaultValue (electronRemote.app.getPath ElectronAPI.Electron.AppGetPath.Documents)
+        |> Option.defaultValue Bridge.documents
     viewProjectBrowser start model dispatch)
 
 /// Close current project, if any.

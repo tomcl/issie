@@ -173,6 +173,26 @@ let uartReadAllViewers (viewers: int) : JS.Promise<string array> = jsNative
 [<Emit("window.issieBridge.uart.stepAndReadAllViewers($0)")>]
 let uartStepAndReadAllViewers (viewers: int) : JS.Promise<string array> = jsNative
 
+// ---- diagnostics ----
+//
+// Answered by the preload rather than main: webFrame and getProcessMemoryInfo describe the renderer
+// process, so asking main would report the wrong one.
+
+/// Per-resource {count, size, liveSize}, as webFrame.getResourceUsage gives it.
+[<Emit("window.issieBridge.diagnostics.resourceUsage()")>]
+let resourceUsage () : obj = jsNative
+
+[<Emit("window.issieBridge.diagnostics.clearCache()")>]
+let clearCache () : unit = jsNative
+
+/// {private, residentSet, shared}, in kilobytes.
+[<Emit("window.issieBridge.diagnostics.processMemory()")>]
+let processMemory () : JS.Promise<obj> = jsNative
+
+/// Channel name to listener count, for the preload's own listeners.
+[<Emit("window.issieBridge.diagnostics.ipcListenerCounts()")>]
+let ipcListenerCounts () : obj = jsNative
+
 // ---- messages to and from main ----
 
 [<Emit("window.issieBridge.ipc.quit()")>]
@@ -263,6 +283,14 @@ let uartReadAllViewers (_viewers: int) : Fable.Core.JS.Promise<string array> =
 
 let uartStepAndReadAllViewers (_viewers: int) : Fable.Core.JS.Promise<string array> =
     failwith "the debug UART needs Electron and a USB device"
+
+let resourceUsage () : obj = box null
+let clearCache () : unit = ()
+
+let processMemory () : Fable.Core.JS.Promise<obj> =
+    failwith "process memory reporting needs Electron"
+
+let ipcListenerCounts () : obj = box null
 
 let quit () : unit = ()
 let toggleDevTools () : unit = ()

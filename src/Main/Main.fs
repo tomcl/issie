@@ -5,6 +5,7 @@ open Fable.Core.JsInterop
 open ElectronAPI
 open Node
 open ContextMenus
+open ContextMenuBuilder
 
 (*
 [<Emit("require('electron')")>]
@@ -36,15 +37,9 @@ let hasDebugArgs() = argFlagIsOn ["--debug";"-d"]
 //let initRemote():Unit = jsNative
 
 
-/// Fix to access the deprecated @electron.remote module.
-/// This must be enabled from main.fs
-/// NB the interface used here is not precisely correct, because it
-/// exposes the original electron-remote API. The @electron.remote API is
-/// a bit reduced, but with some extra code to control access.
-/// electronRemote replaces electron.remote and renderer.remote in old interface
-[<ImportAll("@electron/remote/main")>]
-let electronRemote : RemoteMainInterface = jsNative
-electronRemote?initialize() // one-off initialization (see also electronRemote.enable below)
+// @electron/remote was initialised here and enabled per window below, which is what let the
+// renderer hold main-process objects directly. Both are gone: the renderer asks for named
+// operations over the bridge instead, and the package is no longer a dependency at all.
 
 
 
@@ -276,20 +271,26 @@ let createMainWindow () =
         options.title <- Some "issie"
         options.webPreferences <- Some (
             jsOptions<WebPreferences> <| fun o ->
-                o.nodeIntegration <- Some true
-                o.contextIsolation <- Some false
-                // Every operation the renderer is allowed to ask the OS for comes through this
-                // script and its partner Bridge.fs. It is loaded now, while nodeIntegration is still
-                // on and nothing depends on it, so that each stage of the migration can move call
-                // sites onto a bridge already proven to work.
+                // The renderer has no node and shares no context with the page. Everything it may
+                // ask the operating system for is a named operation on the preload below, answered
+                // by Bridge.fs - which resolves every path against the directories the user
+                // actually chose, and never takes the name of a program to run.
+                //
+                // Before this, a bug in any library the renderer loads was a bug with the user's
+                // filesystem attached.
+                o.nodeIntegration <- Some false
+                o.contextIsolation <- Some true
+                // The OS-level containment underneath the two above. Those stop the renderer
+                // reaching node; this stops a renderer that has been taken over by some other route
+                // from reaching the machine. The preload keeps working because it only ever asks for
+                // contextBridge, ipcRenderer and webFrame, which a sandboxed preload still has.
+                o.sandbox <- Some true
                 o.preload <- Some (Bridge.preloadPath ())
                 o.devTools <- Some true) // allow dev tools to be opened
 
     let window = mainProcess.BrowserWindow.Create options
 
     let webContents = window.webContents
-    // enable electronRemote for the renderer window
-    electronRemote?enable webContents
     hardenWebContents webContents
     mainWindow <- Some window
     window

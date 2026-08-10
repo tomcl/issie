@@ -12,15 +12,9 @@ open ElectronAPI
 open Fable.React
 open Elmish
 
-/// Fix to access the deprecated @electron.remote module.
-/// This must be enabled from main.fs
-/// NB the interface used here is not precisely correct, because it
-/// exposes the original electron-remote API. The @electron.remote API is
-/// a bit reduced, but with some extra code to control access.
-/// electronRemote replaces electron.remote and renderer.remote in old interface
-[<ImportAll("@electron/remote")>]
-let electronRemote : Electron.Remote = jsNative
-
+// @electron/remote was imported here, and through it the renderer reached the main process's own
+// objects: the window, the app, the dialogs, the menus. It is gone, along with the twenty-six call
+// sites that used it. Everything they did is a named operation on the bridge now - see Bridge.fs.
 
 [<Emit("performance.memory.usedJSHeapSize")>]
 let usedHeap() : int = jsNative
@@ -37,7 +31,7 @@ let mutable memSize = 0
 
 let getProcessPrivateMemory() : int =
     
-    let memInfo:JS.Promise<string>  = Node.Api.``process``?getProcessMemoryInfo()
+    let memInfo = Bridge.processMemory ()
     promise {
         return! memInfo
         }

@@ -76,7 +76,6 @@
     }
   },
   "dependencies": {
-    "@electron/remote": "^2",
     "async-mutex": "^0.5",
     "font-awesome": "^4",
     "katex": "^0.16.21",

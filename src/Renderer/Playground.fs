@@ -304,10 +304,8 @@ module Memory =
     open ElectronAPI
     open ModelType
 
-    let webframe = renderer.webFrame
-
     let printProcessMemory() : unit =
-        let memInfo:JS.Promise<string>  = Node.Api.``process``?getProcessMemoryInfo()
+        let memInfo = Bridge.processMemory ()
         promise {
             return! memInfo
             }
@@ -328,7 +326,7 @@ module Memory =
             | Some d ->
                 $"%20s{name} %10s{toMB d.count} %10s{toMB d.liveSize} %10s{toMB d.size}"
             
-        let usage = webframe.getResourceUsage()
+        let usage: Electron.ResourceUsage = unbox (Bridge.resourceUsage ())
         let details =
             [
                 "images", usage.images
@@ -340,14 +338,14 @@ module Memory =
             ] |> List.map (fun (s, r) -> s, Some r)
         String.concat "\n" (printDetails ("",None) :: List.map printDetails details)
         |> printfn "%s"
-        webframe.clearCache()
+        Bridge.clearCache()
 
+    /// The renderer has no ipcRenderer of its own any more, so what this counts is what the preload
+    /// holds on its behalf - which is what leaks if anything does, and what this was always after.
     let printListeners() =
-        let listeners = renderer.ipcRenderer.listeners
-        renderer.ipcRenderer.eventNames()
-        |> Array.iter (fun name ->
-            let ls = listeners name
-            printfn $"{name} -> {ls.Length}")
+        let counts = Bridge.ipcListenerCounts ()
+        JS.Constructors.Object.keys counts
+        |> Seq.iter (fun name -> printfn $"{name} -> {counts?(name)}")
 
     let mutable modelCopy: Model option = None
 

@@ -3,20 +3,25 @@
 <head>
     <meta charset="utf-8" />
     <!--
-      The renderer runs with nodeIntegration enabled, so executing attacker-controlled
-      script here means full filesystem access. This policy stops script from ever being
-      loaded off a remote origin, which is the only way such script could arrive:
-        'unsafe-eval'   - required by webpack's eval-based source maps in dev mode
-                          (devtool: 'eval-cheap-module-source-map')
+      This policy stops script from ever being loaded off a remote origin.
         'unsafe-inline' - required by the webpack runtime's injected bootstrap
         blob:/file:     - required by the simulation web workers (WorkerInterface.fs)
                           and by the packaged app, which loads over file://
-      Tighten by removing 'unsafe-eval' once dev mode no longer uses eval source maps.
-      Styles, fonts, images and connections are deliberately left unrestricted: they
-      cannot execute, and constraining them risks breaking rendering.
+      'unsafe-eval' is gone: the renderer's devtool is cheap-module-source-map rather than an
+      eval-based one, so nothing here needs to build a function from a string.
+
+      What this policy is FOR has changed. It used to be the only thing standing between a remote
+      script and the user's filesystem, because the renderer ran with nodeIntegration and executing
+      any script here meant full node access. That is no longer true - the renderer has no node, no
+      electron module and no shared context, and everything it may ask the operating system for is
+      a named bridge operation (src/Preload/preload.js). So this is defence in depth now rather than
+      the whole defence, which is the right place for a CSP to sit.
+
+      Styles, fonts, images and connections are deliberately left unrestricted: they cannot execute,
+      and constraining them risks breaking rendering.
     -->
     <meta http-equiv="Content-Security-Policy"
-          content="script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: file: http://localhost:8672;
+          content="script-src 'self' 'unsafe-inline' blob: data: file: http://localhost:8672;
                    object-src 'none';
                    frame-src 'none';
                    base-uri 'none';" />

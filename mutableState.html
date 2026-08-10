@@ -121,6 +121,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -298,6 +304,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -456,11 +468,11 @@ looks like the exception and is not one.</p>
 </tr>
 <tr class="odd">
 <td><p><code>Main/Main.fs</code></p></td>
-<td><p><code>mainWindow</code>, <code>closeAfterSave</code> — Electron main process, no Elmish model there</p></td>
+<td><p><code>mainWindow</code>, <code>splashWindow</code> — the two Electron windows; <code>closeAfterSave</code>; <code>appStarted</code> — process lifecycle, and there is no Elmish model in the main process at all</p></td>
 </tr>
 <tr class="even">
 <td><p><code>UI/KeyBindings.fs</code></p></td>
-<td><p><code>modelContext</code> — a cached projection of the model for DOM handlers, which cannot see it and must decide <code>preventDefault</code> synchronously; <code>ctrlHeld</code> — physical modifier state, wanted on its edges and across focus loss; <code>keyLog</code> — debug-only log of what the dispatcher decided</p></td>
+<td><p><code>modelContext</code> — a cached projection of the model for DOM handlers, which cannot see it and must decide <code>preventDefault</code> synchronously; <code>ctrlHeld</code> and <code>spaceHeld</code> — physical modifier state, wanted on its edges and across focus loss, and a held key is not something the shortcut table can express; <code>keyLog</code> — debug-only log of what the dispatcher decided</p></td>
 </tr>
 <tr class="odd">
 <td><p><code>Interface/JSHelpers.fs</code></p></td>
@@ -468,7 +480,7 @@ looks like the exception and is not one.</p>
 </tr>
 <tr class="even">
 <td><p><code>Common/Log.fs</code></p></td>
-<td><p><code>enabled</code> — which log categories are on, switched from a menu, a command-line flag or the console; <code>ring</code> / <code>ringNext</code> — a fixed buffer of the last few hundred lines, written one slot at a time so that logging allocates nothing, and read from outside the app the way <code>KeyBindings.keyLog</code> is; <code>warnedKeys</code>; the five counters (<code>msgCount</code>, <code>renderCount</code>, <code>updateMsTotal</code>, <code>slowestMs</code>, <code>slowestName</code>) and <code>lastSummary</code>, updated on every message and every render, which is exactly the write frequency that rules out a model field</p></td>
+<td><p><code>enabled</code> — which log categories are on, switched from a menu, a command-line flag or the console; <code>ring</code> / <code>ringNext</code> — a fixed buffer of the last few hundred lines, written one slot at a time so that logging allocates nothing, and read from outside the app the way <code>KeyBindings.keyLog</code> is; <code>warnedKeys</code>; the five counters (<code>msgCount</code>, <code>renderCount</code>, <code>updateMsTotal</code>, <code>slowestMs</code>, <code>slowestName</code>) with <code>lastSummary</code> and <code>summaryInterval</code>, updated on every message and every render, which is exactly the write frequency that rules out a model field</p></td>
 </tr>
 <tr class="odd">
 <td><p><code>Simulator/CanvasExtractor.fs</code></p></td>

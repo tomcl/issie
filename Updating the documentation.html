@@ -118,6 +118,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -295,6 +301,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -391,8 +403,14 @@
 <p>See <a href="https://github.com/tomcl/issie/issues/532">Issue 532</a> for more details of why watch does not work with API.</p>
 <p>PR to ISSIE master the changed documentation.</p>
 <h3><a name="Gotcha" class="anchor" href="#Gotcha">Gotcha</a></h3>
-<p>Documentation builds for ISSIE need a secret key on the repo generated as documented <a href="https://github.com/tomcl/issie/wiki/0-Project-Documentation-Website">on the wiki</a>.</p>
-<p>This must be regenerated every 6 months or so and uploaded to the repo.</p>
+<p><code>build_docs.sh</code> refuses to finish if fsdocs produced no <code>output/index.html</code>. That check is there
+because fsdocs catches its own phase errors and still exits 0, and the deploy step publishes
+whatever is in <code>output/</code> — so without it a failed build silently replaced the live site while the
+workflow stayed green. If the docs job fails at that line, read the fsdocs output above it rather
+than re-running.</p>
+<p>No secret needs managing: <code>.github/workflows/docs.yml</code> authenticates with <code>secrets.GITHUB_TOKEN</code>,
+which GitHub mints for each run. (An earlier version of this page described a deploy key that had
+to be regenerated every six months. There is no such key now.)</p>
 
         
     </div>

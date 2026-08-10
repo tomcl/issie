@@ -121,6 +121,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -294,6 +300,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/mutableState.html">
     Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
 
   </a>
 </li>             
@@ -472,8 +484,8 @@ any of it — <code>grep -rn "VerilogComponent/test" Tests/</code> is empty.</p>
 <tbody>
 <tr class="odd">
 <td><p><code>input/codegen/single</code></p></td>
-<td align="right"><p>75 <code>.sv</code></p></td>
-<td><p>single-module Verilog sources for the input compiler</p></td>
+<td align="right"><p>75 <code>.sv</code> + 66 <code>.json</code></p></td>
+<td><p>single-module Verilog sources for the input compiler, each with the <strong>input vectors</strong> to drive it beside it (<code>TestParser.fs:193</code> reads the <code>.json</code> from the source's own directory)</p></td>
 </tr>
 <tr class="even">
 <td><p><code>input/codegen/multiple</code></p></td>
@@ -508,9 +520,25 @@ any of it — <code>grep -rn "VerilogComponent/test" Tests/</code> is empty.</p>
 </tbody>
 </table>
 
-<p>Note <code>ref/codegen</code> has 66 entries against 75 sources: nine cases have no reference at all, so
-<code>runCodeGenTests</code> fails on them with "Couldn't open codegen reference output!" rather than
-reporting them as uncovered.</p>
+<p>The two 66s are a coincidence, and neither is 75. Taking the set differences rather than
+subtracting the counts:</p>
+<ul>
+<li>
+<strong>13 sources have no <code>ref/codegen</code> entry</strong> — <code>array2</code>, <code>dual_ram</code>, <code>dual_ram2</code>, <code>fifo</code>,
+<code>forloop2</code>, <code>fsm6</code>, <code>fsm7</code>, <code>parameters</code>, <code>parameters2</code>, <code>ram</code>, <code>ram2</code>, <code>ram3</code>, <code>shifter2</code>.
+<code>runCodeGenTests</code> fails on each with "Couldn't open codegen reference output!" rather than
+reporting it as uncovered.
+</li>
+<li>
+<strong>4 references have no source</strong> — <code>002-fulladder</code>, <code>002-modinst</code>, <code>002-ripplecarryadder</code>,
+<code>counter2</code>. Nothing reads them.
+</li>
+<li>
+<strong>9 sources have no input vectors</strong> beside them, which is what makes that count 66: the nine are
+<code>dual_ram</code>, <code>dual_ram2</code>, <code>fifo</code>, <code>fsm6</code>, <code>fsm7</code>, <code>ram</code>, <code>ram2</code>, <code>ram3</code>, <code>shifter2</code> — the memory
+and state-machine cases, all of which also lack a reference.
+</li>
+</ul>
 <p><strong>Icarus is already the oracle for the input compiler — by hand.</strong> The four menu items are:</p>
 <ul>
 <li>
@@ -574,8 +602,10 @@ removes the version-provenance problem entirely and makes <code>ref/codegen</cod
 Icarus-less case.
 </li>
 <li>
-<strong>Fill in the nine sources that have no reference, or drop them.</strong> Failing with "Couldn't open
-codegen reference output!" is worse than either.
+<strong>Resolve the three corpus mismatches above</strong>: give the 13 sources with no reference one (which
+step 4 does by construction), write input vectors for the nine that have none, and delete the
+four orphaned references. Failing with "Couldn't open codegen reference output!" is worse than
+either covering the case or dropping it.
 </li>
 <li>
 <strong>Decide what runs in CI.</strong> Icarus is one <code>apt-get install iverilog</code> on Linux and a package on

@@ -121,6 +121,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -298,6 +304,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -468,8 +480,10 @@ sheet prefix gives, and readable ids make a generated file possible to read and 
 process. Three things had to be true for that, and now are:</p>
 <ul>
 <li>
-<strong>File I/O.</strong> <code>FilesIO</code> is cross-compiled; the <code>#if FABLE_COMPILER</code> branches use <code>System.IO</code>.
-Writing must not emit a byte-order mark (<code>UTF8Encoding false</code>): Issie's reader chokes on one.
+<strong>File I/O.</strong> <code>FilesIO</code> is cross-compiled: each of its primitives is an <code>#if FABLE_COMPILER</code>
+branch calling Node's <code>fs</code>/<code>path</code> and an <code>#else</code> branch calling <code>System.IO</code>, so the same code
+reads and writes files under Electron and under .NET. Writing must not emit a byte-order mark
+(<code>UTF8Encoding false</code>): Issie's reader chokes on one.
 </li>
 <li>
 <strong>A project needs its <code>.dprj</code>.</strong> An empty marker file, without which Issie will not offer the

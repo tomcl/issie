@@ -7,15 +7,18 @@
     <meta content="Main" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="ISSIE v3.0.9  - Happy Christmas!" />
-    <meta property="og:url" content="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    <meta property="og:title" content="Review of the documentation and code
+" />
+    <meta property="og:url" content="/issie/dev/repoReview.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="ISSIE v3.0.9  - Happy Christmas!">
+    <meta name="twitter:title" content="Review of the documentation and code
+">
     
-    <title>ISSIE v3.0.9  - Happy Christmas! | issie</title>
+    <title>Review of the documentation and code
+ | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -102,7 +105,7 @@
     Updating This Documentation
   </a>
 </li>             
-<li class="nav-header ">
+<li class="nav-header active">
   Other
 </li>             
 <li class="nav-item ">
@@ -117,7 +120,7 @@
 
   </a>
 </li>             
-<li class="nav-item ">
+<li class="nav-item active">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
 
@@ -153,7 +156,7 @@
 
   </a>
 </li>             
-<li class="nav-header active">
+<li class="nav-header ">
   Blog Updates
 </li>             
 <li class="nav-item ">
@@ -171,7 +174,7 @@
     ISSIE v5.2.0
   </a>
 </li>             
-<li class="nav-item active">
+<li class="nav-item ">
   <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
     ISSIE v3.0.9  - Happy Christmas!
   </a>
@@ -285,7 +288,7 @@
     Updating This Documentation
   </a>
 </li>             
-<li class="nav-header ">
+<li class="nav-header active">
   Other
 </li>             
 <li class="nav-item ">
@@ -300,7 +303,7 @@
 
   </a>
 </li>             
-<li class="nav-item ">
+<li class="nav-item active">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
 
@@ -336,7 +339,7 @@
 
   </a>
 </li>             
-<li class="nav-header active">
+<li class="nav-header ">
   Blog Updates
 </li>             
 <li class="nav-item ">
@@ -354,7 +357,7 @@
     ISSIE v5.2.0
   </a>
 </li>             
-<li class="nav-item active">
+<li class="nav-item ">
   <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
     ISSIE v3.0.9  - Happy Christmas!
   </a>
@@ -386,14 +389,105 @@
 </aside>
 <main>
     <div id="content">
-        
-<h1><a name="ISSIE-v3-0-9-Happy-Christmas" class="anchor" href="#ISSIE-v3-0-9-Happy-Christmas">ISSIE v3.0.9  - Happy Christmas!</a></h1>
-<p>Happy Christmas and New Year to all Issie users!</p>
-<p>The major changes from last year have now survived Autumn Term testing with a few minor changes and fixes to improve the all-new waveform simulation display. Next term will have more serious user testing with a few hundred students using the waveform simulator to run and debug a multi-sheet EEP1 CPU.</p>
-<p>For the period of the Spring term there will be no new features - and bug fixes as needed. We hope not many will be needed.</p>
-<p>This year the main Issie improvement will be the simulator, where <code>0x6770</code> (Yujie Wang) is working on a branch that will use a variety of techniques to speed up simulation by a large amount. Yujie will also be making a few additions to the recommended Issie tool chain and style guide.</p>
-<p>In addition a major extension is expected to the current simple Verilog component feature. Petra Ratkai <code>petraratkai</code> is working on a much more complete Verilog compiler that will move Issie more towards non-schematic use. The hope is that eventually for advanced work schematics can be used for structural code an top-level hierarchy, and RTL modules implemented in HDL.</p>
-<p>Tom Clarke, December 2022</p>
+        <h1><a name="Review-of-the-documentation-and-code" class="anchor" href="#Review-of-the-documentation-and-code">Review of the documentation and code</a></h1>
+<p>A read of every markdown file in the repository against the code it describes, plus a pass over the
+build scripts, the CI workflows and the test harness. Written 2026-08-09 against <code>1b9a104ec</code>.</p>
+<p>Everything below was checked rather than inferred: file and line references are what was read, and
+the counts come from running the thing. Where a claim in the docs turned out to be right it is not
+listed — this is a defect list, and the state of the documentation is much better than its length
+suggests.</p>
+<p>Everything the review found that was <em>wrong</em> — thirteen priority-1 items, from a <code>clean: true</code> that
+could package an app with no renderer in it down to a misspelling — and every smaller code defect
+alongside them were fixed on 2026-08-09, and have been deleted per the rule below. What remains,
+and what this page is now, is the gaps: work that is absent rather than incorrect.</p>
+<p>Method, so that a re-run is possible: <code>npm run test</code> (396 pass, 54s here) and <code>CI=true npm run test</code>
+(385 pass, 21s here); all relative links in every <code>.md</code> resolved against the filesystem; every
+<code>`path/to/file.ext`</code> in the docs resolved; the Verilog corpus counted; module-level <code>let mutable</code>
+enumerated across <code>src/</code>; the generated site in <code>output/</code> inspected for how each page lands.</p>
+<p>Fix an item and delete it from this page. A review that keeps its history stops being read — the
+same rule <a href="openIssues.html">openIssues.md</a> is kept under.</p>
+<hr />
+<h2><a name="The-remaining-gaps" class="anchor" href="#The-remaining-gaps">The remaining gaps</a></h2>
+<p>Things that are absent rather than wrong.</p>
+<p><strong>1. No test reaches the waveform simulator, the truth-table UI, the Elmish update loop, or wire
+routing beyond the simple cases.</strong> <code>Tests/README.md:150-151</code> states this plainly, which is right,
+but it has stayed stated for a while. Of the four, wire routing is the one with a ready-made route
+in: <code>DrawBlockTests.fs</code> already builds symbols and routes wires under plain .NET, and
+<code>BusWireSeparate.fs:961</code> carries a TODO admitting the separation pass does not check its own result
+("include a comprehensive check for any remaining overlapping wires after this - and fix them"). A
+test that asserts no two wires overlap after separation would be one assertion against the property
+the module exists to provide.</p>
+<p><strong>2. 96 <code>TODO</code>/<code>FIXME</code> comments in <code>src/</code>, tracked nowhere.</strong> <code>openIssues.md</code> is a deliberately
+curated list of rough edges; the TODOs are the untriaged remainder, and several are substantive
+rather than cosmetic — <code>EvalAlgebraic.fs:25</code> ("the isClockedReduction = true code below under
+asyncRAM should be deleted. It is not used"), <code>FastExtract.fs:32</code> ("future steps are not rerun
+(perhaps they should be!)"), <code>CommonTypes.fs:1098</code>. Worth one pass that promotes the real ones into
+<code>openIssues.md</code> and deletes the rest, then a note in <code>AGENTS.md</code> that a new TODO goes in
+<code>openIssues.md</code> instead.</p>
+<p><strong>3. Nothing stops <code>docs/mutableState.md</code>'s audit going stale again.</strong> It was brought back in step
+with the source on 2026-08-09 — four module-level mutables had accumulated that no table listed, one
+of which (<code>Main.fs</code> <code>appStarted</code>) cites that very document as its justification. Bringing it up to
+date fixes today only. <code>Tests/Issie.Tests/SourceHygiene.fs</code> is the precedent for the durable fix: a
+test that enumerates module-level <code>let mutable</code> across <code>src/</code> and fails when one appears that the
+document does not name. The audit is the document's whole value, and a stale audit is worse than
+none, because the next person adds one and assumes the list is complete.</p>
+<p><strong>4. Developer pages have no fsdocs frontmatter, so the published site files them under "Other".</strong>
+<code>docs/BUILD_OPTIMIZATION.md</code>, <code>docs/mutableState.md</code> and all six <code>docs/dev/*.md</code> (this page
+included) start with a heading rather than a <code>---</code> block. Every other page in <code>docs/</code> has <code>title</code>,
+<code>category</code>, <code>categoryindex</code> and <code>index</code>. The generated navigation puts the frontmatter-less pages in
+an unnamed group after the user documentation, in arbitrary order, on the site students read. Give
+them <code>category: Developer</code> and an index; <code>docs/index.md:55</code> already links one of them from the front
+page, so they are meant to be published.</p>
+<p><strong>5. <code>Tests/Issie.Tests/SourceHygiene.fs</code> allowlists by file name, not path.</strong> <code>allowed</code> holds bare
+names (<code>"Main.fs"</code>, <code>"TimeHelpers.fs"</code>, …) and the offender filter compares <code>Path.GetFileName</code>. Any
+future <code>src/**/Main.fs</code> silently inherits permission to print — and the "every allowlisted file
+exists" test that guards against a stale allowlist matches by name too, so it would not notice.
+Compare against the path relative to <code>src/</code>. Separately, <code>console.log</code> is matched only by the
+<em>commented-out</em> pattern; a live <code>JS.console.log</code> in renderer code passes, which is the gap the module
+exists to close.</p>
+<p><strong>6. <code>README.md:174-176</code> lists three pinned tools; <code>dotnet-tools.json</code> pins five.</strong> <code>fsdocs-tool</code>
+and <code>fantomas</code> are missing from the list. <code>fantomas</code> matters because <code>AGENTS.md:60-62</code> tells people
+to run it.</p>
+<p><strong>7. Two sources of truth for coding guidelines.</strong> <code>README.md:196</code> and <code>docs/gettingStarted.md:30-34</code>
+send contributors to the GitHub wiki for coding guidelines and a code overview, as does
+<code>CONTRIBUTING.md</code>. <code>CLAUDE.md</code> and <code>AGENTS.md</code> say they are the guide and are kept current, and
+<code>.github/copilot-instructions.md</code> explicitly warns that overlapping guides drift. The wiki page
+itself is real and substantial (<code>wiki/1---Coding-guidelines-for-ISSIE</code>; the un-numbered URL
+<code>CONTRIBUTING.md</code> used to carry silently landed on the wiki Home instead, and was corrected). So
+this is a structural decision, not a broken link: decide which is authoritative and make the other
+say so.</p>
+<p><strong>8. Test counts and timings are hand-copied into five files.</strong> 396 / 385 / "about a hundred
+seconds" / "~26s" appear in <code>README.md</code>, <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>Tests/README.md</code> and
+<code>CONTRIBUTING.md</code>. The counts are correct today (verified: 396 and 385, both green). The timings are
+machine-dependent — 54s and 21s here — and five places is four too many to keep true. Keep the
+numbers in <code>Tests/README.md</code> and have the others link to it.</p>
+<p><strong>9. Orphan assets.</strong> <code>docs/pdf/marco-poster.pdf</code> and <code>docs/img/homePage/verilogOutput.png</code> are
+referenced by nothing. <code>LICENSE</code> and <code>LICENSE.md</code> are byte-identical duplicates of 35KB
+(<code>README.md:324</code> links the second). All three are one deletion each.</p>
+<hr />
+<h2><a name="What-is-in-good-shape" class="anchor" href="#What-is-in-good-shape">What is in good shape</a></h2>
+<p>So that the list above is read for what it is. <code>docs/dev/simulatorStructure.md</code> and
+<code>docs/dev/verilogTesting.md</code> are unusually good: they name the debt, quantify it, and say what a fix
+would cost. Every relative link in every markdown file resolves. Every code path cited in the docs
+exists. The Verilog corpus figures, the demo count, the test group table in <code>Tests/README.md</code> and
+its per-group breakdown all check out — the group counts sum to exactly 396, and both suite counts
+were confirmed by running them. <code>scripts/clean-dev.js</code>, <code>scripts/app.js</code> and
+<code>scripts/refresh-stale-output.js</code> are careful, and each carries a comment saying which failure it
+exists to prevent. <code>openIssues.md</code>'s entries were spot-checked against the code
+(<code>ParameterAnalysis.fs:566</code>'s <code>Set.minElement</code>, the unvalidated <code>pathJoin [| root; libName |]</code> in
+<code>MiscMenuView.fs:825</code>, <code>FilesIO.modifiedTimeMs</code> having no callers) and every one held.</p>
+<p>The masking invariant the docs make so much of holds where it was checked: <code>EvalCompiled.maskOf</code>
+special-cases width 32, and the ROM tabulation is gated on <code>maxRomTableAddressWidth</code> before
+<code>1 &lt;&lt;&lt; AddressWidth</code> can overflow.</p>
+<hr />
+<h2><a name="Suggested-order" class="anchor" href="#Suggested-order">Suggested order</a></h2>
+<ol>
+<li>
+Items 1-3, the coverage gaps. Each is a small piece of work with a clear finish, and each leaves
+behind a check rather than a paragraph.
+</li>
+<li>Items 4-9, the documentation-structure gaps.</li>
+</ol>
 
         
     </div>
@@ -402,8 +496,23 @@
     <p id="on-this-page">On this page</p>
     <ul>
   <li class="level-1">
-    <a href="#ISSIE-v3-0-9-Happy-Christmas">
-      ISSIE v3.0.9  - Happy Christmas!
+    <a href="#Review-of-the-documentation-and-code">
+      Review of the documentation and code
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#The-remaining-gaps">
+      The remaining gaps
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-is-in-good-shape">
+      What is in good shape
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Suggested-order">
+      Suggested order
     </a>
   </li>
 </ul>

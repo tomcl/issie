@@ -53,11 +53,27 @@ let staticDirectory () =
 /// beside the main bundle in both development and production, so no branch is needed here.
 let preloadPath () = path.join (__dirname, "preload.js")
 
-let private switchValue (name: string) =
-    if mainProcess.app.commandLine.hasSwitch name then
-        mainProcess.app.commandLine.getSwitchValue name
-    else
-        ""
+// Issie's own switches, read from process.argv rather than app.commandLine.
+//
+// They arrive after the app path (scripts/start.js explains why), and Electron hands those to the
+// application rather than parsing them into Chromium's switch table - so hasSwitch cannot see them.
+// argv can, and it is what Main.hasDebugArgs has always used.
+
+let private rawArgs () : string list = ``process``.argv |> List.ofSeq
+
+let private hasArg (names: string list) =
+    let lowered = rawArgs () |> List.map (fun (s: string) -> s.ToLowerInvariant())
+    names |> List.exists (fun n -> List.contains (n.ToLowerInvariant()) lowered)
+
+/// The value of a `--name=value` switch, "" when it is absent. The name is matched without regard
+/// to case; the value is left exactly as it was given.
+let private argValue (name: string) =
+    let prefix = (name + "=").ToLowerInvariant()
+
+    rawArgs ()
+    |> List.tryPick (fun (a: string) ->
+        if a.ToLowerInvariant().StartsWith prefix then Some(a.Substring prefix.Length) else None)
+    |> Option.defaultValue ""
 
 /// app.getPath throws for a location the platform does not define, and every caller of this can
 /// carry on without the path, so a failure becomes an empty string rather than a dead startup.
@@ -79,12 +95,11 @@ let private bootstrap () =
        documents = tryGetPath AppGetPath.Documents
        cwd = cwd ()
        isDev = isDev ()
-       // the launch switches JSHelpers.setDebugLevel reads; sent as values so that app.commandLine
+       // the launch switches JSHelpers.setDebugLevel reads; sent as values so that the command line
        // itself never has to be reachable from the renderer
-       hasDebugSwitch = mainProcess.app.commandLine.hasSwitch "debug"
-                        || mainProcess.app.commandLine.hasSwitch "-d"
-       hasWSwitch = mainProcess.app.commandLine.hasSwitch "w"
-       logSwitch = switchValue "log" |}
+       hasDebugSwitch = hasArg [ "--debug"; "-d" ]
+       hasWSwitch = hasArg [ "--w"; "-w" ]
+       logSwitch = argValue "--log" |}
 
 // ---------------------------------------------------------------------------------------------
 // Root confinement

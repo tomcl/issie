@@ -32,6 +32,12 @@ PR to ISSIE master the changed documentation.
 
 ### Gotcha
 
-Documentation builds for ISSIE need a secret key on the repo generated as documented [on the wiki](https://github.com/tomcl/issie/wiki/0-Project-Documentation-Website).
+`build_docs.sh` refuses to finish if fsdocs produced no `output/index.html`. That check is there
+because fsdocs catches its own phase errors and still exits 0, and the deploy step publishes
+whatever is in `output/` — so without it a failed build silently replaced the live site while the
+workflow stayed green. If the docs job fails at that line, read the fsdocs output above it rather
+than re-running.
 
-This must be regenerated every 6 months or so and uploaded to the repo.
+No secret needs managing: `.github/workflows/docs.yml` authenticates with `secrets.GITHUB_TOKEN`,
+which GitHub mints for each run. (An earlier version of this page described a deploy key that had
+to be regenerated every six months. There is no such key now.)

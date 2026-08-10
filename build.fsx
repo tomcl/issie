@@ -78,10 +78,17 @@ Target.create "DistDir" (fun _ ->
   Npm.run "pack" id
 )
 
+// Kill what an interrupted dev session leaves behind, via scripts/clean-dev.js.
+//
+// This used to be three killAllByName calls - "issie.exe", "node" and "dotnet" - which match on
+// the executable name alone. So it killed the `dotnet fsi` running this script (and, through the
+// Clean target, killed itself partway through a clean), the npm that may have started it, and
+// every unrelated dotnet and node process on the machine: another project's dev server, an IDE's
+// compiler server. clean-dev.js matches on what a process IS - fable, Electron, the webpack dev
+// server - kills the supervisors last, and never matches itself.
 Target.create "KillZombies" <| fun _ ->
-    Fake.Core.Process.killAllByName "issie.exe"
-    Fake.Core.Process.killAllByName "node"
-    Fake.Core.Process.killAllByName "dotnet"
+    let code = Shell.Exec("node", "scripts/clean-dev.js", __SOURCE_DIRECTORY__)
+    if code <> 0 then failwithf "scripts/clean-dev.js exited with %d" code
 
 // Build order
 
@@ -104,9 +111,6 @@ Target.create "KillZombies" <| fun _ ->
 
 "NpmInstall"
   ==> "DistDir"
-
-"CleanFableJS"
- ==> "dev"
 
 // start build
 Target.runOrDefaultWithArguments "Dev"

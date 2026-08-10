@@ -8,11 +8,15 @@ const compilerRenderer = webpack(configRenderer);
 
  (async () => {
    /**
-     * Delete build and dist dirs
+     * Delete build and dist dirs.
+     *
+     * Awaited: fsextra.remove returns a promise, and without the await webpack started writing
+     * into the very directory that was being deleted. This is also the only thing that empties
+     * build/ - webpack.config.main.js deliberately does not set `clean`, which would take the
+     * renderer's output with it.
      */
-    //await del([path.join(__dirname, '../build'), path.join(__dirname, '../dist')], { force: true });
-     fsextra.remove(path.join(__dirname, '../build'))
-     fsextra.remove(path.join(__dirname, '../dist'))
+     await fsextra.remove(path.join(__dirname, '../build'))
+     await fsextra.remove(path.join(__dirname, '../dist'))
     /**
      * Build main
      */

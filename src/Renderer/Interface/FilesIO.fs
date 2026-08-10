@@ -89,7 +89,7 @@ let readFile (filePath: string) =
     #if FABLE_COMPILER
     fs.readFileSync(filePath, "utf8")
     #else
-    File.ReadAllText(filePath, System.Text.ASCIIEncoding.UTF8)
+    File.ReadAllText(filePath, System.Text.Encoding.UTF8)
     #endif
 
 let exists (filePath: string) =

@@ -7,8 +7,10 @@
 # and, much quicker while iterating, one group at a time:
 #     dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock
 #
-# Neither this script nor CI compiles the #if FABLE_COMPILER branches. If you have changed code
-# inside one, run `npm run compile` as well - nothing else will check it.
+# This script does not compile the #if FABLE_COMPILER branches. If you have changed code inside
+# one, run `node scripts/dev.js --once --no-app` as well - nothing else will check it. Not
+# `npm run compile`: that leaves the generated JS built with the PRODUCTION define, so whoever next
+# runs the app pays a full recompile. See docs/BUILD_OPTIMIZATION.md.
 
 set -u
 

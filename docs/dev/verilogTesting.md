@@ -60,7 +60,7 @@ Its corpus, under `src/Renderer/VerilogComponent/test/`:
 
 | Directory | Files | What it is |
 |---|---:|---|
-| `input/codegen/single` | 75 `.sv` | single-module Verilog sources for the input compiler |
+| `input/codegen/single` | 75 `.sv` + 66 `.json` | single-module Verilog sources for the input compiler, each with the **input vectors** to drive it beside it (`TestParser.fs:193` reads the `.json` from the source's own directory) |
 | `input/codegen/multiple` | 4 dirs | multi-module cases, one directory each |
 | `input/driver` | 71 `.sv` | generated testbenches: drive N input vectors, `$display` the outputs as JSON |
 | `input/semantic` | 52 `.sv` | sources whose expected *errors* are the thing under test |
@@ -68,9 +68,18 @@ Its corpus, under `src/Renderer/VerilogComponent/test/`:
 | `ref/codegen` | 66 `.json` | expected outputs, **produced by Icarus** |
 | `ref/semantic` | 54 `.json` | expected error lists |
 
-Note `ref/codegen` has 66 entries against 75 sources: nine cases have no reference at all, so
-`runCodeGenTests` fails on them with "Couldn't open codegen reference output!" rather than
-reporting them as uncovered.
+The two 66s are a coincidence, and neither is 75. Taking the set differences rather than
+subtracting the counts:
+
+- **13 sources have no `ref/codegen` entry** — `array2`, `dual_ram`, `dual_ram2`, `fifo`,
+  `forloop2`, `fsm6`, `fsm7`, `parameters`, `parameters2`, `ram`, `ram2`, `ram3`, `shifter2`.
+  `runCodeGenTests` fails on each with "Couldn't open codegen reference output!" rather than
+  reporting it as uncovered.
+- **4 references have no source** — `002-fulladder`, `002-modinst`, `002-ripplecarryadder`,
+  `counter2`. Nothing reads them.
+- **9 sources have no input vectors** beside them, which is what makes that count 66: the nine are
+  `dual_ram`, `dual_ram2`, `fifo`, `fsm6`, `fsm7`, `ram`, `ram2`, `ram3`, `shifter2` — the memory
+  and state-machine cases, all of which also lack a reference.
 
 **Icarus is already the oracle for the input compiler — by hand.** The four menu items are:
 
@@ -117,8 +126,10 @@ needed:
    removes the version-provenance problem entirely and makes `ref/codegen` unnecessary. Keep a
    `ISSIE_UPDATE_GOLDEN`-style escape only if a committed reference is wanted for the
    Icarus-less case.
-5. **Fill in the nine sources that have no reference, or drop them.** Failing with "Couldn't open
-   codegen reference output!" is worse than either.
+5. **Resolve the three corpus mismatches above**: give the 13 sources with no reference one (which
+   step 4 does by construction), write input vectors for the nine that have none, and delete the
+   four orphaned references. Failing with "Couldn't open codegen reference output!" is worse than
+   either covering the case or dropping it.
 6. **Decide what runs in CI.** Icarus is one `apt-get install iverilog` on Linux and a package on
    the other two platforms, but 75 sources × (compile + run) is not a per-push cost. The natural
    split is: skipped by default like `VerilogCompiler` is, run on a schedule or a label.

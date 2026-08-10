@@ -120,8 +120,10 @@ than pixel widths, which are only ever as good as that table. Anything about how
 
 ## What is not run
 
-- **CI does not run this suite**, on any platform. `.github/workflows/tests.yml` runs a Fable
-  compile on Windows and reports that. Run the tests locally before opening a PR.
+- **CI runs this suite on every push** (`.github/workflows/tests.yml`, job `test-suite`, on Linux)
+  and a failure blocks. What CI does *not* run is `Issie.VerilogCompiler` — GitHub sets `CI=true`,
+  which is exactly the skip described above — or `npm run typecheck`. Run both locally when your
+  change touches what they cover.
 
 A superseded test project once sat beside this one. Its `CanvasStates*.fs` and
 `WidthInfererTests.fs` hold hand-built canvases for cases this suite does not cover

@@ -108,12 +108,16 @@ Sheets are continuously auto-backed-up to a `backup/` subdirectory of the projec
 
 ## Conventions that differ from the defaults
 
-These are enforced across the codebase, so following the surrounding code is not enough — the
-defaults would teach the wrong pattern.
+Following the surrounding code is not enough here — the F# defaults would teach the wrong pattern,
+and on the first of these the surrounding code is not yet uniform either. Nothing enforces any of
+them: there is no linter, and the compiler accepts either style.
 
-- **State updates go through lens/prism composition**, not record-copy syntax:
+- **Write state updates with lens/prism composition** rather than record-copy syntax:
   `model |> Optic.set (sheet_ >-> symbols_ >-> label_) newLabel`. Lenses are defined in
-  `ModelType.fs` for every record field.
+  `ModelType.fs` for every record field. This one is the direction of travel rather than the
+  current state: `{ model with … }` still outnumbers `Optic.set` roughly two to one across
+  `src/Renderer`. Use optics in new code and when reworking an update you are already changing;
+  do not sweep existing ones, which buries the real diff.
 - **Strictly immutable.** No `for` loops, no `mutable`, no side effects in model code. Use `map`,
   `fold`, `filter`, pipelines and recursion. Module-level `let mutable` is allowed only for a
   measured performance reason or for state that genuinely is not model state (DOM refs, Electron,

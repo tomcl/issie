@@ -81,7 +81,13 @@ for (const p of projects) {
   if (!once) args.push('watch');
   args.push(p.dir, '-s');
   for (const d of p.defines) args.push('--define', d);
-  if (!once) args.push('--run', 'node', path.join(__dirname, 'fable-ready.js'));
+  // Relative, deliberately: this path is passed through two layers that join arguments back into
+  // a command line - `shell: true` below, and Fable's own --run, which re-emits it as
+  // `cmd /C node <path>` - and neither quotes. An absolute path therefore split at the first
+  // space, and a checkout under "C:\My Projects\issie" never saw the ready signal, so the app
+  // never started. A path relative to the repo root has no space wherever the repo lives, and
+  // the root is this process's cwd (see the spawn below) and Fable's.
+  if (!once) args.push('--run', 'node', 'scripts/fable-ready.js');
 
   const proc = spawn('dotnet', args, { cwd: root, shell: true });
   fableProcs.push(proc);

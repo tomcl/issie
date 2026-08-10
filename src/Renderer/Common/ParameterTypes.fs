@@ -49,7 +49,9 @@ type ParamConstraint =
 type CompSlotName =
     | Buswidth
     | IO of Label: string
-    | CustomCompParam of ParamName: string // TODO: implement this case
+    /// A parameter of the sheet INSIDE a custom component instance, bound by that instance.
+    /// See ComponentSlots.trySetSlotValue and ParameterView.makeParamBindingEntryBoxes.
+    | CustomCompParam of ParamName: string
     // SplitN-specific parameterised slots
     | SplitNWidth of Index: int
     | SplitNLSB of Index: int

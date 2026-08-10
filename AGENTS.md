@@ -63,18 +63,22 @@ by an actual Fable run, so compile with Fable before trusting a change to one.
 - There is no linter, and no ESLint or Prettier configuration. The F# compiler is the check.
 - Modules and types are `PascalCase`, values and functions `camelCase`. Test files end `Tests.fs`.
 - CLAUDE.md has the conventions that differ from F# defaults, and following the surrounding code is
-  not enough to infer them: optics rather than record-copy syntax for state updates, strict
-  immutability, and `Option`/`Result` rather than nulls.
+  not enough to infer them: optics rather than record-copy syntax for state updates (the direction
+  of travel, not yet the majority — see CLAUDE.md), strict immutability, and `Option`/`Result`
+  rather than nulls.
 
 ## Continuous Integration
 Three workflows, in `.github/workflows/`:
-- `tests.yml` — on every push. Despite its name it runs **no tests**: it runs `build.ps1 -t Build`
-  on Windows, which is `npm run compile`, and reports whether the Fable compile succeeded. The step
-  is `continue-on-error`, so it does not block either.
+- `tests.yml` — on every push. Two jobs: `test-suite` runs the Expecto suite on Linux and **blocks**
+  on a failure (GitHub sets `CI=true`, so the `Issie.VerilogCompiler` group is skipped and it takes
+  well under a minute); `test-integration-windows` runs `build.ps1 -t Build` on Windows, which is
+  `npm run compile`, and reports whether the Fable compile succeeded — that one is
+  `continue-on-error`, so it informs rather than blocks.
 - `build.yml` — on a version tag. Builds and releases binaries for macOS, Windows and Linux.
 - `docs.yml` — on push to `master`. Builds the documentation and deploys it to GitHub Pages.
 
-The test suite is therefore **not run by CI on any platform**. Run it locally before a PR.
+Two things CI still does not check: `npm run typecheck`, and the `Issie.VerilogCompiler` group.
+Run both locally when your change touches what they cover.
 
 ## Commit & Pull Request Guidelines
 - Commit subjects are a short imperative sentence saying what the change does — "Write .dgm without
@@ -86,7 +90,7 @@ The test suite is therefore **not run by CI on any platform**. Run it locally be
   anything (see `CONTRIBUTING.md`), add screenshots or GIFs for UI changes, and link issues
   (`Fixes #123`). Note any migration steps.
 - Check locally that `npm run test` and `npm run typecheck` pass, and that Fable still compiles if
-  you touched a `#if FABLE_COMPILER` branch. Nothing in CI will do this for you.
+  you touched a `#if FABLE_COMPILER` branch. CI runs the suite but not the other two.
 
 ## Security & Configuration Tips
 - Do not commit secrets; use a local `.env` for development and GitHub secrets for CI.

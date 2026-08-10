@@ -211,8 +211,10 @@ all.
 Some of those names are npm's own hooks rather than things you invoke: `predist` runs
 automatically before `dist`, and `preversion`, `version` and `postversion` are the three hooks npm
 runs around `npm version`, which is what makes a release one command. `npm run test` and
-`npm run typecheck` are the two checks to run before a PR, since CI runs neither (it only checks
-that the app still compiles).
+`npm run typecheck` are the two checks to run before a PR. CI runs the test suite on every push
+(`tests.yml`, minus the `Issie.VerilogCompiler` group, which is skipped whenever `CI` is set) and
+separately checks that Fable still compiles on Windows — but a local run is quicker than waiting
+for it, and `typecheck` is checked by nothing but you.
 
 `npm run dev` runs [dev.js](scripts/dev.js), which starts `dotnet fable watch` for the main and
 renderer processes *in parallel*, transpiling the F# to javascript and watching the F# files for

@@ -4,11 +4,7 @@ const configMain = require('../webpack.config.main');
 const configRenderer = require('../webpack.config.renderer');
 const { spawn } = require('child_process');
 const path = require('path');
-//const del = require('del');
 const fsextra = require('fs-extra');
-
-const { shell } = require('electron');
-const { remove } = require('fs-extra');
 
 const compilerMain = webpack(configMain);
 const compilerRenderer = webpack(configRenderer);
@@ -18,10 +14,12 @@ let electronStarted = false;
 
  (async () => {
     /**
-     * Delete build dir
+     * Delete build dir.
+     *
+     * Awaited: fsextra.remove returns a promise, and without the await the removal raced the
+     * main-process bundle being written into the same directory.
      */
-    //await del([buildPath], { force: true });
-    fsextra.remove(buildPath)
+    await fsextra.remove(buildPath)
     /**
      * Start renderer dev server
      */

@@ -95,8 +95,10 @@ SheetLayout.saveLibraryComponent libPath description deps sheet   // .ldgm, plus
 All four run under plain .NET — `dotnet run`, a script, a test — with no Electron and no Issie
 process. Three things had to be true for that, and now are:
 
-- **File I/O.** `FilesIO` is cross-compiled; the `#if FABLE_COMPILER` branches use `System.IO`.
-  Writing must not emit a byte-order mark (`UTF8Encoding false`): Issie's reader chokes on one.
+- **File I/O.** `FilesIO` is cross-compiled: each of its primitives is an `#if FABLE_COMPILER`
+  branch calling Node's `fs`/`path` and an `#else` branch calling `System.IO`, so the same code
+  reads and writes files under Electron and under .NET. Writing must not emit a byte-order mark
+  (`UTF8Encoding false`): Issie's reader chokes on one.
 - **A project needs its `.dprj`.** An empty marker file, without which Issie will not offer the
   directory and drops it from the recent list. `saveProject` writes it.
 - **`.ldgm` encoding.** Fable writes it with the vendored SimpleJson and .NET with `Thoth.Json.Net`.

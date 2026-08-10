@@ -16,8 +16,11 @@ module.exports = {
     globalObject: 'this',
     filename: 'index.js',
     path: path.resolve(__dirname, 'build'),
-    publicPath: '',
-    clean: true
+    publicPath: ''
+    // No `clean: true` here. Both configs write into build/, and clean empties the whole
+    // directory - so building main after the renderer deletes renderer-index.js, index.html and
+    // css/index.css, and electron-builder packages an app with no renderer in it. scripts/build.js
+    // removes build/ once, before either compiler runs, which is where that belongs.
   },
   optimization: {
     minimize: false,

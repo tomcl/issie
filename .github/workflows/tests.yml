@@ -8,6 +8,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The Expecto suite. This is the job the workflow is named after; until it existed, "Tests" ran
+  # a Fable compile and nothing else, under continue-on-error, so the tick meant almost nothing.
+  #
+  # It blocks: no continue-on-error here. A failing test should stop a PR.
+  #
+  # GitHub Actions sets CI=true, and Main.fs reads that to skip the Issie.VerilogCompiler group,
+  # which spawns node per parse and is over a third of the suite's runtime. So this runs 385 of
+  # the 396 tests in well under a minute. Anything under src/Renderer/VerilogComponent/ still
+  # needs `dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.VerilogCompiler`
+  # locally - see Tests/README.md.
+  test-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - name: Checkout the repo
+      uses: actions/checkout@v5
+    - name: Set up .NET Core
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: '10.0.x'
+    - name: Restore .NET tools and packages
+      run: |
+        dotnet tool restore
+        dotnet paket restore
+    - name: Run the Expecto suite
+      run: dotnet run --project Tests/Issie.Tests -c Release
+
   report-prep:
     runs-on: ubuntu-latest
     steps:
@@ -21,6 +48,9 @@ jobs:
         path: report.xml
         overwrite: true
 
+  # Not a test run despite the name: this is the Fable compile check on Windows, reported as a
+  # single JUnit case so that it shows up beside the suite above. It stays continue-on-error, so
+  # it informs rather than blocks; test-suite is what blocks.
   test-integration-windows:
     runs-on: windows-latest
     needs: report-prep

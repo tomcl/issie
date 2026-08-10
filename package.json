@@ -33,7 +33,7 @@
     "version": "node scripts/sync-version.js && git add src/Renderer/Interface/Version.fs",
     "postversion": "git push origin master --follow-tags",
     "test": "dotnet run --project Tests/Issie.Tests -c Release",
-    "typecheck": "dotnet build src/Renderer/Renderer.fsproj --no-restore"
+    "typecheck": "dotnet build src/Renderer/Renderer.fsproj"
   },
   "build": {
     "appId": "ISSIE",

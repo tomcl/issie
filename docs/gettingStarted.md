@@ -17,13 +17,14 @@ Issie is designed to be intuitive with no manual required. Users will find the o
 
 ### Creating binaries
 
-It is possible for users to create their own binaries from source, if for example the latest release does not have an uploaded set of binaries. Binaries for a given platform can be created on that platform and run successfully without signing. Follow the steps in [Getting Started](https://github.com/tomcl/ISSIE#getting-started).
+It is possible for users to create their own binaries from source, if for example the latest release does not have an uploaded set of binaries. Binaries for a given platform can be created on that platform and run successfully without signing. Follow the steps in [Getting Started as Developer](https://github.com/tomcl/ISSIE#getting-started-as-developer), then run `npm run dist`.
 
 ## Developers
 
-See the  [Getting Started](https://github.com/tomcl/ISSIE#getting-started) section of the repo README for how to develop Issie code.
+See the  [Getting Started as Developer](https://github.com/tomcl/ISSIE#getting-started-as-developer) section of the repo README for how to develop Issie code.
 
-Development is possible on Macos or Windows. 
+Development works on Windows, MacOS and Linux: the same npm scripts drive all three, with
+`build.cmd` on Windows and `build.sh` elsewhere for the one-off set-up.
 
 ### Resources for developers
 

@@ -6,8 +6,10 @@ REM     npm run test          (dotnet run --project Tests/Issie.Tests -c Release
 REM and, much quicker while iterating, one group at a time:
 REM     dotnet run --project Tests/Issie.Tests -c Release -- --filter Issie.DrawBlock
 REM
-REM Neither this script nor CI compiles the #if FABLE_COMPILER branches. If you have changed
-REM code inside one, run "npm run compile" as well - nothing else will check it.
+REM This script does not compile the #if FABLE_COMPILER branches. If you have changed code inside
+REM one, run "node scripts\dev.js --once --no-app" as well - nothing else will check it. Not
+REM "npm run compile": that leaves the generated JS built with the PRODUCTION define, so whoever
+REM next runs the app pays a full recompile. See docs\BUILD_OPTIMIZATION.md.
 
 setlocal
 set FAIL=0

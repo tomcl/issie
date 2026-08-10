@@ -28,6 +28,17 @@ let makeClickableReturner
     |> createObj
     |> unbox
 
+/// The menu name out of what ipcMain hands us.
+///
+/// Electron invokes a listener as (event, ...args), so the second parameter is the first argument
+/// the sender passed - a string here - even though the binding types it as a collection. This was
+/// `unbox args`, which worked by that type simply being wrong in a direction that happened not to
+/// matter. Saying it in JavaScript instead is honest about the shape, and tolerates the sender
+/// passing a one-element array, which is a distinction no log line can show: String(["Canvas"]) is
+/// "Canvas".
+[<Emit("Array.isArray($0) ? String($0[0] ?? '') : String($0 ?? '')")>]
+let private menuNameOf (args: obj) : string = jsNative
+
 /// Function implements main process context menus
 /// it is called in main.fs from the renderer contextmenu event.
 /// to change which menu is called where alter UpdateHelpers.chooseContextMenu
@@ -35,13 +46,23 @@ let makeMenu
     (window: BrowserWindow)
     (dispatchToRenderer)
     (args: ResizeArray<obj option>) =
-    let menuType:string = unbox args
+    let menuType = menuNameOf args
 
     let cases =
         Map.tryFind menuType menuMap
         |> function
             | None ->
-                Log.warn $"'{menuType}' is not a menu name: it must be one of {menuMap |> Map.keys |> Seq.toList}"
+                // Map.toList rather than Map.keys: interpolating the latter printed only the tree's
+                // root key, which read exactly like a map with one entry in it and cost an hour of
+                // looking in the wrong place.
+                let known =
+                    menuMap
+                    |> Map.toList
+                    |> List.map fst
+                    |> List.filter (fun k -> k <> "")
+                    |> String.concat ", "
+
+                Log.warn $"context menu '{menuType}' is not a menu name: it must be one of {known}"
                 ["unknown_menu"]
             | Some cases ->
                 cases

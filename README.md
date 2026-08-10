@@ -145,7 +145,7 @@ caveat: code inside `#if FABLE_COMPILER` branches is only checked by an actual F
 * `package-lock.json` contains exact package versions and comes from the repo. Normally you don't need to change it. The standard build runs `npm ci`, which installs exactly the locked versions and does not change the lock file.
 * If you add or upgrade a package in `package.json`, run `npm install` to recreate the lock file, and commit it.
 * Single packages can conveniently be changed or added using `npm upgrade name` or `npm install [-D] name` instead of editing `package.json`.
-* If a package audits with a problem use `npm ls name` to find which of the required packages use it (usually upgrading or replacing them will remove the problem). Production dependencies are the ones that matter - they ship to users - and are checked by `npm run audit:prod`, which also runs automatically before `npm run dist`.
+* If a package audits with a problem use `npm ls name` to find which of the required packages use it (usually upgrading or replacing them will remove the problem). `npm run audit` checks everything, dev dependencies included, and runs automatically before `npm run dist`. It covers dev dependencies because Electron is one - electron-builder requires it to be - and an Electron advisory matters more than any other here. Much of what it reports is build tooling that never ships, so read the output rather than counting it.
 
 #### Development on macOS
 

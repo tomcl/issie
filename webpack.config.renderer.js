@@ -11,7 +11,12 @@ const staticPath =
 
 module.exports = {
   mode,
-  target: 'electron-renderer',
+  // 'web', not 'electron-renderer'. The renderer is an ordinary web page now: it has no node and no
+  // electron module. The two targets differ in exactly the way that matters here - electron-renderer
+  // silently turns an import of a node builtin into require("..."), which then throws at runtime in
+  // a page that has no require, while web makes it a build error naming the file that asked. That is
+  // the difference between finding this at compile time and finding it as a blank window.
+  target: 'web',
   devtool: 'cheap-module-source-map',
   entry: './src/Renderer/Renderer.fs.js',
   output: {

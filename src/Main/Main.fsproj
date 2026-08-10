@@ -11,7 +11,12 @@
          what Main.stampStartup prints. window.issieLog is a renderer thing and publish() is
          simply never called here. -->
     <Compile Include="..\Renderer\Common\Log.fs" Link="Log.fs" />
+    <!-- The `electron` module itself. Only this project: ElectronAPI.fs above is shared for its
+         types, and importing the module from the renderer is what contextIsolation forbids. -->
+    <Compile Include="ElectronModule.fs" />
     <Compile Include="..\Renderer\UI\ContextMenus.fs" Link="ContextMenus.fs" />
+    <!-- The half of the context menus that builds an Electron menu, split out for the same reason -->
+    <Compile Include="ContextMenuBuilder.fs" />
     <Compile Include="Bridge.fs" />
     <Compile Include="Main.fs" />
     <None Include="main.js" />

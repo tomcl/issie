@@ -10,7 +10,7 @@
 // operations of comparable cost and decode work an order of magnitude larger, so the synchronous
 // shape survives the move. See docs/dev/contextIsolation.md for the measurements.
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 const sync = (channel, payload) => ipcRenderer.sendSync(channel, payload);
 
@@ -70,6 +70,22 @@ const api = {
 
   openExternal: (url) => sync('issie:openExternal', url),
   clipboardWrite: (text) => sync('issie:clipboardWrite', text),
+
+  // Diagnostics behind the Development menu. These are answered here rather than in main because
+  // webFrame and getProcessMemoryInfo are renderer-process things: asking main would report the
+  // wrong process. The preload keeps its access to both after the renderer loses it.
+  diagnostics: {
+    // {images, cssStyleSheets, xslStyleSheets, fonts, scripts, other}, each {count, size, liveSize}
+    resourceUsage: () => webFrame.getResourceUsage(),
+    clearCache: () => webFrame.clearCache(),
+    // {private, residentSet, shared} in kilobytes
+    processMemory: () => process.getProcessMemoryInfo(),
+    // How many listeners are attached per channel. The renderer has no ipcRenderer of its own now,
+    // so what this counts is what the preload holds on its behalf - which is what leaks if anything
+    // does, and is what this tool was always looking for.
+    ipcListenerCounts: () =>
+      Object.fromEntries(ipcRenderer.eventNames().map((n) => [String(n), ipcRenderer.listenerCount(n)])),
+  },
 
   // The one asynchronous call: shell.openPath reports failure by resolving with a message rather
   // than rejecting, so the caller wants the promise the F# side already handles with Promise.iter.

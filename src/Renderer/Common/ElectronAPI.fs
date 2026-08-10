@@ -53,14 +53,14 @@ type [<AllowNullLiteral>] GlobalEvent =
 /// <exclude/>
 [<AutoOpen>]
 module Electron =
-    let [<ImportAll("electron")>] common: Common.IExports = jsNative
-    let electron = common
-
-    let [<ImportAll("electron")>] main: Electron.IExports = jsNative
-    let mainProcess = main
-
-    [<ImportAll("electron")>]
-    let renderer: Renderer.IExports = jsNative
+    // The module-level bindings that were here - common, electron, main, mainProcess, renderer -
+    // have moved to src/Main/ElectronModule.fs, which only Main.fsproj compiles.
+    //
+    // They were `import * as ... from "electron"`, executed the moment this file was loaded. This
+    // file is compiled into both processes for its TYPES, which several hundred renderer bindings
+    // depend on, so that import ran in the renderer too - and requiring electron is precisely what
+    // a renderer without node integration cannot do. Nothing in the renderer needs the module
+    // itself any more: everything it used to reach through it goes over the bridge.
 
     type Remote =
       inherit RemoteMainInterface

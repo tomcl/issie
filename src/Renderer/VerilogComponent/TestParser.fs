@@ -364,9 +364,11 @@ let runCodeGenTests _ =
 
 /// Compile or run a verilog file with Icarus, writing stdout to dst.
 ///
-/// This used to spawn the program here. That single call was the last thing dragging
-/// require("child_process") into the renderer bundle - and it is exactly the shape a bridge must
-/// not offer, since "run this command with these arguments" is the whole capability back again.
+/// This used to spawn the program here. That single call was the last thing dragging node's
+/// child process module into the renderer bundle - and it is exactly the shape a bridge must not
+/// offer, since "run this command with these arguments" is the whole capability back again.
+/// (Spelled without the module name on purpose: grepping the built bundle for a stray require is
+/// how this class of problem gets found, and a comment that matches the search is a false lead.)
 /// Main runs it instead, from a closed pair of programs; see Bridge.runDevTool. Fire and forget,
 /// as this always was: every caller ignored the result.
 let executeCommand (command1: string) (args1: List<string>) (dst: Option<string>) =

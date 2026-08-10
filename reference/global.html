@@ -499,6 +499,78 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="Bridge">
+              <a href="/issie/reference/global-bridge.html">
+                Bridge (Module)
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Bridge`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Bridge\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Main/Bridge.fs#L11-11" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               The main-process half of Issie's renderer bridge.
+
+ Every operation the renderer is allowed to ask the operating system for is registered here, as a
+ named channel with a fixed shape. The renderer half is src/Preload/preload.js, and the two are
+ meant to be read together: nothing should be exposed there that is not answered here, and nothing
+ answered here should take a request general enough to stand in for `require`.
+
+ Handlers use event.returnValue, the synchronous form, because the renderer's file wrappers return
+ values from inside Elmish update and cannot await. get-user-data in Main.fs already worked this
+ way before any of this existed.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="Bridge">
+              <a href="/issie/reference/global-bridge-0.html">
+                Bridge (Module)
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Bridge`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Bridge\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/Bridge.fs#L11-11" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               The renderer's half of the bridge to the main process.
+
+ Partner to src/Preload/preload.js and src/Main/Bridge.fs. This module is the only place the
+ renderer reads anything the operating system knows, and it exists so that the rest of the code
+ asks for `Bridge.staticDir` rather than reaching for `__static`, `process.platform` or
+ `@electron/remote` - none of which survive contextIsolation.
+
+ Everything here is a value rather than a function. These are constants for the life of the
+ process, so the preload fetches them once and this module just reads the result: no round trip,
+ no ordering to get wrong, and five operations that never have to exist on the bridge at all.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="BuildUartHelpers">
               <a href="/issie/reference/global-builduarthelpers.html">
                 BuildUartHelpers
@@ -514,11 +586,19 @@
             <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:BuildUartHelpers\'/>')">
               <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
             </div>
-            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UartFiles/BuildUartHelpers.fs#L1-1" class="fsdocs-source-link" title="Source on GitHub">
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UartFiles/BuildUartHelpers.fs#L10-10" class="fsdocs-source-link" title="Source on GitHub">
               <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
             </a>
             <p class="fsdocs-summary">
-              
+               The debug UART, as the draw block sees it.
+
+ These were direct calls into IS-uart.js, imported into the renderer bundle. That file requires
+ the native `usb` module, which a renderer without node integration cannot load at all, so it now
+ lives in the main process and these are messages to it - see src/Main/Bridge.fs.
+
+ The signatures are unchanged, which is the whole reason this port was cheap: the operations were
+ already asynchronous, already took nothing but a viewer count, and already shared no objects with
+ their caller. Nothing in SheetUpdate.fs had to change.
             </p>
           </div>
         </td>
@@ -958,6 +1038,38 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="ContextMenuBuilder">
+              <a href="/issie/reference/global-contextmenubuilder.html">
+                ContextMenuBuilder
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ContextMenuBuilder`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ContextMenuBuilder\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Main/ContextMenuBuilder.fs#L7-7" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Building and popping up the right-click menus, for the main process only.
+
+ The menu DATA - which menus exist and what is on them - stays in ContextMenus.fs, which both
+ processes compile: the renderer needs it to ask for a menu by name and to recognise the item
+ that comes back. Only the part that builds an Electron menu is here, because it needs the
+ electron module, and requiring that is what a renderer without node integration cannot do.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="ContextMenus">
               <a href="/issie/reference/global-contextmenus.html">
                 ContextMenus (Module)
@@ -1167,6 +1279,43 @@
             </a>
             <p class="fsdocs-summary">
               
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="ElectronModule">
+              <a href="/issie/reference/global-electronmodule.html">
+                ElectronModule
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ElectronModule`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ElectronModule\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Main/ElectronModule.fs#L13-13" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               The `electron` module itself, for the main process only.
+
+ These bindings used to live in ElectronAPI.fs, which both projects compile - the renderer needs
+ its several hundred type definitions. But a binding is an import, and `import * from "electron"`
+ runs when the file loads, so the renderer was requiring electron simply by using its types. A
+ renderer without node integration cannot do that, and it is not a lazy failure: it throws as the
+ bundle loads, before any of Issie runs.
+
+ So the types stayed shared and the module came here, where requiring it is exactly right. If the
+ renderer ever appears to need one of these values again, that is the signal that something wants
+ a bridge operation instead.
             </p>
           </div>
         </td>
@@ -2306,6 +2455,48 @@
             </a>
             <p class="fsdocs-summary">
               
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="PathHelpers">
+              <a href="/issie/reference/global-pathhelpers.html">
+                PathHelpers
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:PathHelpers`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:PathHelpers\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Interface/PathHelpers.fs#L17-17" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               Pure path arithmetic, shared by the Fable and .NET builds.
+
+ These were node's `path` under Fable and System.IO.Path under .NET - two implementations that
+ already disagreed (node's join normalises, Path.Join does not), and one of which disappears with
+ contextIsolation since `path` is a node module the renderer will not be able to require.
+
+ Joining strings is not a privileged operation and has no business crossing a process boundary, so
+ rather than becoming ten more bridge calls at 189 call sites this is one implementation for both
+ targets. It follows node's semantics, which is what the app was built against, and
+ Tests/Issie.Tests/PathHelperTests.fs holds it to them.
+
+ Separator handling is platform-dependent in the way node's is: on Windows both `/` and `\` divide
+ segments and output uses `\`; on POSIX only `/` divides and a backslash is an ordinary filename
+ character. The leading root - a drive, a UNC share, or `/` - is found but never rewritten by
+ dirname and basename, because node does not rewrite it either, and UNC paths matter here: Issie
+ is run from networked locations on cluster machines.
             </p>
           </div>
         </td>

@@ -18,11 +18,6 @@ open FilesIO
 open FSharp.Core
 open Fable.Core.JsInterop
 open BuildUartHelpers
-open Node
-
-module node = Node.Api
-
-importReadUart
 
 /// Send a mouse event to the update function for whatever the sheet is currently doing. The
 /// per-operation update functions are in SheetUpdateHelpers, which is where the state machine
@@ -552,85 +547,66 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | StartCompilationStage (stage, path, name, profile) ->
         if not model.Compiling then
             model, Cmd.none
-        else 
-            let cwd = getCWD ()
-            let include_path = 
-                match JSHelpers.debugLevel <> 0 with
-                |true -> cwd+"/static/hdl"
-                |false -> cwd+"/resources/static/hdl" 
-            
-
-            let pcf,deviceType,devicePackage,USBdevice =
-                match model.DebugDevice, profile with
-                |Some "IceStick",Verilog.Release -> 
-                    $"{include_path}/icestick.pcf", "--hx1k", "tq144", "i:0x0403:0x6010"
-                
-                |Some "IceStick",Verilog.Debug -> 
-                    $"{include_path}/icestick_debug.pcf", "--hx1k", "tq144", "i:0x0403:0x6010"
-                
-                |Some "IssieStick-v0.1", Verilog.Release -> 
-                    $"{include_path}/issiestick-0.1.pcf", "--hx4k", "tq144", "i:0x0403:0xed1c"
-                
-                |Some "IssieStick-v0.1", Verilog.Debug -> 
-                    $"{include_path}/issiestick-0.1_debug.pcf", "--hx4k", "tq144", "i:0x0403:0xed1c"
-                
-                |Some "IssieStick-v1.0", Verilog.Release -> 
-                    $"{include_path}/issiestick-1.0.pcf", "--hx8k", "bg121", "i:0x0403:0xed1c"
-                
-                |Some "IssieStick-v1.0", Verilog.Debug -> 
-                    $"{include_path}/issiestick-1.0_debug.pcf", "--hx8k", "bg121", "i:0x0403:0xed1c"
-                
-                |_,_ -> failwithf "Undefined device used in compilation!"
-            
-            let (prog, args) = 
-                // make build dir
+        else
+            // Which stage, on which board, in which profile - and main turns that into a program.
+            // The include directory, the .pcf and the device ids went with it: they are facts about
+            // the installation and the board, which main is better placed to know than this is.
+            let stageName =
                 match stage with
-                | Synthesis     -> "yosys", ["-p"; $"read_verilog -I{include_path} {path}/{name}.v; synth_ice40 -flatten -json {path}/build/{name}.json"]//"sh", ["-c"; "sleep 4 && echo 'finished synthesis'"]
-                | PlaceAndRoute -> "nextpnr-ice40", ["--package"; $"{devicePackage}"; $"{deviceType}"; "--pcf"; $"{pcf}"; "--json"; $"{path}/build/{name}.json"; "--asc"; $"{path}/build/{name}.asc"]//"sh", ["-c"; "sleep 5 && echo 'finisheded pnr'"]
-                | Generate      -> "icepack", [$"{path}/build/{name}.asc"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 3 && echo 'generated stuff'"]
-                | Upload        -> "iceprog", ["-d"; $"{USBdevice}"; $"{path}/build/{name}.bin"]//"sh", ["-c"; "sleep 2 && echo 'it is alive'"]
+                | Synthesis -> "synthesis"
+                | PlaceAndRoute -> "placeAndRoute"
+                | Generate -> "generate"
+                | Upload -> "upload"
 
-            let options = {| shell = false |} |> toPlainJsObj
-            let child = node.childProcess.spawn (prog, args |> ResizeArray, options);
+            let profileName =
+                match profile with
+                | Verilog.Debug -> "debug"
+                | Verilog.Release -> "release"
 
-            let startComp dispatch =
-                let dispatchS msg = dispatch (ModelType.Sheet msg)
-                Log.dbg Log.Misc $"starting compilation stage {stage}"
-                Async.StartImmediate(async {
-                let exit_code = ref 0
-                try
-                    let keepGoing = ref true
+            let device = model.DebugDevice |> Option.defaultValue ""
 
-                    // TODO: record data and display it in special tab
-                    child.stdout.on ("data", fun _ -> ()) |> ignore
-                    child.stderr.on ("data", fun e -> Log.error $"compilation: {e}") |> ignore
-                    child.on("exit", fun code ->
-                        keepGoing.Value <- false
-                        exit_code.Value <- code
-                    ) |> ignore
+            match Bridge.buildStart stageName path name device profileName with
+            | "" ->
+                // main has logged why - an unknown device, a refused path, or a tool that is not
+                // installed. This used to be a failwithf, which took the whole update with it.
+                Log.error $"could not start compilation stage {stage}"
+                model, sheetCmd StopCompilation
+            | jobId ->
+                let startComp dispatch =
+                    let dispatchS msg = dispatch (ModelType.Sheet msg)
+                    Log.dbg Log.Misc $"starting compilation stage {stage} as {jobId}"
+                    Async.StartImmediate(async {
+                    let exit_code = ref 0
+                    try
+                        let keepGoing = ref true
 
-                    while keepGoing.Value do
-                        do! Async.Sleep 1000
-                        dispatchS <| TickCompilation child.pid
-                finally
-                    Log.dbg Log.Misc $"compilation stage finished with exit code {exit_code.Value}"
-                    if exit_code.Value = 0 then
-                        dispatchS <| FinishedCompilationStage
-                        match stage with
-                        | Synthesis -> dispatchS <| StartCompilationStage (PlaceAndRoute, path, name, profile)
-                        | PlaceAndRoute -> dispatchS <| StartCompilationStage (Generate, path, name, profile)
-                        | Generate -> dispatchS <| StartCompilationStage (Upload, path, name, profile)
-                        | Upload when profile = Verilog.Debug-> dispatchS <| DebugConnect
-                        | _ -> ()
-                    else
-                        dispatchS <| StopCompilation
-                })
+                        // Polled rather than pushed. The display already ticks once a second and has
+                        // nothing to do with an exit heard about sooner, and asking costs one bridge
+                        // call - far less than the process it is asking about.
+                        while keepGoing.Value do
+                            do! Async.Sleep 1000
+                            match Bridge.buildStatus jobId with
+                            | -1 -> dispatchS <| TickCompilation jobId
+                            | code ->
+                                keepGoing.Value <- false
+                                exit_code.Value <- code
+                    finally
+                        Log.dbg Log.Misc $"compilation stage finished with exit code {exit_code.Value}"
+                        if exit_code.Value = 0 then
+                            dispatchS <| FinishedCompilationStage
+                            match stage with
+                            | Synthesis -> dispatchS <| StartCompilationStage (PlaceAndRoute, path, name, profile)
+                            | PlaceAndRoute -> dispatchS <| StartCompilationStage (Generate, path, name, profile)
+                            | Generate -> dispatchS <| StartCompilationStage (Upload, path, name, profile)
+                            | Upload when profile = Verilog.Debug-> dispatchS <| DebugConnect
+                            | _ -> ()
+                        else
+                            dispatchS <| StopCompilation
+                    })
 
-            {model with CompilationProcess = Some child}, Cmd.ofEffect <| startComp
+                {model with CompilationJob = Some jobId}, Cmd.ofEffect <| startComp
     | StopCompilation ->
-        match model.CompilationProcess with
-        | Some child -> child.kill()
-        | _ -> ()
+        model.CompilationJob |> Option.iter Bridge.buildCancel
 
         let failIfInProgress stage =
             match stage with
@@ -645,17 +621,15 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                 Generate = failIfInProgress model.CompilationStatus.Generate
                 Upload = failIfInProgress model.CompilationStatus.Upload
             }
-            CompilationProcess = None
+            CompilationJob = None
         }, Cmd.none
-    | TickCompilation pid ->
-        let correctPid =
-            model.CompilationProcess
-            |> Option.map (fun child -> child.pid = pid) 
-            |> Option.defaultValue false
+    | TickCompilation jobId ->
+        // a tick from a stage that has since been superseded must not advance the current one
+        let isCurrentJob = model.CompilationJob = Some jobId
 
         let tick stage =
             match stage with
-                | InProgress t when correctPid -> InProgress (t + 1)
+                | InProgress t when isCurrentJob -> InProgress (t + 1)
                 | s -> s
 
         {model with
@@ -880,7 +854,7 @@ let init () =
         PrevWireSelection = []
         Compiling = false
         CompilationStatus = {Synthesis = Queued; PlaceAndRoute = Queued; Generate = Queued; Upload = Queued}
-        CompilationProcess = None
+        CompilationJob = None
         DebugState = NotDebugging
         DebugData = [1..256] |> List.map (fun i -> 0b00111011)
         DebugIsConnected = false

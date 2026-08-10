@@ -609,7 +609,7 @@ module SheetT =
         | StartCompiling of path: string * name: string * profile: Verilog.CompilationProfile
         | StartCompilationStage of CompilationStageLabel * path: string * name: string * profile: Verilog.CompilationProfile
         | StopCompilation
-        | TickCompilation of float
+        | TickCompilation of string
         | FinishedCompilationStage
         | DebugSingleStep
         | DebugStepAndRead of parts: int 
@@ -703,7 +703,10 @@ module SheetT =
         ScalingBox: ScalingBox Option
         Compiling: bool
         CompilationStatus: CompileStatus
-        CompilationProcess: ChildProcess option
+        /// The FPGA build running now, named by the id main gave it. This used to be the
+        /// ChildProcess itself, which a renderer without node integration has no way to hold - main
+        /// owns the process and answers questions about it by id.
+        CompilationJob: string option
         DebugState: DebugState
         DebugData: int list
         DebugMappings: string array

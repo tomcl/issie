@@ -56,7 +56,6 @@ module.exports = {
   resolve: {
     extensions: ['.ts', '.tsx', '.js']
   },
-  externals: {
-    usb: "commonjs2 usb", // Ref: https://copyprogramming.com/howto/electron-and-serial-ports
-  }
+  // No externals. `usb` used to be one, for IS-uart.js - which now lives in the main process, where
+  // a native module can actually be loaded. Nothing the renderer imports needs node any more.
 };

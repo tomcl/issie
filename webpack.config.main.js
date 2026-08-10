@@ -39,5 +39,12 @@ module.exports = {
   ],
   resolve: {
     extensions: ['.ts', '.js']
+  },
+  externals: {
+    // `usb` is a native module: it cannot be bundled, only required at runtime. It used to be the
+    // renderer's one external, back when IS-uart.js was imported there. Requiring a native module is
+    // precisely what a renderer without node cannot do, so the UART moved into this process and its
+    // dependency came with it.
+    usb: "commonjs2 usb",
   }
 };

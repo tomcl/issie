@@ -362,40 +362,24 @@ let runCodeGenTests _ =
     printfn $"[TEST] {res+multRes}/{nrOfTestCases} passed"
     res+multRes
 
-// compile and run a verilog file. Write output to file dst
-let executeCommand command1 (args1: List<string>) (dst: Option<string>) =
-    let options = {| shell = false |} |> toPlainJsObj
-    let (child: ChildProcess) = Node.Api.childProcess.spawn (command1, args1 |> ResizeArray , options) // output binary into a file
-    
-    async {
-    let exit_code = ref 0
-    
-    try
-        let keepGoing = ref true
-        // TODO: record data and display it in special tab
-        child.stdout.on ("data", fun (d: string) -> 
-            match dst with
-            | Some path -> writeFile path d
-            | None -> Ok () 
-            |> ignore) |> ignore
-        child.stderr.on ("data", fun e ->   
-            printfn "Error: %s" e) |> ignore
-        child.on("exit", fun code ->
-            keepGoing.Value <- false
-            exit_code.Value <- code
-        ) |> ignore
+/// Compile or run a verilog file with Icarus, writing stdout to dst.
+///
+/// This used to spawn the program here. That single call was the last thing dragging
+/// require("child_process") into the renderer bundle - and it is exactly the shape a bridge must
+/// not offer, since "run this command with these arguments" is the whole capability back again.
+/// Main runs it instead, from a closed pair of programs; see Bridge.runDevTool. Fire and forget,
+/// as this always was: every caller ignored the result.
+let executeCommand (command1: string) (args1: List<string>) (dst: Option<string>) =
+    #if FABLE_COMPILER
+    Bridge.runDevTool command1 (Array.ofList args1) (Option.defaultValue "" dst)
+    #else
+    // Under plain .NET this is unreachable: nothing in the test suite drives the Icarus harness,
+    // which needs iverilog on the path and the test checkout around it.
+    printfn $"executeCommand '{command1}' is only available in the app"
+    ignore args1
+    ignore dst
+    #endif
 
-        while keepGoing.Value do
-            do! Async.Sleep 1000
-    finally
-        printf "Child finished with exit code: %i" exit_code.Value
-        if exit_code.Value = 0 then
-            printfn "Success"
-        else
-            printfn "Fail"
-    
-    } |> Async.StartImmediate
-    
 
 let icarusCompile src dst driver=
     let command = "iverilog"

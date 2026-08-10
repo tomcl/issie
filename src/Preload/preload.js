@@ -75,6 +75,31 @@ const api = {
   // than rejecting, so the caller wants the promise the F# side already handles with Promise.iter.
   revealInFileManager: (path) => ipcRenderer.invoke('issie:reveal', path),
 
+  // The FPGA toolchain. Note what is sent: a stage, not a program. Main owns the mapping from one
+  // to the other, so there is no argument to this that could name an executable.
+  build: {
+    start: (stage, path, name, device, profile) =>
+      sync('issie:buildStart', { stage, path, name, device, profile }),
+    // -1 running, -2 unknown job, otherwise the exit code
+    status: (jobId) => sync('issie:buildStatus', jobId),
+    cancel: (jobId) => sync('issie:buildCancel', jobId),
+    // iverilog | vvp, for the Development > Verilog menu. Fire and forget, as it always was.
+    runDevTool: (tool, args, dst) => sync('issie:runDevTool', { tool, args, dst }),
+  },
+
+  // The debug UART, driven over USB from the main process because the module behind it is native.
+  // Asynchronous throughout: a USB transfer is not something to block the renderer on.
+  uart: {
+    connectAndRead: (n) => ipcRenderer.invoke('issie:uart', { op: 'connectAndRead', n }),
+    simpleConnect: () => ipcRenderer.invoke('issie:uart', { op: 'simpleConnect', n: 0 }),
+    disconnect: () => ipcRenderer.invoke('issie:uart', { op: 'disconnect', n: 0 }),
+    step: () => ipcRenderer.invoke('issie:uart', { op: 'step', n: 0 }),
+    pause: () => ipcRenderer.invoke('issie:uart', { op: 'pause', n: 0 }),
+    continue: () => ipcRenderer.invoke('issie:uart', { op: 'continue', n: 0 }),
+    readAllViewers: (n) => ipcRenderer.invoke('issie:uart', { op: 'readAllViewers', n }),
+    stepAndReadAllViewers: (n) => ipcRenderer.invoke('issie:uart', { op: 'stepAndReadAllViewers', n }),
+  },
+
   // Messages in both directions. These were ipcRenderer calls in the renderer itself, which is the
   // one thing contextIsolation takes away outright - a renderer cannot require('electron') at all.
   // The listeners are wrapped rather than passed through so that the renderer never receives the

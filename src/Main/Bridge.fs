@@ -180,14 +180,23 @@ let private recentProjects () =
     with _ ->
         []
 
+/// The Verilog test cases the Development > Verilog menu compiles, runs and writes output beside.
+/// They are addressed by paths relative to the checkout, so in a development run this has to be
+/// reachable; a packaged app has no equivalent and gets no such root.
+///
+/// Deliberately this directory and not the working directory. The whole checkout was the first
+/// version, and it quietly made the static assets writable in development - they sit inside it -
+/// so the read-only root above held only in a packaged app, which is the wrong way round for a
+/// difference between what you test and what you ship. Every relative path these tools use is
+/// under here.
+let private verilogTestDirectory () =
+    path.join (cwd (), "src", "Renderer", "VerilogComponent", "test")
+
 let private computeRoots () =
     let fixedRoots =
         [ staticDirectory (), false
           tryGetPath AppGetPath.UserData, true
-          // In a development run the app is started from the checkout and the Development menu's
-          // tools read and write inside it - the Verilog test cases in particular. A packaged app
-          // has no such root: this is the one place the two differ, and deliberately so.
-          if isDev () then cwd (), true ]
+          if isDev () then verilogTestDirectory (), true ]
 
     let fromRecents =
         recentProjects ()
@@ -227,13 +236,21 @@ let private checkPath (needsWrite: bool) (p: string) : Result<string, string> =
     if p = "" then
         Error "empty path"
     else
-        let usable = roots () |> List.filter (fun (_, writable) -> writable || not needsWrite)
+        let containing = roots () |> List.filter (fun (root, _) -> isWithin root p)
 
-        match usable |> List.exists (fun (root, _) -> isWithin root p) with
-        | true -> Ok p
-        | false ->
-            let verb = if needsWrite then "written" else "read"
-            Error $"'{p}' is outside every directory Issie may have {verb}"
+        // Read-only wins over writable. Roots can nest - the static assets sit inside the checkout,
+        // and a project could be put anywhere - so asking "is there SOME root that allows this"
+        // lets an outer writable root quietly cancel an inner read-only one. Asking instead
+        // "is there ANY root that forbids it" makes read-only mean what it says wherever it lands.
+        let readOnlyHere = containing |> List.exists (fun (_, writable) -> not writable)
+        let writableHere = containing |> List.exists (fun (_, writable) -> writable)
+
+        match containing, needsWrite with
+        | [], _ -> Error $"'{p}' is outside every directory Issie may use"
+        | _, false -> Ok p
+        | _, true when readOnlyHere -> Error $"'{p}' is inside a directory Issie may only read"
+        | _, true when writableHere -> Ok p
+        | _, true -> Error $"'{p}' is outside every directory Issie may write to"
 
 // ---------------------------------------------------------------------------------------------
 // The filesystem channel

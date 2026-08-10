@@ -735,25 +735,10 @@ let initialiseMem (mem: Memory1) (projectPath:string) =
 
 /// Save a PNG file (encoded base64, as from draw2d).
 /// Overwrite existing file if needed.
-/// Not used now we do not have Draw2D.
-/// Probably not useful but maybe one day could be used to print schematic?
-let savePngFile folderPath baseName png = // TODO: catch error?
-    /// Write base64 encoded data to file.
-    /// Create file if it does not exist.
-    let writeFileBase64 path data =
-        let options = createObj ["encoding" ==> "base64"] |> Some
-        try
-            #if FABLE_COMPILER
-            fs.writeFileSync(path, data, options)
-            #else
-            File.WriteAllBytes(path, System.Convert.FromBase64String(data))
-            #endif
-            Ok ()
-        with
-            | e -> Result.Error $"Error '{e.Message}' writing file '{path}'"   
-    let path = pathJoin [| folderPath; baseName + ".png" |]
-    writeFileBase64 path png
-
+// savePngFile was here: a base64 writer for a schematic export that went away with Draw2D. It had
+// no callers and said so itself, and it held the last direct fs.writeFileSync in the renderer - so
+// rather than give it a bridge call it does not need, it is gone. Writing a PNG through the bridge
+// would be a few lines against Bridge.fsWriteFile if a schematic export ever comes back.
 
 
 /// Save state to normal file. Automatically add the .dgm suffix.

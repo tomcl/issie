@@ -14,6 +14,7 @@ open Fable.Core
 open Fable.Core.JsInterop
 open ElectronAPI
 open Node
+open Node.ChildProcess
 
 // process globals, reached by Emit rather than through a binding so that what is being read is
 // visible at the point of use - these are the values the renderer will no longer be able to see.
@@ -182,7 +183,11 @@ let private recentProjects () =
 let private computeRoots () =
     let fixedRoots =
         [ staticDirectory (), false
-          tryGetPath AppGetPath.UserData, true ]
+          tryGetPath AppGetPath.UserData, true
+          // In a development run the app is started from the checkout and the Development menu's
+          // tools read and write inside it - the Verilog test cases in particular. A packaged app
+          // has no such root: this is the one place the two differ, and deliberately so.
+          if isDev () then cwd (), true ]
 
     let fromRecents =
         recentProjects ()
@@ -448,6 +453,217 @@ let private setApplicationMenu (template: obj array) =
             |> Some
             |> mainProcess.Menu.setApplicationMenu
 
+// ---------------------------------------------------------------------------------------------
+// The FPGA toolchain
+//
+// The renderer used to build the command line itself and spawn it. A bridge method taking a program
+// name and arguments would hand that capability straight back, so it does not exist: what crosses is
+// which STAGE to run, and main turns that into a program. The renderer cannot name an executable.
+//
+// The process itself stays here too. It used to live in the draw block's model as a ChildProcess,
+// which is a live node object and cannot cross a context boundary - so the model holds an opaque job
+// id now and asks about it by name.
+// ---------------------------------------------------------------------------------------------
+
+/// Running and finished build jobs. Process handles belonging to the main process, not model state
+/// (docs/mutableState.md); finished ones are kept so that a status asked for after the fact still
+/// has an exit code to give.
+let mutable private buildJobs: Map<string, ChildProcess> = Map.empty
+let mutable private buildExitCodes: Map<string, int> = Map.empty
+let mutable private nextBuildJob = 0
+
+/// Still running.
+let private buildRunning = -1
+/// No such job - asked about an id main has never issued.
+let private buildUnknown = -2
+
+/// The Verilog include directory, from the static assets rather than from the working directory.
+///
+/// The renderer worked this out as cwd + "/static/hdl" or cwd + "/resources/static/hdl", choosing
+/// between them on debugLevel - so a production build launched with --debug looked in the
+/// development location and found nothing. staticDirectory is the same answer without that trap.
+let private hdlDirectory () = path.join (staticDirectory (), "hdl")
+
+/// Board-specific settings. Kept here rather than passed in, so that the renderer names a device
+/// from a fixed list and main decides what that means.
+let private deviceSettings (device: string) (profile: string) =
+    let hdl = hdlDirectory ()
+    let debug = profile = "debug"
+
+    match device with
+    | "IceStick" ->
+        let pcf = if debug then "icestick_debug.pcf" else "icestick.pcf"
+        Some(path.join (hdl, pcf), "--hx1k", "tq144", "i:0x0403:0x6010")
+    | "IssieStick-v0.1" ->
+        let pcf = if debug then "issiestick-0.1_debug.pcf" else "issiestick-0.1.pcf"
+        Some(path.join (hdl, pcf), "--hx4k", "tq144", "i:0x0403:0xed1c")
+    | "IssieStick-v1.0" ->
+        let pcf = if debug then "issiestick-1.0_debug.pcf" else "issiestick-1.0.pcf"
+        Some(path.join (hdl, pcf), "--hx8k", "bg121", "i:0x0403:0xed1c")
+    | _ -> None
+
+/// The one place a stage becomes a program. Adding a tool means adding a case here, which is the
+/// point: there is no path by which the renderer can ask for anything not on this list.
+let private toolFor (stage: string) (projectPath: string) (name: string) (device: string) (profile: string) =
+    match deviceSettings device profile with
+    | None -> None
+    | Some (pcf, deviceType, devicePackage, usbDevice) ->
+        let hdl = hdlDirectory ()
+        let build = path.join (projectPath, "build")
+
+        let verilog = path.join (projectPath, name + ".v")
+        let json = path.join (build, name + ".json")
+        let asc = path.join (build, name + ".asc")
+        let bin = path.join (build, name + ".bin")
+
+        match stage with
+        | "synthesis" ->
+            let script = $"read_verilog -I{hdl} {verilog}; synth_ice40 -flatten -json {json}"
+            Some("yosys", [ "-p"; script ])
+        | "placeAndRoute" ->
+            Some(
+                "nextpnr-ice40",
+                [ "--package"; devicePackage
+                  deviceType
+                  "--pcf"; pcf
+                  "--json"; json
+                  "--asc"; asc ]
+            )
+        | "generate" -> Some("icepack", [ asc; bin ])
+        | "upload" -> Some("iceprog", [ "-d"; usbDevice; bin ])
+        | _ -> None
+
+/// Start a stage. Answers the job id, or "" when it could not be started - the reason is logged
+/// here, and the renderer stops the compilation.
+let private startBuild (request: obj) =
+    let stage: string = unbox request?stage
+    let projectPath: string = unbox request?path
+    let name: string = unbox request?name
+    let device: string = unbox request?device
+    let profile: string = unbox request?profile
+
+    // the toolchain writes into <project>/build, so the project has to be somewhere Issie may write
+    match checkPath true projectPath with
+    | Error reason ->
+        Log.error $"build refused: {reason}"
+        ""
+    | Ok _ ->
+        match toolFor stage projectPath name device profile with
+        | None ->
+            Log.error $"build: no tool for stage '{stage}' on device '{device}'"
+            ""
+        | Some (prog, args) ->
+            try
+                let options = {| shell = false |} |> toPlainJsObj
+                let child = childProcess.spawn (prog, ResizeArray args, options)
+
+                nextBuildJob <- nextBuildJob + 1
+                let jobId = $"build{nextBuildJob}"
+                buildJobs <- Map.add jobId child buildJobs
+
+                child.stdout.on ("data", fun _ -> ()) |> ignore
+                child.stderr.on ("data", fun e -> Log.error $"compilation: {e}") |> ignore
+
+                child.on (
+                    "exit",
+                    fun code ->
+                        buildExitCodes <- Map.add jobId (unbox code) buildExitCodes
+                        buildJobs <- Map.remove jobId buildJobs)
+                |> ignore
+
+                Log.dbg Log.Misc $"build {jobId}: {prog} for stage {stage}"
+                jobId
+            with e ->
+                Log.error $"build: could not start '{prog}': {e.Message}"
+                ""
+
+/// -1 while running, the exit code once finished, -2 for an id main never issued. Polled rather than
+/// pushed because the renderer already ticks the progress display once a second and has nothing to
+/// do with an exit it hears about sooner.
+let private buildStatus (jobId: string) =
+    match Map.tryFind jobId buildExitCodes with
+    | Some code -> code
+    | None -> if Map.containsKey jobId buildJobs then buildRunning else buildUnknown
+
+let private cancelBuild (jobId: string) =
+    match Map.tryFind jobId buildJobs with
+    | Some child ->
+        child.kill ()
+        buildJobs <- Map.remove jobId buildJobs
+    | None -> ()
+
+/// The Verilog developer tools behind the Development > Verilog menu, which compile and run the
+/// test cases under src/Renderer/VerilogComponent/test with Icarus Verilog.
+///
+/// A closed pair, like the toolchain above: the renderer asks for "iverilog" or "vvp" and gets
+/// nothing else. They are fire and forget, as they were before - the callers never waited - and the
+/// stdout capture that used to happen in the renderer happens here, since main is where the file
+/// write is confined.
+let private runDevTool (request: obj) =
+    let tool: string = unbox request?tool
+    let args: string array = unbox request?args
+    let dst: string = unbox request?dst
+
+    let program =
+        match tool with
+        | "iverilog" -> Some "iverilog"
+        | "vvp" -> Some "vvp"
+        | _ -> None
+
+    match program with
+    | None -> Log.error $"dev tool: '{tool}' is not one Issie runs"
+    | Some prog ->
+        let destinationOk = dst = "" || (match checkPath true dst with Ok _ -> true | Error _ -> false)
+
+        if not destinationOk then
+            Log.error $"dev tool {prog}: refused to write to '{dst}'"
+        else
+            try
+                let options = {| shell = false |} |> toPlainJsObj
+                let child = childProcess.spawn (prog, ResizeArray args, options)
+
+                child.stdout.on (
+                    "data",
+                    fun (d: string) ->
+                        if dst <> "" then
+                            let existing =
+                                if fs.existsSync (U2.Case1 dst) then fs.readFileSync (dst, "utf8") else ""
+
+                            let options = createObj [ "encoding" ==> "utf8" ] |> Some
+                            fs.writeFileSync (dst, existing + d, options))
+                |> ignore
+
+                child.stderr.on ("data", fun e -> Log.error $"{prog}: {e}") |> ignore
+                child.on ("exit", fun code -> Log.dbg Log.Misc $"{prog} exited with {code}") |> ignore
+            with e ->
+                Log.error $"dev tool: could not start '{prog}': {e.Message}"
+
+// ---------------------------------------------------------------------------------------------
+// The debug UART
+//
+// IS-uart.js requires the native `usb` module, which is exactly the kind of thing a renderer without
+// node cannot load - so the file moved here wholesale and the renderer drives it by message. Its
+// eight operations were already promise-returning with no shared objects, so they port one for one.
+//
+// Nothing here takes a path or a program name: the arguments are viewer counts. The device is found
+// by vendor and product id inside IS-uart.js, as it always was.
+// ---------------------------------------------------------------------------------------------
+
+[<ImportAll("./IS-uart.js")>]
+let private uart: obj = jsNative
+
+let private uartCall (op: string) (n: int) : JS.Promise<obj> =
+    match op with
+    | "connectAndRead" -> uart?connectAndRead (n)
+    | "simpleConnect" -> uart?simpleConnect ()
+    | "disconnect" -> uart?disconnect ()
+    | "step" -> uart?step ()
+    | "pause" -> uart?pauseOp ()
+    | "continue" -> uart?continuedOp ()
+    | "readAllViewers" -> uart?readAllViewers (n)
+    | "stepAndReadAllViewers" -> uart?stepAndReadAllViewers (n)
+    | unknown -> failwithf $"unknown uart operation '{unknown}'"
+
 /// Register a synchronous channel so that it always answers.
 ///
 /// sendSync blocks the renderer until returnValue is assigned. A handler that throws first never
@@ -499,6 +715,30 @@ let register () =
         "issie:reveal",
         fun _ args ->
             revealInFileManager (unbox args)
+            |> unbox<JS.Promise<unit>>
+            |> U2.Case1)
+    |> ignore
+
+    onSync "issie:buildStart" (fun args -> box (startBuild args))
+    onSync "issie:buildStatus" (fun args -> box (buildStatus (unbox args)))
+
+    onSync "issie:buildCancel" (fun args ->
+        cancelBuild (unbox args)
+        box null)
+
+    onSync "issie:runDevTool" (fun args ->
+        runDevTool args
+        box null)
+
+    // The UART operations are asynchronous all the way down - a USB transfer is not something to
+    // block the renderer on - so these are the one group that stays invoke/handle throughout.
+    mainProcess.ipcMain.handle (
+        "issie:uart",
+        fun _ args ->
+            let op: string = unbox args?op
+            let n: int = unbox args?n
+
+            uartCall op n
             |> unbox<JS.Promise<unit>>
             |> U2.Case1)
     |> ignore

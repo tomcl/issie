@@ -1,31 +1,31 @@
+/// The debug UART, as the draw block sees it.
+///
+/// These were direct calls into IS-uart.js, imported into the renderer bundle. That file requires
+/// the native `usb` module, which a renderer without node integration cannot load at all, so it now
+/// lives in the main process and these are messages to it - see src/Main/Bridge.fs.
+///
+/// The signatures are unchanged, which is the whole reason this port was cheap: the operations were
+/// already asynchronous, already took nothing but a viewer count, and already shared no objects with
+/// their caller. Nothing in SheetUpdate.fs had to change.
 module BuildUartHelpers
 
 open Fable.Core
 
-[<Emit("import {pauseOp,continuedOp,connectAndRead,simpleConnect,disconnect,step,readAllViewers,stepAndReadAllViewers} from '../UartFiles/IS-uart.js' ")>]
-let importReadUart : unit = jsNative
+let pause () : unit = Bridge.uartPause ()
 
-[<Emit("pauseOp()")>]
-let pause (): unit = jsNative
+let continuedOp () : unit = Bridge.uartContinue ()
 
-[<Emit("continuedOp()")>]
-let continuedOp (): unit = jsNative
+let connect (numberOfViewers: int) : JS.Promise<string array> =
+    Bridge.uartConnectAndRead numberOfViewers
 
+let simpleConnect () : JS.Promise<unit> = Bridge.uartSimpleConnect ()
 
-[<Emit("connectAndRead($0)")>]
-let connect (numberOfViewers:int): JS.Promise<string array> = jsNative
+let disconnect () : unit = Bridge.uartDisconnect ()
 
-[<Emit("simpleConnect($0)")>]
-let simpleConnect (): JS.Promise<unit> = jsNative
+let step () : unit = Bridge.uartStep ()
 
-[<Emit("disconnect()")>]
-let disconnect (): unit = jsNative
+let readAllViewers (numberOfViewers: int) : JS.Promise<string array> =
+    Bridge.uartReadAllViewers numberOfViewers
 
-[<Emit("step()")>]
-let step (): unit = jsNative
-
-[<Emit("readAllViewers($0)")>]
-let readAllViewers (numberOfViewers:int): JS.Promise<string array> = jsNative
-
-[<Emit("stepAndReadAllViewers($0)")>]
-let stepAndReadAllViewers (numberOfViewers:int): JS.Promise<string array> = jsNative
+let stepAndReadAllViewers (numberOfViewers: int) : JS.Promise<string array> =
+    Bridge.uartStepAndReadAllViewers numberOfViewers

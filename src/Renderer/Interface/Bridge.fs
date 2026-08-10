@@ -125,6 +125,54 @@ let clipboardWrite (text: string) : unit = jsNative
 [<Emit("window.issieBridge.revealInFileManager($0)")>]
 let revealInFileManager (folderPath: string) : JS.Promise<string> = jsNative
 
+// ---- the FPGA toolchain ----
+//
+// A stage, not a program: main owns which tool a stage means, so nothing here can name an
+// executable. The job id stands in for the ChildProcess the draw block's model used to hold, since
+// a live node object cannot cross a context boundary.
+
+/// "" when the build could not be started; main logs the reason.
+[<Emit("window.issieBridge.build.start($0,$1,$2,$3,$4)")>]
+let buildStart (stage: string) (projectPath: string) (name: string) (device: string) (profile: string) : string = jsNative
+
+/// -1 while running, -2 for an unknown job, otherwise the exit code.
+[<Emit("window.issieBridge.build.status($0)")>]
+let buildStatus (jobId: string) : int = jsNative
+
+[<Emit("window.issieBridge.build.cancel($0)")>]
+let buildCancel (jobId: string) : unit = jsNative
+
+/// "iverilog" or "vvp" only - main runs nothing else. dst is where stdout is written, "" for
+/// nowhere. Fire and forget, matching what the Verilog test harness always did.
+[<Emit("window.issieBridge.build.runDevTool($0,$1,$2)")>]
+let runDevTool (tool: string) (args: string array) (dst: string) : unit = jsNative
+
+// ---- the debug UART ----
+
+[<Emit("window.issieBridge.uart.connectAndRead($0)")>]
+let uartConnectAndRead (viewers: int) : JS.Promise<string array> = jsNative
+
+[<Emit("window.issieBridge.uart.simpleConnect()")>]
+let uartSimpleConnect () : JS.Promise<unit> = jsNative
+
+[<Emit("window.issieBridge.uart.disconnect()")>]
+let uartDisconnect () : unit = jsNative
+
+[<Emit("window.issieBridge.uart.step()")>]
+let uartStep () : unit = jsNative
+
+[<Emit("window.issieBridge.uart.pause()")>]
+let uartPause () : unit = jsNative
+
+[<Emit("window.issieBridge.uart.continue()")>]
+let uartContinue () : unit = jsNative
+
+[<Emit("window.issieBridge.uart.readAllViewers($0)")>]
+let uartReadAllViewers (viewers: int) : JS.Promise<string array> = jsNative
+
+[<Emit("window.issieBridge.uart.stepAndReadAllViewers($0)")>]
+let uartStepAndReadAllViewers (viewers: int) : JS.Promise<string array> = jsNative
+
 // ---- messages to and from main ----
 
 [<Emit("window.issieBridge.ipc.quit()")>]
@@ -193,6 +241,28 @@ let clipboardWrite (_text: string) : unit = ()
 /// one outside a JavaScript runtime.
 let revealInFileManager (_folderPath: string) : Fable.Core.JS.Promise<string> =
     failwith "revealInFileManager needs Electron: there is no file manager to open under .NET"
+
+let buildStart (_stage: string) (_projectPath: string) (_name: string) (_device: string) (_profile: string) : string = ""
+let buildStatus (_jobId: string) : int = -2
+let buildCancel (_jobId: string) : unit = ()
+let runDevTool (_tool: string) (_args: string array) (_dst: string) : unit = ()
+
+let uartConnectAndRead (_viewers: int) : Fable.Core.JS.Promise<string array> =
+    failwith "the debug UART needs Electron and a USB device"
+
+let uartSimpleConnect () : Fable.Core.JS.Promise<unit> =
+    failwith "the debug UART needs Electron and a USB device"
+
+let uartDisconnect () : unit = ()
+let uartStep () : unit = ()
+let uartPause () : unit = ()
+let uartContinue () : unit = ()
+
+let uartReadAllViewers (_viewers: int) : Fable.Core.JS.Promise<string array> =
+    failwith "the debug UART needs Electron and a USB device"
+
+let uartStepAndReadAllViewers (_viewers: int) : Fable.Core.JS.Promise<string array> =
+    failwith "the debug UART needs Electron and a USB device"
 
 let quit () : unit = ()
 let toggleDevTools () : unit = ()

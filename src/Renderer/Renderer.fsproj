@@ -49,6 +49,12 @@
     <Compile Include="Common\TimeHelpers.fs" />
     <Compile Include="Common\WidthInferer.fs" />
 
+    <!-- The bridge to the main process. Early, because everything that reaches the operating
+         system goes through it - including the UART helpers just below, which used to import a
+         node module directly. PathHelpers needs it for the platform separator. -->
+    <Compile Include="Interface\Bridge.fs" />
+    <Compile Include="Interface\PathHelpers.fs" />
+
 	  <!-- UART -->
     <Compile Include="UartFiles\BuildUartHelpers.fs" />
 
@@ -78,8 +84,6 @@
 
     <!-- JS and File interface -->
     <Compile Include="Interface\Version.fs" />
-    <Compile Include="Interface\Bridge.fs" />
-    <Compile Include="Interface\PathHelpers.fs" />
     <Compile Include="Interface\JSHelpers.fs" />
     <Compile Include="Interface\FilesIO.fs" />
     <Compile Include="Interface\ComponentLibraries.fs" />

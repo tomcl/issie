@@ -869,6 +869,7 @@ let makeLoadedComponentFromCanvasData (canvas: CanvasState) filePath timeStamp w
             LoadedComponentIsOutOfDate = false
             LCParameterSlots = sheetInfo |> Option.bind (fun sI -> sI.ParameterDefinitions)
             IsTopSheet = sheetInfo |> Option.bind (fun sI -> sI.IsTopSheet) |> Option.defaultValue false
+            OtherParamValues = Map.empty
         }
     ldc, ramChanges
 

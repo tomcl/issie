@@ -141,7 +141,25 @@ let updateUnpinned (msg : Msg) oldModel =
         match sMsg with
         | SheetT.ToggleNet canvas ->
             model, Cmd.none
-        | _ -> sheetMsg sMsg model
+        | _ ->
+            // Adding or deleting a custom component - or pasting one, or undoing either - changes
+            // what the design sets its subsheets' parameters to, so the values have to be worked
+            // out again. Detected by comparing the instances rather than by listing the messages
+            // that can do it: paste and undo reach the same state by their own routes, and a list
+            // of messages is the kind of thing that goes stale. Ordinary canvas edits leave this
+            // untouched and cost only the comparison.
+            let instancesOf (m: Model) =
+                m.Sheet.Wire.Symbol.Symbols
+                |> Map.toList
+                |> List.choose (fun (_, sym) ->
+                    match sym.Component.Type with
+                    | Custom cc -> Some (sym.Component.Id, cc.Name, cc.ParameterBindings)
+                    | _ -> None)
+            let before = instancesOf model
+            let newModel, cmd = sheetMsg sMsg model
+            match instancesOf newModel = before with
+            | true -> newModel, cmd
+            | false -> newModel, Cmd.batch [cmd; Cmd.ofMsg PropagateParameters]
 
     | WaveSimKeyPress s ->
         // Navigation in the waveform simulator. Only reachable from the WaveSim key context, which
@@ -516,9 +534,9 @@ let updateUnpinned (msg : Msg) oldModel =
                 |> set popupViewFunc_ (Some popup)
                 |> withNoMsg
 
-    | ApplyComputedDisplayValues ->
+    | PropagateParameters ->
         // the push works by dispatching symbol-change messages, so it needs a dispatch of its own
-        model, Cmd.ofEffect (fun dispatch -> ParameterView.applyComputedDisplayValues model dispatch)
+        model, Cmd.ofEffect (fun dispatch -> ParameterView.propagateParameters model dispatch)
 
     | ShowPopup popup ->
         model
@@ -613,24 +631,24 @@ let updateUnpinned (msg : Msg) oldModel =
         |> set (popupDialogData_ >-> intlist2_) intlist2
         |> withNoMsg
 
-    | AddPopupDialogParamSpec (slotName, paramCompSpec) ->
+    | AddPopupDialogParamSpec (slot, boxState) ->
         let paramInputs_ = popupDialogData_ >-> paramCompSpec_
         let newInputs = 
             model
             |> get paramInputs_
             |> Option.defaultValue Map.empty
-            |> Map.add slotName paramCompSpec
+            |> Map.add slot boxState
         model
         |> set paramInputs_ (Some newInputs)
         |> withNoMsg
 
-    | ClearPopupDialogParamSpec slotName ->
+    | ClearPopupDialogParamSpec slot ->
         let paramInputs_ = popupDialogData_ >-> paramCompSpec_
         let newInputs = 
             model
             |> get paramInputs_
             |> Option.defaultValue Map.empty
-            |> Map.remove slotName
+            |> Map.remove slot
         model
         |> set paramInputs_ (Some newInputs)
         |> withNoMsg

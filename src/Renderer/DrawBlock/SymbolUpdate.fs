@@ -466,9 +466,6 @@ let createSymbolRecord ldcs theme comp =
             }
             Id = ComponentId comp.Id
             Component = {comp with H=h ; W = w}
-            // loaded from file, so at declared values: display values are pushed on afterwards
-            DeclaredSlots = Map.empty
-            DeclaredPortLabels = None
             Annotation = None
             Moving = false
             InWidth0 = None
@@ -872,41 +869,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
 
 // ----------------------interface to Issie----------------------------- //
-/// The symbol's component as DECLARED, with any computed parameter display values undone.
-/// Only the parameterised slots are put back; everything else about the component is taken as it
-/// stands, so an edit made while computed values were on display - a constant's value, a memory's
-/// contents, the label, the position - survives being saved.
-/// A pasted copy is correct for the same reason: it inherits DeclaredSlots from the symbol it was
-/// copied from, and those slots mean the same thing on the copy.
-let declaredComponent (symbol: Symbol) : Component =
-    /// A custom component instance's ports follow from its bindings by way of the sheet inside it,
-    /// which setSlotValues cannot reach: they are remembered whole. See Symbol.DeclaredPortLabels.
-    let withDeclaredPorts (compType: ComponentType) =
-        match compType, symbol.DeclaredPortLabels with
-        | Custom cc, Some (ins, outs) -> Custom {cc with InputLabels = ins; OutputLabels = outs}
-        | _ -> compType
-    match Map.isEmpty symbol.DeclaredSlots && symbol.DeclaredPortLabels = None with
-    | true -> symbol.Component
-    | false ->
-        { symbol.Component with
-            Type =
-                symbol.Component.Type
-                |> ComponentSlots.setSlotValues symbol.DeclaredSlots
-                |> withDeclaredPorts }
-
-/// The component as it is DRAWN, including any parameter values computed for the current top
-/// sheet. This is what the properties pane should show; use extractComponent for anything that
-/// is saved or compared against what was saved.
+/// The component as it is DRAWN. The same as what is saved: a sheet is stored at the values its
+/// design gives it, so there is no longer a displayed set of values over a declared one.
 let displayedComponent (symModel: Model) (sId:ComponentId) : Component =
     (storeLayoutInfoInComponent () symModel.Symbols[sId]).Component
 
 /// The component as it must be SAVED. This is the sole path from symbols to saved state
 /// (extractComponents -> Sheet.GetCanvasState -> both save paths, the backup write, and
-/// currentSheetIsOutOfDate), so it is the one place that has to know about display values.
+/// currentSheetIsOutOfDate).
 let extractComponent (symModel: Model) (sId:ComponentId) : Component =
     symModel.Symbols[sId]
     |> storeLayoutInfoInComponent ()
-    |> declaredComponent
+    |> (fun sym -> sym.Component)
 
 let extractComponents (symModel: Model) : Component list =
     symModel.Symbols

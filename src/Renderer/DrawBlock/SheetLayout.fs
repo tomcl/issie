@@ -481,7 +481,7 @@ let paramDefsOf (sheet: SheetDescription) : Result<ParameterDefs option, string>
     let declarations =
         sheet.Params
         |> List.map (fun p ->
-            ParamName p.Name, { Expression = PInt p.Default; Description = p.Description })
+            ParamName p.Name, { Expression = PInt (bigint p.Default); Description = p.Description })
         |> Map.ofList
     let slot (spec: SlotSpec) : Result<ParamSlot * ConstrainedExpr, string> =
         match Map.tryFind spec.Comp known with

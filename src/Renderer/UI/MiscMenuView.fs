@@ -793,7 +793,7 @@ let saveAsLibraryComponent (sheetName: string) (model: Model) dispatch =
             dialogPopupBodyTwoTexts
                 ((fun _ -> div [] [str "Library to put it in (an existing library, or a new name):"]), "example: adders")
                 ((fun _ -> div [] [str "What does this component do? This is what the catalogue shows:"]),
-                 "example: ripple-carry adder, width set by a parameter")
+                 "example: ripple-carry adder, width set by a property")
                 dispatch
 
         let buttonAction (model': Model) =

@@ -718,45 +718,54 @@ let private createArithmeticPopup compType (model: Model) dispatch =
     let intDefault = model.LastUsedDialogWidth
     let slot = Buswidth
     
-    let constraints = [MinVal (PInt 1, $"Number of bits in {compName} must be positive")]
- 
+    let widthDefault = bigint intDefault
+    let constraints = [
+        MinVal (PInt 1I, $"Number of bits in {compName} must be positive")
+        MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
+                $"Number of bits in {compName} cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}")
+    ]
+
     let defaultParamSpec = {
         CompSlot = slot
-        Expression = PInt intDefault
+        Expression = PInt widthDefault
         Constraints = constraints
-        Value = intDefault
+        Value = widthDefault
     }
 
     let inputField model' =
-        ParameterView.paramInputField model' prompt intDefault None constraints None slot dispatch
+        ParameterView.paramInputField model' prompt widthDefault None None constraints None slot dispatch
 
     let buttonAction =
         fun (model': Model) ->
             let inputFieldDialog = 
                 match model'.PopupDialogData.DialogState with
-                | Some inputSpec -> Map.find slot inputSpec
+                | Some inputSpec -> (Map.find (ParameterTypes.paramBoxKey None slot) inputSpec).Spec
                 | None -> failwithf "Param input field must set new param info"
             let compParamSpec =
                 match inputFieldDialog with
                 | Ok paramSpec -> paramSpec
                 | Error err ->
                     failwithf $"Received error message '{err}' when creating N-bits {compName}"
-            let comp = toComp compParamSpec.Value
-            let addParamCompFunction = 
+            let width = intOfParamInt 1 compParamSpec.Value
+            let comp = toComp width
+            let addParamCompFunction =
                 Some <| ParameterView.addParamComponent compParamSpec dispatch
 
             createCompStdLabel comp addParamCompFunction model dispatch
-            dispatch <| ReloadSelectedComponent compParamSpec.Value
+            dispatch <| ReloadSelectedComponent width
             dispatch ClosePopup
 
     let isDisabled =
         fun model' ->
             model'.PopupDialogData.DialogState
             |> function
-               | Some specs -> Map.find slot specs |> Result.isError
+               | Some specs -> (Map.find (ParameterTypes.paramBoxKey None slot) specs).Spec |> Result.isError
                | None -> failwithf "Dialog state must exist for input box"
 
-    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
+    dispatch <| AddPopupDialogParamSpec (
+        ParameterTypes.paramBoxKey None slot,
+        {Text = ParameterTypes.renderParamExpression defaultParamSpec.Expression 0
+         Spec = Ok defaultParamSpec})
     dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
 
@@ -767,13 +776,18 @@ let private createShiftPopup (model: Model) dispatch =
     let buttonText = "Add"
     let intDefault = model.LastUsedDialogWidth
     let slot = Buswidth
-    let constraints = [MinVal (PInt 1, "Number of bits in shift must be positive")]
+    let widthDefault = bigint intDefault
+    let constraints = [
+        MinVal (PInt 1I, "Number of bits in shift must be positive")
+        MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
+                $"Number of bits in shift cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}")
+    ]
 
     let defaultParamSpec = {
         CompSlot = slot
-        Expression = PInt intDefault
+        Expression = PInt widthDefault
         Constraints = constraints
-        Value = intDefault
+        Value = widthDefault
     }
 
     let shiftKinds = [ LSL, 0I, "LSL", "logical shift left"
@@ -788,7 +802,7 @@ let private createShiftPopup (model: Model) dispatch =
 
     let body (model': Model) =
         div [] [
-            ParameterView.paramInputField model' "How many bits should the input/output have?" intDefault None constraints None slot dispatch
+            ParameterView.paramInputField model' "How many bits should the input/output have?" widthDefault None None constraints None slot dispatch
             br []
             str "Which kind of shift?"
             br []; br []
@@ -807,14 +821,14 @@ let private createShiftPopup (model: Model) dispatch =
         fun (model': Model) ->
             let inputFieldDialog =
                 match model'.PopupDialogData.DialogState with
-                | Some inputSpec -> Map.find slot inputSpec
+                | Some inputSpec -> (Map.find (ParameterTypes.paramBoxKey None slot) inputSpec).Spec
                 | None -> failwithf "Param input field must set new param info"
             let compParamSpec =
                 match inputFieldDialog with
                 | Ok paramSpec -> paramSpec
                 | Error err ->
                     failwithf $"Received error message '{err}' when creating N-bits shift"
-            let w = compParamSpec.Value
+            let w = intOfParamInt 1 compParamSpec.Value
             let comp = Shift (w, shifterWidthFor w, chosenKind model')
             let addParamCompFunction =
                 Some <| ParameterView.addParamComponent compParamSpec dispatch
@@ -827,11 +841,14 @@ let private createShiftPopup (model: Model) dispatch =
         fun (model': Model) ->
             model'.PopupDialogData.DialogState
             |> function
-               | Some specs -> Map.find slot specs |> Result.isError
+               | Some specs -> (Map.find (ParameterTypes.paramBoxKey None slot) specs).Spec |> Result.isError
                | None -> failwithf "Dialog state must exist for input box"
 
     dispatch <| SetPopupDialogInt2 (Some 0I)
-    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
+    dispatch <| AddPopupDialogParamSpec (
+        ParameterTypes.paramBoxKey None slot,
+        {Text = ParameterTypes.renderParamExpression defaultParamSpec.Expression 0
+         Spec = Ok defaultParamSpec})
     dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
@@ -1011,24 +1028,29 @@ let private createRegisterPopup regType (model:Model) dispatch =
     let intDefault = model.LastUsedDialogWidth
     let slot = Buswidth
 
-    let constraints = [MinVal (PInt 1, "Register width must be positive")]
+    let widthDefault = bigint intDefault
+    let constraints = [
+        MinVal (PInt 1I, "Register width must be positive")
+        MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
+                $"Register width cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}")
+    ]
 
     let defaultParamSpec = {
         CompSlot = slot
-        Expression = PInt intDefault
+        Expression = PInt widthDefault
         Constraints = constraints
-        Value = intDefault
+        Value = widthDefault
     }
 
     let inputField model' =
-        ParameterView.paramInputField model' prompt intDefault None constraints None slot dispatch
+        ParameterView.paramInputField model' prompt widthDefault None None constraints None slot dispatch
 
     let buttonText = "Add"
     let buttonAction =
         fun model' ->
             let inputFieldDialog = 
                 match model'.PopupDialogData.DialogState with
-                | Some inputSpec -> Map.find slot inputSpec
+                | Some inputSpec -> (Map.find (ParameterTypes.paramBoxKey None slot) inputSpec).Spec
                 | None -> failwithf "Param input field must set new param info"
             let compParamSpec =
                 match inputFieldDialog with
@@ -1037,7 +1059,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
             let addParamCompFunction = 
                 Some <| ParameterView.addParamComponent compParamSpec dispatch
 
-            let regWidth = compParamSpec.Value;
+            let regWidth = intOfParamInt 1 compParamSpec.Value
 
             match regType with
             | Register _ -> createCompStdLabel (Register regWidth) addParamCompFunction model dispatch
@@ -1050,10 +1072,13 @@ let private createRegisterPopup regType (model:Model) dispatch =
         fun model' ->
             model'.PopupDialogData.DialogState
             |> function
-               | Some specs -> Map.find slot specs |> Result.isError
+               | Some specs -> (Map.find (ParameterTypes.paramBoxKey None slot) specs).Spec |> Result.isError
                | None -> failwithf "Dialog state must exist for input box"
 
-    dispatch <| AddPopupDialogParamSpec (slot, Ok defaultParamSpec)
+    dispatch <| AddPopupDialogParamSpec (
+        ParameterTypes.paramBoxKey None slot,
+        {Text = ParameterTypes.renderParamExpression defaultParamSpec.Expression 0
+         Spec = Ok defaultParamSpec})
     dialogPopup title inputField buttonText buttonAction isDisabled [] dispatch
 
 let private createMemoryPopup memType model (dispatch: Msg -> Unit) =

@@ -14,7 +14,8 @@ The parameter system in Issie allows users to define symbolic integer parameters
 ## Key Features
 
 - **Symbolic Parameters**: Define named integer parameters (e.g., `WIDTH`, `SIZE`) at the sheet level
-- **Expression Language**: Use arithmetic expressions (`WIDTH + 1`, `SIZE * 8`) to calculate values
+- **Expression Language**: Use arithmetic expressions and the built-in functions `clog2`, `min` and
+  `max` (`WIDTH + 1`, `SIZE * 8`, `max(clog2(N),1)`) to calculate values
 - **Hierarchical Scoping**: Parameters defined at sheet level, overridable per component instance
 - **Constraint System**: Define min/max constraints on parameter values with custom error messages
 - **Custom Component Support**: Pass parameters between sheets through custom components
@@ -29,20 +30,38 @@ The parameter system is implemented across several key modules with clear separa
 The parameter system's foundation is built on these core types:
 
 #### Basic Types
-- **`ParamInt`**: Currently `int`, will be extended to `bigint` for large bit constants
+- **`ParamInt`**: `bigint`. The fields a parameter feeds are bigint everywhere else in Issie — a
+  constant's value, a bus comparison value, an input's default — and a bus may be up to
+  `NumberHelpers.Constants.maxIssieBusWidth` bits wide. `ParameterTypes.tryIntOfParamInt` narrows
+  back to `int` at the one place it must: `ComponentSlots.trySetSlotValue`, where a width, an index
+  or a bit position is written into a component. A value too large to be an `int` is refused there
+  rather than wrapped
 - **`ParamName`**: Encapsulated string representing a parameter identifier
 
 #### Expression AST
 ```fsharp
+/// Named by an enumeration, so that adding a two-argument function is a case HERE
+type ParamBinFunc =
+    | PMin
+    | PMax
+
 type ParamExpression =
-    | PInt of ParamInt                              // Integer constant
+    | PInt of ParamInt                              // Integer constant, of any size
     | PParameter of ParamName                       // Parameter reference
     | PAdd of ParamExpression * ParamExpression     // Addition
     | PSubtract of ParamExpression * ParamExpression // Subtraction
     | PMultiply of ParamExpression * ParamExpression // Multiplication
     | PDivide of ParamExpression * ParamExpression  // Division
     | PRemainder of ParamExpression * ParamExpression // Modulo
+    | PCLog2 of ParamExpression                     // clog2(x)
+    | PBinFunc of ParamBinFunc * ParamExpression * ParamExpression // min(x,y), max(x,y)
 ```
+
+Saved files key a DU case by its **name**, not its position (`SimpleJson/Json.Converter.fs`), so
+appending a case leaves existing `.dgm` and `.ldgm` files readable. `PInt` now writes as a quoted
+string (`{"PInt": "16"}`) because that is how bigint is encoded — the same form `Constant1` has
+always used — and both the numeric and the string form are accepted when reading, so older files
+load unchanged. Files written by this version cannot be opened by an older Issie.
 
 #### Constraints
 ```fsharp
@@ -336,14 +355,36 @@ addParamComponents records its slots once it has an id
 The parameter expression parser supports:
 
 ### Syntax Elements
-- **Literals**: Decimal integer constants (e.g., `8`, `32`). Hexadecimal is **not** supported
+- **Literals**: Decimal integer constants of any size (e.g., `8`, `32`, `1099511627776`).
+  Hexadecimal is **not** supported
 - **Variables**: Parameter names — a letter followed by letters and digits (e.g., `WIDTH`,
-  `dataSize`, `W2X`). See `isValidParamName` below
+  `dataSize`, `W2X`), other than a built-in function name. See `isValidParamName` below
 - **Operators** (with precedence, tightest first):
   - Unary minus: `-x`, being part of the operand it precedes
   - Multiplication, Division, Modulo: `*`, `/`, `%`
   - Addition, Subtraction: `+`, `-`
+- **Functions**: `clog2(x)`, `min(x,y)`, `max(x,y)`. See below
 - **Parentheses**: For grouping expressions
+
+### Functions
+Three built-ins, written as calls and so needing no precedence of their own:
+
+| Written | Means |
+|---|---|
+| `clog2(x)` | bits needed to index `x` things: `ceil(log2 x)`. `clog2(8)` is 3 and `clog2(9)` is 4; 0 and 1 both give 0, as Verilog's `$clog2` does. A negative argument is an error |
+| `min(x,y)` | the smaller of the two |
+| `max(x,y)` | the larger of the two |
+
+`clog2` is the one that makes a width follow a size: an address bus for an `N`-word memory, a
+select input for an `N`-way mux, the shift amount for an `N`-bit shifter. `CommonTypes.shifterWidthFor`
+computes the SHIFT input's width with the same function, so `clog2` written in a properties box
+means exactly what Issie does internally. `min`/`max` are there because clamping is usually what
+comes next: **`max(clog2(N),1)`** is the idiom, since a width must never be 0.
+
+**Names are matched without regard to case**: `clog2`, `CLOG2` and `CLog2` are one function, as are
+`min` and `MIN`. They are written back in lower case, so `MAX(1,2)` re-renders as `max(1,2)`.
+Because the parser reads them as functions, they are reserved: a parameter may not be called
+`clog2`, `min` or `max` in any case, and the "Add parameter" dialog says so.
 
 ### Example Expressions
 ```
@@ -355,19 +396,30 @@ WIDTH / 2       // Division
 SIZE % 8        // Modulo operation
 -1              // Negative literal
 BIAS - -4       // Subtracting a negative
+clog2(WORDS)    // Address bits for a memory of WORDS words
+max(clog2(N),1) // ...clamped, since a width of 0 is not a width
+min(WIDTH,32)   // Capping a width
 ```
 
 ### Parser Implementation
 The parser uses recursive descent with separate functions for each precedence level:
-- `parsePrimary`: Handles numbers, variables, unary minus, and parentheses
+- `parsePrimary`: Handles numbers, variables, function calls, unary minus, and parentheses
 - `parseFactors`: Processes multiplication, division, modulo
 - `parseExpressionTokens`: Handles addition and subtraction
 
-**One name rule.** `ParameterTypes.isValidParamName` (`[a-zA-Z][a-zA-Z0-9]*`) is both what the
-"Add parameter" dialog accepts and what the tokenizer reads as a name, because a name that cannot
-be written in an expression is of no use. Two rules diverging breaks it in both directions: a name
-the dialog takes but the tokenizer will not read can be declared and never referred to, and one the
-tokenizer reads but the dialog marks invalid is shown in red and accepted anyway. A number run
+A call is parsed in `parsePrimary` because it is atomic — its own parentheses delimit it — and its
+arguments are whole expressions, `parseExpressionTokens` stopping at the `,` or `)` that ends each
+one. The list of two-argument functions is derived from the `ParamBinFunc` DU by
+`EEExtensions.Union.allCases`, so adding a case to that type reserves its name and reaches the
+parser with no second edit; only `binFuncName` must then cover it, which the compiler requires.
+
+**One name rule.** `ParameterTypes.isValidParamName` (`[a-zA-Z][a-zA-Z0-9]*`, and not a built-in
+function name) is both what the "Add parameter" dialog accepts and what the tokenizer reads as a
+name, because a name that cannot be written in an expression is of no use. Two rules diverging
+breaks it in both directions: a name the dialog takes but the tokenizer will not read can be
+declared and never referred to, and one the tokenizer reads but the dialog marks invalid is shown
+in red and accepted anyway. That is also why a function name cannot be a parameter: the parser
+reads `min` as the function, so a parameter of that name could never be referred to. A number run
 directly into a name (`2W`) is reported as such, since it is either a missing `*` or a name from a
 file written under a looser rule.
 
@@ -433,8 +485,9 @@ type ParamConstraint =
 ### Example
 ```fsharp
 let widthConstraints = [
-    MinVal (PInt 1, "Width must be at least 1 bit")
-    MaxVal (PInt 64, "Width cannot exceed 64 bits")
+    MinVal (PInt 1I, "Width must be at least 1 bit")
+    MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
+            "Width cannot exceed 16384 bits")
 ]
 ```
 
@@ -763,8 +816,7 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> Result<Unit, Param
 
 ## Known Limitations
 
-- Integer-only parameters (`ParamInt = int`); a constant wider than 32 bits cannot be expressed as
-  a parameter.
+- Parameter values are whole numbers only: there are no fractions and no strings.
 - Parameter names are unqualified, and **scoping is single-level**: an instance binding is an
   expression in the parameters of the sheet the instance sits on, and nothing further out is in
   scope. Following a design-wide constant down a hierarchy means a parameter on every sheet in
@@ -795,7 +847,8 @@ Smaller rough edges are in [dev/openIssues.md](dev/openIssues.md).
 ## Best Practices
 
 1. **Use descriptive parameter names**: `dataWidth` instead of `W`. Names are letters and digits
-   only — there is no underscore, so `DATA_WIDTH` is not a name Issie will accept
+   only — there is no underscore, so `DATA_WIDTH` is not a name Issie will accept — and may not be
+   `clog2`, `min` or `max`, which are functions
 2. **Write the description for the person choosing the value**, not for yourself: it is what an
    instance of the sheet shows where the value is entered
 3. **Define constraints early**: Prevent invalid values at input time
@@ -816,6 +869,8 @@ Smaller rough edges are in [dev/openIssues.md](dev/openIssues.md).
 - Check for typos in operators
 - Verify parentheses are balanced
 - Use only supported operators (+, -, *, /, %)
+- A built-in function must be written as a call: `clog2(x)`, `min(x,y)`, `max(x,y)`. A comma
+  belongs only between the two arguments of `min` or `max`
 
 ### Constraint Violation
 - Review constraint definitions

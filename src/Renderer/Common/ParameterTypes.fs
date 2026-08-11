@@ -6,14 +6,54 @@ open System.Text.RegularExpressions
 //----Types for Parameters defined on sheets and bound to values by custom component instances----//
 //------------------------------------------------------------------------------------------------//
 
-/// Probably needs to be bigint eventually to deal with the value of an N bit constant for n > 32.
-// There should be no problem doing that but to get started let us use int and move to bigint later when needed.
-type ParamInt = int
+/// The type a parameter expression computes in.
+///
+/// bigint, not int, because the values parameters feed are bigint everywhere else in Issie: a
+/// constant, a bus comparison value and an input's default value are all `bigint` in ComponentType,
+/// and a bus may be up to NumberHelpers.Constants.maxIssieBusWidth bits wide. Evaluating in int
+/// meant a wide input's default could not be range-checked at all, and a literal larger than
+/// Int32.MaxValue parsed as a parameter name made of digits.
+///
+/// The narrowing back to int happens once, at the slot: see tryIntOfParamInt.
+type ParamInt = bigint
+
+/// The value as an int, or None when it is too large to be one.
+///
+/// Every parameter value that reaches a component field narrower than a bigint goes through here.
+/// A width, an index and a bit position are all `int` in ComponentType, and silently wrapping a
+/// value that does not fit is how a nonsensical width would otherwise reach the canvas.
+/// NumberHelpers.convertBigintToInt32 masks with 0xffffffff instead, so is not this.
+let tryIntOfParamInt (value: ParamInt) : int option =
+    if value >= bigint System.Int32.MinValue && value <= bigint System.Int32.MaxValue then
+        Some (int value)
+    else
+        None
+
+/// The value as an int, falling back to `ifTooLarge` where it is not one.
+///
+/// For the places that have no way to refuse: a component is being created, and its width has
+/// already passed the constraints on the box it was typed into - every one of which bounds the
+/// width at or below NumberHelpers.Constants.maxIssieBusWidth. So the fallback is a bug path, and
+/// the warning is there to say which bound went missing rather than to be read in normal use.
+let intOfParamInt (ifTooLarge: int) (value: ParamInt) : int =
+    match tryIntOfParamInt value with
+    | Some intValue -> intValue
+    | None ->
+        Log.warn $"Parameter value {value} is too large to be a component field: using {ifTooLarge}"
+        ifTooLarge
 
 /// A named parameter in a custom component type
 /// For MVP this is ok but maybe names need to be qualified by the
 /// design sheet they are in to make functions support parameter inheritance.
 type ParamName = ParamName of string
+
+/// A built-in function of two arguments, named by an enumeration so that adding one is a case here
+/// rather than a case of ParamExpression. Every list of these is derived from the type by
+/// EEExtensions.Union.allCases, so adding a case reserves its name and reaches the parser at once;
+/// the compiler then requires only that binFuncName covers it.
+type ParamBinFunc =
+    | PMin
+    | PMax
 
 /// An arithmetic expression containing symbolic parameters
 /// For MVP this could be limited to PInt and PParameter only.
@@ -23,6 +63,9 @@ type ParamName = ParamName of string
 /// and BigInt parameters (needed for constant values in N bit components).
 /// For MVP set 'PINT = int
 /// TODO: refactor this to use an enumeration DU for operators to reduce cases.
+///
+/// The built-in functions are already in that shape: PBinFunc names its operation with an
+/// enumeration rather than taking a case of its own per function.
 type ParamExpression =
     | PInt of ParamInt
     | PParameter of ParamName
@@ -31,8 +74,44 @@ type ParamExpression =
     | PMultiply of ParamExpression * ParamExpression
     | PDivide of ParamExpression * ParamExpression
     | PRemainder of ParamExpression * ParamExpression
+    /// Bits needed to index the operand's value: ceil(log2 n). See clog2.
+    | PCLog2 of ParamExpression
+    | PBinFunc of ParamBinFunc * ParamExpression * ParamExpression
 
 type ParamError = string
+
+/// The name a two-argument built-in is written under. Lower case: this is the canonical spelling
+/// that renderParamExpression emits, though the parser accepts any case.
+let binFuncName (func: ParamBinFunc) : string =
+    match func with
+    | PMin -> "min"
+    | PMax -> "max"
+
+/// The name the one-argument built-in is written under.
+let cLog2Name = "clog2"
+
+/// The two-argument built-in of that name, matched without regard to case.
+let tryBuiltinBinFunc (name: string) : ParamBinFunc option =
+    EEExtensions.Union.allCases<ParamBinFunc> ()
+    |> List.tryFind (fun func -> binFuncName func = name.ToLowerInvariant())
+
+/// Whether the name is a built-in function. Matched without regard to case, so that `MAX` cannot be
+/// a parameter while `max` is a function: the two would read as the same word.
+let isBuiltinFuncName (name: string) : bool =
+    name.ToLowerInvariant() = cLog2Name || (tryBuiltinBinFunc name).IsSome
+
+/// Bits needed to index n things: ceil(log2 n), so clog2 8 = 3 and clog2 9 = 4.
+/// 0 and 1 both give 0, as Verilog's $clog2 does.
+///
+/// The n <= 1 guard is load-bearing rather than tidiness: >>> on a negative bigint is an arithmetic
+/// shift and never reaches 0, so without it a negative argument would loop for ever. The evaluator
+/// rejects negatives before calling this, which is where the user-facing message lives.
+///
+/// Computed by shifting rather than by System.Math.Log: the float version is wrong at exact powers
+/// of two, which is why the one in SheetCreator is commented out.
+let clog2 (n: ParamInt) : ParamInt =
+    let rec bits (v: ParamInt) (acc: ParamInt) = if v <= 1I then acc else bits (v >>> 1) (acc + 1I)
+    if n <= 1I then 0I else bits (n - 1I) 0I + 1I
 
 /// For MVP could allow only PInt case constraints
 /// The Errors are human-readable explanations of why violating the constraint is not allowed.
@@ -114,9 +193,36 @@ let newParamExpression_ = Optics.Lens.create (fun s -> s.Expression) (fun v s ->
 let newParamConstraints_ = Optics.Lens.create (fun s -> s.Constraints) (fun v s -> {s with Constraints = v})
 let newParamValue_ = Optics.Lens.create (fun s -> s.Value) (fun v s -> {s with Value = v})
 
+/// What one property input box holds while it is being edited: the text as typed, and what that
+/// text means.
+///
+/// The TEXT is model state, as it is for every other input box in Issie - the Constant's value box,
+/// the component name box - which dispatch the unparsed string on each keystroke and render
+/// themselves from it. Keeping only the parsed value here left the box with no way to be set except
+/// by reaching past React into the DOM, which is what the offer to bind a property to an enclosing
+/// sheet's had to do.
+///
+/// Only a Spec that is Ok ever reaches a component: text that will not parse, will not evaluate, or
+/// breaks a constraint stays here with its message, and the design is untouched until it is valid.
+type ParamBoxState = {
+    Text: string
+    Spec: Result<NewParamCompSpec, ParamError>
+}
+
 /// The Elmish Model state used to manage input boxes that can be used to define parameter expressions.
 /// Part of Model.PopupDialogData.DialogState.
-type ParamBoxDialogState = Map<CompSlotName, Result<NewParamCompSpec, ParamError>>
+///
+/// Keyed by ParamSlot rather than CompSlotName, so that the key names WHICH component's box this is.
+/// Slot names are shared by construction - every component with a width has `Buswidth`, every
+/// instance of one sheet has `CustomCompParam "w"` - so keying on the name alone meant one
+/// component's box read another's entry, and selecting a second component showed the first's error
+/// on it in red. A popup has no component and uses an empty CompId; its entries are cleared
+/// wholesale when the popup closes.
+type ParamBoxDialogState = Map<ParamSlot, ParamBoxState>
+
+/// The dialog-state key for a box belonging to a component, or to a popup where there is none.
+let paramBoxKey (compId: string option) (slot: CompSlotName) : ParamSlot =
+    {CompId = Option.defaultValue "" compId; CompSlot = slot}
 
 /// Map from name to expression for each parameter.
 /// This is what an INSTANCE binds: a custom component binding carries no description, because the
@@ -245,17 +351,26 @@ let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpr
         | PDivide (left, right) ->
             binary
                 (fun l r ->
-                    match r with
-                    | 0 -> Error $"Division by zero: {l} cannot be divided by 0"
-                    | _ -> Ok (l / r))
+                    if r.IsZero then Error $"Division by zero: {l} cannot be divided by 0"
+                    else Ok (l / r))
                 left right
         | PRemainder (left, right) ->
             binary
                 (fun l r ->
-                    match r with
-                    | 0 -> Error $"Remainder by zero: the remainder of {l} divided by 0 is undefined"
-                    | _ -> Ok (l % r))
+                    if r.IsZero then Error $"Remainder by zero: the remainder of {l} divided by 0 is undefined"
+                    else Ok (l % r))
                 left right
+        // A negative argument has no answer, and clog2 would not terminate on one. clog2 0 is 0
+        // rather than an error: a width of zero is caught by the component's own constraint, whose
+        // message is written for the component and so says more than this one could.
+        | PCLog2 expr ->
+            match eval beingEvaluated expr with
+            | Error err -> Error err
+            | Ok value when value.Sign < 0 ->
+                Error $"{cLog2Name} is not defined for negative values: {cLog2Name}({value})"
+            | Ok value -> Ok (clog2 value)
+        | PBinFunc (PMin, left, right) -> binary (fun l r -> Ok (min l r)) left right
+        | PBinFunc (PMax, left, right) -> binary (fun l r -> Ok (max l r)) left right
 
     eval [] paramExpr
 
@@ -301,18 +416,36 @@ let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string 
         if precedence > currentPrecedence then
             "(" + renderParamExpression left currentPrecedence + "/" + renderParamExpression right (currentPrecedence + 1) + ")"
         else renderParamExpression left currentPrecedence + "/" + renderParamExpression right (currentPrecedence + 1)
-    | PRemainder (left, right) -> 
+    | PRemainder (left, right) ->
         let currentPrecedence = 3
         "(" + renderParamExpression left currentPrecedence + "%" + renderParamExpression right currentPrecedence + ")"
+    // A function call is atomic - its parentheses are its own - so it needs no parentheses of its
+    // own however tightly it is bound, and its arguments are delimited and so render at 0.
+    | PCLog2 expr ->
+        cLog2Name + "(" + renderParamExpression expr 0 + ")"
+    | PBinFunc (func, left, right) ->
+        binFuncName func + "(" + renderParamExpression left 0 + "," + renderParamExpression right 0 + ")"
 
-/// The names a parameter may have: a letter, then letters and digits.
+/// Whether the name is one a parameter may not take because it is a built-in function.
+/// Kept separate from isValidParamName so that a dialog can say which rule was broken: "clog2 is a
+/// function" and "names are letters and digits" are different problems needing different fixes.
+let isReservedParamName (name: string) : bool = isBuiltinFuncName name
+
+/// What parseExpression says about an empty box. Named because emptying a box is a state the UI
+/// reads and acts on - it is how the user says they have nothing to put there - and matching the
+/// message by hand would break the moment the wording changed.
+let emptyInputError = "Input Empty"
+
+/// The names a parameter may have: a letter, then letters and digits, and not a built-in function.
 ///
 /// This is exactly the parser's name token, exported so that the two cannot drift apart. They had:
 /// names were accepted as `[a-zA-Z0-9]+`, while the tokenizer split `W2X` into `W2` and `X` - so a
 /// parameter could be declared under a name and then never referred to. A leading digit is
-/// excluded for the same reason read the other way round: `123` would be a number.
+/// excluded for the same reason read the other way round: `123` would be a number. A built-in
+/// function name is excluded for the third form of the same reason: the parser reads `min` as the
+/// function, so a parameter of that name could be declared and then never referred to.
 let isValidParamName (name: string) : bool =
-    Regex.IsMatch(name, @"^[a-zA-Z][a-zA-Z0-9]*$")
+    Regex.IsMatch(name, @"^[a-zA-Z][a-zA-Z0-9]*$") && not (isReservedParamName name)
 
 /// <summary>
 /// Parses a string into a parameter expression AST.
@@ -324,14 +457,16 @@ let isValidParamName (name: string) : bool =
 /// </returns>
 /// <remarks>
 /// Supports arithmetic expressions with:
-/// - Integer constants, which may be negated
+/// - Integer constants of any size, which may be negated
 /// - Parameter names, which are a letter followed by letters and digits (see isValidParamName)
 /// - Binary operators: +, -, *, /, %
+/// - Built-in functions: clog2(x), min(x,y), max(x,y), written in any case
 /// - Unary minus
 /// - Parentheses for grouping
 ///
 /// Operator precedence (higher binds tighter):
-/// - unary -: binds tightest, being part of the operand it precedes
+/// - a function call: atomic, being delimited by its own parentheses
+/// - unary -: binds tightest of the operators, being part of the operand it precedes
 /// - *, /, %: Higher precedence
 /// - +, -: Lower precedence
 ///
@@ -339,9 +474,13 @@ let isValidParamName (name: string) : bool =
 /// </remarks>
 let parseExpression (text: string) : Result<ParamExpression, ParamError> =
 
+    /// A digit run is a literal of any size, and anything else is a name. Parsed as bigint rather
+    /// than int32 because ParamInt is bigint: read as an int32, a literal too large to be one fell
+    /// through to being a parameter whose name was all digits, and failed much later with
+    /// "Parameter '99999999999' is not defined".
     let toOperand (operand: string) =
-        match System.Int32.TryParse operand with
-        | true, intVal -> PInt intVal
+        match System.Numerics.BigInteger.TryParse operand with
+        | true, value -> PInt value
         | false, _ -> PParameter <| ParamName operand
 
     /// Negation. There is no PNegate case and none is wanted: subtraction from zero is the same
@@ -351,10 +490,28 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
     let negate expr =
         match expr with
         | PInt value -> PInt -value
-        | _ -> PSubtract (PInt 0, expr)
+        | _ -> PSubtract (PInt 0I, expr)
 
-    // Parses primary expressions: numbers, variables, negation and parentheses
+    // Parses primary expressions: numbers, variables, function calls, negation and parentheses
     let rec parsePrimary (tokens: string list) : Result<ParamExpression * string list, ParamError> =
+        /// The argument list of a built-in call: the tokens after its name must open a bracket,
+        /// hold the arguments separated by commas, and close it. An argument is a whole expression,
+        /// and parseExpressionTokens stops at `,` and `)` and hands them back, so a call needs no
+        /// precedence level of its own.
+        let parseCall (name: string) (arity: int) (form: string) (tokens: string list) =
+            let rec parseArgs remaining args =
+                match parseExpressionTokens remaining with
+                | Error e -> Error e
+                | Ok (arg, rest) ->
+                    let args = arg :: args
+                    match rest with
+                    | "," :: more when List.length args < arity -> parseArgs more args
+                    | ")" :: more when List.length args = arity -> Ok (List.rev args, more)
+                    | _ -> Error $"{name} takes {arity} values: write {form}"
+            match tokens with
+            | "(" :: rest -> parseArgs rest []
+            | _ -> Error $"{name} is a built-in function: write {form}"
+
         match tokens with
         | [] -> Error "Unfinished expression"
         | "(" :: rest ->
@@ -363,9 +520,22 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
             | Ok _ -> Error "Mismatched parentheses"
             | Error e -> Error e
         | ")" :: _ -> Error "Unexpected closing parenthesis"
+        // Without this a stray comma would fall through to toOperand and become a parameter named
+        // "," , which no message could explain.
+        | "," :: _ -> Error "Unexpected comma: a comma separates the two values of min or max"
         // Unary minus, so that a negative value can be written at all. Without it `-4` parsed the
         // minus sign as though it were a parameter name and then complained about the 4.
         | "-" :: rest -> parsePrimary rest |> Result.map (fun (expr, remaining) -> negate expr, remaining)
+        // A built-in function name is read as a call, never as a parameter: isValidParamName
+        // refuses these names, so there is no parameter for it to shadow.
+        | name :: rest when name.ToLowerInvariant() = cLog2Name ->
+            parseCall cLog2Name 1 $"{cLog2Name}(expression)" rest
+            |> Result.map (fun (args, remaining) -> PCLog2 args.[0], remaining)
+        | name :: rest when (tryBuiltinBinFunc name).IsSome ->
+            let func = (tryBuiltinBinFunc name).Value
+            let funcName = binFuncName func
+            parseCall funcName 2 $"{funcName}(a,b)" rest
+            |> Result.map (fun (args, remaining) -> PBinFunc (func, args.[0], args.[1]), remaining)
         | operand :: rest -> Ok (toOperand operand, rest)
 
     // Parses multiplication, division, and modulo (higher precedence)
@@ -414,7 +584,7 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
     // as `W2` then `X` - so a parameter of that name could be declared and then never used, with
     // an error message that pointed at neither problem.
     let tokenize (input: string) =
-        let pattern = @"[a-zA-Z][a-zA-Z0-9]*|\d+|[()+\-*/%]"
+        let pattern = @"[a-zA-Z][a-zA-Z0-9]*|\d+|[(),+\-*/%]"
         Regex.Matches(input, pattern)
         |> Seq.cast<Match>
         |> Seq.map (fun m -> m.Value)
@@ -428,14 +598,16 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
         List.pairwise tokens
         |> List.tryFind (fun (a, b) -> Regex.IsMatch(a, @"^\d+$") && Regex.IsMatch(b, @"^[a-zA-Z]"))
 
-    let validPattern = @"^[0-9a-zA-Z()+\-*/%\s]+$"  // Allow only numbers, letters, operators, spaces, and parentheses
-    if text = "" then Error "Input Empty"
+    // Allow only numbers, letters, operators, spaces, parentheses and the comma that separates the
+    // arguments of min and max. Without the comma here, min(a,b) is refused before it is parsed.
+    let validPattern = @"^[0-9a-zA-Z(),+\-*/%\s]+$"
+    if text = "" then Error emptyInputError
     elif not (Regex.IsMatch(text, validPattern)) then
         let invalidChars = text |> Seq.filter (fun c -> not (Regex.IsMatch(c.ToString(), validPattern))) |> Seq.distinct |> Seq.toArray
         Error (sprintf "Contains unsupported characters: %A" invalidChars)
     else
         match tokenize text with
-        | [] -> Error "Input Empty"
+        | [] -> Error emptyInputError
         | tokens ->
             match numberRunIntoName tokens with
             | Some (number, name) ->
@@ -445,6 +617,9 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
             | None ->
                 match parseExpressionTokens tokens with
                 | Ok (expr, []) -> Ok expr  // Ensure no leftover tokens
+                // A comma left over is not just an unexpected character: it is the one that
+                // separates the arguments of min and max, so say where it does belong.
+                | Ok (_, "," :: _) -> Error "Unexpected comma: a comma separates the two values of min or max"
                 | Ok (_, leftover) -> Error (sprintf "Unexpected characters at end of expression: %s" (String.concat "" leftover))
                 | Error e -> Error e
 
@@ -465,8 +640,10 @@ let rec exprContainsParams (expression: ParamExpression) : bool =
     | PSubtract (left, right)
     | PMultiply (left, right)
     | PDivide (left, right)
-    | PRemainder (left, right) ->
+    | PRemainder (left, right)
+    | PBinFunc (_, left, right) ->
         exprContainsParams left || exprContainsParams right
+    | PCLog2 expr -> exprContainsParams expr
 
 /// The parameters an expression refers to, without duplicates.
 /// Used to check the invariant that every parameter referred to on a sheet is defined on that sheet.
@@ -479,8 +656,10 @@ let paramNamesOfExpr (expression: ParamExpression) : ParamName list =
         | PSubtract (left, right)
         | PMultiply (left, right)
         | PDivide (left, right)
-        | PRemainder (left, right) ->
+        | PRemainder (left, right)
+        | PBinFunc (_, left, right) ->
             collect left @ collect right
+        | PCLog2 expr -> collect expr
     collect expression
     |> List.distinct
 

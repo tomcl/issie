@@ -240,6 +240,7 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
           LCParameterSlots = None // Parameter slots will be set by the sheet's parameter system
           LoadedComponentIsOutOfDate = false
           IsTopSheet = false
+          OtherParamValues = Map.empty
           }
 
     ldc
@@ -312,23 +313,9 @@ let effectiveInstanceBindings
         |> Option.defaultValue defExpr)
 
 /// A sheet's canvas with every parameterised slot resolved at the given bindings.
-/// A slot whose expression cannot be evaluated leaves its component alone, so the widths that are
-/// known still come out rather than the whole sheet failing.
-let resolveCanvasAtBindings
-        (bindings: ParamBindings)
-        (slots: ComponentSlotExpr)
-        ((comps, conns): CanvasState)
-        : CanvasState =
-    let slotsOf compId =
-        slots |> Map.toList |> List.filter (fun (slot, _) -> slot.CompId = compId)
-    let resolve (comp: Component) =
-        (comp.Type, slotsOf comp.Id)
-        ||> List.fold (fun compType (slot, exprSpec) ->
-            match evaluateParamExpression bindings exprSpec.Expression with
-            | Ok value -> ComponentSlots.setSlotValue slot.CompSlot value compType
-            | Error _ -> compType)
-        |> fun compType -> {comp with Type = compType}
-    List.map resolve comps, conns
+/// Lives in ComponentSlots, which owns the slot-to-component mapping and is compiled early enough
+/// for ParameterAnalysis to use it too. Named here because this is where callers look for it.
+let resolveCanvasAtBindings = ComponentSlots.resolveCanvasAtBindings
 
 /// Whether the widths in an instance's signature can be believed: every value the instance binds
 /// is one this caller can work out, and every parameterised slot of the child sheet then
@@ -430,6 +417,7 @@ let addStateToLoadedComponents openFileName canvasState loadedComponents =
           TimeStamp = System.DateTime.Now
           LCParameterSlots = existingLdc |> Option.map (fun e -> e.LCParameterSlots) |> Option.flatten
           IsTopSheet = existingLdc |> Option.map (fun e -> e.IsTopSheet) |> Option.defaultValue false
+          OtherParamValues = Map.empty
          }
 
     loadedComponents

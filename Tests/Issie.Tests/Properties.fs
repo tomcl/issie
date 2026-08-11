@@ -17,7 +17,10 @@ let rec private genExpr size =
         Gen.oneof [
             // negative literals included: they are written with unary minus, and the render/parse
             // round-trip below is what holds that reading and writing agree about it
-            Gen.choose (-40, 40) |> Gen.map PInt
+            Gen.choose (-40, 40) |> Gen.map (bigint >> PInt)
+            // literals no int could hold: ParamInt is bigint, and a literal beyond Int32.MaxValue
+            // used to parse as a parameter whose name was all digits
+            Gen.choose (0, 40) |> Gen.map (fun n -> PInt ((1I <<< 40) + bigint n))
             Gen.elements paramNames |> Gen.map (ParamName >> PParameter)
         ]
     if size <= 0 then
@@ -25,7 +28,17 @@ let rec private genExpr size =
     else
         let sub = genExpr (size / 2)
         let binary op = Gen.map2 (fun a b -> op (a, b)) sub sub
-        Gen.oneof [ leaf; binary PAdd; binary PSubtract; binary PMultiply; binary PDivide; binary PRemainder ]
+        Gen.oneof [
+            leaf
+            binary PAdd
+            binary PSubtract
+            binary PMultiply
+            binary PDivide
+            binary PRemainder
+            Gen.map PCLog2 sub
+            binary (fun (a, b) -> PBinFunc (PMin, a, b))
+            binary (fun (a, b) -> PBinFunc (PMax, a, b))
+        ]
 
 // must be public: FsCheck discovers generator members reflectively
 type ExprGens =
@@ -37,11 +50,16 @@ let private config =
         arbitrary = [ typeof<ExprGens> ] }
 
 /// Bindings giving every generated parameter a small nonzero-capable value
-let private bindingsFor (a: int) (b: int) (c: int) : ParamBindings =
+let private bindingsFor (a: bigint) (b: bigint) (c: bigint) : ParamBindings =
     Map [ ParamName "pa", PInt a; ParamName "pb", PInt b; ParamName "pc", PInt c ]
 
+/// Ceiling log2 by repeated halving, which is a different computation from the shifting one in
+/// ParameterTypes.clog2 - so this really checks the implementation rather than restating it.
+let rec private refClog2 (n: bigint) (acc: bigint) =
+    if n <= 1I then acc else refClog2 ((n + 1I) / 2I) (acc + 1I)
+
 /// Straight-line reference evaluator: no cycle detection needed since bindings are literals
-let rec private refEval (bindings: Map<string, int>) (expr: ParamExpression) : Result<int, unit> =
+let rec private refEval (bindings: Map<string, bigint>) (expr: ParamExpression) : Result<bigint, unit> =
     let binary op l r =
         match refEval bindings l, refEval bindings r with
         | Ok l, Ok r -> op l r
@@ -52,10 +70,17 @@ let rec private refEval (bindings: Map<string, int>) (expr: ParamExpression) : R
     | PAdd(l, r) -> binary (fun l r -> Ok(l + r)) l r
     | PSubtract(l, r) -> binary (fun l r -> Ok(l - r)) l r
     | PMultiply(l, r) -> binary (fun l r -> Ok(l * r)) l r
-    | PDivide(l, r) -> binary (fun l r -> if r = 0 then Error() else Ok(l / r)) l r
-    | PRemainder(l, r) -> binary (fun l r -> if r = 0 then Error() else Ok(l % r)) l r
+    | PDivide(l, r) -> binary (fun l r -> if r = 0I then Error() else Ok(l / r)) l r
+    | PRemainder(l, r) -> binary (fun l r -> if r = 0I then Error() else Ok(l % r)) l r
+    | PCLog2 e ->
+        match refEval bindings e with
+        | Ok n when n < 0I -> Error()
+        | Ok n -> Ok(refClog2 n 0I)
+        | Error() -> Error()
+    | PBinFunc(PMin, l, r) -> binary (fun l r -> Ok(min l r)) l r
+    | PBinFunc(PMax, l, r) -> binary (fun l r -> Ok(max l r)) l r
 
-let private sameOutcome (production: Result<int, string>) (reference: Result<int, unit>) =
+let private sameOutcome (production: Result<bigint, string>) (reference: Result<bigint, unit>) =
     match production, reference with
     | Ok p, Ok r -> p = r
     | Error _, Error _ -> true
@@ -66,13 +91,13 @@ let tests =
 
         testPropertyWithConfig config "evaluateParamExpression agrees with reference evaluator"
         <| fun (expr: ParamExpression) (a: int) (b: int) (c: int) ->
-            let a, b, c = abs a % 20, abs b % 20, abs c % 20
+            let a, b, c = bigint (abs a % 20), bigint (abs b % 20), bigint (abs c % 20)
             let refBindings = Map [ "pa", a; "pb", b; "pc", c ]
             sameOutcome (evaluateParamExpression (bindingsFor a b c) expr) (refEval refBindings expr)
 
         testPropertyWithConfig config "render then parse preserves meaning"
         <| fun (expr: ParamExpression) (a: int) (b: int) (c: int) ->
-            let a, b, c = abs a % 20, abs b % 20, abs c % 20
+            let a, b, c = bigint (abs a % 20), bigint (abs b % 20), bigint (abs c % 20)
             let bindings = bindingsFor a b c
             match parseExpression (renderParamExpression expr 0) with
             | Error err -> failwith $"Rendered expression failed to parse: {err}"
@@ -86,7 +111,7 @@ let tests =
         // tell the user which one: they reached for a parameter that exists under another name, or
         // they did not know a value has to be declared as a parameter before it can be used.
         test "undefined parameter names the parameters that are in scope" {
-            let bindings = Map [ ParamName "WIDTH", PInt 8; ParamName "DEPTH", PInt 4 ]
+            let bindings = Map [ ParamName "WIDTH", PInt 8I; ParamName "DEPTH", PInt 4I ]
             match evaluateParamExpression bindings (PParameter(ParamName "WITDH")) with
             | Ok v -> failtest $"expected an error, got {v}"
             | Error e ->
@@ -113,7 +138,7 @@ let tests =
             Expect.isTrue (isValidParamName "W2X") "a letter, a digit and a letter"
             Expect.equal (parseExpression "W2X") (Ok(PParameter(ParamName "W2X")))
                 "and the parser reads it as one name"
-            Expect.equal (parseExpression "W2X*2") (Ok(PMultiply(PParameter(ParamName "W2X"), PInt 2)))
+            Expect.equal (parseExpression "W2X*2") (Ok(PMultiply(PParameter(ParamName "W2X"), PInt 2I)))
                 "including in the middle of an expression"
         }
 
@@ -147,20 +172,167 @@ let tests =
         // about the 4, so a negative value could not be written at all.
 
         test "a negative literal parses as that literal" {
-            Expect.equal (parseExpression "-4") (Ok(PInt -4)) "folded, so it renders back as typed"
-            Expect.equal (renderParamExpression (PInt -4) 0) "-4" "and renders as the user wrote it"
+            Expect.equal (parseExpression "-4") (Ok(PInt -4I)) "folded, so it renders back as typed"
+            Expect.equal (renderParamExpression (PInt -4I) 0) "-4" "and renders as the user wrote it"
         }
 
         test "unary minus binds to the operand it precedes" {
-            let bindings = Map [ ParamName "W", PInt 8 ]
+            let bindings = Map [ ParamName "W", PInt 8I ]
             let value text =
                 parseExpression text
                 |> Result.bind (evaluateParamExpression bindings)
-            Expect.equal (value "-W") (Ok -8) "negating a parameter"
-            Expect.equal (value "3--4") (Ok 7) "subtracting a negative"
-            Expect.equal (value "2*-3") (Ok -6) "negating the right operand of a product"
-            Expect.equal (value "-(W+1)") (Ok -9) "negating a parenthesised expression"
-            Expect.equal (value "-W+10") (Ok 2) "and binding tighter than addition"
+            Expect.equal (value "-W") (Ok -8I) "negating a parameter"
+            Expect.equal (value "3--4") (Ok 7I) "subtracting a negative"
+            Expect.equal (value "2*-3") (Ok -6I) "negating the right operand of a product"
+            Expect.equal (value "-(W+1)") (Ok -9I) "negating a parenthesised expression"
+            Expect.equal (value "-W+10") (Ok 2I) "and binding tighter than addition"
+        }
+
+        // --- built-in functions ---
+        //
+        // clog2, min and max. A width derived from a size is a ceiling log2 - an address bus for an
+        // N-word memory, the shift amount for an N-bit shifter - and before these there was no way
+        // to write one: an identifier was unconditionally a parameter reference, so clog2(N) failed
+        // with "Unexpected characters at end of expression: (N)".
+
+        test "clog2 is the number of bits needed to index that many things" {
+            let value n = evaluateParamExpression Map.empty (PCLog2(PInt n))
+            Expect.equal (value 0I) (Ok 0I) "as Verilog's $clog2 gives for 0"
+            Expect.equal (value 1I) (Ok 0I) "one thing needs no bits to pick out"
+            Expect.equal (value 2I) (Ok 1I) "two things need one bit"
+            Expect.equal (value 3I) (Ok 2I) "three need two, the ceiling rather than the floor"
+            Expect.equal (value 4I) (Ok 2I) "and four still need two"
+            Expect.equal (value 5I) (Ok 3I) "five need three"
+            Expect.equal (value 8I) (Ok 3I) "an exact power of two is the log itself"
+            Expect.equal (value 9I) (Ok 4I) "and one past it rounds up"
+            Expect.equal (value (1I <<< 100)) (Ok 100I) "a size no int could hold"
+        }
+
+        // Not merely undefined: >>> on a negative bigint is an arithmetic shift and never reaches
+        // zero, so an unguarded clog2 would hang the renderer rather than return anything.
+        test "clog2 of a negative value is an error that names the function" {
+            match evaluateParamExpression Map.empty (PCLog2(PInt -1I)) with
+            | Ok v -> failtest $"expected an error, got {v}"
+            | Error e ->
+                Expect.stringContains e "clog2" "names the function that could not be worked out"
+                Expect.stringContains e "negative" "and says what was wrong with the argument"
+        }
+
+        test "min and max choose between their two arguments" {
+            let value text =
+                parseExpression text |> Result.bind (evaluateParamExpression Map.empty)
+            Expect.equal (value "min(3,8)") (Ok 3I) "the smaller"
+            Expect.equal (value "max(3,8)") (Ok 8I) "the larger"
+            Expect.equal (value "min(-3,-8)") (Ok -8I) "negative values compare as numbers"
+            Expect.equal (value "max(2+3,4)") (Ok 5I) "an argument is a whole expression"
+        }
+
+        // The reason all three exist: a width derived from a size, clamped so that it is never 0.
+        test "the functions compose with the rest of the language" {
+            let bindings = Map [ ParamName "N", PInt 9I ]
+            let value text = parseExpression text |> Result.bind (evaluateParamExpression bindings)
+            Expect.equal (value "max(clog2(N),1)") (Ok 4I) "the case these were added for"
+            Expect.equal (value "max(clog2(1),1)") (Ok 1I) "where the clamp is what decides it"
+            Expect.equal (value "clog2(N)*2") (Ok 8I) "a call is an operand like any other"
+            Expect.equal (value "-clog2(N)") (Ok -4I) "including under unary minus"
+            Expect.equal (value "min(clog2(N),clog2(N*N))") (Ok 4I) "and calls nest"
+        }
+
+        test "a built-in function may be written in any case, and renders back in lower case" {
+            let expected = Ok(PCLog2(PInt 8I))
+            Expect.equal (parseExpression "clog2(8)") expected "lower case"
+            Expect.equal (parseExpression "CLOG2(8)") expected "upper case"
+            Expect.equal (parseExpression "CLog2(8)") expected "and mixed"
+            Expect.equal (parseExpression "MAX(1,2)") (Ok(PBinFunc(PMax, PInt 1I, PInt 2I))) "likewise max"
+            Expect.equal (renderParamExpression (PBinFunc(PMax, PInt 1I, PInt 2I)) 0) "max(1,2)"
+                "and one spelling is written back, so the round-trip settles"
+        }
+
+        test "whitespace around a call is allowed, as everywhere else" {
+            Expect.equal (parseExpression "clog2 ( 8 )") (Ok(PCLog2(PInt 8I))) "the tokenizer drops it"
+            Expect.equal (parseExpression "min( 1 , 2 )") (Ok(PBinFunc(PMin, PInt 1I, PInt 2I))) "including round the comma"
+        }
+
+        test "a call written wrongly says how to write it" {
+            let errorOf text =
+                match parseExpression text with
+                | Ok e -> failtest $"expected an error for '{text}', got {e}"
+                | Error err -> err
+            Expect.stringContains (errorOf "clog2") "clog2(expression)" "a function with no arguments at all"
+            Expect.stringContains (errorOf "clog2 W") "clog2(expression)" "a function with no brackets"
+            Expect.stringContains (errorOf "min(1)") "min(a,b)" "min with one argument"
+            Expect.stringContains (errorOf "min(1,2,3)") "min(a,b)" "min with three"
+            Expect.stringContains (errorOf "clog2(1,2)") "clog2(expression)" "clog2 with two"
+            Expect.stringContains (errorOf "1,2") "comma" "and a comma outside any call"
+        }
+
+        // A parameter named min could be declared and then never written in an expression, since
+        // the parser reads min as the function - the same reason a name may not start with a digit.
+        test "a built-in function name cannot be a parameter name" {
+            [ "clog2"; "min"; "max"; "CLOG2"; "Min"; "MAX" ]
+            |> List.iter (fun name ->
+                Expect.isFalse (isValidParamName name) $"{name} is a built-in function"
+                Expect.isTrue (isReservedParamName name) $"and {name} is reported as reserved rather than malformed")
+            [ "minimum"; "maxVal"; "clog2x"; "m"; "W" ]
+            |> List.iter (fun name ->
+                Expect.isTrue (isValidParamName name) $"{name} merely contains or resembles one"
+                Expect.isFalse (isReservedParamName name) $"and {name} is not reserved")
+        }
+
+        // The list of two-argument functions is derived from ParamBinFunc by reflection, so that
+        // adding a case reserves its name and reaches the parser with no second edit. Fable erases
+        // reflection where the type argument is not resolved at the call site, and an empty list
+        // here would quietly un-reserve the names and make min parse as a parameter.
+        test "every case of ParamBinFunc is found by reflection and has a name" {
+            let cases = EEExtensions.Union.allCases<ParamBinFunc> ()
+            Expect.equal (List.length cases) 2 "PMin and PMax"
+            Expect.equal (List.map binFuncName cases) [ "min"; "max" ] "in declaration order, named in lower case"
+            cases
+            |> List.iter (fun case ->
+                Expect.equal (tryBuiltinBinFunc (binFuncName case)) (Some case) "and each name maps back to its case")
+        }
+
+        // --- values larger than an int ---
+        //
+        // ParamInt is bigint because the fields parameters feed are: a constant's value, a bus
+        // comparison value and an input's default are all bigint, and a bus may be thousands of
+        // bits wide.
+
+        test "a literal too large for an int is a number, not a name" {
+            let big = (1I <<< 40) + 7I
+            Expect.equal (parseExpression (string big)) (Ok(PInt big))
+                "read as int32 it fell through to being a parameter whose name was all digits"
+            Expect.equal (renderParamExpression (PInt big) 0) (string big) "and renders back unchanged"
+        }
+
+        test "arithmetic on large values does not wrap" {
+            let bindings = Map [ ParamName "W", PInt 100000I ]
+            let value text = parseExpression text |> Result.bind (evaluateParamExpression bindings)
+            Expect.equal (value "W*W") (Ok 10000000000I) "a product past Int32.MaxValue"
+            Expect.equal (value "W*W/W") (Ok 100000I) "and it divides back down again"
+        }
+
+        // The one place a parameter value stops being a bigint. A width, an index and a bit
+        // position are all int in ComponentType, and wrapping a value that does not fit is how a
+        // nonsensical width would reach the canvas.
+        test "narrowing to a component field refuses a value that does not fit" {
+            Expect.equal (tryIntOfParamInt 42I) (Some 42) "an ordinary value"
+            Expect.equal (tryIntOfParamInt (bigint System.Int32.MaxValue)) (Some System.Int32.MaxValue) "the largest that fits"
+            Expect.equal (tryIntOfParamInt (bigint System.Int32.MinValue)) (Some System.Int32.MinValue) "and the smallest"
+            Expect.equal (tryIntOfParamInt (bigint System.Int32.MaxValue + 1I)) None "one past the top"
+            Expect.equal (tryIntOfParamInt (1I <<< 100)) None "and far past it"
+        }
+
+        test "a slot whose field is an int refuses a value too large to be one" {
+            Expect.equal (ComponentSlots.trySetSlotValue Buswidth 16I (Register 8)) (Some(Register 16))
+                "an ordinary width is applied"
+            Expect.isNone (ComponentSlots.trySetSlotValue Buswidth (1I <<< 40) (Register 8))
+                "one too large for an int is no more applicable than a slot the component lacks"
+            // the whole reason parameter values are bigint: these two fields hold values no int can
+            Expect.equal (ComponentSlots.trySetSlotValue (IO "x") (1I <<< 40) (BusCompare(64, 0I)))
+                (Some(BusCompare(64, 1I <<< 40))) "a comparison value is a bigint and is passed through"
+            Expect.equal (ComponentSlots.trySetSlotValue InputDefault (1I <<< 40) (Input1(64, None)))
+                (Some(Input1(64, Some(1I <<< 40)))) "as is an input's default value"
         }
 
         // --- constraints ---
@@ -173,12 +345,12 @@ let tests =
         // here at all, which is the other half of the point.
 
         test "a value within its constraints meets them" {
-            let spec = { Expression = PInt 8; Constraints = [ MinVal(PInt 1, "too small"); MaxVal(PInt 16, "too big") ] }
+            let spec = { Expression = PInt 8I; Constraints = [ MinVal(PInt 1I, "too small"); MaxVal(PInt 16I, "too big") ] }
             Expect.isOk (ParameterView.evaluateConstraints Map.empty [ spec ]) "8 is between 1 and 16"
         }
 
         test "a value outside a constraint comes back as that constraint" {
-            let tooSmall = { Expression = PInt 0; Constraints = [ MinVal(PInt 1, "Width must be positive") ] }
+            let tooSmall = { Expression = PInt 0I; Constraints = [ MinVal(PInt 1I, "Width must be positive") ] }
             match ParameterView.evaluateConstraints Map.empty [ tooSmall ] with
             | Ok () -> failtest "expected the constraint to be unmet"
             | Error [ MinVal(_, message) ] ->
@@ -190,7 +362,7 @@ let tests =
             // the case that used to dispatch from a render: the bound refers to a parameter that
             // is not in scope, so nothing can be said about whether the value is within it
             let spec =
-                { Expression = PInt 8
+                { Expression = PInt 8I
                   Constraints = [ MaxVal(PParameter(ParamName "MISSING"), "Width must fit the bus") ] }
             match ParameterView.evaluateConstraints Map.empty [ spec ] with
             | Ok () -> failtest "an unusable limit must not pass the value it guards"
@@ -202,7 +374,7 @@ let tests =
 
         test "a value that cannot be worked out fails its constraints" {
             let spec =
-                { Expression = PParameter(ParamName "MISSING"); Constraints = [ MinVal(PInt 1, "too small") ] }
+                { Expression = PParameter(ParamName "MISSING"); Constraints = [ MinVal(PInt 1I, "too small") ] }
             Expect.isError (ParameterView.evaluateConstraints Map.empty [ spec ])
                 "returning no failures would let an undefined value through the guard"
         }
@@ -280,6 +452,17 @@ let tests =
             let sw = shifterWidthFor w
             // 2^sw distinct values cover amounts 0 .. w-1, and one bit fewer would not
             (1 <<< sw) >= w && (sw = 1 || (1 <<< (sw - 1)) < w)
+
+        // shifterWidthFor is ceil(log2 w) clamped to 1, and is now clog2 rather than its own bit
+        // count - so that clog2 in an expression means exactly what the SHIFT input does. It used
+        // to count the bits of w-1 itself, which at w <= 0 shifted -1 right for ever.
+        test "shifter width is the clamped clog2, and terminates at a width of zero" {
+            [ 1..64 ]
+            |> List.iter (fun w ->
+                Expect.equal (shifterWidthFor w) (max 1 (int (ParameterTypes.clog2 (bigint w))))
+                    $"shifterWidthFor {w} is its clamped clog2")
+            Expect.equal (shifterWidthFor 0) 1 "a width of zero gives the clamp rather than hanging"
+        }
 
         // all-uint32 inputs merging to a bigint output
         testPropertyWithConfig { config with maxTest = 40 } "MergeN of two uint32 inputs to a >32-bit output"

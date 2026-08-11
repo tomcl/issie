@@ -362,4 +362,23 @@ module Map =
         ||> List.fold (fun m (k,v) -> Map.add k v m)
 
 
+[<RequireQualifiedAccess>]
+module Union =
+    open Microsoft.FSharp.Reflection
+
+    /// Every case of a discriminated union all of whose cases are argument-less, in declaration
+    /// order. Use it for a DU written as an enumeration, so that adding a case cannot leave a list
+    /// of the cases behind: `allCases<Colour> () = [Red; Green; Blue]`.
+    ///
+    /// Throws on a DU with a case that carries fields, since MakeUnion is given no arguments.
+    ///
+    /// `inline` is required, and is what makes this work under Fable as well as .NET: Fable erases
+    /// reflection unless the type argument is resolved at the call site. The same idiom is what the
+    /// vendored SimpleJson uses to read and write every .dgm - see TypeInfo.Converter.createFrom.
+    let inline allCases<'T> () : 'T list =
+        FSharpType.GetUnionCases typeof<'T>
+        |> Array.map (fun case -> FSharpValue.MakeUnion (case, [||]) |> unbox<'T>)
+        |> Array.toList
+
+
 

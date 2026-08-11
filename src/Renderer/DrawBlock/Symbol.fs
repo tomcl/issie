@@ -705,10 +705,6 @@ let createNewSymbol (ldcs: LoadedComponent list) (pos: XYPos) (comptype: Compone
       InWidths = None
       Id = ComponentId id
       Component = comp
-      // a new symbol is created at its declared values; computed display values, if any, are
-      // pushed onto it afterwards
-      DeclaredSlots = Map.empty
-      DeclaredPortLabels = None
       Moving = false
       PortMaps = initPortOrientation comp
       STransform = transform

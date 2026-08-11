@@ -637,7 +637,7 @@ let optCurrentSheetDependentsPopup (model: Model) =
                             br []
                             str "If you automatically update symbols wires that no longer match will be autorouted correctly when you next load each sheet"
                             br []
-                            str "Each instance is set to the port widths its own parameters give it, so instances at different widths stay at different widths."
+                            str "Each instance is set to the port widths its own properties give it, so instances at different widths stay at different widths."
                             br []
                             widthNote
                             structuralTable

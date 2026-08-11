@@ -218,9 +218,13 @@ type ShiftComponentType =
 
 /// Number of bits needed on a shifter's SHIFT input to express every shift
 /// amount 0 .. busWidth-1. Must be recomputed whenever the bus width changes.
+///
+/// This is ceil(log2 busWidth), clamped to 1 so that a one-bit bus still has a shift input. It
+/// used to count the bits of busWidth-1 itself; ParameterTypes.clog2 is the same count, exported
+/// because `clog2` in a parameter expression must mean exactly what the SHIFT input does. The one
+/// difference is at busWidth <= 0, where counting the bits of -1 shifted for ever.
 let shifterWidthFor (busWidth: int) =
-    let rec numBits v = if v = 0 then 0 else 1 + numBits (v >>> 1)
-    max 1 (numBits (busWidth - 1))
+    max 1 (int (ParameterTypes.clog2 (bigint busWidth)))
 
 [<StringEnum>]
 type GateComponentType =
@@ -985,6 +989,13 @@ type LoadedComponent = {
     /// True on the sheet chosen as the current top of the design for display purposes.
     /// View state persisted in the sheet's file; never affects elaboration.
     IsTopSheet: bool
+    /// The OTHER values each parameter of this sheet is set to across the instances of it in its
+    /// design, distinct and descending, excluding the one the sheet is drawn at (which is in
+    /// LCParameterSlots.DefaultBindings). Empty where the instances agree, and where there are none.
+    ///
+    /// Derived, and not part of SheetInfo, so it is never saved: ParameterAnalysis.propagateParameterValues
+    /// recomputes it whenever anything that could change it changes, including on project load.
+    OtherParamValues: Map<ParameterTypes.ParamName, ParameterTypes.ParamInt list>
 }
 
 open Optics.Operators

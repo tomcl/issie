@@ -126,6 +126,7 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         Description = None
         LCParameterSlots = None
         IsTopSheet = false
+        OtherParamValues = Map.empty
     }
 
 /// rename a sheet
@@ -267,6 +268,7 @@ let addFileToProject model dispatch =
                         Description = None
                         LCParameterSlots = None
                         IsTopSheet = false
+                        OtherParamValues = Map.empty
                     }
                     let updatedProject =
                         { project with
@@ -777,7 +779,9 @@ let viewTopMenu model dispatch =
             // on for a library component too, whose sheet is never displayed at all.
             let topSheet =
                 match ParameterAnalysis.projectHasAmbiguousDisplay updatedProject.LoadedComponents with
-                | true -> ParameterAnalysis.effectiveTopSheet updatedProject.LoadedComponents
+                | true ->
+                    Some (ParameterAnalysis.effectiveTopSheetFor
+                              updatedProject.LoadedComponents project.OpenFileName)
                 | false -> None
             /// sheets in the instance tree under the top: computed from the sheet trees already
             /// built for this menu, not by a second walk

@@ -493,26 +493,44 @@ let sweepUnusedLibrarySheets (model: Model) : Model =
                                 project.LoadedComponents
                                 |> List.filter (fun ldc -> not (Set.contains ldc.Name toRemove))}}
 
+/// Write every sheet that differs from its file, except the open one, and clear its flag.
+///
+/// ONLY THE OPEN SHEET MAY BE UNSAVED. A change to one sheet routinely reaches others - binding a
+/// parameter writes it on every instance, reconciling ports rewrites the sheets that hold them,
+/// setting the top sheet rewrites the flag on all of them - and a closed sheet left waiting for a
+/// save is a sheet the user cannot see, did not knowingly edit, and has no reason to save. Several
+/// places used to mark such sheets and leave them, so the state existed and had to be handled at
+/// project close.
+///
+/// A library component's sheet belongs to its library and is never written back, whatever asks; it
+/// is left alone here and not called unsaved either.
+let saveDirtyClosedSheets (openSheet: string) (ldcs: LoadedComponent list) : LoadedComponent list =
+    ldcs
+    |> List.map (fun ldc ->
+        match ldc.LoadedComponentIsOutOfDate
+              && ldc.Name <> openSheet
+              && not (ComponentLibraries.isLibrarySheet ldc) with
+        | false -> ldc
+        | true ->
+            writeComponentToFile ldc |> ignore
+            {ldc with LoadedComponentIsOutOfDate = false; TimeStamp = System.DateTime.Now})
+
 /// Make the named sheet the current top sheet governing parameter display, clearing the flag
 /// from every other sheet. The flag is per-sheet view state persisted in the .dgm file.
-/// Sheets whose files are already in step with memory are written immediately, so the choice
-/// survives without a manual save; a sheet with unsaved changes (normally the open sheet) is
-/// only marked as needing saving - setting the top must not silently commit circuit edits.
+/// Every sheet but the open one is written at once, so the choice survives without a manual save.
 let setTopSheetState (sheetName: string) (model: Model) : Model =
     match model.CurrentProj with
     | None -> model
     | Some project ->
         let updateLdc (ldc: LoadedComponent) =
             let flag = ldc.Name = sheetName
-            match flag = ldc.IsTopSheet, ldc.LoadedComponentIsOutOfDate || ldc.Name = project.OpenFileName with
-            | true, _ -> ldc
-            | false, false ->
-                let ldc' = {ldc with IsTopSheet = flag}
-                writeComponentToFile ldc' |> ignore
-                ldc'
-            | false, true ->
-                {ldc with IsTopSheet = flag; LoadedComponentIsOutOfDate = true}
-        let ldcs = project.LoadedComponents |> List.map updateLdc
+            match flag = ldc.IsTopSheet with
+            | true -> ldc
+            | false -> {ldc with IsTopSheet = flag; LoadedComponentIsOutOfDate = true}
+        let ldcs =
+            project.LoadedComponents
+            |> List.map updateLdc
+            |> saveDirtyClosedSheets project.OpenFileName
         {model with CurrentProj = Some {project with LoadedComponents = ldcs}}
         |> (fun m ->
             match List.exists (fun (ldc: LoadedComponent) -> ldc.LoadedComponentIsOutOfDate) ldcs with
@@ -725,7 +743,7 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
 
             // draw the sheet at the parameter values it takes under that top sheet rather than at
             // its declared defaults. Must follow the choice above, which can change the top.
-            ApplyComputedDisplayValues
+            PropagateParameters
 
             // last of all: if this sheet is a library sheet being viewed, hold it at what it has
             // just become. Everything above changes the canvas as part of loading it, so nothing
@@ -752,6 +770,12 @@ let private loadStateIntoModel (finishUI:bool) (compToSetup:LoadedComponent) wav
 /// Ends any existing simulation
 /// Closes WaveSim if this is being used
 let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: LoadedComponent list) (model: Model) (dispatch: Msg->Unit)=
+    // Every instance binds every parameter its sheet declares. A project saved before that was
+    // required arrives without it, so it is repaired here - the single funnel every load and every
+    // sheet change passes through - rather than guarded against at each reader. Idempotent: it
+    // does nothing at all to a project that already holds the invariant, which is all of them
+    // after the first load. Repaired sheets are flagged, so PropagateParameters writes them.
+    let ldComps = ParameterAnalysis.bindMissingInstanceParams ldComps
     let compToSetup =
         match ldComps with
         | [] -> failwithf "setupProjectComponents must be called with at least one LoadedComponent"
@@ -810,6 +834,7 @@ let private createEmptyDiagramFile projectPath name =
         Description = None
         LCParameterSlots = None
         IsTopSheet = false
+        OtherParamValues = Map.empty
     }
 
 

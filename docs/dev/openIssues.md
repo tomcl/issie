@@ -18,8 +18,6 @@ Delete an entry when it is fixed. A list that keeps its history stops being read
   `DefaultBindings`, so a parameter defined in terms of another can be orphaned. Only reachable
   through a hand-edited file today, since the UI writes only `PInt` defaults — but
   `editParameterBox` handles expression-valued defaults, so the system claims to support them.
-- **Adding a parameter does not reject a duplicate name.** `addParameterBox` uses `Map.add`, which
-  silently replaces the existing declaration and its description.
 - **`ReloadSelectedComponent` is fed the wrong number.** For a `BusSelection` LSB or a `BusCompare`
   value it receives that number as "most recent bus width", which is what the properties pane then
   offers as the default width for the next component.

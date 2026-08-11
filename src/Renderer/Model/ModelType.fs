@@ -486,7 +486,7 @@ type Msg =
     /// Sent as the last message of every sheet load. Arms the read-only pin if the sheet just
     /// opened is a library sheet being viewed, and clears it otherwise - see
     /// ModelHelpers.pinDrawBlock. Its own message rather than part of SynchroniseCanvas because
-    /// loading is not finished there: ApplyComputedDisplayValues still follows, and a pin armed
+    /// loading is not finished there: PropagateParameters still follows, and a pin armed
     /// before it would revert the parameter values the sheet is meant to be drawn at.
     | PinReadOnlyCanvas
     | JSDiagramMsg of JSDiagramMsg
@@ -551,16 +551,22 @@ type Msg =
     | SetPopupDialogTwoInts of (bigint option * IntMode * string option)
     | SetPopupDialogIntList of int list option
     | SetPopupDialogIntList2 of int list option
-    | AddPopupDialogParamSpec of (CompSlotName * Result<NewParamCompSpec, ParamError>)
-    | ClearPopupDialogParamSpec of CompSlotName
+    /// Record what one property box now holds: the text as typed, and what it parsed to.
+    | AddPopupDialogParamSpec of (ParamSlot * ParamBoxState)
+    | ClearPopupDialogParamSpec of ParamSlot
     /// After a sheet is opened: ask the user to choose a top sheet, but only when several
     /// top-level sheets exist, none is chosen, and they disagree about the values the opened
     /// sheet displays with. Never blocks opening.
     | CheckTopSheetChoice
-    /// Draw the open sheet at the values its parameters take under the current top sheet, rather
-    /// than at its declared defaults. Sent when a sheet is opened and when the top sheet changes.
-    /// What is saved is unaffected - see SymbolT.Symbol.DeclaredSlots.
-    | ApplyComputedDisplayValues
+    /// Bring every sheet into line with what its design sets its parameters to, rewriting the
+    /// values on their canvases and writing every closed sheet that changes.
+    ///
+    /// Sent from the events that can change what a design sets - a sheet opened or saved, a
+    /// parameter or binding edited, a custom component added or deleted, a project loaded, an undo
+    /// - and not from ordinary canvas edits, which cannot change a binding. The work itself is a
+    /// pure recomputation (ParameterAnalysis.propagateParameterValues), so sending it twice or in
+    /// an unexpected order costs time and nothing else.
+    | PropagateParameters
     | SetPropertiesExtraDialogText of string option
     | SetPopupDialogMemorySetup of (int * int * InitMemData * string option) option
     | SetPopupMemoryEditorData of MemoryEditorData option

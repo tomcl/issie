@@ -643,26 +643,59 @@ let dialogPopupBodyTextAndInt beforeText placeholder beforeInt intDefault dispat
             ]
         ]
 
-/// Create the body of a dialog Popup with a name, a compulsory description, and an int.
+/// A parameter's value, typed into a box.
+///
+/// A text box parsed as a bigint rather than an Input.number, because a parameter value is a
+/// ParamInt and so may be larger than any int: a parameter that gives a wide Constant its value is
+/// the case that needs it. The box is uncontrolled, so an unparseable entry stays on screen to be
+/// corrected while Int2 goes to None, which is what the red text and the disabled button read.
+let paramValueBox (valueDefault: ParameterTypes.ParamInt) dispatch =
+    let onChange text =
+        match System.Numerics.BigInteger.TryParse (text: string) with
+        | true, value -> Some value
+        | false, _ -> None
+        |> SetPopupDialogInt2
+        |> dispatch
+    Input.text [
+        Input.Props [OnPaste preventDefault; SpellCheck false; Style [Width "120px"]]
+        Input.DefaultValue <| string valueDefault
+        Input.OnChange (getTextEventValue >> onChange)
+    ]
+
+/// The red text under a parameter's value box: shown only once the box has been made unparseable,
+/// since it opens holding a value that parses.
+let paramValueError (dialogData: PopupDialogData) =
+    span [Style [FontStyle "Italic"; Color "Red"]; Hidden dialogData.Int2.IsSome]
+        [str "A property's value is a whole number."]
+
+/// Create the body of a dialog Popup with a name, a compulsory description, and a value.
 /// Used to declare a sheet parameter: the description is what a custom component instance of the
 /// sheet shows the user when it asks them for a value, so a parameter cannot be declared without
-/// one. Name goes to Text, description to Text2, value to Int.
-let dialogPopupBodyTextDescriptionAndInt beforeText placeholder beforeDescription descriptionPlaceholder beforeInt intDefault dispatch =
+/// one. Name goes to Text, description to Text2, value to Int2.
+///
+/// `nameIsTaken` is asked whether the sheet already declares a parameter of that name. Passed in
+/// rather than worked out here, so that this file needs to know nothing about where a sheet keeps
+/// its parameters.
+let dialogPopupBodyTextDescriptionAndInt beforeText placeholder beforeDescription descriptionPlaceholder beforeInt intDefault nameIsTaken dispatch =
 
-    intDefault |> Some |> SetPopupDialogInt |> dispatch
+    intDefault |> Some |> SetPopupDialogInt2 |> dispatch
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
-        let goodLabelStart =
-                getText dialogData
-                |> (fun s -> String.startsWithLetter s || s = "")
+        let name = getText dialogData
+        let goodLabelStart = String.startsWithLetter name || name = ""
         // ParameterTypes owns the rule, because it is also the parser's: a name this rejects
         // could be declared and then never written in an expression
-        let goodLabelLetters =
-                 getText dialogData
-                 |> (fun s -> ParameterTypes.isValidParamName s || s = "")
+        let goodLabelLetters = ParameterTypes.isValidParamName name || name = ""
+        // Reported separately from the letters rule even though isValidParamName covers both: the
+        // two are different problems needing different fixes, and "min can only contain letters
+        // and numbers" is a sentence that helps nobody.
+        let reserved = ParameterTypes.isReservedParamName name
+        // Adding a parameter under a name the sheet already uses replaced the declaration and its
+        // description, and rebound every instance to the new value, without saying anything.
+        let taken = name <> "" && nameIsTaken name
         // an empty description is only flagged once the user has started naming the parameter,
         // so the popup does not open already showing an error
-        let describedOrUnstarted = getText2 dialogData <> "" || getText dialogData = ""
+        let describedOrUnstarted = getText2 dialogData <> "" || name = ""
         div [] [
             beforeText dialogData
             Input.text [
@@ -671,7 +704,9 @@ let dialogPopupBodyTextDescriptionAndInt beforeText placeholder beforeDescriptio
                 Input.OnChange (getTextEventValue >> Some >> SetPopupDialogText >> dispatch)
             ]
             span [Style [FontStyle "Italic"; Color "Red"]; Hidden goodLabelStart] [str "Name must start with a letter."]
-            span [Style [FontStyle "Italic"; Color "Red"]; Hidden (goodLabelLetters || not goodLabelStart)] [str "Name can only contain letters and numbers."]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden (goodLabelLetters || reserved || not goodLabelStart)] [str "Name can only contain letters and numbers."]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden (not reserved)] [str $"{name} is a built-in function, so cannot be a property name."]
+            span [Style [FontStyle "Italic"; Color "Red"]; Hidden (not taken)] [str $"This sheet already has a property called {name}. Edit that one to change its value."]
             br []
             br []
             beforeDescription dialogData
@@ -685,21 +720,24 @@ let dialogPopupBodyTextDescriptionAndInt beforeText placeholder beforeDescriptio
             br []
             beforeInt dialogData
             br []
-            Input.number [
-                Input.Props [OnPaste preventDefault; Style [Width "60px"]]
-                Input.DefaultValue <| sprintf "%d" intDefault
-                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
-            ]
+            paramValueBox intDefault dispatch
+            paramValueError dialogData
         ]
 
-/// Create the body of a dialog Popup with a compulsory description and an int, for editing an
+/// Create the body of a dialog Popup with a compulsory description and a value, for editing an
 /// existing sheet parameter whose name is fixed. The caller seeds Text2 with the current
 /// description so that editing only the value leaves it intact.
-let dialogPopupBodyDescriptionAndInt beforeDescription currentDescription beforeInt intDefault dispatch =
+///
+/// `valueProblem` is asked what is wrong with the value now in the box, and its answer is shown.
+/// The OK button is disabled when a slot of the sheet would break at the new value, and used to be
+/// disabled in silence - leaving the user to guess which component objected and why, when the
+/// constraint that failed carries a sentence written to explain exactly that.
+let dialogPopupBodyDescriptionAndInt beforeDescription currentDescription beforeInt intDefault valueProblem dispatch =
 
-    intDefault |> Some |> SetPopupDialogInt |> dispatch
+    intDefault |> Some |> SetPopupDialogInt2 |> dispatch
     fun (model: Model) ->
         let dialogData = model.PopupDialogData
+        let problem = valueProblem model |> Option.defaultValue ""
         div [] [
             beforeDescription dialogData
             Input.text [
@@ -712,11 +750,9 @@ let dialogPopupBodyDescriptionAndInt beforeDescription currentDescription before
             br []
             beforeInt dialogData
             br []
-            Input.number [
-                Input.Props [OnPaste preventDefault; Style [Width "60px"]]
-                Input.DefaultValue <| sprintf "%d" intDefault
-                Input.OnChange (getIntEventValue >> Some >> SetPopupDialogInt >> dispatch)
-            ]
+            paramValueBox intDefault dispatch
+            paramValueError dialogData
+            p [Style [Color "Red"]] [str problem]
         ]
 
 /// Create the body of a dialog Popup with both text and int.

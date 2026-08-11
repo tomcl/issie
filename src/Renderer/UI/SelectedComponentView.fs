@@ -552,9 +552,17 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
         | Shift (w, _, _) -> "Width (bits)", w, Buswidth
         | c -> failwithf $"makeNumberOfBitsField called with invalid component: {c}"
 
-    let constraints = [MinVal (PInt 1, $"{title} must be positive")]
+    // The upper bound is the one Issie already enforces on a constant's or a bus comparison's
+    // width, in CatalogueView.parseConstant. Widths reached through a parameter expression had no
+    // upper bound at all, so a parameter could make a bus of any size at all and the first thing to
+    // object was the simulator running out of memory.
+    let constraints = [
+        MinVal (PInt 1I, $"{title} must be positive")
+        MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
+                $"{title} cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}")
+    ]
 
-    ParameterView.paramInputField model title 1 (Some width) constraints (Some comp) slot dispatch
+    ParameterView.paramInputField model title 1I (Some (bigint width)) None constraints (Some comp) slot dispatch
 
 
 let private makeNumberOfInputsField model (comp: Component) dispatch =
@@ -679,24 +687,30 @@ let private changeSplitN model (comp:Component) dispatch =
             div [ Style [ MarginLeft "10px"; MarginBottom "10px" ] ] [
                 Label.label [] [ str (sprintf "Output Port %d" index) ]
                 // Width parameter
-                ParameterView.paramInputField 
-                    model 
-                    "Width" 
-                    1 
-                    (Some defaultWidth) 
-                    [ MinVal (PInt 1, "Width must be at least 1") ]
-                    (Some comp) 
-                    (SplitNWidth index) 
+                ParameterView.paramInputField
+                    model
+                    "Width"
+                    1I
+                    (Some (bigint defaultWidth))
+                    None
+                    [ MinVal (PInt 1I, "Width must be at least 1")
+                      MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
+                              $"Width cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}") ]
+                    (Some comp)
+                    (SplitNWidth index)
                     dispatch
                 // LSB parameter
-                ParameterView.paramInputField 
-                    model 
-                    "LSB" 
-                    0 
-                    (Some defaultLsb) 
-                    [ MinVal (PInt 0, "LSB must be non-negative") ]
-                    (Some comp) 
-                    (SplitNLSB index) 
+                ParameterView.paramInputField
+                    model
+                    "LSB"
+                    0I
+                    (Some (bigint defaultLsb))
+                    None
+                    [ MinVal (PInt 0I, "LSB must be non-negative")
+                      MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
+                              $"LSB cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}") ]
+                    (Some comp)
+                    (SplitNLSB index)
                     dispatch
             ]
         )
@@ -719,17 +733,18 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
             | None -> w, 0I
         | _ -> failwithf "Other component types should not call this function."
     
+    // The bound holds at every width because parameter values are bigint: it used to be computed
+    // as `1 <<< width`, which wraps at 32, so it had to be left off above width 30 and a wide
+    // input's default went unchecked. Nothing downstream checked it either - FastRun assigns the
+    // default to the step array as it stands.
     let constraints = [
-        MinVal (PInt 0, "Default value must be non-negative")
-        // 1 <<< width wraps at 32 bits, so a wide input's default cannot be range-checked
-        // here; out-of-range values on wide inputs are caught by simulation width checking
-        if width < 31 then
-            MaxVal (PInt ((1 <<< width) - 1), $"Default value must fit in {width} bits")
+        MinVal (PInt 0I, "Default value must be non-negative")
+        MaxVal (PInt ((1I <<< width) - 1I), $"Default value must fit in {width} bits")
     ]
-    
+
     // DefaultValue, not IO: IO is this input's width, and two fields of one component cannot
     // share a parameter slot
-    ParameterView.paramInputField model title 0 (Some (int defValue)) constraints (Some comp) InputDefault dispatch
+    ParameterView.paramInputField model title 0I (Some defValue) None constraints (Some comp) InputDefault dispatch
 
 let mockDispatchS msgFun msg =
     match msg with
@@ -832,20 +847,18 @@ let private makeLsbBitNumberField model (comp:Component) dispatch =
         match comp.Type with
         | BusSelection (_, lsb) ->
             "Least Significant Bit number selected: lsb",
-            lsb,
-            [ MinVal (PInt 0, "LSB position must be non-negative") ]
+            bigint lsb,
+            [ MinVal (PInt 0I, "LSB position must be non-negative") ]
         | BusCompare (width, cVal) ->
             "Compare with",
-            int cVal,
-            [ MinVal (PInt 0, "Comparison value must be non-negative")
-              // 1 <<< width wraps at 32 bits, so a wide bus cannot be range-checked here; an
-              // out-of-range value is caught by simulation width checking, as in
-              // makeDefaultValueField
-              if width < 31 then
-                  MaxVal (PInt ((1 <<< width) - 1), $"Comparison value must fit in {width} bits") ]
+            cVal,
+            // as in makeDefaultValueField, the bound holds at every width now that it is computed
+            // in bigint rather than wrapping at 32
+            [ MinVal (PInt 0I, "Comparison value must be non-negative")
+              MaxVal (PInt ((1I <<< width) - 1I), $"Comparison value must fit in {width} bits") ]
         | _ ->
             failwithf $"makeLsbBitNumberField called on {comp.Type}, which has no such field"
-    ParameterView.paramInputField model infoText 0 (Some value) constraints (Some comp) (IO comp.Label) dispatch
+    ParameterView.paramInputField model infoText 0I (Some value) None constraints (Some comp) (IO comp.Label) dispatch
 
 
 
@@ -869,10 +882,12 @@ let private describeComponent (comp:Component) model : ReactElement list =
     | Not | GateN _ | Decode4
     | Mux2 | Mux4 | Mux8 | Demux2 | Demux4 | Demux8
     | NbitsAdder _ | NbitsAdderNoCin _ | NbitsAdderNoCout _ | NbitsAdderNoCinCout _ -> []
+    // No longer says that busses of more than 32 bits are unsupported: they are. The simulator
+    // compares wide busses as bigint, and a comparison value is checked against the bus width it
+    // is compared with, up to NumberHelpers.Constants.maxIssieBusWidth.
     | BusCompare _ | BusCompare1 _ ->
         [str "The output is one if the bus unsigned binary value is equal to the integer specified. \
-              This will display in hex on the design sheet. Busses of greater than 32 bits are not \
-              supported"]
+              This will display in hex on the design sheet."]
     | BusSelection _ ->
         [ str "The output is the subrange [width+lsb-1..lsb] of the input bits. If width = 1 this \
                selects one bit. Error if the input has less than width + lsb bits."
@@ -1183,8 +1198,6 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
             )
     match model.Sheet.SelectedComponents with
     | [ compId ] ->
-        // the properties pane shows what is on screen, which under a top sheet may be a computed
-        // parameter value rather than the declared one; computedValueNote says so where they differ
         let comp = SymbolUpdate.displayedComponent model.Sheet.Wire.Symbol compId
         // let label' = extractLabelBase comp.Label
         // TODO: normalise labels so they only contain allowed chars all uppercase
@@ -1231,7 +1244,6 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         dispatch <| SetPopupDialogText (Some label)
                         dispatch <| SetPopupDialogBadLabel (false)
                     dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component
-            ParameterView.computedValueNote model comp
             makeExtraInfo model comp labelText dispatch
             makeAboutSection model comp dispatch
         ]

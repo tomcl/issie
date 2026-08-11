@@ -34,6 +34,10 @@ type SheetInstance = {
     /// The value of each parameter the sheet declares, inside this instance.
     /// None marks a value that could not be evaluated - unknown, never reported as a conflict.
     ParamValues: Map<ParamName, ParamInt option>
+    /// The parameters this instance actually SETS, of those the sheet declares. A parameter the
+    /// instance leaves alone still has a value in ParamValues - the sheet's own stored one - so
+    /// without this the two are indistinguishable, and a sheet nothing sets looks settled.
+    BoundParams: Set<ParamName>
 }
 
 /// Every instance of every sheet in the tree under one top sheet, keyed by sheet name.
@@ -76,17 +80,10 @@ let instanceForestRoots (ldcs: LoadedComponent list) : string list =
     |> List.map (fun ldc -> ldc.Name)
     |> List.filter (fun name -> not (Set.contains name instantiated))
 
-/// The top sheet governing display for a project's loaded components.
-/// The sheet the user has flagged wins; otherwise a single instance-forest root is inferred
-/// silently, so a project whose sheets form one design never surfaces the concept.
-/// None when several candidate tops exist and the user has not chosen between them.
-let effectiveTopSheet (ldcs: LoadedComponent list) : string option =
-    match ldcs |> List.tryFind (fun ldc -> ldc.IsTopSheet) with
-    | Some flagged -> Some flagged.Name
-    | None ->
-        match instanceForestRoots ldcs with
-        | [ single ] -> Some single
-        | _ -> None
+/// The sheet the user has flagged as the top, if any. Only for showing the flag; to find the
+/// design a sheet belongs to use effectiveTopSheetFor, which is total.
+let flaggedTopSheet (ldcs: LoadedComponent list) : string option =
+    ldcs |> List.tryFind (fun ldc -> ldc.IsTopSheet) |> Option.map (fun ldc -> ldc.Name)
 
 /// Bindings usable for evaluation, from values already computed: unknown values are left out,
 /// so an expression referring to one fails to evaluate and stays unknown.
@@ -176,11 +173,12 @@ let analyseUnderTop (ldcs: LoadedComponent list) (topSheet: string) : SheetInsta
             (sheetsOnPath: Set<string>)
             (sheetName: string)
             (values: Map<ParamName, ParamInt option>)
+            (boundParams: Set<ParamName>)
             : SheetInstances * Set<string * (ParamName * ParamInt option) list> =
         match Map.tryFind sheetName byName with
         | None -> acc, visited
         | Some ldc ->
-            let acc = record acc sheetName { Path = path; ParamValues = values }
+            let acc = record acc sheetName { Path = path; ParamValues = values; BoundParams = boundParams }
             let key = sheetName, Map.toList values
             match Set.contains key visited with
             | true -> acc, visited
@@ -198,14 +196,24 @@ let analyseUnderTop (ldcs: LoadedComponent list) (topSheet: string) : SheetInsta
                             InstanceLabel = comp.Label
                             ChildSheet = cc.Name }
                         let bindingExprs = instanceBindingExprs (sheetParamSlots ldc) comp cc
-                        let childValues = childParamValues values bindingExprs (declaredParams childLdc)
-                        walk accVisited (path @ [link]) (Set.add cc.Name sheetsOnPath) cc.Name childValues)
+                        let childDefaults = declaredParams childLdc
+                        let childValues = childParamValues values bindingExprs childDefaults
+                        // a binding for a parameter the child no longer declares sets nothing, as
+                        // in childParamValues and in elaboration
+                        let childBound =
+                            bindingExprs
+                            |> Map.toList
+                            |> List.map fst
+                            |> List.filter (fun name -> Map.containsKey name childDefaults)
+                            |> Set.ofList
+                        walk accVisited (path @ [link]) (Set.add cc.Name sheetsOnPath) cc.Name childValues childBound)
 
     match Map.tryFind topSheet byName with
     | None -> Map.empty
     | Some topLdc ->
         let topValues = evaluatedDefaults (declaredParams topLdc)
-        walk (Map.empty, Set.empty) [] (Set.singleton topSheet) topSheet topValues
+        // the top is an instance of nothing, so nothing sets its parameters
+        walk (Map.empty, Set.empty) [] (Set.singleton topSheet) topSheet topValues Set.empty
         |> fst
 
 /// A human-readable instance path: the top sheet followed by the labels of the instances entered.
@@ -216,43 +224,51 @@ let renderInstancePath (topSheet: string) (path: InstancePathLink list) : string
 /// What the editor should display for one parameter of a sheet, computed from the value the
 /// parameter takes in every instance of the sheet under the top.
 type ParamDisplayValue =
-    /// Every instance agrees on this value; it is exact and may differ from the default.
-    | ExactValue of ParamInt
-    /// The sheet is not instantiated under the top (or no instance value is known):
-    /// the declared default is shown.
-    | DefaultValue of ParamInt
-    /// Instances disagree: the declared default is shown, and each value the parameter takes is
-    /// listed with the instance paths that produce it.
-    | MultipleValues of shownDefault: ParamInt * values: (ParamInt * InstancePathLink list list) list
+    /// Nothing under the top instantiates the sheet, so nothing gives the parameter a value. The
+    /// stored value stands in until the sheet is used - see sheetIsAtDefault, which is what makes
+    /// the editor show it as provisional.
+    | NotUsed of ParamInt
+    /// The values the instances give it: distinct, descending, never empty. The head is the one
+    /// the sheet is drawn at. Several arise when one design reaches the sheet by paths that bind
+    /// it differently, which is allowed; the largest is taken so that the choice is definite and
+    /// the recomputation stays idempotent.
+    | Values of ParamInt list
 
-/// The value shown for the parameter, whichever case produced it.
+/// The value the sheet is drawn at, whichever case produced it.
 let shownValue (display: ParamDisplayValue) : ParamInt =
     match display with
-    | ExactValue v | DefaultValue v | MultipleValues (v, _) -> v
+    | NotUsed v -> v
+    | Values values -> List.head values
 
-/// The display value of each parameter a sheet declares, given the sheet's instances under the
+/// The records of a sheet that are instances of it. analyseUnderTop also records the top sheet
+/// itself, with an empty path, because "which sheets are in this design" wants it - but the top is
+/// an instance of nothing, and reading it as one made a top sheet's own parameters look bound to
+/// their own declared values.
+let private instancesOnly (instances: SheetInstance list) =
+    instances |> List.filter (fun inst -> not (List.isEmpty inst.Path))
+
+/// The display value of each parameter a sheet declares, given the sheet's records under the
 /// top. Unknown (unevaluable) instance values are ignored: checking here must not accuse a
 /// design that may be right.
 let displayValuesOfSheet (ldc: LoadedComponent) (instances: SheetInstance list) : Map<ParamName, ParamDisplayValue> =
     let defaults = declaredParams ldc
     let defaultValues = evaluatedDefaults defaults
+    let instances = instancesOnly instances
     defaults
     |> Map.map (fun name _ ->
-        let defaultValue =
-            Map.tryFind name defaultValues |> Option.flatten |> Option.defaultValue 0
-        let valueGroups =
+        let storedValue =
+            Map.tryFind name defaultValues |> Option.flatten |> Option.defaultValue 0I
+        let values =
             instances
-            |> List.choose (fun inst ->
-                match Map.tryFind name inst.ParamValues with
-                | Some (Some v) -> Some (v, inst.Path)
-                | _ -> None)
-            |> List.groupBy fst
-            |> List.map (fun (v, paths) -> v, List.map snd paths)
-            |> List.sortBy fst
-        match valueGroups with
-        | [] -> DefaultValue defaultValue
-        | [ (v, _) ] -> ExactValue v
-        | many -> MultipleValues (defaultValue, many))
+            // only instances that SET this parameter; one that leaves it alone is carrying the
+            // sheet's own stored value back to it, which settles nothing
+            |> List.filter (fun inst -> Set.contains name inst.BoundParams)
+            |> List.choose (fun inst -> Map.tryFind name inst.ParamValues |> Option.flatten)
+            |> List.distinct
+            |> List.sortDescending
+        match values with
+        | [] -> NotUsed storedValue
+        | _ -> Values values)
 
 /// The display values of every parameter of `sheetName` under `topSheet`.
 let displayValues (ldcs: LoadedComponent list) (topSheet: string) (sheetName: string) : Map<ParamName, ParamDisplayValue> =
@@ -268,6 +284,97 @@ let displayValues (ldcs: LoadedComponent list) (topSheet: string) (sheetName: st
 /// The sheets in the instance tree under a top sheet (the top included).
 let sheetsUnderTop (ldcs: LoadedComponent list) (topSheet: string) : Set<string> =
     analyseUnderTop ldcs topSheet |> Map.keys |> Set.ofSeq
+
+/// The roots of the instance forest whose design contains the given sheet.
+let rootsContaining (ldcs: LoadedComponent list) (sheetName: string) : string list =
+    instanceForestRoots ldcs
+    |> List.filter (fun root -> Set.contains sheetName (sheetsUnderTop ldcs root))
+
+/// The design a sheet belongs to: the sheet whose parameter values everything below it is derived
+/// from. TOTAL - there is always an answer, which is what lets every other parameter value be
+/// derived rather than guessed.
+///
+/// This used to ask whether the PROJECT had a single design, by looking for exactly one
+/// instance-forest root. One stray sheet that nothing instantiates - a scratch sheet, a half-built
+/// block - is a second root, so that question answered "no" for the whole project, and every
+/// parameter row in every sheet silently fell back to its stored value. The question that matters
+/// is which design the sheet being looked at is part of, and a stray sheet elsewhere does not
+/// change that.
+///
+/// Several roots reaching one sheet is the genuinely ambiguous case - two designs using the same
+/// subsheet at different sizes, which is not the same thing as one design reaching it by two paths
+/// - and is what the top-sheet popup asks about. Until it is answered the first root is taken, so
+/// that a value is always defined.
+let effectiveTopSheetFor (ldcs: LoadedComponent list) (sheetName: string) : string =
+    match flaggedTopSheet ldcs with
+    | Some flagged -> flagged
+    | None ->
+        match rootsContaining ldcs sheetName with
+        | [ single ] -> single
+        // nothing contains it, so it is a root itself and is the top of its own design
+        | [] -> sheetName
+        | first :: _ -> first
+
+/// Every sheet brought into line with what its design sets its parameters to: the parameter values
+/// a design settles are written into the sheet, and its parameterised slots are rewritten at them.
+///
+/// A pure recomputation from the primary state - each design's top-sheet values, and the bindings
+/// on instances - rather than an incremental edit. That is what makes it safe to run after
+/// anything: it is idempotent and order-independent, so undo need only restore the primary state
+/// and run this again, and no change has to reason about which sheets a binding might reach.
+///
+/// A parameter nothing sets is left exactly as it is. Its stored value IS the primary state for
+/// that sheet, and overwriting it would destroy the only copy.
+let propagateParameterValues (ldcs: LoadedComponent list) : LoadedComponent list =
+    ldcs
+    |> List.map (fun ldc ->
+        match ldc.LCParameterSlots with
+        | None -> {ldc with OtherParamValues = Map.empty}
+        | Some defs ->
+            let display = displayValues ldcs (effectiveTopSheetFor ldcs ldc.Name) ldc.Name
+            let settled =
+                display
+                |> Map.toList
+                |> List.choose (fun (name, d) ->
+                    match d with
+                    | Values (largest :: _) -> Some (name, largest)
+                    | Values [] | NotUsed _ -> None)
+            let others =
+                display
+                |> Map.toList
+                |> List.choose (fun (name, d) ->
+                    match d with
+                    | Values (_ :: others) when not (List.isEmpty others) -> Some (name, others)
+                    | _ -> None)
+                |> Map.ofList
+            let newBindings =
+                (defs.DefaultBindings, settled)
+                ||> List.fold (fun bindings (name, value) ->
+                    match Map.tryFind name bindings with
+                    | Some definition -> Map.add name {definition with Expression = PInt value} bindings
+                    | None -> bindings)
+            let newDefs = {defs with DefaultBindings = newBindings}
+            {ldc with
+                LCParameterSlots = Some newDefs
+                CanvasState =
+                    ComponentSlots.resolveCanvasAtBindings
+                        (bindingsOf newBindings) newDefs.ParamSlots ldc.CanvasState
+                OtherParamValues = others})
+
+/// Whether a sheet is showing values that nothing has settled, so its stored parameter values are
+/// a stand-in until it is used. True for the top sheet itself, for a sheet belonging to a
+/// different design, for a newly created sheet, and for a library component opened to work on.
+///
+/// Normally a property of the SHEET, since every instance is required to set every parameter and
+/// so they are all settled together. It is written in terms of the values rather than the instance
+/// count so that a project predating that requirement - where an instance may set nothing - still
+/// reports honestly rather than calling an unset value settled.
+let sheetIsAtDefault (ldcs: LoadedComponent list) (sheetName: string) : bool =
+    displayValues ldcs (effectiveTopSheetFor ldcs sheetName) sheetName
+    |> Map.forall (fun _ display ->
+        match display with
+        | NotUsed _ -> true
+        | Values _ -> false)
 
 //------------------------------------------------------------------------------------------------//
 //------------------------------ How much of the feature to show ---------------------------------//
@@ -363,6 +470,50 @@ let markSheetOutOfDate (sheetName: string) (ldcs: LoadedComponent list) : Loaded
 /// Whether every instance of every sheet binds every parameter that sheet declares.
 /// The invariant bindParamOnInstances and the placement popup exist to keep; false only for a
 /// project saved before it was required, or one edited by hand.
+/// Give every instance a binding for every parameter its sheet declares, at that sheet's own
+/// value, wherever one is missing.
+///
+/// Every instance binding every parameter is an invariant the rest of the parameter system is
+/// written against: placing an instance asks for each value, and adding a parameter to a sheet
+/// binds it on the instances that already exist. Only a project saved before that was required, or
+/// one edited by hand, can arrive without it - so it is repaired on load rather than guarded
+/// against everywhere. An invariant that almost always holds buys nothing: every reader still has
+/// to handle the case it does not.
+///
+/// The value used is the child sheet's own, which is what such an instance was already resolving
+/// to, so this changes no design - it only writes down what was already true.
+let bindMissingInstanceParams (ldcs: LoadedComponent list) : LoadedComponent list =
+    let byName = ldcs |> List.map (fun ldc -> ldc.Name, ldc) |> Map.ofList
+    ldcs
+    |> List.map (fun parentLdc ->
+        let comps, conns = parentLdc.CanvasState
+        let repair (comp: Component) =
+            match comp.Type with
+            | Custom cc ->
+                match Map.tryFind cc.Name byName with
+                | None -> comp
+                | Some childLdc ->
+                    let alreadyBound = instanceBindingExprs (sheetParamSlots parentLdc) comp cc
+                    let stored = cc.ParameterBindings |> Option.defaultValue Map.empty
+                    let missing =
+                        declaredParams childLdc
+                        |> Map.filter (fun name _ -> not (Map.containsKey name alreadyBound))
+                    match Map.isEmpty missing with
+                    | true -> comp
+                    | false ->
+                        let defaults = evaluatedDefaults (declaredParams childLdc)
+                        let bindings =
+                            (stored, missing)
+                            ||> Map.fold (fun acc name _ ->
+                                let value =
+                                    Map.tryFind name defaults |> Option.flatten |> Option.defaultValue 1I
+                                Map.add name (PInt value) acc)
+                        {comp with Type = Custom {cc with ParameterBindings = Some bindings}}
+            | _ -> comp
+        match List.map repair comps with
+        | repaired when repaired = comps -> parentLdc
+        | repaired -> {parentLdc with CanvasState = repaired, conns; LoadedComponentIsOutOfDate = true})
+
 let everyInstanceBindsEveryParam (ldcs: LoadedComponent list) : bool =
     let byName = ldcs |> List.map (fun ldc -> ldc.Name, ldc) |> Map.ofList
     ldcs
@@ -389,31 +540,27 @@ let everyInstanceBindsEveryParam (ldcs: LoadedComponent list) : bool =
 /// varies the PARENT is ambiguous and is caught here on its own account. Nothing needs to
 /// special-case libraries beyond not asking about them.
 ///
-/// Computed over every root of the instance forest rather than one chosen top: a project may hold
-/// several independent designs, and if two of them use a sheet at different widths then opening
-/// that sheet is genuinely ambiguous.
+/// Ambiguity means two DESIGNS disagreeing about a sheet, not one design reaching it by two paths.
+/// The second is ordinary - a sheet used at two sizes within one design - and is settled by taking
+/// the largest, with the others shown beside it. The first cannot be settled by any rule: the two
+/// designs are both right, and only the user can say which one they are looking at.
+///
+/// The values each root gives the sheet are therefore compared root by root. Merging the instances
+/// of every root into one bag, as this used to, made the two indistinguishable and raised the
+/// top-sheet question for designs that had nothing to decide.
 let projectHasAmbiguousDisplay (ldcs: LoadedComponent list) : bool =
-    let instancesBySheet =
-        instanceForestRoots ldcs
-        |> List.map (analyseUnderTop ldcs)
-        |> List.fold
-            (fun acc sheetInstances ->
-                (acc, sheetInstances)
-                ||> Map.fold (fun acc name instances ->
-                    Map.tryFind name acc
-                    |> Option.defaultValue []
-                    |> (fun existing -> Map.add name (existing @ instances) acc)))
-            Map.empty
+    let byRoot = instanceForestRoots ldcs |> List.map (analyseUnderTop ldcs)
+    let valuesUnder (instancesBySheet: SheetInstances) (ldc: LoadedComponent) =
+        Map.tryFind ldc.Name instancesBySheet
+        |> Option.map (fun instances ->
+            displayValuesOfSheet ldc instances |> Map.map (fun _ display -> shownValue display))
     ldcs
     |> List.filter (isFromLibrary >> not)
     |> List.exists (fun ldc ->
-        Map.tryFind ldc.Name instancesBySheet
-        |> Option.defaultValue []
-        |> displayValuesOfSheet ldc
-        |> Map.exists (fun _ display ->
-            match display with
-            | MultipleValues _ -> true
-            | ExactValue _ | DefaultValue _ -> false))
+        byRoot
+        |> List.choose (fun instancesBySheet -> valuesUnder instancesBySheet ldc)
+        |> List.distinct
+        |> List.length > 1)
 
 //------------------------------------------------------------------------------------------------//
 //----------------------------------- The bind-to-top offer --------------------------------------//
@@ -504,14 +651,21 @@ let private sheetsReachableFrom (edges: InstancePathLink list) (source: string) 
 /// duplicated subtrees neither blow up the computation nor cause any path's links to be missed.
 /// None when no ancestor sheet on a path from the top declares the parameter - the evidence
 /// gate: an unbound parameter alone is not evidence of a design constant.
-let private chainActionsForInstance
+/// What it would take to bind parameter `name` of an instance sitting on `onSheet` to a same-named
+/// parameter of an ancestor, and the ancestors that make the offer worth making.
+///
+/// `finalLink` is the instance itself, where there is one. It is None when an instance is being
+/// PLACED and so does not exist yet: everything above the instance depends only on which sheet it
+/// sits on, and the caller binds the new instance directly. That is what lets the placement popup
+/// and the properties pane offer the same thing.
+let private chainActionsOnSheet
         (byName: Map<string, LoadedComponent>)
         (underTop: Set<string>)
         (edges: InstancePathLink list)
         (name: ParamName)
-        (instLink: InstancePathLink)
+        (onSheet: string)
+        (finalLink: InstancePathLink option)
         : (Set<string> * ChainAction list) option =
-    let onSheet = instLink.ParentSheet
     let declares sheetName =
         Map.tryFind sheetName byName
         |> Option.map (declaredParams >> Map.containsKey name)
@@ -536,7 +690,7 @@ let private chainActionsForInstance
             |> Option.map (declaredParams >> evaluatedDefaults)
             |> Option.bind (Map.tryFind name)
             |> Option.flatten
-            |> Option.defaultValue 1
+            |> Option.defaultValue 1I
         let descriptionOf sheetName =
             Map.tryFind sheetName byName
             |> Option.map declaredParamDefs
@@ -569,7 +723,7 @@ let private chainActionsForInstance
         let chainEdges =
             edges
             |> List.filter (fun e -> Set.contains e.ParentSheet chainSheets && Set.contains e.ChildSheet chainSheets)
-            |> fun links -> links @ [instLink]
+            |> fun links -> links @ Option.toList finalLink
         let paramActions =
             chainSheets
             |> Set.toList
@@ -637,7 +791,7 @@ let findBindOffers (ldcs: LoadedComponent list) (topSheet: string) (onSheet: str
                         InstanceId = comp.Id
                         InstanceLabel = comp.Label
                         ChildSheet = cc.Name }
-                    chainActionsForInstance byName underTop edges name link
+                    chainActionsOnSheet byName underTop edges name sheetName (Some link)
                     |> Option.bind (fun (declarers, actions) ->
                         match actions with
                         | [] -> None
@@ -656,3 +810,31 @@ let findBindOffers (ldcs: LoadedComponent list) (topSheet: string) (onSheet: str
                                 Declarers = Set.toList declarers
                                 Actions = actions
                             }))))
+
+/// The same offer, for an instance that has not been placed yet.
+///
+/// Placing an instance and editing a placed one ask the identical question - can this parameter
+/// follow a same-named parameter of an ancestor, and what would that take - so they must give the
+/// identical answer. The popup used to test only whether the IMMEDIATE parent declared the name,
+/// which offered the chain in the one case the user did not need it (they could type the name)
+/// and withheld it in the case they did: parameter scoping is single level, so a name declared
+/// two sheets up cannot be reached by typing anything.
+///
+/// Returns the ancestor the offer describes itself as following, and everything accepting would
+/// do APART from binding the new instance, which the caller does directly.
+let bindOfferForPlacement
+        (ldcs: LoadedComponent list)
+        (topSheet: string)
+        (onSheet: string)
+        (name: ParamName)
+        : (string * ChainAction list) option =
+    let byName = ldcs |> List.map (fun ldc -> ldc.Name, ldc) |> Map.ofList
+    let underTop = analyseUnderTop ldcs topSheet |> Map.keys |> Set.ofSeq
+    let edges = edgesUnderTop byName underTop
+    chainActionsOnSheet byName underTop edges name onSheet None
+    |> Option.map (fun (declarers, actions) ->
+        let bindsTo =
+            match Set.contains topSheet declarers with
+            | true -> topSheet
+            | false -> Set.minElement declarers
+        bindsTo, actions)

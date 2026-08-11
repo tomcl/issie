@@ -235,7 +235,7 @@ let shortDisplayMsg (msg:Msg) =
     | SendSeqMsgAsynch _ -> Some "SendSeqMsgAsynch"
     | CodeEditorMsg _ -> Some "CodeEditorMsg"
     | CheckTopSheetChoice -> Some "CheckTopSheetChoice"
-    | ApplyComputedDisplayValues -> Some "ApplyComputedDisplayValues"
+    | PropagateParameters -> Some "PropagateParameters"
 
 
 
@@ -600,7 +600,7 @@ let processContextMenuClick
         // surfaced by the bind button in an instance's properties rather than by a popup.
         model
         |> setTopSheetState sheet.SheetName
-        |> withMsg ApplyComputedDisplayValues
+        |> withMsg PropagateParameters
 
     | SheetMenuBreadcrumb(sheet,_), "Write design as Verilog" ->
         verilogOutputPopup sheet.SheetName model dispatch
@@ -975,15 +975,22 @@ let currentSheetIsOutOfDate (model : Model) : bool =
         ((canv <> canv') && not (CanvasExtractor.compareCanvas 100. canv canv'))
         //|> TimeHelpers.instrumentInterval "findChange" start
 
-/// Needed so that constant properties selection will work
-/// Maybe good idea for other things too?
+/// Clear the properties pane's half-typed state when a different component is selected, so that
+/// each component's boxes start from what that component is, not from what was being typed into
+/// the last one.
+///
+/// DialogState goes with Text and Int: it holds the text and the error of every property box, and
+/// a box left mid-edit would otherwise carry its message onto the next component's pane. Its keys
+/// name the component, so a stale entry cannot be read by the wrong box - but it can be read again
+/// by the SAME component later, showing an edit the user has since abandoned.
 let resetDialogIfSelectionHasChanged newModel oldModel : Model =
     let newSelected = newModel.Sheet.SelectedComponents
     if newSelected.Length = 1 && newSelected <> oldModel.Sheet.SelectedComponents then
         newModel
         |> map popupDialogData_ (
             set text_ None >>
-            set int_ None
+            set int_ None >>
+            set paramCompSpec_ None
         )
     else newModel
 

@@ -46,6 +46,7 @@ let makeLdc (name: string) (paramDefs: ParameterTypes.ParameterDefs option) (can
       Form = Some User
       LoadedComponentIsOutOfDate = false
       IsTopSheet = false
+      OtherParamValues = Map.empty
       Description = None }
 
 /// A custom component type instantiating `ldc`, with explicit port widths (which must
@@ -86,8 +87,6 @@ let makeSymbol (comp: Component) : DrawModelType.SymbolT.Symbol =
           Opacity = 1.0 }
       Id = ComponentId comp.Id
       Component = comp
-      DeclaredSlots = Map.empty
-      DeclaredPortLabels = None
       Annotation = None
       Moving = false
       IsClocked = false

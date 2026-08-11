@@ -14,30 +14,17 @@ module ComponentSlots
     simulation, so the sheet drawn and the sheet simulated disagreed. One place, so that cannot
     happen again.
 
-    Compiled before the draw block so that symbol code can use it: SymbolUpdate needs it to put a
-    symbol back to its declared values when a sheet is saved.
+    Compiled before the draw block so that symbol code can use it, and before ParameterAnalysis so
+    that parameter propagation can resolve a whole canvas through it.
 *)
 
 open ParameterTypes
 open CommonTypes
 
-/// The type with `value` put into the named slot, or None when the component has no such slot.
-///
-/// `Buswidth` is a component's own width. `IO` is the width of an Input or an Output - and also
-/// the LSB of a BusSelection and the comparison value of a BusCompare, because on those two the
-/// width has already taken `Buswidth` and the properties pane needs a second slot for a second
-/// field (see SelectedComponentView.makeLsbBitNumberField). That overloading is unfortunate but
-/// it is what is stored in existing sheets.
-///
-/// Some integers of a component are deliberately absent, because a parameter records a value and
-/// not a change of shape:
-///   - the input count of a GateN or a MergeN sets how many ports the component has, so there is
-///     no CompSlotName for it and neither component can be parameterised at all;
-///   - the output count of a SplitN is the same thing, so it has no slot - but the width and the
-///     bit position of a GIVEN output are ordinary values, and SplitNWidth/SplitNLSB name them.
-///     Those two are the only slots that can be out of range, and an index past the end of the
-///     lists is no slot rather than a silently ignored one.
-let trySetSlotValue (slot: CompSlotName) (value: int) (compType: ComponentType) : ComponentType option =
+/// The slots whose field is an `int` in ComponentType: a width, an index, a bit position. Split
+/// from trySetSlotValue only so that the narrowing from ParamInt happens once, before this is
+/// reached, rather than in every case.
+let private trySetIntSlotValue (slot: CompSlotName) (value: int) (compType: ComponentType) : ComponentType option =
     match slot, compType with
     // the component's own width
     | Buswidth, Viewer _ -> Some (Viewer value)
@@ -70,37 +57,90 @@ let trySetSlotValue (slot: CompSlotName) (value: int) (compType: ComponentType) 
     // an IO port's width
     | IO _, Input1 (_, dv) -> Some (Input1 (value, dv))
     | IO _, Output _ -> Some (Output value)
-    // the two fields that share the IO slot for want of anywhere else
+    // the field that shares the IO slot for want of anywhere else. The other one, a BusCompare's
+    // comparison value, is a bigint and so is set in trySetSlotValue itself.
     | IO _, BusSelection (w, _) -> Some (BusSelection (w, value))
-    | IO _, BusCompare (w, _) -> Some (BusCompare (w, bigint value))
-    // the value an input takes when undriven
-    | InputDefault, Input1 (w, _) -> Some (Input1 (w, Some (bigint value)))
     // one output of a SplitN
     | SplitNWidth idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length widths ->
         Some (SplitN (n, widths |> List.mapi (fun i w -> if i = idx then value else w), lsbs))
     | SplitNLSB idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length lsbs ->
         Some (SplitN (n, widths, lsbs |> List.mapi (fun i l -> if i = idx then value else l)))
+    | _ -> None
+
+/// The type with `value` put into the named slot, or None when the component has no such slot.
+///
+/// `Buswidth` is a component's own width. `IO` is the width of an Input or an Output - and also
+/// the LSB of a BusSelection and the comparison value of a BusCompare, because on those two the
+/// width has already taken `Buswidth` and the properties pane needs a second slot for a second
+/// field (see SelectedComponentView.makeLsbBitNumberField). That overloading is unfortunate but
+/// it is what is stored in existing sheets.
+///
+/// Some integers of a component are deliberately absent, because a parameter records a value and
+/// not a change of shape:
+///   - the input count of a GateN or a MergeN sets how many ports the component has, so there is
+///     no CompSlotName for it and neither component can be parameterised at all;
+///   - the output count of a SplitN is the same thing, so it has no slot - but the width and the
+///     bit position of a GIVEN output are ordinary values, and SplitNWidth/SplitNLSB name them.
+///     Those two are the only slots that can be out of range, and an index past the end of the
+///     lists is no slot rather than a silently ignored one.
+///
+/// This is the one place a parameter value stops being a bigint. The three slots whose field is
+/// already a bigint take it as it is - which is why parameter expressions evaluate in bigint at
+/// all - and everything else is a width, an index or a bit position, and is narrowed here. A value
+/// too large to be an int is no more applicable than a slot the component does not have, so it
+/// comes back as None; it should have been stopped by the slot's own constraint before reaching
+/// here, so the warning says that it was not.
+let trySetSlotValue (slot: CompSlotName) (value: ParamInt) (compType: ComponentType) : ComponentType option =
+    match slot, compType with
+    // the value a BusCompare compares against, and the value an input takes when undriven: both
+    // bigint, so both hold values no int could
+    | IO _, BusCompare (w, _) -> Some (BusCompare (w, value))
+    | InputDefault, Input1 (w, _) -> Some (Input1 (w, Some value))
     // a parameter of the sheet inside a custom component, bound by this instance. Applying it
     // here is what carries a parameter down the sheet tree: elaboration descends using the
     // bindings of the component as processed.
     | CustomCompParam paramName, Custom cc ->
         let bindings = cc.ParameterBindings |> Option.defaultValue Map.empty
         Some (Custom { cc with ParameterBindings = Some (Map.add (ParamName paramName) (PInt value) bindings) })
-    | _ -> None
+    | _ ->
+        match tryIntOfParamInt value with
+        | Some intValue -> trySetIntSlotValue slot intValue compType
+        | None ->
+            Log.warn $"Parameter value {value} is too large for slot {slot}, which holds a whole \
+                       number: the component is unchanged"
+            None
 
 /// True when the component has the named slot, so that a slot can be rejected where it is written
 /// rather than quietly doing nothing where it is applied. The value is irrelevant: whether a slot
 /// exists depends on the component's type and, for a SplitN output, on the index.
 let slotApplies (slot: CompSlotName) (compType: ComponentType) : bool =
-    trySetSlotValue slot 0 compType |> Option.isSome
+    trySetSlotValue slot 0I compType |> Option.isSome
 
 /// Apply `value` to the named slot, leaving the type alone where the component has no such slot.
 /// Callers that can report a bad slot should use trySetSlotValue; this is for the paths that
 /// cannot, where a slot recorded in an old file must not stop a sheet loading or simulating.
-let setSlotValue (slot: CompSlotName) (value: int) (compType: ComponentType) : ComponentType =
+let setSlotValue (slot: CompSlotName) (value: ParamInt) (compType: ComponentType) : ComponentType =
     trySetSlotValue slot value compType |> Option.defaultValue compType
 
-/// Apply every slot value in the map. Used to put a symbol back to its declared values, and to
-/// resolve a component for elaboration.
-let setSlotValues (values: Map<CompSlotName, int>) (compType: ComponentType) : ComponentType =
-    (compType, values) ||> Map.fold (fun compType slot value -> setSlotValue slot value compType)
+/// A sheet's canvas with every parameterised slot resolved at the given bindings.
+/// A slot whose expression cannot be evaluated leaves its component alone, so the widths that are
+/// known still come out rather than the whole sheet failing.
+///
+/// Here rather than in CanvasExtractor because two callers need it from opposite ends of the
+/// compile order: the instance-signature code in CanvasExtractor, and the parameter propagation in
+/// ParameterAnalysis that brings every sheet into line with what its design sets.
+let resolveCanvasAtBindings
+        (bindings: ParamBindings)
+        (slots: ComponentSlotExpr)
+        ((comps, conns): CanvasState)
+        : CanvasState =
+    let slotsOf compId =
+        slots |> Map.toList |> List.filter (fun (slot, _) -> slot.CompId = compId)
+    let resolve (comp: Component) =
+        (comp.Type, slotsOf comp.Id)
+        ||> List.fold (fun compType (slot, exprSpec) ->
+            match evaluateParamExpression bindings exprSpec.Expression with
+            | Ok value -> setSlotValue slot.CompSlot value compType
+            | Error _ -> compType)
+        |> fun compType -> {comp with Type = compType}
+    List.map resolve comps, conns

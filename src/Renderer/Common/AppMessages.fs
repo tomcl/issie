@@ -190,13 +190,11 @@ module Confirm =
     /// to explain what the feature is for, because until then nothing in the pane hints at it -
     /// and it is a feature a design can perfectly well never use.
     let usingParameters = """
-A parameter is a named value a sheet is built around - a width, a count - so that one sheet can
-serve a family of designs.
+A named property is a value a sheet is built around - a width, a count - so that one sheet can
+serve a family of designs. Defining one needs a name, a description, and a default value.
 
-Each place this sheet is used gives its own value for the parameter, so the same sheet can appear
-at several sizes in one design.
-
-The value you set here is the one used when this sheet is simulated on its own.
+Properties have integer values set separately in each instance of this sheet, and take the default
+value when there are no instances. So the same sheet can appear at several sizes in one design.
 
 This is an advanced feature: designs that do not need it are unaffected by it.
 """

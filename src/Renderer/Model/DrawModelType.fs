@@ -159,38 +159,10 @@ module SymbolT =
             /// It would make sure sense for all geometric info to be in fields on the symbol.
             /// However X,Y,H,W are used (to some extent) in non-draw-block Issie code.
             /// NB HScale, VScale modify V, H
-            /// This holds the values the symbol is DISPLAYED with. Where the sheet's parameters
-            /// resolve to a definite value under the current top sheet, that is the value here -
-            /// see DeclaredSlots below.
+            /// The symbol's component, at the values it is drawn AND saved at. Parameter values
+            /// are resolved into it by ParameterAnalysis.propagateParameterValues before it gets
+            /// here, so there is one set of values rather than a displayed set over a stored one.
             Component : Component
-
-            /// The DECLARED value of each parameterised slot whose displayed value differs from it,
-            /// while the sheet is drawn at values computed for the current top sheet. Empty
-            /// otherwise, so for almost every symbol.
-            /// Drawing at computed values must not change what is written to the .dgm, so
-            /// SymbolUpdate.extractComponent - the sole path from symbols to saved state - puts
-            /// these values back before saving.
-            /// Slot values rather than a whole declared Component: everything about the symbol
-            /// that is NOT a parameterised slot - a constant's value, a memory's contents, the
-            /// label, the position - is then saved as it stands, instead of being reverted along
-            /// with the parameter. Stashing a whole component silently discarded such edits.
-            /// The computed value lives in Component rather than here because SymbolView.renderSymbol
-            /// memoises on the whole Symbol record: a computed value held outside the symbol would
-            /// leave the memo blind to a top-sheet change and the canvas would silently go stale.
-            DeclaredSlots : Map<ParameterTypes.CompSlotName, int>
-
-            /// The DECLARED port labels and widths of a custom component instance, while the sheet
-            /// is drawn at computed values that change them. None otherwise, so for every symbol
-            /// that is not a custom component and for almost every one that is.
-            ///
-            /// A custom component instance is the one symbol whose parameter slot does not name a
-            /// number in its own type: a CustomCompParam slot binds a parameter of the sheet
-            /// INSIDE it, and the instance's port widths follow from that binding by way of the
-            /// child sheet. ComponentSlots.setSlotValue can put the binding back but not the ports
-            /// it implies - it has no access to the child sheet - so the ports have to be
-            /// remembered separately, or a sheet saved while showing computed values would write
-            /// an instance whose ports contradict its own bindings.
-            DeclaredPortLabels : ((string * int) list * (string * int) list) option
 
             /// Use Some Annotation for visible (and clickable) objects on screen
             /// In this case Component is a dummy used only to provide expected H & V
@@ -236,8 +208,6 @@ module SymbolT =
     let movingPort_ = Lens.create (fun a -> a.MovingPort) (fun s a -> {a with MovingPort = s})
     let movingPortTarget_ = Lens.create (fun a -> a.MovingPortTarget) (fun s a -> {a with MovingPortTarget = s})
     let component_ = Lens.create (fun a -> a.Component) (fun s a -> {a with Component = s})
-    let declaredSlots_ = Lens.create (fun a -> a.DeclaredSlots) (fun s a -> {a with DeclaredSlots = s})
-    let declaredPortLabels_ = Lens.create (fun a -> a.DeclaredPortLabels) (fun s a -> {a with DeclaredPortLabels = s})
     let posOfSym_ = Lens.create (fun a -> a.Pos) (fun s a -> {a with Pos = s})
     let getScaleF = Option.defaultValue 1.
     let scaleF_ = Lens.create

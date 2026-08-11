@@ -31,7 +31,7 @@ let private childLdc =
     let a = {makeComp "a" 0 1 (Input1 (4, None)) "A" with Y = 0.}
     let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
     makeLdc "child"
-        (Some (paramDefs [declares "W" (PInt 4)]
+        (Some (paramDefs [declares "W" (PInt 4I)]
                          [{CompId = "a"; CompSlot = IO "A"}, wExpr
                           {CompId = "s"; CompSlot = IO "S"}, wExpr]))
         ([a; s], [conn a 0 s 0])
@@ -41,7 +41,7 @@ let private childLdc =
 let private instanceOf (id: string) (storedWidth: int) (bindings: ParamBindings option) =
     makeComp id 1 1 (customOf childLdc ["A", storedWidth] ["S", storedWidth] bindings) (id.ToUpper())
 
-let private bindingOf (w: int) = Some (Map [ParamName "W", PInt w])
+let private bindingOf (w: int) = Some (Map [ParamName "W", PInt (bigint w)])
 
 /// The instance record CustomCompPorts works on, built the way getInstancesOfCurrentSheet builds
 /// it: the instance's stored ports against the ports its own bindings give it.
@@ -90,20 +90,20 @@ let tests =
 
         test "an instance at the sheet's declared value has the sheet's own widths" {
             let widths =
-                CanvasExtractor.signatureOfInstance [childLdc] Map.empty "child" (Map [ParamName "W", PInt 4])
+                CanvasExtractor.signatureOfInstance [childLdc] Map.empty "child" (Map [ParamName "W", PInt 4I])
             Expect.equal widths (Some (["A", 4], ["S", 4])) "W = 4 is what the sheet declares"
         }
 
         test "an instance at another value has that value's widths" {
             let widths =
-                CanvasExtractor.signatureOfInstance [childLdc] Map.empty "child" (Map [ParamName "W", PInt 16])
+                CanvasExtractor.signatureOfInstance [childLdc] Map.empty "child" (Map [ParamName "W", PInt 16I])
             Expect.equal widths (Some (["A", 16], ["S", 16])) "the instance's own binding sizes its ports"
         }
 
         test "a binding that is a parent parameter is evaluated on the parent" {
             // the whole point of binding to an enclosing sheet's parameter: evaluated in the
             // child's own environment it looks self-referential, and the width came out as zero
-            let parentBindings = Map [ParamName "W", PInt 12]
+            let parentBindings = Map [ParamName "W", PInt 12I]
             let widths =
                 CanvasExtractor.signatureOfInstance [childLdc] parentBindings "child"
                     (Map [ParamName "W", PParameter (ParamName "W")])
@@ -128,7 +128,7 @@ let tests =
         test "widths are exact when every binding resolves" {
             let _, exact =
                 CanvasExtractor.signatureOfInstanceWithCertainty [childLdc] Map.empty "child"
-                    (Map [ParamName "W", PInt 16])
+                    (Map [ParamName "W", PInt 16I])
                 |> Option.defaultWith (fun () -> failtest "no signature")
             Expect.isTrue exact "a literal needs no environment"
         }
@@ -215,7 +215,7 @@ let tests =
                 let b = {makeComp "b" 0 1 (Input1 (4, None)) "B" with Y = 50.}
                 let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
-                    (Some (paramDefs [declares "W" (PInt 4)]
+                    (Some (paramDefs [declares "W" (PInt 4I)]
                                      [{CompId = "a"; CompSlot = IO "A"}, wExpr
                                       {CompId = "b"; CompSlot = IO "B"}, wExpr
                                       {CompId = "s"; CompSlot = IO "S"}, wExpr]))
@@ -240,7 +240,7 @@ let tests =
             let shrunkChild =
                 let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
-                    (Some (paramDefs [declares "W" (PInt 4)] [{CompId = "s"; CompSlot = IO "S"}, wExpr]))
+                    (Some (paramDefs [declares "W" (PInt 4I)] [{CompId = "s"; CompSlot = IO "S"}, wExpr]))
                     ([s], [])
             let i16 = instanceOf "i16" 16 (bindingOf 16)
             let parent = makeLdc "parent" None ([i16], [])
@@ -318,7 +318,7 @@ let tests =
                 let a = {makeComp "a" 0 1 (Input1 (4, None)) "AA" with Y = 0.}
                 let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
                 makeLdc "child"
-                    (Some (paramDefs [declares "W" (PInt 4)]
+                    (Some (paramDefs [declares "W" (PInt 4I)]
                                      [{CompId = "a"; CompSlot = IO "A"}, wExpr
                                       {CompId = "s"; CompSlot = IO "S"}, wExpr]))
                     ([a; s], [conn a 0 s 0])
@@ -404,11 +404,11 @@ let tests =
             let s = {makeComp "s" 1 0 (Output 4) "S" with Y = 100.}
             let ldc =
                 makeLdc "child"
-                    (Some (paramDefs [declares "W" (PInt 4)]
+                    (Some (paramDefs [declares "W" (PInt 4I)]
                                      [{CompId = "a"; CompSlot = IO "A"}, wExpr
                                       {CompId = "s"; CompSlot = IO "S"}, wExpr]))
                     ([a; s], [conn a 0 s 0])
-            let widths = CanvasExtractor.signatureOfInstance [ldc] Map.empty "child" (Map [ParamName "W", PInt 16])
+            let widths = CanvasExtractor.signatureOfInstance [ldc] Map.empty "child" (Map [ParamName "W", PInt 16I])
             Expect.equal widths (Some (["RENAMED", 16], ["S", 16]))
                 "the width follows the slot, and the name the component"
         }
@@ -416,7 +416,7 @@ let tests =
         test "saving repoints a slot at its component's current label and drops dead ones" {
             let a = {makeComp "a" 0 1 (Input1 (4, None)) "RENAMED" with Y = 0.}
             let defs =
-                paramDefs [declares "W" (PInt 4)]
+                paramDefs [declares "W" (PInt 4I)]
                           [{CompId = "a"; CompSlot = IO "A"}, wExpr
                            {CompId = "gone"; CompSlot = IO "GONE"}, wExpr]
             let tidied =
@@ -446,7 +446,7 @@ let tests =
             let withParam =
                 {childLdc with
                     LCParameterSlots =
-                        Some (paramDefs [declares "W" (PInt 4); declares "N" (PInt 2)] [])}
+                        Some (paramDefs [declares "W" (PInt 4I); declares "N" (PInt 2I)] [])}
             Expect.isTrue (CanvasExtractor.stateIsEqual childLdc.CanvasState withParam.CanvasState)
                 "declaring a parameter changes no component"
         }

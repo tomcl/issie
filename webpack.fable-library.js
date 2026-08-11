@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const webpack = require('webpack');
 
@@ -26,13 +27,51 @@ const webpack = require('webpack');
 
 const CANONICAL = '@fable-org/fable-library-js';
 
+// The rewrite below sends every fable-library request to the npm copy whatever version Fable
+// emitted, which is a trap the moment those two disagree: upgrading Fable changes the library it
+// embeds, generated code starts using whatever that version added, and the imports would still
+// resolve - to the old copy - leaving missing exports as undefined at runtime rather than as an
+// error. So the versions are compared here, once per build, and a mismatch stops it.
+function assertVersionsAgree() {
+  const npmVersion = require(`${CANONICAL}/package.json`).version;
+
+  const emitted = fs
+    .readdirSync(path.resolve(__dirname, 'src'))
+    .map((project) => path.resolve(__dirname, 'src', project, 'fable_modules'))
+    .filter((dir) => fs.existsSync(dir))
+    .flatMap((dir) =>
+      fs
+        .readdirSync(dir)
+        .filter((name) => name.startsWith('fable-library-js'))
+        .map((name) => ({
+          dir: path.join(dir, name),
+          version: require(path.join(dir, name, 'package.json')).version,
+        })));
+
+  const wrong = emitted.filter((e) => e.version !== npmVersion);
+  if (wrong.length === 0) return;
+
+  const detail = wrong.map((e) => `  ${e.version}  ${path.relative(__dirname, e.dir)}`).join('\n');
+  throw new Error(
+    `fable-library version mismatch.\n` +
+    `  ${npmVersion}  node_modules/${CANONICAL}  (pinned in package.json; what every bundle uses)\n` +
+    `${detail}  (what Fable now emits)\n` +
+    `Fix: npm install --save-exact ${CANONICAL}@${wrong[0].version}\n` +
+    `Without it the bundles would use ${npmVersion} against code generated for ${wrong[0].version}, ` +
+    `and a missing export is undefined at runtime rather than an error at build time. ` +
+    `See webpack.fable-library.js.`);
+}
+
 // Matches "./fable_modules/fable-library-js.5.13.0/Map.js" from a project's own output, and
 // "../fable-library-js.5.13.0/Types.js" from an F# package that already sits inside fable_modules.
 const EMITTED = /(?:^|[\\/])fable-library-js[^\\/]*[\\/](.+)$/;
 
-module.exports = () =>
-  new webpack.NormalModuleReplacementPlugin(EMITTED, (resource) => {
+module.exports = () => {
+  assertVersionsAgree();
+
+  return new webpack.NormalModuleReplacementPlugin(EMITTED, (resource) => {
     const match = EMITTED.exec(resource.request);
     if (!match) return;
     resource.request = `${CANONICAL}/${match[1].split(path.sep).join('/')}`;
   });
+};

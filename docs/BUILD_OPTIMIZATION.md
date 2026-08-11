@@ -20,6 +20,19 @@ How the dev build gets fast startup, and what silently makes it slow again.
   parallel compile of both projects with the `PRODUCTION` define. Used by `pack` and `dist`.
 - `node scripts/dev.js --no-app` — either mode without launching Electron (compile check).
 
+Every one of these reaches [`scripts/start.js`](../scripts/start.js), which frees the two ports it
+needs before using them ([`scripts/free-port.js`](../scripts/free-port.js)): 8672 for the webpack
+dev server and 9222 for the DevTools protocol that `scripts/inspect-canvas.js` talks to. A session
+interrupted in any of the usual ways leaves both held, and the failure that follows is worse than
+it sounds: the port is bound *after* a full Fable compile and after Electron has been told to open,
+so the window appears, stays blank, and the log says `ready`. A stale Electron on 9222 is quieter
+still — `inspect-canvas` connects to it and reports the previous run's canvas. Whoever holds the
+port is killed, whatever it is; that is a more reliable test than matching command lines.
+
+[`scripts/clean-dev.js`](../scripts/clean-dev.js) is still the tool for sweeping a whole abandoned
+session, because it also catches a `fable watch` that holds no port at all and can still recompile
+the tree under you.
+
 ## How Fable decides it can start fast
 
 Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file of the Renderer

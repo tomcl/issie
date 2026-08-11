@@ -6,6 +6,7 @@ const configRenderer = require('../webpack.config.renderer');
 const { spawn } = require('child_process');
 const path = require('path');
 const fsextra = require('fs-extra');
+const { freePort } = require('./free-port');
 
 const compilerMain = webpack(configMain);
 const compilerRenderer = webpack(configRenderer);
@@ -30,6 +31,12 @@ let electronStarted = false;
       port: 8672
     };
 
+    // An interrupted session leaves this port held, and binding it is the LAST thing that happens
+    // here - after a full Fable compile and after Electron has been told to open. Failing then
+    // gives a blank window and a log that says "ready", which reads as a broken app rather than as
+    // a stale process. Clear it first.
+    freePort(renderSrvOpts.port, 'dev server');
+
     const server = new WebpackDevServer(renderSrvOpts, compilerRenderer);
     await server.start();
     console.log(`> Dev server is listening on port ${renderSrvOpts.port}`);
@@ -48,6 +55,10 @@ let electronStarted = false;
       // block's geometry and screenshot the renderer. Development only: this script is not used
       // by `npm run build` or by a packaged app, so no released build ever listens on this port.
       const debugPort = process.env.ISSIE_DEBUG_PORT || '9222';
+
+      // Freed for the same reason, and for one of its own: a stale Electron still holding this
+      // port answers scripts/inspect-canvas.js, so the canvas being inspected is the old app's.
+      freePort(debugPort, 'DevTools');
 
       // Switches this script was given are passed on, so that `npm run dev -- --log=wire` reaches
       // JSHelpers.setDebugLevel. It is the only way to have a log category on before the first line

@@ -1172,12 +1172,12 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
             let storedVal =
                 ParameterTypes.renderParamExpression definition.Expression 0
             let paramVal, isSettled = shownFor key storedVal
-            /// One `Field: value` line.
-            let line (fieldName: string) (valueEl: ReactElement) =
-                div [Class "propertyLine"] [
-                    span [Class "propertyLabel"] [str $"{fieldName}: "]
-                    valueEl
-                ]
+            /// One `Field: value` row: two cells of the block's grid, not a line of its own.
+            /// Wrapping each pair in a div would put the label and the value in one column and
+            /// lose the alignment the grid is for.
+            let line (fieldName: string) (valueEl: ReactElement) : ReactElement list =
+                [ span [Class "propertyLabel"] [str $"{fieldName}:"]
+                  valueEl ]
             // Grey and italic where nothing has settled the value, so that a provisional number is
             // never read as a fact about the design. The tooltip says what will settle it.
             let valueSpan =
@@ -1195,10 +1195,12 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                              the property once the sheet is used in one."
                     ] [str paramVal]
             div [Key paramName; Class "propertyBlock"] [
-                line "Property name" (span [Class "propertyName"] [str paramName])
-                if definition.Description <> "" then
-                    line "Description" (span [Class "propertyMeans"] [str definition.Description])
-                line "Value" valueSpan
+                div [Class "propertyFields"] (
+                    line "Property name" (span [Class "propertyName"] [str paramName])
+                    @ (match definition.Description with
+                       | "" -> []
+                       | d -> line "Description" (span [Class "propertyMeans"] [str d]))
+                    @ line "Value" valueSpan)
                 div [Class "propertyControls"] [
                     // Editing is offered only while nothing sets the value. Where a
                     // design does, an edit here would be overwritten the moment the

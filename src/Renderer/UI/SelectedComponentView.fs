@@ -989,7 +989,7 @@ let private describeComponent (comp:Component) model : ReactElement list =
 /// Kept in the body of the pane rather than behind the About disclosure: on a parameterised
 /// component these widths move whenever a value moves, so they are the first thing to check after
 /// an edit.
-let private makePortSummary (custom:CustomComponentType) =
+let private makePortSummary model (custom:CustomComponentType) =
     /// A port, written as it would be in Verilog or on a wire label: a single wire is just its
     /// name, and a bus carries the range of bit numbers it actually has. This was "NAME 3", a
     /// number whose meaning had to be known rather than read - and on the common single-wire port
@@ -998,16 +998,35 @@ let private makePortSummary (custom:CustomComponentType) =
         match width with
         | w when w <= 1 -> label
         | w -> $"{label}({w - 1}:0)"
+    // What this instance's ports ARE, not what they were when it was placed.
+    //
+    // custom.InputLabels is the signature stored on the component, and a parameterised sheet's
+    // widths move whenever a binding does - so a sheet whose input width is a property showed the
+    // width it had at placement time and never caught up, which is exactly the case this summary
+    // exists for. signatureOfInstance is the one place that works an instance's ports out; every
+    // other reader of them already goes through it. The stored labels remain the fallback for a
+    // child sheet that cannot be found.
+    let inputLabels, outputLabels =
+        match model.CurrentProj with
+        | None -> custom.InputLabels, custom.OutputLabels
+        | Some proj ->
+            let ldcs = (ModelHelpers.getUpdatedLoadedComponents proj model).LoadedComponents
+            CanvasExtractor.signatureOfInstance
+                ldcs
+                (ParameterView.paramBindingsOfModel model)
+                custom.Name
+                (custom.ParameterBindings |> Option.defaultValue Map.empty)
+            |> Option.defaultValue (custom.InputLabels, custom.OutputLabels)
     let group name (labels: (string * int) list) =
         match labels with
         | [] -> null
         | _ ->
             div [Style [Display DisplayOptions.Flex; MarginBottom "2px"]] [
-                span [Style [Width "34px"; Color "grey"; FontSize "11px"; Flex "0 0 auto"]] [str name]
-                span [Style [FontSize "12px"]]
+                span [Class "portGroupLabel"] [str name]
+                span []
                      [str (labels |> List.map (fun (l, w) -> portText l w) |> String.concat "   ")]
             ]
-    match custom.InputLabels, custom.OutputLabels with
+    match inputLabels, outputLabels with
     | [], [] -> null
     | ins, outs ->
         div [Style [MarginBottom "10px"]] [
@@ -1109,7 +1128,7 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
                 ] [str $"Open sheet {custom.Name}"]
         div [] [
             ParameterView.makeParamBindingEntryBoxes model comp custom dispatch
-            makePortSummary custom
+            makePortSummary model custom
             openSheetButton
             makeVerilogEditButton model custom dispatch
             makeVerilogDeleteButton model custom dispatch
@@ -1243,6 +1262,10 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         dispatch <| SetPopupDialogBadLabel (false)
                     dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component
             makeExtraInfo model comp labelText dispatch
+            // Under the boxes it explains and above About, not at the foot of the pane. Appended
+            // last it came after a collapsed disclosure, which reads as the end of the pane, and
+            // was missed by the person who asked for it.
+            ParameterView.expressionSyntaxHelp model
             makeAboutSection model comp dispatch
         ]
     // Nothing selected: this is the OPEN SHEET's properties, not a component's. The two used to be
@@ -1277,12 +1300,9 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 br []
                 br []
                 ParameterView.viewParameters model dispatch
+                ParameterView.expressionSyntaxHelp model
                 ]
         |None -> null
-    // Below whichever of the two the pane is showing, because it explains the boxes in both: a
-    // component's width and a sheet property's value are typed into the same kind of box. One
-    // placement rather than one per box - a grammar repeated beside every field is noise.
-    |> (fun react -> div [] [react; ParameterView.expressionSyntaxHelp model])
     // A library component's sheet can be looked at but not changed, and the pane is most of the
     // reason to look: it is where the widths, constants, property values and memory contents
     // are. So the values stay visible and readable, and only the controls go dead.

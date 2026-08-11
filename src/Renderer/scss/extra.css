@@ -366,20 +366,28 @@ th, td {
   line-height: 1.35;
 }
 
-/* One "Field: value" line of a sheet's own property block. The label is what
-   the table's column headings became: with no columns left to head, each line
-   has to say which field it is. Hanging indent so a description that wraps
-   stays clear of the label above it. */
-.propertyLine {
+/* The "Field: value" rows of a sheet's own property block, as a two-column grid.
+   The labels are what the table's column headings became - with no columns left
+   to head, each row has to say which field it is - and they are right-aligned
+   against one left edge that every value starts from. Left to their own widths
+   ("Property name:" is three times "Value:") the three values began at three
+   different places, and one record read as three unrelated fragments.
+
+   The labels are set apart by colour alone. Shrinking them made a block of six
+   sizes; a field name is not less worth reading than the value beside it. */
+.propertyFields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.4rem;
+  row-gap: 0.15rem;
+  align-items: baseline;
   line-height: 1.35;
-  margin-bottom: 0.1rem;
-  padding-left: 0.75rem;
-  text-indent: -0.75rem;
 }
 
 .propertyLabel {
   color: #6b6b6b;
-  font-size: 11.5px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .propertyName {
@@ -387,9 +395,17 @@ th, td {
   word-break: break-word;
 }
 
-/* Tabular figures so a column of values does not jitter as digits change. */
+/* Tabular figures so a value does not jitter as its digits change. */
 .propertyValue {
   font-variant-numeric: tabular-nums;
+}
+
+/* The "in" and "out" of the Ports summary: the same field-label treatment as a
+   property's, grey and the same size as what it labels. */
+.portGroupLabel {
+  flex: 0 0 auto;
+  width: 34px;
+  color: #6b6b6b;
 }
 
 /* Nothing has settled this value yet: it is a placeholder, and says so. */
@@ -419,9 +435,8 @@ th, td {
    there and only sometimes has words in it.
    --------------------------------------------------------------------------- */
 .propertyMessage {
-  min-height: 1.15em;
-  font-size: 11.5px;
-  line-height: 1.15;
+  min-height: 1.3em;
+  line-height: 1.3;
   margin-top: 0.15rem;
   color: #cc0f35;
 }
@@ -470,12 +485,10 @@ th, td {
 .expressionSyntax > summary {
   cursor: pointer;
   color: #4a6785;
-  font-size: 12px;
   list-style-position: inside;
 }
 
 .expressionSyntaxBody {
-  font-size: 11.5px;
   line-height: 1.45;
   color: #4a4a4a;
   margin-top: 0.35rem;
@@ -491,7 +504,6 @@ th, td {
    typed in, so `w*2` cannot be mistaken for prose. */
 .expressionSyntaxBody code {
   font-family: monospace;
-  font-size: 11px;
   background: #f2f2f2;
   padding: 0 2px;
   border-radius: 2px;

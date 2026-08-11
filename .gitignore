@@ -5,6 +5,8 @@ demos/**/*
 
 # New Output Folder
 build/
+# Fable output: one tree per project, see scripts/fable-output.js
+build-fable/
 
 # Distribution.
 dist/

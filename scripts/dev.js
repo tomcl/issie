@@ -14,6 +14,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const { reportRefreshStaleOutput } = require('./refresh-stale-output');
+const { outDirOf, outPathOf } = require('./fable-output');
 
 const root = path.join(__dirname, '..');
 const once = process.argv.includes('--once');
@@ -73,7 +74,7 @@ function onReady(p) {
     // Ready means either nothing needed compiling - so nothing can be stale - or the compile
     // finished. Either way every generated file is current, and one that still looks older than
     // its source would cost a full recompile on every future startup. See refresh-stale-output.js.
-    reportRefreshStaleOutput(projects.map((proj) => path.join(root, proj.dir)));
+    reportRefreshStaleOutput(projects.map((proj) => outPathOf(proj.dir)));
     startApp();
   }
 }
@@ -82,6 +83,11 @@ for (const p of projects) {
   const args = ['fable'];
   if (!once) args.push('watch');
   args.push(p.dir, '-s');
+  // Each project compiles to its own tree, including its copy of the shared sources and of Fable's
+  // library. Without this both projects write src/Shared/*.fs.js, and whichever finishes last
+  // decides which library that file imports - which put two copies of it in the main bundle and
+  // broke every F# Map that crossed the seam. See scripts/fable-output.js.
+  args.push('-o', outDirOf(p.dir), '-e', '.fs.js');
   for (const d of p.defines) args.push('--define', d);
   // Relative, deliberately: this path is passed through two layers that join arguments back into
   // a command line - `shell: true` below, and Fable's own --run, which re-emits it as

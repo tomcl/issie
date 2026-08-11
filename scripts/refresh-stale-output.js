@@ -11,33 +11,56 @@
 // Running this after a successful compile closes that loop. It only asserts what the compile just
 // established - every output is current - so it cannot hide a real staleness: an output whose
 // content was wrong would have been rewritten a moment ago.
+//
+// Output no longer sits beside its source: each project compiles to its own tree under build-fable
+// (see fable-output.js), and one of those trees holds copies of sources from three different
+// directories. So the pairing comes from the source map Fable writes next to every generated file,
+// whose "sources" entry points back at the .fs it came from. That is Fable's own answer to the
+// question and it holds whatever the layout is.
 
 const fs = require('fs');
 const path = require('path');
 
-const skipDirs = new Set(['obj', 'bin', 'fable_modules', 'node_modules', '.git']);
+// Package sources under fable_modules come from NuGet and their timestamps do not move, so there
+// is nothing here for them to fix - and there are thousands of them.
+const skipDirs = new Set(['fable_modules', 'node_modules', '.git']);
 
-function* fsharpSources(dir) {
+function* sourceMaps(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!skipDirs.has(entry.name)) yield* fsharpSources(full);
-    } else if (entry.name.endsWith('.fs')) {
+      if (!skipDirs.has(entry.name)) yield* sourceMaps(full);
+    } else if (entry.name.endsWith('.js.map')) {
       yield full;
     }
   }
 }
 
+/// The .fs a generated file was compiled from, or null if the map does not say.
+function sourceOf(mapFile) {
+  try {
+    const map = JSON.parse(fs.readFileSync(mapFile, 'utf8'));
+    const first = (map.sources || [])[0];
+    if (!first) return null;
+    const source = path.resolve(path.dirname(mapFile), map.sourceRoot || '', first);
+    return source.endsWith('.fs') && fs.existsSync(source) ? source : null;
+  } catch {
+    return null; // a half-written map is no map
+  }
+}
+
 /// Generated files that are not strictly newer than their source - the condition that makes Fable
 /// recompile. Before a compile these are the files it will look at; after one they are all
-/// false alarms.
+/// false alarms. `dirs` are output directories.
 function findStaleOutput(dirs) {
   const stale = [];
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue;
-    for (const source of fsharpSources(dir)) {
-      const output = source + '.js';
-      if (!fs.existsSync(output)) continue; // a module Fable emits nothing for
+    for (const mapFile of sourceMaps(dir)) {
+      const output = mapFile.slice(0, -'.map'.length);
+      if (!fs.existsSync(output)) continue;
+      const source = sourceOf(mapFile);
+      if (!source) continue;
       if (fs.statSync(output).mtime > fs.statSync(source).mtime) continue;
       stale.push(output);
     }
@@ -68,12 +91,3 @@ function reportRefreshStaleOutput(dirs) {
 }
 
 module.exports = { findStaleOutput, refreshStaleOutput, reportRefreshStaleOutput };
-
-// Usable on its own: node scripts/refresh-stale-output.js [dir ...]
-if (require.main === module) {
-  const dirs = process.argv.slice(2);
-  const root = path.join(__dirname, '..');
-  reportRefreshStaleOutput(
-    dirs.length ? dirs : [path.join(root, 'src', 'Main'), path.join(root, 'src', 'Renderer')]
-  );
-}

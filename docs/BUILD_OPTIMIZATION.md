@@ -38,8 +38,8 @@ the tree under you.
 Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file of the Renderer
 (~200 including dependencies) and takes on the order of a minute. What it does have:
 
-1. **Project cracking cache** (`fable_modules/project_cracked.json`) — restoring project options
-   takes ~200ms instead of several seconds.
+1. **Project cracking cache** (`build-fable/<project>/fable_modules/project_cracked.json`) —
+   restoring project options takes ~200ms instead of several seconds.
 2. **Up-to-date detection** — if every generated `.fs.js` is strictly newer than its `.fs`, a
    one-shot compile is skipped entirely, and `fable watch` runs its `--run` command *immediately*
    (recompiling silently in the background to build its watch graph). `dev.js` uses that `--run`
@@ -49,8 +49,11 @@ Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file 
 ## What breaks it
 
 - **A stale `.fs.js` timestamp**, which [`scripts/refresh-stale-output.js`](../scripts/refresh-stale-output.js)
-  exists to prevent. Fable rewrites an output file only when its *content* changed, and the
-  up-to-date check above is about timestamps, so the two can disagree. A `.fs` whose mtime moves
+  exists to prevent. It pairs each generated file with its source through the `sources` entry of the
+  source map beside it, since the output no longer sits next to the `.fs` — see
+  [`scripts/fable-output.js`](../scripts/fable-output.js). Fable rewrites an output file only when
+  its *content* changed, and the up-to-date check above is about timestamps, so the two can
+  disagree. A `.fs` whose mtime moves
   without its emitted JS changing — a comment or warning-only edit, a `git checkout`, a rebase —
   leaves an output that is perfectly current and still fails the check. **A recompile does not fix
   it**: nothing changed, so nothing is written, so every subsequent startup pays the full ~1 minute

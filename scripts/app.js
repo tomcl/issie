@@ -27,6 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { findStaleOutput } = require('./refresh-stale-output');
+const { outPathOf } = require('./fable-output');
 
 const root = path.join(__dirname, '..');
 const projectDirs = ['src/Main', 'src/Renderer'];
@@ -34,7 +35,9 @@ const projectDirs = ['src/Main', 'src/Renderer'];
 /// What the last Fable build of this project was: 'watch', 'once' (any non-watch mode) or 'none',
 /// plus the defines it used beyond the FABLE_* ones Fable always sets.
 function lastBuild(projectDir) {
-  const modules = path.join(root, projectDir, 'fable_modules');
+  // The cracking cache lives inside the project's output tree, which is no longer beside the
+  // sources - see fable-output.js.
+  const modules = path.join(outPathOf(projectDir), 'fable_modules');
   const read = (name) => {
     const file = path.join(modules, name);
     if (!fs.existsSync(file)) return null;
@@ -88,7 +91,7 @@ console.log(`\x1b[32m[app]\x1b[0m ${mode}: ${decision.why}`);
 // A generated file older than its source makes Fable recompile whatever mode it is in. Say so,
 // rather than let an unexplained minute look like this script having chosen wrong. Do NOT refresh
 // the timestamps here - before a compile they may mean the output really is out of date.
-const stale = findStaleOutput(projectDirs.map((dir) => path.join(root, dir)));
+const stale = findStaleOutput(projectDirs.map(outPathOf));
 if (stale.length) {
   const names = stale.map((f) => path.relative(root, f)).join(', ');
   console.log(`\x1b[32m[app]\x1b[0m ${stale.length} generated file(s) older than their source, so ` +

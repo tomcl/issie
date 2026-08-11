@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The code both processes need.
+
+    These three files were compiled into both projects by <Compile Include="..\Renderer\...">
+    links in Main.fsproj, which meant Main reached into the renderer's source tree and, worse,
+    that the two compilers wrote the same generated file. Whichever finished last decided its
+    contents - and since a generated file imports Fable's library by a path relative to the
+    project that compiled it, the main bundle ended up holding two copies of that library. Two
+    copies of Map.js are two class hierarchies, so an F# Map built by one and read by the other
+    answered for its root key and missed every other. That is what broke the context menus.
+
+    The projects now reference this one, and each compiles to its own output directory (see
+    scripts/dev.js), so no generated file has two authors.
+
+    What belongs here: types and pure logic both processes need. Nothing that reaches the
+    operating system - the renderer may not - and nothing that knows about the Elmish model,
+    which only the renderer has. ContextMenus is the shape of that: the menu names and their
+    items live here, while building an actual Electron menu is main's, in ContextMenuBuilder.fs.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- ElectronAPI first: ContextMenus uses its types. Log needs neither. -->
+    <Compile Include="ElectronAPI.fs" />
+    <Compile Include="Log.fs" />
+    <Compile Include="ContextMenus.fs" />
+  </ItemGroup>
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

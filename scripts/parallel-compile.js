@@ -1,6 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const { reportRefreshStaleOutput } = require('./refresh-stale-output');
+const { outDirOf, outPathOf } = require('./fable-output');
 
 const root = path.join(__dirname, '..');
 
@@ -8,7 +9,9 @@ console.log('Starting parallel compilation...');
 
 // Create promises for each compilation process
 const compileMain = new Promise((resolve, reject) => {
-  const proc = spawn('dotnet', ['fable', 'src/Main', '-s'], {
+  // -o and -e: one output tree per project, so the sources both compile do not collide.
+  // See scripts/fable-output.js.
+  const proc = spawn('dotnet', ['fable', 'src/Main', '-s', '-o', outDirOf('src/Main'), '-e', '.fs.js'], {
     shell: true,
     stdio: 'inherit'
   });
@@ -26,7 +29,11 @@ const compileMain = new Promise((resolve, reject) => {
 });
 
 const compileRenderer = new Promise((resolve, reject) => {
-  const proc = spawn('dotnet', ['fable', 'src/Renderer', '-s', '--define', 'PRODUCTION'], {
+  const proc = spawn('dotnet', [
+    'fable', 'src/Renderer', '-s',
+    '-o', outDirOf('src/Renderer'), '-e', '.fs.js',
+    '--define', 'PRODUCTION',
+  ], {
     shell: true,
     stdio: 'inherit'
   });
@@ -48,7 +55,7 @@ Promise.all([compileMain, compileRenderer])
   .then(() => {
     console.log('✓ All compilations completed successfully');
     // every output is current now, so anything that still looks old only has an old timestamp
-    reportRefreshStaleOutput([path.join(root, 'src', 'Main'), path.join(root, 'src', 'Renderer')]);
+    reportRefreshStaleOutput([outPathOf('src/Main'), outPathOf('src/Renderer')]);
     process.exit(0);
   })
   .catch((error) => {

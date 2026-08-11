@@ -86,8 +86,19 @@ component check and `CustomCompPorts` all go through it — keep it that way. "I
 means differs from what its OWN bindings give it; compared against the sheet instead, every
 parameterised design reports as changed.
 
-**Fable emits `.fs.js` and `.fs.js.map` next to every `.fs`.** When JS behaviour disagrees with the
-F# you just wrote, read the emitted `.fs.js`.
+**Fable emits `.fs.js` and `.fs.js.map` under `build-fable/main` and `build-fable/renderer`, one
+tree per project.** When JS behaviour disagrees with the F# you just wrote, read the emitted
+`.fs.js`. Each tree mirrors `src/`, so `src/Renderer/UI/Update.fs` becomes
+`build-fable/renderer/UI/Update.fs.js`, and each holds its own copy of `src/Shared` and of Fable's
+runtime library. That separation is deliberate and load-bearing: both projects compile `src/Shared`,
+and when they emitted beside the source instead, the second compiler overwrote the first's output —
+which put two copies of Fable's library in one bundle and silently broke every `Map` that crossed
+the seam. See [scripts/fable-output.js](scripts/fable-output.js).
+
+**`src/Shared` is the code both processes compile.** Types and pure logic only: nothing that reaches
+the operating system (the renderer may not) and nothing that knows the Elmish model (only the
+renderer has one). `ContextMenus.fs` is the shape of it — the menu names and items are shared, while
+building an actual Electron menu is `src/Main/ContextMenuBuilder.fs`.
 
 **Paket manages F# dependencies and npm manages JavaScript ones**; the two must stay in sync.
 

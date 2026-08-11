@@ -176,12 +176,15 @@ The dev chain is identical on all platforms. What the scripts above actually do,
    management is via `npm`, which comes with Node.)
 2. `dotnet paket install` installs all of the dotnet-side packages.
 3. `npm ci` installs the exact npm package versions recorded in `package-lock.json`.
-4. Fable transpiles every `.fs` file in `src/Main` and `src/Renderer` to a `.fs.js` file next to
-   it (these are generated files, not in the repo).
-5. Webpack bundles the generated JavaScript: `webpack.config.main.js` turns `src/Main/Main.fs.js`
-   into `build/index.js`, and `webpack.config.renderer.js` turns `src/Renderer/Renderer.fs.js`
-   (plus CSS and static assets) into `build/renderer-index.js`. In dev mode the renderer bundle
-   is served by webpack-dev-server with hot reload instead.
+4. Fable transpiles the two projects, `src/Main` and `src/Renderer`, into `build-fable/main` and
+   `build-fable/renderer` — one `.fs.js` per `.fs`, in a tree mirroring `src/` (generated files,
+   not in the repo). Both projects also compile `src/Shared`, so each output tree contains its own
+   copy of it; that is why they are separate trees rather than output written beside the sources.
+5. Webpack bundles the generated JavaScript: `webpack.config.main.js` turns
+   `build-fable/main/Main.fs.js` into `build/index.js`, and `webpack.config.renderer.js` turns
+   `build-fable/renderer/Renderer.fs.js` (plus CSS and static assets) into
+   `build/renderer-index.js`. In dev mode the renderer bundle is served by webpack-dev-server with
+   hot reload instead.
 6. Electron runs `build/index.js` as its main process, which opens the app window.
 
 `build.cmd`/`build.sh` run steps 1-3 and then hand over to a FAKE target defined in `build.fsx`
@@ -243,7 +246,7 @@ The source code consists of two distinct F# projects, transpiled separately to J
 
 Electron thus allows code written for a browser (HTML + CSS + JavaScript) to run as a desktop app with desktop filesystem access, via communication between the two processes: all of Issie's file I/O happens in the main process.
 
-The Fable compiler transpiles each project's F# to JavaScript (a `.fs.js` file beside each `.fs`), and Webpack then bundles each set into a single file: `build/index.js` for the main process and `build/renderer-index.js` for the renderer. The bundling is controlled by `webpack.config.main.js` and `webpack.config.renderer.js` — boilerplate you do not need to change; normally the `.fsproj` files defining the F# sources are all that needs modifying.
+The Fable compiler transpiles each project's F# to JavaScript (a `.fs.js` per `.fs`, under `build-fable/main` or `build-fable/renderer`), and Webpack then bundles each set into a single file: `build/index.js` for the main process and `build/renderer-index.js` for the renderer. The bundling is controlled by `webpack.config.main.js` and `webpack.config.renderer.js` — boilerplate you do not need to change; normally the `.fsproj` files defining the F# sources are all that needs modifying.
 
 
 ## Documentation and Generation

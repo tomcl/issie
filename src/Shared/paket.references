@@ -1,0 +1,4 @@
+group Electron
+	Fable.Core
+	Fable.Browser.Dom
+	Fable.Node

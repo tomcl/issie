@@ -1,5 +1,4 @@
 const path = require('path');
-const singleFableLibrary = require('./webpack.fable-library');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
@@ -19,7 +18,7 @@ module.exports = {
   // the difference between finding this at compile time and finding it as a blank window.
   target: 'web',
   devtool: 'cheap-module-source-map',
-  entry: './src/Renderer/Renderer.fs.js',
+  entry: './build-fable/renderer/Renderer.fs.js',
   output: {
     globalObject: 'this',
     filename: 'renderer-index.js',
@@ -58,9 +57,6 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: 'public/index.html',
     }),
-    // The renderer only ever had one copy, but it resolves to the same one main uses now, so the
-    // two processes agree about what an F# Map is. See webpack.fable-library.js.
-    singleFableLibrary(),
   ],
   resolve: {
     extensions: ['.ts', '.tsx', '.js']

@@ -19,12 +19,16 @@
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <!-- ElectronAPI, Log and ContextMenus, which the main process needs too. A referenced project
+         is compiled before everything here, so they are available from the first file down - which
+         is what "so that everything below can log" used to buy by putting Log second.
+         See src/Shared/Shared.fsproj. -->
+    <ProjectReference Include="..\Shared\Shared.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Common definitions -->
     <Compile Include="Common\EEExtensions.fs" />
-    <!-- Second, so that everything below can log -->
-    <Compile Include="Common\Log.fs" />
     <Compile Include="Common\Optics.fs" />
-    <Compile Include="Common\ElectronAPI.fs" />
     <Compile Include="Common\HashMap.fs" />
     <!-- Vendored Fable.SimpleJson, patched for Fable 5 - see Common\SimpleJson\README.md -->
     <Compile Include="Common\SimpleJson\TypeCheck.fs" />
@@ -164,7 +168,6 @@
     <Compile Include="UI\WaveSim\WaveSimRams.fs" />
     <Compile Include="UI\WaveSim\WaveSimTop.fs" />
     <Compile Include="UI\MainView.fs" />
-    <Compile Include="UI\ContextMenus.fs" />
     <Compile Include="UI\KeyBindings.fs" />
     <Compile Include="UI\FileUpdate.fs" />
     <Compile Include="UI\UpdateHelpers.fs" />

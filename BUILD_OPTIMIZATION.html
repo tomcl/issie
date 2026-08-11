@@ -433,8 +433,8 @@ the tree under you.</p>
 (~200 including dependencies) and takes on the order of a minute. What it does have:</p>
 <ol>
 <li>
-<strong>Project cracking cache</strong> (<code>fable_modules/project_cracked.json</code>) — restoring project options
-takes ~200ms instead of several seconds.
+<strong>Project cracking cache</strong> (<code>build-fable/&lt;project&gt;/fable_modules/project_cracked.json</code>) —
+restoring project options takes ~200ms instead of several seconds.
 </li>
 <li>
 <strong>Up-to-date detection</strong> — if every generated <code>.fs.js</code> is strictly newer than its <code>.fs</code>, a
@@ -448,8 +448,11 @@ the app in seconds either way.
 <ul>
 <li>
 <p><strong>A stale <code>.fs.js</code> timestamp</strong>, which <a href="../scripts/refresh-stale-output.js"><code>scripts/refresh-stale-output.js</code></a>
-exists to prevent. Fable rewrites an output file only when its <em>content</em> changed, and the
-up-to-date check above is about timestamps, so the two can disagree. A <code>.fs</code> whose mtime moves
+exists to prevent. It pairs each generated file with its source through the <code>sources</code> entry of the
+source map beside it, since the output no longer sits next to the <code>.fs</code> — see
+<a href="../scripts/fable-output.js"><code>scripts/fable-output.js</code></a>. Fable rewrites an output file only when
+its <em>content</em> changed, and the up-to-date check above is about timestamps, so the two can
+disagree. A <code>.fs</code> whose mtime moves
 without its emitted JS changing — a comment or warning-only edit, a <code>git checkout</code>, a rebase —
 leaves an output that is perfectly current and still fails the check. <strong>A recompile does not fix
 it</strong>: nothing changed, so nothing is written, so every subsequent startup pays the full ~1 minute

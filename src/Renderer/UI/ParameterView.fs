@@ -361,6 +361,35 @@ let addParamComponents
     newCompSpecs |> List.iter (fun spec -> addParamComponent spec dispatch compId)
 
 
+/// The grammar of the box above it, offered as a link that opens into the box's own field.
+///
+/// Belongs to a box rather than to the pane. It appeared once at the foot of the pane, where it
+/// explained boxes several inches above it and was read as a footnote to the whole component; and
+/// it showed on the sheet-properties pane, which has no box to type an expression into at all.
+///
+/// Two conditions, and both matter. The open sheet must declare a property - with none, an
+/// expression can only be arithmetic on numbers the user has already typed, so the grammar is
+/// advertising a feature with no use. And the field must have focus, which CSS decides with
+/// :focus-within: the link is one line, but a line under every width box in the pane is a line
+/// nobody asked for until they are actually typing in one.
+///
+/// A `details` with its marker taken off, so the link is a link and the disclosure state costs
+/// nothing to keep: it opens and closes by itself and remembers nothing between selections, which
+/// is right for a reference someone reads once.
+let expressionSyntaxHelp (model: Model) : ReactElement =
+    match model.CurrentProj with
+    | None -> null
+    | Some _ ->
+        match getDefaultParamDefs (getCurrentSheet model) |> Map.isEmpty with
+        | true -> null
+        | false ->
+            details [Class "expressionSyntax"] [
+                summary [] [str AppMessages.Expressions.title]
+                div [Class "expressionSyntaxBody"]
+                    // no links in the text, so nothing to open
+                    [Markdown.render ignore AppMessages.Expressions.syntax]
+            ]
+
 /// Create a generic input field which accepts and parses parameter expressions
 /// Validity of inputs is checked by parser
 /// Specific constraints can be passed by callee
@@ -465,7 +494,7 @@ let paramInputField
     // An empty prompt means the caller has labelled the field itself and this one must not add a
     // second label: a property block heads itself with the name and what it means, on separate
     // lines, which one label string cannot do.
-    Field.div [] [
+    Field.div [Field.Props [Class "paramField"]] [
         if prompt <> "" then PropertiesHelp.fieldLabel prompt
         Field.div [Field.Option.HasAddons] [
             Control.div [] [
@@ -501,6 +530,9 @@ let paramInputField
                 ]
         ]
         div [Class "propertyMessage"] [str errText]
+        // under the message rather than above it: what is wrong with what was typed comes before
+        // the grammar of what could be typed instead
+        expressionSyntaxHelp model
     ]
 
 
@@ -1343,31 +1375,6 @@ let paramPrompt (nameStr: string) (definition: ParamDefinition) : string =
     match definition.Description with
     | "" -> nameStr
     | description -> $"{nameStr}: {description}"
-
-/// The grammar of the numeric boxes, folded away under a heading that can be clicked open.
-///
-/// Shown only where the open sheet declares a property. Every numeric box in the pane has always
-/// taken an expression, but on a sheet with no properties there is nothing to write in one that
-/// is not simply the number - so on such a sheet this would be advertising a feature with no use,
-/// and the pane is short on room. The boxes go on accepting expressions either way: what is
-/// conditional is the explanation, not the grammar.
-///
-/// A `details` element rather than a Bulma panel with a flag in the model: it opens and closes by
-/// itself, it remembers nothing between selections, which is right for a reference someone reads
-/// once, and it is one element rather than a message.
-let expressionSyntaxHelp (model: Model) : ReactElement =
-    match model.CurrentProj with
-    | None -> null
-    | Some _ ->
-        match getDefaultParamDefs (getCurrentSheet model) |> Map.isEmpty with
-        | true -> null
-        | false ->
-            details [Class "expressionSyntax"] [
-                summary [] [str AppMessages.Expressions.title]
-                div [Class "expressionSyntaxBody"]
-                    // no links in the text, so nothing to open
-                    [Markdown.render ignore AppMessages.Expressions.syntax]
-            ]
 
 /// The values one custom component instance supplies for the parameters of the sheet inside it.
 ///

@@ -1262,10 +1262,6 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                         dispatch <| SetPopupDialogBadLabel (false)
                     dispatch (ReloadSelectedComponent model.LastUsedDialogWidth)) // reload the new component
             makeExtraInfo model comp labelText dispatch
-            // Under the boxes it explains and above About, not at the foot of the pane. Appended
-            // last it came after a collapsed disclosure, which reads as the end of the pane, and
-            // was missed by the person who asked for it.
-            ParameterView.expressionSyntaxHelp model
             makeAboutSection model comp dispatch
         ]
     // Nothing selected: this is the OPEN SHEET's properties, not a component's. The two used to be
@@ -1300,7 +1296,6 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 br []
                 br []
                 ParameterView.viewParameters model dispatch
-                ParameterView.expressionSyntaxHelp model
                 ]
         |None -> null
     // A library component's sheet can be looked at but not changed, and the pane is most of the

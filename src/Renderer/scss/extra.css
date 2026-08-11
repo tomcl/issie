@@ -466,26 +466,43 @@ th, td {
 }
 
 /* ---------------------------------------------------------------------------
-   The "Expression syntax" note at the foot of the Properties pane.
+   The "Expression syntax" link under an expression box.
 
-   Closed it is one line, which is what lets it sit under every pane on a sheet
-   with properties without spending the room. Open it is a reference, so the
-   text is set smaller than the fields above it and given a rule down its left
-   edge to mark it as an aside rather than more of the pane.
+   It belongs to the box, and shows only while that box has focus - a line under
+   every width box in the pane is a line nobody asked for until they are
+   actually typing in one. :focus-within rather than a flag in the model: this
+   is a presentational state of one field, and routing it through Elmish would
+   put a message on every focus and blur in the pane.
+
+   It stays visible once opened, whether or not focus is still in the field, so
+   that reading it does not close it - clicking the text inside would otherwise
+   move focus out and take the thing being read away.
    --------------------------------------------------------------------------- */
 .expressionSyntax {
-  margin-top: 0.75rem;
-  border-top: 1px solid #e6e6e6;
-  padding-top: 0.4rem;
+  display: none;
+  font-size: 11.5px;
+  margin-top: 0.15rem;
 }
 
-/* inside, not outside: the marker is what says the line opens, and outside the
-   box it renders in the pane's left padding where it is clipped away - leaving
-   a line that reads as a heading and gives no sign it can be clicked. */
+.paramField:focus-within > .expressionSyntax,
+.paramField > .expressionSyntax[open] {
+  display: block;
+}
+
+/* A link, not a disclosure: no triangle, and the underline and colour a link
+   has. The marker needs killing twice - `list-style` for the standard rendering
+   of a summary as a list item, and the -webkit- pseudo-element for Chromium's
+   own, which ignores it. */
 .expressionSyntax > summary {
   cursor: pointer;
-  color: #4a6785;
-  list-style-position: inside;
+  color: #3273dc;
+  text-decoration: underline;
+  list-style: none;
+  display: inline-block;
+}
+
+.expressionSyntax > summary::-webkit-details-marker {
+  display: none;
 }
 
 .expressionSyntaxBody {

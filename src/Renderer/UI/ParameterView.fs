@@ -460,9 +460,13 @@ let paramInputField
         |> Option.map (fun s -> match s.Spec with | Ok _ -> "" | Error err -> err)
         |> Option.defaultValue ""
 
-    // Field name, input box, and potential error message
+    // Field name, input box, and potential error message.
+    //
+    // An empty prompt means the caller has labelled the field itself and this one must not add a
+    // second label: a property block heads itself with the name and what it means, on separate
+    // lines, which one label string cannot do.
     Field.div [] [
-        PropertiesHelp.fieldLabel prompt
+        if prompt <> "" then PropertiesHelp.fieldLabel prompt
         Field.div [Field.Option.HasAddons] [
             Control.div [] [
                 Input.text [
@@ -471,7 +475,8 @@ let paramInputField
                     Input.Props [
                         OnPaste preventDefault
                         SpellCheck false
-                        Name prompt
+                        // stable even when the caller labels the field: the slot names the box
+                        Name (if prompt = "" then string compSlotName else prompt)
                         // no AutoFocus - see the name box in SelectedComponentView
                         Style [Width "200px"]
                     ]
@@ -495,7 +500,7 @@ let paramInputField
                     ]
                 ]
         ]
-        p [Style [Color Red]] [str errText]
+        div [Class "propertyMessage"] [str errText]
     ]
 
 
@@ -1147,30 +1152,15 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
             ]
     | false ->
 
-        div [] [
-            // A sheet DECLARES parameters; an instance of a sheet SUPPLIES values for them. Both
-            // blocks were headed "Parameters" and looked much alike, which is the whole of the
-            // confusion. This one stays a table with Means/Add/Delete while
-            // makeParamBindingEntryBoxes is plain labelled boxes: that divergence is deliberate and
-            // should not be tidied away into a shared renderer.
-            Label.label [] [str "Properties this sheet declares"]
-            simWarning
-            br []
-            Table.table [
-                        Table.IsBordered
-                        Table.IsNarrow
-                        Table.IsStriped
-                        ] [
-                thead [] [
-                    tr [] [
-                        th [] [str "Property"]
-                        th [] [str "Means"]
-                        th [] [str "Value"]
-                        th [] [str "Action"]
-                    ]
-                ]
-                tbody [] (
-                    sheetDefaultParams |> Map.toList |> List.map (fun (key, definition) ->
+        /// One property: its name and value on a line, what it means underneath in the pane's full
+        /// width, and the buttons that act on it below that.
+        ///
+        /// This was a four-column table. A description is the thing a property most needs read, and
+        /// it had about a hundred pixels of a four-hundred pixel pane to be read in, so it wrapped
+        /// to four lines beside a value that wanted twelve. Laid down the pane instead, the
+        /// description gets the width, and the block is what separates one property from the next.
+        let propertyBlock =
+            (fun (key: ParamName, definition: ParamDefinition) ->
                         let paramName =
                             match key with
                             | ParameterTypes.ParamName s -> s
@@ -1183,23 +1173,25 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                         // Grey and italic where nothing has settled the value, so that a
                         // provisional number is never read as a fact about the design. The tooltip
                         // says what will settle it.
-                        let valueCell =
+                        let valueSpan =
                             match isSettled with
-                            | true -> td [] [str paramVal]
+                            | true -> span [Class "propertyValue"] [str paramVal]
                             | false ->
-                                td [
-                                    Style [Color "grey"; FontStyle "italic"]
-                                    Class (Tooltip.ClassName + " " + Tooltip.IsTooltipLeft)
+                                span [
+                                    Class $"propertyValue isPlaceholder {Tooltip.ClassName} \
+                                            {Tooltip.IsTooltipLeft} {Tooltip.IsMultiline}"
                                     Tooltip.dataTooltip
                                         "Nothing uses this sheet yet, so this value is only a \
                                          placeholder. It is replaced by whatever a design gives \
-                                         the parameter once the sheet is used in one."
+                                         the property once the sheet is used in one."
                                 ] [str paramVal]
-                        tr [] [
-                            td [] [str paramName]
-                            td [Style [FontSize "12px"]] [str definition.Description]
-                            valueCell
-                            td [] [
+                        div [Key paramName; Class "propertyBlock"] [
+                            div [Class "propertyHead"] [
+                                span [Class "propertyName"] [str paramName]
+                                valueSpan
+                            ]
+                            div [Class "propertyMeans"] [str definition.Description]
+                            div [Class "propertyControls"] [
                                 // Editing is offered only while nothing sets the value. Where a
                                 // design does, an edit here would be overwritten the moment the
                                 // value was recomputed, so there is nothing to offer.
@@ -1207,20 +1199,28 @@ let private makeParamsField model (comp:LoadedComponent) dispatch =
                                     Button.button
                                         [ Fulma.Button.OnClick(fun _ -> editParameterBox model (paramName) dispatch)
                                           Fulma.Button.Color IsInfo
+                                          Fulma.Button.Size IsSmall
                                           Fulma.Button.Disabled simIsOpen
                                         ]
                                         [str "Edit"]
                                 Button.button
                                     [ Fulma.Button.OnClick(fun _ -> deleteParameterBox model (paramName) dispatch )
                                       Fulma.Button.Color IsDanger
+                                      Fulma.Button.Size IsSmall
                                       Fulma.Button.Disabled simIsOpen
                                     ]
                                     [str "Delete"]
                                 ]
-                            ]
-                        )
-                    )
-                ]
+                            ])
+
+        div [] [
+            // A sheet DECLARES properties; an instance of a sheet SETS values for them. Both blocks
+            // were headed "Parameters" and looked much alike, which was the whole of the confusion.
+            // They share a block shape now but not a renderer: this one shows a value and offers
+            // Edit/Delete, while the instance's offers a box to type in.
+            Label.label [] [str "Properties this sheet declares"]
+            simWarning
+            div [] (sheetDefaultParams |> Map.toList |> List.map propertyBlock)
             addParameterButton
         ]
 
@@ -1421,16 +1421,27 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
                 ]
                 [str $"Bind to {offer.BindsTo}.{nameStr}"]
 
+    /// One property of this instance: what it is called, what it means, and the box that sets it.
+    ///
+    /// The same block as the sheet's own properties, so the two read as one idea seen from either
+    /// end - the sheet declares them, each instance sets them. The name and the description are
+    /// separate lines rather than one bold run, which is why the field is given no label of its
+    /// own: the block has already said what this is.
     let entry (key: ParamName) (def: ParamDefinition) =
         let paramName = match key with ParamName s -> s
-        div [Key paramName] [
+        div [Key paramName; Class "propertyBlock"] [
+            div [Class "propertyHead"] [
+                span [Class "propertyName"] [str paramName]
+            ]
+            if def.Description <> "" then
+                div [Class "propertyMeans"] [str def.Description]
             // The sheet's own default is never offered here. What this instance is set to is the
             // only thing that matters on an instance, and showing a value the instance does not
             // have invites the user to reason about one that cannot apply to it.
-            paramInputField model (paramPrompt paramName def)
+            paramInputField model ""
                 (Option.defaultValue 1I (valueOf key paramName)) (valueOf key paramName)
                 (exprOf paramName key) [] (Some comp) (CustomCompParam paramName) dispatch
-            bindButton key def
+            div [Class "propertyControls"] [bindButton key def]
         ]
 
     match Map.isEmpty childDefs with

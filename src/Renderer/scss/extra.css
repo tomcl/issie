@@ -335,3 +335,105 @@ th, td {
 .recentItem .recentForget:hover {
   color: #cc0f35;
 }
+
+/* ---------------------------------------------------------------------------
+   Property blocks: one per named property, in the sheet's properties and on a
+   custom component instance.
+
+   These were four-column tables. The pane is about 420px wide, so a description
+   - the thing a property most needs to be read - got a hundred of them and
+   wrapped to four lines beside a value that needed twelve. Each property is now
+   a block down the pane, so the description has the full width, and the block
+   is what separates one property from the next.
+
+   Light, not a card: a pane made of heavy boxes reads as a list of dialogs. A
+   hairline and a tinted ground are enough to say "these lines belong together"
+   without competing with the pane's own headings.
+   --------------------------------------------------------------------------- */
+.propertyBlock {
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  background: #fcfcfc;
+  padding: 0.45rem 0.55rem 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+/* Name and value on one line, value hard right: the values line up down the
+   pane, so several properties can be read as a column without a table. */
+.propertyHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.propertyName {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* Tabular figures so a column of values does not jitter as digits change. */
+.propertyValue {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Nothing has settled this value yet: it is a placeholder, and says so. */
+.propertyValue.isPlaceholder {
+  color: #8a8a8a;
+  font-style: italic;
+}
+
+.propertyMeans {
+  font-size: 11.5px;
+  color: #6b6b6b;
+  line-height: 1.35;
+  margin-top: 0.1rem;
+}
+
+/* The buttons sit under the block they act on rather than in a column of their
+   own. #PropertiesPane .button already carries the right margins. */
+.propertyControls {
+  margin-top: 0.15rem;
+}
+
+/* ---------------------------------------------------------------------------
+   The message under a property's input box.
+
+   It is recomputed on every keystroke, so it appears and disappears while the
+   user is typing. Given no height of its own it took one away from the block
+   each time it went, and everything below - the next property, the buttons -
+   walked up and down the pane under the pointer. The line is therefore always
+   there and only sometimes has words in it.
+   --------------------------------------------------------------------------- */
+.propertyMessage {
+  min-height: 1.15em;
+  font-size: 11.5px;
+  line-height: 1.15;
+  margin-top: 0.15rem;
+  color: #cc0f35;
+}
+
+/* A block ends at its last control. Fulma gives every field a bottom margin for
+   the gap between fields, but inside a block the gap is the block's own padding
+   and the message line under the box; the controls row likewise reserves nothing
+   when it holds no button. Without these a property carried two blank lines. */
+.propertyBlock .field {
+  margin-bottom: 0;
+}
+
+.propertyControls:empty {
+  margin-top: 0;
+}
+
+/* The "= 8" beside a box is a static addon, not something to press, and it is
+   only there when the box holds an expression rather than a number. Given the
+   pane's button margins it made the row 6px taller the moment it appeared -
+   which is a reflow on the keystroke that turns "8" into "8*2", exactly when the
+   user is typing. It is a readout: no margin, so the row is one height.
+
+   Qualified by #PropertiesPane because that is how the margin it is overriding
+   is written, and an id outranks any number of classes. */
+#PropertiesPane .propertyBlock .button.is-static {
+  margin: 0;
+}

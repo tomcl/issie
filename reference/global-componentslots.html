@@ -427,7 +427,140 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '665', 665)" onmouseover="showTip(event, '665', 665)">
+              <code onmouseout="hideTip(event, '670', 670)" onmouseover="showTip(event, '670', 670)">
+                <p>
+                  <a id="resolveCanvasAtBindings">
+                    <a href="#resolveCanvasAtBindings">
+                      <code><span>resolveCanvasAtBindings&#32;<span>bindings&#32;slots&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="670">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>resolveCanvasAtBindings&#32;<span>bindings&#32;slots&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        bindings
+                      </b>
+                      :
+                      <code><a href="/issie/reference/parametertypes-parambindings.html">ParamBindings</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        slots
+                      </b>
+                      :
+                      <code><a href="/issie/reference/parametertypes-componentslotexpr.html">ComponentSlotExpr</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg2
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg3
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ComponentSlots.resolveCanvasAtBindings`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentSlots.resolveCanvasAtBindings\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L132-132" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A sheet's canvas with every parameterised slot resolved at the given bindings.
+ A slot whose expression cannot be evaluated leaves its component alone, so the widths that are
+ known still come out rather than the whole sheet failing.
+
+ Here rather than in CanvasExtractor because two callers need it from opposite ends of the
+ compile order: the instance-signature code in CanvasExtractor, and the parameter propagation in
+ ParameterAnalysis that brings every sheet into line with what its design sets.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    bindings
+                  </span>
+                  :
+                  <code><a href="/issie/reference/parametertypes-parambindings.html">ParamBindings</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    slots
+                  </span>
+                  :
+                  <code><a href="/issie/reference/parametertypes-componentslotexpr.html">ComponentSlotExpr</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg2
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg3
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '671', 671)" onmouseover="showTip(event, '671', 671)">
                 <p>
                   <a id="setSlotValue">
                     <a href="#setSlotValue">
@@ -436,7 +569,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="665">
+              <div class="fsdocs-tip" id="671">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>setSlotValue&#32;<span>slot&#32;value&#32;compType</span></span></code>
@@ -457,7 +590,7 @@
                         value
                       </b>
                       :
-                      <code>int</code>
+                      <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
                     </span>
                     <br/>
                     <span>
@@ -489,7 +622,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentSlots.setSlotValue\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L100-100" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L122-122" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -513,7 +646,7 @@
                     value
                   </span>
                   :
-                  <code>int</code>
+                  <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -540,103 +673,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '666', 666)" onmouseover="showTip(event, '666', 666)">
-                <p>
-                  <a id="setSlotValues">
-                    <a href="#setSlotValues">
-                      <code><span>setSlotValues&#32;<span>values&#32;compType</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="666">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>setSlotValues&#32;<span>values&#32;compType</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        values
-                      </b>
-                      :
-                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/parametertypes-compslotname.html">CompSlotName</a>,&#32;int</span>&gt;</span></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        compType
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ComponentSlots.setSlotValues`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentSlots.setSlotValues\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L105-105" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Apply every slot value in the map. Used to put a symbol back to its declared values, and to
- resolve a component for elaboration.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    values
-                  </span>
-                  :
-                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/parametertypes-compslotname.html">CompSlotName</a>,&#32;int</span>&gt;</span></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    compType
-                  </span>
-                  :
-                  <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '667', 667)" onmouseover="showTip(event, '667', 667)">
+              <code onmouseout="hideTip(event, '672', 672)" onmouseover="showTip(event, '672', 672)">
                 <p>
                   <a id="slotApplies">
                     <a href="#slotApplies">
@@ -645,7 +682,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="667">
+              <div class="fsdocs-tip" id="672">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>slotApplies&#32;<span>slot&#32;compType</span></span></code>
@@ -690,7 +727,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentSlots.slotApplies\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L94-94" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L116-116" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -733,7 +770,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '668', 668)" onmouseover="showTip(event, '668', 668)">
+              <code onmouseout="hideTip(event, '673', 673)" onmouseover="showTip(event, '673', 673)">
                 <p>
                   <a id="trySetSlotValue">
                     <a href="#trySetSlotValue">
@@ -742,7 +779,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="668">
+              <div class="fsdocs-tip" id="673">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>trySetSlotValue&#32;<span>slot&#32;value&#32;compType</span></span></code>
@@ -763,7 +800,7 @@
                         value
                       </b>
                       :
-                      <code>int</code>
+                      <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
                     </span>
                     <br/>
                     <span>
@@ -795,7 +832,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentSlots.trySetSlotValue\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L40-40" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L93-93" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <pre> The type with `value` put into the named slot, or None when the component has no such slot.
@@ -813,7 +850,14 @@
    - the output count of a SplitN is the same thing, so it has no slot - but the width and the
      bit position of a GIVEN output are ordinary values, and SplitNWidth/SplitNLSB name them.
      Those two are the only slots that can be out of range, and an index past the end of the
-     lists is no slot rather than a silently ignored one.</pre>
+     lists is no slot rather than a silently ignored one.
+
+ This is the one place a parameter value stops being a bigint. The three slots whose field is
+ already a bigint take it as it is - which is why parameter expressions evaluate in bigint at
+ all - and everything else is a width, an index or a bit position, and is narrowed here. A value
+ too large to be an int is no more applicable than a slot the component does not have, so it
+ comes back as None; it should have been stopped by the slot's own constraint before reaching
+ here, so the warning says that it was not.</pre>
                 </div>
               </summary>
               <dl class="fsdocs-params">
@@ -830,7 +874,7 @@
                     value
                   </span>
                   :
-                  <code>int</code>
+                  <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">

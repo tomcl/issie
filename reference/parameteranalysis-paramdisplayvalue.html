@@ -453,19 +453,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5399', 5399)" onmouseover="showTip(event, '5399', 5399)">
+              <code onmouseout="hideTip(event, '5421', 5421)" onmouseover="showTip(event, '5421', 5421)">
                 <p>
-                  <a id="DefaultValue">
-                    <a href="#DefaultValue">
-                      <code><span>DefaultValue&#32;<a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></span></code>
+                  <a id="NotUsed">
+                    <a href="#NotUsed">
+                      <code><span>NotUsed&#32;<a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5399">
+              <div class="fsdocs-tip" id="5421">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>DefaultValue&#32;<a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></span></code>
+                  <code><span>NotUsed&#32;<a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -488,12 +488,13 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L223-223" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L230-230" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     The sheet is not instantiated under the top (or no instance value is known):
- the declared default is shown.
+                     Nothing under the top instantiates the sheet, so nothing gives the parameter a value. The
+ stored value stands in until the sheet is used - see sheetIsAtDefault, which is what makes
+ the editor show it as provisional.
                   </p>
                 </div>
               </summary>
@@ -513,19 +514,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5400', 5400)" onmouseover="showTip(event, '5400', 5400)">
+              <code onmouseout="hideTip(event, '5422', 5422)" onmouseover="showTip(event, '5422', 5422)">
                 <p>
-                  <a id="ExactValue">
-                    <a href="#ExactValue">
-                      <code><span>ExactValue&#32;<a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></span></code>
+                  <a id="Values">
+                    <a href="#Values">
+                      <code><span>Values&#32;<span><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a>&#32;list</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5400">
+              <div class="fsdocs-tip" id="5422">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>ExactValue&#32;<a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></span></code>
+                  <code><span>Values&#32;<span><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a>&#32;list</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -535,7 +536,7 @@
                         Item
                       </b>
                       :
-                      <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
+                      <code><span><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a>&#32;list</span></code>
                     </span>
                     <br/>
                   </ul>
@@ -548,11 +549,14 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L220-220" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L235-235" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     Every instance agrees on this value; it is exact and may differ from the default.
+                     The values the instances give it: distinct, descending, never empty. The head is the one
+ the sheet is drawn at. Several arise when one design reaches the sheet by paths that bind
+ it differently, which is allowed; the largest is taken so that the choice is definite and
+ the recomputation stays idempotent.
                   </p>
                 </div>
               </summary>
@@ -562,83 +566,7 @@
                     Item
                   </span>
                   :
-                  <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5401', 5401)" onmouseover="showTip(event, '5401', 5401)">
-                <p>
-                  <a id="MultipleValues">
-                    <a href="#MultipleValues">
-                      <code><span>MultipleValues(<span>shownDefault,&#32;values</span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5401">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>MultipleValues(<span>shownDefault,&#32;values</span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        shownDefault
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        values
-                      </b>
-                      :
-                      <code><span><span>(<span><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a>&#32;*&#32;<span><span><a href="/issie/reference/parameteranalysis-instancepathlink.html">InstancePathLink</a>&#32;list</span>&#32;list</span></span>)</span>&#32;list</span></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L226-226" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Instances disagree: the declared default is shown, and each value the parameter takes is
- listed with the instance paths that produce it.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    shownDefault
-                  </span>
-                  :
-                  <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    values
-                  </span>
-                  :
-                  <code><span><span>(<span><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a>&#32;*&#32;<span><span><a href="/issie/reference/parameteranalysis-instancepathlink.html">InstancePathLink</a>&#32;list</span>&#32;list</span></span>)</span>&#32;list</span></code>
+                  <code><span><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a>&#32;list</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -670,19 +598,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5402', 5402)" onmouseover="showTip(event, '5402', 5402)">
+              <code onmouseout="hideTip(event, '5423', 5423)" onmouseover="showTip(event, '5423', 5423)">
                 <p>
-                  <a id="IsDefaultValue">
-                    <a href="#IsDefaultValue">
-                      <code><span>this.IsDefaultValue</span></code>
+                  <a id="IsNotUsed">
+                    <a href="#IsNotUsed">
+                      <code><span>this.IsNotUsed</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5402">
+              <div class="fsdocs-tip" id="5423">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsDefaultValue</span></code>
+                  <code><span>this.IsNotUsed</span></code>
                   <br/>
                   <br/>
                   <span>
@@ -709,58 +637,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5403', 5403)" onmouseover="showTip(event, '5403', 5403)">
+              <code onmouseout="hideTip(event, '5424', 5424)" onmouseover="showTip(event, '5424', 5424)">
                 <p>
-                  <a id="IsExactValue">
-                    <a href="#IsExactValue">
-                      <code><span>this.IsExactValue</span></code>
+                  <a id="IsValues">
+                    <a href="#IsValues">
+                      <code><span>this.IsValues</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5403">
+              <div class="fsdocs-tip" id="5424">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>this.IsExactValue</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5404', 5404)" onmouseover="showTip(event, '5404', 5404)">
-                <p>
-                  <a id="IsMultipleValues">
-                    <a href="#IsMultipleValues">
-                      <code><span>this.IsMultipleValues</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5404">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsMultipleValues</span></code>
+                  <code><span>this.IsValues</span></code>
                   <br/>
                   <br/>
                   <span>

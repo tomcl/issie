@@ -411,10 +411,6 @@ through a hand-edited file today, since the UI writes only <code>PInt</code> def
 <code>editParameterBox</code> handles expression-valued defaults, so the system claims to support them.
 </li>
 <li>
-<strong>Adding a parameter does not reject a duplicate name.</strong> <code>addParameterBox</code> uses <code>Map.add</code>, which
-silently replaces the existing declaration and its description.
-</li>
-<li>
 *<em><code>ReloadSelectedComponent</code> is fed the wrong number.*</em> For a <code>BusSelection</code> LSB or a <code>BusCompare</code>
 value it receives that number as "most recent bus width", which is what the properties pane then
 offers as the default width for the next component.

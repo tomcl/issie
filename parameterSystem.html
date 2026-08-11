@@ -393,7 +393,10 @@
 <h2><a name="Key-Features" class="anchor" href="#Key-Features">Key Features</a></h2>
 <ul>
 <li><strong>Symbolic Parameters</strong>: Define named integer parameters (e.g., <code>WIDTH</code>, <code>SIZE</code>) at the sheet level</li>
-<li><strong>Expression Language</strong>: Use arithmetic expressions (<code>WIDTH + 1</code>, <code>SIZE * 8</code>) to calculate values</li>
+<li>
+<strong>Expression Language</strong>: Use arithmetic expressions and the built-in functions <code>clog2</code>, <code>min</code> and
+<code>max</code> (<code>WIDTH + 1</code>, <code>SIZE * 8</code>, <code>max(clog2(N),1)</code>) to calculate values
+</li>
 <li><strong>Hierarchical Scoping</strong>: Parameters defined at sheet level, overridable per component instance</li>
 <li><strong>Constraint System</strong>: Define min/max constraints on parameter values with custom error messages</li>
 <li><strong>Custom Component Support</strong>: Pass parameters between sheets through custom components</li>
@@ -405,31 +408,50 @@
 <p>The parameter system's foundation is built on these core types:</p>
 <h4><a name="Basic-Types" class="anchor" href="#Basic-Types">Basic Types</a></h4>
 <ul>
-<li>*<em><code>ParamInt</code>*</em>: Currently <code>int</code>, will be extended to <code>bigint</code> for large bit constants</li>
+<li>
+*<em><code>ParamInt</code>*</em>: <code>bigint</code>. The fields a parameter feeds are bigint everywhere else in Issie — a
+constant's value, a bus comparison value, an input's default — and a bus may be up to
+<code>NumberHelpers.Constants.maxIssieBusWidth</code> bits wide. <code>ParameterTypes.tryIntOfParamInt</code> narrows
+back to <code>int</code> at the one place it must: <code>ComponentSlots.trySetSlotValue</code>, where a width, an index
+or a bit position is written into a component. A value too large to be an <code>int</code> is refused there
+rather than wrapped
+</li>
 <li>*<em><code>ParamName</code>*</em>: Encapsulated string representing a parameter identifier</li>
 </ul>
 <h4><a name="Expression-AST" class="anchor" href="#Expression-AST">Expression AST</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="rt">ParamExpression</span> <span class="o">=</span>
-    <span class="pn">|</span> <span class="uc">PInt</span> <span class="k">of</span> <span class="id">ParamInt</span>                              <span class="c">// Integer constant</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="c">/// Named by an enumeration, so that adding a two-argument function is a case HERE</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="rt">ParamBinFunc</span> <span class="o">=</span>
+    <span class="pn">|</span> <span class="uc">PMin</span>
+    <span class="pn">|</span> <span class="uc">PMax</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs2', 2)" onmouseover="showTip(event, 'fs2', 2)" class="rt">ParamExpression</span> <span class="o">=</span>
+    <span class="pn">|</span> <span class="uc">PInt</span> <span class="k">of</span> <span class="id">ParamInt</span>                              <span class="c">// Integer constant, of any size</span>
     <span class="pn">|</span> <span class="uc">PParameter</span> <span class="k">of</span> <span class="id">ParamName</span>                       <span class="c">// Parameter reference</span>
-    <span class="pn">|</span> <span class="uc">PAdd</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 2)" onmouseover="showTip(event, 'fs1', 2)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs1', 3)" onmouseover="showTip(event, 'fs1', 3)" class="rt">ParamExpression</span>     <span class="c">// Addition</span>
-    <span class="pn">|</span> <span class="uc">PSubtract</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 4)" onmouseover="showTip(event, 'fs1', 4)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs1', 5)" onmouseover="showTip(event, 'fs1', 5)" class="rt">ParamExpression</span> <span class="c">// Subtraction</span>
-    <span class="pn">|</span> <span class="uc">PMultiply</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 6)" onmouseover="showTip(event, 'fs1', 6)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs1', 7)" onmouseover="showTip(event, 'fs1', 7)" class="rt">ParamExpression</span> <span class="c">// Multiplication</span>
-    <span class="pn">|</span> <span class="uc">PDivide</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 8)" onmouseover="showTip(event, 'fs1', 8)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs1', 9)" onmouseover="showTip(event, 'fs1', 9)" class="rt">ParamExpression</span>  <span class="c">// Division</span>
-    <span class="pn">|</span> <span class="uc">PRemainder</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 10)" onmouseover="showTip(event, 'fs1', 10)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs1', 11)" onmouseover="showTip(event, 'fs1', 11)" class="rt">ParamExpression</span> <span class="c">// Modulo</span>
+    <span class="pn">|</span> <span class="uc">PAdd</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 3)" onmouseover="showTip(event, 'fs2', 3)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs2', 4)" onmouseover="showTip(event, 'fs2', 4)" class="rt">ParamExpression</span>     <span class="c">// Addition</span>
+    <span class="pn">|</span> <span class="uc">PSubtract</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 5)" onmouseover="showTip(event, 'fs2', 5)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs2', 6)" onmouseover="showTip(event, 'fs2', 6)" class="rt">ParamExpression</span> <span class="c">// Subtraction</span>
+    <span class="pn">|</span> <span class="uc">PMultiply</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 7)" onmouseover="showTip(event, 'fs2', 7)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs2', 8)" onmouseover="showTip(event, 'fs2', 8)" class="rt">ParamExpression</span> <span class="c">// Multiplication</span>
+    <span class="pn">|</span> <span class="uc">PDivide</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 9)" onmouseover="showTip(event, 'fs2', 9)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs2', 10)" onmouseover="showTip(event, 'fs2', 10)" class="rt">ParamExpression</span>  <span class="c">// Division</span>
+    <span class="pn">|</span> <span class="uc">PRemainder</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 11)" onmouseover="showTip(event, 'fs2', 11)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs2', 12)" onmouseover="showTip(event, 'fs2', 12)" class="rt">ParamExpression</span> <span class="c">// Modulo</span>
+    <span class="pn">|</span> <span class="uc">PCLog2</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 13)" onmouseover="showTip(event, 'fs2', 13)" class="rt">ParamExpression</span>                     <span class="c">// clog2(x)</span>
+    <span class="pn">|</span> <span class="uc">PBinFunc</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 14)" onmouseover="showTip(event, 'fs1', 14)" class="rt">ParamBinFunc</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs2', 15)" onmouseover="showTip(event, 'fs2', 15)" class="rt">ParamExpression</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs2', 16)" onmouseover="showTip(event, 'fs2', 16)" class="rt">ParamExpression</span> <span class="c">// min(x,y), max(x,y)</span>
 </code></pre>
+<p>Saved files key a DU case by its <strong>name</strong>, not its position (<code>SimpleJson/Json.Converter.fs</code>), so
+appending a case leaves existing <code>.dgm</code> and <code>.ldgm</code> files readable. <code>PInt</code> now writes as a quoted
+string (<code>{"PInt": "16"}</code>) because that is how bigint is encoded — the same form <code>Constant1</code> has
+always used — and both the numeric and the string form are accepted when reading, so older files
+load unchanged. Files written by this version cannot be opened by an older Issie.</p>
 <h4><a name="Constraints" class="anchor" href="#Constraints">Constraints</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs2', 12)" onmouseover="showTip(event, 'fs2', 12)" class="rt">ParamConstraint</span> <span class="o">=</span>
-    <span class="pn">|</span> <span class="uc">MinVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 13)" onmouseover="showTip(event, 'fs1', 13)" class="rt">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>  <span class="c">// Minimum value constraint</span>
-    <span class="pn">|</span> <span class="uc">MaxVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 14)" onmouseover="showTip(event, 'fs1', 14)" class="rt">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>  <span class="c">// Maximum value constraint</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs3', 17)" onmouseover="showTip(event, 'fs3', 17)" class="rt">ParamConstraint</span> <span class="o">=</span>
+    <span class="pn">|</span> <span class="uc">MinVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 18)" onmouseover="showTip(event, 'fs2', 18)" class="rt">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>  <span class="c">// Minimum value constraint</span>
+    <span class="pn">|</span> <span class="uc">MaxVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 19)" onmouseover="showTip(event, 'fs2', 19)" class="rt">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>  <span class="c">// Maximum value constraint</span>
 </code></pre>
 <h4><a name="Component-Slots" class="anchor" href="#Component-Slots">Component Slots</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs3', 15)" onmouseover="showTip(event, 'fs3', 15)" class="rt">CompSlotName</span> <span class="o">=</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs4', 20)" onmouseover="showTip(event, 'fs4', 20)" class="rt">CompSlotName</span> <span class="o">=</span>
     <span class="pn">|</span> <span class="uc">Buswidth</span>              <span class="c">// Component bus width</span>
-    <span class="pn">|</span> <span class="uc">IO</span> <span class="k">of</span> <span class="prop">Label</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 16)" onmouseover="showTip(event, 'fs4', 16)" class="rt">string</span>   <span class="c">// Input/Output port widths</span>
-    <span class="pn">|</span> <span class="uc">CustomCompParam</span> <span class="k">of</span> <span class="prop">ParamName</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 17)" onmouseover="showTip(event, 'fs4', 17)" class="rt">string</span> <span class="c">// Custom component parameters</span>
-    <span class="pn">|</span> <span class="uc">SplitNWidth</span> <span class="k">of</span> <span class="prop">Index</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 18)" onmouseover="showTip(event, 'fs5', 18)" class="vt">int</span> <span class="c">// SplitN output width</span>
-    <span class="pn">|</span> <span class="uc">SplitNLSB</span> <span class="k">of</span> <span class="prop">Index</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 19)" onmouseover="showTip(event, 'fs5', 19)" class="vt">int</span>   <span class="c">// SplitN output LSB</span>
+    <span class="pn">|</span> <span class="uc">IO</span> <span class="k">of</span> <span class="prop">Label</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 21)" onmouseover="showTip(event, 'fs5', 21)" class="rt">string</span>   <span class="c">// Input/Output port widths</span>
+    <span class="pn">|</span> <span class="uc">CustomCompParam</span> <span class="k">of</span> <span class="prop">ParamName</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 22)" onmouseover="showTip(event, 'fs5', 22)" class="rt">string</span> <span class="c">// Custom component parameters</span>
+    <span class="pn">|</span> <span class="uc">SplitNWidth</span> <span class="k">of</span> <span class="prop">Index</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs6', 23)" onmouseover="showTip(event, 'fs6', 23)" class="vt">int</span> <span class="c">// SplitN output width</span>
+    <span class="pn">|</span> <span class="uc">SplitNLSB</span> <span class="k">of</span> <span class="prop">Index</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs6', 24)" onmouseover="showTip(event, 'fs6', 24)" class="vt">int</span>   <span class="c">// SplitN output LSB</span>
     <span class="pn">|</span> <span class="uc">InputDefault</span>          <span class="c">// Value an Input1 takes when undriven</span>
 </code></pre>
 <p>The number of inputs of a gate or merge is deliberately not a slot: an input count sets how many
@@ -444,17 +466,17 @@ the two applied decided by <code>Map</code> key order. <code>CanvasExtractor.tid
 label on save, so it stays worth displaying; nothing depends on it being right.</p>
 <h4><a name="Sheet-Level-Definitions" class="anchor" href="#Sheet-Level-Definitions">Sheet-Level Definitions</a></h4>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="c">/// What an INSTANCE binds: no description, because the description belongs to the declaration</span>
-<span class="k">type</span> <span onmouseout="hideTip(event, 'fs6', 20)" onmouseover="showTip(event, 'fs6', 20)" class="rt">ParamBindings</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs7', 21)" onmouseover="showTip(event, 'fs7', 21)" class="rt">Map</span><span class="pn">&lt;</span><span class="id">ParamName</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs1', 22)" onmouseover="showTip(event, 'fs1', 22)" class="id">ParamExpression</span><span class="pn">&gt;</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs7', 25)" onmouseover="showTip(event, 'fs7', 25)" class="rt">ParamBindings</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs8', 26)" onmouseover="showTip(event, 'fs8', 26)" class="rt">Map</span><span class="pn">&lt;</span><span class="id">ParamName</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs2', 27)" onmouseover="showTip(event, 'fs2', 27)" class="id">ParamExpression</span><span class="pn">&gt;</span>
 
 <span class="c">/// The DECLARATION of one parameter on a sheet</span>
-<span class="k">type</span> <span onmouseout="hideTip(event, 'fs8', 23)" onmouseover="showTip(event, 'fs8', 23)" class="rt">ParamDefinition</span> <span class="o">=</span> <span class="pn">{</span>
-    <span class="prop">Expression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs1', 24)" onmouseover="showTip(event, 'fs1', 24)" class="rt">ParamExpression</span>     <span class="c">// its default value</span>
-    <span class="prop">Description</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 25)" onmouseover="showTip(event, 'fs4', 25)" class="rt">string</span>             <span class="c">// compulsory: see below</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs9', 28)" onmouseover="showTip(event, 'fs9', 28)" class="rt">ParamDefinition</span> <span class="o">=</span> <span class="pn">{</span>
+    <span class="prop">Expression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 29)" onmouseover="showTip(event, 'fs2', 29)" class="rt">ParamExpression</span>     <span class="c">// its default value</span>
+    <span class="prop">Description</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 30)" onmouseover="showTip(event, 'fs5', 30)" class="rt">string</span>             <span class="c">// compulsory: see below</span>
 <span class="pn">}</span>
-<span class="k">type</span> <span onmouseout="hideTip(event, 'fs9', 26)" onmouseover="showTip(event, 'fs9', 26)" class="rt">ParamDefinitions</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs7', 27)" onmouseover="showTip(event, 'fs7', 27)" class="rt">Map</span><span class="pn">&lt;</span><span class="id">ParamName</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs8', 28)" onmouseover="showTip(event, 'fs8', 28)" class="id">ParamDefinition</span><span class="pn">&gt;</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs10', 31)" onmouseover="showTip(event, 'fs10', 31)" class="rt">ParamDefinitions</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs8', 32)" onmouseover="showTip(event, 'fs8', 32)" class="rt">Map</span><span class="pn">&lt;</span><span class="id">ParamName</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs9', 33)" onmouseover="showTip(event, 'fs9', 33)" class="id">ParamDefinition</span><span class="pn">&gt;</span>
 
-<span class="k">type</span> <span onmouseout="hideTip(event, 'fs10', 29)" onmouseover="showTip(event, 'fs10', 29)" class="rt">ParameterDefs</span> <span class="o">=</span> <span class="pn">{</span>
-    <span class="prop">DefaultBindings</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs9', 30)" onmouseover="showTip(event, 'fs9', 30)" class="rt">ParamDefinitions</span> <span class="c">// the parameters this sheet declares</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs11', 34)" onmouseover="showTip(event, 'fs11', 34)" class="rt">ParameterDefs</span> <span class="o">=</span> <span class="pn">{</span>
+    <span class="prop">DefaultBindings</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs10', 35)" onmouseover="showTip(event, 'fs10', 35)" class="rt">ParamDefinitions</span> <span class="c">// the parameters this sheet declares</span>
     <span class="prop">ParamSlots</span><span class="pn">:</span> <span class="id">ComponentSlotExpr</span>     <span class="c">// component slots bound to expressions</span>
 <span class="pn">}</span>
 </code></pre>
@@ -719,16 +741,19 @@ has an id</p>
     
 <span class="id">Create</span> <span class="id">the</span> <span class="id">instance</span> <span class="k">with</span> <span class="id">those</span> <span class="id">ports</span> <span class="k">and</span> <span class="id">those</span> <span class="id">ParameterBindings</span>
     
-<span class="id">addParamComponents</span> <span class="id">records</span> <span class="id">its</span> <span class="id">slots</span> <span class="id">once</span> <span class="id">it</span> <span class="id">has</span> <span class="id">an</span> <span onmouseout="hideTip(event, 'fs11', 31)" onmouseover="showTip(event, 'fs11', 31)" class="id">id</span>
+<span class="id">addParamComponents</span> <span class="id">records</span> <span class="id">its</span> <span class="id">slots</span> <span class="id">once</span> <span class="id">it</span> <span class="id">has</span> <span class="id">an</span> <span onmouseout="hideTip(event, 'fs12', 36)" onmouseover="showTip(event, 'fs12', 36)" class="id">id</span>
 </code></pre>
 <h2><a name="Expression-Language" class="anchor" href="#Expression-Language">Expression Language</a></h2>
 <p>The parameter expression parser supports:</p>
 <h3><a name="Syntax-Elements" class="anchor" href="#Syntax-Elements">Syntax Elements</a></h3>
 <ul>
-<li><strong>Literals</strong>: Decimal integer constants (e.g., <code>8</code>, <code>32</code>). Hexadecimal is <strong>not</strong> supported</li>
+<li>
+<strong>Literals</strong>: Decimal integer constants of any size (e.g., <code>8</code>, <code>32</code>, <code>1099511627776</code>).
+Hexadecimal is <strong>not</strong> supported
+</li>
 <li>
 <strong>Variables</strong>: Parameter names — a letter followed by letters and digits (e.g., <code>WIDTH</code>,
-<code>dataSize</code>, <code>W2X</code>). See <code>isValidParamName</code> below
+<code>dataSize</code>, <code>W2X</code>), other than a built-in function name. See <code>isValidParamName</code> below
 </li>
 <li>
 <strong>Operators</strong> (with precedence, tightest first):
@@ -738,8 +763,43 @@ has an id</p>
 <li>Addition, Subtraction: <code>+</code>, <code>-</code></li>
 </ul>
 </li>
+<li><strong>Functions</strong>: <code>clog2(x)</code>, <code>min(x,y)</code>, <code>max(x,y)</code>. See below</li>
 <li><strong>Parentheses</strong>: For grouping expressions</li>
 </ul>
+<h3><a name="Functions" class="anchor" href="#Functions">Functions</a></h3>
+<p>Three built-ins, written as calls and so needing no precedence of their own:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>Written</p></th>
+<th><p>Means</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>clog2(x)</code></p></td>
+<td><p>bits needed to index <code>x</code> things: <code>ceil(log2 x)</code>. <code>clog2(8)</code> is 3 and <code>clog2(9)</code> is 4; 0 and 1 both give 0, as Verilog's <code>$clog2</code> does. A negative argument is an error</p></td>
+</tr>
+<tr class="even">
+<td><p><code>min(x,y)</code></p></td>
+<td><p>the smaller of the two</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>max(x,y)</code></p></td>
+<td><p>the larger of the two</p></td>
+</tr>
+</tbody>
+</table>
+
+<p><code>clog2</code> is the one that makes a width follow a size: an address bus for an <code>N</code>-word memory, a
+select input for an <code>N</code>-way mux, the shift amount for an <code>N</code>-bit shifter. <code>CommonTypes.shifterWidthFor</code>
+computes the SHIFT input's width with the same function, so <code>clog2</code> written in a properties box
+means exactly what Issie does internally. <code>min</code>/<code>max</code> are there because clamping is usually what
+comes next: <strong><code>max(clog2(N),1)</code></strong> is the idiom, since a width must never be 0.</p>
+<p><strong>Names are matched without regard to case</strong>: <code>clog2</code>, <code>CLOG2</code> and <code>CLog2</code> are one function, as are
+<code>min</code> and <code>MIN</code>. They are written back in lower case, so <code>MAX(1,2)</code> re-renders as <code>max(1,2)</code>.
+Because the parser reads them as functions, they are reserved: a parameter may not be called
+<code>clog2</code>, <code>min</code> or <code>max</code> in any case, and the "Add parameter" dialog says so.</p>
 <h3><a name="Example-Expressions" class="anchor" href="#Example-Expressions">Example Expressions</a></h3>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="id">WIDTH</span>           <span class="c">// Simple parameter reference</span>
 <span class="id">WIDTH</span> <span class="o">+</span> <span class="n">1</span>       <span class="c">// Increment parameter</span>
@@ -749,17 +809,27 @@ has an id</p>
 <span class="id">SIZE</span> <span class="o">%</span> <span class="n">8</span>        <span class="c">// Modulo operation</span>
 <span class="o">-</span><span class="n">1</span>              <span class="c">// Negative literal</span>
 <span class="id">BIAS</span> <span class="o">-</span> <span class="o">-</span><span class="n">4</span>       <span class="c">// Subtracting a negative</span>
+<span class="id">clog2</span><span class="pn">(</span><span class="id">WORDS</span><span class="pn">)</span>    <span class="c">// Address bits for a memory of WORDS words</span>
+<span onmouseout="hideTip(event, 'fs13', 37)" onmouseover="showTip(event, 'fs13', 37)" class="id">max</span><span class="pn">(</span><span class="id">clog2</span><span class="pn">(</span><span class="id">N</span><span class="pn">)</span><span class="pn">,</span><span class="n">1</span><span class="pn">)</span> <span class="c">// ...clamped, since a width of 0 is not a width</span>
+<span onmouseout="hideTip(event, 'fs14', 38)" onmouseover="showTip(event, 'fs14', 38)" class="id">min</span><span class="pn">(</span><span class="id">WIDTH</span><span class="pn">,</span><span class="n">32</span><span class="pn">)</span>   <span class="c">// Capping a width</span>
 </code></pre>
 <h3><a name="Parser-Implementation" class="anchor" href="#Parser-Implementation">Parser Implementation</a></h3>
 <p>The parser uses recursive descent with separate functions for each precedence level:
-- <code>parsePrimary</code>: Handles numbers, variables, unary minus, and parentheses
+- <code>parsePrimary</code>: Handles numbers, variables, function calls, unary minus, and parentheses
 - <code>parseFactors</code>: Processes multiplication, division, modulo
 - <code>parseExpressionTokens</code>: Handles addition and subtraction</p>
-<p><strong>One name rule.</strong> <code>ParameterTypes.isValidParamName</code> (<code>[a-zA-Z][a-zA-Z0-9]*</code>) is both what the
-"Add parameter" dialog accepts and what the tokenizer reads as a name, because a name that cannot
-be written in an expression is of no use. Two rules diverging breaks it in both directions: a name
-the dialog takes but the tokenizer will not read can be declared and never referred to, and one the
-tokenizer reads but the dialog marks invalid is shown in red and accepted anyway. A number run
+<p>A call is parsed in <code>parsePrimary</code> because it is atomic — its own parentheses delimit it — and its
+arguments are whole expressions, <code>parseExpressionTokens</code> stopping at the <code>,</code> or <code>)</code> that ends each
+one. The list of two-argument functions is derived from the <code>ParamBinFunc</code> DU by
+<code>EEExtensions.Union.allCases</code>, so adding a case to that type reserves its name and reaches the
+parser with no second edit; only <code>binFuncName</code> must then cover it, which the compiler requires.</p>
+<p><strong>One name rule.</strong> <code>ParameterTypes.isValidParamName</code> (<code>[a-zA-Z][a-zA-Z0-9]*</code>, and not a built-in
+function name) is both what the "Add parameter" dialog accepts and what the tokenizer reads as a
+name, because a name that cannot be written in an expression is of no use. Two rules diverging
+breaks it in both directions: a name the dialog takes but the tokenizer will not read can be
+declared and never referred to, and one the tokenizer reads but the dialog marks invalid is shown
+in red and accepted anyway. That is also why a function name cannot be a parameter: the parser
+reads <code>min</code> as the function, so a parameter of that name could never be referred to. A number run
 directly into a name (<code>2W</code>) is reported as such, since it is either a missing <code>*</code> or a name from a
 file written under a looser rule.</p>
 <p><strong>Negation</strong> is <code>PSubtract (PInt 0, e)</code>, not a new AST case: subtraction from zero is the same
@@ -804,9 +874,9 @@ declares. That is the whole rule — <code>GraphMerger.effectiveBindings</code> 
 <h2><a name="Constraint-System" class="anchor" href="#Constraint-System">Constraint System</a></h2>
 <p>Constraints ensure parameter values remain within valid ranges:</p>
 <h3><a name="Constraint-Definition" class="anchor" href="#Constraint-Definition">Constraint Definition</a></h3>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs2', 32)" onmouseover="showTip(event, 'fs2', 32)" class="id">ParamConstraint</span> <span class="o">=</span>
-    <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs12', 33)" onmouseover="showTip(event, 'fs12', 33)" class="id">MinVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 34)" onmouseover="showTip(event, 'fs1', 34)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
-    <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs13', 35)" onmouseover="showTip(event, 'fs13', 35)" class="id">MaxVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs1', 36)" onmouseover="showTip(event, 'fs1', 36)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs3', 39)" onmouseover="showTip(event, 'fs3', 39)" class="id">ParamConstraint</span> <span class="o">=</span>
+    <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs15', 40)" onmouseover="showTip(event, 'fs15', 40)" class="id">MinVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 41)" onmouseover="showTip(event, 'fs2', 41)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
+    <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs16', 42)" onmouseover="showTip(event, 'fs16', 42)" class="id">MaxVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 43)" onmouseover="showTip(event, 'fs2', 43)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
 </code></pre>
 <h3><a name="Features" class="anchor" href="#Features">Features</a></h3>
 <ul>
@@ -817,8 +887,9 @@ declares. That is the whole rule — <code>GraphMerger.effectiveBindings</code> 
 </ul>
 <h3><a name="Example" class="anchor" href="#Example">Example</a></h3>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span class="id">widthConstraints</span> <span class="o">=</span> <span class="pn">[</span>
-    <span onmouseout="hideTip(event, 'fs12', 37)" onmouseover="showTip(event, 'fs12', 37)" class="id">MinVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs14', 38)" onmouseover="showTip(event, 'fs14', 38)" class="id">PInt</span> <span class="n">1</span><span class="pn">,</span> <span class="s">&quot;Width must be at least 1 bit&quot;</span><span class="pn">)</span>
-    <span onmouseout="hideTip(event, 'fs13', 39)" onmouseover="showTip(event, 'fs13', 39)" class="id">MaxVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs14', 40)" onmouseover="showTip(event, 'fs14', 40)" class="id">PInt</span> <span class="n">64</span><span class="pn">,</span> <span class="s">&quot;Width cannot exceed 64 bits&quot;</span><span class="pn">)</span>
+    <span onmouseout="hideTip(event, 'fs15', 44)" onmouseover="showTip(event, 'fs15', 44)" class="id">MinVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs17', 45)" onmouseover="showTip(event, 'fs17', 45)" class="id">PInt</span> <span class="n">1I</span><span class="pn">,</span> <span class="s">&quot;Width must be at least 1 bit&quot;</span><span class="pn">)</span>
+    <span onmouseout="hideTip(event, 'fs16', 46)" onmouseover="showTip(event, 'fs16', 46)" class="id">MaxVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs17', 47)" onmouseover="showTip(event, 'fs17', 47)" class="id">PInt</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs18', 48)" onmouseover="showTip(event, 'fs18', 48)" class="id">bigint</span> <span class="id">NumberHelpers</span><span class="pn">.</span><span class="id">Constants</span><span class="pn">.</span><span class="id">maxIssieBusWidth</span><span class="pn">)</span><span class="pn">,</span>
+            <span class="s">&quot;Width cannot exceed 16384 bits&quot;</span><span class="pn">)</span>
 <span class="pn">]</span>
 </code></pre>
 <h2><a name="One-evaluator-one-slot-mapping-one-instance-signature" class="anchor" href="#One-evaluator-one-slot-mapping-one-instance-signature">One evaluator, one slot mapping, one instance signature</a></h2>
@@ -990,7 +1061,7 @@ asks them for a value — the one place the parameter has to be understood.</p>
 <span class="n">1.</span> <span class="id">Add</span> <span class="id">Register</span> <span class="id">component</span> <span class="k">to</span> <span class="id">sheet</span>
 <span class="n">2.</span> <span class="id">Select</span> <span class="id">Register</span>
 <span class="n">3.</span> <span class="id">In</span> <span class="id">properties</span><span class="pn">,</span> <span class="id">enter</span> <span class="id">bus</span> <span class="id">width</span><span class="pn">:</span> <span class="s">&quot;WIDTH&quot;</span>
-<span class="n">4.</span> <span onmouseout="hideTip(event, 'fs15', 41)" onmouseover="showTip(event, 'fs15', 41)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">8</span>
+<span class="n">4.</span> <span onmouseout="hideTip(event, 'fs19', 49)" onmouseover="showTip(event, 'fs19', 49)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">8</span>
 <span class="n">5.</span> <span class="id">Change</span> <span class="id">WIDTH</span> <span class="id">parameter</span> 
 </code></pre>
 <h3><a name="Example-3-Override-in-Custom-Component" class="anchor" href="#Example-3-Override-in-Custom-Component">Example 3: Override in Custom Component</a></h3>
@@ -1004,9 +1075,9 @@ asks them for a value — the one place the parameter has to be understood.</p>
 <h3><a name="Example-4-Complex-Expression" class="anchor" href="#Example-4-Complex-Expression">Example 4: Complex Expression</a></h3>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="c">// Address decoder with calculated ranges</span>
 <span class="n">1.</span> <span class="id">Define</span> <span class="id">parameters</span><span class="pn">:</span> <span class="id">baseAddr</span> <span class="o">=</span> <span class="n">4096</span><span class="pn">,</span> <span class="id">blockSize</span> <span class="o">=</span> <span class="n">256</span>
-   <span class="pn">(</span><span onmouseout="hideTip(event, 'fs16', 42)" onmouseover="showTip(event, 'fs16', 42)" class="id">decimal</span> <span class="id">only</span> 
+   <span class="pn">(</span><span onmouseout="hideTip(event, 'fs20', 50)" onmouseover="showTip(event, 'fs20', 50)" class="id">decimal</span> <span class="id">only</span> 
 <span class="n">2.</span> <span class="id">Create</span> <span class="id">comparator</span> <span class="k">with</span> <span class="id">expression</span><span class="pn">:</span> <span class="s">&quot;baseAddr + (blockSize * 4)&quot;</span>
-<span class="n">3.</span> <span onmouseout="hideTip(event, 'fs15', 43)" onmouseover="showTip(event, 'fs15', 43)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">5120</span>
+<span class="n">3.</span> <span onmouseout="hideTip(event, 'fs19', 51)" onmouseover="showTip(event, 'fs19', 51)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">5120</span>
 </code></pre>
 <h2><a name="Error-Handling" class="anchor" href="#Error-Handling">Error Handling</a></h2>
 <p>The system provides comprehensive error handling at multiple levels:</p>
@@ -1049,7 +1120,7 @@ because a bound that cannot be evaluated must not pass the value it guards
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span class="id">paramSlotsOfModel_</span> <span class="o">=</span> 
     <span class="id">lcParameterInfoOfModel_</span> <span class="pn">&gt;</span><span class="o">?&gt;</span> <span class="id">paramSlots_</span>
 
-<span class="id">model</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs17', 44)" onmouseover="showTip(event, 'fs17', 44)" class="id">set</span> <span class="id">paramSlotsOfModel_</span> <span class="id">newSlots</span>
+<span class="id">model</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs21', 52)" onmouseover="showTip(event, 'fs21', 52)" class="id">set</span> <span class="id">paramSlotsOfModel_</span> <span class="id">newSlots</span>
 </code></pre>
 <h3><a name="Message-Dispatch" class="anchor" href="#Message-Dispatch">Message Dispatch</a></h3>
 <p>State changes flow through Elmish messages:</p>
@@ -1110,38 +1181,38 @@ Development &gt; Log, from <code>--log=sim</code> at launch, or from <code>windo
 <h2><a name="API-Reference" class="anchor" href="#API-Reference">API Reference</a></h2>
 <h3><a name="Key-Functions" class="anchor" href="#Key-Functions">Key Functions</a></h3>
 <h4><a name="Expression-Parsing" class="anchor" href="#Expression-Parsing">Expression Parsing</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">parseExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 45)" onmouseover="showTip(event, 'fs4', 45)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs18', 46)" onmouseover="showTip(event, 'fs18', 46)" class="id">Result</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs1', 47)" onmouseover="showTip(event, 'fs1', 47)" class="id">ParamExpression</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">parseExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 53)" onmouseover="showTip(event, 'fs5', 53)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs22', 54)" onmouseover="showTip(event, 'fs22', 54)" class="id">Result</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs2', 55)" onmouseover="showTip(event, 'fs2', 55)" class="id">ParamExpression</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
 </code></pre>
 <h4><a name="Expression-Evaluation" class="anchor" href="#Expression-Evaluation">Expression Evaluation</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs6', 48)" onmouseover="showTip(event, 'fs6', 48)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs1', 49)" onmouseover="showTip(event, 'fs1', 49)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs18', 50)" onmouseover="showTip(event, 'fs18', 50)" class="id">Result</span><span class="pn">&lt;</span><span class="id">ParamInt</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs7', 56)" onmouseover="showTip(event, 'fs7', 56)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs2', 57)" onmouseover="showTip(event, 'fs2', 57)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs22', 58)" onmouseover="showTip(event, 'fs22', 58)" class="id">Result</span><span class="pn">&lt;</span><span class="id">ParamInt</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
 </code></pre>
 <h4><a name="Expression-Rendering" class="anchor" href="#Expression-Rendering">Expression Rendering</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">renderParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs1', 51)" onmouseover="showTip(event, 'fs1', 51)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 52)" onmouseover="showTip(event, 'fs5', 52)" class="id">int</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs4', 53)" onmouseover="showTip(event, 'fs4', 53)" class="id">string</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">renderParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 59)" onmouseover="showTip(event, 'fs2', 59)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 60)" onmouseover="showTip(event, 'fs6', 60)" class="id">int</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 61)" onmouseover="showTip(event, 'fs5', 61)" class="id">string</span>
 </code></pre>
 <h4><a name="Name-validity-the-parser-s-rule-and-the-dialog-s" class="anchor" href="#Name-validity-the-parser-s-rule-and-the-dialog-s">Name validity (the parser's rule and the dialog's)</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">isValidParamName</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 54)" onmouseover="showTip(event, 'fs4', 54)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs19', 55)" onmouseover="showTip(event, 'fs19', 55)" class="id">bool</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">isValidParamName</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 62)" onmouseover="showTip(event, 'fs5', 62)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs23', 63)" onmouseover="showTip(event, 'fs23', 63)" class="id">bool</span>
 </code></pre>
 <h4><a name="Slot-identity-the-label-is-not-part-of-it" class="anchor" href="#Slot-identity-the-label-is-not-part-of-it">Slot identity (the <code>IO</code> label is not part of it)</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">sameSlot</span><span class="pn">:</span>     <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs19', 56)" onmouseover="showTip(event, 'fs19', 56)" class="id">bool</span>
-<span class="id">tryFindSlot</span><span class="pn">:</span>  <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs20', 57)" onmouseover="showTip(event, 'fs20', 57)" class="id">option</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">sameSlot</span><span class="pn">:</span>     <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs23', 64)" onmouseover="showTip(event, 'fs23', 64)" class="id">bool</span>
+<span class="id">tryFindSlot</span><span class="pn">:</span>  <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs24', 65)" onmouseover="showTip(event, 'fs24', 65)" class="id">option</span>
 <span class="id">addSlot</span><span class="pn">:</span>      <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span>
 <span class="id">removeSlot</span><span class="pn">:</span>   <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span>
 </code></pre>
 <h4><a name="An-instance-s-ports" class="anchor" href="#An-instance-s-ports">An instance's ports (<code>CanvasExtractor</code>)</a></h4>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="id">signatureOfInstance</span><span class="pn">:</span>
-    <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs21', 58)" onmouseover="showTip(event, 'fs21', 58)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 59)" onmouseover="showTip(event, 'fs6', 59)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs4', 60)" onmouseover="showTip(event, 'fs4', 60)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 61)" onmouseover="showTip(event, 'fs6', 61)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">Signature</span> <span onmouseout="hideTip(event, 'fs20', 62)" onmouseover="showTip(event, 'fs20', 62)" class="id">option</span>
+    <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs25', 66)" onmouseover="showTip(event, 'fs25', 66)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 67)" onmouseover="showTip(event, 'fs7', 67)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 68)" onmouseover="showTip(event, 'fs5', 68)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 69)" onmouseover="showTip(event, 'fs7', 69)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">Signature</span> <span onmouseout="hideTip(event, 'fs24', 70)" onmouseover="showTip(event, 'fs24', 70)" class="id">option</span>
 <span class="id">signatureOfInstanceWithCertainty</span><span class="pn">:</span>
-    <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs21', 63)" onmouseover="showTip(event, 'fs21', 63)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 64)" onmouseover="showTip(event, 'fs6', 64)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs4', 65)" onmouseover="showTip(event, 'fs4', 65)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 66)" onmouseover="showTip(event, 'fs6', 66)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="pn">(</span><span class="id">Signature</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs19', 67)" onmouseover="showTip(event, 'fs19', 67)" class="id">bool</span><span class="pn">)</span> <span onmouseout="hideTip(event, 'fs20', 68)" onmouseover="showTip(event, 'fs20', 68)" class="id">option</span>
+    <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs25', 71)" onmouseover="showTip(event, 'fs25', 71)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 72)" onmouseover="showTip(event, 'fs7', 72)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 73)" onmouseover="showTip(event, 'fs5', 73)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 74)" onmouseover="showTip(event, 'fs7', 74)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="pn">(</span><span class="id">Signature</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs23', 75)" onmouseover="showTip(event, 'fs23', 75)" class="id">bool</span><span class="pn">)</span> <span onmouseout="hideTip(event, 'fs24', 76)" onmouseover="showTip(event, 'fs24', 76)" class="id">option</span>
 </code></pre>
 <p>The arguments are: the project's sheets, the bindings of the sheet the instance <em>sits on</em>, the
 child sheet's name, and the instance's bindings.</p>
 <h4><a name="Slot-resolution" class="anchor" href="#Slot-resolution">Slot resolution (<code>ComponentSlots</code>)</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">trySetSlotValue</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs3', 69)" onmouseover="showTip(event, 'fs3', 69)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 70)" onmouseover="showTip(event, 'fs5', 70)" class="id">int</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span onmouseout="hideTip(event, 'fs20', 71)" onmouseover="showTip(event, 'fs20', 71)" class="id">option</span>
-<span class="id">setSlotValue</span><span class="pn">:</span>    <span onmouseout="hideTip(event, 'fs3', 72)" onmouseover="showTip(event, 'fs3', 72)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 73)" onmouseover="showTip(event, 'fs5', 73)" class="id">int</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span>
-<span class="id">slotApplies</span><span class="pn">:</span>     <span onmouseout="hideTip(event, 'fs3', 74)" onmouseover="showTip(event, 'fs3', 74)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs19', 75)" onmouseover="showTip(event, 'fs19', 75)" class="id">bool</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">trySetSlotValue</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 77)" onmouseover="showTip(event, 'fs4', 77)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 78)" onmouseover="showTip(event, 'fs6', 78)" class="id">int</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span onmouseout="hideTip(event, 'fs24', 79)" onmouseover="showTip(event, 'fs24', 79)" class="id">option</span>
+<span class="id">setSlotValue</span><span class="pn">:</span>    <span onmouseout="hideTip(event, 'fs4', 80)" onmouseover="showTip(event, 'fs4', 80)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 81)" onmouseover="showTip(event, 'fs6', 81)" class="id">int</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span>
+<span class="id">slotApplies</span><span class="pn">:</span>     <span onmouseout="hideTip(event, 'fs4', 82)" onmouseover="showTip(event, 'fs4', 82)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs23', 83)" onmouseover="showTip(event, 'fs23', 83)" class="id">bool</span>
 </code></pre>
 <h4><a name="Constraint-Checking" class="anchor" href="#Constraint-Checking">Constraint Checking</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateConstraints</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs6', 76)" onmouseover="showTip(event, 'fs6', 76)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs21', 77)" onmouseover="showTip(event, 'fs21', 77)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs18', 78)" onmouseover="showTip(event, 'fs18', 78)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Unit</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs2', 79)" onmouseover="showTip(event, 'fs2', 79)" class="id">ParamConstraint</span> <span onmouseout="hideTip(event, 'fs21', 80)" onmouseover="showTip(event, 'fs21', 80)" class="id">list</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateConstraints</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs7', 84)" onmouseover="showTip(event, 'fs7', 84)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs25', 85)" onmouseover="showTip(event, 'fs25', 85)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs22', 86)" onmouseover="showTip(event, 'fs22', 86)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Unit</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs3', 87)" onmouseover="showTip(event, 'fs3', 87)" class="id">ParamConstraint</span> <span onmouseout="hideTip(event, 'fs25', 88)" onmouseover="showTip(event, 'fs25', 88)" class="id">list</span><span class="pn">&gt;</span>
 </code></pre>
 <h2><a name="Resolution-Mechanics-Deep-Dive" class="anchor" href="#Resolution-Mechanics-Deep-Dive">Resolution Mechanics Deep-Dive</a></h2>
 <ul>
@@ -1166,10 +1237,7 @@ child sheet's name, and the instance's bindings.</p>
 </ul>
 <h2><a name="Known-Limitations" class="anchor" href="#Known-Limitations">Known Limitations</a></h2>
 <ul>
-<li>
-Integer-only parameters (<code>ParamInt = int</code>); a constant wider than 32 bits cannot be expressed as
-a parameter.
-</li>
+<li>Parameter values are whole numbers only: there are no fractions and no strings.</li>
 <li>
 Parameter names are unqualified, and <strong>scoping is single-level</strong>: an instance binding is an
 expression in the parameters of the sheet the instance sits on, and nothing further out is in
@@ -1212,7 +1280,8 @@ exist.
 <ol>
 <li>
 <strong>Use descriptive parameter names</strong>: <code>dataWidth</code> instead of <code>W</code>. Names are letters and digits
-only — there is no underscore, so <code>DATA_WIDTH</code> is not a name Issie will accept
+only — there is no underscore, so <code>DATA_WIDTH</code> is not a name Issie will accept — and may not be
+<code>clog2</code>, <code>min</code> or <code>max</code>, which are functions
 </li>
 <li>
 <strong>Write the description for the person choosing the value</strong>, not for yourself: it is what an
@@ -1239,6 +1308,10 @@ sheet is what the bind-to-top button looks for
 <li>Check for typos in operators</li>
 <li>Verify parentheses are balanced</li>
 <li>Use only supported operators (+, -, *, /, %)</li>
+<li>
+A built-in function must be written as a call: <code>clog2(x)</code>, <code>min(x,y)</code>, <code>max(x,y)</code>. A comma
+belongs only between the two arguments of <code>min</code> or <code>max</code>
+</li>
 </ul>
 <h3><a name="Constraint-Violation" class="anchor" href="#Constraint-Violation">Constraint Violation</a></h3>
 <ul>
@@ -1253,29 +1326,34 @@ sheet is what the bind-to-top button looks for
 <li>Ensure component types match parameter slots</li>
 </ul>
 
-        <div class="fsdocs-tip" id="fs1">type ParamExpression =
+        <div class="fsdocs-tip" id="fs1">type ParamBinFunc =
+  | PMin
+  | PMax<br /><em>&#160;Named by an enumeration, so that adding a two-argument function is a case HERE</em></div>
+<div class="fsdocs-tip" id="fs2">type ParamExpression =
   | PInt of obj
   | PParameter of obj
   | PAdd of ParamExpression * ParamExpression
   | PSubtract of ParamExpression * ParamExpression
   | PMultiply of ParamExpression * ParamExpression
   | PDivide of ParamExpression * ParamExpression
-  | PRemainder of ParamExpression * ParamExpression</div>
-<div class="fsdocs-tip" id="fs2">type ParamConstraint =
+  | PRemainder of ParamExpression * ParamExpression
+  | PCLog2 of ParamExpression
+  | PBinFunc of ParamBinFunc * ParamExpression * ParamExpression</div>
+<div class="fsdocs-tip" id="fs3">type ParamConstraint =
   | MinVal of ParamExpression * obj
   | MaxVal of ParamExpression * obj</div>
-<div class="fsdocs-tip" id="fs3">type CompSlotName =
+<div class="fsdocs-tip" id="fs4">type CompSlotName =
   | Buswidth
   | IO of Label: string
   | CustomCompParam of ParamName: string
   | SplitNWidth of Index: int
   | SplitNLSB of Index: int
   | InputDefault</div>
-<div class="fsdocs-tip" id="fs4">Multiple items<br />val string: value: &#39;T -&gt; string<br /><br />--------------------<br />type string = System.String</div>
-<div class="fsdocs-tip" id="fs5">Multiple items<br />val int: value: &#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; =
+<div class="fsdocs-tip" id="fs5">Multiple items<br />val string: value: &#39;T -&gt; string<br /><br />--------------------<br />type string = System.String</div>
+<div class="fsdocs-tip" id="fs6">Multiple items<br />val int: value: &#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; =
   int</div>
-<div class="fsdocs-tip" id="fs6">type ParamBindings = obj<br /><em>&#160;What an INSTANCE binds: no description, because the description belongs to the declaration</em></div>
-<div class="fsdocs-tip" id="fs7">Multiple items<br />module Map
+<div class="fsdocs-tip" id="fs7">type ParamBindings = obj<br /><em>&#160;What an INSTANCE binds: no description, because the description belongs to the declaration</em></div>
+<div class="fsdocs-tip" id="fs8">Multiple items<br />module Map
 
 from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&lt;&#39;Key,&#39;Value (requires comparison)&gt; =
   interface IReadOnlyDictionary&lt;&#39;Key,&#39;Value&gt;
@@ -1289,34 +1367,37 @@ from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&
   new: elements: (&#39;Key * &#39;Value) seq -&gt; Map&lt;&#39;Key,&#39;Value&gt;
   member Add: key: &#39;Key * value: &#39;Value -&gt; Map&lt;&#39;Key,&#39;Value&gt;
   ...<br /><br />--------------------<br />new: elements: (&#39;Key * &#39;Value) seq -&gt; Map&lt;&#39;Key,&#39;Value&gt;</div>
-<div class="fsdocs-tip" id="fs8">type ParamDefinition =
+<div class="fsdocs-tip" id="fs9">type ParamDefinition =
   {
     Expression: ParamExpression
     Description: string
   }<br /><em>&#160;The DECLARATION of one parameter on a sheet</em></div>
-<div class="fsdocs-tip" id="fs9">type ParamDefinitions = obj</div>
-<div class="fsdocs-tip" id="fs10">type ParameterDefs =
+<div class="fsdocs-tip" id="fs10">type ParamDefinitions = obj</div>
+<div class="fsdocs-tip" id="fs11">type ParameterDefs =
   {
     DefaultBindings: ParamDefinitions
     ParamSlots: obj
   }</div>
-<div class="fsdocs-tip" id="fs11">val id: x: &#39;T -&gt; &#39;T</div>
-<div class="fsdocs-tip" id="fs12">union case ParamConstraint.MinVal: ParamExpression * obj -&gt; ParamConstraint</div>
-<div class="fsdocs-tip" id="fs13">union case ParamConstraint.MaxVal: ParamExpression * obj -&gt; ParamConstraint</div>
-<div class="fsdocs-tip" id="fs14">union case ParamExpression.PInt: obj -&gt; ParamExpression</div>
-<div class="fsdocs-tip" id="fs15">namespace System</div>
-<div class="fsdocs-tip" id="fs16">Multiple items<br />val decimal: value: &#39;T -&gt; decimal (requires member op_Explicit)<br /><br />--------------------<br />type decimal = System.Decimal<br /><br />--------------------<br />type decimal&lt;&#39;Measure&gt; =
+<div class="fsdocs-tip" id="fs12">val id: x: &#39;T -&gt; &#39;T</div>
+<div class="fsdocs-tip" id="fs13">val max: e1: &#39;T -&gt; e2: &#39;T -&gt; &#39;T (requires comparison)</div>
+<div class="fsdocs-tip" id="fs14">val min: e1: &#39;T -&gt; e2: &#39;T -&gt; &#39;T (requires comparison)</div>
+<div class="fsdocs-tip" id="fs15">union case ParamConstraint.MinVal: ParamExpression * obj -&gt; ParamConstraint</div>
+<div class="fsdocs-tip" id="fs16">union case ParamConstraint.MaxVal: ParamExpression * obj -&gt; ParamConstraint</div>
+<div class="fsdocs-tip" id="fs17">union case ParamExpression.PInt: obj -&gt; ParamExpression</div>
+<div class="fsdocs-tip" id="fs18">type bigint = System.Numerics.BigInteger</div>
+<div class="fsdocs-tip" id="fs19">namespace System</div>
+<div class="fsdocs-tip" id="fs20">Multiple items<br />val decimal: value: &#39;T -&gt; decimal (requires member op_Explicit)<br /><br />--------------------<br />type decimal = System.Decimal<br /><br />--------------------<br />type decimal&lt;&#39;Measure&gt; =
   decimal</div>
-<div class="fsdocs-tip" id="fs17">val set: elements: &#39;T seq -&gt; Set&lt;&#39;T&gt; (requires comparison)</div>
-<div class="fsdocs-tip" id="fs18">Multiple items<br />module Result
+<div class="fsdocs-tip" id="fs21">val set: elements: &#39;T seq -&gt; Set&lt;&#39;T&gt; (requires comparison)</div>
+<div class="fsdocs-tip" id="fs22">Multiple items<br />module Result
 
 from Microsoft.FSharp.Core<br /><br />--------------------<br />[&lt;Struct&gt;]
 type Result&lt;&#39;T,&#39;TError&gt; =
   | Ok of ResultValue: &#39;T
   | Error of ErrorValue: &#39;TError</div>
-<div class="fsdocs-tip" id="fs19">type bool = System.Boolean</div>
-<div class="fsdocs-tip" id="fs20">type &#39;T option = Option&lt;&#39;T&gt;</div>
-<div class="fsdocs-tip" id="fs21">type &#39;T list = List&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs23">type bool = System.Boolean</div>
+<div class="fsdocs-tip" id="fs24">type &#39;T option = Option&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs25">type &#39;T list = List&lt;&#39;T&gt;</div>
 
     </div>
 </main>
@@ -1421,6 +1502,11 @@ type Result&lt;&#39;T,&#39;TError&gt; =
   <li class="level-3">
     <a href="#Syntax-Elements">
       Syntax Elements
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Functions">
+      Functions
     </a>
   </li>
   <li class="level-3">

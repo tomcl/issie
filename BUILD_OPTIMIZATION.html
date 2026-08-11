@@ -417,6 +417,17 @@ parallel compile of both projects with the <code>PRODUCTION</code> define. Used 
 </li>
 <li><code>node scripts/dev.js --no-app</code> — either mode without launching Electron (compile check).</li>
 </ul>
+<p>Every one of these reaches <a href="../scripts/start.js"><code>scripts/start.js</code></a>, which frees the two ports it
+needs before using them (<a href="../scripts/free-port.js"><code>scripts/free-port.js</code></a>): 8672 for the webpack
+dev server and 9222 for the DevTools protocol that <code>scripts/inspect-canvas.js</code> talks to. A session
+interrupted in any of the usual ways leaves both held, and the failure that follows is worse than
+it sounds: the port is bound <em>after</em> a full Fable compile and after Electron has been told to open,
+so the window appears, stays blank, and the log says <code>ready</code>. A stale Electron on 9222 is quieter
+still — <code>inspect-canvas</code> connects to it and reports the previous run's canvas. Whoever holds the
+port is killed, whatever it is; that is a more reliable test than matching command lines.</p>
+<p><a href="../scripts/clean-dev.js"><code>scripts/clean-dev.js</code></a> is still the tool for sweeping a whole abandoned
+session, because it also catches a <code>fable watch</code> that holds no port at all and can still recompile
+the tree under you.</p>
 <h2><a name="How-Fable-decides-it-can-start-fast" class="anchor" href="#How-Fable-decides-it-can-start-fast">How Fable decides it can start fast</a></h2>
 <p>Fable has no on-disk cache of typed ASTs: a cold compile type-checks every file of the Renderer
 (~200 including dependencies) and takes on the order of a minute. What it does have:</p>

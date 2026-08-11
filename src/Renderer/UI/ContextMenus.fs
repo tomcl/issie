@@ -80,4 +80,38 @@ let contextMenus = [
         "", [] // Empty string for no context menu.
     ]
 
-let menuMap = Map.ofList contextMenus
+let private menuMap = Map.ofList contextMenus
+
+//---------------------------------------------------------------------------------------//
+//----------- Reading the menus from the main process, across two Fable libraries --------//
+//---------------------------------------------------------------------------------------//
+//
+// This file is compiled into BOTH projects, but Fable emits one .fs.js beside the .fs source, so
+// there is a single ContextMenus.fs.js and it lives under src/Renderer. It therefore builds its
+// values with the RENDERER's copy of fable-library, while the main process reads them with its
+// own copy in src/Main/fable_modules - a different set of module instances of the same library.
+//
+// That matters for anything with an internal structure. Map is a balanced tree whose traversal
+// asks `node instanceof MapTreeNode`, and Main's MapTreeNode is a different class object from the
+// Renderer's, so every node of a Renderer-built map reads to Main as a leaf: `Map.tryFind` and
+// `Map.toList` see the ROOT and nothing else. A right-click reported 'Canvas' is not a menu name:
+// it must be one of LibraryInstance - one name, the root of a 21-entry map - and every menu except
+// that one failed to open.
+//
+// So the map is private, and what crosses the boundary is a string array: a plain JS array, with
+// no class identity to disagree about. These two functions run here, with the library that built
+// the map, and are the only way in.
+
+/// The items of the named menu; empty where the name is not a menu.
+let menuItemsFor (name: string) : string array =
+    Map.tryFind name menuMap
+    |> Option.map List.toArray
+    |> Option.defaultValue [||]
+
+/// Whether the name is one of the menus. Distinct from `menuItemsFor` returning empty, because
+/// the no-menu entry "" is a real name whose menu is deliberately empty.
+let isMenuName (name: string) : bool = Map.containsKey name menuMap
+
+/// Every menu name, for saying what was expected when a lookup fails.
+let menuNames : string array =
+    menuMap |> Map.toList |> List.map fst |> List.toArray

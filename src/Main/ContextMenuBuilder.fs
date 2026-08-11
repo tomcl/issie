@@ -48,25 +48,20 @@ let makeMenu
     (args: ResizeArray<obj option>) =
     let menuType = menuNameOf args
 
+    // menuItemsFor and isMenuName rather than Map.tryFind on the map itself: the map is built by
+    // the renderer's copy of fable-library and this process has its own, so its tree nodes are not
+    // instances of the classes this process's Map functions test for. Every lookup here saw the
+    // root and nothing else, so every menu but one failed to open. See ContextMenus.
     let cases =
-        Map.tryFind menuType menuMap
-        |> function
-            | None ->
-                // Map.toList rather than Map.keys: interpolating the latter printed only the tree's
-                // root key, which read exactly like a map with one entry in it and cost an hour of
-                // looking in the wrong place.
-                let known =
-                    menuMap
-                    |> Map.toList
-                    |> List.map fst
-                    |> List.filter (fun k -> k <> "")
-                    |> String.concat ", "
-
-                Log.warn $"context menu '{menuType}' is not a menu name: it must be one of {known}"
-                ["unknown_menu"]
-            | Some cases ->
-                cases
-            |> List.toArray
+        match isMenuName menuType with
+        | true -> menuItemsFor menuType
+        | false ->
+            let known =
+                menuNames
+                |> Array.filter (fun k -> k <> "")
+                |> String.concat ", "
+            Log.warn $"context menu '{menuType}' is not a menu name: it must be one of {known}"
+            [|"unknown_menu"|]
     fun ev ->
         if menuType <> "" then
             let template =

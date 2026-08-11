@@ -1,4 +1,5 @@
 const path = require('path');
+const singleFableLibrary = require('./webpack.fable-library');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const webpack = require('webpack');
@@ -57,6 +58,9 @@ module.exports = {
     new HtmlWebpackPlugin({
       template: 'public/index.html',
     }),
+    // The renderer only ever had one copy, but it resolves to the same one main uses now, so the
+    // two processes agree about what an F# Map is. See webpack.fable-library.js.
+    singleFableLibrary(),
   ],
   resolve: {
     extensions: ['.ts', '.tsx', '.js']

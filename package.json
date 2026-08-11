@@ -76,6 +76,7 @@
     }
   },
   "dependencies": {
+    "@fable-org/fable-library-js": "2.5.1",
     "async-mutex": "^0.5",
     "font-awesome": "^4",
     "katex": "^0.16.21",

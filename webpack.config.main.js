@@ -1,5 +1,6 @@
 const path = require('path');
 const webpack = require('webpack');
+const singleFableLibrary = require('./webpack.fable-library');
 
 const mode = process.env.NODE_ENV || "development";
 const staticPath =
@@ -36,6 +37,9 @@ module.exports = {
   },
   plugins: [
     new webpack.DefinePlugin({ '__static': staticPath }),
+    // Main compiles the files it shares with the renderer, so without this it gets two copies of
+    // Fable's library and F# collections stop working across that seam. See webpack.fable-library.js.
+    singleFableLibrary(),
   ],
   resolve: {
     extensions: ['.ts', '.js']

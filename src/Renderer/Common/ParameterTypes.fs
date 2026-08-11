@@ -326,17 +326,17 @@ let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpr
                 |> List.rev
                 |> List.map unwrapParamName
                 |> String.concat " which uses "
-            Error $"Parameter '{unwrapParamName name}' is defined in terms of itself: {chain}"
+            Error $"Property '{unwrapParamName name}' is defined in terms of itself: {chain}"
         | PParameter name ->
             match Map.tryFind name paramBindings with
             | Some boundExpr -> eval (name :: beingEvaluated) boundExpr
             // A name that is not in scope is nearly always one of two mistakes, and they need
-            // different advice: reaching for a parameter that exists under another name, or not
-            // knowing that a value has to be declared as a parameter before it can be used. Saying
+            // different advice: reaching for a property that exists under another name, or not
+            // knowing that a value has to be declared as a property before it can be used. Saying
             // only that the name is undefined helps with neither, so say which names there are -
             // or, where there are none, what to do instead.
             | None when Map.isEmpty paramBindings ->
-                Error "This value must be numeric: to use a parameter this must first be added to the sheet"
+                Error "This value must be numeric: to use a property this must first be added to the sheet"
             | None ->
                 let inScope =
                     paramBindings
@@ -344,7 +344,7 @@ let evaluateParamExpression (paramBindings: ParamBindings) (paramExpr: ParamExpr
                     |> List.map (fst >> unwrapParamName)
                     |> List.sort
                     |> String.concat ", "
-                Error $"Parameter '{unwrapParamName name}' is not defined. Parameters of this sheet: {inScope}"
+                Error $"Property '{unwrapParamName name}' is not defined. Properties of this sheet: {inScope}"
         | PAdd (left, right) -> binary (fun l r -> Ok (l + r)) left right
         | PSubtract (left, right) -> binary (fun l r -> Ok (l - r)) left right
         | PMultiply (left, right) -> binary (fun l r -> Ok (l * r)) left right
@@ -434,7 +434,11 @@ let isReservedParamName (name: string) : bool = isBuiltinFuncName name
 /// What parseExpression says about an empty box. Named because emptying a box is a state the UI
 /// reads and acts on - it is how the user says they have nothing to put there - and matching the
 /// message by hand would break the moment the wording changed.
-let emptyInputError = "Input Empty"
+///
+/// Says what to do rather than what is wrong. An empty box is not a mistake - it is how the user
+/// asks to be offered a property to follow - so "Input Empty" reported a fault where there was
+/// none, in red, on a gesture the UI supports.
+let emptyInputError = "Type a number or expression"
 
 /// The names a parameter may have: a letter, then letters and digits, and not a built-in function.
 ///
@@ -476,8 +480,8 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
 
     /// A digit run is a literal of any size, and anything else is a name. Parsed as bigint rather
     /// than int32 because ParamInt is bigint: read as an int32, a literal too large to be one fell
-    /// through to being a parameter whose name was all digits, and failed much later with
-    /// "Parameter '99999999999' is not defined".
+    /// through to being a property whose name was all digits, and failed much later with
+    /// "Property '99999999999' is not defined".
     let toOperand (operand: string) =
         match System.Numerics.BigInteger.TryParse operand with
         | true, value -> PInt value
@@ -611,7 +615,7 @@ let parseExpression (text: string) : Result<ParamExpression, ParamError> =
         | tokens ->
             match numberRunIntoName tokens with
             | Some (number, name) ->
-                Error $"'{number}{name}' is neither a number nor a parameter name: a parameter name \
+                Error $"'{number}{name}' is neither a number nor a property name: a property name \
                         must start with a letter, and a multiplication must be written out as \
                         {number}*{name}"
             | None ->

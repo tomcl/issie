@@ -358,13 +358,28 @@ th, td {
   margin-bottom: 0.45rem;
 }
 
-/* Name and value on one line, value hard right: the values line up down the
-   pane, so several properties can be read as a column without a table. */
+/* The heading of an instance's property block: "name: what it means", the name
+   bold and nothing else about it different, so it reads as one sentence rather
+   than a title with a caption under it. It wraps like prose. */
 .propertyHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+/* One "Field: value" line of a sheet's own property block. The label is what
+   the table's column headings became: with no columns left to head, each line
+   has to say which field it is. Hanging indent so a description that wraps
+   stays clear of the label above it. */
+.propertyLine {
+  line-height: 1.35;
+  margin-bottom: 0.1rem;
+  padding-left: 0.75rem;
+  text-indent: -0.75rem;
+}
+
+.propertyLabel {
+  color: #6b6b6b;
+  font-size: 11.5px;
 }
 
 .propertyName {
@@ -374,7 +389,6 @@ th, td {
 
 /* Tabular figures so a column of values does not jitter as digits change. */
 .propertyValue {
-  flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
 }
 
@@ -385,10 +399,8 @@ th, td {
 }
 
 .propertyMeans {
-  font-size: 11.5px;
   color: #6b6b6b;
-  line-height: 1.35;
-  margin-top: 0.1rem;
+  word-break: break-word;
 }
 
 /* The buttons sit under the block they act on rather than in a column of their
@@ -436,4 +448,51 @@ th, td {
    is written, and an id outranks any number of classes. */
 #PropertiesPane .propertyBlock .button.is-static {
   margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   The "Expression syntax" note at the foot of the Properties pane.
+
+   Closed it is one line, which is what lets it sit under every pane on a sheet
+   with properties without spending the room. Open it is a reference, so the
+   text is set smaller than the fields above it and given a rule down its left
+   edge to mark it as an aside rather than more of the pane.
+   --------------------------------------------------------------------------- */
+.expressionSyntax {
+  margin-top: 0.75rem;
+  border-top: 1px solid #e6e6e6;
+  padding-top: 0.4rem;
+}
+
+/* inside, not outside: the marker is what says the line opens, and outside the
+   box it renders in the pane's left padding where it is clipped away - leaving
+   a line that reads as a heading and gives no sign it can be clicked. */
+.expressionSyntax > summary {
+  cursor: pointer;
+  color: #4a6785;
+  font-size: 12px;
+  list-style-position: inside;
+}
+
+.expressionSyntaxBody {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #4a4a4a;
+  margin-top: 0.35rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid #ececec;
+}
+
+.expressionSyntaxBody p {
+  margin-bottom: 0.4rem;
+}
+
+/* Inline code in the note is an expression: the same monospace it would be
+   typed in, so `w*2` cannot be mistaken for prose. */
+.expressionSyntaxBody code {
+  font-family: monospace;
+  font-size: 11px;
+  background: #f2f2f2;
+  padding: 0 2px;
+  border-radius: 2px;
 }

@@ -317,6 +317,35 @@ module Fields =
                  read by whoever uses your sheet, not only by you."
         ]
 
+/// The collapsible "Expression syntax" note under the Properties pane, shown only on a sheet that
+/// declares properties. Every numeric box in the pane accepts an expression, but until a sheet has
+/// a property there is nothing to write in one except the number the box already holds, so the
+/// note would be advertising a feature with no use. See ParameterView.expressionSyntaxHelp.
+module Expressions =
+
+    let title = "Expression syntax"
+
+    /// Kept to what can be typed. Why one would - a sheet at several sizes in one design - is
+    /// explained where properties are declared, and repeating it here would bury the grammar,
+    /// which is the one thing that cannot be guessed.
+    let syntax = """
+Any numeric box in this pane takes an expression as well as a number. It is worked out whenever a
+property changes, so a width written as `w*2` follows `w`.
+
+**Values**: whole numbers of any size, and the name of any property this sheet declares. A name
+starts with a letter and continues with letters and digits.
+
+**Operators**: `+`, `-`, `*`, `/`, `%`, and brackets. Division and remainder are whole-number:
+`7/2` is `3`. `*`, `/` and `%` bind tighter than `+` and `-`.
+
+**Functions**: `clog2(n)` is the number of bits needed to count `n` things - the address width of
+an `n`-word memory. `min(a,b)` and `max(a,b)` take the smaller and the larger. Their names may be
+written in any case, and none of them can be used as a property name.
+
+A value that will not parse, or that breaks the box's own limits, is shown in red and left where it
+is: nothing reaches the design until it makes sense.
+"""
+
 /// The Memories info button, beside a RAM or ROM's properties. How initial data works, which is
 /// the thing people get wrong about memories.
 module Memories =

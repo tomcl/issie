@@ -506,7 +506,9 @@ let private makeScaleAdjustmentField model (comp:Component) dispatch =
             |None -> 1.0
         |None -> 1.0
 
-    div [] [
+    // Side by side: two boxes of the same kind, sixty pixels wide, that are nearly always set
+    // together - stacked they read as two unrelated fields and cost two lines of a short pane.
+    div [Style [Display DisplayOptions.Flex; Flex "0 0 auto"; ColumnGap "12px"]] [
         floatFormField "Width Scale" "60px" textw 0.0 (
             fun (newWidth) ->
                 if newWidth < 0.0
@@ -978,28 +980,24 @@ let private describeComponent (comp:Component) model : ReactElement list =
                 [ p [Style [Color "grey"; FontSize "11px"]] [str $"Description of sheet {custom.Name}:"]
                   p [] [str description] ]
             | None -> []
-        let portOrder =
-            match custom.Form with
-            // A library component's sheet is not part of the design the user navigates, so an
-            // explanation given in terms of where things sit on it tells them nothing they can
-            // act on - and if they do go and look, it is read-only when they get there.
-            | Some (Library _) -> []
-            | Some (Verilog _) ->
-                [p [Style [FontStyle "italic"]] [
-                    str $"Ports are displayed on the symbol sorted by the port definition order in \
-                          the original Verilog file."]]
-            | _ ->
-                [p [Style [FontStyle "italic"]] [
-                    str $"Ports are displayed on the symbol sorted by the vertical position, on the \
-                          design sheet, of the Input or Output components at the time the symbol is \
-                          added."]]
-        sheetDescription @ portOrder
+        // What decided the port order when the symbol was first drawn used to be explained here.
+        // It is not worth a paragraph in a pane this short: it tells the user nothing they can act
+        // on, and it stops being true the moment they reorder the ports themselves.
+        sheetDescription
 
 /// The ports of a custom component instance, and their widths.
 /// Kept in the body of the pane rather than behind the About disclosure: on a parameterised
 /// component these widths move whenever a value moves, so they are the first thing to check after
 /// an edit.
 let private makePortSummary (custom:CustomComponentType) =
+    /// A port, written as it would be in Verilog or on a wire label: a single wire is just its
+    /// name, and a bus carries the range of bit numbers it actually has. This was "NAME 3", a
+    /// number whose meaning had to be known rather than read - and on the common single-wire port
+    /// it put a "1" beside every name for no information at all.
+    let portText (label: string) (width: int) =
+        match width with
+        | w when w <= 1 -> label
+        | w -> $"{label}({w - 1}:0)"
     let group name (labels: (string * int) list) =
         match labels with
         | [] -> null
@@ -1007,7 +1005,7 @@ let private makePortSummary (custom:CustomComponentType) =
             div [Style [Display DisplayOptions.Flex; MarginBottom "2px"]] [
                 span [Style [Width "34px"; Color "grey"; FontSize "11px"; Flex "0 0 auto"]] [str name]
                 span [Style [FontSize "12px"]]
-                     [str (labels |> List.map (fun (l, w) -> $"{l} {w}") |> String.concat "   ")]
+                     [str (labels |> List.map (fun (l, w) -> portText l w) |> String.concat "   ")]
             ]
     match custom.InputLabels, custom.OutputLabels with
     | [], [] -> null
@@ -1281,8 +1279,12 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                 ParameterView.viewParameters model dispatch
                 ]
         |None -> null
+    // Below whichever of the two the pane is showing, because it explains the boxes in both: a
+    // component's width and a sheet property's value are typed into the same kind of box. One
+    // placement rather than one per box - a grammar repeated beside every field is noise.
+    |> (fun react -> div [] [react; ParameterView.expressionSyntaxHelp model])
     // A library component's sheet can be looked at but not changed, and the pane is most of the
-    // reason to look: it is where the widths, constants, parameter bindings and memory contents
+    // reason to look: it is where the widths, constants, property values and memory contents
     // are. So the values stay visible and readable, and only the controls go dead.
     //
     // A disabled fieldset does that natively and in one place - it disables every input, select

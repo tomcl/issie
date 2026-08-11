@@ -33,6 +33,7 @@ let private allMessages: (string * string) list = [
     "WaveHelp.miscellaneous", AppMessages.WaveHelp.miscellaneous
     "WaveHelp.noHelpFor", AppMessages.WaveHelp.noHelpFor "Some Feature"
     "Memories.help", AppMessages.Memories.help
+    "Expressions.syntax", AppMessages.Expressions.syntax
     "Confirm.usingParameters", AppMessages.Confirm.usingParameters
     "Confirm.duplicateSheet", AppMessages.Confirm.duplicateSheet
     "Confirm.missingProjectFile", AppMessages.Confirm.missingProjectFile "SomeFolder"

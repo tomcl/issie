@@ -252,6 +252,56 @@ let private e2eTests =
             | [ Alg(AppendExp [ UnaryExp(BitRangeOp(3, 3), _); UnaryExp(BitRangeOp(1, 3), _) ]) ] -> ()
             | other -> failtest $"expected sign :: A[3:1], got %A{other}"
         }
+        // Every combinational component an algebraic input can reach, asked only to end cleanly.
+        //
+        // The tests around this one say what a particular expression should be, which means writing
+        // the answer out by hand - so they cover the shapes someone thought to write. This says
+        // nothing about the answer and everything about the failure: a component either produces an
+        // expression, or refuses with AlgebraNotImplemented, which is a decision the simulator is
+        // entitled to make and reports properly. What it may not do is fall over inside a reducer.
+        // That is the shape both of this session's evaluator bugs took - an index off the end of an
+        // array that no test drove - and it costs one line per component to rule out here.
+        test "no component falls over on an algebraic input" {
+            let w = 4
+            let cases: (string * ComponentType * int list * int list) list =
+                [ "NbitsAnd", NbitsAnd w, [ w; w ], [ w ]
+                  "NbitsOr", NbitsOr w, [ w; w ], [ w ]
+                  "NbitsNot", NbitsNot w, [ w ], [ w ]
+                  "NbitsAdder", NbitsAdder w, [ 1; w; w ], [ w; 1 ]
+                  "NbitsAdderNoCout", NbitsAdderNoCout w, [ 1; w; w ], [ w ]
+                  "NbitsAdderNoCinCout", NbitsAdderNoCinCout w, [ w; w ], [ w ]
+                  "GateN Nand 3", GateN(Nand, 3), [ 1; 1; 1 ], [ 1 ]
+                  "Not", Not, [ 1 ], [ 1 ]
+                  "Mux2", Mux2, [ w; w; 1 ], [ w ]
+                  "Mux4", Mux4, [ w; w; w; w; 2 ], [ w ]
+                  "Mux8", Mux8, [ w; w; w; w; w; w; w; w; 3 ], [ w ]
+                  "Demux2", Demux2, [ w; 1 ], [ w; w ]
+                  "Demux4", Demux4, [ w; 2 ], [ w; w; w; w ]
+                  "Demux8", Demux8, [ w; 3 ], List.replicate 8 w
+                  "BusSelection", BusSelection(2, 1), [ w ], [ 2 ]
+                  "BusCompare1", BusCompare1(w, 5I, "5"), [ w ], [ 1 ]
+                  "MergeWires", MergeWires, [ 2; 2 ], [ 4 ]
+                  "SplitWire", SplitWire 2, [ 4 ], [ 2; 2 ]
+                  "MergeN 3", MergeN 3, [ 1; 2; 2 ], [ 5 ]
+                  "SplitN 2", SplitN(2, [ 2; 2 ], [ 1; 3 ]), [ 5 ], [ 2; 2 ]
+                  "SplitN 3", SplitN(3, [ 1; 2; 2 ], [ 0; 1; 3 ]), [ 5 ], [ 1; 2; 2 ]
+                  "NbitSpreader", NbitSpreader w, [ 1 ], [ w ]
+                  "Shift LSL", Shift(w, 2, LSL), [ w; 2 ], [ w ]
+                  "Shift LSR", Shift(w, 2, LSR), [ w; 2 ], [ w ]
+                  "Shift ASR", Shift(w, 2, ASR), [ w; 2 ], [ w ]
+                  "AsyncROM1",
+                  AsyncROM1 { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map [ 1I, 7I ]; Comments = None },
+                  [ 4 ],
+                  [ 8 ] ]
+
+            for name, compType, inWidths, outWidths in cases do
+                try
+                    simulateAlg (dutCanvas compType inWidths outWidths) $"alg_sweep_{name}" Map.empty |> ignore
+                with
+                | AlgebraNotImplemented _ -> () // a refusal the simulator makes on purpose
+                | e -> failtest $"{name} failed on an algebraic input with {e.GetType().Name}: {e.Message}"
+        }
+
         test "spreader replicates the bit" {
             let canvas = dutCanvas (NbitSpreader 4) [ 1 ] [ 4 ]
             match simulateAlg canvas "alg_spread" Map.empty with

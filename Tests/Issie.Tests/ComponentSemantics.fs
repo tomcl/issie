@@ -289,6 +289,46 @@ let tests =
             Expect.equal outs (countUp 10) "counter wraps to 0 after 2^w - 1"
         }
 
+        // The same components above 32 bits. Each is a separate branch of the reducer, reading and
+        // writing the bigint step arrays rather than the uint32 ones, and nothing reached any of
+        // them: everything above stops at 32, and the FData parity table is combinational, so no
+        // clocked component was ever compared across the boundary. Each counter has its own copy of
+        // the increment and of the wrap, which is what these check at a width where 1 <<< width is
+        // a bigint rather than something that wrapped to 1.
+        let big = 40
+        let bigTop = (1I <<< big) - 1I
+
+        test "Register above 32 bits" {
+            let stimuli = [ [ bigTop ]; [ 12345678901I ]; [ 0I ] ]
+            let outs = simulateClocked (Register big) [ big ] [ big ] stimuli
+            Expect.equal outs [ [ 0I ]; [ bigTop ]; [ 12345678901I ] ] "a 40-bit register delays by one cycle"
+        }
+        test "RegisterE above 32 bits" {
+            let stimuli = [ [ bigTop; 1I ]; [ 12345678901I; 0I ]; [ 7I; 1I ] ]
+            let outs = simulateClocked (RegisterE big) [ big; 1 ] [ big ] stimuli
+            Expect.equal outs [ [ 0I ]; [ bigTop ]; [ bigTop ] ] "a 40-bit register holds when disabled"
+        }
+        test "Counter wraps at a width above 32" {
+            // load the top value, then count past it, as for width 32 above
+            let stimuli = [ [ bigTop; 1I; 1I ]; [ 0I; 0I; 1I ]; [ 0I; 0I; 1I ] ]
+            let outs = simulateClocked (Counter big) [ big; 1; 1 ] [ big ] stimuli
+            Expect.equal outs [ [ 0I ]; [ bigTop ]; [ 0I ] ] "wraps to 0 after 2^40 - 1"
+        }
+        test "CounterNoEnable wraps at a width above 32" {
+            let stimuli = [ [ bigTop; 1I ]; [ 0I; 0I ]; [ 0I; 0I ] ]
+            let outs = simulateClocked (CounterNoEnable big) [ big; 1 ] [ big ] stimuli
+            Expect.equal outs [ [ 0I ]; [ bigTop ]; [ 0I ] ] "wraps to 0 after 2^40 - 1"
+        }
+        test "CounterNoLoad counts above 32 bits" {
+            let stimuli = [ [ 1I ]; [ 1I ]; [ 0I ]; [ 1I ] ]
+            let outs = simulateClocked (CounterNoLoad big) [ 1 ] [ big ] stimuli
+            Expect.equal outs [ [ 0I ]; [ 1I ]; [ 2I ]; [ 2I ] ] "counts when enabled, holds when not"
+        }
+        test "CounterNoEnableLoad counts above 32 bits" {
+            let outs = simulateClocked (CounterNoEnableLoad big) [] [ big ] (List.replicate 4 [])
+            Expect.equal outs [ [ 0I ]; [ 1I ]; [ 2I ]; [ 3I ] ] "free running at 40 bits"
+        }
+
         // AsyncRAM1: writes land in the state one cycle later; the async read must use the
         // *current* cycle's address. Ticks 1-3 read a different address from the one driven
         // on the previous tick, so a stale-address read gives the wrong word.

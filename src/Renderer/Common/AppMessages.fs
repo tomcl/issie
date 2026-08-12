@@ -367,8 +367,13 @@ property changes, so a width written as `w*2` follows `w`.
 **Values**: whole numbers of any size, and the name of any property this sheet declares. A name
 starts with a letter and continues with letters and digits.
 
-**Operators**: `+`, `-`, `*`, `/`, `%`, and brackets. Division and remainder are whole-number:
-`7/2` is `3`. `*`, `/` and `%` bind tighter than `+` and `-`.
+**Operators**: `+`, `-`, `*`, `/`, `%`, `<<`, `>>`, and brackets. Division and remainder are
+whole-number: `7/2` is `3`. `*`, `/` and `%` bind tighter than `+` and `-`, which bind tighter than
+the shifts - so `w+1<<2` shifts the sum, as it would in Verilog.
+
+**Shifts**: `a<<b` doubles `a` `b` times, and `a>>b` halves it `b` times, so `1<<w` is the number of
+values a `w`-bit bus can take. Halving rounds down, and keeps the sign: `-1>>1` is `-1`. The number
+of places may not be negative, nor wider than the widest bus.
 
 **Functions**: `clog2(n)` is the number of bits needed to count `n` things - the address width of
 an `n`-word memory. `min(a,b)` and `max(a,b)` take the smaller and the larger. Their names may be

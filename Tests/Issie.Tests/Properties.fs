@@ -35,6 +35,10 @@ let rec private genExpr size =
             binary PMultiply
             binary PDivide
             binary PRemainder
+            // a shift whose count is a whole generated expression would almost always be refused
+            // for being too far, exercising only the bound: the interesting values are small
+            binary (fun (a, b) -> PShiftLeft (a, PRemainder (b, PInt 40I)))
+            binary (fun (a, b) -> PShiftRight (a, PRemainder (b, PInt 40I)))
             Gen.map PCLog2 sub
             binary (fun (a, b) -> PBinFunc (PMin, a, b))
             binary (fun (a, b) -> PBinFunc (PMax, a, b))
@@ -58,6 +62,18 @@ let private bindingsFor (a: bigint) (b: bigint) (c: bigint) : ParamBindings =
 let rec private refClog2 (n: bigint) (acc: bigint) =
     if n <= 1I then acc else refClog2 ((n + 1I) / 2I) (acc + 1I)
 
+/// One arithmetic halving: floor(v/2), which for a negative odd value is one below the quotient
+/// bigint division gives.
+let private refHalve (v: bigint) = if v.Sign >= 0 then v / 2I else -((1I - v) / 2I)
+
+/// Shifting as repeated doubling or halving, which is a different computation from the
+/// multiplication and division ParameterTypes shifts by - so this checks the rounding rather than
+/// restating it. The bound is the same one, since being refused past it is part of the answer.
+let private refShift (step: bigint -> bigint) (value: bigint) (places: bigint) =
+    let rec apply v n = if n = 0I then v else apply (step v) (n - 1I)
+    if places.Sign < 0 || places > bigint ParameterTypes.Constants.maxShiftCount then Error()
+    else Ok(apply value places)
+
 /// Straight-line reference evaluator: no cycle detection needed since bindings are literals
 let rec private refEval (bindings: Map<string, bigint>) (expr: ParamExpression) : Result<bigint, unit> =
     let binary op l r =
@@ -72,6 +88,8 @@ let rec private refEval (bindings: Map<string, bigint>) (expr: ParamExpression) 
     | PMultiply(l, r) -> binary (fun l r -> Ok(l * r)) l r
     | PDivide(l, r) -> binary (fun l r -> if r = 0I then Error() else Ok(l / r)) l r
     | PRemainder(l, r) -> binary (fun l r -> if r = 0I then Error() else Ok(l % r)) l r
+    | PShiftLeft(l, r) -> binary (refShift (fun v -> v * 2I)) l r
+    | PShiftRight(l, r) -> binary (refShift refHalve) l r
     | PCLog2 e ->
         match refEval bindings e with
         | Ok n when n < 0I -> Error()
@@ -276,6 +294,100 @@ let tests =
             Expect.stringContains (errorOf "min(1,2,3)") "min(a,b)" "min with three"
             Expect.stringContains (errorOf "clog2(1,2)") "clog2(expression)" "clog2 with two"
             Expect.stringContains (errorOf "1,2") "comma" "and a comma outside any call"
+        }
+
+        // --- shifts ---
+        //
+        // `<<` and `>>`, written and bound as Verilog writes and binds them, since that is the
+        // language the people writing these expressions are learning beside Issie. `1<<w` is the
+        // number of values a w-bit bus takes, which before this could only be written as a
+        // multiplication with the power worked out by hand.
+
+        test "a shift multiplies or divides by a power of two" {
+            let bindings = Map [ ParamName "w", PInt 8I ]
+            let value text = parseExpression text |> Result.bind (evaluateParamExpression bindings)
+            Expect.equal (value "1<<8") (Ok 256I) "doubling eight times"
+            Expect.equal (value "1<<w") (Ok 256I) "the values a w-bit bus takes, the case these are for"
+            Expect.equal (value "3<<2") (Ok 12I) "from a value that is not 1"
+            Expect.equal (value "256>>4") (Ok 16I) "and halving four times"
+            Expect.equal (value "5<<0") (Ok 5I) "a shift by none is the value itself"
+            Expect.equal (value "5>>0") (Ok 5I) "in either direction"
+            Expect.equal (value "1<<100") (Ok(1I <<< 100)) "a result no int could hold"
+        }
+
+        // Arithmetic, not logical: there is no width for zeros to come in from, since a parameter
+        // is a number rather than a bit pattern. Rounding towards minus infinity is what makes that
+        // consistent - bigint division truncates towards zero instead, which would make -1>>1 zero.
+        test "halving rounds down and keeps the sign" {
+            let value text = parseExpression text |> Result.bind (evaluateParamExpression Map.empty)
+            Expect.equal (value "7>>1") (Ok 3I) "a positive odd value loses its last bit"
+            Expect.equal (value "-1>>1") (Ok -1I) "-1 stays -1 however far it is shifted"
+            Expect.equal (value "-1>>64") (Ok -1I) "including further than any int"
+            Expect.equal (value "-7>>1") (Ok -4I) "-3.5 rounds to -4, down rather than towards zero"
+            Expect.equal (value "-8>>1") (Ok -4I) "an exact halving is unaffected by the rounding"
+            Expect.equal (value "-3<<2") (Ok -12I) "and doubling keeps the sign too"
+        }
+
+        test "shifts bind more loosely than the arithmetic, as in Verilog" {
+            let value text = parseExpression text |> Result.bind (evaluateParamExpression Map.empty)
+            Expect.equal (value "1+1<<2") (Ok 8I) "the sum is shifted, not the 1"
+            Expect.equal (value "1<<1+2") (Ok 8I) "and so is the count"
+            Expect.equal (value "3*2<<1") (Ok 12I) "a product binds tighter still"
+            Expect.equal (value "1<<2<<3") (Ok 32I) "shifts are left-associative"
+            Expect.equal (value "256>>2>>2") (Ok 16I) "as is halving"
+            Expect.equal (value "16>>(2<<1)") (Ok 1I) "brackets regroup them"
+            Expect.equal (value "-1<<3") (Ok -8I) "and unary minus is part of the operand"
+            Expect.equal (value "max(1<<3,2)") (Ok 8I) "a shift is a whole argument of a call"
+        }
+
+        test "a shift renders with the brackets its meaning needs and no others" {
+            let render text =
+                parseExpression text |> Result.map (fun expr -> renderParamExpression expr 0)
+            Expect.equal (render "1+1<<2") (Ok "1+1<<2") "nothing is needed round a tighter operator"
+            Expect.equal (render "1<<2<<3") (Ok "1<<2<<3") "nor round a left-associative chain"
+            Expect.equal (render "1<<(2<<3)") (Ok "1<<(2<<3)") "but regrouping to the right is kept"
+            Expect.equal (render "(1<<2)*3") (Ok "(1<<2)*3") "as is a shift inside a tighter operator"
+            Expect.equal (render "(w>>1)+1") (Ok "(w>>1)+1") "in either direction"
+        }
+
+        test "a shift that cannot be worked out says which way it went wrong" {
+            let errorOf text =
+                match parseExpression text |> Result.bind (evaluateParamExpression Map.empty) with
+                | Ok v -> failtest $"expected an error for '{text}', got {v}"
+                | Error err -> err
+            Expect.stringContains (errorOf "1<<-1") "negative" "a count below zero shifts no way at all"
+            Expect.stringContains (errorOf "1>>-2") "negative" "in either direction"
+            // Unbounded, `1<<1000000000` is a hundred megabytes of bigint reached by holding a key
+            // down: the bound is what stops a mistyped box from being an out-of-memory instead of a
+            // message.
+            let tooFar = ParameterTypes.Constants.maxShiftCount + 1
+            Expect.stringContains (errorOf $"1<<{tooFar}") "far" "a count beyond the widest bus"
+            Expect.equal
+                (parseExpression $"1<<{ParameterTypes.Constants.maxShiftCount}"
+                 |> Result.bind (evaluateParamExpression Map.empty))
+                (Ok(1I <<< ParameterTypes.Constants.maxShiftCount))
+                "while the widest bus itself is allowed"
+        }
+
+        // The bound is written out in ParameterTypes because CommonTypes is compiled after it. This
+        // is what holds the two together: a wider bus must widen the shift that can reach it.
+        test "the shift bound is the widest bus Issie has" {
+            Expect.equal
+                ParameterTypes.Constants.maxShiftCount
+                CommonTypes.Constants.maxIssieBusWidth
+                "so every shift a design could want is allowed, and no more"
+        }
+
+        // A single angle bracket is dropped by the tokenizer rather than matched, so without its own
+        // message `a<b` reads as `a b` and is reported as a number run into a name, several tokens
+        // from the one that was actually typed.
+        test "a single angle bracket says what it should have been" {
+            let errorOf text =
+                match parseExpression text with
+                | Ok e -> failtest $"expected an error for '{text}', got {e}"
+                | Error err -> err
+            Expect.stringContains (errorOf "1<2") "'<<'" "half a left shift"
+            Expect.stringContains (errorOf "w>1") "'>>'" "and half a right one"
         }
 
         // A parameter named min could be declared and then never written in an expression, since

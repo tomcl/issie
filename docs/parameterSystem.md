@@ -53,6 +53,8 @@ type ParamExpression =
     | PMultiply of ParamExpression * ParamExpression // Multiplication
     | PDivide of ParamExpression * ParamExpression  // Division
     | PRemainder of ParamExpression * ParamExpression // Modulo
+    | PShiftLeft of ParamExpression * ParamExpression // x<<y: multiply by 2^y
+    | PShiftRight of ParamExpression * ParamExpression // x>>y: divide by 2^y, arithmetic
     | PCLog2 of ParamExpression                     // clog2(x)
     | PBinFunc of ParamBinFunc * ParamExpression * ParamExpression // min(x,y), max(x,y)
 ```
@@ -367,8 +369,28 @@ The parameter expression parser supports:
   - Unary minus: `-x`, being part of the operand it precedes
   - Multiplication, Division, Modulo: `*`, `/`, `%`
   - Addition, Subtraction: `+`, `-`
+  - Shifts: `<<`, `>>`. See below
 - **Functions**: `clog2(x)`, `min(x,y)`, `max(x,y)`. See below
 - **Parentheses**: For grouping expressions
+
+### Shifts
+`a<<b` is `a` multiplied by 2^b and `a>>b` is `a` divided by it, so `1<<w` is the number of values a
+`w`-bit bus can take — the thing that previously had to be written as a multiplication with the
+power worked out by hand. They are written and bound as Verilog writes and binds them, which is the
+language these expressions are learnt beside: **more loosely than `+`**, so `w+1<<2` shifts the sum,
+and left-associative, so `1<<2<<3` is 32.
+
+`>>` is **arithmetic**: it rounds towards minus infinity and keeps the sign, so `-1>>1` is `-1` and
+`-7>>1` is `-4`. There is no logical right shift to go with it, because a parameter is a number
+rather than a bit pattern of some width — there is no width for zeros to come in from. bigint
+division truncates towards zero, so `ParameterTypes.shiftRightBy` does the rounding itself; both
+shifts are written as multiplication and division rather than with `<<<`/`>>>` so that .NET and
+Fable's own bigint cannot disagree about a negative operand, which nothing else in Issie shifts.
+
+The number of places must be between 0 and `ParameterTypes.Constants.maxShiftCount`, which is the
+widest bus Issie has; either way out is an evaluation error naming the shift. The bound exists
+because the number on the left grows with the count: unbounded, `1<<1000000000` is a hundred
+megabytes of bigint reached by holding a key down in a properties box.
 
 ### Functions
 Three built-ins, written as calls and so needing no precedence of their own:
@@ -403,13 +425,18 @@ BIAS - -4       // Subtracting a negative
 clog2(WORDS)    // Address bits for a memory of WORDS words
 max(clog2(N),1) // ...clamped, since a width of 0 is not a width
 min(WIDTH,32)   // Capping a width
+1<<WIDTH        // The number of values a WIDTH-bit bus can take
+(1<<WIDTH)-1    // ...and the largest of them
+WIDTH>>1        // Half a width, rounded down
 ```
 
 ### Parser Implementation
 The parser uses recursive descent with separate functions for each precedence level:
 - `parsePrimary`: Handles numbers, variables, function calls, unary minus, and parentheses
 - `parseFactors`: Processes multiplication, division, modulo
-- `parseExpressionTokens`: Handles addition and subtraction
+- `parseTerms`: Handles addition and subtraction
+- `parseExpressionTokens`: Handles the shifts, and so is the whole-expression level — what a
+  bracketed group, a function argument and the input as a whole are each parsed as
 
 A call is parsed in `parsePrimary` because it is atomic — its own parentheses delimit it — and its
 arguments are whole expressions, `parseExpressionTokens` stopping at the `,` or `)` that ends each
@@ -434,7 +461,10 @@ A negated literal is folded to `PInt -n` so it renders back as the user typed it
 Notes and caveats:
 - Tokenizer restricts inputs to digits/letters/operators/whitespace; unsupported characters are reported precisely.
 - Division or modulo by zero is reported as an informative evaluation error, as is a parameter
-  defined in terms of itself.
+  defined in terms of itself, and a shift by a negative or oversized number of places.
+- A single `<` or `>` is a token only so that it can be refused with a message saying a shift is
+  written `<<`. Unmatched characters are dropped by the tokenizer, so without it `a<b` would
+  tokenise as `a b` and be reported as a number run into a name.
 
 Code: `src/Renderer/Common/ParameterTypes.fs` (`parseExpression`, `isValidParamName`, tokenizer
 regex, and helpers). `Tests/Issie.Tests/Properties.fs` holds a render/parse round-trip property

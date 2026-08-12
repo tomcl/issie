@@ -16,6 +16,7 @@ let main argv =
         ComponentSemantics.tests
         GoldenModel.tests
         ListPairsTests.tests
+        WidthInferenceTests.tests
         PersistenceTests.tests
         SheetDescriptionTests.tests
         DrawBlockTests.tests

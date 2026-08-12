@@ -10,6 +10,7 @@ open Elmish
 open Elmish.React
 open Elmish.Debug
 open Elmish.HMR
+open Fable.React
 open Fable.Core
 open Fable.Core.JsInterop
 open ElectronAPI
@@ -419,7 +420,14 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
         ["ipc"; "context-menu-command"], subContextMenuCommand
     ]
 
-Program.mkProgram init update view'
-|> Program.withReactBatched "app"
+let program =
+    Program.mkProgram init update view'
+    |> Program.withReactSynchronous "app"
+
+let setState = Program.setState program
+
+program
+|> Program.withSetState (fun model dispatch ->
+    ReactDom.flushSync (fun () -> setState model dispatch))
 |> Program.withSubscription appSubscriptions
 |> Program.run

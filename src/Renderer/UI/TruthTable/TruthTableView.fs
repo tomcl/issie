@@ -909,12 +909,23 @@ let restartTruthTable canvasState model dispatch = fun _ ->
     | Ok _, _ -> ()
     GenerateTruthTable (Some wholeSimRes) |> ttDispatch
 
-/// The components that make a sheet sequential, as (id, label), sorted by label.
+/// Why this circuit gets no truth table, if it gets none.
+///
+/// The two conditions are asked in order rather than together, so that each refusal is about one
+/// thing: a clocked design is refused for being clocked whatever its widths, and only a
+/// combinational one is then asked whether it is narrow enough. That is what lets both messages be
+/// a sentence, and it is why they live in AppMessages while the components at fault are
+/// highlighted rather than listed - the reader looks at the schematic, not at a list of labels.
+type private NoTable =
+    | HasState of ComponentId list
+    | HasWideBus of ComponentId list
+
+/// The components that make a sheet sequential.
 ///
 /// A custom component counts only if the sheet inside it is itself clocked:
 /// couldBeSynchronousComponent has to assume every custom component might be, which is the right
-/// answer for deciding whether to run a truth table but the wrong one for naming the culprits.
-let private clockedComponentsOf (graph: SimulationGraph) : (ComponentId * string) list =
+/// answer for deciding whether to run a truth table but the wrong one for pointing at the culprits.
+let private clockedComponentsOf (graph: SimulationGraph) : ComponentId list =
     graph
     |> Map.toList
     |> List.choose (fun (cid, comp) ->
@@ -925,36 +936,46 @@ let private clockedComponentsOf (graph: SimulationGraph) : (ComponentId * string
                 |> Option.map SynchronousUtils.hasSynchronousComponents
                 |> Option.defaultValue true
             | t -> SynchronousUtils.couldBeSynchronousComponent t
-        match isClocked, comp.Label with
-        | true, ComponentLabel label -> Some(cid, label)
-        | false, _ -> None)
-    |> List.sortBy snd
+        if isClocked then Some cid else None)
 
-/// What to do when the user asks for a truth table of logic that is not combinational.
+/// The components carrying a bus too wide to tabulate, and whether there were any at all.
 ///
-/// Refusing is correct - a truth table of a circuit with state has no meaning - but refusing is
-/// not enough on its own: say which components are the clocked ones, show them on the schematic,
-/// and point at the thing on this same panel that will work.
-let private explainNotCombinational (graph: SimulationGraph) dispatch =
-    let clocked = clockedComponentsOf graph
-    let named =
-        match clocked with
-        | [] -> ""
-        | comps ->
-            let labels = comps |> List.map snd |> List.truncate 8
-            let andMore = if comps.Length > labels.Length then ", ..." else ""
-            sprintf " The clocked components are highlighted on the schematic: %s%s."
-                (String.concat ", " labels) andMore
-    dispatch <| SetHighlighted(clocked |> List.map fst, [])
-    Notifications.errorPropsNotification
-        (sprintf
-            "A truth table lists an output for every combination of inputs, so it can only be made \
-             for combinational logic - this sheet has clocked components, whose outputs depend on \
-             what happened in earlier clock cycles as well.%s\n\n\
-             To see a table for the combinational part, select the components you want on the \
-             schematic and use 'Truth Table for selected logic' below. To see the whole sheet \
-             working over time, use the Wave Simulation tab."
-            named)
+/// Taken from the fast simulation rather than the graph because that is flat, so a wide bus inside
+/// a custom component is found too. Only those on the sheet in front of the user can be
+/// highlighted - one nested inside a custom component has no symbol here to point at - but finding
+/// it must still refuse the table, which is why the two are returned apart.
+let private wideBusComponentsOf (fs: SimTypes.FastSimulation) : ComponentId list * bool =
+    let wide =
+        fs.FComps
+        |> Map.toList
+        |> List.map snd
+        |> List.filter (fun fc ->
+            fc.Outputs
+            |> Array.exists (fun out -> out.Width > TruthTableTypes.Constants.maxTruthTableBusWidth))
+
+    wide |> List.filter (fun fc -> fc.AccessPath = []) |> List.map (fun fc -> fc.cId),
+    not (List.isEmpty wide)
+
+/// Clocked first, then too wide. None if a table can be made.
+let private noTableBecause (sd: SimulationData) : NoTable option =
+    if sd.IsSynchronous then
+        Some(HasState(clockedComponentsOf sd.Graph))
+    else
+        match wideBusComponentsOf sd.FastSim with
+        | onSheet, true -> Some(HasWideBus onSheet)
+        | _, false -> None
+
+/// Highlight what is at fault, and say in one sentence what is wrong with it.
+let private explainNoTable (reason: NoTable) dispatch =
+    let highlight, message =
+        match reason with
+        | HasState comps -> comps, AppMessages.TruthTable.notCombinational
+        | HasWideBus comps ->
+            comps, AppMessages.TruthTable.busTooWide TruthTableTypes.Constants.maxTruthTableBusWidth
+
+    dispatch <| SetHighlighted(highlight, [])
+
+    Notifications.errorPropsNotification message
     |> SetPropertiesNotification
     |> dispatch
 
@@ -980,13 +1001,14 @@ let viewTruthTable canvasState model dispatch =
                             GenerateTruthTable (Some wholeSimRes) |> ttDispatch)
                     ] [str "See Problems"]
             | Ok sd, _ ->
-                if sd.IsSynchronous = false then
+                match noTableBecause sd with
+                | None ->
                     Button.button
                         [
                             Button.Color IColor.IsSuccess
                             Button.OnClick (fun _ -> GenerateTruthTable (Some wholeSimRes) |> ttDispatch)
                         ] [str "Generate Truth Table"]
-                else
+                | Some reason ->
                     // IsWarning, as "See Problems" is: both are buttons that explain why there is
                     // no table rather than making one, and they should not look like the one that
                     // does make one.
@@ -994,7 +1016,7 @@ let viewTruthTable canvasState model dispatch =
                         [
                             Button.Color IColor.IsWarning
                             Button.IsLight
-                            Button.OnClick (fun _ -> explainNotCombinational sd.Graph dispatch)
+                            Button.OnClick (fun _ -> explainNoTable reason dispatch)
                         ] [str "Why is there no table?"]
 
         let selSimRes = makeSimDataSelected model
@@ -1010,18 +1032,19 @@ let viewTruthTable canvasState model dispatch =
                             GenerateTruthTable selSimRes |> ttDispatch)
                     ] [str "See Problems"]
             | Some (Ok sd, _) ->
-                if sd.IsSynchronous = false then
+                match noTableBecause sd with
+                | None ->
                     Button.button
                         [
                             Button.Color IColor.IsSuccess
                             Button.OnClick (fun _ -> GenerateTruthTable selSimRes |> ttDispatch)
                         ] [str "Generate Truth Table"]
-                else
+                | Some reason ->
                     Button.button
                         [
                             Button.Color IColor.IsWarning
                             Button.IsLight
-                            Button.OnClick (fun _ -> explainNotCombinational sd.Graph dispatch)
+                            Button.OnClick (fun _ -> explainNoTable reason dispatch)
                         ] [str "Why is there no table?"]
         div [
             // Outer container supports scrolling

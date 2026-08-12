@@ -92,6 +92,41 @@ let buildFastSimulation
     |> Result.map addWavesToFastSimulation
     |> Result.map installReducers
 
+/// The width limit the algebraic evaluator behind a truth table works to, checked at the door.
+///
+/// EvalAlgebraic works in uint32. Refusing a wider bus here, once, is what lets each of its
+/// reducers assume the limit instead of testing for it - and it is a Result rather than an
+/// exception, so the truth table tab can say which component is too wide. TruthTableView refuses
+/// before this, alongside its check that the circuit is combinational, so a user meets the
+/// explanation there and this is the backstop for any other caller.
+let private checkWidthsForFData (fs: FastSimulation) : Result<FastSimulation, SimulationError> =
+    let tooWide =
+        fs.FComps
+        |> Map.toList
+        |> List.collect (fun (_, fc) ->
+            fc.Outputs
+            |> Array.toList
+            |> List.map (fun out -> fc, out.Width))
+        |> List.filter (fun (_, width) -> width > TruthTableTypes.Constants.maxTruthTableBusWidth)
+
+    match tooWide with
+    | [] -> Ok fs
+    | (fc, width) :: _ ->
+        Error
+            { ErrType =
+                GenericSimError (
+                    sprintf
+                        "A truth table is made for combinational logic narrow enough to tabulate, and \
+                         '%s' carries a %d-bit bus - wider than the %d bits this supports. Use the Wave \
+                         Simulation tab to see a wide design working, or select a narrower part of the \
+                         sheet for a table."
+                        fc.FullName
+                        width
+                        TruthTableTypes.Constants.maxTruthTableBusWidth)
+              InDependency = None
+              ComponentsAffected = tooWide |> List.map (fun (fc, _) -> fc.cId)
+              ConnectionsAffected = [] }
+
 let buildFastSimulationFData
     (simulationArraySize: int)
     (diagramName: string)
@@ -105,9 +140,12 @@ let buildFastSimulationFData
         |> createInitFastCompPhase simulationArraySize gather
         |> linkFastComponents gather
 
+    // before ordering, which reduces every component: a bus too wide to tabulate must not reach a
+    // reducer at all
     gather
     |> createFastArrays fs
-    |> orderCombinationalComponentsFData simulationArraySize
-    |> checkAndValidateFData
+    |> checkWidthsForFData
+    |> Result.map (orderCombinationalComponentsFData simulationArraySize)
+    |> Result.bind checkAndValidateFData
     |> Result.map addWavesToFastSimulation // REVIEW - Waves are not used in TruthTable, mark for removal
 

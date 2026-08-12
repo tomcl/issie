@@ -10,6 +10,18 @@ module TruthTableTypes
 open SimGraphTypes
 open SimTypes
 
+module Constants =
+    /// The widest bus a truth table will be made for.
+    ///
+    /// A truth table lists an output for every combination of its inputs, so it is for narrow
+    /// combinational logic - mostly single-bit, with the occasional multiplexer - and a table of a
+    /// wide bus is not something anyone can read. The algebraic evaluator behind it accordingly
+    /// works in `uint32` and stops here, where the fast simulator carries any width. Making that a
+    /// stated limit, refused at the door with a message, is better than a second evaluator quietly
+    /// claiming to do what the first does: the two would have to be held to each other over the
+    /// whole range, and the wide half of that range is the half nobody uses.
+    let maxTruthTableBusWidth = 32
+
 //-------------------------------------------------------------------------------------//
 //-----------------------------Truth Table Types---------------------------------------//
 //-------------------------------------------------------------------------------------//

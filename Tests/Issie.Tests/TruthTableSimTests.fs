@@ -121,14 +121,6 @@ let private memoryTests =
             Expect.equal res.Head.Width 8 "data out is WordWidth"
             Expect.equal res.Head.GetBigInt 200I "value read"
         }
-        test "ROM with a word wider than 32 bits is not truncated" {
-            // AddressWidth <= 32 < WordWidth used to send the read down the uint32 branch
-            let big = (1I <<< 39) + 12345I
-            let m = mem 4 40 (Map [ 2I, big ])
-            let res = simFData (AsyncROM1 m) [ 4 ] [ 40 ] [ 2I ]
-            Expect.equal res.Head.Width 40 "data out is WordWidth"
-            Expect.equal res.Head.GetBigInt big "a 40-bit word survives the read"
-        }
         test "an unwritten ROM address reads as zero" {
             let m = mem 4 8 (Map [ 1I, 200I ])
             let res = simFData (AsyncROM1 m) [ 4 ] [ 8 ] [ 3I ]
@@ -175,59 +167,12 @@ let private parityCases: (ComponentType * int list * int list * bigint list list
       Demux8, [ 4; 3 ], [ 4; 4; 4; 4; 4; 4; 4; 4 ], [ [ 9I; 0I ]; [ 9I; 7I ] ]
       MergeN 3, [ 1; 2; 2 ], [ 5 ], [ [ 1I; 2I; 3I ]; [ 0I; 0I; 0I ] ]
       // slices that neither tile the input nor start at zero
-      SplitN(2, [ 2; 2 ], [ 1; 3 ]), [ 5 ], [ 2; 2 ], [ [ 26I ]; [ 0I ]; [ 31I ] ]
-
-      // Everything above is 32 bits or narrower, so all of it is the uint32 half of both
-      // evaluators. Over 32 bits values are bigints in one and BigWord FastData in the other, which
-      // is a second set of branches again - and the only one either file had no parity case for.
-      NbitsAnd 40, [ 40; 40 ], [ 40 ], [ [ 1099511627775I; 12345678901I ]; [ 0I; 1099511627775I ] ]
-      NbitsOr 40, [ 40; 40 ], [ 40 ], [ [ 1099511627775I; 0I ]; [ 12345678901I; 98765432101I ] ]
-      NbitsNot 40, [ 40 ], [ 40 ], [ [ 0I ]; [ 1099511627775I ]; [ 12345678901I ] ]
-      // carry out of the top bit, which is where a mask at the wrong width shows
-      NbitsAdder 40, [ 1; 40; 40 ], [ 40; 1 ],
-        [ [ 1I; 1099511627775I; 1I ]; [ 0I; 12345678901I; 98765432101I ]; [ 0I; 1I; 1I ] ]
-      NbitsXor(40, Some Multiply), [ 40; 40 ], [ 40 ], [ [ 123456789I; 987654321I ]; [ 1099511627775I; 3I ] ]
-      NbitSpreader 40, [ 1 ], [ 40 ], [ [ 0I ]; [ 1I ] ]
-      Shift(40, 6, LSL), [ 40; 6 ], [ 40 ], [ [ 1099511627775I; 3I ]; [ 1I; 39I ]; [ 1I; 40I ] ]
-      Shift(40, 6, LSR), [ 40; 6 ], [ 40 ], [ [ 1099511627775I; 3I ]; [ 1099511627775I; 40I ] ]
-      // an ASR of a value whose top bit is set is the case that needs the sign bits put back
-      Shift(40, 6, ASR), [ 40; 6 ], [ 40 ], [ [ 1099511627775I; 3I ]; [ 12345678901I; 3I ] ]
-      MergeWires, [ 20; 20 ], [ 40 ], [ [ 1048575I; 1I ]; [ 0I; 1048575I ] ]
-      SplitWire 20, [ 40 ], [ 20; 20 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
-      Mux2, [ 40; 40; 1 ], [ 40 ], [ [ 1I; 1099511627775I; 1I ]; [ 1I; 1099511627775I; 0I ] ]
-      // a selection that crosses the 32-bit boundary, and one that does not
-      BusSelection(8, 30), [ 40 ], [ 8 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
-      BusSelection(8, 0), [ 40 ], [ 8 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
-
-      // A component whose ports are not all on the same side of the boundary picks the array to
-      // read or write each one from per port. Getting that wrong is invisible until a port of the
-      // other kind exists, which is why these are here in every combination rather than once: it
-      // is how SplitWire came to write output 0 as a bigint whatever its width, so that no bus
-      // wider than 32 bits could be split at all.
-      MergeWires, [ 40; 4 ], [ 44 ], [ [ 1099511627775I; 5I ]; [ 0I; 15I ] ]
-      MergeWires, [ 4; 40 ], [ 44 ], [ [ 5I; 1099511627775I ]; [ 15I; 0I ] ]
-      MergeWires, [ 40; 40 ], [ 80 ], [ [ 1099511627775I; 12345678901I ] ]
-      SplitWire 8, [ 44 ], [ 8; 36 ], [ [ 17592186044415I ]; [ 12345678901I ] ]
-      SplitWire 36, [ 44 ], [ 36; 8 ], [ [ 17592186044415I ]; [ 12345678901I ] ]
-      SplitWire 40, [ 80 ], [ 40; 40 ], [ [ 1208925819614629174706175I ]; [ 12345678901I ] ]
-      SplitN(2, [ 8; 36 ], [ 0; 8 ]), [ 44 ], [ 8; 36 ], [ [ 17592186044415I ]; [ 12345678901I ] ]
-      SplitN(2, [ 36; 8 ], [ 0; 36 ]), [ 44 ], [ 36; 8 ], [ [ 17592186044415I ]; [ 12345678901I ] ]
-      MergeN 3, [ 20; 20; 20 ], [ 60 ], [ [ 1048575I; 0I; 1048575I ]; [ 1I; 2I; 3I ] ]
-      // a selection whose output is itself over 32 bits
-      BusSelection(36, 2), [ 40 ], [ 36 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
-      BusCompare1(40, 1099511627775I, "big"), [ 40 ], [ 1 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
-      Mux4, [ 40; 40; 40; 40; 2 ], [ 40 ],
-        [ [ 1I; 2I; 3I; 1099511627775I; 3I ]; [ 1I; 2I; 3I; 1099511627775I; 0I ] ]
-      Mux8, [ 40; 40; 40; 40; 40; 40; 40; 40; 3 ], [ 40 ],
-        [ [ 1I; 2I; 3I; 4I; 5I; 6I; 7I; 1099511627775I; 7I ] ]
-      Demux4, [ 40; 2 ], [ 40; 40; 40; 40 ], [ [ 1099511627775I; 0I ]; [ 1099511627775I; 3I ] ]
-      Demux8, [ 40; 3 ], [ 40; 40; 40; 40; 40; 40; 40; 40 ], [ [ 1099511627775I; 7I ] ] ]
+      SplitN(2, [ 2; 2 ], [ 1; 3 ]), [ 5 ], [ 2; 2 ], [ [ 26I ]; [ 0I ]; [ 31I ] ] ]
 
 let private parityTests =
     testList "FData reducer agrees with the fast reducer" [
         for compType, inWidths, outWidths, stimuli in parityCases do
-            // the widths are part of the name because some component types carry none of their own:
-            // MergeWires and Mux2 appear twice, once on each side of the 32-bit boundary
+            // the widths are in the name because some component types carry none of their own
             test $"%A{compType} at %A{inWidths}" {
                 for inputVals in stimuli do
                     let fast = simFast compType inWidths outWidths inputVals
@@ -242,5 +187,26 @@ let private parityTests =
             }
     ]
 
+/// The boundary: a truth table is for logic narrow enough to tabulate, and says so.
+let private widthLimitTests =
+    testList "bus width limit" [
+        test "a bus wider than the limit is refused, naming the component and the width" {
+            let canvas = dutCanvas (NbitsAnd 40) [ 40; 40 ] [ 40 ]
+            let ldc = makeLdc "wide_sheet" None canvas
+            match Simulator.startCircuitSimulationFData maxArraySize "wide_sheet" canvas [ ldc ] with
+            | Ok _ -> failtest "a 40-bit design should not build an FData simulation"
+            | Error e ->
+                let msg = SimGraphTypes.errMsg e.ErrType
+                Expect.stringContains msg "40-bit" "says how wide the offending bus is"
+                Expect.stringContains msg "Wave Simulation" "points at what does handle wide designs"
+                Expect.isNonEmpty e.ComponentsAffected "and names components to highlight"
+        }
+        test "the limit itself is allowed" {
+            // 32 bits is the widest the algebraic evaluator carries, and must not be refused
+            let res = simFData (NbitsNot 32) [ 32 ] [ 32 ] [ 0I ]
+            Expect.equal res.Head.GetBigInt 4294967295I "a 32-bit design still tabulates"
+        }
+    ]
+
 let tests =
-    testList "TruthTableSim" [ maskingTests; memoryTests; parityTests ]
+    testList "TruthTableSim" [ maskingTests; memoryTests; parityTests; widthLimitTests ]

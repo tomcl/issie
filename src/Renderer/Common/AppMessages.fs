@@ -317,6 +317,38 @@ module Fields =
                  read by whoever uses your sheet, not only by you."
         ]
 
+/// Why the Truth Table tab will not make a table, shown by its "Why is there no table?" button.
+///
+/// Plain sentences with no markup, like the field explanations above: these go to
+/// `Notifications.errorPropsNotification`, which draws its text into a Bulma notification and
+/// holds characters and nothing else.
+///
+/// Neither message names the components at fault, which is the rule this module states: a list
+/// assembled from a design cannot live here. They are highlighted on the schematic instead, which
+/// says the same thing better - the reader looks at the circuit rather than matching labels - and
+/// it is what lets these two stay one sentence each. The two conditions are tested in order, so
+/// each message may assume the one before it has already been ruled out.
+module TruthTable =
+
+    /// First: a table of a circuit with state has no meaning, whatever its widths.
+    let notCombinational =
+        "A truth table lists an output for every combination of the inputs, so it can only be made \
+         for combinational logic. The clocked components are highlighted on the schematic. To \
+         tabulate the combinational part, select the components you want and use 'Truth Table for \
+         selected logic'; to see the whole sheet working over time, use the Wave Simulation tab."
+
+    /// Second, once the logic is combinational: it must also be narrow enough to read. The limit
+    /// is passed in rather than written here, so that it cannot drift from the one the simulator
+    /// enforces - TruthTableTypes.Constants.maxTruthTableBusWidth.
+    let busTooWide (maxWidth: int) =
+        sprintf
+            "A truth table lists an output for every combination of the inputs, so it is made only \
+             for logic up to %d bits wide. The components carrying wider buses are highlighted on \
+             the schematic. To tabulate a narrower part, select the components you want and use \
+             'Truth Table for selected logic'; to see a wide design working, use the Wave \
+             Simulation tab."
+            maxWidth
+
 /// The collapsible "Expression syntax" note under the Properties pane, shown only on a sheet that
 /// declares properties. Every numeric box in the pane accepts an expression, but until a sheet has
 /// a property there is nothing to write in one except the number the box already holds, so the

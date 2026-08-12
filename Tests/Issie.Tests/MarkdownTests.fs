@@ -37,6 +37,8 @@ let private allMessages: (string * string) list = [
     "Confirm.usingParameters", AppMessages.Confirm.usingParameters
     "Confirm.duplicateSheet", AppMessages.Confirm.duplicateSheet
     "Confirm.missingProjectFile", AppMessages.Confirm.missingProjectFile "SomeFolder"
+    "TruthTable.notCombinational", AppMessages.TruthTable.notCombinational
+    "TruthTable.busTooWide", AppMessages.TruthTable.busTooWide 32
 ]
 
 /// The Properties pane's field explanations. Plain text, not markdown - they are drawn by CSS from

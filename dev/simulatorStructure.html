@@ -645,14 +645,6 @@ semantics twice, kept in step only by discipline. The build path duplicates with
 initialised. Parameterising the build path on a small <code>Evaluator</code> record would delete the twins;
 the indirect call would land on the build path only, and the run loop must keep calling
 <code>fc.ReduceComb</code> directly or the dispatch this design removes comes straight back.</p>
-<p><strong>RAM is still on <code>EvalReference</code>.</strong> Not because of the reducer but because of the state: a <code>Map</code>
-keyed by <code>bigint</code>, written every step for the waveform viewer, plus a <code>RamState</code> allocation per
-step whether or not anything is written. On the sieve this is ~11% of CPU and essentially all
-remaining allocation. Fixing it means changing that representation, which touches <code>FastExtract</code>
-and <code>WaveSimRams</code>. A mutable read cache alongside the map is not a shortcut — it desynchronises
-when the simulation restarts or replays through the circular buffer.
-<a href="ramRepresentation.html">ramRepresentation.md</a> works out what to replace it with — a mutable array,
-a write journal and an index over the journal by address — and what that is worth.</p>
 <p>*<em><code>FastComponent</code> carries five unrelated concerns*</em>: step data, the reducers, ordering scratch
 (<code>Touched</code>, <code>NumMissingInputValues</code>, <code>DrivenComponents</code>), naming (<code>FullName</code>, <code>SimSheetName</code>,
 <code>SimSheetNamePath</code>, <code>SheetName</code>, <code>FLabel</code>) and Verilog output names. Only the first two are needed
@@ -664,6 +656,14 @@ that is legitimate: the waveform viewer needs bulk access to step arrays and rou
 narrow API would mean copying. The honest position is two supported entry points — <code>Simulator</code> for
 run control, <code>FastExtract</code> for reading results — and nothing outside <code>Simulator/</code> touching
 <code>FastCreate</code>, <code>FastOrder</code>, <code>FastBuild</code> or the evaluators.</p>
+<p><strong>RAM is still on <code>EvalReference</code>.</strong> It has no compiled reducer, so a design's memories keep the
+general path while everything around them has been specialised. What used to be written here — a
+<code>Map</code> of contents snapshotted into the step array every clock — is gone; <code>RamStore.fs</code> replaced it
+and <a href="ramRepresentation.html">ramRepresentation.md</a> records what that was worth and what was left
+undone. What remains is the reducer itself, and one obstacle to it: the asynchronous RAM is the
+hybrid component, reduced once as clocked and once as combinational, and <code>reducerFor</code> deliberately
+takes no flag to tell those apart (see the trap above). A <code>RAM1</code> reducer needs no flag; an
+<code>AsyncRAM1</code> one brings it back for that component alone.</p>
 <p>*<em><code>GraphBuilder</code> defines its own <code>extractBit</code>/<code>packBit</code>,*</em> duplicating <code>EvalKernel</code>'s.</p>
 <p><strong>The per-component loop scaffolding</strong> — <code>Array.iter</code> with a closure per component — is around a
 fifth of run time on the sieve. It was left alone deliberately: the ways to remove it either spread

@@ -85,6 +85,10 @@ module Constants =
     let minMagnification = 0.1
     /// factor by which zoom is increased or decreased
     let zoomIncrement = 1.2
+    /// smaller step for physical Ctrl/Cmd-wheel zoom, so a wheel notch is not too coarse
+    let fineZoomIncrement = 1.05
+    /// sensitivity for the continuous pinch gesture reported by trackpads
+    let pinchZoomSensitivity = 0.007
     /// aspect ratio required before align or distribute can be done
     let boxAspectRatio = 2. 
     /// id of the Sheet menu's dropdown, which when pinned covers the left of the canvas. Its width

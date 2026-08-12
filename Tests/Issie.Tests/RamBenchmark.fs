@@ -14,6 +14,7 @@
 module RamBenchmark
 
 open System
+open System.IO
 open Expecto
 open CommonTypes
 open SimGraphTypes
@@ -126,6 +127,14 @@ let private liveWords (fs: FastSimulation) (step: int) =
         | _ -> None)
     |> Option.defaultValue 0
 
+/// Which measurements to run: "sieve" for the whole-design one alone, "ram" for the synthetic
+/// sheets alone, anything else for all of them. At a million cycles the synthetic ones take
+/// several minutes, which is a long wait for the one at the end.
+let private benchOnly =
+    match Environment.GetEnvironmentVariable "ISSIE_BENCH_ONLY" with
+    | null -> ""
+    | s -> s
+
 let private benchEnabled =
     not (String.IsNullOrEmpty(Environment.GetEnvironmentVariable "ISSIE_BENCH"))
 
@@ -194,6 +203,82 @@ let private measureMany (title: string) (count: int) =
     let heap = median (results |> List.map snd)
     printfn "%-34s %10.1f cycles/ms %10.1f MB retained  (%d words of data)" title speed heap (count * 256)
 
+/// The whole-design measurement: the `5eratosthenes` demo, which is the EEP1 CPU, running
+/// Eratosthenes's sieve. This is the benchmark `simulatorStructure.md` names, and unlike the
+/// synthetic sheets above it is a real design where the RAM is one component among hundreds.
+///
+/// The demo ships with its ROM linked to `sievesmall`, which finishes in well under 25 000 cycles
+/// and then spins in a self-jump - timing that measures a halted CPU. `sieve.txt` says the large
+/// program needs about 800 000 clocks, so it is relinked here.
+let private loadSieve () =
+    // static/demos is the tracked copy; the demos/ directory at the repo root is a build artefact
+    let path = Path.GetFullPath(Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "demos", "5eratosthenes"))
+    match FilesIO.loadAllComponentFiles path with
+    | Error msg -> failtestf "could not load the eratosthenes demo: %s" msg
+    | Ok statuses ->
+        statuses
+        |> List.map (function
+            | FilesIO.OkComp ldc
+            | FilesIO.OkAuto ldc
+            | FilesIO.Resolve(ldc, _) -> ldc)
+        |> List.map (fun ldc ->
+            if ldc.Name <> "eep1" then
+                ldc
+            else
+                let comps, conns = ldc.CanvasState
+                let comps =
+                    comps
+                    |> List.map (fun c ->
+                        match c.Type with
+                        | AsyncROM1 mem ->
+                            match FilesIO.initialiseMem { mem with Init = FromFile "sieve" } path with
+                            | Ok m -> { c with Type = AsyncROM1 m }
+                            | Error e -> failtestf "could not read sieve.ram: %s" e
+                        | _ -> c)
+                { ldc with CanvasState = (comps, conns) })
+
+/// How much of the RAM the sieve has filled in, which is what says the CPU is computing rather
+/// than spinning.
+let private sieveActivity (fs: FastSimulation) (step: int) =
+    fs.FClockedComps
+    |> Array.sumBy (fun fc ->
+        match fc.FType with
+        | RAM1 _
+        | AsyncRAM1 _ ->
+            match FastExtract.extractFastSimulationState fs step (fst fc.fId, snd fc.fId) with
+            | RamState ram -> RamStore.liveCountAt ram step
+            | _ -> 0
+        | _ -> 0)
+
+let private measureSieve (arraySize: int) =
+    let ldcs = loadSieve ()
+    let top = ldcs |> List.find (fun ldc -> ldc.Name = "eep1")
+    let run () =
+        let fs =
+            match Simulator.startCircuitSimulation arraySize "eep1" top.CanvasState ldcs with
+            | Error e -> failtestf "eratosthenes simulation failed to build: %A" e
+            | Ok simData -> simData.FastSim
+        GC.Collect()
+        GC.WaitForPendingFinalizers()
+        let before = GC.GetTotalMemory true
+        let sw = Diagnostics.Stopwatch.StartNew()
+        FastRun.runFastSimulation None cycles fs |> ignore
+        sw.Stop()
+        let after = GC.GetTotalMemory true
+        // the last simulated cycle, not a buffer index: history is keyed by absolute step, and
+        // asking at an index would report whatever the wrapping buffer happened to hold there
+        let live = sieveActivity fs (cycles - 1)
+        sw.Elapsed.TotalMilliseconds, float (after - before) / 1.0e6, live, fs
+    let _, _, _, fs0 = run ()
+    printfn "  design: %d components reduced per clock, %d bytes of step arrays per step"
+        (fs0.FClockedComps.Length + fs0.FOrderedComps.Length) fs0.TotalArraySizePerStep
+    let results = [ for _ in 1..3 -> run () ]
+    let ms = median (results |> List.map (fun (m, _, _, _) -> m))
+    let heap = median (results |> List.map (fun (_, h, _, _) -> h))
+    let live = results |> List.map (fun (_, _, l, _) -> l) |> List.head
+    printfn "  %d cycles in %.0f ms (%.1f cycles/ms), %.1f MB retained, %d RAM words written"
+        cycles ms (float cycles / ms) heap live
+
 let tests =
     testList "RamBenchmark" [
         test "the benchmark sheet actually writes its RAM" {
@@ -222,9 +307,17 @@ let tests =
             printfn "RAM benchmark: %d cycles, one write every 8, 64K x 16 memory" cycles
             printfn "  .NET speed is indicative only - measure speed in the app (simulatorStructure.md)"
             printfn ""
-            measureOne "sync RAM, address sweep" RAM1 false |> ignore
-            measureOne "async RAM, address sweep" AsyncRAM1 false |> ignore
-            measureOne "async RAM, all writes to one addr" AsyncRAM1 true |> ignore
-            measureMany "100 x (256 word x 1 bit) RAMs" 100
-            printfn "")
+            if benchOnly <> "sieve" then
+                measureOne "sync RAM, address sweep" RAM1 false |> ignore
+                measureOne "async RAM, address sweep" AsyncRAM1 false |> ignore
+                measureOne "async RAM, all writes to one addr" AsyncRAM1 true |> ignore
+                measureMany "100 x (256 word x 1 bit) RAMs" 100
+                printfn ""
+            if benchOnly <> "ram" then
+                printfn "5eratosthenes, full sieve program, step-simulator array size (550, wrapping):"
+                measureSieve 550
+                printfn ""
+                printfn "5eratosthenes, full sieve program, waveform array size (no wrap):"
+                measureSieve (cycles + 3)
+                printfn "")
     ]

@@ -31,6 +31,40 @@ where the old representation doubled with the run. That is 65536 addresses at 8 
 plus a 256 kB offset table - against 190 MB. What is left scales with *entries actually written*,
 and the one-address rows show it doing exactly that: 8 bytes a write, nothing else.
 
+### The whole design: 5eratosthenes
+
+The two above isolate a RAM. This one does not: the `5eratosthenes` demo is the EEP1 CPU, 349
+component reductions a clock, and the RAM is one of them. It is the benchmark
+`simulatorStructure.md` names. Run for **1 000 000 cycles** of the full `sieve` program - the demo
+ships linked to `sievesmall`, which halts under 25 000 cycles and then spins in a self-jump, so
+`RamBenchmark` relinks the ROM - and reaching 51 246 words of the sieve array written, which is
+what says the CPU is computing rather than idling.
+
+| 1 000 000 cycles | before | after |
+|---|---:|---:|
+| step simulator (550 steps, wrapping) | 176-282 cycles/ms, 3.5 MB | 232-432 cycles/ms, **1.9 MB** |
+| waveform (1 000 003 steps, no wrap) | 144 cycles/ms, **153.5 MB** | 161 cycles/ms, **2.0 MB** |
+
+Two honest readings of that.
+
+**Space, in the mode this work is about: 153.5 MB down to 2.0 MB, 77x.** The waveform simulator
+sizes its arrays for the whole run and never wraps, so the old representation kept every version
+of the memory it had ever made. The step simulator wraps at 550, which bounded the old cost to
+that window, and there the difference is only 3.5 MB against 1.9 MB - the change matters most
+exactly where the old design was worst.
+
+**Speed: about 1.1x, and that is what it should be.** RAM is ~11% of this design's simulation time
+(`simulatorStructure.md`), so removing all of it entirely would be 1.12x - Amdahl, not a
+disappointment. The synthetic sheets above show 10x and more because there the RAM is most of the
+work. Individual paired runs here ranged from 0.8x to 2.7x, so only the aggregate of several says
+anything at all; single .NET runs of this benchmark should not be quoted.
+
+**What it does not fix.** The step arrays for this design are 1488 bytes a step, so a genuine
+1 000 000-cycle waveform run needs ~1.5 GB for those alone, whatever the RAM does. That is the
+phase 2 argument in one number: RAM was the largest single term and is now a rounding error, and
+the per-step retention of everything else is what stands between this design and a long waveform
+simulation.
+
 ### Many small memories
 
 The case that gains most is not the big RAM. A design of **a hundred 256-word by 1-bit RAMs** -

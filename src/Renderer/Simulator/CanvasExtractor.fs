@@ -106,26 +106,25 @@ let stateIsEqualExInputDefault (cs1: CanvasState) (cs2: CanvasState) =
     && List.forall2 connsAreEqual conns1 conns2
 
 /// Are two lists of vertices are very similar.
+///
+/// The lengths are compared FIRST, and not after the fold, because two wires of different lengths
+/// are not similar however their common prefix compares - and because `List.iter2` is defined only
+/// for lists of equal length. Testing it afterwards raised under .NET while returning the right
+/// answer in the app, where Fable's library stopped at the shorter list instead. Two versions of one
+/// connection differ in vertex count whenever the wire has been rerouted, which is the ordinary case
+/// for a sheet being edited, not a corner of it.
 let verticesAreSame (fixedOffset:XYPos) tolerance (conns1: (float * float * bool) list) (conns2: (float * float * bool) list) =
     let diff m1 m2 = if m1 <> m2 then tolerance else 0.
     let sq x = x * x
-    let mutable errSum = 0.
 
-    (conns1, conns2)
-    ||> List.iter2 (fun (x1, y1, m1) (x2, y2, m2) ->
-        errSum <- errSum + sq (x1 - x2 - fixedOffset.X) + sq (y1 - y2 - fixedOffset.Y) + diff m1 m2)
+    conns1.Length = conns2.Length
+    && (let mutable errSum = 0.
 
-    errSum < tolerance
-    && conns1.Length = conns2.Length // REVIEW - check if the formatted code is the same as the original F# source code as shown below
+        (conns1, conns2)
+        ||> List.iter2 (fun (x1, y1, m1) (x2, y2, m2) ->
+            errSum <- errSum + sq (x1 - x2 - fixedOffset.X) + sq (y1 - y2 - fixedOffset.Y) + diff m1 m2)
 
-// let verticesAreSame tolerance (conns1:(float*float*bool) list) (conns2: (float*float*bool) list) =
-//     let diff m1 m2 = if m1 <> m2 then tolerance else 0.
-//     let sq x = x*x
-//     conns1.Length = conns2.Length &&
-//     let mutable errSum = 0.
-//     (conns1,conns2)
-//     ||> List.iter2 (fun (x1,y1,m1) (x2,y2,m2) -> errSum <- errSum + sq(x1-x2) + sq(y1-y2) + diff m1 m2)
-//     errSum < tolerance
+        errSum < tolerance)
 
 /// evil mutable for debugging only
 /// allows easy access to specific connections - so it can be highlighted in GUI

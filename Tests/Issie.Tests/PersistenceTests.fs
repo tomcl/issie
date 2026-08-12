@@ -25,6 +25,22 @@ let private touch (folder: string) (name: string) =
 let tests =
     testList "Persistence" [
 
+        // Whether the open sheet differs from the saved one, which is what decides that it needs
+        // saving or backing up. Rerouting a wire changes how many segments it has, so comparing
+        // vertex lists of different lengths is the ordinary case.
+        test "a rerouted wire compares as a change rather than raising" {
+            let a = makeComp "a" 0 1 (Input1(1, None)) "A"
+            let b = makeComp "b" 1 0 (Output 1) "B"
+            let routedAs (vs: (float * float * bool) list) : CanvasState =
+                [ a; b ], [ { conn a 0 b 0 with Vertices = vs } ]
+            let threeSegments = routedAs [ 0., 0., false; 10., 0., false; 10., 10., false ]
+            let fourSegments = routedAs [ 0., 0., false; 5., 0., false; 5., 10., false; 10., 10., false ]
+            Expect.isFalse (CanvasExtractor.compareCanvas 100. threeSegments fourSegments)
+                "a wire routed with a different number of segments is a change"
+            Expect.isTrue (CanvasExtractor.compareCanvas 100. threeSegments threeSegments)
+                "and an unchanged sheet is not"
+        }
+
         // What the New Project form asks of every keystroke, so that a name is refused while the
         // user is still typing it rather than by an error box after the fact.
         test "a project name is refused for exactly the characters it may not hold" {

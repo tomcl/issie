@@ -60,11 +60,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         let fd =
             match comp.OutputWidth n, numStep with
             | 0, _ -> failwithf "Can't reduce %A (%A) because outputwidth is not known" comp.FullName comp.FType
-            | w, 0 ->
-                if w < 33 then
-                    Data { Dat = Word 0u; Width = w }
-                else
-                    Data { Dat = BigWord 0I; Width = w }
+            | w, 0 -> Data { Dat = Word 0u; Width = w }
             | w, _ -> comp.Outputs[n].FDataStep[simStepOld]
 
         fd
@@ -171,6 +167,22 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     // | Data d, Alg exp1 ->
     //     let exp2 = DataLiteral d
     //     put 0 <| Alg (algOp exp1 exp2)
+
+    /// A value wider than a truth table carries.
+    ///
+    /// This evaluator works in uint32: a truth table lists an output for every combination of the
+    /// inputs, so it is for narrow combinational logic, and TruthTableTypes.Constants gives the
+    /// limit. buildFastSimulationFData refuses a wider circuit before any reducer runs and
+    /// TruthTableView refuses it before that, so getting here means one of those checks has a
+    /// hole - it is addressed to whoever maintains Issie, not to the user, which is why it is a
+    /// failure rather than a Result.
+    let tooWideForTable (bits: FastData) : 'a =
+        failwithf
+            "What? %s was reduced with a %d-bit value, and a truth table carries at most %d bits - \
+             buildFastSimulationFData should have refused this circuit"
+            comp.FullName
+            bits.Width
+            TruthTableTypes.Constants.maxTruthTableBusWidth
 
     /// Error checking (not required in production code) check widths are consistent
     let inline checkWidth width (bits: FData) =
@@ -589,24 +601,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 let w = aIn.Width
 
                 match aIn.Dat, bIn.Dat with
-                | BigWord a, BigWord b ->
-                    let mask = bigIntMask w
-                    let a = a &&& mask
-                    let b = b &&& mask
-                    let sumInt =
-                        if cin = 0u then
-                            a + b
-                        else
-                            a + b + 1I
-
-                    let sum = { Dat = BigWord(sumInt &&& bigIntMask w); Width = w }
-
-                    let cout =
-                        if (sumInt >>> w) = 0I then
-                            0u
-                        else
-                            1u
-                    sum, packBitFData cout
                 | Word a, Word b ->
                     let mask = (1ul <<< w) - 1ul
 
@@ -649,24 +643,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 let w = aIn.Width
 
                 match aIn.Dat, bIn.Dat with
-                | BigWord a, BigWord b ->
-                    let mask = bigIntMask w
-                    let a = a &&& mask
-                    let b = b &&& mask
-                    let sumInt =
-                        if cin = 0u then
-                            a + b
-                        else
-                            a + b + 1I
-
-                    let sum = { Dat = BigWord(sumInt &&& bigIntMask w); Width = w }
-
-                    let cout =
-                        if (sumInt >>> w) = 0I then
-                            0u
-                        else
-                            1u
-                    sum, packBitFData cout
                 | Word a, Word b ->
                     let mask = (1ul <<< w) - 1ul
 
@@ -705,12 +681,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | Data aIn, Data bIn ->
             let outDat =
                 match aIn.Dat, bIn.Dat with
-                | BigWord a, BigWord b ->
-                    BigWord(
-                        match op with
-                        | None -> a ^^^ b
-                        | Some Multiply -> (a * b) &&& ((1I <<< aIn.Width) - 1I)
-                    )
                 | Word a, Word b ->
                     Word(
                         match op with
@@ -760,7 +730,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | Data aIn, Data bIn ->
             let outDat =
                 match aIn.Dat, bIn.Dat with
-                | BigWord a, BigWord b -> BigWord(a ||| b)
                 | Word a, Word b -> Word(a ||| b)
                 | a, b -> failwithf $"Inconsistent inputs to NBitsXOr {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 
@@ -783,7 +752,6 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | Data aIn, Data bIn ->
             let outDat =
                 match aIn.Dat, bIn.Dat with
-                | BigWord a, BigWord b -> BigWord(a &&& b)
                 | Word a, Word b -> Word(a &&& b)
                 | a, b -> failwithf $"Inconsistent inputs to NBitsAnd {comp.FullName} A={a},{aIn}; B={b},{bIn}"
 
@@ -806,13 +774,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | Data aIn ->
             let outDat =
                 match aIn.Dat with
-                | BigWord a ->
-                    // failwithf $"TODO: fable does not support op_OnesComplement function"
-                    // BigWord (System.Numerics.BigInteger.op_OnesComplement a)  FIX: 2^n-1-a
-                    let w = aIn.Width
-                    // (bigint^w)
-                    let (minusOne: bigint) = (1I <<< w) - 1I
-                    BigWord(minusOne - a)
+                | BigWord _ -> tooWideForTable aIn
                 | Word a ->
                     // NOT overflows the width, so the result must be masked back into it -
                     // this used to be a bare ~~~a, setting every bit above the bus width
@@ -914,17 +876,11 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             let wOut = bits0.Width + bits1.Width
 
             let outBits =
-                if wOut <= 32 then
-                    match bits0.Dat, bits1.Dat with
-                    | Word b0, Word b1 ->
-                        (b1 <<< bits0.Width) ||| b0
-                        |> (fun n -> convertIntToFastData wOut n)
-                    | _ -> failwithf $"inconsistent merge widths: {bits0},{bits1}"
-                else
-                    let b0 = convertFastDataToBigint bits0
-                    let b1 = convertFastDataToBigint bits1
+                match bits0.Dat, bits1.Dat with
+                | Word b0, Word b1 ->
                     (b1 <<< bits0.Width) ||| b0
-                    |> convertBigintToFastData wOut
+                    |> (fun n -> convertIntToFastData wOut n)
+                | _ -> failwithf $"inconsistent merge widths: {bits0},{bits1}"
 
             put 0 <| Data outBits
 
@@ -964,41 +920,18 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | _ -> failwithf $"Cannot simulate truth tables with merge inputs part-algebraic") fDataL
             let wOut = List.sumBy (fun (bits: FastData) -> bits.Width) bitsList
             
-            let outBits= 
-                if wOut <= 32 then
-                    let inBitsAndWidths =
-                        bitsList
-                        |> List.map (fun bits ->
-                            match bits.Dat with
-                            | Word b -> b, bits.Width
-                            | _ -> failwithf $"inconsistent MergeN data for Truth Tables - cannot mix > 32 bit and < 32 bit") 
-                    let mergeTwoValues (lSWidth: int) (mSValue: uint32) (lSValue: uint32) =
-                        (mSValue <<< lSWidth) ||| lSValue
-                    ((0u,0), inBitsAndWidths)
-                    ||> List.fold (fun (lSBits,lSWidth) (inBits,inWidth) ->
-                            mergeTwoValues lSWidth inBits lSBits, inWidth + lSWidth)
-                    |> (fun (n,_) -> convertIntToFastData wOut n)
-                else // identical to int32 case except use bigints
-                    let inBitsAndWidths =
-                        bitsList
-                        // Each input is taken as whatever it is. A value is held as a Word exactly
-                        // when its own width is 32 or less, so a merge wide enough to need bigints
-                        // is precisely the one whose inputs need not all be bigints - and narrow
-                        // inputs making a wide output is what MergeN is FOR. Refusing a Word here
-                        // meant that every such merge failed with "cannot mix > 32 bit and < 32
-                        // bit", which is the ordinary case and not a mixture of anything. The
-                        // uint32 branch above needs no such widening: its output is 32 bits or
-                        // fewer, so every input of it is too.
-                        |> List.map (fun bits ->
-                            match bits.Dat with
-                            | BigWord b -> b, bits.Width
-                            | Word b -> bigint b, bits.Width)
-                    let mergeTwoValues (lSWidth: int) (mSValue: bigint) (lSValue: bigint) =
-                        (mSValue <<< lSWidth) ||| lSValue
-                    ((0I,0), inBitsAndWidths)
-                    ||> List.fold (fun (lSBits,lSWidth) (inBits,inWidth) ->
-                            mergeTwoValues lSWidth inBits lSBits, inWidth + lSWidth)
-                    |> (fun (n,_) -> convertBigintToFastData wOut n)
+            // every input is 32 bits or fewer, so the sum of them is the only thing that could
+            // exceed it - and a circuit that wide never reaches a reducer
+            let outBits =
+                bitsList
+                |> List.map (fun bits ->
+                    match bits.Dat with
+                    | Word b -> b, bits.Width
+                    | BigWord _ -> tooWideForTable bits)
+                |> List.fold
+                    (fun (lSBits, lSWidth) (inBits, inWidth) -> (inBits <<< lSWidth) ||| lSBits, inWidth + lSWidth)
+                    (0u, 0)
+                |> (fun (n, _) -> convertIntToFastData wOut n)
             put 0 <| Data outBits
         | false ->
             ([], fDataL)

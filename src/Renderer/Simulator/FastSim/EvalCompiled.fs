@@ -96,6 +96,37 @@ let private romTable (mem: Memory1) : uint32 array =
             table[int addr] <- convertBigintToUInt32 mem.WordWidth value)
     table
 
+/// Two slices of one input, each with its shift and mask worked out once.
+///
+/// This is what a `SplitWire` is, and what a two-way `SplitN` is: the two differ only in where
+/// their slices come from, `SplitWire` taking both from its one split point. The n-way version
+/// below reads the slice and the destination out of arrays on every step and counts a loop to do
+/// it, which for the two-way case - much the commonest - is all cost and no generality.
+let private split2U (fc: FastComponent) (struct (shift0, mask0)) (struct (shift1, mask1)) =
+    let src = inU fc 0
+    let out0 = outU fc 0
+    let out1 = outU fc 1
+
+    Some(fun (step: StepIndex) ->
+        let s = step.SimStep
+        let bits = getA src s
+        setA out0 s ((bits >>> shift0) &&& mask0)
+        setA out1 s ((bits >>> shift1) &&& mask1))
+
+/// Two inputs concatenated, little endian: input 0 holds the least significant bits.
+///
+/// `MergeWires` is this, and so is a two-way `MergeN` - whose general loop would shift an
+/// accumulator that is still zero on its first turn, then read a width and a step array out of
+/// arrays on its second.
+let private merge2U (fc: FastComponent) (shift: int) =
+    let a = inU fc 0
+    let b = inU fc 1
+    let dst = outU fc 0
+
+    Some(fun (step: StepIndex) ->
+        let s = step.SimStep
+        setA dst s (((getA b s) <<< shift) ||| (getA a s)))
+
 /// n outputs of a demultiplexer: the selected one gets the input, the rest 0
 let private demuxU (fc: FastComponent) (n: int) =
     let src = inU fc 0
@@ -297,29 +328,18 @@ let reducerFor (fc: FastComponent) : (StepIndex -> unit) option =
         else
             Some(fun step -> setA dst step.SimStep (0u))
 
-    | MergeWires, false ->
-        let a = inU fc 0
-        let b = inU fc 1
-        let dst = outU fc 0
-        // little endian: the top wire's bits are the least significant
-        let shift = fc.InputWidth 0
-
-        Some(fun step ->
-            let s = step.SimStep
-            setA dst s (((getA b s) <<< shift) ||| (getA a s)))
+    // little endian throughout: the top wire, and input 0, hold the least significant bits
+    | MergeWires, false -> merge2U fc (fc.InputWidth 0)
+    | MergeN 2, false -> merge2U fc (fc.InputWidth 0)
 
     | SplitWire topWireWidth, false ->
-        let src = inU fc 0
-        let lo = outU fc 0
-        let hi = outU fc 1
-        let struct (loShift, loMask) = sliceOf (topWireWidth - 1) 0
-        let struct (hiShift, hiMask) = sliceOf (fc.InputWidth 0 - 1) topWireWidth
+        split2U fc (sliceOf (topWireWidth - 1) 0) (sliceOf (fc.InputWidth 0 - 1) topWireWidth)
 
-        Some(fun step ->
-            let s = step.SimStep
-            let bits = (getA src s)
-            setA lo s ((bits >>> loShift) &&& loMask)
-            setA hi s ((bits >>> hiShift) &&& hiMask))
+    // a two-way SplitN is the same shape, its two slices named rather than derived from one point.
+    // The lists are matched on rather than measured so that one that does not have two of each
+    // falls to the general case below, which is what WidthInferer rejects such a component for.
+    | SplitN(2, [ width0; width1 ], [ lsb0; lsb1 ]), false ->
+        split2U fc (sliceOf (width0 + lsb0 - 1) lsb0) (sliceOf (width1 + lsb1 - 1) lsb1)
 
     | MergeN n, false ->
         let ins = Array.init n (inU fc)

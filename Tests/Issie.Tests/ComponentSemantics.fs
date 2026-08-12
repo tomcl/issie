@@ -169,6 +169,13 @@ let tests =
         // SplitN slices need not tile the input: slice 1 starts at bit 1, slice 2 at bit 3
         checkExhaustive "SplitN" (SplitN(2, [ 2; 2 ], [ 1; 3 ])) [ 5 ] [ 2; 2 ] (fun (In1(a)) ->
             [ mask 2 (a >>> 1); mask 2 (a >>> 3) ])
+        // The two-way merge and split have a reducer of their own, being much the commonest, so
+        // both they and the n-way loop they used to share need a case here. MergeN 3 and the
+        // SplitN above take the loop and the two below do not - or the other way about, if the
+        // sizes that get their own reducer ever change.
+        checkExhaustive "MergeN 2" (MergeN 2) [ 2; w ] [ 2 + w ] (fun (In2(a, b)) -> [ (b <<< 2) ||| a ])
+        checkExhaustive "SplitN 3" (SplitN(3, [ 1; 2; 2 ], [ 0; 1; 3 ])) [ 5 ] [ 1; 2; 2 ] (fun (In1(a)) ->
+            [ mask 1 a; mask 2 (a >>> 1); mask 2 (a >>> 3) ])
         checkExhaustive "BusSelection" (BusSelection(2, 1)) [ w + 2 ] [ 2 ] (fun (In1(a)) ->
             [ mask 2 (a >>> 1) ])
         checkExhaustive "BusCompare1" (BusCompare1(w, 5I, "5")) [ w ] [ 1 ] (fun (In1(a)) ->

@@ -14,6 +14,7 @@ open SheetSnap
 
 module Constants =
     let ZoomWheelStepThreshold = 30.0
+    let MaxZoomStepsPerWheelEvent = 4
 
 let mutable private zoomWheelAccumulator = 0.0
 
@@ -114,7 +115,13 @@ let wheelUpdate (ev: Types.WheelEvent) _model dispatch =
             else
                 previousAccumulator + delta
 
-        let steps = int (abs nextAccumulator / Constants.ZoomWheelStepThreshold)
+        // Bound the synchronous work done for one wheel event. Keep only the fractional
+        // remainder below one step, so an unusually large delta cannot create delayed zoom debt.
+        let wholeSteps =
+            floor (abs nextAccumulator / Constants.ZoomWheelStepThreshold)
+        let steps =
+            min (float Constants.MaxZoomStepsPerWheelEvent) wholeSteps
+            |> int
 
         if steps > 0 then
             let zoomMsg =
@@ -125,10 +132,9 @@ let wheelUpdate (ev: Types.WheelEvent) _model dispatch =
 
             [ 1 .. steps ] |> List.iter (fun _ -> dispatch zoomMsg)
 
-            let remainder = abs nextAccumulator - float steps * Constants.ZoomWheelStepThreshold
-            zoomWheelAccumulator <- floatSign nextAccumulator * remainder
-        else
-            zoomWheelAccumulator <- nextAccumulator
+        let remainder =
+            abs nextAccumulator - wholeSteps * Constants.ZoomWheelStepThreshold
+        zoomWheelAccumulator <- floatSign nextAccumulator * remainder
     else
         zoomWheelAccumulator <- 0.0
 

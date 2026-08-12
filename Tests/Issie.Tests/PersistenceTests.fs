@@ -39,6 +39,13 @@ let tests =
                 "a wire routed with a different number of segments is a change"
             Expect.isTrue (CanvasExtractor.compareCanvas 100. threeSegments threeSegments)
                 "and an unchanged sheet is not"
+            // a connection carrying no vertices at all has no position to measure the whole-sheet
+            // offset from, which is not a reason to fail
+            let noVertices = routedAs []
+            Expect.isFalse (CanvasExtractor.compareCanvas 100. noVertices threeSegments)
+                "a wire with no vertices differs from a routed one"
+            Expect.isTrue (CanvasExtractor.compareCanvas 100. noVertices noVertices)
+                "and two of them are the same"
         }
 
         // What the New Project form asks of every keystroke, so that a name is refused while the

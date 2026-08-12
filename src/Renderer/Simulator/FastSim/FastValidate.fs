@@ -155,12 +155,18 @@ let checkAndValidateFData (fs: FastSimulation) =
                 let data = fc.Outputs[i].FDataStep[0]
                 let expectedWidth = fc.OutputWidth i
 
+                // A width of zero is not a width, and a component that declares one cannot be
+                // simulated - the same thing the uint32 path above refuses. This used to be tested
+                // after the mismatch below, where it could only fire when the two agreed at zero:
+                // a step array starts out holding emptyFastData, whose width IS zero, so a zero
+                // there is the ordinary uninitialised state that the mismatch case exists to fill
+                // in. It is the declared width that must not be zero.
                 match data.Width, expectedWidth with
+                | _, 0 ->
+                    failwithf "Unexpected output width 0 declared by component %A %s:%d" fc.FType fc.FullName i
                 | n, m when n <> m ->
                     // Re-initialize with correct width if there's a mismatch
-                    output.FDataStep[0] <- Data(convertIntToFastData expectedWidth 0u)
-                | 0, _ ->
-                    failwithf "Unexpected output data %A found on initialised component %s:%d" data fc.FullName i
+                    output.FDataStep[0] <- Data(convertIntToFastData m 0u)
                 | _ -> () // Ok in this case
             ))
 

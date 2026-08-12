@@ -138,10 +138,15 @@ let compareConns tolerance conns1 conns2 =
     let connsA2 = connIdA conns2
     /// if whole ckt has been translated this will be the offset.
     /// This offset for all vertices => connections still the same.
+    ///
+    /// A connection with no vertices has no position to measure that offset from, and there is no
+    /// guarantee of one: extractReducedState strips vertices, and a .dgm need not have come from
+    /// this version of Issie. No offset is the right answer there, as it is for a canvas with no
+    /// connections at all - and it is a better one than indexing off the end of an empty list.
     let connFixedOffset =
         let xy (x,y,_) = {X=x;Y=y}
         match connsA1,connsA2 with
-        | c1::_, c2::_ ->
+        | c1::_, c2::_ when not (List.isEmpty c1.Vertices || List.isEmpty c2.Vertices) ->
             xy c1.Vertices[0] - xy c2.Vertices[0]
         | _ ->
             {X=0.; Y=0.}

@@ -60,10 +60,16 @@ let inline connsAreEqual (conn1: Connection) (conn2: Connection) =
     portsEqual conn1.Source conn2.Source
     && portsEqual conn1.Target conn2.Target
 
+// The label is part of the circuit, not of its presentation: wire labels are joined to each other
+// by name (FastCreate.reLinkIOLabels keys on the label), so renaming one moves a connection from
+// one net to another. Comparing it is also what stops a rename being invisible to the simulation
+// cache, which hands back the simulation built from the old names. It comes before the type
+// because it is a string compare and a type can carry a whole memory's contents.
 let inline compsAreEqual (comp1: Component) (comp2: Component) =
     comp1.Id = comp2.Id
     && comp1.InputPorts = comp2.InputPorts
     && comp1.OutputPorts = comp2.OutputPorts
+    && comp1.Label = comp2.Label
     && comp1.Type = comp2.Type
 
 let inline compsAreEqualExInputDefault (comp1: Component) (comp2: Component) =
@@ -72,10 +78,12 @@ let inline compsAreEqualExInputDefault (comp1: Component) (comp2: Component) =
         comp1.Id = comp2.Id
         && comp1.InputPorts = comp2.InputPorts
         && comp1.OutputPorts = comp2.OutputPorts
+        && comp1.Label = comp2.Label
     | _ ->
         comp1.Id = comp2.Id
         && comp1.InputPorts = comp2.InputPorts
         && comp1.OutputPorts = comp2.OutputPorts
+        && comp1.Label = comp2.Label
         && comp1.Type = comp2.Type
 
 /// Is circuit (not geometry) the same for two CanvasStates? fast comparison

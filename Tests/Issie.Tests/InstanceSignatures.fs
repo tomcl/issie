@@ -559,4 +559,24 @@ let tests =
             Expect.isTrue (CanvasExtractor.stateIsEqual childLdc.CanvasState withParam.CanvasState)
                 "declaring a parameter changes no component"
         }
+
+        test "renaming a wire label is a change to the circuit" {
+            // Wire labels are joined to each other by name, so the sink below takes its value from
+            // whichever source shares its label. Canvas comparison used to ignore Label entirely,
+            // so these two - which simulate differently - compared equal, and the simulation cache
+            // handed back the one built from the old names.
+            let build (sinkLabel: string) : CanvasState =
+                let in0 = makeComp "in0" 0 1 (Input1(1, None)) "I0"
+                let in1 = makeComp "in1" 0 1 (Input1(1, None)) "I1"
+                let sourceA = makeComp "la" 1 1 IOLabel "A"
+                let sourceB = makeComp "lb" 1 1 IOLabel "B"
+                let sink = makeComp "lx" 1 1 IOLabel sinkLabel
+                let out = makeComp "out0" 1 0 (Output 1) "O0"
+                [ in0; in1; sourceA; sourceB; sink; out ],
+                [ conn in0 0 sourceA 0; conn in1 0 sourceB 0; conn sink 0 out 0 ]
+            Expect.isFalse (CanvasExtractor.stateIsEqual (build "A") (build "B"))
+                "the sink now takes a different source"
+            Expect.isTrue (CanvasExtractor.stateIsEqual (build "A") (build "A"))
+                "and the same canvas still compares equal to itself"
+        }
     ]

@@ -874,9 +874,17 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
 #endif
         match comp.BigIntState with
         | None -> failwith "SplitWire with BigIntState"
-        | Some { InputIsBigInt = ins; OutputIsBigInt = outs } ->
+        | Some { OutputIsBigInt = outs } ->
             // Little endian, bits leaving from the top wire are the least significant.
-            match ins[0], outs[0] with
+            //
+            // The two flags are the two OUTPUTS, which is what decides the array each half is
+            // written to. This used to ask whether the INPUT was a bigint and whether output 0
+            // was, and the input always is: reaching this case at all means the input is over 32
+            // bits, which is what UseBigInt means for a SplitWire. So output 0 was written with
+            // putBigInt whatever its width, and a SplitWire whose input was wider than 32 bits
+            // could not be simulated at all - the write went to a BigIntStep array that is empty
+            // for any output of 32 bits or fewer.
+            match outs[0], outs[1] with
             | false, false ->
                 let bits0 = getBitsFromBigIntToUInt32 (topWireWidth - 1) 0 bits
                 let bits1 = getBitsFromBigIntToUInt32 ((comp.InputWidth 0) - 1) topWireWidth bits

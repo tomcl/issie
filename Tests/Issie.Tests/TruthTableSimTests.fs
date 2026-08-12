@@ -160,12 +160,51 @@ let private parityCases: (ComponentType * int list * int list * bigint list list
       Demux2, [ 4; 1 ], [ 4; 4 ], [ [ 9I; 0I ]; [ 9I; 1I ] ]
       GateN(And, 2), [ 1; 1 ], [ 1 ], [ [ 1I; 1I ]; [ 1I; 0I ] ]
       GateN(Nand, 3), [ 1; 1; 1 ], [ 1 ], [ [ 1I; 1I; 1I ]; [ 1I; 1I; 0I ] ]
-      Not, [ 1 ], [ 1 ], [ [ 0I ]; [ 1I ] ] ]
+      Not, [ 1 ], [ 1 ], [ [ 0I ]; [ 1I ] ]
+
+      // The shapes above are the ones a truth table is usually asked for. These are the rest of
+      // what EvalAlgebraic implements: the wider multiplexers and demultiplexers, the n-way merge
+      // and split, and the two adder variants with a port missing. Each is a separate branch of
+      // that file, and a branch nothing compares against the specification is one that can drift.
+      NbitsAdderNoCout 4, [ 1; 4; 4 ], [ 4 ], [ [ 1I; 15I; 15I ]; [ 0I; 7I; 9I ] ]
+      NbitsAdderNoCinCout 4, [ 4; 4 ], [ 4 ], [ [ 7I; 9I ]; [ 15I; 15I ] ]
+      Mux4, [ 4; 4; 4; 4; 2 ], [ 4 ], [ [ 1I; 2I; 3I; 4I; 0I ]; [ 1I; 2I; 3I; 4I; 3I ] ]
+      Mux8, [ 4; 4; 4; 4; 4; 4; 4; 4; 3 ], [ 4 ],
+        [ [ 1I; 2I; 3I; 4I; 5I; 6I; 7I; 8I; 0I ]; [ 1I; 2I; 3I; 4I; 5I; 6I; 7I; 8I; 7I ] ]
+      Demux4, [ 4; 2 ], [ 4; 4; 4; 4 ], [ [ 9I; 0I ]; [ 9I; 2I ] ]
+      Demux8, [ 4; 3 ], [ 4; 4; 4; 4; 4; 4; 4; 4 ], [ [ 9I; 0I ]; [ 9I; 7I ] ]
+      MergeN 3, [ 1; 2; 2 ], [ 5 ], [ [ 1I; 2I; 3I ]; [ 0I; 0I; 0I ] ]
+      // slices that neither tile the input nor start at zero
+      SplitN(2, [ 2; 2 ], [ 1; 3 ]), [ 5 ], [ 2; 2 ], [ [ 26I ]; [ 0I ]; [ 31I ] ]
+
+      // Everything above is 32 bits or narrower, so all of it is the uint32 half of both
+      // evaluators. Over 32 bits values are bigints in one and BigWord FastData in the other, which
+      // is a second set of branches again - and the only one either file had no parity case for.
+      NbitsAnd 40, [ 40; 40 ], [ 40 ], [ [ 1099511627775I; 12345678901I ]; [ 0I; 1099511627775I ] ]
+      NbitsOr 40, [ 40; 40 ], [ 40 ], [ [ 1099511627775I; 0I ]; [ 12345678901I; 98765432101I ] ]
+      NbitsNot 40, [ 40 ], [ 40 ], [ [ 0I ]; [ 1099511627775I ]; [ 12345678901I ] ]
+      // carry out of the top bit, which is where a mask at the wrong width shows
+      NbitsAdder 40, [ 1; 40; 40 ], [ 40; 1 ],
+        [ [ 1I; 1099511627775I; 1I ]; [ 0I; 12345678901I; 98765432101I ]; [ 0I; 1I; 1I ] ]
+      NbitsXor(40, Some Multiply), [ 40; 40 ], [ 40 ], [ [ 123456789I; 987654321I ]; [ 1099511627775I; 3I ] ]
+      NbitSpreader 40, [ 1 ], [ 40 ], [ [ 0I ]; [ 1I ] ]
+      Shift(40, 6, LSL), [ 40; 6 ], [ 40 ], [ [ 1099511627775I; 3I ]; [ 1I; 39I ]; [ 1I; 40I ] ]
+      Shift(40, 6, LSR), [ 40; 6 ], [ 40 ], [ [ 1099511627775I; 3I ]; [ 1099511627775I; 40I ] ]
+      // an ASR of a value whose top bit is set is the case that needs the sign bits put back
+      Shift(40, 6, ASR), [ 40; 6 ], [ 40 ], [ [ 1099511627775I; 3I ]; [ 12345678901I; 3I ] ]
+      MergeWires, [ 20; 20 ], [ 40 ], [ [ 1048575I; 1I ]; [ 0I; 1048575I ] ]
+      SplitWire 20, [ 40 ], [ 20; 20 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
+      Mux2, [ 40; 40; 1 ], [ 40 ], [ [ 1I; 1099511627775I; 1I ]; [ 1I; 1099511627775I; 0I ] ]
+      // a selection that crosses the 32-bit boundary, and one that does not
+      BusSelection(8, 30), [ 40 ], [ 8 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
+      BusSelection(8, 0), [ 40 ], [ 8 ], [ [ 1099511627775I ]; [ 12345678901I ] ] ]
 
 let private parityTests =
     testList "FData reducer agrees with the fast reducer" [
         for compType, inWidths, outWidths, stimuli in parityCases do
-            test $"%A{compType}" {
+            // the widths are part of the name because some component types carry none of their own:
+            // MergeWires and Mux2 appear twice, once on each side of the 32-bit boundary
+            test $"%A{compType} at %A{inWidths}" {
                 for inputVals in stimuli do
                     let fast = simFast compType inWidths outWidths inputVals
                     let ttData = simFData compType inWidths outWidths inputVals

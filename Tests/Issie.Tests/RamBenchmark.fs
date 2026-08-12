@@ -62,6 +62,34 @@ let private benchSheet (name: string) (ram: Memory1 -> ComponentType) (oneAddres
         connect "MEM/DOUT" "OUT"
     ]
 
+/// A 64K x 16 RAM written on **every** clock, which is the hardest a single memory can be driven.
+///
+/// `ADDRC` advances every cycle, so the address sweeps the whole space every 65536 clocks. The
+/// data is the address XORed with the top half of a 32-bit free-running counter, which is the
+/// pass number: an address gets a different value on each of its visits, so no write is
+/// suppressed. The pass number alone would be zero for the whole first sweep and every write of
+/// it would be suppressed; a second 16-bit counter alone would equal the address every pass and
+/// every write after the first sweep would be suppressed. Both were tried, and both silently
+/// measured a memory that was never written.
+let private alwaysWriteSheet (name: string) (ram: Memory1 -> ComponentType) =
+    describeSheet name [
+        comp "ADDRC" (CounterNoEnableLoad 16)
+        comp "FREE32" (CounterNoEnableLoad 32)
+        comp "PASS" (BusSelection(16, 16))
+        comp "WEN" (Constant1(1, 1I, "1"))
+        comp "XOR" (NbitsXor(16, None))
+        comp "MEM" (ram mem64k)
+        comp "OUT" (Output 16)
+    ] [
+        connect "ADDRC/Q" "MEM/ADDR"
+        connect "FREE32/Q" "PASS"
+        connect "ADDRC/Q" "XOR/P"
+        connect "PASS" "XOR/Q"
+        connect "XOR/OUT" "MEM/DIN"
+        connect "WEN" "MEM/WEN"
+        connect "MEM/DOUT" "OUT"
+    ]
+
 /// 256 words of 1 bit: 32 bytes of actual data, which is the size a lot of real RAMs in teaching
 /// designs are. A design with a hundred of them has as many *addresses* as one 64K RAM has in a
 /// quarter of its space, so it is the case that shows what per-address overhead costs.
@@ -174,6 +202,35 @@ let private measureOne (title: string) (ram: Memory1 -> ComponentType) (oneAddre
     let live = results |> List.map (fun (_, _, l) -> l) |> List.head
     printfn "%-34s %10.1f cycles/ms %10.1f MB retained %8d live words" title speed heap live
     speed, heap, live
+
+let private measureAlways (title: string) (ram: Memory1 -> ComponentType) (arraySize: int) =
+    let build () =
+        let canvas =
+            match SheetLayout.toCanvasState (alwaysWriteSheet "always" ram) with
+            | Ok c -> c
+            | Error e -> failtestf "could not build the always-write sheet: %s" e
+        let ldc = CanvasBuilder.makeLdc "always" None canvas
+        match Simulator.startCircuitSimulation arraySize "always" canvas [ ldc ] with
+        | Error e -> failtestf "always-write simulation failed to build: %A" e
+        | Ok simData -> simData.FastSim
+    let run () =
+        let fs = build ()
+        GC.Collect()
+        GC.WaitForPendingFinalizers()
+        let heapBefore = GC.GetTotalMemory true
+        let sw = Diagnostics.Stopwatch.StartNew()
+        FastRun.runFastSimulation None cycles fs |> ignore
+        sw.Stop()
+        let heapAfter = GC.GetTotalMemory true
+        let live = liveWords fs (cycles - 1)
+        float cycles / sw.Elapsed.TotalMilliseconds, float (heapAfter - heapBefore) / 1.0e6, live
+    run () |> ignore
+    let results = [ for _ in 1..3 -> run () ]
+    printfn "%-38s %9.1f cycles/ms %9.1f MB retained %8d live words"
+        title
+        (median (results |> List.map (fun (s, _, _) -> s)))
+        (median (results |> List.map (fun (_, h, _) -> h)))
+        (results |> List.map (fun (_, _, l) -> l) |> List.head)
 
 /// The many-small-RAMs case. Reported separately because what matters here is bytes held against
 /// bytes of memory simulated: a hundred 256 x 1 RAMs are 3.2 kB of data between them.
@@ -307,13 +364,18 @@ let tests =
             printfn "RAM benchmark: %d cycles, one write every 8, 64K x 16 memory" cycles
             printfn "  .NET speed is indicative only - measure speed in the app (simulatorStructure.md)"
             printfn ""
-            if benchOnly <> "sieve" then
+            if benchOnly <> "sieve" && benchOnly <> "always" then
                 measureOne "sync RAM, address sweep" RAM1 false |> ignore
                 measureOne "async RAM, address sweep" AsyncRAM1 false |> ignore
                 measureOne "async RAM, all writes to one addr" AsyncRAM1 true |> ignore
                 measureMany "100 x (256 word x 1 bit) RAMs" 100
                 printfn ""
-            if benchOnly <> "ram" then
+            if benchOnly = "always" then
+                printfn "64K x 16 RAM, written every cycle, %d cycles" cycles
+                measureAlways "  waveform arrays (no wrap)" RAM1 (cycles + 3)
+                measureAlways "  step arrays (550, wrapping)" RAM1 550
+                printfn ""
+            if benchOnly <> "ram" && benchOnly <> "always" then
                 printfn "5eratosthenes, full sieve program, step-simulator array size (550, wrapping):"
                 measureSieve 550
                 printfn ""

@@ -65,6 +65,28 @@ phase 2 argument in one number: RAM was the largest single term and is now a rou
 the per-step retention of everything else is what stands between this design and a long waveform
 simulation.
 
+### One RAM, written every cycle
+
+The hardest a single memory can be driven: a 64K x 16 RAM with write-enable tied high, the address
+advancing every clock so the space is swept every 65536 cycles, and the data the address XORed with
+the sweep number so that no write repeats a value and none is suppressed. Nothing else in the
+design, so unlike the sieve below the RAM is the work rather than one component in 349.
+**1 000 000 cycles, so 1 000 000 writes**, ending with all 65535 words live.
+
+| 1 000 000 writes | before | after | factor |
+|---|---:|---:|---:|
+| waveform arrays (no wrap) | 169 cycles/ms, **1196.7 MB** | 5012 cycles/ms, **11.3 MB** | **30x time, 106x space** |
+| step arrays (550, wrapping) | 342 cycles/ms, 4.8 MB | 2788 cycles/ms, 2.9 MB | 8x time, 1.7x space |
+
+1196.7 MB is 1.2 kB a write - an AVL path copy, a `Memory1`, a `RamState` and two boxed `BigInt`s,
+every clock, all of it reachable for the rest of the run. 11.3 MB is 8 bytes an entry plus the
+offset table and the current-contents array. The wrapping row is the same simulation with only the
+last 550 steps reachable, which is what bounded the old cost; it is the gap between the two rows
+that this work is about.
+
+The after side is *faster* with the larger arrays (5012 against 2788) because nothing is ever out
+of window there, so compaction never has anything to prune and runs less often.
+
 ### Many small memories
 
 The case that gains most is not the big RAM. A design of **a hundred 256-word by 1-bit RAMs** -

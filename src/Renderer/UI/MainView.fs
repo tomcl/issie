@@ -630,18 +630,6 @@ let displayView model dispatch =
             if model.PopupDialogData.Progress = None then
                 div [
                     OnMouseDown (fun _ -> claimKeyFocus LeftPane)
-                    OnWheel (fun (e: Browser.Types.WheelEvent) ->
-                        if e.ctrlKey || e.metaKey then
-                            e.preventDefault()
-                            dispatch (Sheet (
-                                if e.deltaY > 0. then
-                                    SheetT.KeyPress SheetT.KeyboardMsg.ZoomOut
-                                else
-                                    SheetT.KeyPress SheetT.KeyboardMsg.ZoomIn
-                                ))
-                        else
-                            ()
-                        );
                 ] [
                     SheetDisplay.view model.Sheet headerHeight (canvasVisibleStyleList model)
                         (Probe.view model) sheetDispatch

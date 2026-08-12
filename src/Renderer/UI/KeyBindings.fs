@@ -390,6 +390,7 @@ let onKeyDown (dispatch: Msg -> unit) (e: Browser.Types.Event) =
         // Ctrl held is a state, not a chord, so it is tracked separately from the table
         if (ev.key = "Control" || ev.key = "Meta") && not ctrlHeld then
             ctrlHeld <- true
+            SheetDisplay.setPhysicalModifierHeld true
             dispatch <| Sheet SheetT.PortMovementStart
 
         // Space held is the same kind of thing. Only on the canvas: in a text box space is a
@@ -408,6 +409,7 @@ let onKeyUp (dispatch: Msg -> unit) (e: Browser.Types.Event) =
     // other key while Ctrl was held left the model thinking Ctrl was up when it was not.
     if (ev.key = "Control" || ev.key = "Meta") && ctrlHeld then
         ctrlHeld <- false
+        SheetDisplay.setPhysicalModifierHeld false
         dispatch <| Sheet SheetT.PortMovementEnd
 
     if ev.key = " " && spaceHeld then
@@ -418,6 +420,7 @@ let onKeyUp (dispatch: Msg -> unit) (e: Browser.Types.Event) =
 let onWindowBlur (dispatch: Msg -> unit) (_: Browser.Types.Event) =
     if ctrlHeld then
         ctrlHeld <- false
+        SheetDisplay.setPhysicalModifierHeld false
         dispatch <| Sheet SheetT.PortMovementEnd
 
     if spaceHeld then

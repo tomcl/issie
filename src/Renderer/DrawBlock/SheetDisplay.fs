@@ -12,6 +12,28 @@ open Operators
 open Sheet
 open SheetSnap
 
+module Constants =
+    let ZoomWheelStepThreshold = 30.0
+
+let mutable private zoomWheelAccumulator = 0.0
+
+// Chromium reports a trackpad pinch as a wheel event with ctrlKey/metaKey set, even though no
+// physical modifier key is held. KeyBindings updates this state for real Control/Meta presses so
+// the two gestures can be handled differently.
+let mutable private physicalModifierHeld = false
+
+let setPhysicalModifierHeld value =
+    physicalModifierHeld <- value
+    if not value then
+        zoomWheelAccumulator <- 0.0
+
+let isPhysicalModifierHeld () = physicalModifierHeld
+
+let private floatSign value =
+    if value > 0.0 then 1.0
+    elif value < 0.0 then -1.0
+    else 0.0
+
 /// This actually writes to the DOM a new scroll position.
 /// In the special case that DOM has not yet been created it does nothing.
 let writeCanvasScroll (scrollPos:XYPos) =
@@ -64,10 +86,51 @@ let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Mod
         Y = (ev.pageY - headerHeight + sheetModel.ScreenScrollPos.Y) / sheetModel.Zoom
     }
 
-// Ctrl+wheel zoom used to be handled here as well as on the wrapper div in MainView. Both fired
-// on the same bubbled event, so one wheel notch zoomed twice. MainView's is the one kept: it reads
-// the modifier off the event itself rather than off a decaying list of held keys, and it is the
-// one that suppresses the browser's own page zoom.
+let private normalizedWheelDelta (ev: Types.WheelEvent) =
+    match ev.deltaMode with
+    | 1.0 -> ev.deltaY * 16.0
+    | 2.0 -> ev.deltaY * 800.0
+    | _ -> ev.deltaY
+
+let wheelUpdate (ev: Types.WheelEvent) _model dispatch =
+    let delta = normalizedWheelDelta ev
+    let isZoomGesture = ev.ctrlKey || ev.metaKey
+    let isPinchZoom = isZoomGesture && not (isPhysicalModifierHeld ())
+    let isDiscreteShortcutZoom = isZoomGesture && isPhysicalModifierHeld ()
+
+    if isPinchZoom then
+        ev.preventDefault()
+        zoomWheelAccumulator <- 0.0
+        let zoomFactor = exp (-delta * Sheet.Constants.pinchZoomSensitivity)
+
+        if abs (zoomFactor - 1.0) > 0.0001 then
+            dispatch <| PreciseZoom zoomFactor
+    elif isDiscreteShortcutZoom then
+        ev.preventDefault()
+        let previousAccumulator = zoomWheelAccumulator
+        let nextAccumulator =
+            if previousAccumulator <> 0.0 && floatSign previousAccumulator <> floatSign delta then
+                delta
+            else
+                previousAccumulator + delta
+
+        let steps = int (abs nextAccumulator / Constants.ZoomWheelStepThreshold)
+
+        if steps > 0 then
+            let zoomMsg =
+                if nextAccumulator > 0.0 then
+                    KeyPress ZoomOutFine
+                else
+                    KeyPress ZoomInFine
+
+            [ 1 .. steps ] |> List.iter (fun _ -> dispatch zoomMsg)
+
+            let remainder = abs nextAccumulator - float steps * Constants.ZoomWheelStepThreshold
+            zoomWheelAccumulator <- floatSign nextAccumulator * remainder
+        else
+            zoomWheelAccumulator <- nextAccumulator
+    else
+        zoomWheelAccumulator <- 0.0
 
 /// Is the mouse button currently down?
 let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.
@@ -134,6 +197,7 @@ let displaySvgWithZoom
               match not firstView, scrollOpt with
                 | true, Some scroll ->putScrollProps scroll |> ignore
                 | _ -> ()
+              OnWheel (fun ev -> wheelUpdate ev model dispatch)
         ]
     div (scrollAttrL @  attrs)
         [

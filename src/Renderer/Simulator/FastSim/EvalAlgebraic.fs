@@ -981,10 +981,18 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 else // identical to int32 case except use bigints
                     let inBitsAndWidths =
                         bitsList
+                        // Each input is taken as whatever it is. A value is held as a Word exactly
+                        // when its own width is 32 or less, so a merge wide enough to need bigints
+                        // is precisely the one whose inputs need not all be bigints - and narrow
+                        // inputs making a wide output is what MergeN is FOR. Refusing a Word here
+                        // meant that every such merge failed with "cannot mix > 32 bit and < 32
+                        // bit", which is the ordinary case and not a mixture of anything. The
+                        // uint32 branch above needs no such widening: its output is 32 bits or
+                        // fewer, so every input of it is too.
                         |> List.map (fun bits ->
                             match bits.Dat with
                             | BigWord b -> b, bits.Width
-                            | _ -> failwithf $"inconsistent MergeN data for Truth Tables - cannot mix > 32 bit and < 32 bit") 
+                            | Word b -> bigint b, bits.Width)
                     let mergeTwoValues (lSWidth: int) (mSValue: bigint) (lSValue: bigint) =
                         (mSValue <<< lSWidth) ||| lSValue
                     ((0I,0), inBitsAndWidths)

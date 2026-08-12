@@ -197,7 +197,31 @@ let private parityCases: (ComponentType * int list * int list * bigint list list
       Mux2, [ 40; 40; 1 ], [ 40 ], [ [ 1I; 1099511627775I; 1I ]; [ 1I; 1099511627775I; 0I ] ]
       // a selection that crosses the 32-bit boundary, and one that does not
       BusSelection(8, 30), [ 40 ], [ 8 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
-      BusSelection(8, 0), [ 40 ], [ 8 ], [ [ 1099511627775I ]; [ 12345678901I ] ] ]
+      BusSelection(8, 0), [ 40 ], [ 8 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
+
+      // A component whose ports are not all on the same side of the boundary picks the array to
+      // read or write each one from per port. Getting that wrong is invisible until a port of the
+      // other kind exists, which is why these are here in every combination rather than once: it
+      // is how SplitWire came to write output 0 as a bigint whatever its width, so that no bus
+      // wider than 32 bits could be split at all.
+      MergeWires, [ 40; 4 ], [ 44 ], [ [ 1099511627775I; 5I ]; [ 0I; 15I ] ]
+      MergeWires, [ 4; 40 ], [ 44 ], [ [ 5I; 1099511627775I ]; [ 15I; 0I ] ]
+      MergeWires, [ 40; 40 ], [ 80 ], [ [ 1099511627775I; 12345678901I ] ]
+      SplitWire 8, [ 44 ], [ 8; 36 ], [ [ 17592186044415I ]; [ 12345678901I ] ]
+      SplitWire 36, [ 44 ], [ 36; 8 ], [ [ 17592186044415I ]; [ 12345678901I ] ]
+      SplitWire 40, [ 80 ], [ 40; 40 ], [ [ 1208925819614629174706175I ]; [ 12345678901I ] ]
+      SplitN(2, [ 8; 36 ], [ 0; 8 ]), [ 44 ], [ 8; 36 ], [ [ 17592186044415I ]; [ 12345678901I ] ]
+      SplitN(2, [ 36; 8 ], [ 0; 36 ]), [ 44 ], [ 36; 8 ], [ [ 17592186044415I ]; [ 12345678901I ] ]
+      MergeN 3, [ 20; 20; 20 ], [ 60 ], [ [ 1048575I; 0I; 1048575I ]; [ 1I; 2I; 3I ] ]
+      // a selection whose output is itself over 32 bits
+      BusSelection(36, 2), [ 40 ], [ 36 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
+      BusCompare1(40, 1099511627775I, "big"), [ 40 ], [ 1 ], [ [ 1099511627775I ]; [ 12345678901I ] ]
+      Mux4, [ 40; 40; 40; 40; 2 ], [ 40 ],
+        [ [ 1I; 2I; 3I; 1099511627775I; 3I ]; [ 1I; 2I; 3I; 1099511627775I; 0I ] ]
+      Mux8, [ 40; 40; 40; 40; 40; 40; 40; 40; 3 ], [ 40 ],
+        [ [ 1I; 2I; 3I; 4I; 5I; 6I; 7I; 1099511627775I; 7I ] ]
+      Demux4, [ 40; 2 ], [ 40; 40; 40; 40 ], [ [ 1099511627775I; 0I ]; [ 1099511627775I; 3I ] ]
+      Demux8, [ 40; 3 ], [ 40; 40; 40; 40; 40; 40; 40; 40 ], [ [ 1099511627775I; 7I ] ] ]
 
 let private parityTests =
     testList "FData reducer agrees with the fast reducer" [

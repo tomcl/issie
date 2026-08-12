@@ -80,6 +80,18 @@ let rec private refEval (bindings: Map<string, bigint>) (expr: ParamExpression) 
     | PBinFunc(PMin, l, r) -> binary (fun l r -> Ok(min l r)) l r
     | PBinFunc(PMax, l, r) -> binary (fun l r -> Ok(max l r)) l r
 
+/// A generated number spread over a bus width.
+///
+/// FsCheck's bigint and int generators make SMALL numbers - a 200-sample check of
+/// `abs a % (1I <<< 40)` found none above 99, none with a bit set above the seventh. So the
+/// properties below, which look like they exercise 40-bit values, were exercising the bigint
+/// arrays with values that fit in one byte: the sign bit was never set, nothing ever carried out
+/// of the top, and no mask ever had anything to remove. Multiplying by a large odd constant before
+/// masking spreads the generated number over the whole width, so the high bits vary as the low
+/// ones do and about half the values have their sign bit set.
+let private atWidth (w: int) (n: bigint) : bigint =
+    (abs n * 6364136223846793005I) &&& ((1I <<< w) - 1I)
+
 let private sameOutcome (production: Result<bigint, string>) (reference: Result<bigint, unit>) =
     match production, reference with
     | Ok p, Ok r -> p = r
@@ -401,7 +413,7 @@ let tests =
         testPropertyWithConfig { config with maxTest = 40 } "40-bit adder matches bigint addition"
         <| fun (a: bigint) (b: bigint) (cin: bool) ->
             let w = 40
-            let a, b = abs a % (1I <<< w), abs b % (1I <<< w)
+            let a, b = atWidth w a, atWidth w b
             let cin = if cin then 1I else 0I
             let sum = a + b + cin
             let expected = [ sum % (1I <<< w); sum >>> w ]
@@ -410,26 +422,35 @@ let tests =
         testPropertyWithConfig { config with maxTest = 40 } "40-bit logic matches bigint operators"
         <| fun (a: bigint) (b: bigint) ->
             let w = 40
-            let a, b = abs a % (1I <<< w), abs b % (1I <<< w)
+            let a, b = atWidth w a, atWidth w b
             ComponentSemantics.simulate (NbitsAnd w) [ w; w ] [ w ] [ a; b ] = [ a &&& b ]
             && ComponentSemantics.simulate (NbitsXor(w, None)) [ w; w ] [ w ] [ a; b ] = [ a ^^^ b ]
             && ComponentSemantics.simulate (NbitsNot w) [ w ] [ w ] [ a ]
                = [ a ^^^ ((1I <<< w) - 1I) ]
 
+
+
         testPropertyWithConfig { config with maxTest = 40 } "40-bit shifts match bigint shifts"
         <| fun (a: bigint) (amt: int) ->
             let w = 40
             let mask = (1I <<< w) - 1I
-            let a = abs a % (1I <<< w)
+            let a = atWidth w a
             let amt = abs amt % (1 <<< 6)   // 6-bit shifter: amounts 0..63 cross the bus width
             let amtB = bigint amt
             let signSet = a >>> (w - 1) = 1I
             let expectLsl = if amt >= w then 0I else (a <<< amt) &&& mask
             let expectLsr = if amt >= w then 0I else a >>> amt
+            // An arithmetic shift is a division of the SIGNED value, rounding towards minus
+            // infinity, put back into the width. Said that way this is an independent answer;
+            // written as a right shift with the top bits filled in it would be the reducer's own
+            // expression copied, which can only catch a change to it and never an error in it.
+            // .NET's >>> on a negative bigint is itself arithmetic, which is what makes this short.
             let expectAsr =
-                if amt >= w then (if signSet then mask else 0I)
-                elif signSet then (a >>> amt) ||| (mask &&& (mask <<< (w - amt)))
-                else a >>> amt
+                let signed = if signSet then a - (1I <<< w) else a
+                let shifted =
+                    if amt >= w then (if signSet then -1I else 0I)
+                    else signed >>> amt
+                shifted &&& mask
             ComponentSemantics.simulate (Shift(w, 6, LSL)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectLsl ]
             && ComponentSemantics.simulate (Shift(w, 6, LSR)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectLsr ]
             && ComponentSemantics.simulate (Shift(w, 6, ASR)) [ w; 6 ] [ w ] [ a; amtB ] = [ expectAsr ]
@@ -438,9 +459,9 @@ let tests =
         // split produces one uint32 slice and one bigint slice from a bigint input
         testPropertyWithConfig { config with maxTest = 40 } "MergeN and SplitN at >32-bit widths"
         <| fun (a: bigint) (b: bigint) (c: bigint) ->
-            let a = abs a % (1I <<< 40)
-            let b = abs b % (1I <<< 8)
-            let c = abs c % (1I <<< 8)
+            let a = atWidth 40 a
+            let b = atWidth 8 b
+            let c = atWidth 8 c
             let merged = a ||| (b <<< 40) ||| (c <<< 48)
             ComponentSemantics.simulate (MergeN 3) [ 40; 8; 8 ] [ 56 ] [ a; b; c ] = [ merged ]
             && ComponentSemantics.simulate (SplitN(2, [ 8; 40 ], [ 0; 8 ])) [ 56 ] [ 8; 40 ] [ merged ]
@@ -467,7 +488,7 @@ let tests =
         // all-uint32 inputs merging to a bigint output
         testPropertyWithConfig { config with maxTest = 40 } "MergeN of two uint32 inputs to a >32-bit output"
         <| fun (x: bigint) (y: bigint) ->
-            let x = abs x % (1I <<< 20)
-            let y = abs y % (1I <<< 20)
+            let x = atWidth 20 x
+            let y = atWidth 20 y
             ComponentSemantics.simulate (MergeN 2) [ 20; 20 ] [ 40 ] [ x; y ] = [ x ||| (y <<< 20) ]
     ]

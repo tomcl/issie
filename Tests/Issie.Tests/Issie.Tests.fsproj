@@ -11,6 +11,7 @@
     <Compile Include="PathHelperTests.fs" />
     <Compile Include="TestFixtures.fs" />
     <Compile Include="CanvasBuilder.fs" />
+    <Compile Include="ListPairsTests.fs" />
     <Compile Include="GoldenModel.fs" />
     <Compile Include="ComponentSemantics.fs" />
     <Compile Include="Properties.fs" />

@@ -655,13 +655,16 @@ let private changeSplitN model (comp:Component) dispatch =
             List.append widths (List.init (newNumInputs-n) (fun _ -> defaultVal)) 
         | _ -> widths
 
-    let changeLsbs = fun (lsbs: int list) (widths: int list) (newNumInputs: int ) -> 
+    let changeLsbs = fun (lsbs: int list) (widths: int list) (newNumInputs: int ) ->
         match lsbs.Length with
-        | n when n > newNumInputs -> 
+        | n when n > newNumInputs ->
             lsbs[..(newNumInputs-1)]
         | n when n < newNumInputs ->
-            let msbs = List.map2 (fun lsb width -> lsb + width - 1) lsbs widths
-            List.append lsbs (List.init (newNumInputs-n) (fun x -> x + (List.max msbs) + 1)) 
+            // `widths` has already been grown to newNumInputs while `lsbs` has not, so only its
+            // first n entries have an lsb to pair with. The new outputs start above the highest bit
+            // the existing ones reach, which is what those n pairs give.
+            let msbs = List.map2 (fun lsb width -> lsb + width - 1) lsbs (List.truncate n widths)
+            List.append lsbs (List.init (newNumInputs-n) (fun x -> x + (List.max msbs) + 1))
         | _ -> lsbs
 
     div [] [

@@ -108,11 +108,12 @@ let stateIsEqualExInputDefault (cs1: CanvasState) (cs2: CanvasState) =
 /// Are two lists of vertices are very similar.
 ///
 /// The lengths are compared FIRST, and not after the fold, because two wires of different lengths
-/// are not similar however their common prefix compares - and because `List.iter2` is defined only
-/// for lists of equal length. Testing it afterwards raised under .NET while returning the right
-/// answer in the app, where Fable's library stopped at the shorter list instead. Two versions of one
-/// connection differ in vertex count whenever the wire has been rerouted, which is the ordinary case
-/// for a sheet being edited, not a corner of it.
+/// are not similar however their common prefix compares - and folding them together first was how
+/// this came to raise under .NET, where `List.iter2` is defined only for equal lengths, while
+/// returning the right answer in the app, where Fable's stopped at the shorter list. `ListPairs`
+/// has since settled that difference in favour of stopping, so the order here is about the answer
+/// rather than about raising. Two versions of one connection differ in vertex count whenever the
+/// wire has been rerouted, which is the ordinary case for a sheet being edited.
 let verticesAreSame (fixedOffset:XYPos) tolerance (conns1: (float * float * bool) list) (conns2: (float * float * bool) list) =
     let diff m1 m2 = if m1 <> m2 then tolerance else 0.
     let sq x = x * x

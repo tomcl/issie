@@ -15,6 +15,7 @@ let main argv =
         ParameterScenarios.tests
         ComponentSemantics.tests
         GoldenModel.tests
+        ListPairsTests.tests
         PersistenceTests.tests
         SheetDescriptionTests.tests
         DrawBlockTests.tests

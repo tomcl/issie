@@ -205,7 +205,13 @@ let viewBuild model dispatch =
                                     List.append bits (List.map (fun _ -> None) [1..256])
 
                                 let values =
-                                    List.zip mappings bits
+                                    // The bit list is padded with Nones above precisely so that it
+                                    // covers every mapping, and the surplus is meant to be dropped.
+                                    // List.zip stops at the shorter list anyway (see ListPairs);
+                                    // this says that the surplus is the point rather than an
+                                    // accident.
+                                    let paired = min mappings.Length bits.Length
+                                    List.zip (List.truncate paired mappings) (List.truncate paired bits)
                                     |> List.fold (fun s (name, bit) ->
                                         match List.tryHead s with
                                         | Some (n, bits) when n = name-> (n, bit :: bits) :: (List.tail s)

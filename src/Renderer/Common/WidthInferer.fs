@@ -98,6 +98,18 @@ let private makeWidthInferErrorMax max actual connectionsAffected = Error {
     ConnectionsAffected = connectionsAffected
 }
 
+/// A component whose own definition does not hold together, which is not about any one wire.
+/// A `SplitN` carries three things that must agree - how many outputs it has, a width for each and
+/// an LSB for each - and nothing but this enforces it. They come from a `.dgm` or from a dialog, so
+/// a file written by an older version, by hand, or by a generator can disagree; the twelve places
+/// that walk those two lists together then read past the end of the shorter, and `List.map2` stops
+/// there rather than saying so (see `ListPairs`). Reporting it here, once, is what makes the rest
+/// of them safe: nothing reaches the simulator, or a symbol's rendering, without passing here.
+let private makeComponentInconsistentError msg = Error {
+    Msg = msg
+    ConnectionsAffected = []
+}
+
 /// Add to the map the extra (virtual) connections formed from each set of similarlky named bus labels.
 /// each unconnected bus label input is virtually connected to the (single) connection
 /// that drives the set
@@ -473,21 +485,35 @@ let private calculateOutputPortsWidth
             let out = out.Add (getOutputPortId comp 1, n - topWireWidth)
             Ok out
         | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
-    | SplitN (n, outputWidths, lsBits) -> 
+    | SplitN (n, outputWidths, lsBits) ->
         assertInputsSize inputConnectionsWidth 1 comp
-        let msb = 
-            (outputWidths, lsBits)
-            ||> List.map2 (fun width lsb -> lsb + width - 1)
-            |> List.max
-        match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
-        | [None] -> Ok Map.empty
-        | [Some inWidth] when inWidth < msb + 1 -> makeWidthInferErrorAtLeast (msb + 1) inWidth [getConnectionIdForPort 0]
-        | [Some _] ->
-            // n is the number of outputs, not the input width: shadowing it here once
-            // made this fold crash whenever the two differed
-            let out = Map.empty
-            Ok (List.fold2 (fun (acc: Map<OutputPortId,int>) index width -> acc.Add (getOutputPortId comp index, width)) out [0..n-1] outputWidths)
-        | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
+        // A SplitN carries three things that must agree, and this is where they are held to it.
+        // One walk over all three settles it and hands back the three lengths for the message; the
+        // twelve other places that pair these two lists then need no check of their own, because
+        // nothing reaches the simulator without coming through here.
+        match List.checkedMap3 (fun index width lsb -> index, width, lsb + width - 1) [0..n-1] outputWidths lsBits with
+        | Error(nOuts, nWidths, nLsbs) ->
+            makeComponentInconsistentError (
+                sprintf
+                    "This SplitN does not hold together: it says it has %d outputs, and carries %d \
+                     widths and %d LSBs. Delete it and place a new one."
+                    nOuts
+                    nWidths
+                    nLsbs)
+        // no outputs at all, so there is no highest bit to ask the input to reach
+        | Ok [] ->
+            makeComponentInconsistentError "This SplitN has no outputs. Delete it and place a new one."
+        | Ok outputs ->
+            let msb = outputs |> List.map (fun (_, _, msb) -> msb) |> List.max
+            match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with
+            | [None] -> Ok Map.empty
+            | [Some inWidth] when inWidth < msb + 1 -> makeWidthInferErrorAtLeast (msb + 1) inWidth [getConnectionIdForPort 0]
+            | [Some _] ->
+                (Map.empty, outputs)
+                ||> List.fold (fun (acc: Map<OutputPortId,int>) (index, width, _) ->
+                        acc.Add (getOutputPortId comp index, width))
+                |> Ok
+            | _ -> failwithf "what? Impossible case in calculateOutputPortsWidth for: %A" comp.Type
     | DFF ->
         assertInputsSize inputConnectionsWidth 1 comp
         match getWidthsForPorts inputConnectionsWidth [InputPortNumber 0] with

@@ -18,13 +18,20 @@
     operating system - the renderer may not - and nothing that knows about the Elmish model,
     which only the renderer has. ContextMenus is the shape of that: the menu names and their
     items live here, while building an actual Electron menu is main's, in ContextMenuBuilder.fs.
+
+    ListPairs is here for a second reason as well as that one: a referenced project is compiled
+    before everything in the project referencing it, and being AutoOpen it has to be compiled
+    before its call sites to shadow anything at all.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
-    <!-- ElectronAPI first: ContextMenus uses its types. Log needs neither. -->
+    <!-- ListPairs first, and first in the whole build: it is AutoOpen, so it shadows the pairwise
+         List functions for every file compiled after it in either project. -->
+    <Compile Include="ListPairs.fs" />
+    <!-- ElectronAPI before ContextMenus: ContextMenus uses its types. Log needs neither. -->
     <Compile Include="ElectronAPI.fs" />
     <Compile Include="Log.fs" />
     <Compile Include="ContextMenus.fs" />

@@ -102,7 +102,13 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
     let lastIndex = indexes[List.length indexes - 1]
 
     /// list of segments (except for end ones) and their vertices
-    let segVertices = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] |> List.zip indexes // do not consider the nubs
+    ///
+    /// There is always one more interior vertex than there are segments between interior vertices,
+    /// so the last index has no segment to pair with and is dropped. `List.zip` would do that on
+    /// its own (see `ListPairs`), but a pairing that never lines up is worth saying out loud.
+    let segVertices =
+        let segments = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] // do not consider the nubs
+        List.zip (List.truncate segments.Length indexes) segments
 
     let inputCompId = model.Symbol.Ports.[string wire.InputPort].HostId
     let outputCompId = model.Symbol.Ports.[string wire.OutputPort].HostId

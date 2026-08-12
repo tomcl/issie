@@ -95,6 +95,19 @@ and when they emitted beside the source instead, the second compiler overwrote t
 which put two copies of Fable's library in one bundle and silently broke every `Map` that crossed
 the seam. See [scripts/fable-output.js](scripts/fable-output.js).
 
+**`List.map2` and its relatives are shadowed, everywhere, by `src/Shared/ListPairs.fs`, and they
+stop at the shorter list.** F# defines them only for equal lengths and raises otherwise; Fable's
+library builds most of them on a `fold2` that truncates, so the same call raised in a test and
+quietly returned a truncated answer in the app. The shim settles that in favour of truncating,
+because that is what ships and what the code has always relied on — `BusWireRoute` pairs one more
+vertex index than there are segments on every wire it routes. The module is `[<AutoOpen>]` and its
+inner module is named `List`, so an ordinary `List.zip` resolves there in both projects with no
+`open`; nothing at a call site says so, which is why it is here. **A mismatch that means something
+must therefore be caught where it means something** — `List.checkedMap3` and its siblings return
+`Error` carrying each list's length, which is what the message has to quote;
+`WidthInferer`'s `SplitN` case is the worked example. Arrays never needed any of this:
+`Array.map2` and friends raise in both runtimes.
+
 **`src/Shared` is the code both processes compile.** Types and pure logic only: nothing that reaches
 the operating system (the renderer may not) and nothing that knows the Elmish model (only the
 renderer has one). `ContextMenus.fs` is the shape of it — the menu names and items are shared, while

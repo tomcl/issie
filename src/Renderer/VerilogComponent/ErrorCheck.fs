@@ -50,6 +50,13 @@ let portCheck (ast: VerilogInput) linesLocations errorList  =
     let locationList = ast.Module.Locations |> Array.toList
     let locationMap =
         (portList, locationList) ||> List.map2 (fun p i -> (p,int i)) |> Map.ofList
+    /// Where in the source to point at when reporting something about a port.
+    ///
+    /// The names and their locations are two arrays the parser fills separately, and this is the
+    /// error checker: a port the grammar gave no location for must not stop it reporting the
+    /// error it was called about. The start of the file is a poor place to point at and a far
+    /// better outcome than throwing while writing an error message.
+    let locationOf (name: string) = Map.tryFind name locationMap |> Option.defaultValue 0
     match ast.Module.Type with
     | "module_new" -> errorList //if new-style there is no port list
     |_ ->
@@ -67,7 +74,7 @@ let portCheck (ast: VerilogInput) linesLocations errorList  =
                 let extraMessages = [|
                     {Text=sprintf "Name '%s' has already been used for a port \n Please use a different name" name ;Copy=false;Replace=NoReplace}
                 |]       
-                createErrorMessage linesLocations locationMap[name] message extraMessages name
+                createErrorMessage linesLocations (locationOf name) message extraMessages name
                 )        
             |> List.append errorList 
     
@@ -96,7 +103,7 @@ let portCheck (ast: VerilogInput) linesLocations errorList  =
                             {Text=sprintf "Port '%s' must be declared as input or output" name;Copy=false;Replace=NoReplace}
                             {Text=sprintf "input bit %s;|output bit %s;" name name;Copy=true;Replace=IODeclaration}
                         |]
-                    createErrorMessage linesLocations locationMap[name] message extraMessages name
+                    createErrorMessage linesLocations (locationOf name) message extraMessages name
                 )
                 |> List.append errorList
             | true -> //CASE 3: no errors 

@@ -519,21 +519,31 @@ let paramDefsOf (sheet: SheetDescription) : Result<ParameterDefs option, string>
 /// An expression that cannot be evaluated is an error rather than a slot left alone: the sheet
 /// would otherwise be written with a component showing one width and a slot claiming another, and
 /// the disagreement would only surface when someone opened it.
+/// Each slot is evaluated once and the components are rebuilt once, against the slots grouped by
+/// the component they belong to. Folding a whole new component list per slot, as this did, is
+/// quadratic in a sheet where most components are parameterised.
 let private applySlotValues (defs: ParameterDefs option) (comps: Component list) : Result<Component list, string> =
     match defs with
     | None -> Ok comps
     | Some defs ->
         let bindings = bindingsOf defs.DefaultBindings
-        (comps, defs.ParamSlots |> Map.toList)
-        ||> Helpers.ResultList.fold (fun comps (slot, exprSpec) ->
+        defs.ParamSlots
+        |> Map.toList
+        |> Helpers.ResultList.traverse (fun (slot, exprSpec) ->
             ParameterTypes.evaluateParamExpression bindings exprSpec.Expression
             |> Result.mapError (fun e -> $"slot on {slot.CompId}: {e}")
-            |> Result.map (fun value ->
-                comps
-                |> List.map (fun comp ->
-                    match comp.Id = slot.CompId with
-                    | false -> comp
-                    | true -> { comp with Type = ComponentSlots.setSlotValue slot.CompSlot value comp.Type })))
+            |> Result.map (fun value -> slot.CompId, (slot.CompSlot, value)))
+        |> Result.map (fun resolved ->
+            let byComp = resolved |> List.groupBy fst |> List.map (fun (id, vs) -> id, List.map snd vs) |> Map.ofList
+            comps
+            |> List.map (fun comp ->
+                match Map.tryFind comp.Id byComp with
+                | None -> comp
+                | Some slotValues ->
+                    let compType =
+                        (comp.Type, slotValues)
+                        ||> List.fold (fun t (slot, value) -> ComponentSlots.setSlotValue slot value t)
+                    { comp with Type = compType }))
 
 /// The description as a laid-out canvas: real positions, no wire geometry.
 let toCanvasState (sheet: SheetDescription) : Result<CanvasState, string> =

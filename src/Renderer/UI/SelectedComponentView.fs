@@ -558,13 +558,13 @@ let private makeNumberOfBitsField model (comp: Component) text dispatch =
     // width, in CatalogueView.parseConstant. Widths reached through a parameter expression had no
     // upper bound at all, so a parameter could make a bus of any size at all and the first thing to
     // object was the simulator running out of memory.
-    let constraints = [
-        MinVal (PInt 1I, $"{title} must be positive")
-        MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
-                $"{title} cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}")
-    ]
+    //
+    // Derived from the slot and the component rather than built here, so that the same bounds hold
+    // wherever the value comes from - typed into this box, bound on an instance of this sheet, or
+    // written by the sheet description DSL. See ComponentSlots.constraintsFor.
+    let constraints = ComponentSlots.constraintsFor slot comp.Type
 
-    ParameterView.paramInputField model title 1I (Some (bigint width)) None constraints (Some comp) slot dispatch
+    ParameterView.paramInputField model title 1I (Some (bigint width)) None constraints None (Some comp) slot dispatch
 
 
 let private makeNumberOfInputsField model (comp: Component) dispatch =
@@ -695,9 +695,8 @@ let private changeSplitN model (comp:Component) dispatch =
                     1I
                     (Some (bigint defaultWidth))
                     None
-                    [ MinVal (PInt 1I, "Width must be at least 1")
-                      MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
-                              $"Width cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}") ]
+                    (ComponentSlots.constraintsFor (SplitNWidth index) comp.Type)
+                    None
                     (Some comp)
                     (SplitNWidth index)
                     dispatch
@@ -708,9 +707,8 @@ let private changeSplitN model (comp:Component) dispatch =
                     0I
                     (Some (bigint defaultLsb))
                     None
-                    [ MinVal (PInt 0I, "LSB must be non-negative")
-                      MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
-                              $"LSB cannot exceed {NumberHelpers.Constants.maxIssieBusWidth}") ]
+                    (ComponentSlots.constraintsFor (SplitNLSB index) comp.Type)
+                    None
                     (Some comp)
                     (SplitNLSB index)
                     dispatch
@@ -727,26 +725,25 @@ let makeDefaultValueField (model: Model) (comp: Component) dispatch: ReactElemen
 
     let title = "Default value if input is undriven"
 
-    let width, defValue =
+    let defValue =
         match comp.Type with
-        | Input1 (w, defValue) ->
-            match defValue with
-            | Some defValue -> w, defValue
-            | None -> w, 0I
+        | Input1 (_, defValue) -> Option.defaultValue 0I defValue
         | _ -> failwithf "Other component types should not call this function."
-    
+
+
     // The bound holds at every width because parameter values are bigint: it used to be computed
     // as `1 <<< width`, which wraps at 32, so it had to be left off above width 30 and a wide
     // input's default went unchecked. Nothing downstream checked it either - FastRun assigns the
     // default to the step array as it stands.
-    let constraints = [
-        MinVal (PInt 0I, "Default value must be non-negative")
-        MaxVal (PInt ((1I <<< width) - 1I), $"Default value must fit in {width} bits")
-    ]
+    //
+    // It is derived from the component each time this pane is drawn, so that widening or narrowing
+    // the input - which a property can do without this box being touched - moves the bound with it.
+    // Built here, it was frozen at the width showing when the expression was typed.
+    let constraints = ComponentSlots.constraintsFor InputDefault comp.Type
 
     // DefaultValue, not IO: IO is this input's width, and two fields of one component cannot
     // share a parameter slot
-    ParameterView.paramInputField model title 0I (Some defValue) None constraints (Some comp) InputDefault dispatch
+    ParameterView.paramInputField model title 0I (Some defValue) None constraints None (Some comp) InputDefault dispatch
 
 let mockDispatchS msgFun msg =
     match msg with
@@ -845,22 +842,16 @@ let makeBusCompareDialog (model:Model) (comp: Component) (text:string) (dispatch
 /// caller that believed the first match would have crashed the properties pane. One match now, so
 /// the accepted types cannot drift apart again.
 let private makeLsbBitNumberField model (comp:Component) dispatch =
-    let infoText, value, constraints =
+    let infoText, value =
         match comp.Type with
-        | BusSelection (_, lsb) ->
-            "Least Significant Bit number selected: lsb",
-            bigint lsb,
-            [ MinVal (PInt 0I, "LSB position must be non-negative") ]
-        | BusCompare (width, cVal) ->
-            "Compare with",
-            cVal,
-            // as in makeDefaultValueField, the bound holds at every width now that it is computed
-            // in bigint rather than wrapping at 32
-            [ MinVal (PInt 0I, "Comparison value must be non-negative")
-              MaxVal (PInt ((1I <<< width) - 1I), $"Comparison value must fit in {width} bits") ]
+        | BusSelection (_, lsb) -> "Least Significant Bit number selected: lsb", bigint lsb
+        | BusCompare (_, cVal) -> "Compare with", cVal
         | _ ->
             failwithf $"makeLsbBitNumberField called on {comp.Type}, which has no such field"
-    ParameterView.paramInputField model infoText 0I (Some value) None constraints (Some comp) (IO comp.Label) dispatch
+    // as in makeDefaultValueField, the bound on a comparison value follows the component's width
+    // rather than being frozen at whatever it was when the expression was typed
+    let constraints = ComponentSlots.constraintsFor (IO comp.Label) comp.Type
+    ParameterView.paramInputField model infoText 0I (Some value) None constraints None (Some comp) (IO comp.Label) dispatch
 
 
 

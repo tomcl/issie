@@ -17,10 +17,10 @@ module Constants =
     let maxHexOnlyDisplayWidth = 16
     /// width at which binary numbers are displayed as (more compact) hex numbers.
     let maxBinaryDisplayWidth = 32
-    /// Max width of an Issie bus. There is no real need for any restriction.
-    /// since all code is bigint based, but this is a reasonable limit.
-    /// There are performance & UI issues for very large busses.
-    let maxIssieBusWidth = 16384
+    /// Max width of an Issie bus. Defined in CommonTypes.Constants, which is compiled early
+    /// enough for ComponentSlots.constraintsFor to bound a width slot with it; aliased here
+    /// because this is where the rest of Issie looks for it.
+    let maxIssieBusWidth = CommonTypes.Constants.maxIssieBusWidth
     /// max no of chars displayed before display functions truncate result
     let maxNumericCharsBeforeTruncation = 80
 

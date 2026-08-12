@@ -18,8 +18,7 @@ let private ldc (name: string) (form: CCForm) (canvas: CanvasState) : LoadedComp
       Form = Some form
       Description = None
       LCParameterSlots = None
-      IsTopSheet = false
-      OtherParamValues = Map.empty }
+      IsTopSheet = false }
 
 /// an instance of sheet `name`, as a Custom component
 let private instanceOf (name: string) (label: string) =

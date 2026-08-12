@@ -431,14 +431,13 @@ let rec renderParamExpression (expr: ParamExpression) (precedence:int) : string 
 /// function" and "names are letters and digits" are different problems needing different fixes.
 let isReservedParamName (name: string) : bool = isBuiltinFuncName name
 
-/// What parseExpression says about an empty box. Named because emptying a box is a state the UI
-/// reads and acts on - it is how the user says they have nothing to put there - and matching the
-/// message by hand would break the moment the wording changed.
+/// What parseExpression says about an empty box.
 ///
 /// Says what to do rather than what is wrong. An empty box is not a mistake - it is how the user
 /// asks to be offered a property to follow - so "Input Empty" reported a fault where there was
-/// none, in red, on a gesture the UI supports.
-let emptyInputError = "Type a number or expression"
+/// none, in red, on a gesture the UI supports. The UI recognises that gesture by the box's TEXT
+/// being empty, not by this message, so nothing outside the parser reads it.
+let private emptyInputError = "Type a number or expression"
 
 /// The names a parameter may have: a letter, then letters and digits, and not a built-in function.
 ///

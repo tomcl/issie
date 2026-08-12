@@ -126,7 +126,6 @@ let createEmptyComponentAndFile (pPath:string)  (sheetName: string): LoadedCompo
         Description = None
         LCParameterSlots = None
         IsTopSheet = false
-        OtherParamValues = Map.empty
     }
 
 /// rename a sheet
@@ -268,7 +267,6 @@ let addFileToProject model dispatch =
                         Description = None
                         LCParameterSlots = None
                         IsTopSheet = false
-                        OtherParamValues = Map.empty
                     }
                     let updatedProject =
                         { project with

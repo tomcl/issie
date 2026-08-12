@@ -17,6 +17,8 @@ open Expecto
 open CommonTypes
 open ParameterTypes
 open CanvasBuilder
+open Optics
+open Optics.Operators
 
 /// A parameter declaration. Descriptions are compulsory but say nothing these tests depend on.
 let private declares (name: string) (expr: ParamExpression) =
@@ -142,8 +144,6 @@ let tests =
             Expect.equal (displayOf [ top; child ] "top" "child" "W")
                 (Some (ParameterAnalysis.Values [ 8I ]))
                 "the sheet stores 4 and the instance binds 8: 8 is what the sheet is used at"
-            Expect.isFalse (ParameterAnalysis.sheetIsAtDefault [ top; child ] "child")
-                "and the sheet is used, so its value is settled"
         }
 
         // This used to be indistinguishable from the case above: an unbound instance took the
@@ -153,9 +153,7 @@ let tests =
             let top = sheetOf "top" [ instance child "i1" None ]
             Expect.equal (displayOf [ top; child ] "top" "child" "W")
                 (Some (ParameterAnalysis.NotUsed 4I))
-                "nothing sets W, so the stored value stands in"
-            Expect.isTrue (ParameterAnalysis.sheetIsAtDefault [ top; child ] "child")
-                "and the sheet is reported as unsettled, which is what greys the value"
+                "nothing sets W, so the stored value stands in - which is what greys it in the pane"
         }
 
         test "a sheet nothing instantiates keeps its stored value, as a placeholder" {
@@ -164,7 +162,6 @@ let tests =
             Expect.equal (displayOf [ other; child ] "top" "child" "W")
                 (Some (ParameterAnalysis.NotUsed 4I))
                 "nothing uses the sheet, so the stored value is all there is"
-            Expect.isTrue (ParameterAnalysis.sheetIsAtDefault [ other; child ] "child") "unsettled"
         }
 
         // The top sheet is an instance of nothing, so its own values are always unsettled - they
@@ -176,7 +173,6 @@ let tests =
             Expect.equal (displayOf [ top ] "top" "top" "W")
                 (Some (ParameterAnalysis.NotUsed 4I))
                 "the top is instantiated by nothing"
-            Expect.isTrue (ParameterAnalysis.sheetIsAtDefault [ top ] "top") "so it is at default"
             Expect.isTrue (Set.contains "top" (ParameterAnalysis.sheetsUnderTop [ top ] "top"))
                 "while still being a member of its own design"
         }
@@ -190,8 +186,6 @@ let tests =
             Expect.equal (displayOf [ top; child ] "top" "child" "W")
                 (Some (ParameterAnalysis.Values [ 16I; 8I ]))
                 "distinct and descending, so the head is the one the sheet is drawn at"
-            Expect.isFalse (ParameterAnalysis.sheetIsAtDefault [ top; child ] "child")
-                "differing instances still settle the value"
             Expect.isFalse (ParameterAnalysis.projectHasAmbiguousDisplay [ top; child ])
                 "one design using a sheet at two sizes has nothing for the user to choose between"
         }
@@ -288,12 +282,11 @@ let tests =
             let after = ParameterAnalysis.propagateParameterValues [ top; child ]
             Expect.equal (paramOf after "child" "W") (Some (PInt 16I)) "drawn at the largest"
             Expect.equal (widthOf after "child" "O") (Some (Output 16)) "canvas to match"
-            let others =
-                after
-                |> List.tryFind (fun ldc -> ldc.Name = "child")
-                |> Option.bind (fun ldc -> Map.tryFind (ParamName "W") ldc.OtherParamValues)
-            Expect.equal others (Some [ 8I; 4I ])
-                "the others descending, for the properties pane to show as '16 (also 8, 4)'"
+            // the others are not stored on the sheet - the properties pane asks displayValues for
+            // them when it draws, which is the same question and one fewer copy of the answer
+            Expect.equal (displayOf after "top" "child" "W")
+                (Some (ParameterAnalysis.Values [ 16I; 8I; 4I ]))
+                "descending, for the pane to show as '16 (also 8, 4)'"
         }
 
         test "the top sheet's own value is primary and is never rewritten" {
@@ -486,5 +479,134 @@ let tests =
             let top = sheetOf "top" [ instance child "i1" (Some (PInt 8I)) ]
             Expect.isEmpty (ParameterAnalysis.findBindOffers [ top; child ] "top" None)
                 "no sheet above declares W"
+        }
+
+        // --- writing what a sheet declares ---
+        //
+        // A sheet that declares nothing holds LCParameterSlots = None, and that is exactly the
+        // sheet a FIRST declaration is written to. Reached through lcParameterSlots_, a prism, the
+        // write was silently dropped: composing onto a prism gives a setter that does nothing when
+        // the outer get is None. A second, hand-written write path existed only to cover that hole.
+
+        test "a first declaration reaches a sheet that had no parameter data at all" {
+            let sheet = sheetOf "fresh" []
+            Expect.isNone sheet.LCParameterSlots "nothing is declared yet"
+            let written =
+                sheet
+                |> Optic.set (lcParameterDefs_ >-> defaultBindings_)
+                       (Map.ofList [ declares "W" (PInt 8I) ])
+            Expect.equal (ParameterAnalysis.declaredParams written |> Map.tryFind (ParamName "W"))
+                (Some (PInt 8I)) "the declaration is there, and the record was created to hold it"
+        }
+
+        test "a sheet with no parameter data reads as empty rather than failing" {
+            let defs = sheetOf "fresh" [] ^. lcParameterDefs_
+            Expect.isEmpty defs.DefaultBindings "no declarations"
+            Expect.isEmpty defs.ParamSlots "and no slots"
+        }
+
+        test "writing a slot to a sheet that declares nothing also lands" {
+            // the same hole seen from the other field: updateParamSlot writes through this lens too
+            let slot = {CompId = "c"; CompSlot = Buswidth}
+            let written =
+                sheetOf "fresh" []
+                |> Optic.map (lcParameterDefs_ >-> paramSlots_)
+                       (Map.add slot {Expression = PParameter (ParamName "W"); Constraints = []})
+            Expect.equal (ParameterAnalysis.sheetParamSlots written |> Map.count) 1 "the slot is stored"
+        }
+
+        // --- the bounds a value has to satisfy, wherever it comes from ---
+        //
+        // These were built inline at each properties box, which had two consequences: a bound
+        // computed from the component's width was frozen at the width showing when the expression
+        // was typed, and a value arriving any other way was bounded by nothing at all.
+
+        let maxWidth = bigint CommonTypes.Constants.maxIssieBusWidth
+
+        let messages (constraints: ParamConstraint list) =
+            constraints |> List.map (function MinVal (_, m) | MaxVal (_, m) -> m)
+
+        let bounds (constraints: ParamConstraint list) =
+            constraints
+            |> List.choose (function
+                | MinVal (PInt v, _) -> Some ("min", v)
+                | MaxVal (PInt v, _) -> Some ("max", v)
+                | _ -> None)
+
+        test "a width slot is bounded at one bit and at the largest bus Issie allows" {
+            Expect.equal (bounds (ComponentSlots.constraintsFor Buswidth (Register 8)))
+                [ "min", 1I; "max", maxWidth ]
+                "the bound CatalogueView enforces on a typed width, now wherever the value comes from"
+        }
+
+        test "an input's default value is bounded by the input's CURRENT width" {
+            // the staleness this replaces: the bound was computed when the expression was typed,
+            // so parameterising the width and then changing it left "must fit in 8 bits" behind
+            Expect.equal (bounds (ComponentSlots.constraintsFor InputDefault (Input1 (8, None))))
+                [ "min", 0I; "max", 255I ] "eight bits"
+            Expect.equal (bounds (ComponentSlots.constraintsFor InputDefault (Input1 (40, None))))
+                [ "min", 0I; "max", (1I <<< 40) - 1I ]
+                "and the bound still holds past 32, where the old `1 <<< width` wrapped"
+        }
+
+        test "a BusSelection LSB is bounded below and not above" {
+            // IO on a BusSelection is its LSB, not a width: Buswidth is already its own width
+            Expect.equal (bounds (ComponentSlots.constraintsFor (IO "sel") (BusSelection (8, 0))))
+                [ "min", 0I ] "a bit position, with no width to exceed"
+        }
+
+        test "a slot the component does not have is bounded by nothing" {
+            Expect.isEmpty (ComponentSlots.constraintsFor InputDefault (Register 8))
+                "nothing can be written there, so there is nothing to bound"
+        }
+
+        test "a custom component's property is bounded by the sheet inside it, not here" {
+            let child = widthSheet "child"
+            let inst = instance child "i1" (Some (PInt 8I))
+            Expect.isEmpty (ComponentSlots.constraintsFor (CustomCompParam "W") inst.Type)
+                "its bounds are the child sheet's slots, which are expressions in the child's own \
+                 properties and so cannot be stated here"
+        }
+
+        // --- and how that bound reaches an instance binding ---
+
+        /// The bindings an instance of `child` resolves at before a candidate value is applied.
+        let childBaseline (child: LoadedComponent) =
+            ParameterAnalysis.declaredParams child
+
+        test "a binding that would make an impossible bus is refused in the child's words" {
+            let child = widthSheet "child"
+            match ParameterView.instanceBindingProblem [ child ] "child" (childBaseline child)
+                      (ParamName "W") 100000I with
+            | Ok () -> failtest "a hundred thousand bits was accepted"
+            | Error message ->
+                Expect.stringContains message (string CommonTypes.Constants.maxIssieBusWidth)
+                    "the message is the one written for the width it would set"
+        }
+
+        test "a binding of zero is refused, since a width of zero is not a width" {
+            let child = widthSheet "child"
+            Expect.isError
+                (ParameterView.instanceBindingProblem [ child ] "child" (childBaseline child)
+                     (ParamName "W") 0I)
+                "the child's output cannot be zero bits wide"
+        }
+
+        test "an ordinary binding passes" {
+            let child = widthSheet "child"
+            Expect.isOk
+                (ParameterView.instanceBindingProblem [ child ] "child" (childBaseline child)
+                     (ParamName "W") 16I)
+                "16 bits is a bus like any other"
+        }
+
+        test "a property no slot uses is not complained about" {
+            // only the slots that USE the property are checked: a complaint from any other would
+            // name the box the user is not editing
+            let child = widthSheet "child"
+            Expect.isOk
+                (ParameterView.instanceBindingProblem [ child ] "child" (childBaseline child)
+                     (ParamName "unused") 100000I)
+                "nothing on the child sheet depends on it"
         }
     ]

@@ -189,16 +189,20 @@ teach.)
   every sheet each instance's path and evaluated parameter values. Memoised on
   `(sheet, values)`; unevaluable bindings become *unknown* values, which are never reported as
   conflicts (design-time checking must not give false positives).
-- **`displayValues`** turns this into per-parameter display rules: a singleton value set shows the
-  real value with **nothing said about a default**, an empty set shows the declared value (which,
-  the sheet having no instances, simply *is* the value and is not called a default either), and a
-  multi-valued set shows the default with a note enumerating the values and example instance paths
-  — *"8 at TOP > FetchAdder, 16 at TOP > ALU; showing default 8"*. Rendered in the sheet
-  properties parameter table (`ParameterView.makeParamsField`). Naming the default in the first
-  two cases only asked the user to reason about a number that is nearly always overwritten.
+- **`displayValues`** turns this into a `ParamDisplayValue` per parameter. `NotUsed v` — nothing
+  under the top instantiates the sheet, so the stored value is all there is; the properties pane
+  shows it greyed and italic, as a placeholder rather than a fact, and this is the only case where
+  editing it is offered. `Values vs` — distinct and descending, the head being the value the sheet
+  is drawn at; several arise when one design reaches the sheet by paths that bind it differently,
+  which is allowed, and the largest is taken so that the choice is definite and the recomputation
+  idempotent. `ParameterView.makeParamsField` renders the rest after it — *"16 (also 8)"*,
+  *"16 (also 8, 4, ...)"* — and says nothing about a declared value in either case, since naming a
+  number that has been overwritten only asks the user to reason about one that no longer applies.
 - **The top sheet** is per-project view state: an `IsTopSheet` flag on the chosen sheet,
-  persisted in its `.dgm` `SheetInfo` and mirrored in `LoadedComponent`. `effectiveTopSheet`
-  uses the flagged sheet, else infers a single instance-forest root silently. "Set as top" is on
+  persisted in its `.dgm` `SheetInfo` and mirrored in `LoadedComponent`. `effectiveTopSheetFor`
+  is **total** — it uses the flagged sheet, else the single instance-forest root containing the
+  sheet asked about, else that sheet itself — which is what lets every other value be derived
+  rather than guessed. "Set as top" is on
   the sheet-pill right-click menu (`MenuHelpers.setTopSheetState`); pills colour the top green
   and grey out sheets outside its tree (only when the project uses parameters at all). When
   several candidate tops disagree about the sheet being opened and none is chosen, a
@@ -467,7 +471,7 @@ Opened on its own, B still resolves at WIDTH = 16.
 
 ## Constraint System
 
-Constraints ensure parameter values remain within valid ranges:
+Constraints keep a value within the range the field it is going into can hold:
 
 ### Constraint Definition
 ```fsharp
@@ -476,20 +480,43 @@ type ParamConstraint =
     | MaxVal of ParamExpression * ParamError
 ```
 
-### Features
-- Evaluated during input validation
-- Checked before component updates
-- Display custom error messages when violated
-- Support expressions in constraint definitions
+The error text is author-written and is handed to the user unchanged — it should say what is wrong
+with *this* field, not restate the bound.
 
-### Example
-```fsharp
-let widthConstraints = [
-    MinVal (PInt 1I, "Width must be at least 1 bit")
-    MaxVal (PInt (bigint NumberHelpers.Constants.maxIssieBusWidth),
-            "Width cannot exceed 16384 bits")
-]
-```
+### Derived from the slot, not stored on it
+
+`ComponentSlots.constraintsFor : CompSlotName -> ComponentType -> ParamConstraint list` is the one
+place that says what may go in a slot, and lives beside `trySetSlotValue`, which says where it goes.
+Every box asks it rather than building a list of its own:
+
+| slot | bounds |
+|---|---|
+| any width | `1 .. CommonTypes.Constants.maxIssieBusWidth` |
+| `InputDefault`, and a `BusCompare` value | `0 .. 2^w - 1` at the component's **current** width |
+| a `BusSelection` LSB | `>= 0` — a bit position, with no width to exceed |
+| `CustomCompParam` | none *here*: see below |
+
+Two things follow, and both used to be wrong. A bound computed from the component's width is
+recomputed every time the pane is drawn, so widening or narrowing the component — which a property
+can do without the box being touched — moves the bound with it; built inline at the box, it was
+frozen at the width showing when the expression was typed, and an Input's *"must fit in 8 bits"*
+outlived the 8. And a value arriving any other way is now bounded too: `maxIssieBusWidth` was
+enforced only by those inline lists, so a width reached through an instance binding, or written by
+the sheet-description DSL, had no upper limit at all.
+
+The `Constraints` stored on a slot in the `.dgm` are still written as they always were, so files are
+unchanged in both directions — but they are no longer what a value is checked against.
+
+### An instance binding is checked against the sheet inside it
+
+The bounds on a `CustomCompParam` value belong to the **child** sheet, and are expressions in the
+*child's* parameters — which is why they cannot be handed to `paramInputField`, whose constraint
+list is evaluated in the parameters of the sheet the instance sits on.
+`ParameterView.instanceBindingProblem` therefore resolves the child sheet instead: it takes the
+bindings that instance gives (`CanvasExtractor.effectiveInstanceBindings`), substitutes the
+candidate value, and runs `evaluateConstraints` over the child's slots with their derived
+constraints — the same call `editParameterBox` makes for the open sheet. Only the slots that *use*
+the parameter are checked, so a complaint can never name a box the user is not editing.
 
 ## One evaluator, one slot mapping, one instance signature
 
@@ -529,8 +556,10 @@ Parameter data is stored across multiple locations:
 - **Model.LoadedComponent**: Current parameter values
 - **Component.Type**: Resolved parameter values in components
 - **CustomComponentType.ParameterBindings**: Instance overrides
-- **SymbolT.Symbol.DeclaredSlots / DeclaredPortLabels**: what a symbol is displaying differently
-  from what it will be saved as — see below
+
+Nothing else is kept. Where one design reaches a sheet by paths that bind it differently, the values
+it is *not* drawn at are not stored anywhere: the properties pane asks `displayValues` for them as
+it draws, which is the same question and one fewer copy of the answer to keep in step.
 
 ### Knowing when to save
 
@@ -542,31 +571,47 @@ it is invisible to that comparison. Every path that edits parameter data therefo
 through `ParameterView.markSheetParamsChanged`. A new such path that forgets to call it leaves the
 save button dark and the work is dropped on leaving the sheet, with nothing to say so.
 
-### Drawing at computed values, and saving what was declared
+### Bringing every sheet into line with what its design sets
 
-The open sheet is drawn at the values its parameters take under the current top sheet
-(`ParameterView.applyComputedDisplayValues`), but what is written to the `.dgm` is unaffected.
-`SymbolUpdate.extractComponent` is the sole path from symbols to saved state, and
-`declaredComponent` puts back:
+A sheet is not drawn at its declared values and then adjusted for display: the values its design
+settles are **written into it**, canvas and declarations alike. `PropagateParameters` is the message
+that does it, and sending it twice or in the wrong order is harmless, because what it triggers is a
+pure recomputation from the primary state rather than an incremental edit — each design's top-sheet
+values, and the bindings on the instances below. That is what makes it safe to send after anything,
+and it is sent after everything: a project load, a top-sheet choice, an edit to what a sheet
+declares, and any draw-block message that changed an instance's bindings (`Update.fs`).
 
-- **`DeclaredSlots`** — the declared value of each parameterised slot the symbol is displaying
-  differently. Slot values rather than a whole declared component, so that an edit made to any
-  *other* field while computed values were on display — a constant's value, a memory's contents,
-  the label — is saved as it stands.
-- **`DeclaredPortLabels`** — the declared ports of a custom component instance. This one cannot be
-  derived from the slot value: a `CustomCompParam` slot binds a parameter of the sheet *inside*
-  the instance, and the port widths follow from that binding by way of the child sheet, which
-  `ComponentSlots.setSlotValue` cannot reach. Without it a sheet saved while showing computed
-  values writes an instance whose ports contradict its own bindings — exactly what
-  `checkCustomComponentForOkIOs` rejects.
+Three steps, and they are separate because no one of them can do the others' work:
 
-The direction matters and is forced by React caching. `SymbolView.renderSymbol` is a
-`FunctionComponent.Of(..., "Symbol", equalsButFunctions)` whose memo key is the whole `Symbol`
-record, so holding the computed value anywhere outside the symbol — a model-level map consulted at
-draw time — leaves every `Symbol` structurally unchanged when the top sheet changes, and the canvas
-silently goes stale. Putting the computed value in `Symbol.Component` makes the memo correct by
-construction, and every existing reader (`drawComponent`, port geometry, `H`/`W`, width inference,
-`GetComponentById`) gets real values with no change.
+1. **`ParameterAnalysis.propagateParameterValues`** — pure, over the `LoadedComponent`s. For every
+   sheet it works out what its design sets each parameter to, writes the settled value into
+   `DefaultBindings`, and rewrites the sheet's canvas at those values with
+   `ComponentSlots.resolveCanvasAtBindings`. A parameter *nothing* sets is left exactly as it is:
+   its stored value **is** the primary state for that sheet, and overwriting it would destroy the
+   only copy. The instance tree is walked once per candidate top and the answers reused; asking
+   `effectiveTopSheetFor` and then `displayValues` per sheet, as this did, cost
+   `sheets × (roots + 1)` walks on every edit.
+2. **`CanvasExtractor.syncInstancePorts`** — also pure, and separate because of what step 1 cannot
+   reach. Resolving a `CustomCompParam` slot writes the value into the instance's
+   `ParameterBindings`, which is as far as `ComponentSlots.setSlotValue` can see; the instance's
+   **port widths** follow from that binding by way of the *child* sheet, and only
+   `signatureOfInstance` knows how. Without this step a sheet came out of step 1 holding an instance
+   whose bindings said one width and whose ports still said another — invisible on the open sheet,
+   which is redrawn anyway, and written straight to file on every other, so that opening it raised
+   the very instance-out-of-date error the per-instance signature exists to prevent. Widths only:
+   the order of an instance's ports, and which ports it has, are left alone (see
+   [Keeping instances in step](#keeping-instances-in-step-customcompportsfs)).
+3. **`ParameterView.propagateParameters`** — the part that touches the world. A **closed** sheet
+   whose values changed is written to its file at once, because only the open sheet is ever allowed
+   to be unsaved; a sheet that cannot be written (a library component, which belongs to its library)
+   is still brought into line in memory but its file is left alone. The **open** sheet's canvas is
+   not in `LoadedComponents` but in the draw block, so its slots are pushed through the same
+   symbol-change path the properties pane uses — symbol size, ports and geometry are recomputed
+   rather than patched, and the change joins that sheet's undo history like any other edit.
+
+Steps 1 and 2 are both idempotent, which is what the whole arrangement rests on: undo need only
+restore the primary state and run it again, and no edit has to reason about which sheets a binding
+might reach.
 
 ## Component Support
 
@@ -657,32 +702,39 @@ asks them for a value — the one place the parameter has to be understood.
 
 The system provides comprehensive error handling at multiple levels:
 
+The user-facing word for a sheet parameter is **property**, and every message below says so; only
+the code calls them parameters. Quotes here are the messages themselves — `ParameterTypes` is where
+they are written.
+
 ### Parse Errors
 - **Invalid syntax**: "Contains unsupported characters: [']'"
-- **Empty input**: "Input Empty"
+- **Empty input**: "Type a number or expression" (`ParameterTypes.emptyInputError`). It says what to
+  do rather than what is wrong: an empty box is not a mistake, it is how the user asks to be offered
+  a property to follow
 - **Unmatched parentheses**: "Mismatched parentheses"
-- **A number run into a name**: "'2W' is neither a number nor a parameter name: a parameter name
+- **A number run into a name**: "'2W' is neither a number nor a property name: a property name
   must start with a letter, and a multiplication must be written out as 2*W"
 
 ### Evaluation Errors
 An unresolved name is nearly always one of two mistakes, and they need different advice, so the
 message names the alternatives rather than only the failure:
-- **Undefined parameter, where the sheet declares some**: "Parameter 'WITDH' is not defined.
-  Parameters of this sheet: DEPTH, WIDTH"
-- **Undefined parameter, where the sheet declares none**: "This value must be numeric: to use a
-  parameter this must first be added to the sheet"
-- **Self-reference**: "Parameter 'W' is defined in terms of itself: W which uses W"
+- **Undefined property, where the sheet declares some**: "Property 'WITDH' is not defined.
+  Properties of this sheet: DEPTH, WIDTH"
+- **Undefined property, where the sheet declares none**: "This value must be numeric: to use a
+  property this must first be added to the sheet"
+- **Self-reference**: "Property 'W' is defined in terms of itself: W which uses W"
 - **Division or remainder by zero**: "Division by zero: 4 cannot be divided by 0"
 
 ### Constraint Violations
-- **Value too small**: Custom message from MinVal constraint
-- **Value too large**: Custom message from MaxVal constraint
+- **Value too small / too large**: the author's message from the `MinVal` / `MaxVal` that the value
+  failed, derived from the slot by `ComponentSlots.constraintsFor`
 - **Limit not evaluable**: the author's message plus "- but that limit could not be worked out",
   because a bound that cannot be evaluated must not pass the value it guards
+- **An instance binding out of range**: the message belonging to the slot of the **child** sheet
+  that the value would break — see `ParameterView.instanceBindingProblem`
 
-### Type Errors
-- **Invalid component**: "Invalid component [Type] for buswidth"
-- **Wrong slot type**: "CustomCompParam can only be used with Custom components"
+Only the first failure is shown. One bad value usually breaks the same bound on several components,
+and a column of repeated sentences reads as noise.
 
 ## Implementation Details
 
@@ -781,16 +833,27 @@ signatureOfInstanceWithCertainty:
 The arguments are: the project's sheets, the bindings of the sheet the instance *sits on*, the
 child sheet's name, and the instance's bindings.
 
+#### Sizing every instance in a project at its own bindings (`CanvasExtractor`)
+```fsharp
+withPortWidths:    Map<string,int> -> CustomComponentType -> CustomComponentType
+syncInstancePorts: LoadedComponent list -> LoadedComponent list
+```
+Widths only, matched by port label: the order of an instance's ports and which ports it has are
+left alone. Run after `ParameterAnalysis.propagateParameterValues`, which cannot reach them.
+
 #### Slot resolution (`ComponentSlots`)
 ```fsharp
-trySetSlotValue: CompSlotName -> int -> ComponentType -> ComponentType option
-setSlotValue:    CompSlotName -> int -> ComponentType -> ComponentType
+trySetSlotValue: CompSlotName -> ParamInt -> ComponentType -> ComponentType option
+setSlotValue:    CompSlotName -> ParamInt -> ComponentType -> ComponentType
 slotApplies:     CompSlotName -> ComponentType -> bool
+constraintsFor:  CompSlotName -> ComponentType -> ParamConstraint list
 ```
 
 #### Constraint Checking
 ```fsharp
-evaluateConstraints: ParamBindings -> ConstrainedExpr list -> Result<Unit, ParamConstraint list>
+evaluateConstraints:    ParamBindings -> ConstrainedExpr list -> Result<Unit, ParamConstraint list>
+instanceBindingProblem: LoadedComponent list -> string -> ParamBindings -> ParamName -> ParamInt
+                            -> Result<unit, ParamError>
 ```
 
 ## Resolution Mechanics Deep-Dive
@@ -798,18 +861,18 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> Result<Unit, Param
 - UI evaluation: `ParameterTypes.evaluateParamExpression` performs recursive substitution and constant-folding with detailed errors. Used by `ParameterView` for validation and preview.
 - Graph evaluation: `GraphMerger.resolveParametersInSimulationGraph` walks the sheet tree with `resolveSheet`, evaluating each slot with `evaluateParamExpression` and writing concrete values into `SimulationGraph` component types with `ComponentSlots.setSlotValue`; any failure is a `SimulationError`.
 - Validation: `CanvasStateAnalyser.checkCustomComponentForOkIOs` asks `CanvasExtractor.signatureOfInstanceWithCertainty` what the instance's ports should be, and compares names only when the answer is inexact.
-- Slot access: `ComponentSlots.trySetSlotValue : CompSlotName -> int -> ComponentType -> ComponentType option` is the single mapping from a slot to a field of `Component.Type`, returning `None` where the component has no such slot. `setSlotValue` is the total version used by the paths that must not fail on an old file; `slotApplies` is the predicate used to refuse a bad slot where it is written.
+- Slot access: `ComponentSlots.trySetSlotValue : CompSlotName -> ParamInt -> ComponentType -> ComponentType option` is the single mapping from a slot to a field of `Component.Type`, returning `None` where the component has no such slot — and also where the value is too large to be the `int` that field holds, which is the one place a parameter value stops being a bigint. `setSlotValue` is the total version used by the paths that must not fail on an old file; `slotApplies` is the predicate used to refuse a bad slot where it is written; `constraintsFor` says what may go in the slot, and is kept beside the mapping that says where it goes.
 - Instance ports: `CanvasExtractor.signatureOfInstance` resolves the child sheet's canvas at the instance's effective bindings and reads off the ordered IO labels. `effectiveInstanceBindings` is the same merge `GraphMerger.effectiveBindings` makes for elaboration, so what is drawn and what is simulated agree.
 
 ## Developer Notes (Files & Responsibilities)
 
 - `src/Renderer/Common/ParameterTypes.fs`: Types (`ParamExpression`, `ParamConstraint`, `ParamSlot`, `ParameterDefs`), parser (`parseExpression`) and its name rule (`isValidParamName`), evaluator (`evaluateParamExpression`), renderer (`renderParamExpression`), slot identity (`sameSlot`, `tryFindSlot`, `addSlot`, `removeSlot`), and `bindingsOf`, which every evaluation environment is derived through.
-- `src/Renderer/Simulator/CanvasExtractor.fs`: what a custom component instance's ports are (`signatureOfInstance`, `signatureOfInstanceWithCertainty`, `effectiveInstanceBindings`, `resolveCanvasAtBindings`), and `tidyParamSlots`, which puts a sheet's slots in order against its canvas on every save.
+- `src/Renderer/Simulator/CanvasExtractor.fs`: what a custom component instance's ports are (`signatureOfInstance`, `signatureOfInstanceWithCertainty`, `effectiveInstanceBindings`, `resolveCanvasAtBindings`), sizing every instance in a project at its own bindings (`syncInstancePorts`, `withPortWidths`), and `tidyParamSlots`, which puts a sheet's slots in order against its canvas on every save.
 - `src/Renderer/UI/CustomCompPorts.fs`: keeping instances in step with the sheet inside them - `getOutOfDateDependents` (per instance, against its own bindings), `updateInstance`, and the confirmation dialog.
-- `src/Renderer/Common/ComponentSlots.fs`: the one mapping from a `CompSlotName` to a field of a `ComponentType`, used by the properties pane, by elaboration and by the sheet-description DSL.
+- `src/Renderer/Common/ComponentSlots.fs`: the one mapping from a `CompSlotName` to a field of a `ComponentType` (`trySetSlotValue`), the bounds that field imposes (`constraintsFor`), and resolving a whole canvas at a set of bindings (`resolveCanvasAtBindings`). Used by the properties pane, by elaboration and by the sheet-description DSL.
 - `src/Renderer/Common/SheetDescription.fs`, `src/Renderer/DrawBlock/SheetLayout.fs`: sheets written as data - components, logical connections, parameters and slots - laid out and saved without Issie running. See [dev/sheetDescriptionDsl.md](dev/sheetDescriptionDsl.md).
-- `src/Renderer/Common/ParameterAnalysis.fs`: Design-time instance-tree analysis under a top sheet (`analyseUnderTop`, `displayValues`), top-sheet inference (`effectiveTopSheet`, `instanceForestRoots`), and bind-to-top chain computation (`findBindOffers`).
-- `src/Renderer/UI/ParameterView.fs`: Sheet defaults and slot bindings CRUD, constraint checking, component updates, parameter UI fields/popups, display-value annotations, the placement popup (`customComponentParamPopup`), the bind-to-top button action (`applyBindOffers`), and the top-choice popup (`topSheetChoiceCheck`).
+- `src/Renderer/Common/ParameterAnalysis.fs`: Design-time instance-tree analysis under a top sheet (`analyseUnderTop`, `displayValues`), top-sheet inference (`effectiveTopSheetFor`, `instanceForestRoots`), bringing every sheet into line with what its design sets (`propagateParameterValues`), and bind-to-top chain computation (`findBindOffers`).
+- `src/Renderer/UI/ParameterView.fs`: Sheet defaults and slot bindings CRUD, constraint checking (`evaluateConstraints`, `instanceBindingProblem`), component updates, parameter UI fields/popups, the propagation that touches the world (`propagateParameters`), the placement popup (`customComponentParamPopup`), the bind-to-top button action (`applyBindOffers`), and the top-choice popup (`topSheetChoiceCheck`).
 - `src/Renderer/UI/CatalogueView.fs`: Raises the placement popup, sizes an instance's ports with `signatureOfInstance` at the chosen bindings, sets `ParameterBindings` on it.
 - `src/Renderer/Simulator/GraphMerger.fs`: Two-stage resolution during merge; graphs merged first, then one recursive `resolveSheet` walk that applies each sheet's slots and descends with each instance's bindings, memoised on the diff from defaults.
 - `src/Renderer/Simulator/CanvasStateAnalyser.fs`: Checks each custom component instance's ports against `signatureOfInstanceWithCertainty`, comparing names only where the widths cannot be known without the parent sheet.
@@ -821,10 +884,10 @@ evaluateConstraints: ParamBindings -> ConstrainedExpr list -> Result<Unit, Param
   expression in the parameters of the sheet the instance sits on, and nothing further out is in
   scope. Following a design-wide constant down a hierarchy means a parameter on every sheet in
   between, which is what the bind-to-top button materialises.
-- The open sheet is drawn at the values its parameters take under the current top sheet, but only
-  where every instance agrees (`ExactValue`). Where they disagree, or the sheet is not
-  instantiated under the top, it is drawn at its declared values. Design-time width inference runs
-  on whatever is drawn; simulation elaboration performs the exact check.
+- A sheet reached by two paths that bind it differently is written at the **largest** of the values,
+  with the others shown beside it in the properties pane. That is a choice made so that the value
+  is definite and the recomputation idempotent, not a claim that the largest is the right one to
+  look at; the strong answer is the last limitation below.
 - `signatureOfInstanceWithCertainty` cannot evaluate a binding that is an expression in the parent
   sheet's parameters when it is asked about a canvas on its own, so
   `checkCustomComponentForOkIOs` compares port names but not widths in that case. This is

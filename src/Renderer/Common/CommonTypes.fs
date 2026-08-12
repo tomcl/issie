@@ -7,6 +7,14 @@ module CommonTypes
 module Constants =
     let equalityCheckTolerance = 0.0001
     let labelPosTolerance = 0.00001
+    /// Max width of an Issie bus. There is no real need for any restriction,
+    /// since all code is bigint based, but this is a reasonable limit.
+    /// There are performance & UI issues for very large busses.
+    ///
+    /// Here rather than in NumberHelpers, which is compiled after ComponentSlots: the bound a
+    /// width must satisfy is part of what a slot IS, and ComponentSlots.constraintsFor is where
+    /// that now lives. NumberHelpers.Constants.maxIssieBusWidth aliases this one.
+    let maxIssieBusWidth = 16384
 
 
 open Fable.Core               
@@ -989,13 +997,6 @@ type LoadedComponent = {
     /// True on the sheet chosen as the current top of the design for display purposes.
     /// View state persisted in the sheet's file; never affects elaboration.
     IsTopSheet: bool
-    /// The OTHER values each parameter of this sheet is set to across the instances of it in its
-    /// design, distinct and descending, excluding the one the sheet is drawn at (which is in
-    /// LCParameterSlots.DefaultBindings). Empty where the instances agree, and where there are none.
-    ///
-    /// Derived, and not part of SheetInfo, so it is never saved: ParameterAnalysis.propagateParameterValues
-    /// recomputes it whenever anything that could change it changes, including on project load.
-    OtherParamValues: Map<ParameterTypes.ParamName, ParameterTypes.ParamInt list>
 }
 
 open Optics.Operators
@@ -1005,6 +1006,22 @@ let canvasState_ = Lens.create (fun a -> a.CanvasState) (fun s a -> {a with Canv
 let loadedComponentIsOutOfDate_ = Lens.create (fun a -> a.LoadedComponentIsOutOfDate) (fun s a -> {a with LoadedComponentIsOutOfDate = s})
 let componentsState_ = canvasState_ >-> Optics.fst_
 let lcParameterSlots_ = Prism.create (fun a -> a.LCParameterSlots) (fun s a -> {a with LCParameterSlots = Some s})
+
+/// A sheet's parameter data as though it were always there: a sheet that declares none reads as
+/// empty declarations and no slots, and writing to it creates the record.
+///
+/// A LENS, where lcParameterSlots_ above is a prism, and that is the whole point. Composing a
+/// prism onto a prism gives an optic whose SETTER does nothing when the outer get returns None
+/// (Optics.fs), so `Optic.set` through lcParameterSlots_ silently dropped every write to a sheet
+/// that had no parameter data yet - which is exactly the sheet a first declaration is being
+/// written to. That hole is why ParameterView grew a second, hand-written path for the None case.
+let lcParameterDefs_ =
+    Lens.create
+        (fun a ->
+            a.LCParameterSlots
+            |> Option.defaultValue {ParameterTypes.DefaultBindings = Map.empty; ParameterTypes.ParamSlots = Map.empty})
+        (fun s a -> {a with LCParameterSlots = Some s})
+
 let isTopSheet_ = Lens.create (fun a -> a.IsTopSheet) (fun s a -> {a with IsTopSheet = s})
 
 /// Returns true if a component is clocked

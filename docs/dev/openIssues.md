@@ -9,10 +9,12 @@ Delete an entry when it is fixed. A list that keeps its history stops being read
 
 ## Parameters
 
-- **`ParameterAnalysis.chainActionsForInstance` picks the wrong declarer.**
+- **`ParameterAnalysis.chainActionsOnSheet` picks the wrong declarer.**
   `Set.minElement declarers` is the *alphabetically first* sheet that declares the parameter, not
   the outermost one. The default value and the description copied onto the intermediate sheets of a
-  materialised bind-to-top chain therefore come from an arbitrary sheet.
+  materialised bind-to-top chain therefore come from an arbitrary sheet. Worse, `BindOffer.BindsTo`
+  prefers the *top* sheet where it declares the name, so the button can say "connect this to
+  TOP.width" while copying the default and description from a different sheet entirely.
 - **Deleting a parameter checks slots but not other parameters.** `ParameterView.deleteParameterBox`
   lists the `ParamSlots` that use the parameter and refuses while any remain, but does not look in
   `DefaultBindings`, so a parameter defined in terms of another can be orphaned. Only reachable
@@ -47,8 +49,6 @@ Delete an entry when it is fixed. A list that keeps its history stops being read
   `ComponentLibraries.unusedLibrarySheets`, and `SheetLayout.saveLibraryComponent`'s `requiredBy`.
 - `LibraryHeader` is built field by field in both `MiscMenuView.saveAsLibraryComponent` and
   `SheetLayout.saveLibraryComponent`. The format is versioned, so the two writers drifting matters.
-- `GraphMerger.applySlotValue` is a one-line alias for `ComponentSlots.setSlotValue`.
-- `SheetLayout.applySlotValues` rebuilds the whole component list once per slot.
 - `MiscMenuView.maybeWarning` calls `ComponentLibraries.reservedPrefixOf` twice and then uses
   `.IsSome`/`.Value`, against the `Option`-throughout convention.
 - `FilesIO.modifiedTimeMs` has no callers. It was written for a library-index scheme that was

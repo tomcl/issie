@@ -377,12 +377,6 @@ let rec private resolveSheet
     /// </remarks>
     let evalExpr expr = ParameterTypes.evaluateParamExpression bindings expr
 
-    /// Apply a resolved parameter value to the slot it fills. ComponentSlots is the one place
-    /// that knows how a slot maps onto a field of a ComponentType; elaboration used to carry its
-    /// own copy, which drifted from the one the properties pane used.
-    let applySlotValue compType (slot: CompSlotName) value =
-        ComponentSlots.setSlotValue slot value compType
-
     // Process a single component
     let processComponent (ComponentId compIdStr as compId) (comp: SimulationComponent) =
         let relevantSlots = paramSlots |> Map.filter (fun slot _ -> slot.CompId = compIdStr)
@@ -392,8 +386,11 @@ let rec private resolveSheet
         |> List.fold (fun compRes (slot, expr) ->
             compRes |> Result.bind (fun (c: SimulationComponent) ->
                 match evalExpr expr.Expression with
+                // ComponentSlots is the one place that knows how a slot maps onto a field of a
+                // ComponentType; elaboration used to carry its own copy, which drifted from the
+                // one the properties pane used
                 | Ok value ->
-                    Ok { c with Type = applySlotValue c.Type slot.CompSlot value }
+                    Ok { c with Type = ComponentSlots.setSlotValue slot.CompSlot value c.Type }
                 | Error msg ->
                     let exprText = ParameterTypes.renderParamExpression expr.Expression 0
                     let err: SimGraphTypes.SimulationError = {

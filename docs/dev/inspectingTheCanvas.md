@@ -60,7 +60,7 @@ single-case DU and by a record.
 
 So nothing has to be reduced by hand. A `fulladder` dump is around 1500 lines and includes things a
 summary would drop: `IntersectOrJumpList` on each segment, `PortMaps.Order` as well as
-`Orientation`, `Appearance`, `LabelBoundingBox`, `DeclaredSlots`.
+`Orientation`, `Appearance`, `LabelBoundingBox`.
 
 `BusWireT.Model` is the target because it is the largest part of the model containing **no functions
 at all** — it and `SymbolT.Model` are pure data. Above it, `SheetT.Model` holds `PopupViewFunc` and
@@ -77,10 +77,10 @@ deserialisation direction is exercised by the `.dgm` and `.ram` load paths, not 
 
 `ModelHelpers.canvasInspection`: the same state cut down to one line per symbol, because 1500 lines
 of faithful JSON is the wrong shape for most questions. Per symbol, position, size, scale, rotation,
-flip, port edges, and `DisplaysComputedValues`/`DeclaredSlots` — the latter being
-`SymbolT.Symbol.DeclaredSlots`, the declared value of each slot the symbol is currently drawing
-differently. Per wire, its segments converted to **absolute** coordinates, which `raw` does not do:
-the model stores relative lengths.
+flip, port edges, and the component's `Type` — which carries the widths, so a symbol drawn at a
+value its design settled shows that value here rather than what the sheet declares. Per wire, its
+segments converted to **absolute** coordinates, which `raw` does not do: the model stores relative
+lengths.
 
 It is a convenience, not a workaround. If a field you want is missing, either add it here or use
 `raw`.

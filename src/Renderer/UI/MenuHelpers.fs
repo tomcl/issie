@@ -834,7 +834,6 @@ let private createEmptyDiagramFile projectPath name =
         Description = None
         LCParameterSlots = None
         IsTopSheet = false
-        OtherParamValues = Map.empty
     }
 
 

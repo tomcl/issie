@@ -240,7 +240,6 @@ let extractLoadedSimulatorComponent (canvas: CanvasState) (name: string) =
           LCParameterSlots = None // Parameter slots will be set by the sheet's parameter system
           LoadedComponentIsOutOfDate = false
           IsTopSheet = false
-          OtherParamValues = Map.empty
           }
 
     ldc
@@ -312,11 +311,6 @@ let effectiveInstanceBindings
             |> Option.map PInt)
         |> Option.defaultValue defExpr)
 
-/// A sheet's canvas with every parameterised slot resolved at the given bindings.
-/// Lives in ComponentSlots, which owns the slot-to-component mapping and is compiled early enough
-/// for ParameterAnalysis to use it too. Named here because this is where callers look for it.
-let resolveCanvasAtBindings = ComponentSlots.resolveCanvasAtBindings
-
 /// Whether the widths in an instance's signature can be believed: every value the instance binds
 /// is one this caller can work out, and every parameterised slot of the child sheet then
 /// evaluates. False where a binding is an expression the caller has no environment for - a
@@ -360,7 +354,7 @@ let signatureOfInstanceWithCertainty
             |> Option.defaultValue {DefaultBindings = Map.empty; ParamSlots = Map.empty}
         let childDefaults = bindingsOf defs.DefaultBindings
         let effective = effectiveInstanceBindings childDefaults parentBindings instanceBindings
-        let resolved = resolveCanvasAtBindings effective defs.ParamSlots childLdc.CanvasState
+        let resolved = ComponentSlots.resolveCanvasAtBindings effective defs.ParamSlots childLdc.CanvasState
         (getOrderedCompLabels (Input1 (0, None)) resolved,
          getOrderedCompLabels (Output 0) resolved),
         signatureIsExact childDefaults parentBindings instanceBindings effective defs.ParamSlots)
@@ -375,6 +369,58 @@ let signatureOfInstance
         : Signature option =
     signatureOfInstanceWithCertainty ldcs parentBindings childSheet instanceBindings
     |> Option.map fst
+
+/// A custom component instance holding the given port widths, matched to its ports by LABEL.
+///
+/// Widths only. The ORDER of an instance's ports, and which ports it has, are deliberately left
+/// alone: an instance whose ports are in a different order from its sheet's is a correct instance
+/// (see CustomCompPorts.instanceIsOutOfDate), and a port added to or removed from the sheet is a
+/// change the user is asked to confirm rather than one to make behind them. A label the signature
+/// says nothing about therefore keeps the width it had.
+let withPortWidths (labelToWidth: Map<string, int>) (cc: CustomComponentType) : CustomComponentType =
+    let resize labels =
+        labels
+        |> List.map (fun (label, width) -> label, Map.tryFind label labelToWidth |> Option.defaultValue width)
+    {cc with InputLabels = resize cc.InputLabels; OutputLabels = resize cc.OutputLabels}
+
+/// Every custom component instance in the project sized at its OWN bindings.
+///
+/// Resolving a sheet's parameterised slots does not do this. ComponentSlots.setSlotValue writes a
+/// CustomCompParam slot into the instance's ParameterBindings, which is all it can reach: the port
+/// widths follow from that binding by way of the CHILD sheet, and only signatureOfInstance knows
+/// how. So a sheet whose parameter values changed came out of ParameterAnalysis.propagateParameterValues
+/// holding instances whose bindings said one width and whose ports still said another.
+///
+/// The open sheet never showed it, because ParameterView.updateComponents pushes its slots through
+/// ChangeCustom, which recomputes ports on the way. A CLOSED sheet was written to its file as it
+/// stood, and opening it raised the instance-out-of-date error that the whole per-instance
+/// signature apparatus exists to avoid.
+///
+/// Pure, and idempotent: it asks what each instance's ports should be and writes that, so running
+/// it again finds nothing to change. A sheet whose canvas it rewrites is flagged as needing saving.
+let syncInstancePorts (ldcs: LoadedComponent list) : LoadedComponent list =
+    let parametersOf (ldc: LoadedComponent) =
+        ldc.LCParameterSlots
+        |> Option.defaultValue {DefaultBindings = Map.empty; ParamSlots = Map.empty}
+    ldcs
+    |> List.map (fun parentLdc ->
+        let defs = parametersOf parentLdc
+        let parentBindings = bindingsOf defs.DefaultBindings
+        let comps, conns = parentLdc.CanvasState
+        let resize (comp: Component) =
+            match comp.Type with
+            | Custom cc ->
+                // the instance's bindings as elaboration reads them: a CustomCompParam slot of
+                // this sheet overrides what is stored on the instance
+                ParameterAnalysis.instanceBindingExprs defs.ParamSlots comp cc
+                |> signatureOfInstance ldcs parentBindings cc.Name
+                |> Option.map (fun (ins, outs) ->
+                    {comp with Type = Custom (withPortWidths (ins @ outs |> Map.ofList) cc)})
+                |> Option.defaultValue comp
+            | _ -> comp
+        match List.map resize comps with
+        | resized when resized = comps -> parentLdc
+        | resized -> {parentLdc with CanvasState = resized, conns; LoadedComponentIsOutOfDate = true})
 
 /// Returns true if project exists and ldc is electrically identical to same sheet in project
 /// canvasState must be the project currently open state.
@@ -417,7 +463,6 @@ let addStateToLoadedComponents openFileName canvasState loadedComponents =
           TimeStamp = System.DateTime.Now
           LCParameterSlots = existingLdc |> Option.map (fun e -> e.LCParameterSlots) |> Option.flatten
           IsTopSheet = existingLdc |> Option.map (fun e -> e.IsTopSheet) |> Option.defaultValue false
-          OtherParamValues = Map.empty
          }
 
     loadedComponents

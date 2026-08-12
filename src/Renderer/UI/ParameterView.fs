@@ -38,7 +38,15 @@ open Fulma.Extensions.Wikiki
 // Lenses & Prisms for accessing sheet parameter information
 
 
-let lcParameterInfoOfModel_ = openLoadedComponentOfModel_ >?> lcParameterSlots_
+/// The open sheet's parameter data, which reads as empty on a sheet that declares none and is
+/// CREATED by writing to it.
+///
+/// Composed through lcParameterDefs_, a lens, rather than lcParameterSlots_, a prism. Prism onto
+/// prism gives an optic whose setter silently does nothing when the outer get is None, so every
+/// write to a sheet with no parameter data yet was dropped - and that is precisely the sheet a
+/// first declaration goes to. Two write paths existed because of it: this one, and a hand-written
+/// one that special-cased None. There is one now.
+let lcParameterInfoOfModel_ = openLoadedComponentOfModel_ >?> lcParameterDefs_
 let paramSlotsOfModel_ = lcParameterInfoOfModel_ >?> paramSlots_
 /// The open sheet's parameter DECLARATIONS (defaults with descriptions).
 /// Use paramBindingsOfModel below where an evaluation environment is wanted.
@@ -49,22 +57,6 @@ let paramBindingsOfModel (model: Model) : ParamBindings =
     model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty |> bindingsOf
 
 let modelToSymbols = sheet_ >-> SheetT.wire_ >-> BusWireT.symbol_ >-> SymbolT.symbols_
-
-let symbolsToSymbol_ (componentId: ComponentId): Optics.Lens<Map<ComponentId, SymbolT.Symbol>, SymbolT.Symbol> =
-    Lens.create
-        (fun symbols -> 
-            match Map.tryFind componentId symbols with
-            | Some symbol -> symbol
-            | None -> failwithf "Component %A not found in this sheet" componentId)
-        (fun symbol symbols -> 
-            symbols |> Map.add componentId symbol)
-
-
-let symbolToComponent_ : Optics.Lens<SymbolT.Symbol, Component> =
-    Lens.create
-        (fun symbol -> symbol.Component)
-        (fun newComponent symbol -> { symbol with Component = newComponent })
-
 
 /// Evaluates a list of constraints got from slots against a set of parameter bindings to
 /// check what values of param are allowed.
@@ -131,23 +123,22 @@ let getCurrentSheet model =
        | None -> failwithf "No loaded component with same name as open sheet"
 
 
+/// The parameter data of a sheet, empty where it declares none. Every reader goes through
+/// CommonTypes.lcParameterDefs_, which is also what writing to a sheet goes through.
+let getParamDefs (loadedComponent: LoadedComponent) : ParameterDefs =
+    loadedComponent ^. lcParameterDefs_
+
 /// Get the parameter declarations (defaults and descriptions) for a LoadedComponent
 let getDefaultParamDefs loadedComponent : ParamDefinitions =
-    match loadedComponent.LCParameterSlots with
-    | Some paramSlots -> paramSlots.DefaultBindings
-    | None -> Map.empty
+    (getParamDefs loadedComponent).DefaultBindings
 
 /// Get default parameter bindings for LoadedComponent, for use as an evaluation environment
 let getDefaultParams loadedComponent : ParamBindings =
     getDefaultParamDefs loadedComponent |> bindingsOf
 
-
-/// Get default parameter slots for LoadedComponent 
-let getParamSlots loadedComponent =
-    match loadedComponent.LCParameterSlots with
-    | Some sheetinfo -> sheetinfo.ParamSlots
-    | None -> Map.empty
-
+/// Get the parameterised slots of a LoadedComponent
+let getParamSlots loadedComponent : ComponentSlotExpr =
+    (getParamDefs loadedComponent).ParamSlots
 
 /// Get current loaded component parameter info
 /// Returns empty maps for ParamSlots and DefaultBindings if None
@@ -156,21 +147,15 @@ let getLCParamInfo (model: Model) =
     |> get lcParameterInfoOfModel_
     |> Option.defaultValue {ParamSlots = Map.empty; DefaultBindings = Map.empty}
 
-/// Update a custom component's input/output label widths based on parameter evaluations
+/// Update a custom component's input/output label widths based on parameter evaluations.
+/// The width rewrite itself is CanvasExtractor.withPortWidths, which propagation also uses, so an
+/// instance resized by an edit and one resized by a recomputation come out the same shape.
 let updateCustomComponent (labelToEval: Map<string, int>) (newBindings: ParamBindings) (comp: Component) : Component =
-    let updateLabels labels =
-        labels |> List.map (fun (label, width) ->
-            match Map.tryFind label labelToEval with
-            | Some newWidth when newWidth <> width -> (label, newWidth) // Update width if changed
-            | _ -> (label, width) // Keep the same if unchanged
-        )
-    
     match comp.Type with
     | Custom customComponent ->
-        let updatedCustom = { customComponent with 
-                                    InputLabels = updateLabels customComponent.InputLabels
-                                    OutputLabels = updateLabels customComponent.OutputLabels
-                                    ParameterBindings = Some newBindings }
+        let updatedCustom =
+            {CanvasExtractor.withPortWidths labelToEval customComponent with
+                ParameterBindings = Some newBindings}
         { comp with Type = Custom updatedCustom }
     | _ -> comp
 
@@ -190,6 +175,58 @@ let portWidthsOfInstance
     CanvasExtractor.signatureOfInstance ldcs parentBindings childSheet instanceBindings
     |> Option.map (fun (ins, outs) -> ins @ outs |> Map.ofList)
     |> Option.defaultValue Map.empty
+
+/// What is wrong, in the words of whoever the message was written for, with setting one parameter
+/// of an instance of `childSheet` to `value`.
+///
+/// An instance binding used to be checked against nothing at all: the boxes that set one pass an
+/// empty constraint list, so the bounds a width must satisfy - at least one bit, at most
+/// maxIssieBusWidth - applied only to a value typed straight into a component's own box. Binding a
+/// child parameter to a hundred thousand sized the child's ports at a hundred thousand bits, and
+/// the first thing to object was the simulator allocating them.
+///
+/// The bounds cannot be handed to paramInputField as a ParamConstraint list, which is why this is
+/// a function instead. They belong to the slots of the CHILD sheet, and are expressions in the
+/// CHILD's parameters; paramInputField evaluates its constraints in the parameters of the sheet
+/// the instance sits on, where those mean nothing. So the check resolves the child sheet at the
+/// bindings it would have - the same thing editParameterBox does for the open sheet, and the same
+/// constraints, derived by ComponentSlots.constraintsFor from each slot's own component.
+///
+/// Only the slots that USE the parameter are checked. Every other slot is being evaluated at
+/// values this box is not setting, so a complaint from one would name the wrong box.
+let instanceBindingProblem
+        (ldcs: LoadedComponent list)
+        (childSheet: string)
+        /// The bindings the child sheet resolves at, before this value is applied:
+        /// CanvasExtractor.effectiveInstanceBindings, so the other parameters hold what the
+        /// instance actually gives them rather than the sheet's own defaults.
+        (baseBindings: ParamBindings)
+        (name: ParamName)
+        (value: ParamInt)
+        : Result<unit, ParamError> =
+    match ldcs |> List.tryFind (fun ldc -> ldc.Name = childSheet) with
+    // no such sheet, so nothing to check against; the missing dependency is reported elsewhere
+    | None -> Ok ()
+    | Some childLdc ->
+        let slots = ParameterAnalysis.sheetParamSlots childLdc
+        let bindings = Map.add name (PInt value) baseBindings
+        let typeOfComp =
+            fst childLdc.CanvasState
+            |> List.map (fun comp -> comp.Id, comp.Type)
+            |> Map.ofList
+        ParameterTypes.slotsUsingParam name slots
+        |> List.choose (fun (slot, exprSpec) ->
+            Map.tryFind slot.CompId typeOfComp
+            |> Option.map (fun compType ->
+                {exprSpec with Constraints = ComponentSlots.constraintsFor slot.CompSlot compType}))
+        |> evaluateConstraints bindings
+        |> function
+           | Ok () -> Ok ()
+           | Error [] -> Ok ()
+           // as elsewhere, only the first: one bad value usually breaks the same bound on several
+           // components, and a column of repeated sentences reads as noise
+           | Error (MinVal (_, err) :: _)
+           | Error (MaxVal (_, err) :: _) -> Error err
 
 /// Push the values of the parameterised slots of ONE component onto the canvas.
 /// All of a component's slots are applied together because two of the messages replace a whole
@@ -403,6 +440,11 @@ let paramInputField
     /// shows what the value IS, so a value set to a symbol reads as that symbol.
     (currentExpr: Option<ParamExpression>)
     (constraints: ParamConstraint list)
+    /// A check the value must pass that cannot be written as a ParamConstraint, because its bounds
+    /// are not expressions in THIS sheet's parameters. The one such case is a custom component
+    /// instance's binding, whose bounds belong to the sheet inside it: see instanceBindingProblem.
+    /// None where the constraint list says everything.
+    (extraCheck: (ParamInt -> Result<unit, ParamError>) option)
     (comp: Component option)
     (compSlotName: CompSlotName)
     (dispatch: Msg -> unit)
@@ -449,8 +491,18 @@ let paramInputField
                 dispatch <| UpdateModel (updateParamSlot slot exprSpec)
             | None -> ()
 
+        /// The box's own constraints are checked above; this is the check that needed the value
+        /// rather than an expression in this sheet's parameters.
+        let passesExtraCheck value =
+            extraCheck |> Option.map (fun check -> check value) |> Option.defaultValue (Ok ())
+
         match newVal, constraintCheck, exprResult with
-        | Ok value, Ok (), Ok expr -> useExpr expr value
+        | Ok value, Ok (), Ok expr ->
+            match passesExtraCheck value with
+            | Ok () -> useExpr expr value
+            // as with a broken constraint: the text stays in the box with the message, and
+            // nothing reaches the component
+            | Error err -> dispatch <| AddPopupDialogParamSpec (boxKey, {Text = inputExpr; Spec = Error err})
         // The text is recorded whether or not it means anything yet, because it is what the box
         // shows: an entry that will not parse stays on screen with its message until it is fixed,
         // and nothing reaches the component in the meantime.
@@ -596,7 +648,15 @@ let propagateParameters (model: Model) (dispatch: Msg -> unit) : unit =
     | Some project ->
         let openName = project.OpenFileName
         let before = (ModelHelpers.getUpdatedLoadedComponents project model).LoadedComponents
-        let after = ParameterAnalysis.propagateParameterValues before
+        // Two steps, because they live either side of the compile order and neither can do the
+        // other's work. propagateParameterValues settles each sheet's values and resolves its
+        // slots; that writes a custom component's BINDINGS but cannot touch its port widths, which
+        // follow from the binding by way of the child sheet and so need signatureOfInstance.
+        // Without the second step a closed sheet reached its file with an instance whose bindings
+        // and ports contradicted each other.
+        let after =
+            ParameterAnalysis.propagateParameterValues before
+            |> CanvasExtractor.syncInstancePorts
         // A sheet this recomputation changed differs from its file and so must reach it. Flagging
         // rather than writing here keeps the write in one place - MenuHelpers.saveDirtyClosedSheets
         // is what every path that touches a sheet other than the open one goes through - and picks
@@ -700,80 +760,42 @@ let copyParamSlotsToPastedComponents (pairs: (string * string) list) (model: Mod
         model' |> set (notifications_ >-> fromDiagram_) (Some (Notifications.warningNotification message CloseDiagramNotification))
 
 
-/// Updates the LCParameterSlots DefaultParams section.
-type UpdateInfoSheetChoise =
-    | DefaultParams of Name: string * Value: ParamInt * Description: string * Delete: bool
-    | ParamSlots of ParamSlot * ParameterTypes.ParamExpression * ParamConstraint list
-
-
-let updateInfoSheetDefaultParams
-        (currentSheetInfo: option<ParameterTypes.ParameterDefs>)
+/// Declare a parameter on the open sheet, change what it is declared as, or delete it.
+///
+/// The one path that writes what a sheet DECLARES. It used to take a discriminated union choosing
+/// between this and writing a slot, but nothing ever constructed the second case: slots are
+/// written by updateParamSlot, through the model, which is where the properties boxes already are.
+///
+/// The sheet's parameter data is reached through lcParameterDefs_, so a sheet that declares
+/// nothing yet needs no special case: it reads as empty and writing to it creates the record.
+let modifyDeclaredParam
+        (project: CommonTypes.Project)
         (paramName: string)
-        (value: ParamInt)
-        (description: string)
-        (delete: bool) =
-    let name = ParamName paramName
-    if delete then
-        match currentSheetInfo with
-        | Some infoSheet ->
-            let newDefaultParams = infoSheet.DefaultBindings |> Map.remove name
-            Some {infoSheet with DefaultBindings = newDefaultParams}
-        | None -> None
-    else
-    let definition = {Expression = PInt value; Description = description}
-    match currentSheetInfo with
-    | Some infoSheet ->
-        let newDefaultParams = infoSheet.DefaultBindings |> Map.add name definition
-        Some {infoSheet with DefaultBindings = newDefaultParams}
-    | None ->
-        Some {DefaultBindings = Map.ofList [name, definition]; ParamSlots = Map.empty}
-
-
-let updateInfoSheetParamSlots (currentSheetInfo:option<ParameterTypes.ParameterDefs>) (paramSlot: ParameterTypes.ParamSlot) (expression: ParameterTypes.ParamExpression) (constraints: ParameterTypes.ParamConstraint list) =
-    match currentSheetInfo with
-    | Some infoSheet -> 
-        let newParamSlots = infoSheet.ParamSlots |> Map.add paramSlot {Expression = expression; Constraints = constraints}
-        let currentSheetInfo = {infoSheet with ParamSlots = newParamSlots}
-        Some currentSheetInfo
-    | None -> 
-        let currentSheetInfo = {DefaultBindings= Map.empty; ParamSlots = Map.ofList [paramSlot, {Expression = expression; Constraints = constraints}]}
-        Some currentSheetInfo
-
-
-let updateParameter (project: CommonTypes.Project) (model: Model) =
-    {model with CurrentProj = Some project}
-
-
-let getParamsSlot (currentSheet: CommonTypes.LoadedComponent) =
-    let getter = CommonTypes.lcParameterSlots_ >?> ParameterTypes.paramSlots_
-    match currentSheet.LCParameterSlots with
-    | Some _ -> currentSheet ^. getter
-    | None -> None
-
-
-/// This function can be used to update the DefaultParams or ParamSlots in the LCParameterSlots of a sheet based on the choise
-/// Use case will be either when we want to add, edit or delete the sheet parameter or when we want to add a new component to the sheet
-let modifyInfoSheet (project: CommonTypes.Project) (choise: UpdateInfoSheetChoise) dispatch=
-    
-    let currentSheet = project.LoadedComponents
-                                   |> List.find (fun lc -> lc.Name = project.OpenFileName)
-    let updatedSheet = {currentSheet with LCParameterSlots = 
-                                                        match choise with
-                                                            | DefaultParams (paramName, value, description, delete) -> updateInfoSheetDefaultParams currentSheet.LCParameterSlots paramName value description delete
-                                                            | ParamSlots (paramSlot, expression, constraints) -> updateInfoSheetParamSlots currentSheet.LCParameterSlots paramSlot expression constraints}
-    let updatedComponents = project.LoadedComponents
-                            |> List.map (
-                                fun lc ->
-                                    if lc.Name = project.OpenFileName
-                                    then updatedSheet
-                                    else lc
-                                )
+        (change: ParamDefinitions -> ParamDefinitions)
+        dispatch =
+    let updatedComponents =
+        project.LoadedComponents
+        |> List.map (fun lc ->
+            match lc.Name = project.OpenFileName with
+            | false -> lc
+            | true -> lc |> Optic.map (lcParameterDefs_ >-> defaultBindings_) change)
     let newProject = {project with LoadedComponents = updatedComponents}
     // the canvas is untouched by a change to what the sheet declares, so say the sheet needs
     // saving rather than leaving it to be inferred from a canvas that is identical
-    (updateParameter newProject >> markSheetParamsChanged) |> UpdateModel |> dispatch
+    ((fun (model: Model) -> {model with CurrentProj = Some newProject}) >> markSheetParamsChanged)
+    |> UpdateModel
+    |> dispatch
     // what this sheet declares is what its subsheets' values are derived from, so they follow
     dispatch PropagateParameters
+
+/// Declare a parameter, or replace what it is declared as.
+let setDeclaredParam (project: CommonTypes.Project) (paramName: string) (value: ParamInt) (description: string) dispatch =
+    modifyDeclaredParam project paramName
+        (Map.add (ParamName paramName) {Expression = PInt value; Description = description}) dispatch
+
+/// Remove a parameter's declaration from the open sheet.
+let removeDeclaredParam (project: CommonTypes.Project) (paramName: string) dispatch =
+    modifyDeclaredParam project paramName (Map.remove (ParamName paramName)) dispatch
 
 /// Every instance of a sheet binds every parameter that sheet declares.
 ///
@@ -817,7 +839,7 @@ let private instanceCountOf (sheetName: string) (project: Project) =
 /// Creates a popup that allows a parameter integer value to be added.
 let addParameterBox model dispatch =
     match model.CurrentProj with
-    | None -> Log.warn "testAddParameterBox called when no project is currently open"
+    | None -> Log.warn "addParameterBox called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
         let title = "Add property"
@@ -869,7 +891,7 @@ let addParameterBox model dispatch =
                 let newValue = getInt2 model'.PopupDialogData
                 let newDescription = getText2 model'.PopupDialogData
 
-                modifyInfoSheet (project) (DefaultParams (newParamName, newValue, newDescription, false)) dispatch
+                setDeclaredParam project newParamName newValue newDescription dispatch
                 // Every instance of this sheet must bind the new parameter: see addParamToInstances.
                 // Bound at the value just declared, so the design is unchanged by this.
                 let sheetName = project.OpenFileName
@@ -913,7 +935,7 @@ let addParameterBox model dispatch =
 /// TODO: this should be a special cases of a more general popup for parameter expressions?
 let editParameterBox model parameterName dispatch   = 
     match model.CurrentProj with
-    | None -> Log.warn "testEditParameterBox called when no project is currently open"
+    | None -> Log.warn "editParameterBox called when no project is currently open"
     | Some project ->
         // Prepare dialog popup.
         let currentSheet = project.LoadedComponents
@@ -970,13 +992,25 @@ let editParameterBox model parameterName dispatch   =
             |> Map.add (ParamName parameterName) {Expression = PInt (getInt2 model'.PopupDialogData); Description = getText2 model'.PopupDialogData}
             |> bindingsOf
 
-        /// The slots of this sheet, whose constraints are what the new value has to satisfy.
+        /// The slots of this sheet, with the bounds their components require: what the new value
+        /// has to satisfy.
+        ///
+        /// The constraints are derived from each slot's component (ComponentSlots.constraintsFor)
+        /// rather than read off the slot. A stored one was computed from the width the box was
+        /// showing when the expression was typed, so an Input's "must fit in 8 bits" outlived the
+        /// 8 the moment the width itself became a property.
         let slotSpecs (model': Model) =
             model'
             |> get paramSlotsOfModel_
             |> Option.defaultValue Map.empty
             |> Map.toList
-            |> List.map snd
+            // a slot whose component has gone cannot be checked against anything; it is pruned
+            // when the sheet is saved
+            |> List.choose (fun (slot, exprSpec) ->
+                Map.tryFind (ComponentId slot.CompId) model'.Sheet.Wire.Symbol.Symbols
+                |> Option.map (fun sym ->
+                    {exprSpec with
+                        Constraints = ComponentSlots.constraintsFor slot.CompSlot sym.Component.Type}))
 
         /// What is wrong with the value in the box, in the words of whoever wrote the constraint.
         /// Only the first failure is shown: they are nearly always the same slot objecting from
@@ -1005,7 +1039,7 @@ let editParameterBox model parameterName dispatch   =
             fun (model': Model) ->
                 let newValue = getInt2 model'.PopupDialogData
                 let newDescription = getText2 model'.PopupDialogData
-                modifyInfoSheet project (DefaultParams (parameterName, newValue, newDescription, false)) dispatch
+                setDeclaredParam project parameterName newValue newDescription dispatch
 
                 // Value must meet constraints if able to click button
                 updateComponents (editedBindings model') model dispatch
@@ -1023,16 +1057,24 @@ let editParameterBox model parameterName dispatch   =
         dialogPopup title body buttonText buttonAction isDisabled [] dispatch
 
 
+/// What a slot is called where the user has to recognise it: the field of the component that the
+/// expression fills. Written once, because the message that refuses to delete a property and the
+/// table of parameterised components both name the same thing and had drifting copies of this.
+///
+/// "Width", not "Buswidth": the properties box it names is labelled "Width (bits)", and the
+/// developer's word for the slot means nothing to whoever is being asked to go and change it.
+let slotFieldName (slot: CompSlotName) : string =
+    match slot with
+    | Buswidth -> "Width"
+    | IO label -> $"Input/output {label}"
+    | SplitNWidth idx -> $"SplitN output {idx} width"
+    | SplitNLSB idx -> $"SplitN output {idx} LSB"
+    | CustomCompParam paramName -> $"Property {paramName}"
+    | InputDefault -> "Default value"
+
 /// Human readable name of the slot a parameter expression fills, for use in messages.
 let describeSlot (model: Model) (slot: ParamSlot) =
-    let slotName =
-        match slot.CompSlot with
-        | Buswidth -> "Buswidth"
-        | IO label -> $"Input/output {label}"
-        | SplitNWidth idx -> $"SplitN output {idx} width"
-        | SplitNLSB idx -> $"SplitN output {idx} LSB"
-        | CustomCompParam paramName -> $"Property {paramName}"
-        | InputDefault -> "Default value"
+    let slotName = slotFieldName slot.CompSlot
     match Map.tryFind (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols with
     | Some symbol -> $"{symbol.Component.Label}: {slotName}"
     | None -> $"[deleted component]: {slotName}"
@@ -1093,7 +1135,7 @@ let deleteParameterBox model parameterName dispatch  =
             |> List.filter (fun (slot, _) -> Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols)
         match users with
         | [] ->
-            modifyInfoSheet project (DefaultParams (parameterName, 0I, "", true)) dispatch
+            removeDeclaredParam project parameterName dispatch
             dispatch <| UpdateModel (removeParamFromInstances sheet.Name name)
         | _ ->
             let body =
@@ -1405,6 +1447,14 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
 
     let slots = model |> getCurrentSheet |> getParamSlots
     let bindings = paramBindingsOfModel model
+    let ldcs = ModelHelpers.tryGetLoadedComponents model
+
+    /// The bindings the sheet inside this instance resolves at, as elaboration makes them. A
+    /// candidate value for one property is checked against the child's slots at these, so the
+    /// other properties hold what this instance gives them - see instanceBindingProblem.
+    let childBindings =
+        ParameterAnalysis.instanceBindingExprs slots comp custom
+        |> CanvasExtractor.effectiveInstanceBindings (bindingsOf childDefs) bindings
 
     /// What this instance sets one property to: the slot expression where there is one, otherwise
     /// the binding held on the instance itself. Every instance sets every property its sheet
@@ -1419,15 +1469,30 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
         exprOf paramName key
         |> Option.bind (ParameterTypes.evaluateParamExpression bindings >> Result.toOption)
 
+    /// Whether the box for one property has been emptied. Emptying it is how the user says they
+    /// have nothing to put there, and is what the offer below answers.
+    let boxIsEmptyFor (ParamName nameStr) =
+        model.PopupDialogData.DialogState
+        |> Option.defaultValue Map.empty
+        |> Map.tryFind (ParameterTypes.paramBoxKey (Some comp.Id) (CustomCompParam nameStr))
+        |> function
+           | Some state -> state.Text = ""
+           | None -> false
+
     /// Offers to bind a parameter of THIS instance up to a same-named parameter on an ancestor
     /// sheet, materialising the chain of parameters and bindings along the way.
     /// Offered as a button rather than raised as a popup: the user meets it when they look at the
     /// instance, so nothing has to guess the moment at which to interrupt them.
     /// Suppressed while a simulation is open, as accepting one changes the design being simulated.
+    ///
+    /// Computed only when some box is empty, because that is the only state in which an offer can
+    /// be shown. Working it out unconditionally walked the whole project's instance tree on every
+    /// render of this pane - which is every keystroke in any of its boxes.
     let bindOffers =
         match model.CurrentProj with
         | None -> []
         | Some _ when ModelHelpers.simulationIsOpen model -> []
+        | Some _ when not (childDefs |> Map.exists (fun key _ -> boxIsEmptyFor key)) -> []
         | Some proj ->
             let ldcs = (ModelHelpers.getUpdatedLoadedComponents proj model).LoadedComponents
             let top = ParameterAnalysis.effectiveTopSheetFor ldcs proj.OpenFileName
@@ -1442,14 +1507,7 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
     /// word of jargon the user has had to learn anywhere else.
     let bindButton (key: ParamName) (def: ParamDefinition) =
         let (ParamName nameStr) = key
-        let boxIsEmpty =
-            model.PopupDialogData.DialogState
-            |> Option.defaultValue Map.empty
-            |> Map.tryFind (ParameterTypes.paramBoxKey (Some comp.Id) (CustomCompParam nameStr))
-            |> function
-               | Some state -> state.Text = ""
-               | None -> false
-        match boxIsEmpty, bindOffers |> List.tryFind (fun offer -> offer.Param = key) with
+        match boxIsEmptyFor key, bindOffers |> List.tryFind (fun offer -> offer.Param = key) with
         | false, _ | _, None -> null
         | true, Some offer ->
             Button.button
@@ -1486,9 +1544,15 @@ let makeParamBindingEntryBoxes model (comp:Component) (custom:CustomComponentTyp
             // The sheet's own default is never offered here. What this instance is set to is the
             // only thing that matters on an instance, and showing a value the instance does not
             // have invites the user to reason about one that cannot apply to it.
+            //
+            // The empty constraint list is not a missing check: the bounds this value must satisfy
+            // belong to the CHILD sheet and are written in the child's own properties, so they are
+            // checked by resolving that sheet instead - see instanceBindingProblem.
             paramInputField model ""
                 (Option.defaultValue 1I (valueOf key paramName)) (valueOf key paramName)
-                (exprOf paramName key) [] (Some comp) (CustomCompParam paramName) dispatch
+                (exprOf paramName key) []
+                (Some (instanceBindingProblem ldcs custom.Name childBindings key))
+                (Some comp) (CustomCompParam paramName) dispatch
             div [Class "propertyControls"] [bindButton key def]
         ]
 
@@ -1546,6 +1610,12 @@ let customComponentParamPopup
     let parentDefs = model |> get defaultBindingsOfModel_ |> Option.defaultValue Map.empty
     let parentBindings = bindingsOf parentDefs
     let parentSheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName) |> Option.defaultValue ""
+    // the sheet being placed goes at the head, so that a library component just materialised into
+    // the project is found whether or not the model has caught up with it - as in
+    // CatalogueView.placeCustomComponent, which sizes the instance's ports the same way
+    let ldcs =
+        childLdc
+        :: (ModelHelpers.tryGetLoadedComponents model |> List.filter (fun l -> l.Name <> childLdc.Name))
 
     let slotOf (ParamName nameStr) = CustomCompParam nameStr
 
@@ -1607,6 +1677,19 @@ let customComponentParamPopup
         |> Map.tryFind (ParameterTypes.paramBoxKey None (slotOf name))
         |> Option.map (fun state -> state.Spec)
 
+    /// The bindings the sheet inside would resolve at, given what the popup is currently set to.
+    /// The instance does not exist yet, so its bindings are the boxes; everything else is as
+    /// makeParamBindingEntryBoxes does it for one already placed.
+    let childBindings (model': Model) =
+        childDefs
+        |> Map.toList
+        |> List.choose (fun (name, _) ->
+            match specOf model' name with
+            | Some (Ok spec) -> Some (name, spec.Expression)
+            | _ -> None)
+        |> Map.ofList
+        |> CanvasExtractor.effectiveInstanceBindings (bindingsOf childDefs) parentBindings
+
     /// The offer to make a parameter follow a same-named parameter of an enclosing sheet.
     ///
     /// The same offer the properties pane makes for an instance already placed, computed the same
@@ -1638,8 +1721,12 @@ let customComponentParamPopup
                    | Some state -> state.Text = ""
                    | None -> false
             let valueEntry =
+                // as on an instance already placed: the bounds belong to the sheet inside, so
+                // they are checked by resolving it rather than by a constraint list here
                 paramInputField model' (paramPrompt nameStr definition)
-                    (childDefaultValue childDefs name) None None [] None (slotOf name) dispatch
+                    (childDefaultValue childDefs name) None None []
+                    (Some (instanceBindingProblem ldcs childLdc.Name (childBindings model') name))
+                    None (slotOf name) dispatch
             let bindButton =
                 match boxIsEmpty, bindOffer name with
                 | false, _ | _, None -> null
@@ -1696,7 +1783,7 @@ let customComponentParamPopup
 /// Generate component slots view for design sheet properties panel
 /// This is read-only.
 let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispatch =
-    let sheetParamsSlots = getParamsSlot comp
+    let sheetParamsSlots = getParamSlots comp
 
     // Define a function to display PConstraint<int>
     let constraintExpression (constraint': ParamConstraint) =
@@ -1705,7 +1792,7 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
             div [] [str ("Max: " + ParameterTypes.renderParamExpression expr 0)]
         | MinVal (expr, err) ->
             div [] [str ("Min: " + ParameterTypes.renderParamExpression expr 0)]
-    
+
     let constraintMessage (constraint': ParamConstraint) =
         match constraint' with
             | MaxVal (_, err)  | MinVal (_, err) -> err
@@ -1714,31 +1801,30 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
     /// UI component to display a single parameterised Component slot definition.
     /// This is read-only.
     let renderSlotSpec (slot: ParamSlot) (expr: ConstrainedExpr) =
-        let slotNameStr =
-            match slot.CompSlot with
-            | Buswidth -> "Buswidth"
-            | IO label -> $"Input/output {label}"
-            | SplitNWidth idx -> $"SplitN output {idx} width"
-            | SplitNLSB idx -> $"SplitN output {idx} LSB"
-            | CustomCompParam paramName -> $"Property {paramName}"
-            | InputDefault -> "Default value"
-        
-        let name = if Map.containsKey (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols then
-                        string model.Sheet.Wire.Symbol.Symbols[ComponentId slot.CompId].Component.Label
-                    else
-                        // slots are pruned when the sheet is saved or left, so this should not persist
-                        "[Nonexistent]"
+        let symbol = Map.tryFind (ComponentId slot.CompId) model.Sheet.Wire.Symbol.Symbols
+        let name =
+            match symbol with
+            | Some sym -> sym.Component.Label
+            // slots are pruned when the sheet is saved or left, so this should not persist
+            | None -> "[Nonexistent]"
+        // the bounds the component requires now, not the ones stored with the expression: a stored
+        // bound was computed from the width the box was showing when it was typed, so this column
+        // could contradict what the box would accept. See ComponentSlots.constraintsFor.
+        let constraints =
+            symbol
+            |> Option.map (fun sym -> ComponentSlots.constraintsFor slot.CompSlot sym.Component.Type)
+            |> Option.defaultValue []
         tr [] [
             td [] [
-                b [] [str name] 
-                br [] 
-                str slotNameStr
+                b [] [str name]
+                br []
+                str (slotFieldName slot.CompSlot)
             ]
             td [] [str (ParameterTypes.renderParamExpression expr.Expression 0)]
             td [
                 Class (Tooltip.ClassName + " " + Tooltip.IsTooltipLeft)
-                Tooltip.dataTooltip (List.map constraintMessage expr.Constraints |> String.concat "\n")
-            ] (List.map constraintExpression expr.Constraints)
+                Tooltip.dataTooltip (List.map constraintMessage constraints |> String.concat "\n")
+            ] (List.map constraintExpression constraints)
         ]
 
     /// UI component to display parametrised Component slot definitions 
@@ -1760,38 +1846,30 @@ let private makeSlotsField (model: ModelType.Model) (comp:LoadedComponent) dispa
                         th [] [str "Constraint"]
                     ]
                 ]
-                tbody [] (
-                        // slots |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr
-                        slotMap |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr)
-                    )
+                tbody [] (slotMap |> Map.toList |> List.map (fun (slot, expr) -> renderSlotSpec slot expr))
                 ]
         ]
 
     // Nothing where there is nothing to list. A sheet with no parameterised components used to
     // carry a heading and a sentence saying so, which is vocabulary spent on a user who may never
     // have met the feature.
-    match sheetParamsSlots with
-        | None -> null
-        | Some slotMap when Map.isEmpty slotMap -> null
-        | Some slotMap -> slotView slotMap
+    match Map.isEmpty sheetParamsSlots with
+    | true -> null
+    | false -> slotView sheetParamsSlots
 
-/// UI interface for viewing the parameter expressions of a component
+/// The open SHEET's properties: what it declares, and which components on it use those.
+/// Only ever drawn where no single component is selected - a selected component shows its own
+/// properties instead - so there is no case here for one.
 let viewParameters (model: ModelType.Model) dispatch =
-    
-    match model.Sheet.SelectedComponents with
-    | [ compId ] ->
-        let comp = SymbolUpdate.extractComponent model.Sheet.Wire.Symbol compId
-        div [Key comp.Id] [p [] [str $"{comp.Label} has no properties." ]    ]    
-    | _ -> 
-        match model.CurrentProj with
-        |Some proj ->
-            let sheetName = proj.OpenFileName
-            let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = sheetName)
-            div [] [
+    match model.CurrentProj with
+    | Some proj ->
+        let sheetLdc = proj.LoadedComponents |> List.find (fun ldc -> ldc.Name = proj.OpenFileName)
+        div [] [
             makeParamsField model sheetLdc dispatch
             br []
-            makeSlotsField model sheetLdc dispatch]
-        |None -> null
+            makeSlotsField model sheetLdc dispatch
+        ]
+    | None -> null
 //------------------------------------------------------------------------------------------------//
 //----------------------------------- Top sheet choice on open -----------------------------------//
 //------------------------------------------------------------------------------------------------//
@@ -1809,9 +1887,7 @@ let topSheetChoiceCheck (model: Model) : ((Msg -> unit) -> Model -> ReactElement
     | Some proj ->
         let ldcs = proj.LoadedComponents
         let sheetName = proj.OpenFileName
-        let rootsContaining =
-            ParameterAnalysis.instanceForestRoots ldcs
-            |> List.filter (fun root -> Set.contains sheetName (ParameterAnalysis.sheetsUnderTop ldcs root))
+        let rootsContaining = ParameterAnalysis.rootsContaining ldcs sheetName
         let shownValues root =
             ParameterAnalysis.displayValues ldcs root sheetName
             |> Map.map (fun _ display -> ParameterAnalysis.shownValue display)

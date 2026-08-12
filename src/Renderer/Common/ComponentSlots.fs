@@ -116,6 +116,66 @@ let trySetSlotValue (slot: CompSlotName) (value: ParamInt) (compType: ComponentT
 let slotApplies (slot: CompSlotName) (compType: ComponentType) : bool =
     trySetSlotValue slot 0I compType |> Option.isSome
 
+/// The bounds a value must satisfy to be written into this slot of this component.
+///
+/// The other half of the mapping trySetSlotValue owns, and here for the same reason: what a slot
+/// IS includes what may go in it, and the two kept apart is how they drifted. They were built
+/// inline at each properties box instead, which had two consequences:
+///
+///   - a bound computed from the component's width was frozen at the width the box was showing
+///     when the expression was typed. Parameterise the width, change the parameter, and an Input's
+///     stored "must fit in 8 bits" outlived the 8;
+///   - a value that arrived any other way was bounded by nothing. maxIssieBusWidth was enforced
+///     only by these lists, so a width bound to a parent's parameter, or written by the sheet
+///     description DSL, had no upper limit at all and the first thing to object was the simulator.
+///
+/// Derived, so it cannot go stale: every caller asks about the component as it is now. The
+/// Constraints stored on a slot are still written as they were, for file compatibility, but are no
+/// longer what a value is checked against.
+///
+/// The messages are the ones the boxes used to build, and are written for whoever typed the value:
+/// see ParameterView.evaluateConstraints, which hands the author's text straight to the user.
+let constraintsFor (slot: CompSlotName) (compType: ComponentType) : ParamConstraint list =
+    let maxWidth = bigint CommonTypes.Constants.maxIssieBusWidth
+    /// A width, of whatever it is a width of. The name qualifies which width only where the
+    /// component has more than one thing that could be meant.
+    let widthConstraints (what: string) = [
+        MinVal (PInt 1I, $"{what} must be positive")
+        MaxVal (PInt maxWidth, $"{what} cannot exceed {CommonTypes.Constants.maxIssieBusWidth}")
+    ]
+    /// A value that has to fit in a field of the given width. Computed in bigint, so the bound
+    /// holds at every width - as `1 <<< width` did not, wrapping at 32 and leaving a wide input's
+    /// default unchecked.
+    let fitsIn (what: string) (width: int) = [
+        MinVal (PInt 0I, $"{what} must be non-negative")
+        MaxVal (PInt ((1I <<< width) - 1I), $"{what} must fit in {width} bits")
+    ]
+    // a slot the component does not have holds nothing, so there is nothing to bound. Asked first
+    // so that the width cases below need not each repeat which components have them.
+    match slotApplies slot compType with
+    | false -> []
+    | true ->
+        match slot, compType with
+        // the second integer of a BusSelection or a BusCompare, which shares the IO slot because
+        // Buswidth is already the component's own width
+        | IO _, BusSelection _ -> [MinVal (PInt 0I, "LSB position must be non-negative")]
+        | IO _, BusCompare (width, _) -> fitsIn "Comparison value" width
+        | InputDefault, Input1 (width, _) -> fitsIn "Default value" width
+        // a parameter of the sheet inside a custom component instance. Its bounds are the child
+        // sheet's, not this one's: the value has to satisfy whatever the slots it feeds require,
+        // and those are expressions in the child's parameters, which cannot be evaluated here.
+        // ParameterView.instanceBindingProblem checks them by resolving the child sheet.
+        | CustomCompParam _, _ -> []
+        | SplitNWidth _, _ -> widthConstraints "Width"
+        | SplitNLSB _, _ ->
+            [ MinVal (PInt 0I, "LSB must be non-negative")
+              MaxVal (PInt maxWidth, $"LSB cannot exceed {CommonTypes.Constants.maxIssieBusWidth}") ]
+        // every other slot the component can have is a width. The name qualifies which width only
+        // on the two components that have more than one thing a width could mean.
+        | _, SplitWire _ -> widthConstraints "Top (LSB) output width"
+        | _, NbitSpreader _ -> widthConstraints "Output width"
+        | _ -> widthConstraints "Width"
+
 /// Apply `value` to the named slot, leaving the type alone where the component has no such slot.
 /// Callers that can report a bad slot should use trySetSlotValue; this is for the paths that
 /// cannot, where a slot recorded in an old file must not stop a sheet loading or simulating.

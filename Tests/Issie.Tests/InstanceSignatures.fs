@@ -299,6 +299,115 @@ let tests =
                 "and the update itself survived"
         }
 
+        // --- an instance's ports follow a value settled somewhere else in the design ---
+        //
+        // Resolving a sheet's slots writes a CustomCompParam slot into the instance's BINDINGS and
+        // can do no more: the port widths follow from that binding by way of the child sheet, which
+        // only signatureOfInstance can reach. So propagation left a sheet holding an instance whose
+        // bindings said one width and whose ports still said another - invisible on the open sheet,
+        // which is redrawn through ChangeCustom, and written straight to file on every other.
+
+        /// mid declares W, and passes it to its instance of child through a CustomCompParam slot.
+        /// The instance's stored ports are 4, which is what they were when W was 4.
+        let midLdc =
+            let ci = makeComp "ci" 1 1 (customOf childLdc ["A", 4] ["S", 4] (bindingOf 4)) "CI"
+            makeLdc "mid"
+                (Some (paramDefs [declares "W" (PInt 4I)]
+                                 [{CompId = "ci"; CompSlot = CustomCompParam "W"},
+                                  {Expression = PParameter (ParamName "W"); Constraints = []}]))
+                ([ci], [])
+
+        /// top sets mid's W to 16, so child is reached at 16 through the chain.
+        let topLdc =
+            makeComp "mi" 0 0 (customOf midLdc [] [] (bindingOf 16)) "MI"
+            |> fun mi -> makeLdc "top" None ([mi], [])
+
+        let instancePortsOn (ldcs: LoadedComponent list) (sheet: string) (cid: string) =
+            ldcs
+            |> List.find (fun ldc -> ldc.Name = sheet)
+            |> fun ldc -> fst ldc.CanvasState |> List.find (fun comp -> comp.Id = cid)
+            |> fun comp ->
+                match comp.Type with
+                | Custom cc -> cc.InputLabels, cc.OutputLabels
+                | t -> failtest $"expected a custom component, got {t}"
+
+        test "propagation alone leaves an instance's bindings and ports contradicting each other" {
+            // pinning what syncInstancePorts is for: this is the state a closed sheet reached its
+            // file in, and opening it raised the instance-out-of-date error
+            let propagated = ParameterAnalysis.propagateParameterValues [topLdc; midLdc; childLdc]
+            let cc =
+                propagated
+                |> List.find (fun ldc -> ldc.Name = "mid")
+                |> fun ldc -> fst ldc.CanvasState |> List.find (fun comp -> comp.Id = "ci")
+                |> fun comp -> match comp.Type with | Custom cc -> cc | t -> failtest $"got {t}"
+            Expect.equal cc.ParameterBindings (bindingOf 16) "the slot carried W = 16 into the binding"
+            Expect.equal (cc.InputLabels, cc.OutputLabels) (["A", 4], ["S", 4])
+                "while the ports stayed at the 4 they were stored with"
+        }
+
+        test "an instance's ports follow a value the design settles two sheets up" {
+            let synced =
+                ParameterAnalysis.propagateParameterValues [topLdc; midLdc; childLdc]
+                |> CanvasExtractor.syncInstancePorts
+            Expect.equal (instancePortsOn synced "mid" "ci") (["A", 16], ["S", 16])
+                "the instance is sized at what its own bindings give it"
+        }
+
+        test "a sheet whose instances were resized is flagged so that it reaches disk" {
+            let synced =
+                ParameterAnalysis.propagateParameterValues [topLdc; midLdc; childLdc]
+                |> CanvasExtractor.syncInstancePorts
+            Expect.isTrue (synced |> List.find (fun ldc -> ldc.Name = "mid")).LoadedComponentIsOutOfDate
+                "mid differs from its file, and only the open sheet may be left unsaved"
+        }
+
+        test "the sync is idempotent" {
+            // it must be safe to run after anything, as the recomputation it follows is
+            let once =
+                ParameterAnalysis.propagateParameterValues [topLdc; midLdc; childLdc]
+                |> CanvasExtractor.syncInstancePorts
+            let twice = CanvasExtractor.syncInstancePorts once
+            Expect.equal (List.map (fun (l: LoadedComponent) -> l.CanvasState) twice)
+                (List.map (fun (l: LoadedComponent) -> l.CanvasState) once)
+                "asking again finds nothing to change"
+        }
+
+        test "an instance already at its own widths is left alone" {
+            let settled = instanceOf "ok" 4 (bindingOf 4)
+            let parent = makeLdc "parent" None ([settled], [])
+            let synced = CanvasExtractor.syncInstancePorts [childLdc; parent]
+            Expect.isFalse (synced |> List.find (fun ldc -> ldc.Name = "parent")).LoadedComponentIsOutOfDate
+                "nothing changed, so nothing needs saving"
+        }
+
+        // --- what the sync may and may not change ---
+
+        /// The custom type of an instance with the given stored ports, for testing the rewrite
+        /// on its own.
+        let customWithPorts inputs outputs =
+            match customOf childLdc inputs outputs (bindingOf 16) with
+            | Custom cc -> cc
+            | t -> failtest $"expected a custom component, got {t}"
+
+        test "widths move but the order of an instance's ports does not" {
+            // an instance whose ports are listed in another order than its sheet's is a correct
+            // instance (see above), so reordering them here would be a change nobody asked for
+            let resized =
+                customWithPorts ["B", 4; "A", 4] ["S", 4]
+                |> CanvasExtractor.withPortWidths (Map ["A", 16; "B", 16; "S", 16])
+            Expect.equal resized.InputLabels ["B", 16; "A", 16]
+                "the same ports in the same places, at the new widths"
+        }
+
+        test "a port the signature says nothing about keeps the width it had" {
+            // adding and deleting ports is CustomCompPorts' job, and it asks the user first
+            let resized =
+                customWithPorts ["A", 4; "GONE", 7] ["S", 4]
+                |> CanvasExtractor.withPortWidths (Map ["A", 16; "S", 16])
+            Expect.equal resized.InputLabels ["A", 16; "GONE", 7]
+                "the unknown port is neither resized nor removed"
+        }
+
         // --- what the dialog reports ---
 
         test "a width-only difference produces no port change to confirm" {

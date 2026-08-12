@@ -733,7 +733,7 @@ let private createArithmeticPopup compType (model: Model) dispatch =
     }
 
     let inputField model' =
-        ParameterView.paramInputField model' prompt widthDefault None None constraints None slot dispatch
+        ParameterView.paramInputField model' prompt widthDefault None None constraints None None slot dispatch
 
     let buttonAction =
         fun (model': Model) ->
@@ -802,7 +802,7 @@ let private createShiftPopup (model: Model) dispatch =
 
     let body (model': Model) =
         div [] [
-            ParameterView.paramInputField model' "How many bits should the input/output have?" widthDefault None None constraints None slot dispatch
+            ParameterView.paramInputField model' "How many bits should the input/output have?" widthDefault None None constraints None None slot dispatch
             br []
             str "Which kind of shift?"
             br []; br []
@@ -1043,7 +1043,7 @@ let private createRegisterPopup regType (model:Model) dispatch =
     }
 
     let inputField model' =
-        ParameterView.paramInputField model' prompt widthDefault None None constraints None slot dispatch
+        ParameterView.paramInputField model' prompt widthDefault None None constraints None None slot dispatch
 
     let buttonText = "Add"
     let buttonAction =

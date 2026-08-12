@@ -44,25 +44,30 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             Log.dbg Log.Wave $"extending the fast simulation to cycle {step} for the RAM table"
         //FastRun.runFastSimulation None step fs |> ignore // not sure why this is needed
         // in some cases fast sim is run for one cycle less than currClockCycle
-        let memData =
+        /// The store the memory keeps its contents in. Reading one word out of it is a search of
+        /// that address's own writes, so the table asks for the fifty words it is showing rather
+        /// than materialising the whole memory - which for a 64K RAM meant building and throwing
+        /// away 65536 words on every render. A ROM has no store of its own, its contents being
+        /// part of its type, so it gets a read-only one here.
+        let ram =
             match fc.FType with
             | ROM1 mem
-            | AsyncROM1 mem -> mem
-            | RAM1 mem
-            | AsyncRAM1 mem -> 
+            | AsyncROM1 mem -> RamStore.fixedOf mem
+            | RAM1 _
+            | AsyncRAM1 _ ->
                 match FastExtract.extractFastSimulationState fs wsModel.CursorExactClkCycle ramId with
-                |RamState mem -> mem
+                | RamState ram -> ram
                 | x ->
                     Log.warn $"unexpected state {x} from cycle {wsModel.CursorExactClkCycle} in RAM \
                                component '{ramLabel}' (fast sim step {fs.ClockTick})"
                     failwithf $"unexpected state in the RAM table for '{ramLabel}'"
             | _ ->
                 failwithf $"Given a component {fc.FType} which is not a vaild RAM"
-        let aWidth,dWidth = memData.AddressWidth,memData.WordWidth
+        let aWidth,dWidth = ram.AddressWidth,ram.WordWidth
 
         let print w (a:bigint) = NumberHelpers.valToPaddedString w wsModel.Radix (((1I <<< w) - 1I) &&& a)
 
-        let lastLocation = (1I <<< memData.AddressWidth) - 1I
+        let lastLocation = (1I <<< ram.AddressWidth) - 1I
 
         let opticPath fc = waveSimModel_ >-> ramStartLocation_ >-> Optics.Map.valueWithDefault_ ("",0I) fc
         let loc = {
@@ -72,7 +77,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
 
         let startDisplayLoc, windowedDisplay =
             match Optic.get loc.ValOptic_ model,  Optic.get loc.TextOptic_ model with
-            | start, _ when memData.Data.Count > Constants.maxRamLocsWithSparseDisplay -> start, true
+            | start, _ when RamStore.liveCountExceeds ram step Constants.maxRamLocsWithSparseDisplay -> start, true
             | _, text when text = "" -> 0I, false
             | start, _ -> start, true
 
@@ -81,7 +86,7 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             |> (fun h -> h - 40.)
 
         /// Comments written against locations in the .ram file this memory came from.
-        let comments = Option.defaultValue Map.empty memData.Comments
+        let comments = Option.defaultValue Map.empty ram.Comments
         let hasComments = not (Map.isEmpty comments)
 
         /// print a single 0 location as one table row
@@ -156,9 +161,11 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
                     | None -> mem))
 
 
-        /// If using a windowed (not-sparse) display, prune the memory map to the given range adding zeros for missing locations.
-        let generatewindowlocations (startLoc:bigint) (numOfLocs:int) (mem:Map<bigint,bigint>) =
-            Array.map (fun loc -> loc, (Map.tryFind loc mem |> Option.defaultValue 0I)) [| startLoc..startLoc + bigint numOfLocs-1I |]
+        /// The rows of a windowed (not-sparse) display: one lookup per row, straight out of the
+        /// store, with no map of the whole memory in between.
+        let generatewindowlocations (startLoc:bigint) (numOfLocs:int) =
+            [| startLoc .. min lastLocation (startLoc + bigint numOfLocs - 1I) |]
+            |> Array.map (fun loc -> loc, RamStore.wordAt ram step loc)
             |> Map.ofArray
              
 
@@ -194,23 +201,25 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
             
         let lineItems =
             let isInWindow loc = loc >= startDisplayLoc && loc < startDisplayLoc + bigint Constants.maxRamRowsDisplayed
-            memData.Data
-            |> (if windowedDisplay then
-                    generatewindowlocations startDisplayLoc Constants.maxRamRowsDisplayed
-                    >> addReadWrite fc step
-                    >> Map.toList
-                    >> List.map (fun (a,(d,rw)) -> a,d,rw)
-                    >> List.sort
-                    >> List.sortBy (fun (start,_,_) -> if  isInWindow start then 0 else 1) // put read and write at bottom if outside window
-                    >> List.map print1
-                else
-                    addReadWrite fc step
-                    >> Map.toList
-                    >> List.map (fun (a,(d,rw)) -> a,d,rw)
-                    >> List.filter (fun (a,d,rw) -> d<>0I || rw <> RAMNormal)
-                    >> List.sort
-                    >> addEndPoints
-                    >> addGapLines true)
+            if windowedDisplay then
+                generatewindowlocations startDisplayLoc Constants.maxRamRowsDisplayed
+                |> addReadWrite fc step
+                |> Map.toList
+                |> List.map (fun (a,(d,rw)) -> a,d,rw)
+                |> List.sort
+                |> List.sortBy (fun (start,_,_) -> if  isInWindow start then 0 else 1) // put read and write at bottom if outside window
+                |> List.map print1
+            else
+                // the sparse display lists every non-zero location, so it does want all of them -
+                // but it is only ever chosen when there are at most maxRamLocsWithSparseDisplay
+                (RamStore.toMemory ram step).Data
+                |> addReadWrite fc step
+                |> Map.toList
+                |> List.map (fun (a,(d,rw)) -> a,d,rw)
+                |> List.filter (fun (a,d,rw) -> d<>0I || rw <> RAMNormal)
+                |> List.sort
+                |> addEndPoints
+                |> addGapLines true
             
 
         

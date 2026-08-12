@@ -77,8 +77,8 @@ let runGolden (projectName: string) (topSheet: string) (ticks: int) : string =
                     fc.State
                     |> Option.map (fun st -> st.Step[(ticks - 1) % fs.MaxArraySize])
                     |> function
-                        | Some (RamState mem) ->
-                            mem.Data
+                        | Some (RamState ram) ->
+                            (RamStore.toMemory ram (ticks - 1)).Data
                             |> Map.toList
                             |> List.map (fun (addr, value) -> $"{addr}:{value}")
                             |> String.concat " "

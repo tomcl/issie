@@ -144,8 +144,10 @@ let private getDefaultState compType =
     | CounterNoEnable w
     | CounterNoLoad w
     | CounterNoEnableLoad w -> RegisterState <| convertIntToFastData w 0u
+    // The RamState content may change during the simulation. This is the old SimulationGraph's
+    // initial state, not the fast simulator's, so the window it is given is never used.
     | RAM1 memory
-    | AsyncRAM1 memory -> RamState memory // The RamState content may change during the simulation.
+    | AsyncRAM1 memory -> RamState(RamStore.ofMemory 1 memory)
 
 let compType t =
     match t with

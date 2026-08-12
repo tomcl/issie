@@ -28,7 +28,11 @@ type SimulationComponentState =
     | NoState // For all stateless components.
     | DffState of uint32
     | RegisterState of FastData
-    | RamState of Memory1
+    /// A read/write memory's contents. Not a `Memory1`: that would mean building a whole `Map`
+    /// for every clock step, which is the cost `RamStore` exists to remove. The store is mutable
+    /// and shared by every step, so the step it is being read at has to be supplied alongside -
+    /// see [docs/dev/ramRepresentation.md].
+    | RamState of RamStore.Ram
 
 
 /// Like Component but with additional dynamic info used by simulator

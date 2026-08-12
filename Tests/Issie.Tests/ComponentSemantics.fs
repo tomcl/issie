@@ -311,6 +311,26 @@ let tests =
                 Expect.equal (simulate (AsyncROM1 romMem) [ 4 ] [ 8 ] [ addr ]) [ expected ]
                     $"asynchronous ROM reads address {addr} combinationally"
         }
+        test "AsyncRAM1 with a 20-bit address" {
+            // 17..32 address bits is the range RamStore reaches through a trie rather than a flat
+            // array of slots, and nothing else in the suite goes there
+            let mem = { Init = FromData; AddressWidth = 20; WordWidth = 8; Data = Map.empty; Comments = None }
+            let outs = simulateClocked (AsyncRAM1 mem) [ 20; 8; 1 ] [ 8 ] asyncRamStimuli
+            Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
+        }
+        test "RAM1 with a 20-bit address keeps addresses apart" {
+            // addresses that share every high nibble, so the trie has to split leaves apart
+            // level by level rather than settling them at the top
+            let mem = { Init = FromData; AddressWidth = 20; WordWidth = 8; Data = Map.empty; Comments = None }
+            let stimuli =
+                [ [ 1048560I; 200I; 1I ]   // 0xFFFF0: write 200
+                  [ 1048561I; 201I; 1I ]   // 0xFFFF1: write 201
+                  [ 1048560I; 0I; 0I ]
+                  [ 1048561I; 0I; 0I ] ]
+            let outs = simulateClocked (RAM1 mem) [ 20; 8; 1 ] [ 8 ] stimuli
+            Expect.equal outs [ [ 0I ]; [ 0I ]; [ 0I ]; [ 200I ] ]
+                "adjacent deep addresses do not alias once the trie splits them"
+        }
         test "AsyncRAM1 with >32-bit address" {
             // bigint address, uint32 data: exercises the mixed-width FastSim path
             let mem = { Init = FromData; AddressWidth = 33; WordWidth = 8; Data = Map.empty; Comments = None }

@@ -80,45 +80,81 @@ let readMemoryFData (mem: Memory1) (address: FData) : FData =
         |> convertBigintToFastData mem.WordWidth
         |> Data
 
-/// Write the content of the memory at the specified address.
-let writeMemory (mem: Memory1) (address: FastData) (data: FastData) : Memory1 =
-    let intAddr = convertFastDataToBigint address
-    let intData = convertFastDataToBigint data
+//-------------------------------------------------------------------------------------------//
+//----------------------------- read/write memories: the store ------------------------------//
+//-------------------------------------------------------------------------------------------//
+//
+// The four read and four write shapes below name the address and data widths the way the
+// evaluators' own branches do, so a call site reads the same as it did when these took a
+// `Memory1` and returned a new one. What changed is underneath: a read is an array index and a
+// write appends to that address's history, in place. See [docs/dev/ramRepresentation.md].
 
-    { mem with Data = Map.add intAddr intData mem.Data }
+let readRamAddrUInt32DataUInt32 (ram: RamStore.Ram) (address: uint32) : uint32 =
+    RamStore.readAddrUInt32DataUInt32 ram address
 
-let writeMemoryAddrUInt32DataUInt32 (mem: Memory1) (address: uint32) (data: uint32) : Memory1 =
-    let intAddr = twosComp mem.AddressWidth (bigint address)
-    let intData = twosComp mem.WordWidth (bigint data)
+let readRamAddrUInt32DataBigInt (ram: RamStore.Ram) (address: uint32) : bigint =
+    RamStore.readAddrUInt32DataBigInt ram address
 
-    { mem with Data = Map.add intAddr intData mem.Data }
+let readRamAddrBigIntDataUInt32 (ram: RamStore.Ram) (address: bigint) : uint32 =
+    RamStore.readAddrBigIntDataUInt32 ram address
 
-let writeMemoryAddrUInt32DataBigInt (mem: Memory1) (address: uint32) (data: bigint) : Memory1 =
-    let intAddr = twosComp mem.AddressWidth  (bigint address)
-    let intData = twosComp mem.WordWidth data
+let readRamAddrBigIntDataBigInt (ram: RamStore.Ram) (address: bigint) : bigint =
+    RamStore.readAddrBigIntDataBigInt ram address
 
-    { mem with Data = Map.add intAddr intData mem.Data }
+/// Writes take the step they happen at, because that is what the history is keyed by. They
+/// return unit: there is no new memory to thread through, and the old contents the reducer must
+/// output are read before the write, as they always were.
+let writeRamAddrUInt32DataUInt32 (ram: RamStore.Ram) (step: int) (address: uint32) (data: uint32) =
+    RamStore.writeAddrUInt32DataUInt32 ram step address data
 
-let writeMemoryAddrBigIntDataUInt32 (mem: Memory1) (address: bigint) (data: uint32) : Memory1 =
-    let intAddr = twosComp mem.AddressWidth address
-    let intData = twosComp mem.WordWidth (bigint data)
+let writeRamAddrUInt32DataBigInt (ram: RamStore.Ram) (step: int) (address: uint32) (data: bigint) =
+    RamStore.writeAddrUInt32DataBigInt ram step address (twosComp ram.WordWidth data)
 
-    { mem with Data = Map.add intAddr intData mem.Data }
+let writeRamAddrBigIntDataUInt32 (ram: RamStore.Ram) (step: int) (address: bigint) (data: uint32) =
+    RamStore.writeAddrBigIntDataUInt32 ram step (twosComp ram.AddressWidth address) data
 
-let writeMemoryAddrBigIntDataBigInt (mem: Memory1) (address: bigint) (data: bigint) : Memory1 =
-    let intAddr = twosComp mem.AddressWidth address
-    let intData = twosComp mem.WordWidth data
+let writeRamAddrBigIntDataBigInt (ram: RamStore.Ram) (step: int) (address: bigint) (data: bigint) =
+    RamStore.writeAddrBigIntDataBigInt
+        ram
+        step
+        (twosComp ram.AddressWidth address)
+        (twosComp ram.WordWidth data)
 
-    { mem with Data = Map.add intAddr intData mem.Data }
+/// Read a RAM through the algebraic evaluator's value type.
+let readRamFData (ram: RamStore.Ram) (address: FData) : FData =
+    match address with
+    | Alg _ -> failwithf "Can't read memory from Algebra"
+    | Data addr ->
+        RamStore.readAddrBigIntDataBigInt ram (convertFastDataToBigint addr)
+        |> convertBigintToFastData ram.WordWidth
+        |> Data
 
-let getRamStateMemory numSteps step (state: StepArray<SimulationComponentState> option) memory : Memory1 =
-    match state, numSteps with
-    | _, 1 -> memory
-    | Some arr, _ ->
+let writeRamFData (ram: RamStore.Ram) (step: int) (address: FastData) (data: FastData) =
+    RamStore.writeAddrBigIntDataBigInt ram step (convertFastDataToBigint address) (convertFastDataToBigint data)
+
+/// The state-array entry a RAM's store lives in.
+///
+/// Every step holds the *same* entry: the store is mutable and shared, so what a slot records is
+/// which memory this is, not what it contained. Reducers therefore fetch this value and put the
+/// very same object back rather than building `RamState store` again - constructing that union
+/// case allocates, and a fresh one per clock is precisely the per-step cost this design exists
+/// to remove.
+let getRamState (step: int) (state: StepArray<SimulationComponentState> option) : SimulationComponentState =
+    match state with
+    | Some arr ->
         match arr.Step[step] with
-        | RamState memory -> memory
-        | _ -> failwithf "What? getRamStateMemory called with invalid state"
-    | _ -> failwithf "what? getRamStateMemory called with an invalid state: %A" state
+        | RamState _ as s -> s
+        | _ -> failwithf "What? getRamState called before the RAM's store was created"
+    | None -> failwithf "What? getRamState called on a component with no state array"
+
+let ramStoreOf (state: SimulationComponentState) : RamStore.Ram =
+    match state with
+    | RamState ram -> ram
+    | _ -> failwithf "What? ramStoreOf called on a component state that is not a RAM's"
+
+/// The store a RAM keeps its contents in, for a step that only reads it.
+let getRamStore (step: int) (state: StepArray<SimulationComponentState> option) : RamStore.Ram =
+    ramStoreOf (getRamState step state)
 
 let getRomStateMemory comp =
     match comp.FType with

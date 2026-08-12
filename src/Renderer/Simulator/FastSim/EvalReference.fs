@@ -98,7 +98,22 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
         match comp.State with
         | None -> failwithf "Attempt to put state into component %s without state array" comp.FullName
         | Some stateArr -> stateArr.Step[simStep] <- state
-    
+
+    /// The RAM's store, for a step that may write to it.
+    ///
+    /// Every slot of the state array holds the same store, so which one is read does not matter
+    /// except at step 0, where the previous slot is the wrapped-out end of the last run and may
+    /// never have been written at all. Step 0 is also the restart, so the contents go back to
+    /// what the memory was built with - the Memory1 version carried the old run's contents
+    /// forward instead, which was a bug.
+    let inline ramStateForStep () =
+        if numStep = 0 then
+            let state = getRamState simStep comp.State
+            RamStore.reset (ramStoreOf state)
+            state
+        else
+            getRamState simStepOld comp.State
+
     let inline getBinaryGateReducer (bitOp: uint32 -> uint32 -> uint32) : Unit =
         let bit0, bit1 = insUInt32 0, insUInt32 1
         putUInt32 0 <| bitOp bit1 bit0
@@ -1077,27 +1092,33 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
                 let outData = readMemoryAddrBigIntDataUInt32 mem addr
                 putUInt32 0 outData
             | false, false -> failwithf "ROM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
+    // Read/write memories keep their contents in a RamStore, which is mutable and shared by
+    // every step rather than snapshotted into one. So there is no new memory to thread out of a
+    // write, and the store is fetched from the previous step's slot exactly as the Memory1 used
+    // to be. Step 0 is the restart: it puts the contents back to what the memory was built with,
+    // which the Memory1 version failed to do - it read the slot left by the wrapped-out end of
+    // the previous run. See [docs/dev/ramRepresentation.md].
     | RAM1 memory, false ->
-        let mem = getRamStateMemory numStep (simStepOld) comp.State memory
+        let memState = ramStateForStep ()
+        let mem = ramStoreOf memState
 #if ASSERTS
         let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
         assertThat (addressW = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
         assertThat (dataInW = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
 #endif
         let address, dataIn, write = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
-        // If write flag is on, write the memory content.
-        let mem, dataOut =
-            match write with
-            // Read memory address and return memory unchanged.
-            | 0u -> mem, readMemoryAddrUInt32DataUInt32 mem address
-            // Update memory and return old content.
-            // NB - this was previously new content - but that is inconsistent and less useful.
-            | 1u -> writeMemoryAddrUInt32DataUInt32 mem address dataIn, readMemoryAddrUInt32DataUInt32 mem address
-            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-        putState (RamState mem)
+        // The old contents are the output whether or not the write happens.
+        // NB - this was previously new content - but that is inconsistent and less useful.
+        let dataOut = readRamAddrUInt32DataUInt32 mem address
+        match write with
+        | 0u -> ()
+        | 1u -> writeRamAddrUInt32DataUInt32 mem numStep address dataIn
+        | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+        putState memState
         putUInt32 0 dataOut
     | RAM1 memory, true ->
-        let mem = getRamStateMemory numStep (simStepOld) comp.State memory
+        let memState = ramStateForStep ()
+        let mem = ramStoreOf memState
 #if ASSERTS
         let addressW, dataInW = comp.InputWidth 0, comp.InputWidth 1
         assertThat (addressW = mem.AddressWidth) <| sprintf "RAM received address with wrong width: expected %d but got %A" mem.AddressWidth addressW
@@ -1110,30 +1131,30 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
             | false, false -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
             | true, true ->
                 let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32 2
-                let mem, dataOut =
-                    match write with
-                    | 0u -> mem, readMemoryAddrBigIntDataBigInt mem address
-                    | 1u -> writeMemoryAddrBigIntDataBigInt mem address dataIn, readMemoryAddrBigIntDataBigInt mem address
-                    | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                putState (RamState mem)
+                let dataOut = readRamAddrBigIntDataBigInt mem address
+                match write with
+                | 0u -> ()
+                | 1u -> writeRamAddrBigIntDataBigInt mem numStep address dataIn
+                | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                putState memState
                 putBigInt 0 dataOut
             | false, true ->
                 let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32 2
-                let mem, dataOut =
-                    match write with
-                    | 0u -> mem, readMemoryAddrUInt32DataBigInt mem address
-                    | 1u -> writeMemoryAddrUInt32DataBigInt mem address dataIn, readMemoryAddrUInt32DataBigInt mem address
-                    | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                putState (RamState mem)
+                let dataOut = readRamAddrUInt32DataBigInt mem address
+                match write with
+                | 0u -> ()
+                | 1u -> writeRamAddrUInt32DataBigInt mem numStep address dataIn
+                | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                putState memState
                 putBigInt 0 dataOut
             | true, false ->
                 let address, dataIn, write =  insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
-                let mem, dataOut =
-                    match write with
-                    | 0u -> mem, readMemoryAddrBigIntDataUInt32 mem address
-                    | 1u -> writeMemoryAddrBigIntDataUInt32 mem address dataIn, readMemoryAddrBigIntDataUInt32 mem address
-                    | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                putState (RamState mem)
+                let dataOut = readRamAddrBigIntDataUInt32 mem address
+                match write with
+                | 0u -> ()
+                | 1u -> writeRamAddrBigIntDataUInt32 mem numStep address dataIn
+                | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                putState memState
                 putUInt32 0 dataOut
 
     // AsyncRAM1 component must be evaluated twice. Once (first) as clocked component
@@ -1146,24 +1167,20 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
 #endif
         if isClockedReduction then
             // here we propagate the state to current timestep, doing a state change if need be.
-            let mem = getRamStateMemory numStep (simStepOld) comp.State memory
+            let memState = ramStateForStep ()
+            let mem = ramStoreOf memState
             let address, dataIn, write = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
-            // If write flag is on, write the memory content.
-            let mem =
-                match write with
-                // Read memory address and return memory unchanged.
-                | 0u -> mem
-                // Update memory and return old content.
-                // NB - this was previously new content - but that is inconsistent and less useful.
-                | 1u -> writeMemoryAddrUInt32DataUInt32 mem address dataIn
-                | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-            putState (RamState mem)
+            match write with
+            | 0u -> ()
+            | 1u -> writeRamAddrUInt32DataUInt32 mem numStep address dataIn
+            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+            putState memState
         else
             // here we do the async read using current step address and state
             // note that state will have been written for this step previously by clocked invocation of this component
-            let mem = getRamStateMemory (numStep + 1) simStep comp.State memory
+            let mem = getRamStore simStep comp.State
             let address = insUInt32 0
-            let data = readMemoryAddrUInt32DataUInt32 mem address
+            let data = readRamAddrUInt32DataUInt32 mem address
             putUInt32 0 data
     | AsyncRAM1 mem, true ->
 #if ASSERTS
@@ -1178,48 +1195,48 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
             | false, false -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
             | true, true ->
                 if isClockedReduction then
-                    let mem = getRamStateMemory numStep (simStepOld) comp.State mem
+                    let memState = ramStateForStep ()
+                    let mem = ramStoreOf memState
                     let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32 2
-                    let mem =
-                        match write with
-                        | 0u -> mem
-                        | 1u -> writeMemoryAddrBigIntDataBigInt mem address dataIn
-                        | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                    putState (RamState mem)
+                    match write with
+                    | 0u -> ()
+                    | 1u -> writeRamAddrBigIntDataBigInt mem numStep address dataIn
+                    | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                    putState memState
                 else
-                    let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
+                    let mem = getRamStore simStep comp.State
                     let address = insBigInt 0
-                    let data = readMemoryAddrBigIntDataBigInt mem address
+                    let data = readRamAddrBigIntDataBigInt mem address
                     putBigInt 0 data
             | false, true ->
                 if isClockedReduction then
-                    let mem = getRamStateMemory numStep (simStepOld) comp.State mem
+                    let memState = ramStateForStep ()
+                    let mem = ramStoreOf memState
                     let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32 2
-                    let mem =
-                        match write with
-                        | 0u -> mem
-                        | 1u -> writeMemoryAddrUInt32DataBigInt mem address dataIn
-                        | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                    putState (RamState mem)
+                    match write with
+                    | 0u -> ()
+                    | 1u -> writeRamAddrUInt32DataBigInt mem numStep address dataIn
+                    | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                    putState memState
                 else
-                    let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
+                    let mem = getRamStore simStep comp.State
                     let address = insUInt32 0
-                    let data = readMemoryAddrUInt32DataBigInt mem address
+                    let data = readRamAddrUInt32DataBigInt mem address
                     putBigInt 0 data
             | true,false ->
                 if isClockedReduction then
-                    let mem = getRamStateMemory numStep (simStepOld) comp.State mem
+                    let memState = ramStateForStep ()
+                    let mem = ramStoreOf memState
                     let address, dataIn, write = insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
-                    let mem =
-                        match write with
-                        | 0u -> mem
-                        | 1u -> writeMemoryAddrBigIntDataUInt32 mem address dataIn
-                        | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
-                    putState (RamState mem)
+                    match write with
+                    | 0u -> ()
+                    | 1u -> writeRamAddrBigIntDataUInt32 mem numStep address dataIn
+                    | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+                    putState memState
                 else
-                    let mem = getRamStateMemory (numStep + 1) simStep comp.State mem
+                    let mem = getRamStore simStep comp.State
                     let address = insBigInt 0
-                    let data = readMemoryAddrBigIntDataUInt32 mem address
+                    let data = readRamAddrBigIntDataUInt32 mem address
                     putUInt32 0 data
     | _ -> failwithf $"simulation error: deprecated component type {componentType}"
 

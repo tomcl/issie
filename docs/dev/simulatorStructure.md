@@ -154,7 +154,8 @@ What works:
 ## What building a simulation costs
 
 Compiled reducers move work from the run loop to the build, so the build is where to look for a
-regression. On `3cpu` (349 components, one 16-bit ROM), under .NET:
+regression. On `3cpu` (349 components; `CODEMEM`, a 64K x 16 `AsyncROM1`, and `DATAMEM`, a 64K x 16
+`AsyncRAM1`), under .NET:
 
 | | |
 |---|---:|
@@ -190,6 +191,8 @@ step whether or not anything is written. On the sieve this is ~11% of CPU and es
 remaining allocation. Fixing it means changing that representation, which touches `FastExtract`
 and `WaveSimRams`. A mutable read cache alongside the map is not a shortcut — it desynchronises
 when the simulation restarts or replays through the circular buffer.
+[ramRepresentation.md](ramRepresentation.md) works out what to replace it with — a mutable array,
+a write journal and an index over the journal by address — and what that is worth.
 
 **`FastComponent` carries five unrelated concerns**: step data, the reducers, ordering scratch
 (`Touched`, `NumMissingInputValues`, `DrivenComponents`), naming (`FullName`, `SimSheetName`,

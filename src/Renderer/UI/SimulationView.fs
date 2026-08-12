@@ -291,7 +291,8 @@ let private viewStatefulComponents step comps numBase model dispatch =
         | RegisterState bits ->
             let label = sprintf "Register: %s (%d bits)" label bits.Width
             [ splittedLine (str label) (staticNumberBox Constants.boxMaxChars numBase bits) ]
-        | RamState mem ->
+        | RamState ram ->
+            let mem = RamStore.toMemory ram step
             let label = sprintf "RAM: %s" <| label
             let initialMem compType =
                 match compType with

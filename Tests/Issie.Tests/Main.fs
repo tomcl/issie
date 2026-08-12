@@ -25,6 +25,8 @@ let main argv =
         InstanceSignatures.tests
         WaveSelection.tests
         RomComments.tests
+        RamStoreTests.tests
+        RamBenchmark.tests
         KeyBindingTests.tests
         VerilogOutput.tests
         SourceHygiene.tests

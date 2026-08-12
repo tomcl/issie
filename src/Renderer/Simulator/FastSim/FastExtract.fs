@@ -89,7 +89,9 @@ let extractStatefulComponents (step: int) (fastSim: FastSimulation) =
             | CounterNoLoad w
             | CounterNoEnableLoad w ->
                 [| fc, RegisterState { Dat = Word(fc.Outputs[0].UInt32Step[step % fastSim.MaxArraySize]); Width = w } |]
-            | ROM1 state -> [| fc, RamState state |]
+            // a ROM's contents are part of its type and never change, so it gets a read-only
+            // store built here rather than one carried through the simulation
+            | ROM1 state -> [| fc, RamState(RamStore.fixedOf state) |]
             | RAM1 _
             | AsyncRAM1 _ ->
                 match
@@ -184,7 +186,7 @@ let rec extractFastSimulationState
         | None ->
             match fc.SimComponent.Type with
             // asynch ROMs have no state: value is always the same
-            | AsyncROM1 romContents -> RamState romContents
+            | AsyncROM1 romContents -> RamState(RamStore.fixedOf romContents)
             | _ -> failwithf "What? extracting State in step %d from %s failed" step fc.FullName
         | Some stepArr ->
             match Array.tryItem (step % fs.MaxArraySize) stepArr.Step with

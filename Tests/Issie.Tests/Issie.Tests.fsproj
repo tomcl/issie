@@ -28,6 +28,8 @@
     <Compile Include="InstanceSignatures.fs" />
     <Compile Include="WaveSelection.fs" />
     <Compile Include="RomComments.fs" />
+    <Compile Include="RamStoreTests.fs" />
+    <Compile Include="RamBenchmark.fs" />
     <Compile Include="KeyBindingTests.fs" />
     <Compile Include="VerilogOutput.fs" />
     <Compile Include="VerilogCompiler.fs" />

@@ -96,6 +96,16 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | None -> failwithf "Attempt to put state into component %s without state array" comp.FullName
         | Some stateArr -> stateArr.Step[simStep] <- state
 
+    /// The RAM's store, for a step that may write to it. The twin of EvalReference's, and it
+    /// must stay the twin: see [docs/dev/ramRepresentation.md].
+    let inline ramStateForStep () =
+        if numStep = 0 then
+            let state = getRamState simStep comp.State
+            RamStore.reset (ramStoreOf state)
+            state
+        else
+            getRamState simStepOld comp.State
+
     // /// implement a binary combinational operation
     // let inline getBinaryGateReducer
     //     (bitOp: uint32 -> uint32 -> uint32)
@@ -1238,7 +1248,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
 
             raise (AlgebraNotImplemented err)
     | RAM1 memory ->
-        let mem = getRamStateMemory numStep (simStepOld) comp.State memory
+        let memState = ramStateForStep ()
+        let mem = ramStoreOf memState
 
         match insOld 0, insOld 1 with
         | Data address, Data dataIn ->
@@ -1251,19 +1262,15 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
 #endif
             let write = extractBitFData (insOld 2) 1
-            // If write flag is on, write the memory content.
-            let mem, dataOut =
-                match write with
-                | 0u ->
-                    // Read memory address and return memory unchanged.
-                    mem, readMemoryFData mem (Data address)
-                | 1u ->
-                    // Update memory and return old content.
-                    // NB - this was previously new content - but that is inconsistent and less useful.
-                    writeMemory mem address dataIn, readMemoryFData mem (Data address)
-                | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+            // The old contents are the output whether or not the write happens.
+            // NB - this was previously new content - but that is inconsistent and less useful.
+            let dataOut = readRamFData mem (Data address)
+            match write with
+            | 0u -> ()
+            | 1u -> writeRamFData mem numStep address dataIn
+            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
 
-            putState (RamState mem)
+            putState memState
             put 0 dataOut
         | _ ->
             let err =
@@ -1288,7 +1295,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
 
         if isClockedReduction then
             // here we propagate the state to current timestep, doing a state change if need be.
-            let mem = getRamStateMemory numStep (simStepOld) comp.State memory
+            let memState = ramStateForStep ()
+            let mem = ramStoreOf memState
 
             let address =
                 match insOld 0 with
@@ -1312,30 +1320,23 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
                 | Alg _ -> raise (AlgebraNotImplemented err)
 
             let write = extractBitFData (insOld 2) 1
-            // If write flag is on, write the memory content.
-            let mem =
-                match write with
-                | 0u ->
-                    // Read memory address and return memory unchanged.
-                    mem
-                | 1u ->
-                    // Update memory and return old content.
-                    // NB - this was previously new content - but that is inconsistent and less useful.
-                    writeMemory mem address dataIn
-                | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
+            match write with
+            | 0u -> ()
+            | 1u -> writeRamFData mem numStep address dataIn
+            | _ -> failwithf $"simulation error: invalid 1 bit write value {write}"
 
-            putState (RamState mem)
+            putState memState
         else
             // here we do the async read using current step address and state
             // note that state will have been written for this step previously by clocked invocation of this component
-            let mem = getRamStateMemory (numStep + 1) simStep comp.State memory
+            let mem = getRamStore simStep comp.State
 
             let address =
                 match ins 0 with
                 | Data d -> d
                 | Alg _ -> raise (AlgebraNotImplemented err)
 
-            let data = readMemoryFData mem (Data address)
+            let data = readRamFData mem (Data address)
             put 0 data
     | _ -> failwithf $"simulation error: deprecated component type {componentType}"
 

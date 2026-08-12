@@ -110,7 +110,9 @@ let orderCombinationalComponents (numSteps: int) (fs: FastSimulation) : FastSimu
             | RAM1 mem, w
             | AsyncRAM1 mem, w ->
                 match fc.State with
-                | Some arr -> arr.Step[0] <- RamState mem
+                // Build the RAM's store once, here, and hand the same one to every step: it is
+                // mutable, so a step slot records which memory this is rather than what it held.
+                | Some arr -> arr.Step[0] <- RamState(RamStore.ofMemory fs.MaxArraySize mem)
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
                 // change simulation semantics to output 0 in cycle 0 (the memory word at
@@ -186,7 +188,9 @@ let orderCombinationalComponentsFData (numSteps: int) (fs: FastSimulation) : Fas
             | RAM1 mem, w
             | AsyncRAM1 mem, w ->
                 match fc.State with
-                | Some arr -> arr.Step[0] <- RamState mem
+                // Build the RAM's store once, here, and hand the same one to every step: it is
+                // mutable, so a step slot records which memory this is rather than what it held.
+                | Some arr -> arr.Step[0] <- RamState(RamStore.ofMemory fs.MaxArraySize mem)
                 | _ -> failwithf "Component %s does not have correct state vector" fc.FullName
 
                 // change simulation semantics to output 0 in cycle 0 (the memory word at

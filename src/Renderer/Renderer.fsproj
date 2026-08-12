@@ -63,6 +63,7 @@
     <Compile Include="UartFiles\BuildUartHelpers.fs" />
 
 	  <!-- simulator -->
+    <Compile Include="Simulator\RamStore.fs" />
     <Compile Include="Simulator\SimGraphTypes.fs" />
     <Compile Include="Simulator\SimTypes.fs" />
     <Compile Include="Simulator\TruthTableTypes.fs" />

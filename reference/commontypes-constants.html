@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -307,6 +313,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -433,7 +445,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '614', 614)" onmouseover="showTip(event, '614', 614)">
+              <code onmouseout="hideTip(event, '616', 616)" onmouseover="showTip(event, '616', 616)">
                 <p>
                   <a id="equalityCheckTolerance">
                     <a href="#equalityCheckTolerance">
@@ -442,7 +454,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="614">
+              <div class="fsdocs-tip" id="616">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>equalityCheckTolerance&#32;<span></span></span></code>
@@ -472,7 +484,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '615', 615)" onmouseover="showTip(event, '615', 615)">
+              <code onmouseout="hideTip(event, '617', 617)" onmouseover="showTip(event, '617', 617)">
                 <p>
                   <a id="labelPosTolerance">
                     <a href="#labelPosTolerance">
@@ -481,7 +493,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="615">
+              <div class="fsdocs-tip" id="617">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>labelPosTolerance&#32;<span></span></span></code>
@@ -506,6 +518,69 @@
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '618', 618)" onmouseover="showTip(event, '618', 618)">
+                <p>
+                  <a id="maxIssieBusWidth">
+                    <a href="#maxIssieBusWidth">
+                      <code><span>maxIssieBusWidth&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="618">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>maxIssieBusWidth&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:CommonTypes.Constants.maxIssieBusWidth`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:CommonTypes.Constants.maxIssieBusWidth\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/CommonTypes.fs#L17-17" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Max width of an Issie bus. There is no real need for any restriction,
+ since all code is bigint based, but this is a reasonable limit.
+ There are performance & UI issues for very large busses.
+
+ Here rather than in NumberHelpers, which is compiled after ComponentSlots: the bound a
+ width must satisfy is part of what a slot IS, and ComponentSlots.constraintsFor is where
+ that now lives. NumberHelpers.Constants.maxIssieBusWidth aliases this one.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
       </tbody>

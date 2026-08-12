@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -307,6 +313,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -442,7 +454,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:CanvasExtractor.Signature\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L292-292" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L291-291" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -544,7 +556,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.addStateToLoadedComponents\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L403-403" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L449-449" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1426,7 +1438,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.effectiveInstanceBindings\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L301-301" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L300-300" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1853,7 +1865,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.getStateAndDependencies\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L429-429" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L474-474" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2155,7 +2167,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.loadedComponentIsSameAsProject\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L381-381" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L427-427" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2390,65 +2402,6 @@
             <div>
               <code onmouseout="hideTip(event, '536', 536)" onmouseover="showTip(event, '536', 536)">
                 <p>
-                  <a id="resolveCanvasAtBindings">
-                    <a href="#resolveCanvasAtBindings">
-                      <code><span>resolveCanvasAtBindings&#32;<span></span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="536">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>resolveCanvasAtBindings&#32;<span></span></span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><span><a href="/issie/reference/parametertypes-parambindings.html">ParamBindings</a>&#32;->&#32;<a href="/issie/reference/parametertypes-componentslotexpr.html">ComponentSlotExpr</a>&#32;->&#32;<a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a>&#32;->&#32;<a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:CanvasExtractor.resolveCanvasAtBindings`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:CanvasExtractor.resolveCanvasAtBindings\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L318-318" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     A sheet's canvas with every parameterised slot resolved at the given bindings.
- Lives in ComponentSlots, which owns the slot-to-component mapping and is compiled early enough
- for ParameterAnalysis to use it too. Named here because this is where callers look for it.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><span><a href="/issie/reference/parametertypes-parambindings.html">ParamBindings</a>&#32;->&#32;<a href="/issie/reference/parametertypes-componentslotexpr.html">ComponentSlotExpr</a>&#32;->&#32;<a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a>&#32;->&#32;<a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a></span></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '537', 537)" onmouseover="showTip(event, '537', 537)">
-                <p>
                   <a id="signatureOfInstance">
                     <a href="#signatureOfInstance">
                       <code><span>signatureOfInstance&#32;<span>ldcs&#32;parentBindings&#32;childSheet&#32;instanceBindings</span></span></code>
@@ -2456,7 +2409,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="537">
+              <div class="fsdocs-tip" id="536">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>signatureOfInstance&#32;<span>ldcs&#32;parentBindings&#32;childSheet&#32;instanceBindings</span></span></code>
@@ -2517,7 +2470,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.signatureOfInstance\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L370-370" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L364-364" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2575,7 +2528,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '538', 538)" onmouseover="showTip(event, '538', 538)">
+              <code onmouseout="hideTip(event, '537', 537)" onmouseover="showTip(event, '537', 537)">
                 <p>
                   <a id="signatureOfInstanceWithCertainty">
                     <a href="#signatureOfInstanceWithCertainty">
@@ -2584,7 +2537,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="538">
+              <div class="fsdocs-tip" id="537">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>signatureOfInstanceWithCertainty&#32;<span>ldcs&#32;parentBindings&#32;childSheet&#32;instanceBindings</span></span></code>
@@ -2645,7 +2598,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.signatureOfInstanceWithCertainty\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L349-349" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L343-343" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2707,7 +2660,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '539', 539)" onmouseover="showTip(event, '539', 539)">
+              <code onmouseout="hideTip(event, '538', 538)" onmouseover="showTip(event, '538', 538)">
                 <p>
                   <a id="sortQBy">
                     <a href="#sortQBy">
@@ -2716,7 +2669,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="539">
+              <div class="fsdocs-tip" id="538">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sortQBy&#32;<span>byFun&#32;ids</span></span></code>
@@ -2784,7 +2737,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '540', 540)" onmouseover="showTip(event, '540', 540)">
+              <code onmouseout="hideTip(event, '539', 539)" onmouseover="showTip(event, '539', 539)">
                 <p>
                   <a id="stateIsEqual">
                     <a href="#stateIsEqual">
@@ -2793,7 +2746,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="540">
+              <div class="fsdocs-tip" id="539">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>stateIsEqual&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
@@ -2911,7 +2864,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '541', 541)" onmouseover="showTip(event, '541', 541)">
+              <code onmouseout="hideTip(event, '540', 540)" onmouseover="showTip(event, '540', 540)">
                 <p>
                   <a id="stateIsEqualExInputDefault">
                     <a href="#stateIsEqualExInputDefault">
@@ -2920,7 +2873,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="541">
+              <div class="fsdocs-tip" id="540">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>stateIsEqualExInputDefault&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
@@ -3020,6 +2973,99 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
+              <code onmouseout="hideTip(event, '541', 541)" onmouseover="showTip(event, '541', 541)">
+                <p>
+                  <a id="syncInstancePorts">
+                    <a href="#syncInstancePorts">
+                      <code><span>syncInstancePorts&#32;<span>ldcs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="541">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>syncInstancePorts&#32;<span>ldcs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ldcs
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:CanvasExtractor.syncInstancePorts`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.syncInstancePorts\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L401-401" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Every custom component instance in the project sized at its OWN bindings.
+
+ Resolving a sheet's parameterised slots does not do this. ComponentSlots.setSlotValue writes a
+ CustomCompParam slot into the instance's ParameterBindings, which is all it can reach: the port
+ widths follow from that binding by way of the CHILD sheet, and only signatureOfInstance knows
+ how. So a sheet whose parameter values changed came out of ParameterAnalysis.propagateParameterValues
+ holding instances whose bindings said one width and whose ports still said another.
+
+ The open sheet never showed it, because ParameterView.updateComponents pushes its slots through
+ ChangeCustom, which recomputes ports on the way. A CLOSED sheet was written to its file as it
+ stood, and opening it raised the instance-out-of-date error that the whole per-instance
+ signature apparatus exists to avoid.
+
+ Pure, and idempotent: it asks what each instance's ports should be and writes that, so running
+ it again finds nothing to change. A sheet whose canvas it rewrites is flagged as needing saving.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ldcs
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
               <code onmouseout="hideTip(event, '542', 542)" onmouseover="showTip(event, '542', 542)">
                 <p>
                   <a id="tidyParamSlots">
@@ -3082,7 +3128,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.tidyParamSlots\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L257-257" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L256-256" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <pre> Put a sheet's parameter slots in order against its canvas, ready to be saved:
@@ -3255,6 +3301,107 @@
                     Returns: 
                   </span>
                   <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '544', 544)" onmouseover="showTip(event, '544', 544)">
+                <p>
+                  <a id="withPortWidths">
+                    <a href="#withPortWidths">
+                      <code><span>withPortWidths&#32;<span>labelToWidth&#32;cc</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="544">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>withPortWidths&#32;<span>labelToWidth&#32;cc</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        labelToWidth
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        cc
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-customcomponenttype.html">CustomComponentType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-customcomponenttype.html">CustomComponentType</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:CanvasExtractor.withPortWidths`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.withPortWidths\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L380-380" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A custom component instance holding the given port widths, matched to its ports by LABEL.
+
+ Widths only. The ORDER of an instance's ports, and which ports it has, are deliberately left
+ alone: an instance whose ports are in a different order from its sheet's is a correct instance
+ (see CustomCompPorts.instanceIsOutOfDate), and a port added to or removed from the sheet is a
+ change the user is asked to confirm rather than one to make behind them. A label the signature
+ says nothing about therefore keeps the width it had.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    labelToWidth
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>string,&#32;int</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    cc
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-customcomponenttype.html">CustomComponentType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-customcomponenttype.html">CustomComponentType</a></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>

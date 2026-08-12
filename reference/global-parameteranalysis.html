@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -307,6 +313,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -442,7 +454,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterAnalysis.BindOffer\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L583-583" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L570-570" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -471,7 +483,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterAnalysis.ChainAction\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L570-570" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L557-557" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -525,7 +537,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterAnalysis.ParamDisplayValue\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L226-226" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L219-219" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -580,7 +592,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ParameterAnalysis.SheetInstances\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L46-46" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L48-48" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -613,7 +625,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1592', 1592)" onmouseover="showTip(event, '1592', 1592)">
+              <code onmouseout="hideTip(event, '1603', 1603)" onmouseover="showTip(event, '1603', 1603)">
                 <p>
                   <a id="analyseUnderTop">
                     <a href="#analyseUnderTop">
@@ -622,7 +634,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1592">
+              <div class="fsdocs-tip" id="1603">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>analyseUnderTop&#32;<span>ldcs&#32;topSheet</span></span></code>
@@ -677,10 +689,8 @@
  The walk is memoised on (sheet name, parameter values): the subtree below an instance depends
  only on those, so a sheet tree recurring with the same values is descended once. The VALUE
  SETS this produces are complete - a skipped subtree resolves identically to the one already
- walked - but the recorded instance paths are exemplary, not exhaustive: descendants of a
- repeated same-valued subtree keep only the paths of its first occurrence. Use the paths for
- display examples; anything needing every path must work on the sheet DAG instead (as the
- bind-to-top chain computation below does).
+ walked. Nothing here answers "by which route": that question is asked only by the bind-to-top
+ chain computation, which works on the sheet DAG so that no path can be missed.
                   </p>
                 </div>
               </summary>
@@ -717,7 +727,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1593', 1593)" onmouseover="showTip(event, '1593', 1593)">
+              <code onmouseout="hideTip(event, '1604', 1604)" onmouseover="showTip(event, '1604', 1604)">
                 <p>
                   <a id="bindMissingInstanceParams">
                     <a href="#bindMissingInstanceParams">
@@ -726,7 +736,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1593">
+              <div class="fsdocs-tip" id="1604">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bindMissingInstanceParams&#32;<span>ldcs</span></span></code>
@@ -763,7 +773,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.bindMissingInstanceParams\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L485-485" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L472-472" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -810,7 +820,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1594', 1594)" onmouseover="showTip(event, '1594', 1594)">
+              <code onmouseout="hideTip(event, '1605', 1605)" onmouseover="showTip(event, '1605', 1605)">
                 <p>
                   <a id="bindOfferForPlacement">
                     <a href="#bindOfferForPlacement">
@@ -819,7 +829,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1594">
+              <div class="fsdocs-tip" id="1605">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bindOfferForPlacement&#32;<span>ldcs&#32;topSheet&#32;onSheet&#32;name</span></span></code>
@@ -880,7 +890,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.bindOfferForPlacement\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L825-825" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L812-812" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -947,7 +957,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1595', 1595)" onmouseover="showTip(event, '1595', 1595)">
+              <code onmouseout="hideTip(event, '1606', 1606)" onmouseover="showTip(event, '1606', 1606)">
                 <p>
                   <a id="bindParamOnInstances">
                     <a href="#bindParamOnInstances">
@@ -956,7 +966,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1595">
+              <div class="fsdocs-tip" id="1606">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>bindParamOnInstances&#32;<span>sheetName&#32;name&#32;value&#32;ldcs</span></span></code>
@@ -1017,7 +1027,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.bindParamOnInstances\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L427-427" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L414-414" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1087,7 +1097,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1596', 1596)" onmouseover="showTip(event, '1596', 1596)">
+              <code onmouseout="hideTip(event, '1607', 1607)" onmouseover="showTip(event, '1607', 1607)">
                 <p>
                   <a id="customInstances">
                     <a href="#customInstances">
@@ -1096,7 +1106,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1596">
+              <div class="fsdocs-tip" id="1607">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>customInstances&#32;<span>ldc</span></span></code>
@@ -1133,7 +1143,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.customInstances\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L65-65" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L67-67" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1166,7 +1176,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1597', 1597)" onmouseover="showTip(event, '1597', 1597)">
+              <code onmouseout="hideTip(event, '1608', 1608)" onmouseover="showTip(event, '1608', 1608)">
                 <p>
                   <a id="declaredParamDefs">
                     <a href="#declaredParamDefs">
@@ -1175,7 +1185,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1597">
+              <div class="fsdocs-tip" id="1608">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>declaredParamDefs&#32;<span>ldc</span></span></code>
@@ -1212,7 +1222,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.declaredParamDefs\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L49-49" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L51-51" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1245,7 +1255,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1598', 1598)" onmouseover="showTip(event, '1598', 1598)">
+              <code onmouseout="hideTip(event, '1609', 1609)" onmouseover="showTip(event, '1609', 1609)">
                 <p>
                   <a id="declaredParams">
                     <a href="#declaredParams">
@@ -1254,7 +1264,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1598">
+              <div class="fsdocs-tip" id="1609">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>declaredParams&#32;<span>ldc</span></span></code>
@@ -1291,7 +1301,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.declaredParams\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L55-55" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L57-57" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1324,7 +1334,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1599', 1599)" onmouseover="showTip(event, '1599', 1599)">
+              <code onmouseout="hideTip(event, '1610', 1610)" onmouseover="showTip(event, '1610', 1610)">
                 <p>
                   <a id="displayValues">
                     <a href="#displayValues">
@@ -1333,7 +1343,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1599">
+              <div class="fsdocs-tip" id="1610">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>displayValues&#32;<span>ldcs&#32;topSheet&#32;sheetName</span></span></code>
@@ -1386,7 +1396,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.displayValues\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L274-274" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L266-266" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1435,7 +1445,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1600', 1600)" onmouseover="showTip(event, '1600', 1600)">
+              <code onmouseout="hideTip(event, '1611', 1611)" onmouseover="showTip(event, '1611', 1611)">
                 <p>
                   <a id="displayValuesOfSheet">
                     <a href="#displayValuesOfSheet">
@@ -1444,7 +1454,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1600">
+              <div class="fsdocs-tip" id="1611">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>displayValuesOfSheet&#32;<span>ldc&#32;instances</span></span></code>
@@ -1489,7 +1499,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.displayValuesOfSheet\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L253-253" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L243-243" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1532,7 +1542,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1601', 1601)" onmouseover="showTip(event, '1601', 1601)">
+              <code onmouseout="hideTip(event, '1612', 1612)" onmouseover="showTip(event, '1612', 1612)">
                 <p>
                   <a id="effectiveTopSheetFor">
                     <a href="#effectiveTopSheetFor">
@@ -1541,7 +1551,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1601">
+              <div class="fsdocs-tip" id="1612">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>effectiveTopSheetFor&#32;<span>ldcs&#32;sheetName</span></span></code>
@@ -1586,7 +1596,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.effectiveTopSheetFor\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L308-308" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L300-300" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1641,7 +1651,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1602', 1602)" onmouseover="showTip(event, '1602', 1602)">
+              <code onmouseout="hideTip(event, '1613', 1613)" onmouseover="showTip(event, '1613', 1613)">
                 <p>
                   <a id="evaluatedDefaults">
                     <a href="#evaluatedDefaults">
@@ -1650,7 +1660,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1602">
+              <div class="fsdocs-tip" id="1613">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>evaluatedDefaults&#32;<span>defaults</span></span></code>
@@ -1687,7 +1697,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.evaluatedDefaults\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L99-99" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L101-101" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1721,7 +1731,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1603', 1603)" onmouseover="showTip(event, '1603', 1603)">
+              <code onmouseout="hideTip(event, '1614', 1614)" onmouseover="showTip(event, '1614', 1614)">
                 <p>
                   <a id="everyInstanceBindsEveryParam">
                     <a href="#everyInstanceBindsEveryParam">
@@ -1730,7 +1740,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1603">
+              <div class="fsdocs-tip" id="1614">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>everyInstanceBindsEveryParam&#32;<span>ldcs</span></span></code>
@@ -1782,7 +1792,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1604', 1604)" onmouseover="showTip(event, '1604', 1604)">
+              <code onmouseout="hideTip(event, '1615', 1615)" onmouseover="showTip(event, '1615', 1615)">
                 <p>
                   <a id="findBindOffers">
                     <a href="#findBindOffers">
@@ -1791,7 +1801,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1604">
+              <div class="fsdocs-tip" id="1615">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findBindOffers&#32;<span>ldcs&#32;topSheet&#32;onSheet</span></span></code>
@@ -1844,7 +1854,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.findBindOffers\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L743-743" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L730-730" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1897,7 +1907,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1605', 1605)" onmouseover="showTip(event, '1605', 1605)">
+              <code onmouseout="hideTip(event, '1616', 1616)" onmouseover="showTip(event, '1616', 1616)">
                 <p>
                   <a id="flaggedTopSheet">
                     <a href="#flaggedTopSheet">
@@ -1906,7 +1916,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1605">
+              <div class="fsdocs-tip" id="1616">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>flaggedTopSheet&#32;<span>ldcs</span></span></code>
@@ -1943,7 +1953,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.flaggedTopSheet\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L85-85" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L87-87" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1977,7 +1987,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1606', 1606)" onmouseover="showTip(event, '1606', 1606)">
+              <code onmouseout="hideTip(event, '1617', 1617)" onmouseover="showTip(event, '1617', 1617)">
                 <p>
                   <a id="instanceBindingExprs">
                     <a href="#instanceBindingExprs">
@@ -1986,7 +1996,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1606">
+              <div class="fsdocs-tip" id="1617">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>instanceBindingExprs&#32;<span>parentSlots&#32;comp&#32;cc</span></span></code>
@@ -2039,7 +2049,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.instanceBindingExprs\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L109-109" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L111-111" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2090,7 +2100,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1607', 1607)" onmouseover="showTip(event, '1607', 1607)">
+              <code onmouseout="hideTip(event, '1618', 1618)" onmouseover="showTip(event, '1618', 1618)">
                 <p>
                   <a id="instanceForestRoots">
                     <a href="#instanceForestRoots">
@@ -2099,7 +2109,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1607">
+              <div class="fsdocs-tip" id="1618">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>instanceForestRoots&#32;<span>ldcs</span></span></code>
@@ -2136,7 +2146,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.instanceForestRoots\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L74-74" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L76-76" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2170,7 +2180,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1608', 1608)" onmouseover="showTip(event, '1608', 1608)">
+              <code onmouseout="hideTip(event, '1619', 1619)" onmouseover="showTip(event, '1619', 1619)">
                 <p>
                   <a id="markSheetOutOfDate">
                     <a href="#markSheetOutOfDate">
@@ -2179,7 +2189,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1608">
+              <div class="fsdocs-tip" id="1619">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>markSheetOutOfDate&#32;<span>sheetName&#32;ldcs</span></span></code>
@@ -2224,7 +2234,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.markSheetOutOfDate\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L463-463" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L450-450" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2275,7 +2285,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1609', 1609)" onmouseover="showTip(event, '1609', 1609)">
+              <code onmouseout="hideTip(event, '1620', 1620)" onmouseover="showTip(event, '1620', 1620)">
                 <p>
                   <a id="projectDeclaresParams">
                     <a href="#projectDeclaresParams">
@@ -2284,7 +2294,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1609">
+              <div class="fsdocs-tip" id="1620">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>projectDeclaresParams&#32;<span>ldcs</span></span></code>
@@ -2321,7 +2331,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.projectDeclaresParams\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L408-408" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L395-395" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2358,7 +2368,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1610', 1610)" onmouseover="showTip(event, '1610', 1610)">
+              <code onmouseout="hideTip(event, '1621', 1621)" onmouseover="showTip(event, '1621', 1621)">
                 <p>
                   <a id="projectHasAmbiguousDisplay">
                     <a href="#projectHasAmbiguousDisplay">
@@ -2367,7 +2377,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1610">
+              <div class="fsdocs-tip" id="1621">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>projectHasAmbiguousDisplay&#32;<span>ldcs</span></span></code>
@@ -2404,7 +2414,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.projectHasAmbiguousDisplay\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L551-551" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L538-538" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2457,7 +2467,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1611', 1611)" onmouseover="showTip(event, '1611', 1611)">
+              <code onmouseout="hideTip(event, '1622', 1622)" onmouseover="showTip(event, '1622', 1622)">
                 <p>
                   <a id="propagateParameterValues">
                     <a href="#propagateParameterValues">
@@ -2466,7 +2476,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1611">
+              <div class="fsdocs-tip" id="1622">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>propagateParameterValues&#32;<span>ldcs</span></span></code>
@@ -2503,7 +2513,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.propagateParameterValues\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L328-328" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L320-320" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2545,102 +2555,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1612', 1612)" onmouseover="showTip(event, '1612', 1612)">
-                <p>
-                  <a id="renderInstancePath">
-                    <a href="#renderInstancePath">
-                      <code><span>renderInstancePath&#32;<span>topSheet&#32;path</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="1612">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>renderInstancePath&#32;<span>topSheet&#32;path</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        topSheet
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        path
-                      </b>
-                      :
-                      <code><span><a href="/issie/reference/parameteranalysis-instancepathlink.html">InstancePathLink</a>&#32;list</span></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>string</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ParameterAnalysis.renderInstancePath`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.renderInstancePath\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L220-220" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     A human-readable instance path: the top sheet followed by the labels of the instances entered.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    topSheet
-                  </span>
-                  :
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    path
-                  </span>
-                  :
-                  <code><span><a href="/issie/reference/parameteranalysis-instancepathlink.html">InstancePathLink</a>&#32;list</span></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '1613', 1613)" onmouseover="showTip(event, '1613', 1613)">
+              <code onmouseout="hideTip(event, '1623', 1623)" onmouseover="showTip(event, '1623', 1623)">
                 <p>
                   <a id="rootsContaining">
                     <a href="#rootsContaining">
@@ -2649,7 +2564,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1613">
+              <div class="fsdocs-tip" id="1623">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>rootsContaining&#32;<span>ldcs&#32;sheetName</span></span></code>
@@ -2694,7 +2609,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.rootsContaining\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L289-289" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L281-281" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2735,109 +2650,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1614', 1614)" onmouseover="showTip(event, '1614', 1614)">
-                <p>
-                  <a id="sheetIsAtDefault">
-                    <a href="#sheetIsAtDefault">
-                      <code><span>sheetIsAtDefault&#32;<span>ldcs&#32;sheetName</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="1614">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>sheetIsAtDefault&#32;<span>ldcs&#32;sheetName</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        ldcs
-                      </b>
-                      :
-                      <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        sheetName
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ParameterAnalysis.sheetIsAtDefault`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.sheetIsAtDefault\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L372-372" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Whether a sheet is showing values that nothing has settled, so its stored parameter values are
- a stand-in until it is used. True for the top sheet itself, for a sheet belonging to a
- different design, for a newly created sheet, and for a library component opened to work on.
-
- Normally a property of the SHEET, since every instance is required to set every parameter and
- so they are all settled together. It is written in terms of the values rather than the instance
- count so that a project predating that requirement - where an instance may set nothing - still
- reports honestly rather than calling an unset value settled.
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    ldcs
-                  </span>
-                  :
-                  <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    sheetName
-                  </span>
-                  :
-                  <code>string</code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code>bool</code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '1615', 1615)" onmouseover="showTip(event, '1615', 1615)">
+              <code onmouseout="hideTip(event, '1624', 1624)" onmouseover="showTip(event, '1624', 1624)">
                 <p>
                   <a id="sheetParamSlots">
                     <a href="#sheetParamSlots">
@@ -2846,7 +2659,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1615">
+              <div class="fsdocs-tip" id="1624">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetParamSlots&#32;<span>ldc</span></span></code>
@@ -2883,7 +2696,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.sheetParamSlots\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L59-59" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L61-61" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2916,7 +2729,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1616', 1616)" onmouseover="showTip(event, '1616', 1616)">
+              <code onmouseout="hideTip(event, '1625', 1625)" onmouseover="showTip(event, '1625', 1625)">
                 <p>
                   <a id="sheetsModifiedByOffer">
                     <a href="#sheetsModifiedByOffer">
@@ -2925,7 +2738,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1616">
+              <div class="fsdocs-tip" id="1625">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetsModifiedByOffer&#32;<span>offer</span></span></code>
@@ -2962,7 +2775,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.sheetsModifiedByOffer\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L603-603" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L590-590" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2995,7 +2808,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1617', 1617)" onmouseover="showTip(event, '1617', 1617)">
+              <code onmouseout="hideTip(event, '1626', 1626)" onmouseover="showTip(event, '1626', 1626)">
                 <p>
                   <a id="sheetsUnderTop">
                     <a href="#sheetsUnderTop">
@@ -3004,7 +2817,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1617">
+              <div class="fsdocs-tip" id="1626">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetsUnderTop&#32;<span>ldcs&#32;topSheet</span></span></code>
@@ -3049,7 +2862,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.sheetsUnderTop\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L285-285" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L277-277" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3090,7 +2903,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1618', 1618)" onmouseover="showTip(event, '1618', 1618)">
+              <code onmouseout="hideTip(event, '1627', 1627)" onmouseover="showTip(event, '1627', 1627)">
                 <p>
                   <a id="shownValue">
                     <a href="#shownValue">
@@ -3099,7 +2912,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1618">
+              <div class="fsdocs-tip" id="1627">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>shownValue&#32;<span>display</span></span></code>
@@ -3136,7 +2949,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ParameterAnalysis.shownValue\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L238-238" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ParameterAnalysis.fs#L231-231" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Renderer" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Ram (issie)" />
+    <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Ram (issie)">
+    
+    <title>Ram (issie) | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="api-docs">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <div>
+  <h2>
+    Ram Type
+  </h2>
+  <dl class="fsdocs-metadata">
+    <dt>
+      Namespace: 
+      <a href="/issie/reference/global.html">
+        global
+      </a>
+    </dt>
+    <dt>
+      Assembly: Renderer.dll
+    </dt>
+    <dt>
+      Parent Module: 
+      <a href="/issie/reference/global-ramstore.html">
+        RamStore
+      </a>
+    </dt>
+    <dt>
+      Base Type: 
+      <code>obj</code>
+    </dt>
+    <dt>
+      All Interfaces: 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/ramstore-ram.html">Ram</a>&gt;</span></code>
+      , 
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
+    </dt>
+  </dl>
+  <div class="fsdocs-xmldoc">
+    <div>
+      <p class="fsdocs-summary">
+         A read/write memory as the simulator holds it.
+      </p>
+    </div>
+  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div>
+    <h3>
+      Record fields
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Record Field
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5452', 5452)" onmouseover="showTip(event, '5452', 5452)">
+                <p>
+                  <a id="AddressWidth">
+                    <a href="#AddressWidth">
+                      <code>AddressWidth</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5452">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>AddressWidth</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5453', 5453)" onmouseover="showTip(event, '5453', 5453)">
+                <p>
+                  <a id="Addressing">
+                    <a href="#Addressing">
+                      <code>Addressing</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5453">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Addressing</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><a href="/issie/reference/ramstore-addressing.html">Addressing</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><a href="/issie/reference/ramstore-addressing.html">Addressing</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5454', 5454)" onmouseover="showTip(event, '5454', 5454)">
+                <p>
+                  <a id="BigVals">
+                    <a href="#BigVals">
+                      <code>BigVals</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5454">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>BigVals</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L90-90" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     `WordWidth > 32`, so values live in the bigint arrays rather than the uint32 ones. The
+ same split `IOArray` makes between `UInt32Step` and `BigIntStep`, and for the same reason.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5455', 5455)" onmouseover="showTip(event, '5455', 5455)">
+                <p>
+                  <a id="BigWords">
+                    <a href="#BigWords">
+                      <code>BigWords</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5455">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>BigWords</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>bigint&#32;array</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>bigint&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5456', 5456)" onmouseover="showTip(event, '5456', 5456)">
+                <p>
+                  <a id="Comments">
+                    <a href="#Comments">
+                      <code>Comments</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5456">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Comments</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>bigint,&#32;string</span>&gt;</span>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>bigint,&#32;string</span>&gt;</span>&#32;option</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5457', 5457)" onmouseover="showTip(event, '5457', 5457)">
+                <p>
+                  <a id="CurBig">
+                    <a href="#CurBig">
+                      <code>CurBig</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5457">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>CurBig</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>bigint&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>bigint&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5458', 5458)" onmouseover="showTip(event, '5458', 5458)">
+                <p>
+                  <a id="CurVal">
+                    <a href="#CurVal">
+                      <code>CurVal</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5458">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>CurVal</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>uint32&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L114-114" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     slot -> current contents, for the cases with no `Words`.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code><span>uint32&#32;array</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5459', 5459)" onmouseover="showTip(event, '5459', 5459)">
+                <p>
+                  <a id="IBig">
+                    <a href="#IBig">
+                      <code>IBig</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5459">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>IBig</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>bigint&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>bigint&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5460', 5460)" onmouseover="showTip(event, '5460', 5460)">
+                <p>
+                  <a id="ILen">
+                    <a href="#ILen">
+                      <code>ILen</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5460">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>ILen</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5461', 5461)" onmouseover="showTip(event, '5461', 5461)">
+                <p>
+                  <a id="IStep">
+                    <a href="#IStep">
+                      <code>IStep</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5461">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>IStep</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>int&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>int&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5462', 5462)" onmouseover="showTip(event, '5462', 5462)">
+                <p>
+                  <a id="IVal">
+                    <a href="#IVal">
+                      <code>IVal</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5462">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>IVal</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>uint32&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>uint32&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5463', 5463)" onmouseover="showTip(event, '5463', 5463)">
+                <p>
+                  <a id="Init">
+                    <a href="#Init">
+                      <code>Init</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5463">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Init</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><a href="/issie/reference/commontypes-initmemdata.html">InitMemData</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><a href="/issie/reference/commontypes-initmemdata.html">InitMemData</a></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5464', 5464)" onmouseover="showTip(event, '5464', 5464)">
+                <p>
+                  <a id="InitialData">
+                    <a href="#InitialData">
+                      <code>InitialData</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5464">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>InitialData</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>bigint,&#32;bigint</span>&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L94-94" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What the memory starts with, kept so that a restart can put it back.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>bigint,&#32;bigint</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5465', 5465)" onmouseover="showTip(event, '5465', 5465)">
+                <p>
+                  <a id="LastStep">
+                    <a href="#LastStep">
+                      <code>LastStep</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5465">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>LastStep</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L132-132" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The most recent step written, which is what pruning measures the window back from.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5466', 5466)" onmouseover="showTip(event, '5466', 5466)">
+                <p>
+                  <a id="SlotAddr">
+                    <a href="#SlotAddr">
+                      <code>SlotAddr</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5466">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>SlotAddr</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>uint32&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L111-111" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     slot -> address. `uint32` because a slot only exists once an address has been written,
+ and the wide case keeps its own reverse list.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code><span>uint32&#32;array</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5467', 5467)" onmouseover="showTip(event, '5467', 5467)">
+                <p>
+                  <a id="SlotAddrBig">
+                    <a href="#SlotAddrBig">
+                      <code>SlotAddrBig</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5467">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>SlotAddrBig</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>ResizeArray&lt;bigint&gt;</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>ResizeArray&lt;bigint&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5468', 5468)" onmouseover="showTip(event, '5468', 5468)">
+                <p>
+                  <a id="SlotCount">
+                    <a href="#SlotCount">
+                      <code>SlotCount</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5468">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>SlotCount</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5469', 5469)" onmouseover="showTip(event, '5469', 5469)">
+                <p>
+                  <a id="Start">
+                    <a href="#Start">
+                      <code>Start</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5469">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Start</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>int&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>int&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5470', 5470)" onmouseover="showTip(event, '5470', 5470)">
+                <p>
+                  <a id="TBig">
+                    <a href="#TBig">
+                      <code>TBig</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5470">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>TBig</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>bigint&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>bigint&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5471', 5471)" onmouseover="showTip(event, '5471', 5471)">
+                <p>
+                  <a id="TLen">
+                    <a href="#TLen">
+                      <code>TLen</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5471">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>TLen</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5472', 5472)" onmouseover="showTip(event, '5472', 5472)">
+                <p>
+                  <a id="TSlot">
+                    <a href="#TSlot">
+                      <code>TSlot</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5472">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>TSlot</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>int&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>int&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5473', 5473)" onmouseover="showTip(event, '5473', 5473)">
+                <p>
+                  <a id="TStep">
+                    <a href="#TStep">
+                      <code>TStep</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5473">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>TStep</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>int&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>int&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5474', 5474)" onmouseover="showTip(event, '5474', 5474)">
+                <p>
+                  <a id="TVal">
+                    <a href="#TVal">
+                      <code>TVal</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5474">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>TVal</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>uint32&#32;array</span></code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code><span>uint32&#32;array</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5475', 5475)" onmouseover="showTip(event, '5475', 5475)">
+                <p>
+                  <a id="Window">
+                    <a href="#Window">
+                      <code>Window</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5475">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Window</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L100-100" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     How many steps of history are reachable. The step simulator's arrays wrap, so anything
+ older than this can never be asked for and is dropped at the next compaction; the
+ waveform simulator's arrays are sized for the whole run, so nothing is ever out of
+ window there.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5476', 5476)" onmouseover="showTip(event, '5476', 5476)">
+                <p>
+                  <a id="WordWidth">
+                    <a href="#WordWidth">
+                      <code>WordWidth</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5476">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>WordWidth</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Field type: 
+                </span>
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5477', 5477)" onmouseover="showTip(event, '5477', 5477)">
+                <p>
+                  <a id="Words">
+                    <a href="#Words">
+                      <code>Words</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5477">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Words</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code><span>uint32&#32;array</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L104-104" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Current contents by *address*, for the dense case, so that a read during simulation is
+ one indexed load. Empty otherwise, when the read goes via the slot number instead.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code><span>uint32&#32;array</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '5478', 5478)" onmouseover="showTip(event, '5478', 5478)">
+                <p>
+                  <a id="Writes">
+                    <a href="#Writes">
+                      <code>Writes</code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="5478">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code>Writes</code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Field type: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                  Modifiers: 
+                  mutable
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L134-134" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Writes actually recorded. A write of the value already there is not one of them.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Field type: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <div class="empty"></div>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

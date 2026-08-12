@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -307,6 +313,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -427,7 +439,118 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '637', 637)" onmouseover="showTip(event, '637', 637)">
+              <code onmouseout="hideTip(event, '640', 640)" onmouseover="showTip(event, '640', 640)">
+                <p>
+                  <a id="constraintsFor">
+                    <a href="#constraintsFor">
+                      <code><span>constraintsFor&#32;<span>slot&#32;compType</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="640">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>constraintsFor&#32;<span>slot&#32;compType</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        slot
+                      </b>
+                      :
+                      <code><a href="/issie/reference/parametertypes-compslotname.html">CompSlotName</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        compType
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/parametertypes-paramconstraint.html">ParamConstraint</a>&#32;list</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:ComponentSlots.constraintsFor`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentSlots.constraintsFor\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L138-138" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <pre> The bounds a value must satisfy to be written into this slot of this component.
+
+ The other half of the mapping trySetSlotValue owns, and here for the same reason: what a slot
+ IS includes what may go in it, and the two kept apart is how they drifted. They were built
+ inline at each properties box instead, which had two consequences:
+
+   - a bound computed from the component's width was frozen at the width the box was showing
+     when the expression was typed. Parameterise the width, change the parameter, and an Input's
+     stored "must fit in 8 bits" outlived the 8;
+   - a value that arrived any other way was bounded by nothing. maxIssieBusWidth was enforced
+     only by these lists, so a width bound to a parent's parameter, or written by the sheet
+     description DSL, had no upper limit at all and the first thing to object was the simulator.
+
+ Derived, so it cannot go stale: every caller asks about the component as it is now. The
+ Constraints stored on a slot are still written as they were, for file compatibility, but are no
+ longer what a value is checked against.
+
+ The messages are the ones the boxes used to build, and are written for whoever typed the value:
+ see ParameterView.evaluateConstraints, which hands the author's text straight to the user.</pre>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    slot
+                  </span>
+                  :
+                  <code><a href="/issie/reference/parametertypes-compslotname.html">CompSlotName</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    compType
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/parametertypes-paramconstraint.html">ParamConstraint</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '641', 641)" onmouseover="showTip(event, '641', 641)">
                 <p>
                   <a id="resolveCanvasAtBindings">
                     <a href="#resolveCanvasAtBindings">
@@ -436,7 +559,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="637">
+              <div class="fsdocs-tip" id="641">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>resolveCanvasAtBindings&#32;<span>bindings&#32;slots&#32;<span>(<span>arg3,&#32;arg4</span>)</span></span></span></code>
@@ -497,7 +620,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentSlots.resolveCanvasAtBindings\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L132-132" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L192-192" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -560,7 +683,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '638', 638)" onmouseover="showTip(event, '638', 638)">
+              <code onmouseout="hideTip(event, '642', 642)" onmouseover="showTip(event, '642', 642)">
                 <p>
                   <a id="setSlotValue">
                     <a href="#setSlotValue">
@@ -569,7 +692,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="638">
+              <div class="fsdocs-tip" id="642">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>setSlotValue&#32;<span>slot&#32;value&#32;compType</span></span></code>
@@ -622,7 +745,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ComponentSlots.setSlotValue\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L122-122" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/ComponentSlots.fs#L182-182" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -673,7 +796,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '639', 639)" onmouseover="showTip(event, '639', 639)">
+              <code onmouseout="hideTip(event, '643', 643)" onmouseover="showTip(event, '643', 643)">
                 <p>
                   <a id="slotApplies">
                     <a href="#slotApplies">
@@ -682,7 +805,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="639">
+              <div class="fsdocs-tip" id="643">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>slotApplies&#32;<span>slot&#32;compType</span></span></code>
@@ -770,7 +893,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '640', 640)" onmouseover="showTip(event, '640', 640)">
+              <code onmouseout="hideTip(event, '644', 644)" onmouseover="showTip(event, '644', 644)">
                 <p>
                   <a id="trySetSlotValue">
                     <a href="#trySetSlotValue">
@@ -779,7 +902,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="640">
+              <div class="fsdocs-tip" id="644">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>trySetSlotValue&#32;<span>slot&#32;value&#32;compType</span></span></code>

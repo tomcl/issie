@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -303,6 +309,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
 
   </a>
 </li>             
@@ -571,18 +583,22 @@ every sheet each instance's path and evaluated parameter values. Memoised on
 conflicts (design-time checking must not give false positives).
 </li>
 <li>
-*<em><code>displayValues</code>*</em> turns this into per-parameter display rules: a singleton value set shows the
-real value with <strong>nothing said about a default</strong>, an empty set shows the declared value (which,
-the sheet having no instances, simply <em>is</em> the value and is not called a default either), and a
-multi-valued set shows the default with a note enumerating the values and example instance paths
-— <em>"8 at TOP &gt; FetchAdder, 16 at TOP &gt; ALU; showing default 8"</em>. Rendered in the sheet
-properties parameter table (<code>ParameterView.makeParamsField</code>). Naming the default in the first
-two cases only asked the user to reason about a number that is nearly always overwritten.
+*<em><code>displayValues</code>*</em> turns this into a <code>ParamDisplayValue</code> per parameter. <code>NotUsed v</code> — nothing
+under the top instantiates the sheet, so the stored value is all there is; the properties pane
+shows it greyed and italic, as a placeholder rather than a fact, and this is the only case where
+editing it is offered. <code>Values vs</code> — distinct and descending, the head being the value the sheet
+is drawn at; several arise when one design reaches the sheet by paths that bind it differently,
+which is allowed, and the largest is taken so that the choice is definite and the recomputation
+idempotent. <code>ParameterView.makeParamsField</code> renders the rest after it — <em>"16 (also 8)"</em>,
+<em>"16 (also 8, 4, ...)"</em> — and says nothing about a declared value in either case, since naming a
+number that has been overwritten only asks the user to reason about one that no longer applies.
 </li>
 <li>
 <strong>The top sheet</strong> is per-project view state: an <code>IsTopSheet</code> flag on the chosen sheet,
-persisted in its <code>.dgm</code> <code>SheetInfo</code> and mirrored in <code>LoadedComponent</code>. <code>effectiveTopSheet</code>
-uses the flagged sheet, else infers a single instance-forest root silently. "Set as top" is on
+persisted in its <code>.dgm</code> <code>SheetInfo</code> and mirrored in <code>LoadedComponent</code>. <code>effectiveTopSheetFor</code>
+is <strong>total</strong> — it uses the flagged sheet, else the single instance-forest root containing the
+sheet asked about, else that sheet itself — which is what lets every other value be derived
+rather than guessed. "Set as top" is on
 the sheet-pill right-click menu (<code>MenuHelpers.setTopSheetState</code>); pills colour the top green
 and grey out sheets outside its tree (only when the project uses parameters at all). When
 several candidate tops disagree about the sheet being opened and none is chosen, a
@@ -872,26 +888,63 @@ declares. That is the whole rule — <code>GraphMerger.effectiveBindings</code> 
 <span class="id">Opened</span> <span class="id">on</span> <span class="id">its</span> <span class="id">own</span><span class="pn">,</span> <span class="id">B</span> <span class="id">still</span> <span class="id">resolves</span> <span class="id">at</span> <span class="id">WIDTH</span> <span class="o">=</span> <span class="n">16.</span>
 </code></pre>
 <h2><a name="Constraint-System" class="anchor" href="#Constraint-System">Constraint System</a></h2>
-<p>Constraints ensure parameter values remain within valid ranges:</p>
+<p>Constraints keep a value within the range the field it is going into can hold:</p>
 <h3><a name="Constraint-Definition" class="anchor" href="#Constraint-Definition">Constraint Definition</a></h3>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span onmouseout="hideTip(event, 'fs3', 39)" onmouseover="showTip(event, 'fs3', 39)" class="id">ParamConstraint</span> <span class="o">=</span>
     <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs15', 40)" onmouseover="showTip(event, 'fs15', 40)" class="id">MinVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 41)" onmouseover="showTip(event, 'fs2', 41)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
     <span class="pn">|</span> <span onmouseout="hideTip(event, 'fs16', 42)" onmouseover="showTip(event, 'fs16', 42)" class="id">MaxVal</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 43)" onmouseover="showTip(event, 'fs2', 43)" class="id">ParamExpression</span> <span class="pn">*</span> <span class="id">ParamError</span>
 </code></pre>
-<h3><a name="Features" class="anchor" href="#Features">Features</a></h3>
-<ul>
-<li>Evaluated during input validation</li>
-<li>Checked before component updates</li>
-<li>Display custom error messages when violated</li>
-<li>Support expressions in constraint definitions</li>
-</ul>
-<h3><a name="Example" class="anchor" href="#Example">Example</a></h3>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span class="id">widthConstraints</span> <span class="o">=</span> <span class="pn">[</span>
-    <span onmouseout="hideTip(event, 'fs15', 44)" onmouseover="showTip(event, 'fs15', 44)" class="id">MinVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs17', 45)" onmouseover="showTip(event, 'fs17', 45)" class="id">PInt</span> <span class="n">1I</span><span class="pn">,</span> <span class="s">&quot;Width must be at least 1 bit&quot;</span><span class="pn">)</span>
-    <span onmouseout="hideTip(event, 'fs16', 46)" onmouseover="showTip(event, 'fs16', 46)" class="id">MaxVal</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs17', 47)" onmouseover="showTip(event, 'fs17', 47)" class="id">PInt</span> <span class="pn">(</span><span onmouseout="hideTip(event, 'fs18', 48)" onmouseover="showTip(event, 'fs18', 48)" class="id">bigint</span> <span class="id">NumberHelpers</span><span class="pn">.</span><span class="id">Constants</span><span class="pn">.</span><span class="id">maxIssieBusWidth</span><span class="pn">)</span><span class="pn">,</span>
-            <span class="s">&quot;Width cannot exceed 16384 bits&quot;</span><span class="pn">)</span>
-<span class="pn">]</span>
-</code></pre>
+<p>The error text is author-written and is handed to the user unchanged — it should say what is wrong
+with <em>this</em> field, not restate the bound.</p>
+<h3><a name="Derived-from-the-slot-not-stored-on-it" class="anchor" href="#Derived-from-the-slot-not-stored-on-it">Derived from the slot, not stored on it</a></h3>
+<p><code>ComponentSlots.constraintsFor : CompSlotName -&gt; ComponentType -&gt; ParamConstraint list</code> is the one
+place that says what may go in a slot, and lives beside <code>trySetSlotValue</code>, which says where it goes.
+Every box asks it rather than building a list of its own:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>slot</p></th>
+<th><p>bounds</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>any width</p></td>
+<td><p><code>1 .. CommonTypes.Constants.maxIssieBusWidth</code></p></td>
+</tr>
+<tr class="even">
+<td><p><code>InputDefault</code>, and a <code>BusCompare</code> value</p></td>
+<td><p><code>0 .. 2^w - 1</code> at the component's <strong>current</strong> width</p></td>
+</tr>
+<tr class="odd">
+<td><p>a <code>BusSelection</code> LSB</p></td>
+<td><p><code>&gt;= 0</code> — a bit position, with no width to exceed</p></td>
+</tr>
+<tr class="even">
+<td><p><code>CustomCompParam</code></p></td>
+<td><p>none <em>here</em>: see below</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Two things follow, and both used to be wrong. A bound computed from the component's width is
+recomputed every time the pane is drawn, so widening or narrowing the component — which a property
+can do without the box being touched — moves the bound with it; built inline at the box, it was
+frozen at the width showing when the expression was typed, and an Input's <em>"must fit in 8 bits"</em>
+outlived the 8. And a value arriving any other way is now bounded too: <code>maxIssieBusWidth</code> was
+enforced only by those inline lists, so a width reached through an instance binding, or written by
+the sheet-description DSL, had no upper limit at all.</p>
+<p>The <code>Constraints</code> stored on a slot in the <code>.dgm</code> are still written as they always were, so files are
+unchanged in both directions — but they are no longer what a value is checked against.</p>
+<h3><a name="An-instance-binding-is-checked-against-the-sheet-inside-it" class="anchor" href="#An-instance-binding-is-checked-against-the-sheet-inside-it">An instance binding is checked against the sheet inside it</a></h3>
+<p>The bounds on a <code>CustomCompParam</code> value belong to the <strong>child</strong> sheet, and are expressions in the
+<em>child's</em> parameters — which is why they cannot be handed to <code>paramInputField</code>, whose constraint
+list is evaluated in the parameters of the sheet the instance sits on.
+<code>ParameterView.instanceBindingProblem</code> therefore resolves the child sheet instead: it takes the
+bindings that instance gives (<code>CanvasExtractor.effectiveInstanceBindings</code>), substitutes the
+candidate value, and runs <code>evaluateConstraints</code> over the child's slots with their derived
+constraints — the same call <code>editParameterBox</code> makes for the open sheet. Only the slots that <em>use</em>
+the parameter are checked, so a complaint can never name a box the user is not editing.</p>
 <h2><a name="One-evaluator-one-slot-mapping-one-instance-signature" class="anchor" href="#One-evaluator-one-slot-mapping-one-instance-signature">One evaluator, one slot mapping, one instance signature</a></h2>
 <p>There is <strong>one</strong> expression evaluator, <code>ParameterTypes.evaluateParamExpression</code>. What differs
 between contexts is the environment it is given and what a failure means:</p>
@@ -958,11 +1011,10 @@ that have gone, and repoints the label an <code>IO</code> slot carries at its co
 <li><strong>Model.LoadedComponent</strong>: Current parameter values</li>
 <li><strong>Component.Type</strong>: Resolved parameter values in components</li>
 <li><strong>CustomComponentType.ParameterBindings</strong>: Instance overrides</li>
-<li>
-<strong>SymbolT.Symbol.DeclaredSlots / DeclaredPortLabels</strong>: what a symbol is displaying differently
-from what it will be saved as — see below
-</li>
 </ul>
+<p>Nothing else is kept. Where one design reaches a sheet by paths that bind it differently, the values
+it is <em>not</em> drawn at are not stored anywhere: the properties pane asks <code>displayValues</code> for them as
+it draws, which is the same question and one fewer copy of the answer to keep in step.</p>
 <h3><a name="Knowing-when-to-save" class="anchor" href="#Knowing-when-to-save">Knowing when to save</a></h3>
 <p><code>UpdateHelpers.currentSheetIsOutOfDate</code> decides whether the open sheet needs saving by comparing
 its canvas against the saved one, plus the <code>LoadedComponentIsOutOfDate</code> flag. A change confined to
@@ -971,34 +1023,51 @@ given an expression that works out to the width already shown — leaves the can
 it is invisible to that comparison. Every path that edits parameter data therefore sets the flag,
 through <code>ParameterView.markSheetParamsChanged</code>. A new such path that forgets to call it leaves the
 save button dark and the work is dropped on leaving the sheet, with nothing to say so.</p>
-<h3><a name="Drawing-at-computed-values-and-saving-what-was-declared" class="anchor" href="#Drawing-at-computed-values-and-saving-what-was-declared">Drawing at computed values, and saving what was declared</a></h3>
-<p>The open sheet is drawn at the values its parameters take under the current top sheet
-(<code>ParameterView.applyComputedDisplayValues</code>), but what is written to the <code>.dgm</code> is unaffected.
-<code>SymbolUpdate.extractComponent</code> is the sole path from symbols to saved state, and
-<code>declaredComponent</code> puts back:</p>
-<ul>
+<h3><a name="Bringing-every-sheet-into-line-with-what-its-design-sets" class="anchor" href="#Bringing-every-sheet-into-line-with-what-its-design-sets">Bringing every sheet into line with what its design sets</a></h3>
+<p>A sheet is not drawn at its declared values and then adjusted for display: the values its design
+settles are <strong>written into it</strong>, canvas and declarations alike. <code>PropagateParameters</code> is the message
+that does it, and sending it twice or in the wrong order is harmless, because what it triggers is a
+pure recomputation from the primary state rather than an incremental edit — each design's top-sheet
+values, and the bindings on the instances below. That is what makes it safe to send after anything,
+and it is sent after everything: a project load, a top-sheet choice, an edit to what a sheet
+declares, and any draw-block message that changed an instance's bindings (<code>Update.fs</code>).</p>
+<p>Three steps, and they are separate because no one of them can do the others' work:</p>
+<ol>
 <li>
-*<em><code>DeclaredSlots</code>*</em> — the declared value of each parameterised slot the symbol is displaying
-differently. Slot values rather than a whole declared component, so that an edit made to any
-<em>other</em> field while computed values were on display — a constant's value, a memory's contents,
-the label — is saved as it stands.
+*<em><code>ParameterAnalysis.propagateParameterValues</code>*</em> — pure, over the <code>LoadedComponent</code>s. For every
+sheet it works out what its design sets each parameter to, writes the settled value into
+<code>DefaultBindings</code>, and rewrites the sheet's canvas at those values with
+<code>ComponentSlots.resolveCanvasAtBindings</code>. A parameter <em>nothing</em> sets is left exactly as it is:
+its stored value <strong>is</strong> the primary state for that sheet, and overwriting it would destroy the
+only copy. The instance tree is walked once per candidate top and the answers reused; asking
+<code>effectiveTopSheetFor</code> and then <code>displayValues</code> per sheet, as this did, cost
+<code>sheets × (roots + 1)</code> walks on every edit.
 </li>
 <li>
-*<em><code>DeclaredPortLabels</code>*</em> — the declared ports of a custom component instance. This one cannot be
-derived from the slot value: a <code>CustomCompParam</code> slot binds a parameter of the sheet <em>inside</em>
-the instance, and the port widths follow from that binding by way of the child sheet, which
-<code>ComponentSlots.setSlotValue</code> cannot reach. Without it a sheet saved while showing computed
-values writes an instance whose ports contradict its own bindings — exactly what
-<code>checkCustomComponentForOkIOs</code> rejects.
+*<em><code>CanvasExtractor.syncInstancePorts</code>*</em> — also pure, and separate because of what step 1 cannot
+reach. Resolving a <code>CustomCompParam</code> slot writes the value into the instance's
+<code>ParameterBindings</code>, which is as far as <code>ComponentSlots.setSlotValue</code> can see; the instance's
+<strong>port widths</strong> follow from that binding by way of the <em>child</em> sheet, and only
+<code>signatureOfInstance</code> knows how. Without this step a sheet came out of step 1 holding an instance
+whose bindings said one width and whose ports still said another — invisible on the open sheet,
+which is redrawn anyway, and written straight to file on every other, so that opening it raised
+the very instance-out-of-date error the per-instance signature exists to prevent. Widths only:
+the order of an instance's ports, and which ports it has, are left alone (see
+<a href="#keeping-instances-in-step-customcompportsfs">Keeping instances in step</a>).
 </li>
-</ul>
-<p>The direction matters and is forced by React caching. <code>SymbolView.renderSymbol</code> is a
-<code>FunctionComponent.Of(..., "Symbol", equalsButFunctions)</code> whose memo key is the whole <code>Symbol</code>
-record, so holding the computed value anywhere outside the symbol — a model-level map consulted at
-draw time — leaves every <code>Symbol</code> structurally unchanged when the top sheet changes, and the canvas
-silently goes stale. Putting the computed value in <code>Symbol.Component</code> makes the memo correct by
-construction, and every existing reader (<code>drawComponent</code>, port geometry, <code>H</code>/<code>W</code>, width inference,
-<code>GetComponentById</code>) gets real values with no change.</p>
+<li>
+*<em><code>ParameterView.propagateParameters</code>*</em> — the part that touches the world. A <strong>closed</strong> sheet
+whose values changed is written to its file at once, because only the open sheet is ever allowed
+to be unsaved; a sheet that cannot be written (a library component, which belongs to its library)
+is still brought into line in memory but its file is left alone. The <strong>open</strong> sheet's canvas is
+not in <code>LoadedComponents</code> but in the draw block, so its slots are pushed through the same
+symbol-change path the properties pane uses — symbol size, ports and geometry are recomputed
+rather than patched, and the change joins that sheet's undo history like any other edit.
+</li>
+</ol>
+<p>Steps 1 and 2 are both idempotent, which is what the whole arrangement rests on: undo need only
+restore the primary state and run it again, and no edit has to reason about which sheets a binding
+might reach.</p>
 <h2><a name="Component-Support" class="anchor" href="#Component-Support">Component Support</a></h2>
 <h3><a name="Currently-Parameterizable-Components" class="anchor" href="#Currently-Parameterizable-Components">Currently Parameterizable Components</a></h3>
 <h4><a name="Width-Configurable-Components" class="anchor" href="#Width-Configurable-Components">Width-Configurable Components</a></h4>
@@ -1061,7 +1130,7 @@ asks them for a value — the one place the parameter has to be understood.</p>
 <span class="n">1.</span> <span class="id">Add</span> <span class="id">Register</span> <span class="id">component</span> <span class="k">to</span> <span class="id">sheet</span>
 <span class="n">2.</span> <span class="id">Select</span> <span class="id">Register</span>
 <span class="n">3.</span> <span class="id">In</span> <span class="id">properties</span><span class="pn">,</span> <span class="id">enter</span> <span class="id">bus</span> <span class="id">width</span><span class="pn">:</span> <span class="s">&quot;WIDTH&quot;</span>
-<span class="n">4.</span> <span onmouseout="hideTip(event, 'fs19', 49)" onmouseover="showTip(event, 'fs19', 49)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">8</span>
+<span class="n">4.</span> <span onmouseout="hideTip(event, 'fs17', 44)" onmouseover="showTip(event, 'fs17', 44)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">8</span>
 <span class="n">5.</span> <span class="id">Change</span> <span class="id">WIDTH</span> <span class="id">parameter</span> 
 </code></pre>
 <h3><a name="Example-3-Override-in-Custom-Component" class="anchor" href="#Example-3-Override-in-Custom-Component">Example 3: Override in Custom Component</a></h3>
@@ -1075,52 +1144,62 @@ asks them for a value — the one place the parameter has to be understood.</p>
 <h3><a name="Example-4-Complex-Expression" class="anchor" href="#Example-4-Complex-Expression">Example 4: Complex Expression</a></h3>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="c">// Address decoder with calculated ranges</span>
 <span class="n">1.</span> <span class="id">Define</span> <span class="id">parameters</span><span class="pn">:</span> <span class="id">baseAddr</span> <span class="o">=</span> <span class="n">4096</span><span class="pn">,</span> <span class="id">blockSize</span> <span class="o">=</span> <span class="n">256</span>
-   <span class="pn">(</span><span onmouseout="hideTip(event, 'fs20', 50)" onmouseover="showTip(event, 'fs20', 50)" class="id">decimal</span> <span class="id">only</span> 
+   <span class="pn">(</span><span onmouseout="hideTip(event, 'fs18', 45)" onmouseover="showTip(event, 'fs18', 45)" class="id">decimal</span> <span class="id">only</span> 
 <span class="n">2.</span> <span class="id">Create</span> <span class="id">comparator</span> <span class="k">with</span> <span class="id">expression</span><span class="pn">:</span> <span class="s">&quot;baseAddr + (blockSize * 4)&quot;</span>
-<span class="n">3.</span> <span onmouseout="hideTip(event, 'fs19', 51)" onmouseover="showTip(event, 'fs19', 51)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">5120</span>
+<span class="n">3.</span> <span onmouseout="hideTip(event, 'fs17', 46)" onmouseover="showTip(event, 'fs17', 46)" class="id">System</span> <span class="id">evaluates</span> <span class="k">to</span> <span class="n">5120</span>
 </code></pre>
 <h2><a name="Error-Handling" class="anchor" href="#Error-Handling">Error Handling</a></h2>
 <p>The system provides comprehensive error handling at multiple levels:</p>
+<p>The user-facing word for a sheet parameter is <strong>property</strong>, and every message below says so; only
+the code calls them parameters. Quotes here are the messages themselves — <code>ParameterTypes</code> is where
+they are written.</p>
 <h3><a name="Parse-Errors" class="anchor" href="#Parse-Errors">Parse Errors</a></h3>
 <ul>
 <li><strong>Invalid syntax</strong>: "Contains unsupported characters: [']'"</li>
-<li><strong>Empty input</strong>: "Input Empty"</li>
+<li>
+<strong>Empty input</strong>: "Type a number or expression" (<code>ParameterTypes.emptyInputError</code>). It says what to
+do rather than what is wrong: an empty box is not a mistake, it is how the user asks to be offered
+a property to follow
+</li>
 <li><strong>Unmatched parentheses</strong>: "Mismatched parentheses"</li>
 <li>
-<strong>A number run into a name</strong>: "'2W' is neither a number nor a parameter name: a parameter name
+<strong>A number run into a name</strong>: "'2W' is neither a number nor a property name: a property name
 must start with a letter, and a multiplication must be written out as 2*W"
 </li>
 </ul>
 <h3><a name="Evaluation-Errors" class="anchor" href="#Evaluation-Errors">Evaluation Errors</a></h3>
 <p>An unresolved name is nearly always one of two mistakes, and they need different advice, so the
 message names the alternatives rather than only the failure:
-- <strong>Undefined parameter, where the sheet declares some</strong>: "Parameter 'WITDH' is not defined.
-Parameters of this sheet: DEPTH, WIDTH"
-- <strong>Undefined parameter, where the sheet declares none</strong>: "This value must be numeric: to use a
-parameter this must first be added to the sheet"
-- <strong>Self-reference</strong>: "Parameter 'W' is defined in terms of itself: W which uses W"
+- <strong>Undefined property, where the sheet declares some</strong>: "Property 'WITDH' is not defined.
+Properties of this sheet: DEPTH, WIDTH"
+- <strong>Undefined property, where the sheet declares none</strong>: "This value must be numeric: to use a
+property this must first be added to the sheet"
+- <strong>Self-reference</strong>: "Property 'W' is defined in terms of itself: W which uses W"
 - <strong>Division or remainder by zero</strong>: "Division by zero: 4 cannot be divided by 0"</p>
 <h3><a name="Constraint-Violations" class="anchor" href="#Constraint-Violations">Constraint Violations</a></h3>
 <ul>
-<li><strong>Value too small</strong>: Custom message from MinVal constraint</li>
-<li><strong>Value too large</strong>: Custom message from MaxVal constraint</li>
+<li>
+<strong>Value too small / too large</strong>: the author's message from the <code>MinVal</code> / <code>MaxVal</code> that the value
+failed, derived from the slot by <code>ComponentSlots.constraintsFor</code>
+</li>
 <li>
 <strong>Limit not evaluable</strong>: the author's message plus "- but that limit could not be worked out",
 because a bound that cannot be evaluated must not pass the value it guards
 </li>
+<li>
+<strong>An instance binding out of range</strong>: the message belonging to the slot of the <strong>child</strong> sheet
+that the value would break — see <code>ParameterView.instanceBindingProblem</code>
+</li>
 </ul>
-<h3><a name="Type-Errors" class="anchor" href="#Type-Errors">Type Errors</a></h3>
-<ul>
-<li><strong>Invalid component</strong>: "Invalid component [Type] for buswidth"</li>
-<li><strong>Wrong slot type</strong>: "CustomCompParam can only be used with Custom components"</li>
-</ul>
+<p>Only the first failure is shown. One bad value usually breaks the same bound on several components,
+and a column of repeated sentences reads as noise.</p>
 <h2><a name="Implementation-Details" class="anchor" href="#Implementation-Details">Implementation Details</a></h2>
 <h3><a name="Optics-Lenses-Pattern" class="anchor" href="#Optics-Lenses-Pattern">Optics/Lenses Pattern</a></h3>
 <p>The system uses functional lenses for immutable state updates:</p>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="k">let</span> <span class="id">paramSlotsOfModel_</span> <span class="o">=</span> 
     <span class="id">lcParameterInfoOfModel_</span> <span class="pn">&gt;</span><span class="o">?&gt;</span> <span class="id">paramSlots_</span>
 
-<span class="id">model</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs21', 52)" onmouseover="showTip(event, 'fs21', 52)" class="id">set</span> <span class="id">paramSlotsOfModel_</span> <span class="id">newSlots</span>
+<span class="id">model</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs19', 47)" onmouseover="showTip(event, 'fs19', 47)" class="id">set</span> <span class="id">paramSlotsOfModel_</span> <span class="id">newSlots</span>
 </code></pre>
 <h3><a name="Message-Dispatch" class="anchor" href="#Message-Dispatch">Message Dispatch</a></h3>
 <p>State changes flow through Elmish messages:</p>
@@ -1181,56 +1260,65 @@ Development &gt; Log, from <code>--log=sim</code> at launch, or from <code>windo
 <h2><a name="API-Reference" class="anchor" href="#API-Reference">API Reference</a></h2>
 <h3><a name="Key-Functions" class="anchor" href="#Key-Functions">Key Functions</a></h3>
 <h4><a name="Expression-Parsing" class="anchor" href="#Expression-Parsing">Expression Parsing</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">parseExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 53)" onmouseover="showTip(event, 'fs5', 53)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs22', 54)" onmouseover="showTip(event, 'fs22', 54)" class="id">Result</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs2', 55)" onmouseover="showTip(event, 'fs2', 55)" class="id">ParamExpression</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">parseExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 48)" onmouseover="showTip(event, 'fs5', 48)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs20', 49)" onmouseover="showTip(event, 'fs20', 49)" class="id">Result</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs2', 50)" onmouseover="showTip(event, 'fs2', 50)" class="id">ParamExpression</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
 </code></pre>
 <h4><a name="Expression-Evaluation" class="anchor" href="#Expression-Evaluation">Expression Evaluation</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs7', 56)" onmouseover="showTip(event, 'fs7', 56)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs2', 57)" onmouseover="showTip(event, 'fs2', 57)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs22', 58)" onmouseover="showTip(event, 'fs22', 58)" class="id">Result</span><span class="pn">&lt;</span><span class="id">ParamInt</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs7', 51)" onmouseover="showTip(event, 'fs7', 51)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs2', 52)" onmouseover="showTip(event, 'fs2', 52)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs20', 53)" onmouseover="showTip(event, 'fs20', 53)" class="id">Result</span><span class="pn">&lt;</span><span class="id">ParamInt</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
 </code></pre>
 <h4><a name="Expression-Rendering" class="anchor" href="#Expression-Rendering">Expression Rendering</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">renderParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 59)" onmouseover="showTip(event, 'fs2', 59)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 60)" onmouseover="showTip(event, 'fs6', 60)" class="id">int</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 61)" onmouseover="showTip(event, 'fs5', 61)" class="id">string</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">renderParamExpression</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 54)" onmouseover="showTip(event, 'fs2', 54)" class="id">ParamExpression</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 55)" onmouseover="showTip(event, 'fs6', 55)" class="id">int</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 56)" onmouseover="showTip(event, 'fs5', 56)" class="id">string</span>
 </code></pre>
 <h4><a name="Name-validity-the-parser-s-rule-and-the-dialog-s" class="anchor" href="#Name-validity-the-parser-s-rule-and-the-dialog-s">Name validity (the parser's rule and the dialog's)</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">isValidParamName</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 62)" onmouseover="showTip(event, 'fs5', 62)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs23', 63)" onmouseover="showTip(event, 'fs23', 63)" class="id">bool</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">isValidParamName</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs5', 57)" onmouseover="showTip(event, 'fs5', 57)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs21', 58)" onmouseover="showTip(event, 'fs21', 58)" class="id">bool</span>
 </code></pre>
 <h4><a name="Slot-identity-the-label-is-not-part-of-it" class="anchor" href="#Slot-identity-the-label-is-not-part-of-it">Slot identity (the <code>IO</code> label is not part of it)</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">sameSlot</span><span class="pn">:</span>     <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs23', 64)" onmouseover="showTip(event, 'fs23', 64)" class="id">bool</span>
-<span class="id">tryFindSlot</span><span class="pn">:</span>  <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs24', 65)" onmouseover="showTip(event, 'fs24', 65)" class="id">option</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">sameSlot</span><span class="pn">:</span>     <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs21', 59)" onmouseover="showTip(event, 'fs21', 59)" class="id">bool</span>
+<span class="id">tryFindSlot</span><span class="pn">:</span>  <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs22', 60)" onmouseover="showTip(event, 'fs22', 60)" class="id">option</span>
 <span class="id">addSlot</span><span class="pn">:</span>      <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span>
 <span class="id">removeSlot</span><span class="pn">:</span>   <span class="id">ParamSlot</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span> <span class="k">-&gt;</span> <span class="id">ComponentSlotExpr</span>
 </code></pre>
 <h4><a name="An-instance-s-ports" class="anchor" href="#An-instance-s-ports">An instance's ports (<code>CanvasExtractor</code>)</a></h4>
 <pre class="fssnip highlighted"><code lang="fsharp"><span class="id">signatureOfInstance</span><span class="pn">:</span>
-    <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs25', 66)" onmouseover="showTip(event, 'fs25', 66)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 67)" onmouseover="showTip(event, 'fs7', 67)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 68)" onmouseover="showTip(event, 'fs5', 68)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 69)" onmouseover="showTip(event, 'fs7', 69)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">Signature</span> <span onmouseout="hideTip(event, 'fs24', 70)" onmouseover="showTip(event, 'fs24', 70)" class="id">option</span>
+    <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs23', 61)" onmouseover="showTip(event, 'fs23', 61)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 62)" onmouseover="showTip(event, 'fs7', 62)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 63)" onmouseover="showTip(event, 'fs5', 63)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 64)" onmouseover="showTip(event, 'fs7', 64)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">Signature</span> <span onmouseout="hideTip(event, 'fs22', 65)" onmouseover="showTip(event, 'fs22', 65)" class="id">option</span>
 <span class="id">signatureOfInstanceWithCertainty</span><span class="pn">:</span>
-    <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs25', 71)" onmouseover="showTip(event, 'fs25', 71)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 72)" onmouseover="showTip(event, 'fs7', 72)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 73)" onmouseover="showTip(event, 'fs5', 73)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 74)" onmouseover="showTip(event, 'fs7', 74)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="pn">(</span><span class="id">Signature</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs23', 75)" onmouseover="showTip(event, 'fs23', 75)" class="id">bool</span><span class="pn">)</span> <span onmouseout="hideTip(event, 'fs24', 76)" onmouseover="showTip(event, 'fs24', 76)" class="id">option</span>
+    <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs23', 66)" onmouseover="showTip(event, 'fs23', 66)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 67)" onmouseover="showTip(event, 'fs7', 67)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 68)" onmouseover="showTip(event, 'fs5', 68)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 69)" onmouseover="showTip(event, 'fs7', 69)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="pn">(</span><span class="id">Signature</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs21', 70)" onmouseover="showTip(event, 'fs21', 70)" class="id">bool</span><span class="pn">)</span> <span onmouseout="hideTip(event, 'fs22', 71)" onmouseover="showTip(event, 'fs22', 71)" class="id">option</span>
 </code></pre>
 <p>The arguments are: the project's sheets, the bindings of the sheet the instance <em>sits on</em>, the
 child sheet's name, and the instance's bindings.</p>
+<h4><a name="Sizing-every-instance-in-a-project-at-its-own-bindings" class="anchor" href="#Sizing-every-instance-in-a-project-at-its-own-bindings">Sizing every instance in a project at its own bindings (<code>CanvasExtractor</code>)</a></h4>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">withPortWidths</span><span class="pn">:</span>    <span onmouseout="hideTip(event, 'fs8', 72)" onmouseover="showTip(event, 'fs8', 72)" class="id">Map</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs5', 73)" onmouseover="showTip(event, 'fs5', 73)" class="id">string</span><span class="pn">,</span><span onmouseout="hideTip(event, 'fs6', 74)" onmouseover="showTip(event, 'fs6', 74)" class="id">int</span><span class="pn">&gt;</span> <span class="k">-&gt;</span> <span class="id">CustomComponentType</span> <span class="k">-&gt;</span> <span class="id">CustomComponentType</span>
+<span class="id">syncInstancePorts</span><span class="pn">:</span> <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs23', 75)" onmouseover="showTip(event, 'fs23', 75)" class="id">list</span> <span class="k">-&gt;</span> <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs23', 76)" onmouseover="showTip(event, 'fs23', 76)" class="id">list</span>
+</code></pre>
+<p>Widths only, matched by port label: the order of an instance's ports and which ports it has are
+left alone. Run after <code>ParameterAnalysis.propagateParameterValues</code>, which cannot reach them.</p>
 <h4><a name="Slot-resolution" class="anchor" href="#Slot-resolution">Slot resolution (<code>ComponentSlots</code>)</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">trySetSlotValue</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 77)" onmouseover="showTip(event, 'fs4', 77)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 78)" onmouseover="showTip(event, 'fs6', 78)" class="id">int</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span onmouseout="hideTip(event, 'fs24', 79)" onmouseover="showTip(event, 'fs24', 79)" class="id">option</span>
-<span class="id">setSlotValue</span><span class="pn">:</span>    <span onmouseout="hideTip(event, 'fs4', 80)" onmouseover="showTip(event, 'fs4', 80)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs6', 81)" onmouseover="showTip(event, 'fs6', 81)" class="id">int</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span>
-<span class="id">slotApplies</span><span class="pn">:</span>     <span onmouseout="hideTip(event, 'fs4', 82)" onmouseover="showTip(event, 'fs4', 82)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs23', 83)" onmouseover="showTip(event, 'fs23', 83)" class="id">bool</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">trySetSlotValue</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs4', 77)" onmouseover="showTip(event, 'fs4', 77)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span class="id">ParamInt</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span onmouseout="hideTip(event, 'fs22', 78)" onmouseover="showTip(event, 'fs22', 78)" class="id">option</span>
+<span class="id">setSlotValue</span><span class="pn">:</span>    <span onmouseout="hideTip(event, 'fs4', 79)" onmouseover="showTip(event, 'fs4', 79)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span class="id">ParamInt</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span>
+<span class="id">slotApplies</span><span class="pn">:</span>     <span onmouseout="hideTip(event, 'fs4', 80)" onmouseover="showTip(event, 'fs4', 80)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs21', 81)" onmouseover="showTip(event, 'fs21', 81)" class="id">bool</span>
+<span class="id">constraintsFor</span><span class="pn">:</span>  <span onmouseout="hideTip(event, 'fs4', 82)" onmouseover="showTip(event, 'fs4', 82)" class="id">CompSlotName</span> <span class="k">-&gt;</span> <span class="id">ComponentType</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs3', 83)" onmouseover="showTip(event, 'fs3', 83)" class="id">ParamConstraint</span> <span onmouseout="hideTip(event, 'fs23', 84)" onmouseover="showTip(event, 'fs23', 84)" class="id">list</span>
 </code></pre>
 <h4><a name="Constraint-Checking" class="anchor" href="#Constraint-Checking">Constraint Checking</a></h4>
-<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateConstraints</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs7', 84)" onmouseover="showTip(event, 'fs7', 84)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs25', 85)" onmouseover="showTip(event, 'fs25', 85)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs22', 86)" onmouseover="showTip(event, 'fs22', 86)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Unit</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs3', 87)" onmouseover="showTip(event, 'fs3', 87)" class="id">ParamConstraint</span> <span onmouseout="hideTip(event, 'fs25', 88)" onmouseover="showTip(event, 'fs25', 88)" class="id">list</span><span class="pn">&gt;</span>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">evaluateConstraints</span><span class="pn">:</span>    <span onmouseout="hideTip(event, 'fs7', 85)" onmouseover="showTip(event, 'fs7', 85)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">ConstrainedExpr</span> <span onmouseout="hideTip(event, 'fs23', 86)" onmouseover="showTip(event, 'fs23', 86)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs20', 87)" onmouseover="showTip(event, 'fs20', 87)" class="id">Result</span><span class="pn">&lt;</span><span class="id">Unit</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs3', 88)" onmouseover="showTip(event, 'fs3', 88)" class="id">ParamConstraint</span> <span onmouseout="hideTip(event, 'fs23', 89)" onmouseover="showTip(event, 'fs23', 89)" class="id">list</span><span class="pn">&gt;</span>
+<span class="id">instanceBindingProblem</span><span class="pn">:</span> <span class="id">LoadedComponent</span> <span onmouseout="hideTip(event, 'fs23', 90)" onmouseover="showTip(event, 'fs23', 90)" class="id">list</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs5', 91)" onmouseover="showTip(event, 'fs5', 91)" class="id">string</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 92)" onmouseover="showTip(event, 'fs7', 92)" class="id">ParamBindings</span> <span class="k">-&gt;</span> <span class="id">ParamName</span> <span class="k">-&gt;</span> <span class="id">ParamInt</span>
+                            <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs20', 93)" onmouseover="showTip(event, 'fs20', 93)" class="id">Result</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs24', 94)" onmouseover="showTip(event, 'fs24', 94)" class="id">unit</span><span class="pn">,</span> <span class="id">ParamError</span><span class="pn">&gt;</span>
 </code></pre>
 <h2><a name="Resolution-Mechanics-Deep-Dive" class="anchor" href="#Resolution-Mechanics-Deep-Dive">Resolution Mechanics Deep-Dive</a></h2>
 <ul>
 <li>UI evaluation: <code>ParameterTypes.evaluateParamExpression</code> performs recursive substitution and constant-folding with detailed errors. Used by <code>ParameterView</code> for validation and preview.</li>
 <li>Graph evaluation: <code>GraphMerger.resolveParametersInSimulationGraph</code> walks the sheet tree with <code>resolveSheet</code>, evaluating each slot with <code>evaluateParamExpression</code> and writing concrete values into <code>SimulationGraph</code> component types with <code>ComponentSlots.setSlotValue</code>; any failure is a <code>SimulationError</code>.</li>
 <li>Validation: <code>CanvasStateAnalyser.checkCustomComponentForOkIOs</code> asks <code>CanvasExtractor.signatureOfInstanceWithCertainty</code> what the instance's ports should be, and compares names only when the answer is inexact.</li>
-<li>Slot access: <code>ComponentSlots.trySetSlotValue : CompSlotName -&gt; int -&gt; ComponentType -&gt; ComponentType option</code> is the single mapping from a slot to a field of <code>Component.Type</code>, returning <code>None</code> where the component has no such slot. <code>setSlotValue</code> is the total version used by the paths that must not fail on an old file; <code>slotApplies</code> is the predicate used to refuse a bad slot where it is written.</li>
+<li>Slot access: <code>ComponentSlots.trySetSlotValue : CompSlotName -&gt; ParamInt -&gt; ComponentType -&gt; ComponentType option</code> is the single mapping from a slot to a field of <code>Component.Type</code>, returning <code>None</code> where the component has no such slot — and also where the value is too large to be the <code>int</code> that field holds, which is the one place a parameter value stops being a bigint. <code>setSlotValue</code> is the total version used by the paths that must not fail on an old file; <code>slotApplies</code> is the predicate used to refuse a bad slot where it is written; <code>constraintsFor</code> says what may go in the slot, and is kept beside the mapping that says where it goes.</li>
 <li>Instance ports: <code>CanvasExtractor.signatureOfInstance</code> resolves the child sheet's canvas at the instance's effective bindings and reads off the ordered IO labels. <code>effectiveInstanceBindings</code> is the same merge <code>GraphMerger.effectiveBindings</code> makes for elaboration, so what is drawn and what is simulated agree.</li>
 </ul>
 <h2><a name="Developer-Notes-Files-amp-Responsibilities" class="anchor" href="#Developer-Notes-Files-amp-Responsibilities">Developer Notes (Files &amp; Responsibilities)</a></h2>
 <ul>
 <li><code>src/Renderer/Common/ParameterTypes.fs</code>: Types (<code>ParamExpression</code>, <code>ParamConstraint</code>, <code>ParamSlot</code>, <code>ParameterDefs</code>), parser (<code>parseExpression</code>) and its name rule (<code>isValidParamName</code>), evaluator (<code>evaluateParamExpression</code>), renderer (<code>renderParamExpression</code>), slot identity (<code>sameSlot</code>, <code>tryFindSlot</code>, <code>addSlot</code>, <code>removeSlot</code>), and <code>bindingsOf</code>, which every evaluation environment is derived through.</li>
-<li><code>src/Renderer/Simulator/CanvasExtractor.fs</code>: what a custom component instance's ports are (<code>signatureOfInstance</code>, <code>signatureOfInstanceWithCertainty</code>, <code>effectiveInstanceBindings</code>, <code>resolveCanvasAtBindings</code>), and <code>tidyParamSlots</code>, which puts a sheet's slots in order against its canvas on every save.</li>
+<li><code>src/Renderer/Simulator/CanvasExtractor.fs</code>: what a custom component instance's ports are (<code>signatureOfInstance</code>, <code>signatureOfInstanceWithCertainty</code>, <code>effectiveInstanceBindings</code>, <code>resolveCanvasAtBindings</code>), sizing every instance in a project at its own bindings (<code>syncInstancePorts</code>, <code>withPortWidths</code>), and <code>tidyParamSlots</code>, which puts a sheet's slots in order against its canvas on every save.</li>
 <li><code>src/Renderer/UI/CustomCompPorts.fs</code>: keeping instances in step with the sheet inside them - <code>getOutOfDateDependents</code> (per instance, against its own bindings), <code>updateInstance</code>, and the confirmation dialog.</li>
-<li><code>src/Renderer/Common/ComponentSlots.fs</code>: the one mapping from a <code>CompSlotName</code> to a field of a <code>ComponentType</code>, used by the properties pane, by elaboration and by the sheet-description DSL.</li>
+<li><code>src/Renderer/Common/ComponentSlots.fs</code>: the one mapping from a <code>CompSlotName</code> to a field of a <code>ComponentType</code> (<code>trySetSlotValue</code>), the bounds that field imposes (<code>constraintsFor</code>), and resolving a whole canvas at a set of bindings (<code>resolveCanvasAtBindings</code>). Used by the properties pane, by elaboration and by the sheet-description DSL.</li>
 <li><code>src/Renderer/Common/SheetDescription.fs</code>, <code>src/Renderer/DrawBlock/SheetLayout.fs</code>: sheets written as data - components, logical connections, parameters and slots - laid out and saved without Issie running. See <a href="dev/sheetDescriptionDsl.html">dev/sheetDescriptionDsl.md</a>.</li>
-<li><code>src/Renderer/Common/ParameterAnalysis.fs</code>: Design-time instance-tree analysis under a top sheet (<code>analyseUnderTop</code>, <code>displayValues</code>), top-sheet inference (<code>effectiveTopSheet</code>, <code>instanceForestRoots</code>), and bind-to-top chain computation (<code>findBindOffers</code>).</li>
-<li><code>src/Renderer/UI/ParameterView.fs</code>: Sheet defaults and slot bindings CRUD, constraint checking, component updates, parameter UI fields/popups, display-value annotations, the placement popup (<code>customComponentParamPopup</code>), the bind-to-top button action (<code>applyBindOffers</code>), and the top-choice popup (<code>topSheetChoiceCheck</code>).</li>
+<li><code>src/Renderer/Common/ParameterAnalysis.fs</code>: Design-time instance-tree analysis under a top sheet (<code>analyseUnderTop</code>, <code>displayValues</code>), top-sheet inference (<code>effectiveTopSheetFor</code>, <code>instanceForestRoots</code>), bringing every sheet into line with what its design sets (<code>propagateParameterValues</code>), and bind-to-top chain computation (<code>findBindOffers</code>).</li>
+<li><code>src/Renderer/UI/ParameterView.fs</code>: Sheet defaults and slot bindings CRUD, constraint checking (<code>evaluateConstraints</code>, <code>instanceBindingProblem</code>), component updates, parameter UI fields/popups, the propagation that touches the world (<code>propagateParameters</code>), the placement popup (<code>customComponentParamPopup</code>), the bind-to-top button action (<code>applyBindOffers</code>), and the top-choice popup (<code>topSheetChoiceCheck</code>).</li>
 <li><code>src/Renderer/UI/CatalogueView.fs</code>: Raises the placement popup, sizes an instance's ports with <code>signatureOfInstance</code> at the chosen bindings, sets <code>ParameterBindings</code> on it.</li>
 <li><code>src/Renderer/Simulator/GraphMerger.fs</code>: Two-stage resolution during merge; graphs merged first, then one recursive <code>resolveSheet</code> walk that applies each sheet's slots and descends with each instance's bindings, memoised on the diff from defaults.</li>
 <li><code>src/Renderer/Simulator/CanvasStateAnalyser.fs</code>: Checks each custom component instance's ports against <code>signatureOfInstanceWithCertainty</code>, comparing names only where the widths cannot be known without the parent sheet.</li>
@@ -1245,10 +1333,10 @@ scope. Following a design-wide constant down a hierarchy means a parameter on ev
 between, which is what the bind-to-top button materialises.
 </li>
 <li>
-The open sheet is drawn at the values its parameters take under the current top sheet, but only
-where every instance agrees (<code>ExactValue</code>). Where they disagree, or the sheet is not
-instantiated under the top, it is drawn at its declared values. Design-time width inference runs
-on whatever is drawn; simulation elaboration performs the exact check.
+A sheet reached by two paths that bind it differently is written at the <strong>largest</strong> of the values,
+with the others shown beside it in the properties pane. That is a choice made so that the value
+is definite and the recomputation idempotent, not a claim that the largest is the right one to
+look at; the strong answer is the last limitation below.
 </li>
 <li>
 <code>signatureOfInstanceWithCertainty</code> cannot evaluate a binding that is an expression in the parent
@@ -1383,21 +1471,20 @@ from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&
 <div class="fsdocs-tip" id="fs14">val min: e1: &#39;T -&gt; e2: &#39;T -&gt; &#39;T (requires comparison)</div>
 <div class="fsdocs-tip" id="fs15">union case ParamConstraint.MinVal: ParamExpression * obj -&gt; ParamConstraint</div>
 <div class="fsdocs-tip" id="fs16">union case ParamConstraint.MaxVal: ParamExpression * obj -&gt; ParamConstraint</div>
-<div class="fsdocs-tip" id="fs17">union case ParamExpression.PInt: obj -&gt; ParamExpression</div>
-<div class="fsdocs-tip" id="fs18">type bigint = System.Numerics.BigInteger</div>
-<div class="fsdocs-tip" id="fs19">namespace System</div>
-<div class="fsdocs-tip" id="fs20">Multiple items<br />val decimal: value: &#39;T -&gt; decimal (requires member op_Explicit)<br /><br />--------------------<br />type decimal = System.Decimal<br /><br />--------------------<br />type decimal&lt;&#39;Measure&gt; =
+<div class="fsdocs-tip" id="fs17">namespace System</div>
+<div class="fsdocs-tip" id="fs18">Multiple items<br />val decimal: value: &#39;T -&gt; decimal (requires member op_Explicit)<br /><br />--------------------<br />type decimal = System.Decimal<br /><br />--------------------<br />type decimal&lt;&#39;Measure&gt; =
   decimal</div>
-<div class="fsdocs-tip" id="fs21">val set: elements: &#39;T seq -&gt; Set&lt;&#39;T&gt; (requires comparison)</div>
-<div class="fsdocs-tip" id="fs22">Multiple items<br />module Result
+<div class="fsdocs-tip" id="fs19">val set: elements: &#39;T seq -&gt; Set&lt;&#39;T&gt; (requires comparison)</div>
+<div class="fsdocs-tip" id="fs20">Multiple items<br />module Result
 
 from Microsoft.FSharp.Core<br /><br />--------------------<br />[&lt;Struct&gt;]
 type Result&lt;&#39;T,&#39;TError&gt; =
   | Ok of ResultValue: &#39;T
   | Error of ErrorValue: &#39;TError</div>
-<div class="fsdocs-tip" id="fs23">type bool = System.Boolean</div>
-<div class="fsdocs-tip" id="fs24">type &#39;T option = Option&lt;&#39;T&gt;</div>
-<div class="fsdocs-tip" id="fs25">type &#39;T list = List&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs21">type bool = System.Boolean</div>
+<div class="fsdocs-tip" id="fs22">type &#39;T option = Option&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs23">type &#39;T list = List&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs24">type unit = Unit</div>
 
     </div>
 </main>
@@ -1550,13 +1637,13 @@ type Result&lt;&#39;T,&#39;TError&gt; =
     </a>
   </li>
   <li class="level-3">
-    <a href="#Features">
-      Features
+    <a href="#Derived-from-the-slot-not-stored-on-it">
+      Derived from the slot, not stored on it
     </a>
   </li>
   <li class="level-3">
-    <a href="#Example">
-      Example
+    <a href="#An-instance-binding-is-checked-against-the-sheet-inside-it">
+      An instance binding is checked against the sheet inside it
     </a>
   </li>
   <li class="level-2">
@@ -1585,8 +1672,8 @@ type Result&lt;&#39;T,&#39;TError&gt; =
     </a>
   </li>
   <li class="level-3">
-    <a href="#Drawing-at-computed-values-and-saving-what-was-declared">
-      Drawing at computed values, and saving what was declared
+    <a href="#Bringing-every-sheet-into-line-with-what-its-design-sets">
+      Bringing every sheet into line with what its design sets
     </a>
   </li>
   <li class="level-2">
@@ -1667,11 +1754,6 @@ type Result&lt;&#39;T,&#39;TError&gt; =
   <li class="level-3">
     <a href="#Constraint-Violations">
       Constraint Violations
-    </a>
-  </li>
-  <li class="level-3">
-    <a href="#Type-Errors">
-      Type Errors
     </a>
   </li>
   <li class="level-2">

@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -303,6 +309,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
 
   </a>
 </li>             
@@ -2460,6 +2472,60 @@
 
  Keep each entry to what the field does and, where there is one, the thing people get wrong.
             </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
+            <a name="RamStore">
+              <a href="/issie/reference/global-ramstore.html">
+                RamStore
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RamStore`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RamStore\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L31-31" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <pre> How a read/write memory's contents are held while a simulation runs.
+
+ See [docs/dev/ramRepresentation.md] for why this exists and what it is worth. In short: the
+ contents used to be a `Map<bigint,bigint>` and a fresh snapshot of it was stored for every
+ clock step, so a write cost an AVL path copy plus two boxed `BigInt`s, a read cost a descent
+ with boxed comparisons, and a long waveform simulation retained every version it had ever
+ made. Here
+
+ - a read during simulation is an array index,
+ - a write appends two numbers to shared flat arrays,
+ - the value an address held at any past step is a binary search of that address's own writes,
+   whose cost does not depend on how far the cursor moved, and
+ - nothing at all is allocated per step.
+
+ **Storage is CSR.** Every address that is ever written is given a *slot* number, and a slot's
+ writes are one contiguous run of the shared `IStep`/`IVal` arrays, delimited by `Start`. The
+ alternative - a growable list per address - costs a record and two list objects per address,
+ which is around 230 bytes for what may be a single 8-byte write. That is affordable for one
+ big RAM and is not for a hundred small ones, which between them have just as many addresses.
+ Recent writes go to a small tail and are folded in by `compact`.
+
+ **Where this file sits.** F# compile order is the dependency layering, and
+ `SimGraphTypes.SimulationComponentState` names this type, so it has to be compiled before
+ `SimGraphTypes.fs` and cannot live in the `FastSim` block with the rest of the simulator. It
+ depends on nothing but `CommonTypes`, which is what makes that possible.
+
+ **Mutability.** This is the same layer as the step arrays, which are already mutable, and
+ [docs/mutableState.md] allows it for a measured performance reason - the whole point here is
+ to stop allocating. Nothing mutable escapes: `Memory1` remains the immutable type everywhere
+ outside the running simulation, and `toMemory` builds one on demand.</pre>
           </div>
         </td>
       </tr>

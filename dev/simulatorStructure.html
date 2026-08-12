@@ -127,6 +127,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -306,6 +312,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
 
   </a>
 </li>             
@@ -594,7 +606,8 @@ bug in the change.
 </ul>
 <h2><a name="What-building-a-simulation-costs" class="anchor" href="#What-building-a-simulation-costs">What building a simulation costs</a></h2>
 <p>Compiled reducers move work from the run loop to the build, so the build is where to look for a
-regression. On <code>3cpu</code> (349 components, one 16-bit ROM), under .NET:</p>
+regression. On <code>3cpu</code> (349 components; <code>CODEMEM</code>, a 64K x 16 <code>AsyncROM1</code>, and <code>DATAMEM</code>, a 64K x 16
+<code>AsyncRAM1</code>), under .NET:</p>
 <table>
 <thead>
 <tr class="header">
@@ -637,7 +650,9 @@ keyed by <code>bigint</code>, written every step for the waveform viewer, plus a
 step whether or not anything is written. On the sieve this is ~11% of CPU and essentially all
 remaining allocation. Fixing it means changing that representation, which touches <code>FastExtract</code>
 and <code>WaveSimRams</code>. A mutable read cache alongside the map is not a shortcut — it desynchronises
-when the simulation restarts or replays through the circular buffer.</p>
+when the simulation restarts or replays through the circular buffer.
+<a href="ramRepresentation.html">ramRepresentation.md</a> works out what to replace it with — a mutable array,
+a write journal and an index over the journal by address — and what that is worth.</p>
 <p>*<em><code>FastComponent</code> carries five unrelated concerns*</em>: step data, the reducers, ordering scratch
 (<code>Touched</code>, <code>NumMissingInputValues</code>, <code>DrivenComponents</code>), naming (<code>FullName</code>, <code>SimSheetName</code>,
 <code>SimSheetNamePath</code>, <code>SheetName</code>, <code>FLabel</code>) and Verilog output names. Only the first two are needed

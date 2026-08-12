@@ -124,6 +124,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -307,6 +313,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -415,12 +427,6 @@
       <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/simgraphtypes-simulationcomponentstate.html">SimulationComponentState</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
-      , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/simgraphtypes-simulationcomponentstate.html">SimulationComponentState</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
@@ -454,7 +460,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5691', 5691)" onmouseover="showTip(event, '5691', 5691)">
+              <code onmouseout="hideTip(event, '5755', 5755)" onmouseover="showTip(event, '5755', 5755)">
                 <p>
                   <a id="DffState">
                     <a href="#DffState">
@@ -463,7 +469,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5691">
+              <div class="fsdocs-tip" id="5755">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>DffState&#32;uint32</span></code>
@@ -501,7 +507,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5692', 5692)" onmouseover="showTip(event, '5692', 5692)">
+              <code onmouseout="hideTip(event, '5756', 5756)" onmouseover="showTip(event, '5756', 5756)">
                 <p>
                   <a id="NoState">
                     <a href="#NoState">
@@ -510,7 +516,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5692">
+              <div class="fsdocs-tip" id="5756">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>NoState</span></code>
@@ -534,19 +540,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5693', 5693)" onmouseover="showTip(event, '5693', 5693)">
+              <code onmouseout="hideTip(event, '5757', 5757)" onmouseover="showTip(event, '5757', 5757)">
                 <p>
                   <a id="RamState">
                     <a href="#RamState">
-                      <code><span>RamState&#32;<a href="/issie/reference/commontypes-memory1.html">Memory1</a></span></code>
+                      <code><span>RamState&#32;<a href="/issie/reference/ramstore-ram.html">Ram</a></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5693">
+              <div class="fsdocs-tip" id="5757">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>RamState&#32;<a href="/issie/reference/commontypes-memory1.html">Memory1</a></span></code>
+                  <code><span>RamState&#32;<a href="/issie/reference/ramstore-ram.html">Ram</a></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -556,7 +562,7 @@
                         Item
                       </b>
                       :
-                      <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
                     </span>
                     <br/>
                   </ul>
@@ -566,22 +572,37 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item
-                </span>
-                :
-                <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimGraphTypes.fs#L35-35" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A read/write memory's contents. Not a `Memory1`: that would mean building a whole `Map`
+ for every clock step, which is the cost `RamStore` exists to remove. The store is mutable
+ and shared by every step, so the step it is being read at has to be supplied alongside -
+ see [docs/dev/ramRepresentation.md].
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    Item
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5694', 5694)" onmouseover="showTip(event, '5694', 5694)">
+              <code onmouseout="hideTip(event, '5758', 5758)" onmouseover="showTip(event, '5758', 5758)">
                 <p>
                   <a id="RegisterState">
                     <a href="#RegisterState">
@@ -590,7 +611,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5694">
+              <div class="fsdocs-tip" id="5758">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>RegisterState&#32;<a href="/issie/reference/simgraphtypes-fastdata.html">FastData</a></span></code>
@@ -650,7 +671,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5695', 5695)" onmouseover="showTip(event, '5695', 5695)">
+              <code onmouseout="hideTip(event, '5759', 5759)" onmouseover="showTip(event, '5759', 5759)">
                 <p>
                   <a id="IsDffState">
                     <a href="#IsDffState">
@@ -659,7 +680,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5695">
+              <div class="fsdocs-tip" id="5759">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsDffState</span></code>
@@ -689,7 +710,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5696', 5696)" onmouseover="showTip(event, '5696', 5696)">
+              <code onmouseout="hideTip(event, '5760', 5760)" onmouseover="showTip(event, '5760', 5760)">
                 <p>
                   <a id="IsNoState">
                     <a href="#IsNoState">
@@ -698,7 +719,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5696">
+              <div class="fsdocs-tip" id="5760">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsNoState</span></code>
@@ -728,7 +749,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5697', 5697)" onmouseover="showTip(event, '5697', 5697)">
+              <code onmouseout="hideTip(event, '5761', 5761)" onmouseover="showTip(event, '5761', 5761)">
                 <p>
                   <a id="IsRamState">
                     <a href="#IsRamState">
@@ -737,7 +758,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5697">
+              <div class="fsdocs-tip" id="5761">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsRamState</span></code>
@@ -767,7 +788,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5698', 5698)" onmouseover="showTip(event, '5698', 5698)">
+              <code onmouseout="hideTip(event, '5762', 5762)" onmouseover="showTip(event, '5762', 5762)">
                 <p>
                   <a id="IsRegisterState">
                     <a href="#IsRegisterState">
@@ -776,7 +797,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5698">
+              <div class="fsdocs-tip" id="5762">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsRegisterState</span></code>

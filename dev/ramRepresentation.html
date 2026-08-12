@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="How a RAM is represented in the fast simulator
+" />
+    <meta property="og:url" content="/issie/dev/ramRepresentation.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="How a RAM is represented in the fast simulator
+">
+    
+    <title>How a RAM is represented in the fast simulator
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="How-a-RAM-is-represented-in-the-fast-simulator" class="anchor" href="#How-a-RAM-is-represented-in-the-fast-simulator">How a RAM is represented in the fast simulator</a></h1>
+<p>Phase 1 of this is <strong>implemented</strong>: <code>Simulator/RamStore.fs</code> holds a memory's contents, and the
+<code>Map&lt;bigint,bigint&gt;</code> snapshot per clock step is gone. What follows sets out what the old
+representation cost, what replaced it, what that measured, and what is deliberately left for
+phase 2.</p>
+<h2><a name="Measured" class="anchor" href="#Measured">Measured</a></h2>
+<p><code>Tests/Issie.Tests/RamBenchmark.fs</code> drives a 64K x 16 RAM with one write every eight clocks, the
+address advancing per write so a long run touches all 65536 words. Median of five under .NET after
+a discarded warm-up run, against the same harness on the commit before the change. <strong>.NET speed is
+indicative only</strong> - <code>simulatorStructure.md</code> records one change measuring 2.5x under .NET and 11.9x
+in V8 - but the space figures are real.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>64K x 16, 1 write in 8</p></th>
+<th align="right"><p>cycles</p></th>
+<th align="right"><p>before</p></th>
+<th align="right"><p>after</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>sync RAM, address sweep</p></td>
+<td align="right"><p>524 288</p></td>
+<td align="right"><p>339 cycles/ms, 97.5 MB</p></td>
+<td align="right"><p><strong>1.3 MB</strong></p></td>
+</tr>
+<tr class="even">
+<td><p>async RAM, address sweep</p></td>
+<td align="right"><p>524 288</p></td>
+<td align="right"><p>337 cycles/ms, 97.5 MB</p></td>
+<td align="right"><p><strong>1.3 MB</strong></p></td>
+</tr>
+<tr class="odd">
+<td><p>all writes to one address</p></td>
+<td align="right"><p>524 288</p></td>
+<td align="right"><p>2465 cycles/ms, 26.2 MB</p></td>
+<td align="right"><p><strong>0.9 MB</strong></p></td>
+</tr>
+<tr class="even">
+<td><p>sync RAM, address sweep</p></td>
+<td align="right"><p>1 048 576</p></td>
+<td align="right"><p>396 cycles/ms, 190.3 MB</p></td>
+<td align="right"><p><strong>1.3 MB</strong></p></td>
+</tr>
+<tr class="odd">
+<td><p>async RAM, address sweep</p></td>
+<td align="right"><p>1 048 576</p></td>
+<td align="right"><p>360 cycles/ms, 190.3 MB</p></td>
+<td align="right"><p><strong>1.3 MB</strong></p></td>
+</tr>
+<tr class="even">
+<td><p>all writes to one address</p></td>
+<td align="right"><p>1 048 576</p></td>
+<td align="right"><p>1423 cycles/ms, 52.4 MB</p></td>
+<td align="right"><p><strong>1.6 MB</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Speed measured 3000-16000 cycles/ms across these, against 340-2500 before, but the .NET spread
+between repetitions of the <em>same</em> configuration is as much as 5x, so the only safe reading is
+"an order of magnitude, direction certain, figure not". Space is stable to the tenth of a megabyte.</p>
+<p><strong>Retained space no longer tracks run length</strong>: 1.3 MB at 524 288 cycles and at 1 048 576 alike,
+where the old representation doubled with the run. That is 65536 addresses at 8 bytes an entry
+plus a 256 kB offset table - against 190 MB. What is left scales with <em>entries actually written</em>,
+and the one-address rows show it doing exactly that: 8 bytes a write, nothing else.</p>
+<h3><a name="The-whole-design-5eratosthenes" class="anchor" href="#The-whole-design-5eratosthenes">The whole design: 5eratosthenes</a></h3>
+<p>The two above isolate a RAM. This one does not: the <code>5eratosthenes</code> demo is the EEP1 CPU, 349
+component reductions a clock, and the RAM is one of them. It is the benchmark
+<code>simulatorStructure.md</code> names. Run for <strong>1 000 000 cycles</strong> of the full <code>sieve</code> program - the demo
+ships linked to <code>sievesmall</code>, which halts under 25 000 cycles and then spins in a self-jump, so
+<code>RamBenchmark</code> relinks the ROM - and reaching 51 246 words of the sieve array written, which is
+what says the CPU is computing rather than idling.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>1 000 000 cycles</p></th>
+<th align="right"><p>before</p></th>
+<th align="right"><p>after</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>step simulator (550 steps, wrapping)</p></td>
+<td align="right"><p>176-282 cycles/ms, 3.5 MB</p></td>
+<td align="right"><p>232-432 cycles/ms, <strong>1.9 MB</strong></p></td>
+</tr>
+<tr class="even">
+<td><p>waveform (1 000 003 steps, no wrap)</p></td>
+<td align="right"><p>144 cycles/ms, <strong>153.5 MB</strong></p></td>
+<td align="right"><p>161 cycles/ms, <strong>2.0 MB</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Two honest readings of that.</p>
+<p><strong>Space, in the mode this work is about: 153.5 MB down to 2.0 MB, 77x.</strong> The waveform simulator
+sizes its arrays for the whole run and never wraps, so the old representation kept every version
+of the memory it had ever made. The step simulator wraps at 550, which bounded the old cost to
+that window, and there the difference is only 3.5 MB against 1.9 MB - the change matters most
+exactly where the old design was worst.</p>
+<p><strong>Speed: about 1.1x, and that is what it should be.</strong> RAM is ~11% of this design's simulation time
+(<code>simulatorStructure.md</code>), so removing all of it entirely would be 1.12x - Amdahl, not a
+disappointment. The synthetic sheets above show 10x and more because there the RAM is most of the
+work. Individual paired runs here ranged from 0.8x to 2.7x, so only the aggregate of several says
+anything at all; single .NET runs of this benchmark should not be quoted.</p>
+<p><strong>What it does not fix.</strong> The step arrays for this design are 1488 bytes a step, so a genuine
+1 000 000-cycle waveform run needs ~1.5 GB for those alone, whatever the RAM does. That is the
+phase 2 argument in one number: RAM was the largest single term and is now a rounding error, and
+the per-step retention of everything else is what stands between this design and a long waveform
+simulation.</p>
+<h3><a name="One-RAM-written-every-cycle" class="anchor" href="#One-RAM-written-every-cycle">One RAM, written every cycle</a></h3>
+<p>The hardest a single memory can be driven: a 64K x 16 RAM with write-enable tied high, the address
+advancing every clock so the space is swept every 65536 cycles, and the data the address XORed with
+the sweep number so that no write repeats a value and none is suppressed. Nothing else in the
+design, so unlike the sieve below the RAM is the work rather than one component in 349.
+<strong>1 000 000 cycles, so 1 000 000 writes</strong>, ending with all 65535 words live.</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>1 000 000 writes</p></th>
+<th align="right"><p>before</p></th>
+<th align="right"><p>after</p></th>
+<th align="right"><p>factor</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>waveform arrays (no wrap)</p></td>
+<td align="right"><p>169 cycles/ms, <strong>1196.7 MB</strong></p></td>
+<td align="right"><p>5012 cycles/ms, <strong>11.3 MB</strong></p></td>
+<td align="right"><p><strong>30x time, 106x space</strong></p></td>
+</tr>
+<tr class="even">
+<td><p>step arrays (550, wrapping)</p></td>
+<td align="right"><p>342 cycles/ms, 4.8 MB</p></td>
+<td align="right"><p>2788 cycles/ms, 2.9 MB</p></td>
+<td align="right"><p>8x time, 1.7x space</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>1196.7 MB is 1.2 kB a write - an AVL path copy, a <code>Memory1</code>, a <code>RamState</code> and two boxed <code>BigInt</code>s,
+every clock, all of it reachable for the rest of the run. 11.3 MB is 8 bytes an entry plus the
+offset table and the current-contents array. The wrapping row is the same simulation with only the
+last 550 steps reachable, which is what bounded the old cost; it is the gap between the two rows
+that this work is about.</p>
+<p>The after side is <em>faster</em> with the larger arrays (5012 against 2788) because nothing is ever out
+of window there, so compaction never has anything to prune and runs less often.</p>
+<h3><a name="Many-small-memories" class="anchor" href="#Many-small-memories">Many small memories</a></h3>
+<p>The case that gains most is not the big RAM. A design of <strong>a hundred 256-word by 1-bit RAMs</strong> -
+3.2 kB of memory between them, and a size real designs use - run for 100 000 cycles at one write
+every eight clocks, the data bit toggling once per pass over the address space so that every write
+is a real change:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right"><p>before</p></th>
+<th align="right"><p>after</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>100 x (256 x 1) RAMs, 100 000 cycles</p></td>
+<td align="right"><p>7.5 cycles/ms, <strong>1055 MB</strong></p></td>
+<td align="right"><p><strong>11.8 MB</strong></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>The old figure is over a gigabyte for 3.2 kB of memory at a twentieth of the wave simulator's
+cycle limit, against a 3.6 GB heap (<code>Main.fs:63</code>) - such a design could not have been
+waveform-simulated far at all. The per-step cost was paid <em>per RAM</em>: a hundred <code>RamState</code> boxes
+and a hundred <code>Memory1</code> records every clock.</p>
+<p>This is also what settled two design questions. The "packed" representation this note originally
+proposed for small memories was never built: packing addresses the <em>current contents</em>, 1 kB per
+small RAM, where the cost is history. And a growable list per address - the first implementation -
+cost a record and two list objects for what is often a single 8-byte write, which measured 31.5 MB
+here where CSR measures 11.8 MB.</p>
+<p>What is left is close to irreducible: this design does 1.25 million real writes, and 11.8 MB is
+about 8 bytes for each of them. Stretch it to 1 048 576 cycles and 13.1 million writes and it
+holds 131 MB, which is the same 8 bytes a write. Keeping every write addressable from the
+waveform viewer costs that; the only lever left is not keeping it.</p>
+<h2><a name="What-it-used-to-be" class="anchor" href="#What-it-used-to-be">What it used to be</a></h2>
+<p><code>Memory1.Data</code> is <code>Map&lt;bigint,bigint&gt;</code> (<code>CommonTypes.fs:206</code>) — an FSharp.Core AVL tree with heap
+<code>BigInt</code> keys <em>and</em> values, sparse, absent addresses reading as zero. A <code>RamState (Memory1)</code> is
+written into the component's step array on <strong>every clock step</strong>, whether or not anything changed
+(<code>EvalReference.fs:1097</code>, <code>:1118</code>, <code>:1127</code>, <code>:1136</code>, <code>:1160</code>, and the <code>AsyncRAM1</code> cases; <code>putState</code>
+at <code>:96-100</code>).</p>
+<p>Per read (<code>EvalKernel.fs:57</code> → <code>Helpers.fs:293</code>): allocate a <code>BigInt</code> from the address,
+<code>Map.tryFind</code>, convert back. Per write (<code>EvalKernel.fs:90</code>): a read <em>as well</em>, since <code>RAM1</code> returns
+the old contents (<code>EvalReference.fs:1095</code>), plus two more <code>BigInt</code>s from <code>twosComp</code>, the AVL spine
+path-copied, a <code>{ mem with … }</code> record copy and a <code>RamState</code> wrapper. <code>AsyncRAM1</code> is a hybrid,
+reduced twice per step (<code>EvalReference.fs:1139-1167</code>), so it pays two <code>getRamStateMemory</code> lookups
+per step for one <code>putState</code>.</p>
+<p>Sizes in V8 with pointer compression: <code>MapTreeNode$2 {k,v,left,right,h}</code> ≈ 32 B, <code>MapTreeLeaf$2</code>
+≈ 24 B, a one-digit <code>BigInt</code> 16 B, <code>Memory1</code> ≈ 32 B, <code>RamState</code> ≈ 24 B. That is <strong>~62 B of heap per
+live word</strong>, and <strong>~540 B retained per write</strong>.</p>
+<h3><a name="The-retention-is-unbounded-in-the-mode-that-matters" class="anchor" href="#The-retention-is-unbounded-in-the-mode-that-matters">The retention is unbounded in the mode that matters</a></h3>
+<p>The step simulator wraps at <code>MaxArraySize = 550</code> (<code>SimulationView.fs:38</code>), so its history is
+bounded. <strong>The waveform simulator does not wrap.</strong> Its arrays are sized for the whole run,
+<code>LastClock + 3</code> — 2003 by default (<code>ModelHelpers.fs:26-33</code>) and up to
+<code>maxSimulationSize = 4_000_000</code> (<code>:35</code>). This is stated at <code>WaveSimSelect.fs:577-579</code> and enforced
+at <code>WaveSimTop.fs:125</code>. Every snapshot ever written stays reachable.</p>
+<p>Retained heap for one 64K × 16 RAM read every cycle:</p>
+<table>
+<thead>
+<tr class="header">
+<th align="right"><p>wave-sim run</p></th>
+<th align="right"><p>1 write/10</p></th>
+<th align="right"><p>1 write/5</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right"><p>2 000 cycles (default)</p></td>
+<td align="right"><p>~230 kB</p></td>
+<td align="right"><p>~350 kB</p></td>
+</tr>
+<tr class="even">
+<td align="right"><p>100 000 cycles</p></td>
+<td align="right"><p>~11.6 MB</p></td>
+<td align="right"><p>~17.6 MB</p></td>
+</tr>
+<tr class="odd">
+<td align="right"><p>4 000 000 cycles (the limit)</p></td>
+<td align="right"><p>*<em>~440 MB*</em></p></td>
+<td align="right"><p>*<em>~660 MB*</em></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Against V8's 3.6 GB old-space cap (<code>Main.fs:63</code>) — and
+<code>FastValidate.calculateTotalSimArraySizePerStep</code> (<code>:20-31</code>) sums only <code>fc.Outputs</code>, so the
+"estimated GB" warning the user sees (<code>UIPopups.fs:423-453</code>) omits this term entirely.</p>
+<p>Allocation rate is ~95–190 B per clock for one RAM, against a documented steady state of about
+1 byte per clock for the whole rest of the simulator (<code>simulatorStructure.md:152</code>). On the sieve
+the RAM is ~11% of CPU — 7.5 µs per clock over 349 components is 21.5 ns for an average component,
+so ~0.8 µs for the one RAM, roughly 38× an average component.</p>
+<h2><a name="What-replaced-it" class="anchor" href="#What-replaced-it">What replaced it</a></h2>
+<p><code>Simulator/RamStore.fs</code>. Current contents are mutable, and every address that is ever written is
+given a <strong>slot</strong> number whose writes are one contiguous run of shared flat arrays - compressed
+sparse row. There is no snapshot per step, and no global write log either: indexing history by
+address rather than by time is what makes reading a past value a search whose cost does not depend
+on how far the cursor moved.</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="c">/// How an address is turned into its slot number. The *only* place the strategies differ:</span>
+<span class="c">/// everything after it works on slot numbers.</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="rt">Addressing</span> <span class="o">=</span>
+    <span class="pn">|</span> <span class="uc">Dense</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs2', 2)" onmouseover="showTip(event, 'fs2', 2)" class="vt">int</span> <span onmouseout="hideTip(event, 'fs3', 3)" onmouseover="showTip(event, 'fs3', 3)" class="rt">array</span>                      <span class="c">// slot per address, AddressWidth &lt;= 16</span>
+    <span class="pn">|</span> <span class="uc">Sparse</span> <span class="k">of</span> <span class="id">NodeOrLeaf</span> <span onmouseout="hideTip(event, 'fs4', 4)" onmouseover="showTip(event, 'fs4', 4)" class="rt">option</span> <span onmouseout="hideTip(event, 'fs3', 5)" onmouseover="showTip(event, 'fs3', 5)" class="rt">array</span> <span class="pn">*</span> <span onmouseout="hideTip(event, 'fs2', 6)" onmouseover="showTip(event, 'fs2', 6)" class="vt">int</span> <span class="c">// a path-compressed 16-way trie, 17..32</span>
+    <span class="pn">|</span> <span class="uc">Wide</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs5', 7)" onmouseover="showTip(event, 'fs5', 7)" class="rt">Map</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs6', 8)" onmouseover="showTip(event, 'fs6', 8)" class="vt">bigint</span><span class="pn">,</span> <span onmouseout="hideTip(event, 'fs2', 9)" onmouseover="showTip(event, 'fs2', 9)" class="vt">int</span><span class="pn">&gt;</span> <span onmouseout="hideTip(event, 'fs7', 10)" onmouseover="showTip(event, 'fs7', 10)" class="rt">ref</span>            <span class="c">// over 32 bits: addresses arrive as bigints</span>
+    <span class="pn">|</span> <span class="uc">Fixed</span>                                   <span class="c">// a ROM: contents are part of the component type</span>
+
+<span class="c">// slot s owns IStep/IVal[Start[s] .. Start[s+1]), ascending by step; recent writes wait in a</span>
+<span class="c">// tail that `compact` folds in</span>
+<span class="id">Start</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 11)" onmouseover="showTip(event, 'fs2', 11)" class="id">int</span> <span onmouseout="hideTip(event, 'fs3', 12)" onmouseover="showTip(event, 'fs3', 12)" class="id">array</span>
+<span class="id">IStep</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs2', 13)" onmouseover="showTip(event, 'fs2', 13)" class="id">int</span> <span onmouseout="hideTip(event, 'fs3', 14)" onmouseover="showTip(event, 'fs3', 14)" class="id">array</span>
+<span class="id">IVal</span><span class="pn">:</span>  <span onmouseout="hideTip(event, 'fs2', 15)" onmouseover="showTip(event, 'fs2', 15)" class="id">int</span> <span onmouseout="hideTip(event, 'fs3', 16)" onmouseover="showTip(event, 'fs3', 16)" class="id">array</span>   <span class="c">// or IBig, chosen once by word width, as IOArray splits UInt32Step/BigIntStep</span>
+</code></pre>
+<ul>
+<li>
+<strong>Read</strong> — <code>Words[addr]</code> in the dense case, which is every RAM a design can really simulate. No
+BigInt, no comparison, no <code>Option</code>. The address is within <code>AddressWidth</code> by the masking
+invariant, so it always indexes the array. The other cases read <code>CurVal[slot]</code>.
+</li>
+<li>
+<strong>Write</strong> — read the old value, and if it differs append <code>(slot, step, value)</code> to the tail.
+<strong>8 bytes</strong> once compacted, no GC object. The read was needed anyway: a RAM outputs the contents
+it replaced.
+</li>
+<li>
+<strong>Per step — nothing at all.</strong> The state array still exists and is still written every step, but
+what it holds is the <em>same</em> <code>RamState</code> object every time, so the write is one array store and
+allocates nothing. That was not free: constructing <code>RamState store</code> per step is a union-case
+allocation, and leaving it in cost 24 bytes a clock and made retained space grow with run length
+exactly as the old code did. Reducers now fetch the state object and put the same one back.
+</li>
+<li><strong>Value at a past step</strong> — binary search of that slot's run. Independent of the cursor's history.</li>
+<li>
+*<em><code>Memory1</code> is materialised only when something asks for one*</em>, so <code>WaveSimRams</code>,
+<code>MemoryEditorView</code> and the golden tests keep the type they had.
+</li>
+</ul>
+<h3><a name="Why-CSR-and-not-a-list-per-address" class="anchor" href="#Why-CSR-and-not-a-list-per-address">Why CSR and not a list per address</a></h3>
+<p>The obvious layout - a growable list of writes hanging off each address - was the first
+implementation and is 2 to 12 times worse. A record plus two list objects plus an option wrapper
+is around 230 bytes, paid for every address ever written, whatever it holds; a single 8-byte write
+costs 230 bytes to record. Measured: a fully written 64K RAM held 15.1 MB that way and holds
+1.3 MB as CSR; a hundred small RAMs held 31.5 MB and hold 11.8 MB.</p>
+<p>The cost of CSR is that a slot's run has to stay contiguous, so writes cannot simply be appended
+to it. They go to a small tail of <code>(slot, step, value)</code> triples and <code>compact</code> folds the tail into
+the runs with a counting sort, once the tail is both 4096 long and at least as long as what is
+already indexed - doubling, so the copying is amortised O(1) a write. Queries fold in whatever is
+outstanding first, which happens at most once per render since writes and renders do not interleave.</p>
+<p><strong>Pruning happens during compaction rather than per write</strong>, which is the other thing CSR forces
+and an improvement: dropping an entry from the middle of a run would mean shifting everything
+after it, whereas a compaction is rebuilding the runs anyway.</p>
+<h3><a name="The-live-word-count-is-a-question-not-a-number" class="anchor" href="#The-live-word-count-is-a-question-not-a-number">The live-word count is a question, not a number</a></h3>
+<p>The RAM table chooses between listing every non-zero location and a windowed display. It never
+shows the count, so it never needs one - <code>liveCountExceeds ram step limit</code> is enough, and it is
+much cheaper than the number:</p>
+<ul>
+<li>if fewer addresses have <em>ever</em> been written than the limit, the answer is no, with no work at all;</li>
+<li>
+otherwise the walk stops as soon as the limit is passed, which for a memory with anything in it
+is after about <code>limit</code> slots.
+</li>
+</ul>
+<p>Keeping an exact count meant journalling every crossing of zero, which for a 1-bit memory is every
+single write - 10 MB of the 31.5 MB the hundred small RAMs used to hold. <code>liveCountAt</code> survives for
+tests and diagnostics, where an exact number is what is being checked.</p>
+<h3><a name="What-was-planned-and-is-not-there" class="anchor" href="#What-was-planned-and-is-not-there">What was planned and is not there</a></h3>
+<ul>
+<li>
+<strong>No packed representation.</strong> It was in the plan for memories under 20 bytes, holding the whole
+RAM in at most four int32s copied on write. Once the step slot became a reference to a mutable
+store rather than a snapshot, packing stopped being an improvement and became a regression: a
+copy on write retains one array per <em>writing step</em>, so a long run costs tens of megabytes where
+an entry costs 8 bytes. It also aims at the wrong thing - the current contents of a 256 x 1 RAM
+are 1 kB and the history is megabytes.
+</li>
+<li>
+<strong>No undo log, and no backward replay.</strong> Entries hold the value <em>after</em> each write. An undo log
+is the natural form when there is a single global replay order; indexed by address there is no
+such order, so the last entry is the current value and value-at-step-N is a binary search with
+no replay at all. Materialising a whole <code>Memory1</code> walks the slots and searches each, which is
+fine because it is rare.
+</li>
+</ul>
+<h3><a name="Random-access-to-history-is-the-hard-part" class="anchor" href="#Random-access-to-history-is-the-hard-part">Random access to history is the hard part</a></h3>
+<p>The requirement is that a render needs of the order of <strong>1000 word lookups at an arbitrary step</strong>,
+and the cursor may have moved anywhere since the last one: <code>SamplingZoom</code> runs to 1000
+(<code>ModelHelpers.fs:25</code>), so consecutive displayed cycles are far apart and locality buys little.</p>
+<p>The <code>Map</code>'s O(1) is the <em>handle</em> — <code>extractFastSimulationState</code> indexes the step array once. Every
+lookup after that is a <code>Map.tryFind</code> whose cost depends on tree depth. Two mechanisms can replace
+it, and <strong>both are needed, because they fail on opposite patterns</strong>:</p>
+<ul>
+<li>
+<strong>The per-address index</strong> — binary search the address's history for the latest entry at or before
+N. O(log w_a), no seek, and a render does one search per <em>distinct written address</em> rather than
+one per lookup. This is the mechanism for reading words.
+</li>
+<li>
+<strong>Backward replay</strong> — restore <code>LogOld</code> while <code>LogStep &gt; N</code>, four typed-array operations per
+intervening write. This is kept only for materialising a <em>whole</em> <code>Memory1</code>, where searching every
+live address separately would cost O(live × log w) — 64K addresses at ~4 probes is a millisecond
+or two, against a replay that is usually far shorter.
+</li>
+</ul>
+<p>Estimates for a 4M-cycle run of a 64K × 16 RAM, 400 000 writes:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th><p>writes spread over 64K addresses</p></th>
+<th><p>all writes to <em>one</em> address</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>tree depth / bucket length</p></td>
+<td><p>deep tree, ~6-entry buckets</p></td>
+<td><p><strong>one-node tree</strong>, one 400 000-entry bucket</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Map</code>, one lookup</p></td>
+<td><p>~250–650 ns</p></td>
+<td><p>~15 ns</p></td>
+</tr>
+<tr class="odd">
+<td><p>replay, one lookup at a random cycle</p></td>
+<td><p>~130–270 µs</p></td>
+<td><p>~130–270 µs (worst ~0.8 ms)</p></td>
+</tr>
+<tr class="even">
+<td><p>index, one lookup</p></td>
+<td><p>~30 ns</p></td>
+<td><p>~100–200 ns</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Map</code>, 1000-lookup render</p></td>
+<td><p>~0.25–0.65 ms</p></td>
+<td><p>~15 µs</p></td>
+</tr>
+<tr class="even">
+<td><p>index, 1000-lookup render</p></td>
+<td><p>~10–20 µs</p></td>
+<td><p>~2 µs</p></td>
+</tr>
+<tr class="odd">
+<td><p>retained</p></td>
+<td><p>~440 MB</p></td>
+<td><p>~130 MB</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Concentrated writes make the <code>Map</code> <em>fast</em> — its tree is one node — while maximising the journal, so
+replay loses by four orders of magnitude there. Spread writes do the reverse. Nothing tells you in
+advance which a design will produce, so the index is not optional. Replay remains the mechanism for
+the whole-memory query (<code>extractStatefulComponents</code>, and any materialised <code>Memory1</code>).</p>
+<p><strong>Hold the index as a compacted CSR, not as per-address growable arrays.</strong> A plain SMI-packed JS
+array costs ~16 B for the <code>JSArray</code>, ~8 B of <code>FixedArray</code> header and ~25% capacity slack, and two
+are needed per written address — roughly 4 MB of pure overhead at 64K addresses, against 3.2 MB of
+actual history. Flat arrays with an offset table have none of it. To keep appends O(1), leave the
+recent journal tail out of the CSR and scan it <strong>once per render</strong> rather than once per lookup,
+recompacting when it grows past a fraction of the total.</p>
+<p>Two cheap refinements: store steps in the bucket rather than journal indices (8 B per write instead
+of 4 B, but one load per probe rather than two dependent ones); and keep a per-address cursor hint
+and gallop outward from the last hit, which makes a nearby cycle ~2–4 probes instead of ~19.</p>
+<h2><a name="Which-of-three-representations-chosen-by-size" class="anchor" href="#Which-of-three-representations-chosen-by-size">Which of three representations, chosen by size</a></h2>
+<p>A flat array of one slot per address is sized <code>2^AddressWidth</code>, and <strong>nothing caps a RAM's address
+width</strong>: <code>CatalogueView.fs:1128</code> limits only multipliers to 16 bits, the general dialog rejects
+only <code>addressWidth &lt; 1</code> (<code>:1139</code>), and <code>Helpers.getMemData</code>'s assertion contemplates
+<code>AddressWidth &gt; 63</code>. So the way an address reaches its history is chosen when the simulation is
+built:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>address width</p></th>
+<th><p>representation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>≤ 16</p></td>
+<td><p><strong>dense</strong>: a mutable <code>Words</code> array of current contents, and a slot per address</p></td>
+</tr>
+<tr class="even">
+<td><p>17..32</p></td>
+<td><p><strong>sparse</strong>: a path-compressed 16-way trie, keyed on the address as a <code>uint32</code></p></td>
+</tr>
+<tr class="odd">
+<td><p>over 32</p></td>
+<td><p><strong>wide</strong>: a <code>Map&lt;bigint, History&gt;</code>, since the addresses arrive as bigints</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>The last is a guard rather than a design - a memory of more than 4G words cannot be meaningfully
+simulated - but it means the <code>Map&lt;bigint,bigint&gt;</code> of contents is gone from the simulator
+altogether, rather than surviving as a fallback for one case.</p>
+<p>A 64K-word dense array is 256 kB, which is always affordable; beyond that the address space
+outruns what can be allocated, so above 16 address bits the memory is assumed to be occupied
+thinly and the address→history step becomes a trie instead of a flat offset table. Occupancy is
+irrelevant <em>below</em> the threshold: a <code>Uint32Array(65536)</code> is 256 kB whether 10 words are live or all
+of them, already better than ~62 B per live word.</p>
+<p>All three are one mechanism — an address's writes held as a step-ordered history and binary
+searched — differing only in how an address reaches its history. Only the dense case also keeps a
+<code>Words</code> array, so that a read during simulation is a single indexed load rather than a walk to the
+end of a history.</p>
+<p>That is enforced by the layering rather than left to discipline, in three steps:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>historyOf</code> / <code>historyFor</code> / <code>historyOfBig</code> / <code>historyForBig</code></p></td>
+<td><p>the <em>only</em> place the addressing strategies are told apart</p></td>
+</tr>
+<tr class="even">
+<td><p><code>lastU</code> / <code>lastBig</code>, <code>appendU</code> / <code>appendBig</code></p></td>
+<td><p>what a read and a write do to a history once it is found — pruning, appending, live-word accounting</p></td>
+</tr>
+<tr class="odd">
+<td><p>the eight <code>read</code>/<code>write</code> entry points</p></td>
+<td><p>thin: pick the lookup, pick the value form</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>So a change to how writes are recorded — pruning, suppression, the count journal, and the CSR
+compaction when it comes — is one edit, not one per strategy. The only split that survives is
+uint32 values against bigint values, which is the split <code>IOArray</code> already makes between
+<code>UInt32Step</code> and <code>BigIntStep</code> and which cannot be merged without boxing the fast path.</p>
+<p>There is precedent for the dense form: <code>EvalCompiled.romTable</code> (<code>:84-97</code>) already flattens ROMs
+into a <code>uint32 array</code>, capped at <code>maxRomTableAddressWidth = 16</code>.</p>
+<h3><a name="Histories-hold-new-values-not-old-ones" class="anchor" href="#Histories-hold-new-values-not-old-ones">Histories hold new values, not old ones</a></h3>
+<p>An undo log - storing the value each write replaced - is the natural form when there is a single
+global replay order. Indexed <strong>by address</strong> there is no such order, so a history stores the value
+<em>after</em> each write instead. The last entry is then the current value and value-at-step-N is a
+binary search with no replay at all, which is what makes the cost independent of where the cursor
+was. Materialising a whole <code>Memory1</code> walks the histories rather than replaying anything.</p>
+<h3><a name="The-sparse-case-a-write-once-mutable-16-way-trie" class="anchor" href="#The-sparse-case-a-write-once-mutable-16-way-trie">The sparse case: a write-once mutable 16-way trie</a></h3>
+<p>Above 16 address bits, replace <code>IndexStart</code> with a trie on the address, 4 bits per level:</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="k">type</span> <span class="id">NodeOrLeaf</span> <span class="o">=</span>
+    <span class="c">/// 16 children, indexed by the next 4 bits of the address. A slot is filled once and</span>
+    <span class="c">/// never repointed, so there is no path copying and no version to keep.</span>
+    <span class="pn">|</span> <span class="id">Node</span> <span class="k">of</span> <span class="id">NodeOrLeaf</span> <span onmouseout="hideTip(event, 'fs4', 17)" onmouseover="showTip(event, 'fs4', 17)" class="id">option</span> <span onmouseout="hideTip(event, 'fs3', 18)" onmouseover="showTip(event, 'fs3', 18)" class="id">array</span>
+    <span class="c">/// One address&#39;s write history: steps ascending, values alongside. Addr is the full</span>
+    <span class="c">/// address, checked on arrival because a leaf may sit above its natural depth.</span>
+    <span class="pn">|</span> <span class="id">Leaf</span> <span class="k">of</span> <span class="id">addr</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs8', 19)" onmouseover="showTip(event, 'fs8', 19)" class="id">int64</span> <span class="pn">*</span> <span class="id">steps</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs9', 20)" onmouseover="showTip(event, 'fs9', 20)" class="id">ResizeArray</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs2', 21)" onmouseover="showTip(event, 'fs2', 21)" class="id">int</span><span class="pn">&gt;</span> <span class="pn">*</span> <span class="id">values</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs9', 22)" onmouseover="showTip(event, 'fs9', 22)" class="id">ResizeArray</span><span class="pn">&lt;</span><span onmouseout="hideTip(event, 'fs10', 23)" onmouseover="showTip(event, 'fs10', 23)" class="id">uint32</span><span class="pn">&gt;</span>
+</code></pre>
+<p>Under Fable an <code>option</code> of a DU erases to <code>child | undefined</code>, so a <code>Node</code> is a plain 16-element JS
+array with no wrapper per slot. Nodes are allocated once and mutated only by filling an empty slot,
+so the structure grows in place — this is what removes the per-write path copy that the <code>Map</code> pays.</p>
+<ul>
+<li>
+<strong>Simulation read</strong> — descend, then take the last entry of the leaf. A few dependent loads
+against the <code>Map</code>'s comparisons on boxed <code>bigint</code>.
+</li>
+<li>
+<strong>Write</strong> — descend, append <code>(step, value)</code>. Amortised O(1), ~8 B, and a new node only the first
+time a subtree is touched.
+</li>
+<li>
+<strong>Historical read</strong> — binary search the leaf. O(log w_a), independent of the cursor, exactly as
+in the dense case.
+</li>
+<li><strong>No per-step snapshot</strong>, as everywhere else here.</li>
+</ul>
+<p><strong>Path compression is what makes it sparse, and is the only reason the union is needed.</strong> Depth is
+<code>ceil(AddressWidth / 4)</code> and known when the simulation is built, so without compression you would
+know leaf from node by level and <code>NodeOrLeaf</code> would be dead weight. Worse, a fixed depth-8 trie for
+a 32-bit address costs on the order of 550 kB of skeleton for 1000 live words. Hoisting a <code>Leaf</code>
+whose subtree holds a single address — hence <code>addr</code> in the leaf, checked on arrival, and a split
+when a second address collides — collapses the depth to about <code>log16(live addresses)</code> and the
+skeleton to ~115 kB.</p>
+<p>Worth knowing and not adopted: bitmap-compressed nodes, HAMT style, with a 16-bit occupancy mask
+and a packed child array, cut an almost-empty node from ~88 B to ~20 B. Inserting a child then
+reallocates that array, which is not literally write-once, though it still introduces no path
+copying. Take it only if the skeleton is measured to matter.</p>
+<p>For a 32-bit-address RAM with 1000 live words over a 4M-cycle run at 400 000 writes:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th align="right"><p><code>Map</code></p></th>
+<th align="right"><p>trie, phase 1</p></th>
+<th align="right"><p>trie, phase 2</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>base structure</p></td>
+<td align="right"><p>62 kB</p></td>
+<td align="right"><p>~115 kB skeleton</p></td>
+<td align="right"><p>~115 kB</p></td>
+</tr>
+<tr class="even">
+<td><p>writes</p></td>
+<td align="right"><p>216 MB</p></td>
+<td align="right"><p>3.2 MB</p></td>
+<td align="right"><p>3.2 MB</p></td>
+</tr>
+<tr class="odd">
+<td><p>per step</p></td>
+<td align="right"><p>96 MB</p></td>
+<td align="right"><p>96 MB</p></td>
+<td align="right"><p>0</p></td>
+</tr>
+<tr class="even">
+<td><p><strong>total</strong></p></td>
+<td align="right"><p>*<em>~312 MB*</em></p></td>
+<td align="right"><p>*<em>~99 MB*</em></p></td>
+<td align="right"><p>*<em>~3.5 MB*</em></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>The skeleton is larger per live address than the <code>Map</code>'s tree and it does not matter: the terms
+that dominate are per-write and per-step. Note how much of what is left in phase 1 is the per-step
+box, and see the phase 2 note below for why removing it is not a job for this change alone.</p>
+<h3><a name="Pruning-which-the-step-simulator-needs-and-the-obvious-rule-gets-wrong" class="anchor" href="#Pruning-which-the-step-simulator-needs-and-the-obvious-rule-gets-wrong">Pruning, which the step simulator needs and the obvious rule gets wrong</a></h3>
+<p>Steps recorded in a history are absolute, but the step simulator wraps at <code>MaxArraySize = 550</code>, so
+without pruning the histories grow forever while only 550 steps remain reachable — a leak relative
+to today, where the circular buffer bounds it. Prune on append, dropping entries older than
+<code>ClockTick - MaxArraySize</code>, <strong>but always keep the most recent out-of-window entry</strong>: an address
+written once at step 5 and read at step 10 000 000 has its only record there, and dropping it loses
+the value. So each history holds one base entry plus everything inside the window, and pruning is
+amortised O(1). In the waveform simulator, where the arrays are sized for the whole run and never
+wrap, nothing is ever out of window and nothing is pruned.</p>
+<h3><a name="Three-details-the-trie-changes" class="anchor" href="#Three-details-the-trie-changes">Three details the trie changes</a></h3>
+<ul>
+<li>
+<strong>Initial contents</strong> are loaded into the trie when the simulation is built, one base entry per
+initialised address, so every read is a trie read. Falling back to the initial <code>Memory1</code> for
+addresses never written would put a <code>Map</code> lookup back on the hot path of exactly the ROM-like
+memories that need it least.
+</li>
+<li>
+*<em><code>LogCount</code>*</em> has no flat journal to sit in, so the live-word count gets its own small
+<code>(step, count)</code> pair of arrays, appended only when the count changes.
+</li>
+<li>
+<strong>Restart</strong> truncates every history rather than resetting one length, so it is O(live addresses)
+instead of O(1). Restarts are rare, and in the waveform simulator absent.
+</li>
+</ul>
+<h2><a name="A-write-that-changes-nothing-is-not-a-write" class="anchor" href="#A-write-that-changes-nothing-is-not-a-write">A write that changes nothing is not a write</a></h2>
+<p>This applies to <strong>all four representations, including the one there is now</strong>, and it is the
+cheapest thing on this page: before recording a write, compare the incoming data with what is
+already at that address, and if they are equal do nothing at all.</p>
+<p>The read is already being done — <code>RAM1</code> returns the old contents as its output
+(<code>EvalReference.fs:1095</code>), so the comparison is one extra test on a value the reducer holds. What
+it saves per suppressed write:</p>
+<table>
+<thead>
+<tr class="header">
+<th></th>
+<th><p>saved</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>present <code>Map</code></p></td>
+<td><p>the <code>Map.add</code> path copy, the <code>Memory1</code> record, two <code>BigInt</code>s — ~540 B</p></td>
+</tr>
+<tr class="even">
+<td><p>packed</p></td>
+<td><p>the array copy</p></td>
+</tr>
+<tr class="odd">
+<td><p>dense</p></td>
+<td><p>the journal entry, and so a shorter history for every later search and replay</p></td>
+</tr>
+<tr class="even">
+<td><p>sparse trie</p></td>
+<td><p>the history append, and possibly a whole subtree if the address is new</p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Take it one step further: on a step with no <em>effective</em> write, store the <strong>previous step's state
+object</strong> rather than a fresh one — <code>arr.Step[simStep] &lt;- arr.Step[simStepOld]</code> — which allocates
+nothing. That removes the unconditional <code>RamState</code> box (<code>EvalReference.fs:1097</code>) that costs 24 B on
+every step of every RAM today, and it is worth doing to the current implementation on its own,
+ahead of any of the rest of this.</p>
+<p>Nothing observable changes. The contents are identical by definition; <code>LogCount</code> cannot move,
+since a value equal to the old one cannot alter whether the word is non-zero; and the RAM table's
+read/write highlighting is computed from the <em>input</em> step arrays, not from the state
+(<code>WaveSimRams.fs:129-138</code> tests <code>getFastComponentInput fc 2 (step-1)</code>), so a location written with
+the value it already held is still shown as written.</p>
+<p>How much it is worth depends entirely on the design, and should be measured rather than assumed —
+but the benchmark is a favourable case: a sieve marks composites repeatedly, writing the same flag
+to a location that already holds it, so on <code>5eratosthenes</code> a large fraction of writes may be
+suppressible.</p>
+<h2><a name="What-it-saves" class="anchor" href="#What-it-saves">What it saves</a></h2>
+<p>Measured, at the top of this note. The projections that used to sit here were replaced by the
+figures from <code>RamBenchmark.fs</code> once the change was built; they were close on space and, as
+<code>simulatorStructure.md</code> warns about .NET measurement, wrong about speed in the conservative
+direction.</p>
+<h2><a name="Alternatives-and-why-not" class="anchor" href="#Alternatives-and-why-not">Alternatives, and why not</a></h2>
+<ul>
+<li>
+<strong>A <em>persistent</em> HAMT or radix trie keyed by <code>int</code></strong> — not to be confused with the write-once
+mutable trie adopted above for wide addresses. Read drops to four indexed loads and it keeps a
+genuine immutable per-step snapshot, but a write still path-copies ~4 nodes of 32 slots, ~500 B.
+It fixes speed and not space, which is the wrong half. The mutable trie keeps the read
+characteristics and drops the copying, at the price of moving history out of the structure and
+into per-address arrays.
+</li>
+<li>
+*<em><code>Map&lt;int,uint32&gt;</code> instead of <code>Map&lt;bigint,bigint&gt;</code>.*</em> Removes three BigInt allocations per access
+and makes comparisons primitive: perhaps 2–3× on RAM cost, ~1.03× overall, no space win. A
+stepping stone at best.
+</li>
+<li>
+<strong>Copy-on-write pages, 256 × 256 words.</strong> Random writes touch a fresh page nearly every time,
+~1 kB copied per write — worse than the AVL for this access pattern.
+</li>
+<li>
+<strong>A mutable read cache beside the immutable map.</strong> Desynchronises on restart and on replay
+through the circular buffer (<code>simulatorStructure.md:191</code>).
+</li>
+<li>
+<strong>Periodic checkpoints of <code>Words</code> instead of an index.</strong> Bounds the seek at
+<code>(writes / K) × arraySize</code> bytes, but the index is smaller and removes the seek entirely.
+</li>
+</ul>
+<h2><a name="What-it-touches" class="anchor" href="#What-it-touches">What it touches</a></h2>
+<table>
+<thead>
+<tr class="header">
+<th><p>file</p></th>
+<th><p>change</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><code>Simulator/RamStore.fs</code></p></td>
+<td><p><strong>new.</strong> The whole of it: <code>History</code>, <code>NodeOrLeaf</code>, <code>Addressing</code>, <code>Ram</code>, and every operation on them</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Simulator/SimGraphTypes.fs</code></p></td>
+<td><p><code>RamState of Memory1</code> becomes <code>RamState of RamStore.Ram</code></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Simulator/GraphBuilder.fs:147</code></p></td>
+<td><p>the old simulation graph's initial RAM state builds a store</p></td>
+</tr>
+<tr class="even">
+<td><p><code>FastSim/EvalKernel.fs</code></p></td>
+<td><p><code>getRamStateMemory</code> becomes <code>getRamState</code>/<code>ramStoreOf</code>/<code>getRamStore</code>; the four <code>writeMemory*</code> on <code>Memory1</code> become eight <code>readRam*</code>/<code>writeRam*</code> on a store. The <code>readMemory*</code> used by ROMs are untouched</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>FastSim/EvalReference.fs</code></p></td>
+<td><p><code>RAM1</code>/<code>AsyncRAM1</code>, both width paths, all four bigint combinations, plus the <code>ramStateForStep</code> helper</p></td>
+</tr>
+<tr class="even">
+<td><p><code>FastSim/EvalAlgebraic.fs</code></p></td>
+<td><p>the <code>FData</code> twin, which must move with <code>EvalReference</code></p></td>
+</tr>
+<tr class="odd">
+<td><p><code>FastSim/FastOrder.fs</code></p></td>
+<td><p>the step-0 seed builds the store, once, for the whole run</p></td>
+</tr>
+<tr class="even">
+<td><p><code>FastSim/FastExtract.fs</code></p></td>
+<td><p>ROM extraction wraps its <code>Memory1</code> in a read-only store</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>UI/WaveSim/WaveSimRams.fs</code></p></td>
+<td><p>reads word by word out of the store; <code>.Count</code> comes from <code>liveCountAt</code></p></td>
+</tr>
+<tr class="even">
+<td><p><code>UI/SimulationView.fs</code></p></td>
+<td><p>the memory-diff button materialises a <code>Memory1</code> at the step it is showing</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Tests/…/RamStoreTests.fs</code></p></td>
+<td><p><strong>new.</strong> The store against a <code>Map</code> model, per addressing strategy</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Tests/…/RamBenchmark.fs</code></p></td>
+<td><p><strong>new.</strong> The measurements at the top of this note</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Tests/…/ComponentSemantics.fs</code></p></td>
+<td><p>20-bit-address RAMs, so the trie is exercised through the evaluators</p></td>
+</tr>
+<tr class="even">
+<td><p><code>Tests/…/GoldenModel.fs</code></p></td>
+<td><p>reads RAM contents out of the store</p></td>
+</tr>
+</tbody>
+</table>
+
+<p><code>Simulator/RamStore.fs</code> sits <strong>before</strong> <code>SimGraphTypes.fs</code> in <code>Renderer.fsproj</code>, not in the
+<code>FastSim</code> block with the rest of the simulator. F# compile order is the dependency layering and
+<code>SimulationComponentState</code> names the type, so it has to come first; it depends on nothing but
+<code>CommonTypes</code>, which is what lets it.</p>
+<h2><a name="Traps-and-what-happened-to-them" class="anchor" href="#Traps-and-what-happened-to-them">Traps, and what happened to them</a></h2>
+<ul>
+<li>
+*<em><code>restartSimulation</code> did not reset RAM.*</em> <code>FastRun.fs:71-78</code> reduces at <code>numStep = 0</code>, where
+<code>getRamStateMemory 0 (MaxArraySize-1)</code> read the slot left by the wrapped-out end of the
+<em>previous</em> run rather than the initial contents seeded by <code>FastOrder.initClockedOuts</code>. <strong>Fixed</strong>:
+step 0 now calls <code>RamStore.reset</code>, which puts the contents back to what the memory was built
+with and clears every history. <code>RamStoreTests</code> pins it.
+</li>
+<li>
+*<em><code>AsyncRAM1</code> is reduced twice per step*</em> — clocked, then combinational, the latter reading the
+current step's state to see the write its own clocked pass just made
+(<code>EvalReference.fs:1164</code>). With a mutable store the write is simply already visible, and the
+read-during-write case is covered by <code>ComponentSemantics</code>'s <code>asyncRamStimuli</code>, now at three
+address widths. It is also the one component <code>EvalCompiled.fs:169-173</code> warns about: a compiled
+reducer that depends on the clocked flag brings the flag back.
+</li>
+<li>
+*<em><code>getRamStateMemory</code>'s <code>| _, 1 -&gt; memory</code> branch*</em> existed for <code>MaxArraySize = 2</code> builds —
+Verilog output and truth tables (<code>SimulationView.fs:66</code>). It is gone: <code>FastOrder</code> seeds slot 0
+before anything reduces, so the slot is always there to be read.
+</li>
+<li>
+<strong>Immutability convention.</strong> <a href="../mutableState.html">mutableState.md</a> allows mutation for a measured
+performance reason, and the step arrays already are mutable; the store belongs in the same layer
+and does not escape the simulator. <code>Memory1</code> stays the immutable type everywhere else, and
+<code>toMemory</code> builds one on demand.
+</li>
+<li>
+<strong>The typed entry points are width-safe.</strong> A store holds values in one of two forms, chosen by
+word width. Asking for the other would read an array that was never filled, so the bigint-value
+functions redirect to the uint32 ones on a narrow memory rather than trusting the caller.
+</li>
+<li>
+<strong>The in-app benchmark is still unsound for this.</strong> <code>Update.fs:316</code> sets <code>FastSim.ClockTick &lt;- 0</code>
+directly instead of calling <code>restartSimulation</code>, so RAM state carries between repetitions and the
+second is not simulating the first. <code>RamBenchmark.fs</code> builds a fresh simulation per repetition
+for that reason.
+</li>
+</ul>
+<h2><a name="Order-of-work" class="anchor" href="#Order-of-work">Order of work</a></h2>
+<p>The split is chosen for blast radius, not for how much each part is worth. Phase 1 changes what a
+RAM's contents <em>are</em> and leaves every surrounding mechanism alone; phase 2 removes a mechanism, and
+should wait for company.</p>
+<h3><a name="Phase-0-a-baseline" class="anchor" href="#Phase-0-a-baseline">Phase 0 — a baseline</a></h3>
+<p>Every number on this page is calculated rather than measured. <code>Tests/fixtures/3cpu</code>'s <code>eep1</code> sheet
+already has <code>DATAMEM</code>, an <code>AsyncRAM1</code> of AddressWidth 16 and WordWidth 16 — the 64K × 16 case
+exactly — alongside <code>CODEMEM</code>, an <code>AsyncROM1</code> of the same size. Drive it, and build a second design
+with all writes going to <strong>one</strong> address, since that is the pattern the two access mechanisms
+disagree about.</p>
+<h3><a name="Phase-1-change-what-a-RAM-s-state-is-not-where-it-lives-done" class="anchor" href="#Phase-1-change-what-a-RAM-s-state-is-not-where-it-lives-done">Phase 1 — change what a RAM's state <em>is</em>, not where it lives — <strong>done</strong></a></h3>
+<p>All three representations, the <code>WaveSimRams</code> per-word path and the no-op write rule, with <strong>the
+step array of <code>SimulationComponentState</code> left exactly as it was</strong>: still allocated per RAM, still
+written every step, still read by <code>FastExtract</code> at <code>Step[step % MaxArraySize]</code>.</p>
+<p>What changed is what a slot holds. It was a whole <code>Memory1</code> and therefore a whole <code>Map</code>; it is now</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="pn">|</span> <span class="id">RamState</span> <span class="k">of</span> <span class="id">RamStore</span><span class="pn">.</span><span class="id">Ram</span>
+</code></pre>
+<p>That payload change is the one thing in the model that could not be avoided. Keeping
+<code>RamState of Memory1</code> would mean building a <code>Memory1</code> — and therefore a <code>Map</code> — for every step,
+which is the cost the exercise exists to remove; and <code>Memory1</code> cannot hold the store instead,
+because it is the saved-file type (<code>CommonTypes.fs:197</code>) and its <code>Data</code> field is serialised into
+every <code>.dgm</code>.</p>
+<p>There is no mark alongside the store, which the design expected there to be. The step being read
+is known to whoever is asking — <code>extractFastSimulationState</code> takes it, and so does the RAM table —
+so the slot only has to say <em>which</em> memory this is. That is why the same object goes into every
+slot and the per-step allocation vanished rather than merely shrinking.</p>
+<p>The reducer no longer consults the slot for contents: the store is mutable and steps run in order,
+so a read is <code>Words[addr]</code>. <code>AsyncRAM1</code>'s combinational pass, which read
+<code>getRamStateMemory (numStep + 1) simStep</code> to see the write its own clocked pass had just made
+(<code>EvalReference.fs:1164</code>), simply reads the store.</p>
+<p>Two things came out of building it that the plan had wrong, both recorded above: the packed
+representation is a regression once the slot holds a reference rather than a snapshot, and
+<code>RamState store</code> per step is itself an allocation, which had to be removed by putting the fetched
+object back rather than constructing a new one.</p>
+<p>Three things came out of building it that the plan had wrong, all recorded above: the packed
+representation is a regression once the slot holds a reference rather than a snapshot;
+<code>RamState store</code> per step is itself an allocation, which had to be removed by putting the fetched
+object back rather than constructing a new one; and a growable list per address costs far more
+than the writes it holds, which is what CSR fixed.</p>
+<p>Still open inside phase 1, and optional:</p>
+<ul>
+<li>
+<strong>An <code>EvalCompiled</code> reducer for RAM</strong>, gated by the <code>reducers agree ...</code> harness. Now unblocked -
+it was the state representation that stood in the way (<code>EvalCompiled.fs:506-509</code>) - but nothing
+above depends on it, and it is the one component <code>EvalCompiled.fs:169-173</code> warns about.
+</li>
+</ul>
+<h3><a name="Phase-2-stop-keeping-RAM-state-per-step-but-not-on-its-own" class="anchor" href="#Phase-2-stop-keeping-RAM-state-per-step-but-not-on-its-own">Phase 2 — stop keeping RAM state per step, but not on its own</a></h3>
+<p>Drop the <code>StepArray&lt;SimulationComponentState&gt;</code> for RAMs, keep marks in a plain <code>int array</code> or
+recompute them, and the last ~96 MB goes. It takes the space from 115 MB to 19.5 MB — a further
+5.9× — and it is <strong>not worth doing by itself</strong>, because it touches <code>FastCreate</code>, <code>FastOrder</code>,
+<code>FastExtract</code>, <code>SimulationComponentState</code> and everything that matches on it, for a term that is not
+the one that hurts.</p>
+<p>The reason is proportion. A waveform simulation retains per-step data for <em>every</em> component, not
+just RAMs: <code>calculateTotalSimArraySizePerStep</code> (<code>FastValidate.fs:20-31</code>) sums 4 or 16 B per output,
+so a 349-component design is of the order of 1.6 kB a step before any RAM is counted. Against that,
+one RAM's 24 B a step is about 1.5%. Removing it changes no user's experience while the other
+98.5% stands.</p>
+<p>So phase 2 belongs with a general attack on per-step retention — output-array width, sampling or
+windowing the retained history, or bounding the wave-sim buffer the way the step simulator's is
+bounded. Note the two related defects to fix at the same time: <code>calculateTotalSimArraySizePerStep</code>
+omits state arrays entirely, so the "estimated GB" warning (<code>UIPopups.fs:423-453</code>) under-reports;
+and the waveform simulator's arrays are sized for the whole run with no wrap
+(<code>WaveSimSelect.fs:577-579</code>), which is what makes <code>maxSimulationSize = 4_000_000</code> a hard ceiling
+rather than a soft one.</p>
+<h3><a name="Also-deferred-to-phase-2" class="anchor" href="#Also-deferred-to-phase-2">Also deferred to phase 2</a></h3>
+<ul>
+<li>
+*<em><code>FastValidate.calculateTotalSimArraySizePerStep</code>*</em> counting RAM state — pointless while phase 1
+keeps that state per step anyway, and it is part of the same accounting fix.
+</li>
+</ul>
+<h2><a name="How-it-is-checked" class="anchor" href="#How-it-is-checked">How it is checked</a></h2>
+<p>Green: 496 tests, <code>CI=true npm run test</code>.</p>
+<ol>
+<li>
+*<em><code>Issie.RamStore</code>*</em> — 41 tests, new. The store against a <code>Map</code> of the same writes: current
+contents, the value at <em>every</em> past step (a binary search is easy to get wrong at the ends),
+the live count at every past step, <code>toMemory</code>, initial contents surviving a reset, and writes
+that change nothing not being recorded. Run for each of the three addressing strategies on each
+of the two value paths, plus pruning, which only the step simulator's wrapping window reaches.
+</li>
+<li>
+*<em><code>Issie.ComponentSemantics</code>*</em> — memory semantics against the independent reference, now at
+three address widths: 4 bits (dense), 20 bits (trie, including two addresses that share every
+high nibble so leaves have to be split apart), and 33 bits (wide).
+</li>
+<li>
+*<em><code>Issie.GoldenModel</code>*</em> — whole fixture projects compared against a stored file, RAM contents
+included. <code>3cpu</code>/<code>eep1</code> has a 64K x 16 <code>AsyncRAM1</code>, and <code>reducerAgreementTest "3cpu" "eep1" 500</code>
+at <code>maxArraySize = 250</code> runs it across two buffer wraps. These passed unchanged, which is the
+strongest evidence that the store computes what the <code>Map</code> did.
+</li>
+<li><strong>Fable</strong> — <code>node scripts/dev.js --once --no-app</code>, clean.</li>
+</ol>
+<p>Not yet done, and the honest gap:</p>
+<ul>
+<li>
+<strong>Measured in the app.</strong> Everything above is .NET. <code>simulatorStructure.md:129</code> is explicit that
+simulation speed has to be measured in V8, where the same change has measured 5x different. The
+numbers at the top of this note are the space claim, which .NET does measure honestly, and a
+speed <em>direction</em>, not a speed figure.
+</li>
+<li>
+<strong>The waveform RAM table scrubbed by hand</strong>, including the pathological cursor jump (last cycle
+→ 0 → last cycle) on a full 64K RAM and a jump at <code>SamplingZoom = 1000</code>. <code>ramTables</code> is already
+wrapped in <code>TimeHelpers.instrumentInterval "ramTables"</code> (<code>WaveSimRams.fs:285</code>), so
+Development &gt; Play gives a figure for it directly.
+</li>
+</ul>
+
+        <div class="fsdocs-tip" id="fs1">type Addressing =
+  | Dense of int array
+  | Sparse of obj * int
+  | Wide of Map&lt;bigint,int&gt; ref
+  | Fixed<br /><em>&#160;How an address is turned into its slot number. The *only* place the strategies differ:<br />&#160;everything after it works on slot numbers.</em></div>
+<div class="fsdocs-tip" id="fs2">Multiple items<br />val int: value: &#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; =
+  int</div>
+<div class="fsdocs-tip" id="fs3">type &#39;T array = &#39;T array</div>
+<div class="fsdocs-tip" id="fs4">type &#39;T option = Option&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs5">Multiple items<br />module Map
+
+from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&lt;&#39;Key,&#39;Value (requires comparison)&gt; =
+  interface IReadOnlyDictionary&lt;&#39;Key,&#39;Value&gt;
+  interface IReadOnlyCollection&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;
+  interface IEnumerable
+  interface IStructuralEquatable
+  interface IComparable
+  interface IEnumerable&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;
+  interface ICollection&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;
+  interface IDictionary&lt;&#39;Key,&#39;Value&gt;
+  new: elements: (&#39;Key * &#39;Value) seq -&gt; Map&lt;&#39;Key,&#39;Value&gt;
+  member Add: key: &#39;Key * value: &#39;Value -&gt; Map&lt;&#39;Key,&#39;Value&gt;
+  ...<br /><br />--------------------<br />new: elements: (&#39;Key * &#39;Value) seq -&gt; Map&lt;&#39;Key,&#39;Value&gt;</div>
+<div class="fsdocs-tip" id="fs6">type bigint = System.Numerics.BigInteger</div>
+<div class="fsdocs-tip" id="fs7">Multiple items<br />val ref: value: &#39;T -&gt; &#39;T ref<br /><br />--------------------<br />type &#39;T ref = Ref&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs8">Multiple items<br />val int64: value: &#39;T -&gt; int64 (requires member op_Explicit)<br /><br />--------------------<br />type int64 = System.Int64<br /><br />--------------------<br />type int64&lt;&#39;Measure&gt; =
+  int64</div>
+<div class="fsdocs-tip" id="fs9">type ResizeArray&lt;&#39;T&gt; = System.Collections.Generic.List&lt;&#39;T&gt;</div>
+<div class="fsdocs-tip" id="fs10">Multiple items<br />val uint32: value: &#39;T -&gt; uint32 (requires member op_Explicit)<br /><br />--------------------<br />type uint32 = System.UInt32<br /><br />--------------------<br />type uint32&lt;&#39;Measure&gt; = uint&lt;&#39;Measure&gt;</div>
+
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#How-a-RAM-is-represented-in-the-fast-simulator">
+      How a RAM is represented in the fast simulator
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Measured">
+      Measured
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-whole-design-5eratosthenes">
+      The whole design: 5eratosthenes
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#One-RAM-written-every-cycle">
+      One RAM, written every cycle
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Many-small-memories">
+      Many small memories
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-it-used-to-be">
+      What it used to be
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-retention-is-unbounded-in-the-mode-that-matters">
+      The retention is unbounded in the mode that matters
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-replaced-it">
+      What replaced it
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Why-CSR-and-not-a-list-per-address">
+      Why CSR and not a list per address
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-live-word-count-is-a-question-not-a-number">
+      The live-word count is a question, not a number
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#What-was-planned-and-is-not-there">
+      What was planned and is not there
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Random-access-to-history-is-the-hard-part">
+      Random access to history is the hard part
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Which-of-three-representations-chosen-by-size">
+      Which of three representations, chosen by size
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Histories-hold-new-values-not-old-ones">
+      Histories hold new values, not old ones
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#The-sparse-case-a-write-once-mutable-16-way-trie">
+      The sparse case: a write-once mutable 16-way trie
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Pruning-which-the-step-simulator-needs-and-the-obvious-rule-gets-wrong">
+      Pruning, which the step simulator needs and the obvious rule gets wrong
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Three-details-the-trie-changes">
+      Three details the trie changes
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#A-write-that-changes-nothing-is-not-a-write">
+      A write that changes nothing is not a write
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-it-saves">
+      What it saves
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Alternatives-and-why-not">
+      Alternatives, and why not
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#What-it-touches">
+      What it touches
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Traps-and-what-happened-to-them">
+      Traps, and what happened to them
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Order-of-work">
+      Order of work
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Phase-0-a-baseline">
+      Phase 0 — a baseline
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Phase-2-stop-keeping-RAM-state-per-step-but-not-on-its-own">
+      Phase 2 — stop keeping RAM state per step, but not on its own
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Also-deferred-to-phase-2">
+      Also deferred to phase 2
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#How-it-is-checked">
+      How it is checked
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

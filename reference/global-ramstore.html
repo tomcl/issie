@@ -1,0 +1,2411 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Renderer" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="RamStore (issie)" />
+    <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="RamStore (issie)">
+    
+    <title>RamStore (issie) | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="api-docs">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header ">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <div>
+  <h2>
+    RamStore Module
+  </h2>
+  <dl class="fsdocs-metadata">
+    <dt>
+      Namespace: 
+      <a href="/issie/reference/global.html">
+        global
+      </a>
+    </dt>
+    <dt>
+      Assembly: Renderer.dll
+    </dt>
+  </dl>
+  <div class="fsdocs-xmldoc">
+    <div>
+      <pre> How a read/write memory's contents are held while a simulation runs.
+
+ See [docs/dev/ramRepresentation.md] for why this exists and what it is worth. In short: the
+ contents used to be a `Map<bigint,bigint>` and a fresh snapshot of it was stored for every
+ clock step, so a write cost an AVL path copy plus two boxed `BigInt`s, a read cost a descent
+ with boxed comparisons, and a long waveform simulation retained every version it had ever
+ made. Here
+
+ - a read during simulation is an array index,
+ - a write appends two numbers to shared flat arrays,
+ - the value an address held at any past step is a binary search of that address's own writes,
+   whose cost does not depend on how far the cursor moved, and
+ - nothing at all is allocated per step.
+
+ **Storage is CSR.** Every address that is ever written is given a *slot* number, and a slot's
+ writes are one contiguous run of the shared `IStep`/`IVal` arrays, delimited by `Start`. The
+ alternative - a growable list per address - costs a record and two list objects per address,
+ which is around 230 bytes for what may be a single 8-byte write. That is affordable for one
+ big RAM and is not for a hundred small ones, which between them have just as many addresses.
+ Recent writes go to a small tail and are folded in by `compact`.
+
+ **Where this file sits.** F# compile order is the dependency layering, and
+ `SimGraphTypes.SimulationComponentState` names this type, so it has to be compiled before
+ `SimGraphTypes.fs` and cannot live in the `FastSim` block with the rest of the simulator. It
+ depends on nothing but `CommonTypes`, which is what makes that possible.
+
+ **Mutability.** This is the same layer as the step arrays, which are already mutable, and
+ [docs/mutableState.md] allows it for a measured performance reason - the whole point here is
+ to stop allocating. Nothing mutable escapes: `Memory1` remains the immutable type everywhere
+ outside the running simulation, and `toMemory` builds one on demand.</pre>
+    </div>
+  </div>
+  <div>
+    <h3>
+      Types and nested modules
+    </h3>
+    <table class="table outer-list fsdocs-entity-list">
+      <thead>
+        <tr>
+          <td>
+            Type/Module
+          </td>
+          <td>
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="Constants">
+                <a href="/issie/reference/ramstore-constants.html">
+                  Constants
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RamStore.Constants`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RamStore.Constants\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L35-35" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="Addressing">
+                <a href="/issie/reference/ramstore-addressing.html">
+                  Addressing
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RamStore.Addressing`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RamStore.Addressing\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L73-73" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 How an address is turned into its slot number. This is the *only* place the strategies differ:
+ everything after it works on slot numbers.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="NodeOrLeaf">
+                <a href="/issie/reference/ramstore-nodeorleaf.html">
+                  NodeOrLeaf
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RamStore.NodeOrLeaf`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RamStore.NodeOrLeaf\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L67-67" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 A 16-way trie over the address, used when the address space is too large to give every
+ address a slot number in a flat array.
+
+ It is grown in place and never copied: a slot is filled once and never repointed, which is
+ what removes the per-write path copy the `Map` paid. A `Leaf` may sit above its natural depth
+ - that path compression is the whole reason this is a union rather than a fixed-depth array
+ of arrays, since depth follows from the address width and would otherwise be known - so the
+ leaf carries its own address and it is checked on arrival.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="Ram">
+                <a href="/issie/reference/ramstore-ram.html">
+                  Ram
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:RamStore.Ram`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:RamStore.Ram\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L85-85" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 A read/write memory as the simulator holds it.
+              </p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h3>
+      Functions and values
+    </h3>
+    <table class="table outer-list fsdocs-member-list">
+      <thead>
+        <tr>
+          <td class="fsdocs-member-list-header">
+            Function or value
+          </td>
+          <td class="fsdocs-member-list-header">
+            Description
+          </td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1792', 1792)" onmouseover="showTip(event, '1792', 1792)">
+                <p>
+                  <a id="fixedOf">
+                    <a href="#fixedOf">
+                      <code><span>fixedOf&#32;<span>mem</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1792">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>fixedOf&#32;<span>mem</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        mem
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.fixedOf`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.fixedOf\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L702-702" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     A read-only memory wrapped so that the one extraction path can serve ROMs and RAMs alike.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    mem
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1793', 1793)" onmouseover="showTip(event, '1793', 1793)">
+                <p>
+                  <a id="liveCountAt">
+                    <a href="#liveCountAt">
+                      <code><span>liveCountAt&#32;<span>ram&#32;step</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1793">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>liveCountAt&#32;<span>ram&#32;step</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.liveCountAt`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.liveCountAt\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L577-577" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     How many words were non-zero at the end of `step`. Only diagnostics and tests want the exact
+ number; the display wants `liveCountExceeds`.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    step
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1794', 1794)" onmouseover="showTip(event, '1794', 1794)">
+                <p>
+                  <a id="liveCountExceeds">
+                    <a href="#liveCountExceeds">
+                      <code><span>liveCountExceeds&#32;<span>ram&#32;step&#32;limit</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1794">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>liveCountExceeds&#32;<span>ram&#32;step&#32;limit</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        limit
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.liveCountExceeds`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.liveCountExceeds\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L560-560" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Whether more than `limit` words were non-zero at the end of `step`.
+
+ This is all the RAM table needs: it chooses between listing every non-zero location and a
+ windowed display, and the exact figure never appears. Asking the cheaper question means the
+ walk stops as soon as the answer is settled, and usually it never starts - a memory that has
+ never had more than `limit` addresses written cannot have more than `limit` non-zero.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    step
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    limit
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1795', 1795)" onmouseover="showTip(event, '1795', 1795)">
+                <p>
+                  <a id="ofMemory">
+                    <a href="#ofMemory">
+                      <code><span>ofMemory&#32;<span>window&#32;mem</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1795">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>ofMemory&#32;<span>window&#32;mem</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        window
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        mem
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.ofMemory`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.ofMemory\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L683-683" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Build the store for one read/write memory. `window` is the simulation's `MaxArraySize`: the
+ number of past steps that can still be asked about.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    window
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    mem
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1796', 1796)" onmouseover="showTip(event, '1796', 1796)">
+                <p>
+                  <a id="readAddrBigIntDataBigInt">
+                    <a href="#readAddrBigIntDataBigInt">
+                      <code><span>readAddrBigIntDataBigInt&#32;<span>ram&#32;addr</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1796">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>readAddrBigIntDataBigInt&#32;<span>ram&#32;addr</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bigint</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ram
+                </span>
+                :
+                <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  addr
+                </span>
+                :
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1797', 1797)" onmouseover="showTip(event, '1797', 1797)">
+                <p>
+                  <a id="readAddrBigIntDataUInt32">
+                    <a href="#readAddrBigIntDataUInt32">
+                      <code><span>readAddrBigIntDataUInt32&#32;<span>ram&#32;addr</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1797">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>readAddrBigIntDataUInt32&#32;<span>ram&#32;addr</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>uint32</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ram
+                </span>
+                :
+                <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  addr
+                </span>
+                :
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>uint32</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1798', 1798)" onmouseover="showTip(event, '1798', 1798)">
+                <p>
+                  <a id="readAddrUInt32DataBigInt">
+                    <a href="#readAddrUInt32DataBigInt">
+                      <code><span>readAddrUInt32DataBigInt&#32;<span>ram&#32;addr</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1798">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>readAddrUInt32DataBigInt&#32;<span>ram&#32;addr</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bigint</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ram
+                </span>
+                :
+                <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  addr
+                </span>
+                :
+                <code>uint32</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1799', 1799)" onmouseover="showTip(event, '1799', 1799)">
+                <p>
+                  <a id="readAddrUInt32DataUInt32">
+                    <a href="#readAddrUInt32DataUInt32">
+                      <code><span>readAddrUInt32DataUInt32&#32;<span>ram&#32;addr</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1799">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>readAddrUInt32DataUInt32&#32;<span>ram&#32;addr</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>uint32</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.readAddrUInt32DataUInt32`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.readAddrUInt32DataUInt32\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L443-443" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The four combinations the evaluators need, named as the `Memory1` versions they replace so
+ that the call sites read the same.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    addr
+                  </span>
+                  :
+                  <code>uint32</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>uint32</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1800', 1800)" onmouseover="showTip(event, '1800', 1800)">
+                <p>
+                  <a id="readBigVal">
+                    <a href="#readBigVal">
+                      <code><span>readBigVal&#32;<span>ram&#32;addr</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1800">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>readBigVal&#32;<span>ram&#32;addr</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bigint</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.readBigVal`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.readBigVal\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L415-415" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Current contents at `addr`, on the bigint-value path.
+
+ A store keeps values in one of two forms, chosen once by word width, and the caller has to ask
+ for the one it holds - the evaluators do, via `BigIntState`. Asking for the other would
+ otherwise read an array that was never filled, so it is redirected rather than trusted.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    addr
+                  </span>
+                  :
+                  <code>uint32</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1801', 1801)" onmouseover="showTip(event, '1801', 1801)">
+                <p>
+                  <a id="readU">
+                    <a href="#readU">
+                      <code><span>readU&#32;<span>ram&#32;addr</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1801">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>readU&#32;<span>ram&#32;addr</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>uint32</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.readU`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.readU\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L401-401" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Current contents at `addr`, on the uint32 path. One array index in the dense case, which is
+ the case every RAM a design can actually simulate falls into.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    addr
+                  </span>
+                  :
+                  <code>uint32</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>uint32</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1802', 1802)" onmouseover="showTip(event, '1802', 1802)">
+                <p>
+                  <a id="reset">
+                    <a href="#reset">
+                      <code><span>reset&#32;<span>ram</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1802">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>reset&#32;<span>ram</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.reset`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.reset\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L613-613" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Put the memory back to the contents it was built with, discarding all history. Called when a
+ simulation restarts, which is the one thing the old representation got wrong: it read the
+ state left by the wrapped-out end of the previous run instead.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1803', 1803)" onmouseover="showTip(event, '1803', 1803)">
+                <p>
+                  <a id="toMemory">
+                    <a href="#toMemory">
+                      <code><span>toMemory&#32;<span>ram&#32;step</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1803">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>toMemory&#32;<span>ram&#32;step</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.toMemory`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.toMemory\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L589-589" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The whole memory as of `step`, as the immutable type the rest of Issie uses. Only for the
+ places that genuinely want all of it - a memory diff, a golden file - never per render.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    step
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1804', 1804)" onmouseover="showTip(event, '1804', 1804)">
+                <p>
+                  <a id="wordAt">
+                    <a href="#wordAt">
+                      <code><span>wordAt&#32;<span>ram&#32;step&#32;addr</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1804">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>wordAt&#32;<span>ram&#32;step&#32;addr</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bigint</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.wordAt`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.wordAt\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L545-545" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What one address held at the end of `step`.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    step
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    addr
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1805', 1805)" onmouseover="showTip(event, '1805', 1805)">
+                <p>
+                  <a id="writeAddrBigIntDataBigInt">
+                    <a href="#writeAddrBigIntDataBigInt">
+                      <code><span>writeAddrBigIntDataBigInt&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1805">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>writeAddrBigIntDataBigInt&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        value
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ram
+                </span>
+                :
+                <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  step
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  addr
+                </span>
+                :
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  value
+                </span>
+                :
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1806', 1806)" onmouseover="showTip(event, '1806', 1806)">
+                <p>
+                  <a id="writeAddrBigIntDataUInt32">
+                    <a href="#writeAddrBigIntDataUInt32">
+                      <code><span>writeAddrBigIntDataUInt32&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1806">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>writeAddrBigIntDataUInt32&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        value
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ram
+                </span>
+                :
+                <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  step
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  addr
+                </span>
+                :
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  value
+                </span>
+                :
+                <code>uint32</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1807', 1807)" onmouseover="showTip(event, '1807', 1807)">
+                <p>
+                  <a id="writeAddrUInt32DataBigInt">
+                    <a href="#writeAddrUInt32DataBigInt">
+                      <code><span>writeAddrUInt32DataBigInt&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1807">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>writeAddrUInt32DataBigInt&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        value
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ram
+                </span>
+                :
+                <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  step
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  addr
+                </span>
+                :
+                <code>uint32</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  value
+                </span>
+                :
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1808', 1808)" onmouseover="showTip(event, '1808', 1808)">
+                <p>
+                  <a id="writeAddrUInt32DataUInt32">
+                    <a href="#writeAddrUInt32DataUInt32">
+                      <code><span>writeAddrUInt32DataUInt32&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1808">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>writeAddrUInt32DataUInt32&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        value
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ram
+                </span>
+                :
+                <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  step
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  addr
+                </span>
+                :
+                <code>uint32</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  value
+                </span>
+                :
+                <code>uint32</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1809', 1809)" onmouseover="showTip(event, '1809', 1809)">
+                <p>
+                  <a id="writeBigVal">
+                    <a href="#writeBigVal">
+                      <code><span>writeBigVal&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1809">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>writeBigVal&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        value
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-params">
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  ram
+                </span>
+                :
+                <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  step
+                </span>
+                :
+                <code>int</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  addr
+                </span>
+                :
+                <code>uint32</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+              <dt class="fsdocs-param">
+                <span class="fsdocs-param-name">
+                  value
+                </span>
+                :
+                <code>bigint</code>
+              </dt>
+              <dd class="fsdocs-param-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1810', 1810)" onmouseover="showTip(event, '1810', 1810)">
+                <p>
+                  <a id="writeU">
+                    <a href="#writeU">
+                      <code><span>writeU&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1810">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>writeU&#32;<span>ram&#32;step&#32;addr&#32;value</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ram
+                      </b>
+                      :
+                      <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        step
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        addr
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        value
+                      </b>
+                      :
+                      <code>uint32</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:RamStore.writeU`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:RamStore.writeU\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L486-486" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Record a write, unless it changes nothing.
+
+ A write of the value already at that address is not a write: skipping it costs one comparison
+ on a value the reducer has already read (it is the old contents, which a RAM returns as its
+ output) and saves an entry, which every later search and every later compaction then does not
+ have to walk. Nothing observable changes - the contents are identical by definition, and the
+ RAM table's read/write highlighting comes from the input step arrays rather than from here.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ram
+                  </span>
+                  :
+                  <code><a href="/issie/reference/ramstore-ram.html">Ram</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    step
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    addr
+                  </span>
+                  :
+                  <code>uint32</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    value
+                  </span>
+                  :
+                  <code>uint32</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
+</div>
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <div class="empty"></div>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

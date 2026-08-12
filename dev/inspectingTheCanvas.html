@@ -126,6 +126,12 @@
 
   </a>
 </li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
@@ -309,6 +315,12 @@
 
   </a>
 </li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
 <li class="nav-item active">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
@@ -435,7 +447,7 @@ way, and <code>bigint</code> becomes a quoted string. This is not theoretical �
 single-case DU and by a record.</p>
 <p>So nothing has to be reduced by hand. A <code>fulladder</code> dump is around 1500 lines and includes things a
 summary would drop: <code>IntersectOrJumpList</code> on each segment, <code>PortMaps.Order</code> as well as
-<code>Orientation</code>, <code>Appearance</code>, <code>LabelBoundingBox</code>, <code>DeclaredSlots</code>.</p>
+<code>Orientation</code>, <code>Appearance</code>, <code>LabelBoundingBox</code>.</p>
 <p><code>BusWireT.Model</code> is the target because it is the largest part of the model containing <strong>no functions
 at all</strong> — it and <code>SymbolT.Model</code> are pure data. Above it, <code>SheetT.Model</code> holds <code>PopupViewFunc</code> and
 a <code>ChildProcess</code>, its <code>Action</code> transiently carries a lambda (<code>InitialisedCreateComponent</code>), and its
@@ -448,10 +460,10 @@ deserialisation direction is exercised by the <code>.dgm</code> and <code>.ram</
 <h3><a name="model" class="anchor" href="#model">model</a></h3>
 <p><code>ModelHelpers.canvasInspection</code>: the same state cut down to one line per symbol, because 1500 lines
 of faithful JSON is the wrong shape for most questions. Per symbol, position, size, scale, rotation,
-flip, port edges, and <code>DisplaysComputedValues</code>/<code>DeclaredSlots</code> — the latter being
-<code>SymbolT.Symbol.DeclaredSlots</code>, the declared value of each slot the symbol is currently drawing
-differently. Per wire, its segments converted to <strong>absolute</strong> coordinates, which <code>raw</code> does not do:
-the model stores relative lengths.</p>
+flip, port edges, and the component's <code>Type</code> — which carries the widths, so a symbol drawn at a
+value its design settled shows that value here rather than what the sheet declares. Per wire, its
+segments converted to <strong>absolute</strong> coordinates, which <code>raw</code> does not do: the model stores relative
+lengths.</p>
 <p>It is a convenience, not a workaround. If a field you want is missing, either add it here or use
 <code>raw</code>.</p>
 <h3><a name="geometry" class="anchor" href="#geometry">geometry</a></h3>

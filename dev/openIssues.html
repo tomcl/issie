@@ -127,6 +127,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -310,6 +316,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -398,10 +410,12 @@ older list. Design-level limitations of the parameter system are in
 <h2><a name="Parameters" class="anchor" href="#Parameters">Parameters</a></h2>
 <ul>
 <li>
-*<em><code>ParameterAnalysis.chainActionsForInstance</code> picks the wrong declarer.*</em>
+*<em><code>ParameterAnalysis.chainActionsOnSheet</code> picks the wrong declarer.*</em>
 <code>Set.minElement declarers</code> is the <em>alphabetically first</em> sheet that declares the parameter, not
 the outermost one. The default value and the description copied onto the intermediate sheets of a
-materialised bind-to-top chain therefore come from an arbitrary sheet.
+materialised bind-to-top chain therefore come from an arbitrary sheet. Worse, <code>BindOffer.BindsTo</code>
+prefers the <em>top</em> sheet where it declares the name, so the button can say "connect this to
+TOP.width" while copying the default and description from a different sheet entirely.
 </li>
 <li>
 <strong>Deleting a parameter checks slots but not other parameters.</strong> <code>ParameterView.deleteParameterBox</code>
@@ -455,8 +469,6 @@ after <code>toCanvasState</code> has already done it.
 <code>LibraryHeader</code> is built field by field in both <code>MiscMenuView.saveAsLibraryComponent</code> and
 <code>SheetLayout.saveLibraryComponent</code>. The format is versioned, so the two writers drifting matters.
 </li>
-<li><code>GraphMerger.applySlotValue</code> is a one-line alias for <code>ComponentSlots.setSlotValue</code>.</li>
-<li><code>SheetLayout.applySlotValues</code> rebuilds the whole component list once per slot.</li>
 <li>
 <code>MiscMenuView.maybeWarning</code> calls <code>ComponentLibraries.reservedPrefixOf</code> twice and then uses
 <code>.IsSome</code>/<code>.Value</code>, against the <code>Option</code>-throughout convention.

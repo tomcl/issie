@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="UpdateInfoSheetChoise (issie)" />
+    <meta property="og:title" content="Constants (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="UpdateInfoSheetChoise (issie)">
+    <meta name="twitter:title" content="Constants (issie)">
     
-    <title>UpdateInfoSheetChoise (issie) | issie</title>
+    <title>Constants (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -120,6 +120,12 @@
 <li class="nav-item ">
   <a class="nav-link" href="/issie/dev/repoReview.html">
     Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
 
   </a>
 </li>             
@@ -307,6 +313,12 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
     Inspecting the draw block from outside the app
 
@@ -388,7 +400,7 @@
     <div id="content">
         <div>
   <h2>
-    UpdateInfoSheetChoise Type
+    Constants Module
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -402,46 +414,27 @@
     </dt>
     <dt>
       Parent Module: 
-      <a href="/issie/reference/global-parameterview.html">
-        ParameterView
+      <a href="/issie/reference/global-ramstore.html">
+        RamStore
       </a>
-    </dt>
-    <dt>
-      Base Type: 
-      <code>obj</code>
-    </dt>
-    <dt>
-      All Interfaces: 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/parameterview-updateinfosheetchoise.html">UpdateInfoSheetChoise</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
-      , 
-      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/parameterview-updateinfosheetchoise.html">UpdateInfoSheetChoise</a>&gt;</span></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
-      , 
-      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         Updates the LCParameterSlots DefaultParams section.
+        
       </p>
     </div>
   </div>
-  <div></div>
-  <div></div>
-  <div></div>
   <div>
     <h3>
-      Union cases
+      Functions and values
     </h3>
     <table class="table outer-list fsdocs-member-list">
       <thead>
         <tr>
           <td class="fsdocs-member-list-header">
-            Union case
+            Function or value
           </td>
           <td class="fsdocs-member-list-header">
             Description
@@ -452,175 +445,240 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5400', 5400)" onmouseover="showTip(event, '5400', 5400)">
+              <code onmouseout="hideTip(event, '1811', 1811)" onmouseover="showTip(event, '1811', 1811)">
                 <p>
-                  <a id="DefaultParams">
-                    <a href="#DefaultParams">
-                      <code><span>DefaultParams(<span>Name,&#32;Value,&#32;Description,&#32;Delete</span>)</span></code>
+                  <a id="maxDenseAddressWidth">
+                    <a href="#maxDenseAddressWidth">
+                      <code><span>maxDenseAddressWidth&#32;<span></span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5400">
+              <div class="fsdocs-tip" id="1811">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>DefaultParams(<span>Name,&#32;Value,&#32;Description,&#32;Delete</span>)</span></code>
+                  <code><span>maxDenseAddressWidth&#32;<span></span></span></code>
                   <br/>
                   <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Name
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Value
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Description
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Delete
-                      </b>
-                      :
-                      <code>bool</code>
-                    </span>
-                    <br/>
-                  </ul>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Name
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Value
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramint.html">ParamInt</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Description
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Delete
-                </span>
-                :
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:RamStore.Constants.maxDenseAddressWidth`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:RamStore.Constants.maxDenseAddressWidth\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L39-39" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Up to this address width every address gets a slot number in one flat array: 2^16 ints is
+ 256kB, which is always affordable. Above it the address space outruns what can be
+ allocated and the memory is assumed to be occupied thinly.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5401', 5401)" onmouseover="showTip(event, '5401', 5401)">
+              <code onmouseout="hideTip(event, '1812', 1812)" onmouseover="showTip(event, '1812', 1812)">
                 <p>
-                  <a id="ParamSlots">
-                    <a href="#ParamSlots">
-                      <code><span>ParamSlots(<span><a href="/issie/reference/parametertypes-paramslot.html">ParamSlot</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<span><a href="/issie/reference/parametertypes-paramconstraint.html">ParamConstraint</a>&#32;list</span></span>)</span></code>
+                  <a id="maxTrieAddressWidth">
+                    <a href="#maxTrieAddressWidth">
+                      <code><span>maxTrieAddressWidth&#32;<span></span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5401">
+              <div class="fsdocs-tip" id="1812">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>ParamSlots(<span><a href="/issie/reference/parametertypes-paramslot.html">ParamSlot</a>,&#32;<a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a>,&#32;<span><a href="/issie/reference/parametertypes-paramconstraint.html">ParamConstraint</a>&#32;list</span></span>)</span></code>
+                  <code><span>maxTrieAddressWidth&#32;<span></span></span></code>
                   <br/>
                   <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramslot.html">ParamSlot</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item2
-                      </b>
-                      :
-                      <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item3
-                      </b>
-                      :
-                      <code><span><a href="/issie/reference/parametertypes-paramconstraint.html">ParamConstraint</a>&#32;list</span></code>
-                    </span>
-                    <br/>
-                  </ul>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
                   <br/>
                 </div>
               </div>
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item1
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramslot.html">ParamSlot</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item2
-                </span>
-                :
-                <code><a href="/issie/reference/parametertypes-paramexpression.html">ParamExpression</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item3
-                </span>
-                :
-                <code><span><a href="/issie/reference/parametertypes-paramconstraint.html">ParamConstraint</a>&#32;list</span></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:RamStore.Constants.maxTrieAddressWidth`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:RamStore.Constants.maxTrieAddressWidth\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L45-45" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Up to this address width an address still fits a uint32 and the trie can key on one.
+ Above it addresses arrive as bigints and the lookup falls back to a Map - a memory with
+ more than 4G words cannot be meaningfully simulated, so that path is a guard, not a
+ design.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1813', 1813)" onmouseover="showTip(event, '1813', 1813)">
+                <p>
+                  <a id="minTailBeforeCompact">
+                    <a href="#minTailBeforeCompact">
+                      <code><span>minTailBeforeCompact&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1813">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>minTailBeforeCompact&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:RamStore.Constants.minTailBeforeCompact`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:RamStore.Constants.minTailBeforeCompact\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L57-57" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Compact once the tail is at least this long *and* at least as long as what is already
+ indexed. Doubling like this makes the copying amortised O(1) a write.
+
+ Waiting for a query instead, when there is nothing out of window to drop, was tried and is
+ worse: a tail entry carries a slot number that an indexed one does not, so leaving writes
+ in the tail costs 12 bytes each against 8, and on a hundred small RAMs that measured 19.9 MB
+ against 11.8 MB with no speed to show for it.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1814', 1814)" onmouseover="showTip(event, '1814', 1814)">
+                <p>
+                  <a id="trieBranch">
+                    <a href="#trieBranch">
+                      <code><span>trieBranch&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1814">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>trieBranch&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:P:RamStore.Constants.trieBranch`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'P:RamStore.Constants.trieBranch\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/RamStore.fs#L48-48" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Children per trie node. Four bits a level.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
       </tbody>
@@ -629,103 +687,10 @@
   <div></div>
   <div></div>
   <div></div>
-  <div>
-    <h3>
-      Instance members
-    </h3>
-    <table class="table outer-list fsdocs-member-list">
-      <thead>
-        <tr>
-          <td class="fsdocs-member-list-header">
-            Instance member
-          </td>
-          <td class="fsdocs-member-list-header">
-            Description
-          </td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5402', 5402)" onmouseover="showTip(event, '5402', 5402)">
-                <p>
-                  <a id="IsDefaultParams">
-                    <a href="#IsDefaultParams">
-                      <code><span>this.IsDefaultParams</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5402">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsDefaultParams</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5403', 5403)" onmouseover="showTip(event, '5403', 5403)">
-                <p>
-                  <a id="IsParamSlots">
-                    <a href="#IsParamSlots">
-                      <code><span>this.IsParamSlots</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5403">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsParamSlots</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <div></div>
+  <div></div>
+  <div></div>
+  <div></div>
   <div></div>
 </div>
         

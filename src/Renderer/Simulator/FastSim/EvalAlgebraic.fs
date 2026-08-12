@@ -332,7 +332,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     | Mux2 ->
         match (ins 0), (ins 1), (ins 2) with
         | Alg exp1, Alg exp2, Data bitSelect ->
-#if ASSERT
+#if ASSERTS
             assertThat (getAlgExpWidth exp1 = getAlgExpWidth exp2)
             <| sprintf
                 "Mux2 %s received two inputs with different widths: (%A) <> (%A)"
@@ -349,7 +349,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             put 0 out
 
         | Alg exp, Data bits, Data bitSelect ->
-#if ASSERT
+#if ASSERTS
             assertThat (bits.Width = getAlgExpWidth exp)
             <| sprintf
                 "Mux2 %s received two inputs with different widths: (%A) <> (%A)"
@@ -365,7 +365,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
 
             put 0 out
         | Data bits, Alg exp, Data bitSelect ->
-#if ASSERT
+#if ASSERTS
             assertThat (bits.Width = getAlgExpWidth exp)
             <| sprintf
                 "Mux2 %s received two inputs with different widths: (%A) <> (%A)"
@@ -381,7 +381,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
 
             put 0 out
         | Data bits0, Data bits1, Data bitSelect ->
-#if ASSERT
+#if ASSERTS
             assertThat (bits0.Width = bits1.Width)
             <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName bits0 bits1
 #endif
@@ -405,7 +405,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
     | Mux4 ->
         match ins 0, ins 1, ins 2, ins 3, ins 4 with
         | fd0, fd1, fd2, fd3, Data bitSelect ->
-#if ASSERT
+#if ASSERTS
             assertThat (
                 bits0.Width = bits1.Width
                 && bits0.Width = bits2.Width
@@ -440,7 +440,7 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         //let bits0, bits1, bits2, bits3, bits4, bits5, bits6, bits7, bitSelect = ins 0, ins 1, ins 2, ins 3, ins 4, ins 5, ins 6, ins 7, ins 8
         match ins 0, ins 1, ins 2, ins 3, ins 4, ins 5, ins 6, ins 7, ins 8 with
         | fd0, fd1, fd2, fd3, fd4, fd5, fd6, fd7, Data bitSelect ->
-#if ASSERT
+#if ASSERTS
             assertThat (
                 fd0.Width = fd1.Width
                 && fd0.Width = fd2.Width

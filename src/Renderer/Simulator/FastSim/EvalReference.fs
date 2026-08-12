@@ -288,7 +288,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
     | GateN _, true -> failwith "This should never happen, 1-bit component should not use BigInt"
 
     | Mux2,false ->
-#if ASSERT
+#if ASSERTS
         let w0, w1 = (comp.InputWidth 0), (comp.InputWidth 1)
         assertThat (w0 = w1) <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName w0 w1
 #endif
@@ -301,7 +301,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
 
         putUInt32 0 out
     | Mux2,true->
-#if ASSERT
+#if ASSERTS
         let w0, w1 = (comp.InputWidth 0), (comp.InputWidth 1)
         assertThat (w0 = w1) <| sprintf "Mux2 %s received two inputs with different widths: (%A) <> (%A)" comp.FullName w0 w1
 #endif
@@ -314,7 +314,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
 
         putBigInt 0 out
     | Mux4,false ->
-#if ASSERT
+#if ASSERTS
         let w0, w1, w2, w3 = (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3)
         assertThat (
             w0 = w1
@@ -340,7 +340,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
 
         putUInt32 0 out
     | Mux4,true ->
-#if ASSERT
+#if ASSERTS
         let w0, w1, w2, w3 = (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3)
         assertThat (
             w0 = w1
@@ -366,7 +366,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
 
         putBigInt 0 out
     | Mux8,false ->
-#if ASSERT
+#if ASSERTS
         let w0, w1, w2, w3, w4, w5, w6, w7 = (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3), (comp.InputWidth 4), (comp.InputWidth 5), (comp.InputWidth 6), (comp.InputWidth 7)
         assertThat (
             (w0) = (w1)
@@ -404,7 +404,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
 
         putUInt32 0 out
     | Mux8,true ->
-#if ASSERT
+#if ASSERTS
         let w0, w1, w2, w3, w4, w5, w6, w7 = (comp.InputWidth 0), (comp.InputWidth 1), (comp.InputWidth 2), (comp.InputWidth 3), (comp.InputWidth 4), (comp.InputWidth 5), (comp.InputWidth 6), (comp.InputWidth 7)
         assertThat (
             (w0) = (w1)

@@ -154,6 +154,11 @@ let tests =
             [ [ a; b; c; d ].[int sel] ])
         checkExhaustive "Demux2" Demux2 [ w; 1 ] [ w; w ] (fun (In2(a, sel)) ->
             if sel = 0I then [ a; 0I ] else [ 0I; a ])
+        // Demux4 is the one compiled reducer that no other test reaches: the golden designs use
+        // Demux8 and this file covered only Demux2, so the shared demux code was exercised at
+        // both ends of its range and not in the middle
+        checkExhaustive "Demux4" Demux4 [ w; 2 ] [ w; w; w; w ] (fun (In2(a, sel)) ->
+            [ for i in 0..3 -> if bigint i = sel then a else 0I ])
 
         // bus manipulation: MergeWires/SplitWire are little-endian, first port is LSBs
         checkExhaustive "MergeWires" MergeWires [ 2; w ] [ 2 + w ] (fun (In2(a, b)) -> [ (b <<< 2) ||| a ])

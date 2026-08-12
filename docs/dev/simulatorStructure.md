@@ -185,15 +185,6 @@ initialised. Parameterising the build path on a small `Evaluator` record would d
 the indirect call would land on the build path only, and the run loop must keep calling
 `fc.ReduceComb` directly or the dispatch this design removes comes straight back.
 
-**RAM is still on `EvalReference`.** Not because of the reducer but because of the state: a `Map`
-keyed by `bigint`, written every step for the waveform viewer, plus a `RamState` allocation per
-step whether or not anything is written. On the sieve this is ~11% of CPU and essentially all
-remaining allocation. Fixing it means changing that representation, which touches `FastExtract`
-and `WaveSimRams`. A mutable read cache alongside the map is not a shortcut — it desynchronises
-when the simulation restarts or replays through the circular buffer.
-[ramRepresentation.md](ramRepresentation.md) works out what to replace it with — a mutable array,
-a write journal and an index over the journal by address — and what that is worth.
-
 **`FastComponent` carries five unrelated concerns**: step data, the reducers, ordering scratch
 (`Touched`, `NumMissingInputValues`, `DrivenComponents`), naming (`FullName`, `SimSheetName`,
 `SimSheetNamePath`, `SheetName`, `FLabel`) and Verilog output names. Only the first two are needed
@@ -206,6 +197,15 @@ that is legitimate: the waveform viewer needs bulk access to step arrays and rou
 narrow API would mean copying. The honest position is two supported entry points — `Simulator` for
 run control, `FastExtract` for reading results — and nothing outside `Simulator/` touching
 `FastCreate`, `FastOrder`, `FastBuild` or the evaluators.
+
+**RAM is still on `EvalReference`.** It has no compiled reducer, so a design's memories keep the
+general path while everything around them has been specialised. What used to be written here — a
+`Map` of contents snapshotted into the step array every clock — is gone; `RamStore.fs` replaced it
+and [ramRepresentation.md](ramRepresentation.md) records what that was worth and what was left
+undone. What remains is the reducer itself, and one obstacle to it: the asynchronous RAM is the
+hybrid component, reduced once as clocked and once as combinational, and `reducerFor` deliberately
+takes no flag to tell those apart (see the trap above). A `RAM1` reducer needs no flag; an
+`AsyncRAM1` one brings it back for that component alone.
 
 **`GraphBuilder` defines its own `extractBit`/`packBit`,** duplicating `EvalKernel`'s.
 

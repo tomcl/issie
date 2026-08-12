@@ -337,4 +337,18 @@ let tests =
             let outs = simulateClocked (AsyncRAM1 mem) [ 33; 8; 1 ] [ 8 ] asyncRamStimuli
             Expect.equal outs asyncRamExpected "async read uses the current cycle's address"
         }
+        test "RAM1 reads 0 in cycle 0 after a restart as well as on the first run" {
+            // Going back further than the step arrays hold resimulates from step 0, which reduces
+            // the RAM at a step a fresh run never reduces it at. Cycle 0 has had no clock edge for
+            // the RAM to have read an address on, so it outputs 0 either way - the restart used to
+            // publish the memory's word 0 instead, so the same cycle read differently before and
+            // after one.
+            let mem = { Init = FromData; AddressWidth = 4; WordWidth = 8; Data = Map [ 0I, 5I ]; Comments = None }
+            let simData = startSim (RAM1 mem) [ 4; 8; 1 ] [ 8 ]
+            driveInputs simData 0 [ 0I; 0I; 0I ]
+            Expect.equal (readOutputs simData 0) [ 0I ] "cycle 0 of a fresh simulation"
+            FastRun.runFastSimulation None (maxArraySize * 3) simData.FastSim |> ignore
+            FastRun.runFastSimulation None 0 simData.FastSim |> ignore
+            Expect.equal (readOutputs simData 0) [ 0I ] "cycle 0 after a wrap-around restart"
+        }
     ]

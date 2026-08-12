@@ -559,7 +559,16 @@ let wordAt (ram: Ram) (step: int) (addr: bigint) : bigint =
 /// never had more than `limit` addresses written cannot have more than `limit` non-zero.
 let liveCountExceeds (ram: Ram) (step: int) (limit: int) : bool =
     match ram.Addressing with
-    | Fixed -> (ram.InitialData |> Map.filter (fun _ v -> v <> 0I) |> Map.count) > limit
+    // A read-only memory's contents are already the answer, but they are still walked lazily and
+    // only as far as the slot walk below would go. Counting all of them meant a filtered copy of
+    // the whole thing - for a large ROM, on every render of the table that asks.
+    | Fixed ->
+        ram.InitialData
+        |> Map.toSeq
+        |> Seq.filter (fun (_, v) -> v <> 0I)
+        |> Seq.truncate (limit + 1)
+        |> Seq.length
+        |> (fun count -> count > limit)
     | _ ->
         if ram.SlotCount <= limit then
             false
@@ -640,9 +649,16 @@ let reset (ram: Ram) =
     match ram.Addressing with
     | Fixed -> ()
     | _ ->
+        // A location the memory does not have is ignored rather than written. Contents come from a
+        // .dgm and are not guaranteed to match the address width it declares - the .ram reader and
+        // the memory editor both range-check, but a file need not have come from either - and an
+        // address past the end is one the simulation can never present, so dropping it is what the
+        // Map this replaced did in effect. Writing it would index off the end of the slot array
+        // and fail the whole simulation with an internal error.
+        let pastTheEnd = 1I <<< ram.AddressWidth
         ram.InitialData
         |> Map.iter (fun addr value ->
-            if value <> 0I then
+            if value <> 0I && addr >= 0I && addr < pastTheEnd then
                 if ram.BigVals then writeAddrBigIntDataBigInt ram -1 addr value
                 else writeAddrBigIntDataUInt32 ram -1 addr (toU value))
         // seeding is not simulation: it should not count as writes the design made

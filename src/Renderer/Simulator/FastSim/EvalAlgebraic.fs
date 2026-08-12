@@ -97,7 +97,8 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
         | Some stateArr -> stateArr.Step[simStep] <- state
 
     /// The RAM's store, for a step that may write to it. The twin of EvalReference's, and it
-    /// must stay the twin: see [docs/dev/ramRepresentation.md].
+    /// must stay the twin: see [docs/dev/ramRepresentation.md]. So is the cycle-0 output of a
+    /// synchronous RAM, which is 0 because there has been no clock edge to read an address on.
     let inline ramStateForStep () =
         if numStep = 0 then
             let state = getRamState simStep comp.State
@@ -1262,9 +1263,13 @@ let fastReduceFData (maxArraySize: int) (numStep: int) (isClockedReduction: bool
             <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataIn
 #endif
             let write = extractBitFData (insOld 2) 1
-            // The old contents are the output whether or not the write happens.
+            // The old contents are the output whether or not the write happens, except in cycle 0.
             // NB - this was previously new content - but that is inconsistent and less useful.
-            let dataOut = readRamFData mem (Data address)
+            let dataOut =
+                if numStep = 0 then
+                    Data(convertIntToFastData mem.WordWidth 0u)
+                else
+                    readRamFData mem (Data address)
             match write with
             | 0u -> ()
             | 1u -> writeRamFData mem numStep address dataIn

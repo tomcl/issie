@@ -114,6 +114,14 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
         else
             getRamState simStepOld comp.State
 
+    // A synchronous RAM outputs 0 in cycle 0 - there has been no clock edge for it to have read an
+    // address on - which is why its four branches below guard the read on numStep.
+    // FastOrder.initClockedOuts writes that 0 when the simulation is built, and a fresh run never
+    // reduces the component at step 0; but restartSimulation does, so the reducer has to say the
+    // same thing. Without the guard, cycle 0 of a RAM whose word 0 is non-zero read as 0 on the
+    // first run and as that word after a wrap-around restart. An asynchronous RAM is unaffected:
+    // its combinational pass runs in both cases.
+
     let inline getBinaryGateReducer (bitOp: uint32 -> uint32 -> uint32) : Unit =
         let bit0, bit1 = insUInt32 0, insUInt32 1
         putUInt32 0 <| bitOp bit1 bit0
@@ -1107,9 +1115,9 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
         assertThat (dataInW = mem.WordWidth) <| sprintf "RAM received data-in with wrong width: expected %d but got %A" mem.WordWidth dataInW
 #endif
         let address, dataIn, write = insOldUInt32 0, insOldUInt32 1, insOldUInt32 2
-        // The old contents are the output whether or not the write happens.
+        // The old contents are the output whether or not the write happens, except in cycle 0.
         // NB - this was previously new content - but that is inconsistent and less useful.
-        let dataOut = readRamAddrUInt32DataUInt32 mem address
+        let dataOut = if numStep = 0 then 0u else readRamAddrUInt32DataUInt32 mem address
         match write with
         | 0u -> ()
         | 1u -> writeRamAddrUInt32DataUInt32 mem numStep address dataIn
@@ -1131,7 +1139,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
             | false, false -> failwithf "RAM received data with wrong width: expected %d but got %A" mem.WordWidth (comp.InputWidth 0)
             | true, true ->
                 let address, dataIn, write = insOldBigInt 0, insOldBigInt 1, insOldUInt32 2
-                let dataOut = readRamAddrBigIntDataBigInt mem address
+                let dataOut = if numStep = 0 then 0I else readRamAddrBigIntDataBigInt mem address
                 match write with
                 | 0u -> ()
                 | 1u -> writeRamAddrBigIntDataBigInt mem numStep address dataIn
@@ -1140,7 +1148,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
                 putBigInt 0 dataOut
             | false, true ->
                 let address, dataIn, write = insOldUInt32 0, insOldBigInt 1, insOldUInt32 2
-                let dataOut = readRamAddrUInt32DataBigInt mem address
+                let dataOut = if numStep = 0 then 0I else readRamAddrUInt32DataBigInt mem address
                 match write with
                 | 0u -> ()
                 | 1u -> writeRamAddrUInt32DataBigInt mem numStep address dataIn
@@ -1149,7 +1157,7 @@ let fastReduce (step: StepIndex) (isClockedReduction: bool) (comp: FastComponent
                 putBigInt 0 dataOut
             | true, false ->
                 let address, dataIn, write =  insOldBigInt 0, insOldUInt32 1, insOldUInt32 2
-                let dataOut = readRamAddrBigIntDataUInt32 mem address
+                let dataOut = if numStep = 0 then 0u else readRamAddrBigIntDataUInt32 mem address
                 match write with
                 | 0u -> ()
                 | 1u -> writeRamAddrBigIntDataUInt32 mem numStep address dataIn

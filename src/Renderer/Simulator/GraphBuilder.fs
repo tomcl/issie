@@ -144,10 +144,14 @@ let private getDefaultState compType =
     | CounterNoEnable w
     | CounterNoLoad w
     | CounterNoEnableLoad w -> RegisterState <| convertIntToFastData w 0u
-    // The RamState content may change during the simulation. This is the old SimulationGraph's
-    // initial state, not the fast simulator's, so the window it is given is never used.
+    // This is the old SimulationGraph's initial state, and nothing ever runs it: FastCreate gives
+    // every clocked component a state array of its own and FastOrder builds the store the
+    // simulation actually writes to. So this is a placeholder that names the contents, and it is
+    // the read-only kind - `ofMemory` would allocate a slot and a word for every one of the
+    // memory's 2^AddressWidth addresses and replay its initial data as writes, once per RAM per
+    // graph build, for something no one reads.
     | RAM1 memory
-    | AsyncRAM1 memory -> RamState(RamStore.ofMemory 1 memory)
+    | AsyncRAM1 memory -> RamState(RamStore.fixedOf memory)
 
 let compType t =
     match t with

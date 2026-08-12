@@ -292,7 +292,6 @@ let private viewStatefulComponents step comps numBase model dispatch =
             let label = sprintf "Register: %s (%d bits)" label bits.Width
             [ splittedLine (str label) (staticNumberBox Constants.boxMaxChars numBase bits) ]
         | RamState ram ->
-            let mem = RamStore.toMemory ram step
             let label = sprintf "RAM: %s" <| label
             let initialMem compType =
                 match compType with
@@ -304,8 +303,13 @@ let private viewStatefulComponents step comps numBase model dispatch =
                 Button.button [
                     Button.Props [ simulationBitStyle ]
                     Button.Color IsPrimary
+                    // The whole memory is built here, when the button is pressed, and not while
+                    // this line is drawn: toMemory walks every address the memory has ever held,
+                    // and this pane is redrawn on every message.
                     Button.OnClick (fun _ -> dispatch <| ExecFuncInMessage(
-                        (fun model _ -> openMemoryDiffViewer (initialMem fc.FType) mem model dispatch), dispatch)
+                        (fun model _ ->
+                            let mem = RamStore.toMemory ram step
+                            openMemoryDiffViewer (initialMem fc.FType) mem model dispatch), dispatch)
                     )
                 ] [ str "View" ]
             [ splittedLine (str label) viewDiffBtn ]

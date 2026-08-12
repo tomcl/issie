@@ -207,11 +207,23 @@ let tests =
             Expect.isTrue (liveCountExceeds ram 2 100) "and step 2 is unaffected"
         }
 
+        test "initial contents outside the address range are ignored, not written" {
+            // Contents come from a .dgm, which is not guaranteed to agree with the address width it
+            // declares. Such a location can never be addressed by the simulation, and seeding it
+            // would index off the end of the slot array and fail the whole simulation.
+            let ram = ofMemory 100 (memOf 8 16 (Map [ 3I, 9I; 999I, 5I ]))
+            Expect.equal (readAddrBigIntDataUInt32 ram 3I) 9u "the location that does fit is there"
+            Expect.equal (liveCountAt ram 0) 1 "and the one that does not was dropped"
+        }
+
         test "a read-only store serves its fixed contents at any step" {
             let rom = fixedOf (memOf 8 16 (Map [ 1I, 11I; 2I, 22I ]))
             Expect.equal (wordAt rom 0 1I) 11I "step 0"
             Expect.equal (wordAt rom 999 2I) 22I "and any later step"
             Expect.equal (wordAt rom 999 3I) 0I "an address it has no entry for reads as zero"
             Expect.equal (liveCountAt rom 5) 2 "live count of a fixed memory"
+            Expect.isTrue (liveCountExceeds rom 5 1) "two live words exceed one"
+            Expect.isFalse (liveCountExceeds rom 5 2) "and do not exceed two"
+            Expect.isFalse (liveCountExceeds rom 5 99) "nor a limit far above them"
         }
     ]

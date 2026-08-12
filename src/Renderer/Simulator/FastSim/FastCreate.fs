@@ -568,8 +568,6 @@ let addWavesToFastSimulation (fs: FastSimulation) : FastSimulation =
     // by wave component ports.
     // One array can be referenced by multiple ports.
     // The mutable changes to fs.Drivers here are write-once, from None to Some array.
-    |> (fun x ->
-        x)
     |> (fun fs -> { fs with WaveIndex = addWaveIndexAndDrivers waveComps fs })
 /// This function will create the initial FastSimulation data structure.
 /// It may not complete this. In which case fields NumCreateSteps and NumCreateStepsDone will not be equal.
@@ -714,7 +712,6 @@ let private reLinkIOLabels (fs: FastSimulation) =
 /// are linked to the components that connect the corresponding inputs and outputs of the custom component.
 let linkFastComponents (g: GatherData) (f: FastSimulation) =
     let start = getTimeMs ()
-    let outer = List.rev >> List.tail >> List.rev
     let sComps = g.AllComps
     let fComps = f.FComps
 

@@ -8,7 +8,8 @@
       "Bash(find:*)",
       "Bash(pkill:*)",
       "Bash(true)",
-      "Bash(dotnet fable:*)"
+      "Bash(dotnet fable:*)",
+      "Bash(npm run *)"
     ],
     "deny": []
   }

@@ -195,6 +195,20 @@ let private zoom (dispatch: Msg -> unit) (key: ZoomKey) =
         | false, ZoomOut -> d (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.ZoomOut))
     dispatch <| ExecFuncInMessage(act, dispatch)
 
+/// Put the caret in the Properties pane's Name box, with the existing name selected so that typing
+/// replaces it - which is what F2 means everywhere else.
+///
+/// Run after the render rather than at once: the box exists only when the Properties pane is
+/// showing, and the key that asks for it is also what switches the pane to it.
+let private focusComponentNameBox (_: Msg -> unit) (model: Model) =
+    match Browser.Dom.document.getElementById "labelInputElement" with
+    | null -> ()
+    | el ->
+        el.focus ()
+        // select(), so the first character typed replaces the name instead of extending it
+        el?select ()
+    model
+
 let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
     let keyDispatch (k: SheetT.KeyboardMsg) = sheetDispatch (SheetT.KeyPress k)
@@ -227,6 +241,18 @@ let actionOf (id: ShortcutId) (dispatch: Msg -> unit) : unit =
     | ScAlign -> ifEditable (fun () -> sheetDispatch (SheetT.Arrangement SheetT.AlignSymbols))
     | ScDistribute -> ifEditable (fun () -> sheetDispatch (SheetT.Arrangement SheetT.DistributeSymbols))
     | ScRotateLabel -> ifEditable (fun () -> sheetDispatch SheetT.RotateLabels)
+    // Only with exactly one component selected: the Properties pane shows a name box for one
+    // component and nothing to rename for none or several, so on any other selection the key
+    // would switch the pane away from what the user was looking at and do nothing.
+    | ScRenameComponent ->
+        dispatch
+        <| UpdateModel(fun m ->
+            match m.Sheet.SelectedComponents, openSheetIsReadOnly m with
+            | [ _ ], false ->
+                m
+                |> Optic.set rightPaneTabVisible_ Properties
+                |> Optic.set runAfterRender_ (Some { FnToRun = focusComponentNameBox; ButtonSpinnerOn = false })
+            | _ -> m)
     | ScUndo -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlZ)
     | ScRedo -> ifEditable (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlY)
     | ScSeparateWires -> ifEditable (fun () -> wireOf BusWireSeparate.reSeparateWiresFrom)

@@ -113,6 +113,7 @@ type ShortcutId =
     | ScAlign
     | ScDistribute
     | ScRotateLabel
+    | ScRenameComponent
     | ScUndo
     | ScRedo
     | ScSeparateWires
@@ -282,6 +283,12 @@ let shortcuts: ShortcutSpec list =
       // modifiers: Ctrl+Shift+Right against Cmd+Opt+R.
       spec ScRotateLabel (both [ ch Mods.primShift (letter 'R') ]) [ SheetIdle ]
           "Rotate label of item" CatEdit
+
+      // F2, which is what renames a thing in a file manager and in most editors. Bare, on both
+      // platforms: macOS has no competing convention, since renaming in Finder is Return - and
+      // Return here already means "leave the box", which is the opposite gesture.
+      spec ScRenameComponent (both [ ch Mods.none (KFn 2) ]) [ SheetIdle ]
+          "Rename the selected component" CatEdit
 
       spec ScUndo (both [ ch Mods.prim (letter 'Z') ]) [ SheetIdle ] "Undo diagram action" CatEdit
       spec ScRedo

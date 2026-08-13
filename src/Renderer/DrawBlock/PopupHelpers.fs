@@ -844,7 +844,25 @@ let dialogPopupBodyMemorySetup intDefault dispatch =
 
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
+///
+/// Return confirms the dialog, as it does in any other dialog with one obvious action. It used to
+/// reach KeyTypes.ScLeaveTextBox, whose job is to hand the keyboard back to the schematic: inside a
+/// popup that blurred the box the user had just typed into and did nothing else, which read as the
+/// entry having been thrown away. Swallowed here whether or not the action is available, so that
+/// Return means one thing inside a dialog rather than confirming it or emptying it depending on
+/// whether what has been typed so far is valid.
 let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatch =
+    /// The handler goes on a wrapper rather than on each input because a dialog body is built by
+    /// its caller and may hold several boxes; keydown from any of them bubbles to here.
+    let bodyWithReturn =
+        fun (model: Model) ->
+            div [ OnKeyDown(fun ev ->
+                      if ev.key = "Enter" then
+                          ev.preventDefault ()
+                          // stops the document-level handler seeing it: see the comment above
+                          ev.stopPropagation ()
+                          if not (isDisabled model) then buttonAction model) ]
+                [ body model ]
     let foot =
         fun (model: Model) ->
             let dialogData = model.PopupDialogData
@@ -868,7 +886,7 @@ let dialogPopup title body buttonText buttonAction isDisabled extraStyle dispatc
                     ]
                 ]
             ]
-    dynamicClosablePopup title body foot extraStyle dispatch
+    dynamicClosablePopup title bodyWithReturn foot extraStyle dispatch
 
 // Used for refresh popup
 let dialogPopupRefresh title body extraStyle dispatch =

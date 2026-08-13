@@ -251,9 +251,9 @@ module Fields =
             // ---- widths ----
             "Width (bits)",
                 "How many bits wide this component's bus is. Widths must agree at both ends of every \
-                 wire, so changing this here is usually the fix for a 'wrong wire width' error. It is usually
-                 a number greater than 0, but can
-                 be an expression that includes the sheet's parameters, such as WIDTH or WIDTH+1."
+                 wire, so changing this here is usually the fix for a 'wrong wire width' error. It is \
+                 usually a number greater than 0, but can be an expression that includes the sheet's \
+                 parameters, such as WIDTH or WIDTH+1."
             "Output width (bits)",
                 "How many bits the output bus has. The single input bit is copied onto every one of \
                  them."
@@ -299,8 +299,8 @@ module Fields =
                 "Stretches the symbol horizontally. Issie sizes a custom component to fit its port \
                  labels; use scale when that is not what you want."
             "Height Scale",
-                "Stretches the symbol vertically. Issie sizes a custom component to fit its port labels; use this
-                when that is not hat you want."
+                "Stretches the symbol vertically. Issie sizes a custom component to fit its port labels; use this \
+                when that is not what you want."
 
             // ---- values ----
             "Enter constant value in decimal, hex, or binary:",

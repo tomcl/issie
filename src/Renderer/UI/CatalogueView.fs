@@ -75,6 +75,21 @@ let private sheetPosOfCursor (cursor: XYPos) (sheet: SheetT.Model) : XYPos optio
                 Y = (cursor.Y - getHeaderHeight + canvas.scrollTop) / sheet.Zoom
             }
 
+/// The symbol a ghost draws, which is the symbol the drop will create.
+///
+/// `clocked` is put back afterwards rather than passed in because createNewSymbol works it out
+/// from the loaded sheets, and a library component's sheet is not loaded until it is placed - see
+/// DragGhost. It is false for everything placed from the project, whose answer createNewSymbol
+/// already has.
+let private ghostSymbol (model: Model) (compType: ComponentType) (clocked: bool) (pos: XYPos) =
+    let theme = model.Sheet.Wire.Symbol.Theme
+    let sym = Symbol.createNewSymbol (tryGetLoadedComponents model) pos compType "" theme
+    match clocked with
+    | false -> sym
+    | true ->
+        {sym with IsClocked = true}
+        |> Optic.set (SymbolT.appearance_ >-> SymbolT.colour_) (Symbol.getSymbolColour compType true theme)
+
 /// The space a carried component would take up on the sheet if it were dropped at `sheetPos`.
 ///
 /// For a symbol this is the box of the symbol that would be created there, worked out by creating
@@ -82,8 +97,8 @@ let private sheetPosOfCursor (cursor: XYPos) (sheet: SheetT.Model) : XYPos optio
 /// be a second, disagreeing, opinion of how big it is.
 let private ghostBoundingBox (model: Model) (ghost: DragGhost) (sheetPos: XYPos) : BoundingBox =
     match ghost with
-    | GhostSymbol compType ->
-        Symbol.createNewSymbol (tryGetLoadedComponents model) sheetPos compType "" model.Sheet.Wire.Symbol.Theme
+    | GhostSymbol (compType, clocked) ->
+        ghostSymbol model compType clocked sheetPos
         |> Symbol.getSymbolBoundingBox
     | GhostBox _ ->
         {
@@ -113,7 +128,11 @@ let private ghostOverlaps (model: Model) (ghost: DragGhost) (cursor: XYPos) : bo
 /// events rather than a click handler because the capture taken on press retargets the click to
 /// this item even when the release was over the canvas, so an OnClick would fire a second time for
 /// every drop.
-let private placementItem styles (ghost: DragGhost) label (place: unit -> unit) (model: Model) dispatch =
+///
+/// `ghostOf` is asked for what to draw when the press happens rather than when the catalogue is
+/// drawn: a library component's ghost is read from its .ldgm, which a render function may not do.
+/// It is asked once per gesture, and the answer kept for the release that ends it.
+let private placementItem styles (ghostOf: unit -> DragGhost) label (place: unit -> unit) (model: Model) dispatch =
     /// Whether this item is the one being carried, marked on the element by its own press and
     /// unmarked when that press ends.
     ///
@@ -125,12 +144,22 @@ let private placementItem styles (ghost: DragGhost) label (place: unit -> unit) 
     let carryingThis (ev: Browser.Types.PointerEvent) : bool = ev.currentTarget?__issieCarrying = true
     let setCarrying (ev: Browser.Types.PointerEvent) (carrying: bool) =
         ev.currentTarget?__issieCarrying <- carrying
+    /// The ghost this press is carrying, kept beside the flag above and for the same reason: the
+    /// release must test what was picked up, and working it out a second time would read the disk
+    /// again for a library component.
+    let setCarriedGhost (ev: Browser.Types.PointerEvent) (ghost: DragGhost) =
+        ev.currentTarget?__issieGhost <- ghost
+    let carriedGhost (ev: Browser.Types.PointerEvent) : DragGhost option =
+        let carried: obj = ev.currentTarget?__issieGhost
+        if isNull carried then None else Some (unbox<DragGhost> carried)
     Menu.Item.li [
         Menu.Item.IsActive false
         Menu.Item.Props [
             Style styles
             OnPointerDown (fun ev ->
                 setCarrying ev true
+                let ghost = ghostOf ()
+                setCarriedGhost ev ghost
                 // Captured, so the gesture is followed across the whole window. Without this the
                 // ghost would stop moving the instant the pointer left this item, which is at
                 // once - the canvas it is being dragged to is a few pixels away. Best effort:
@@ -148,13 +177,15 @@ let private placementItem styles (ghost: DragGhost) label (place: unit -> unit) 
                 if carryingThis ev then
                     setCarrying ev false
                     let cursor = { X = ev.clientX; Y = ev.clientY }
-                    match ghostOverlaps model ghost cursor with
+                    // no ghost recorded means the press did not come through OnPointerDown, so
+                    // there is nothing being carried to land on anything
+                    match carriedGhost ev |> Option.map (fun ghost -> ghostOverlaps model ghost cursor) with
                     // The release the red ghost is warning about. Nothing happens at all: `place`
                     // is not called, so a component that asks a popup for its parameters does not
                     // ask for a placement that is not going to happen. The popup belongs to a
                     // placement that succeeds.
-                    | true -> dispatch EndDragPlacement
-                    | false ->
+                    | Some true -> dispatch EndDragPlacement
+                    | Some false | None ->
                         // Released over free canvas the component goes where it was dropped;
                         // released off the canvas this was a click, and the component follows the
                         // cursor as it always has.
@@ -266,15 +297,20 @@ let startPlacingCustomComponent (loadedComponent: LoadedComponent) model dispatc
 /// An instance of `loadedComponent` as it is drawn before any parameters have been chosen: the
 /// sheet at its own declared defaults, which is what the instance would be if the popup were
 /// simply accepted.
+///
+/// Clocked is left to the draw block: the sheet is one of the project's, so createNewSymbol finds
+/// it and answers for itself.
 let private customGhost (loadedComponent: LoadedComponent) =
-    GhostSymbol (Custom {
-        Name = loadedComponent.Name
-        InputLabels = loadedComponent.InputLabels
-        OutputLabels = loadedComponent.OutputLabels
-        Form = loadedComponent.Form
-        Description = loadedComponent.Description
-        ParameterBindings = None
-    })
+    GhostSymbol (
+        Custom {
+            Name = loadedComponent.Name
+            InputLabels = loadedComponent.InputLabels
+            OutputLabels = loadedComponent.OutputLabels
+            Form = loadedComponent.Form
+            Description = loadedComponent.Description
+            ParameterBindings = None
+        },
+        false)
 
 /// Placing a sheet reads the model as it is when the gesture ends rather than as it was when the
 /// catalogue was drawn, because the drop position is written into it moments earlier - by the
@@ -286,7 +322,7 @@ let private placeSheetOnGesture (loadedComponent: LoadedComponent) dispatch =
             dispatch)
 
 let private makeCustom styles model dispatch (loadedComponent: LoadedComponent)  =
-    placementItem styles (customGhost loadedComponent) loadedComponent.Name
+    placementItem styles (fun () -> customGhost loadedComponent) loadedComponent.Name
         (placeSheetOnGesture loadedComponent dispatch) model dispatch
 
 //------------------------------------------------------------------------------------------------//
@@ -351,6 +387,36 @@ let private materialiseLibraryComponent
         | [] -> Error $"Library {libName} has no component to place"
         | _ -> Ok ldcs)
 
+/// A library component as it will be drawn once it is placed, for the drag to carry.
+///
+/// The same symbol a sheet of this project gets - see customGhost - reached differently, because
+/// the sheet is not in the project yet: its ports and whether it is clocked are read from the
+/// .ldgm here, when the press happens. That read is the one the placement is about to do anyway,
+/// and doing it when the library was listed would read every component of it to draw one.
+///
+/// The name is the one the sheet will take, prefix and all, since that is what the symbol will
+/// say. A sheet that will not read leaves a named box to carry: the placement will fail in its
+/// turn, with a message that says why.
+let private libraryGhost
+        (library: ComponentLibraries.OpenedLibrary)
+        (listing: ComponentLibraries.LibraryListing)
+        (model: Model)
+        : DragGhost =
+    match model.CurrentProj, ComponentLibraries.tryReadComponentShape library.Path listing.Header.Name with
+    | Some project, Ok shape ->
+        let index = ComponentLibraries.libraryIndexFor project.LoadedComponents library.Name
+        GhostSymbol (
+            Custom {
+                Name = ComponentLibraries.sheetNameFor index listing.Header.Name
+                InputLabels = shape.InputLabels
+                OutputLabels = shape.OutputLabels
+                Form = Some (Library (library.Name, listing.Header.Name))
+                Description = Some listing.Header.Description
+                ParameterBindings = None
+            },
+            shape.IsClocked)
+    | _ -> GhostBox listing.Header.Name
+
 /// Place an instance of a library component, adding its sheet - and any it needs - to the project
 /// first. The .ldgm files are read here, when the user asks for the component, not when the
 /// library was listed: listing reads headers only.
@@ -408,7 +474,7 @@ let private makeCustomList keep styles model dispatch =
 
 /// A Verilog-generated sheet is placed exactly as any other sheet is, parameters included.
 let private makeVerilog styles model dispatch (loadedComponent: LoadedComponent)  =
-    placementItem styles (customGhost loadedComponent) loadedComponent.Name
+    placementItem styles (fun () -> customGhost loadedComponent) loadedComponent.Name
         (placeSheetOnGesture loadedComponent dispatch) model dispatch
 
 let private makeVerilogList keep styles model dispatch =
@@ -1390,17 +1456,17 @@ let viewDragGhost (model: Model) : ReactElement =
         let pad = 40.
         let drawing, w, h =
             match ghost with
-            | GhostSymbol compType ->
-                let placed = Symbol.createNewSymbol (tryGetLoadedComponents model) {X = 0.; Y = 0.} compType "" theme
+            | GhostSymbol (compType, clocked) ->
+                let placed = ghostSymbol model compType clocked {X = 0.; Y = 0.}
                 let sym =
                     match overlapping with
                     | true -> placed |> Optic.set (SymbolT.appearance_ >-> SymbolT.colour_) Constants.ghostErrorColour
                     | false -> placed
                 SymbolView.drawComponent sym theme, sym.Component.W, sym.Component.H
             | GhostBox name ->
-                // A library component's ports are not known until its sheet is read, and reading
-                // it means going to disk - that belongs at placement, not on a mouse-down. So it
-                // is carried as a named box, and takes its true shape once it is placed.
+                // Only a library component whose sheet would not read gets here: everything else
+                // is carried as the symbol it will become. Drawn as a named box so that the
+                // gesture still works - the placement will fail in its turn, and say why.
                 let w, h = Constants.ghostBoxW, Constants.ghostBoxH
                 let fill = if overlapping then Constants.ghostErrorColour else "lightgray"
                 [ rect [
@@ -1493,7 +1559,7 @@ let viewCatalogue model dispatch =
                 match keep name tip with
                 | false -> []
                 | true ->
-                    let react = placementItem styles (GhostSymbol ghost) name (fun () -> func ()) model dispatch
+                    let react = placementItem styles (fun () -> GhostSymbol (ghost, false)) name (fun () -> func ()) model dispatch
                     [ div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
                             Tooltip.dataTooltip tip
                             Style styles
@@ -1676,7 +1742,7 @@ let viewCatalogue model dispatch =
                 div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsMultiline}"
                       Tooltip.dataTooltip listing.Header.Description
                       Style styles ]
-                    [ placementItem styles (GhostBox listing.Header.Name) listing.Header.Name
+                    [ placementItem styles (fun () -> libraryGhost library listing model) listing.Header.Name
                         (fun () -> dispatchAsFunc (startPlacingLibraryComponent library listing))
                         model dispatch ]
             Menu.menu [Props [Class "py-1"; Style ([Height "calc(100vh - 200px)"; OverflowY OverflowOptions.Auto] @ styles)]] [

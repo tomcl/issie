@@ -93,6 +93,61 @@ let tests =
                         try System.IO.Directory.Delete(folder, true) with _ -> ())
         }
 
+        // The catalogue draws a library component being dragged from this, before anything has
+        // been written into the project - so what is carried is only the component that lands if
+        // the two are worked out from the same sheets. They are checked against the loader here
+        // rather than against a recorded answer, since the loader is what the placement uses.
+        test "the shape a library component is dragged as is the one it lands with" {
+            let librariesDir =
+                System.IO.Path.GetFullPath(
+                    System.IO.Path.Combine(__SOURCE_DIRECTORY__, "..", "..", "static", "libraries"))
+            let components =
+                System.IO.Directory.GetFiles(librariesDir, "*.ldgm", System.IO.SearchOption.AllDirectories)
+                |> Array.sort
+            Expect.isGreaterThan components.Length 0 $"no .ldgm files under {librariesDir}"
+            components
+            |> Array.iter (fun path ->
+                let libPath = System.IO.Path.GetDirectoryName path
+                let name = System.IO.Path.GetFileNameWithoutExtension path
+                let shape =
+                    match ComponentLibraries.tryReadComponentShape libPath name with
+                    | Error msg -> failtest $"{name}: {msg}"
+                    | Ok shape -> shape
+                // materialise the component and everything it uses, as placing it does, and ask
+                // the loaded sheets the same two questions
+                let folder =
+                    System.IO.Path.Combine(
+                        System.IO.Path.GetTempPath(), $"issie-shape-{System.Guid.NewGuid()}")
+                System.IO.Directory.CreateDirectory folder |> ignore
+                try
+                    let loaded =
+                        match ComponentLibraries.readComponentAndDependencies libPath name with
+                        | Error msg -> failtest $"{name}: {msg}"
+                        | Ok files ->
+                            files
+                            |> List.map (fun (header, body) ->
+                                let dgm = System.IO.Path.Combine(folder, header.Name + ".dgm")
+                                System.IO.File.WriteAllText(dgm, body)
+                                match FilesIO.tryLoadComponentFromPath dgm with
+                                | Error msg -> failtest $"{header.Name}: {msg}"
+                                | Ok ldc -> ldc)
+                    let placed = List.last loaded
+                    Expect.equal shape.InputLabels placed.InputLabels $"{name} inputs"
+                    Expect.equal shape.OutputLabels placed.OutputLabels $"{name} outputs"
+                    // the question createNewSymbol asks of the project once the sheet is in it
+                    let instance =
+                        { makeComp "I1" 0 0 (Input1(1, None)) "I1" with
+                            Type =
+                                Custom
+                                    { Name = placed.Name
+                                      InputLabels = placed.InputLabels
+                                      OutputLabels = placed.OutputLabels
+                                      Form = placed.Form; Description = None; ParameterBindings = None } }
+                    Expect.equal shape.IsClocked (isClocked [] loaded instance) $"{name} clocked"
+                finally
+                    try System.IO.Directory.Delete(folder, true) with _ -> ())
+        }
+
         test "a library component opened for viewing appears without its own innards" {
             // What the right-click "View library component" item asks for: this sheet and no
             // more. A component built from other library components keeps them shut, each

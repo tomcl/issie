@@ -16,7 +16,9 @@ module ComponentLibraries
 
     - Listing a library reads headers only. The body is one JSON string token, so nothing builds a
       canvas: no LoadedComponent, no width inference, no id regeneration. Those cost far more than
-      reading the bytes do.
+      reading the bytes do. One component's canvas is built before it is placed - by
+      tryReadComponentShape, so that the catalogue can draw it being dragged - but only the one
+      being carried, and only once the user has taken hold of it.
     - Materialising a component writes the body string out as a .dgm and hands it to the ordinary
       sheet loader. There is one canvas format in Issie, not two, and nothing here understands it.
 
@@ -225,6 +227,70 @@ let readComponentAndDependencies (libPath: string) (name: string) : Result<Libra
                 ||> Helpers.ResultList.fold read
                 |> Result.map (fun got -> got @ [header, body]))
     read [] name
+
+//------------------------------------------------------------------------------------------------//
+//------------------------------ What a component will look like ---------------------------------//
+//------------------------------------------------------------------------------------------------//
+
+/// What a library component becomes on the canvas, without materialising it: the ports its symbol
+/// will have, and whether that symbol is drawn as clocked.
+///
+/// This is what the catalogue needs to draw a component being carried to the sheet. It is read
+/// from the sheet rather than declared in the header for the reason the header gives: nothing
+/// derived is stored, so nothing can be out of date with the sheet it describes.
+type ComponentShape = {
+    InputLabels: (string * int) list
+    OutputLabels: (string * int) list
+    IsClocked: bool
+}
+
+/// The canvas held in a component file's body. The body is the text of a .dgm, so this is the
+/// ordinary sheet decode and there is nothing library-specific in it.
+let private tryCanvasOfBody (name: string) (body: string) : Result<CanvasState, string> =
+    match Helpers.JsonHelpers.jsonStringToState body with
+    | Error msg -> Error $"{name} does not hold a readable sheet ({msg})"
+    | Ok state -> Ok (getLatestCanvas state)
+
+/// Whether a sheet is clocked, which for a sheet that uses other sheets is a question about all of
+/// them. CommonTypes.isClocked answers it from a project's LoadedComponents; a library component
+/// belongs to no project until it is placed, so the sheets it came with are what is searched here.
+let rec private canvasIsClocked
+        (sheets: (string * CanvasState) list)
+        (visited: string list)
+        ((comps, _): CanvasState)
+        : bool =
+    comps
+    |> List.exists (fun comp ->
+        match comp.Type with
+        | Custom cc when not (List.contains cc.Name visited) ->
+            sheets
+            |> List.tryFind (fun (name, _) -> name = cc.Name)
+            |> Option.map (fun (_, canvas) -> canvasIsClocked sheets (cc.Name :: visited) canvas)
+            |> Option.defaultValue false
+        | Custom _ -> false     // a sheet reached twice: the first visit answered for it
+        // asked with no LoadedComponents, isClocked answers for the primitives and says false for
+        // any Custom - which is the case above, where the sheets to search are the ones read here
+        | _ -> isClocked [] [] comp)
+
+/// The shape of one component of a library, read from the same files placing it will read.
+///
+/// Every sheet is decoded, not just the component's own: whether it is clocked can depend on a
+/// sheet it uses, and its ports come from the last one, which is the component itself.
+let tryReadComponentShape (libPath: string) (name: string) : Result<ComponentShape, string> =
+    readComponentAndDependencies libPath name
+    |> Result.bind (
+        Helpers.ResultList.traverse (fun ((header, body): LibraryFile) ->
+            tryCanvasOfBody header.Name body |> Result.map (fun canvas -> header.Name, canvas)))
+    |> Result.bind (fun sheets ->
+        match List.tryLast sheets with
+        | None -> Error $"Library component {name} has no sheet"
+        | Some (_, canvas) ->
+            let inputs, outputs = CanvasExtractor.parseDiagramSignature canvas
+            Ok {
+                InputLabels = inputs
+                OutputLabels = outputs
+                IsClocked = canvasIsClocked sheets [] canvas
+            })
 
 /// The sheets a sheet instantiates, by name and without duplicates. Used to fill in a header's
 /// Requires when a component is saved, and to find everything that must be saved with it.

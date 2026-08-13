@@ -743,10 +743,16 @@ type DragAddition =
 type DragGhost =
     /// The symbol itself, drawn by the draw block's own renderer at the component's default
     /// parameters. What the user is carrying looks like what they will get.
-    | GhostSymbol of ComponentType
-    /// A named box, for a library component whose sheet has not been read and so has no ports to
-    /// draw yet. Reading it means going to disk, which belongs at placement rather than on a
-    /// mouse-down.
+    ///
+    /// `Clocked` is carried rather than worked out from the type because CommonTypes.isClocked
+    /// answers for a custom component by finding its sheet among the project's LoadedComponents,
+    /// and a library component's sheet is not in the project until it is dropped. Everything
+    /// placed from the project leaves it false and is answered from the model as before; a library
+    /// component answers it from the sheet read when the drag began, so the clock mark is on the
+    /// ghost of a clocked component rather than appearing only once it lands.
+    | GhostSymbol of ComponentType * Clocked: bool
+    /// A named box, for a library component whose sheet would not read. The placement will fail
+    /// too, and say why; this keeps the gesture working rather than leaving nothing to carry.
     | GhostBox of string
 
 /// A catalogue component being dragged onto the canvas, before it exists.

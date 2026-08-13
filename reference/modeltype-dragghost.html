@@ -464,7 +464,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4664', 4664)" onmouseover="showTip(event, '4664', 4664)">
+              <code onmouseout="hideTip(event, '4668', 4668)" onmouseover="showTip(event, '4668', 4668)">
                 <p>
                   <a id="GhostBox">
                     <a href="#GhostBox">
@@ -473,7 +473,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4664">
+              <div class="fsdocs-tip" id="4668">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>GhostBox&#32;string</span></code>
@@ -499,13 +499,12 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L750-750" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L756-756" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     A named box, for a library component whose sheet has not been read and so has no ports to
- draw yet. Reading it means going to disk, which belongs at placement rather than on a
- mouse-down.
+                     A named box, for a library component whose sheet would not read. The placement will fail
+ too, and say why; this keeps the gesture working rather than leaving nothing to carry.
                   </p>
                 </div>
               </summary>
@@ -525,29 +524,37 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4665', 4665)" onmouseover="showTip(event, '4665', 4665)">
+              <code onmouseout="hideTip(event, '4669', 4669)" onmouseover="showTip(event, '4669', 4669)">
                 <p>
                   <a id="GhostSymbol">
                     <a href="#GhostSymbol">
-                      <code><span>GhostSymbol&#32;<a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></span></code>
+                      <code><span>GhostSymbol(<span><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a>,&#32;Clocked</span>)</span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4665">
+              <div class="fsdocs-tip" id="4669">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>GhostSymbol&#32;<a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></span></code>
+                  <code><span>GhostSymbol(<span><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a>,&#32;Clocked</span>)</span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        Item
+                        Item1
                       </b>
                       :
                       <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        Clocked
+                      </b>
+                      :
+                      <code>bool</code>
                     </span>
                     <br/>
                   </ul>
@@ -560,22 +567,37 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L746-746" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L753-753" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      The symbol itself, drawn by the draw block's own renderer at the component's default
  parameters. What the user is carrying looks like what they will get.
+
+ `Clocked` is carried rather than worked out from the type because CommonTypes.isClocked
+ answers for a custom component by finding its sheet among the project's LoadedComponents,
+ and a library component's sheet is not in the project until it is dropped. Everything
+ placed from the project leaves it false and is answered from the model as before; a library
+ component answers it from the sheet read when the drag began, so the clock mark is on the
+ ghost of a clocked component rather than appearing only once it lands.
                   </p>
                 </div>
               </summary>
               <dl class="fsdocs-params">
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    Item
+                    Item1
                   </span>
                   :
                   <code><a href="/issie/reference/commontypes-componenttype.html">ComponentType</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    Clocked
+                  </span>
+                  :
+                  <code>bool</code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
               </dl>
@@ -607,7 +629,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4666', 4666)" onmouseover="showTip(event, '4666', 4666)">
+              <code onmouseout="hideTip(event, '4670', 4670)" onmouseover="showTip(event, '4670', 4670)">
                 <p>
                   <a id="IsGhostBox">
                     <a href="#IsGhostBox">
@@ -616,7 +638,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4666">
+              <div class="fsdocs-tip" id="4670">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsGhostBox</span></code>
@@ -646,7 +668,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4667', 4667)" onmouseover="showTip(event, '4667', 4667)">
+              <code onmouseout="hideTip(event, '4671', 4671)" onmouseover="showTip(event, '4671', 4671)">
                 <p>
                   <a id="IsGhostSymbol">
                     <a href="#IsGhostSymbol">
@@ -655,7 +677,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4667">
+              <div class="fsdocs-tip" id="4671">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsGhostSymbol</span></code>

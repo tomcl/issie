@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="RecordField (issie)" />
+    <meta property="og:title" content="ComponentShape (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="RecordField (issie)">
+    <meta name="twitter:title" content="ComponentShape (issie)">
     
-    <title>RecordField (issie) | issie</title>
+    <title>ComponentShape (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -400,27 +400,50 @@
     <div id="content">
         <div>
   <h2>
-    RecordField Type
+    ComponentShape Type
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
       Namespace: 
-      <a href="/issie/reference/fable-simplejson.html">
-        Fable.SimpleJson
+      <a href="/issie/reference/global.html">
+        global
       </a>
     </dt>
     <dt>
       Assembly: Renderer.dll
     </dt>
     <dt>
+      Parent Module: 
+      <a href="/issie/reference/global-componentlibraries.html">
+        ComponentLibraries
+      </a>
+    </dt>
+    <dt>
       Base Type: 
       <code>obj</code>
+    </dt>
+    <dt>
+      All Interfaces: 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/componentlibraries-componentshape.html">ComponentShape</a>&gt;</span></code>
+      , 
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
+      , 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/componentlibraries-componentshape.html">ComponentShape</a>&gt;</span></code>
+      , 
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
+      , 
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-        
+         What a library component becomes on the canvas, without materialising it: the ports its symbol
+ will have, and whether that symbol is drawn as clocked.
+
+ This is what the catalogue needs to draw a component being carried to the sheet. It is read
+ from the sheet rather than declared in the header for the reason the header gives: nothing
+ derived is stored, so nothing can be out of date with the sheet it describes.
       </p>
     </div>
   </div>
@@ -447,24 +470,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2942', 2942)" onmouseover="showTip(event, '2942', 2942)">
+              <code onmouseout="hideTip(event, '3653', 3653)" onmouseover="showTip(event, '3653', 3653)">
                 <p>
-                  <a id="FieldName">
-                    <a href="#FieldName">
-                      <code>FieldName</code>
+                  <a id="InputLabels">
+                    <a href="#InputLabels">
+                      <code>InputLabels</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2942">
+              <div class="fsdocs-tip" id="3653">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code>FieldName</code>
+                  <code>InputLabels</code>
                   <br/>
                   <br/>
                   <span>
                     Field type: 
-                    <code>string</code>
+                    <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
                   </span>
                   <br/>
                 </div>
@@ -477,7 +500,7 @@
                 <span class="fsdocs-return-name">
                   Field type: 
                 </span>
-                <code>string</code>
+                <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -486,24 +509,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2943', 2943)" onmouseover="showTip(event, '2943', 2943)">
+              <code onmouseout="hideTip(event, '3654', 3654)" onmouseover="showTip(event, '3654', 3654)">
                 <p>
-                  <a id="FieldType">
-                    <a href="#FieldType">
-                      <code>FieldType</code>
+                  <a id="IsClocked">
+                    <a href="#IsClocked">
+                      <code>IsClocked</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2943">
+              <div class="fsdocs-tip" id="3654">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code>FieldType</code>
+                  <code>IsClocked</code>
                   <br/>
                   <br/>
                   <span>
                     Field type: 
-                    <code><a href="/issie/reference/fable-simplejson-typeinfo.html">TypeInfo</a></code>
+                    <code>bool</code>
                   </span>
                   <br/>
                 </div>
@@ -516,7 +539,7 @@
                 <span class="fsdocs-return-name">
                   Field type: 
                 </span>
-                <code><a href="/issie/reference/fable-simplejson-typeinfo.html">TypeInfo</a></code>
+                <code>bool</code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>
@@ -525,24 +548,24 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2944', 2944)" onmouseover="showTip(event, '2944', 2944)">
+              <code onmouseout="hideTip(event, '3655', 3655)" onmouseover="showTip(event, '3655', 3655)">
                 <p>
-                  <a id="PropertyInfo">
-                    <a href="#PropertyInfo">
-                      <code>PropertyInfo</code>
+                  <a id="OutputLabels">
+                    <a href="#OutputLabels">
+                      <code>OutputLabels</code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2944">
+              <div class="fsdocs-tip" id="3655">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code>PropertyInfo</code>
+                  <code>OutputLabels</code>
                   <br/>
                   <br/>
                   <span>
                     Field type: 
-                    <code><a href="https://learn.microsoft.com/dotnet/api/system.reflection.propertyinfo">PropertyInfo</a></code>
+                    <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
                   </span>
                   <br/>
                 </div>
@@ -555,7 +578,7 @@
                 <span class="fsdocs-return-name">
                   Field type: 
                 </span>
-                <code><a href="https://learn.microsoft.com/dotnet/api/system.reflection.propertyinfo">PropertyInfo</a></code>
+                <code><span><span>(<span>string&#32;*&#32;int</span>)</span>&#32;list</span></code>
               </dt>
               <dd class="fsdocs-return-docs"></dd>
             </dl>

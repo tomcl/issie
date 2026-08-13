@@ -1395,7 +1395,52 @@ let rec createVerilogPopup model showExtraErrors correctedCode moduleName (origi
     let extra = if showExtraErrors then [Width "80%";Height "75%";OverflowX OverflowOptions.Hidden;Position PositionOptions.Fixed;] else [Width "50%";Height "75%";OverflowX OverflowOptions.Hidden;Position PositionOptions.Fixed;]
     let saveUpdateText = match origin with |NewVerilogFile -> "Save" |UpdateVerilogFile _ -> "Update"
     let saveUpdateButton = match origin with |NewVerilogFile -> saveButtonAction |UpdateVerilogFile _ -> updateButton
-    dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton isDisabled extra dispatch
+
+    /// Leaving the editor without saving throws away everything typed since it was opened, and the
+    /// code exists nowhere else - so it asks first, as Issie does before anything irrecoverable.
+    ///
+    /// What "unchanged" means depends on where the editor was opened from: for a new component the
+    /// code is untouched while it is still the starting template, and for an existing one while it
+    /// still matches the .v file that component was last saved to. Both are read here, at the
+    /// moment of the click, rather than carried along - createVerilogPopup re-enters itself on
+    /// every compile, so anything threaded through would have to survive a path that does not
+    /// know about it.
+    let cancelAction =
+        fun (dialogData: PopupDialogData) ->
+            let code = getCode dialogData
+            let savedCode =
+                match origin, model.CurrentProj with
+                | NewVerilogFile, _ -> Some verilogEditorTemplate
+                | UpdateVerilogFile name, Some project ->
+                    match tryReadFileSync (pathJoin [| project.ProjectPath; name + ".v" |]) with
+                    | Ok text -> Some text
+                    | Error _ -> None
+                | UpdateVerilogFile _, None -> None
+            // An unreadable .v file leaves savedCode as None: with nothing to compare against, ask
+            // rather than assume there is nothing to lose.
+            let nothingToLose = code = "" || savedCode = Some code
+            let close () =
+                dispatch ClosePopup
+                dispatch FinishUICmd
+            match nothingToLose with
+            | true -> close ()
+            | false ->
+                // Issie shows one popup at a time, so this replaces the editor rather than sitting
+                // over it - and ClosePopup, which the discard branch reaches, clears VerilogCode.
+                // Hence `code`, captured above: it is what reopens the editor as it was.
+                choicePopup
+                    "Discard your Verilog code?"
+                    (str "This component has not been saved, so the code you have written will be \
+                          lost. Compile it first if you want to keep it.")
+                    "Discard"
+                    "Keep editing"
+                    (fun discard _ ->
+                        match discard with
+                        | true -> close ()
+                        | false -> createVerilogPopup model showExtraErrors (Some code) moduleName origin dispatch)
+                    dispatch
+
+    dialogVerilogPopup title body saveUpdateText noErrors showExtraErrors saveUpdateButton moreInfoButton cancelAction isDisabled extra dispatch
 
 
 /// One section of the catalogue.

@@ -67,10 +67,18 @@ type CERSCProps =
     //   Compile : (string -> PopupDialogData -> ReactElement)}
 type CERSCState = { code: string; }
 
+/// What the editor holds for a Verilog component that has not been written yet.
+///
+/// Named rather than written inline in setInitState below because the cancel path compares against
+/// it: a new component whose code is still this has had nothing typed into it, so closing the
+/// editor throws nothing away and need not ask. See CatalogueView.createVerilogPopup.
+let verilogEditorTemplate =
+    "module NAME(\n  // Write your IO Port Declarations here\n  \n);  \n  // Write your Assignments here\n  \n  \n  \nendmodule"
+
 type CodeEditorReactStatefulComponent (props) =
     inherit Component<CERSCProps, CERSCState> (props)
-    
-    do base.setInitState({ code = "module NAME(\n  // Write your IO Port Declarations here\n  \n);  \n  // Write your Assignments here\n  \n  \n  \nendmodule" })
+
+    do base.setInitState({ code = verilogEditorTemplate })
 
 
     // override this.shouldComponentUpdate (nextProps,nextState) =
@@ -911,7 +919,18 @@ let dialogPopupRefresh title body extraStyle dispatch =
 
 /// Popup with an input textbox and two buttons.
 /// The text is reflected in Model.PopupDialogText.
-let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveButtonAction moreInfoButton isDisabled extraStyle dispatch =
+/// The Verilog editor. Unlike every other popup here it holds work that exists nowhere else until
+/// it is saved, so leaving it is the one irrecoverable thing it can do.
+///
+/// `cancelAction` is therefore given all three ways out that are not Save - the Cancel button, the
+/// X, and a click on the background - rather than each dispatching ClosePopup for itself. They
+/// discard exactly the same edits, so a confirmation on one of them and not the others would be a
+/// confirmation the user can miss by clicking somewhere else.
+let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveButtonAction moreInfoButton (cancelAction: PopupDialogData -> Unit) isDisabled extraStyle dispatch =
+    /// buildPopup does not hand its close function a model, and what to do depends on what has been
+    /// typed, so the current dialog data is fetched in a message.
+    let close (dispatch: Msg -> Unit) =
+        fun _ -> dispatch <| ExecFuncInMessage((fun m _ -> cancelAction m.PopupDialogData), dispatch)
     let foot =
         fun (model: Model) ->
             let dialogData = model.PopupDialogData
@@ -926,9 +945,7 @@ let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveB
                     Level.item [] [
                         Button.button [
                             Button.Color IsLight
-                            Button.OnClick (fun _ -> 
-                                dispatch ClosePopup
-                                dispatch FinishUICmd) //In case user presses cancel on 'rename sheet' popup
+                            Button.OnClick (fun _ -> cancelAction dialogData)
                         ] [ str "Cancel" ]
                     ]
                     Level.item [] [
@@ -947,7 +964,9 @@ let dialogVerilogPopup title body saveUpdateText noErrors showingExtraInfo saveB
                     ]
                 ]
             ]
-    dynamicClosablePopup title body foot extraStyle dispatch
+    buildPopup title (fun _ -> body) (fun _ -> foot) close extraStyle
+    |> ShowPopup
+    |> dispatch
 
 let staticButtonFoot buttonAction buttonText dispatch =
         Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [

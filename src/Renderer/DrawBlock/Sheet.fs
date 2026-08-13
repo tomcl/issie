@@ -91,6 +91,10 @@ module Constants =
     let fineZoomWheelStep = 30.0
     /// sensitivity for the continuous pinch gesture reported by trackpads
     let pinchZoomSensitivity = 0.007
+    /// largest zoom change one wheel event may make, in either direction. A precision touchpad
+    /// coalesces scrolling into deltas an order of magnitude larger than a mouse notch, and reports
+    /// them as a physical Ctrl-wheel when Ctrl really is held, so both branches need the bound
+    let maxZoomFactorPerWheelEvent = 1.3
     /// aspect ratio required before align or distribute can be done
     let boxAspectRatio = 2. 
     /// id of the Sheet menu's dropdown, which when pinned covers the left of the canvas. Its width
@@ -138,11 +142,18 @@ let wheelZoom deltaMode deltaY isZoomGesture physicalModifierHeld =
         None
     else
         let delta = normalizedWheelDelta deltaMode deltaY
+        let bound =
+            clamp (1. / Constants.maxZoomFactorPerWheelEvent) Constants.maxZoomFactorPerWheelEvent
         if physicalModifierHeld then
-            Some(PhysicalWheelZoom (Constants.fineZoomIncrement ** (-delta / Constants.fineZoomWheelStep)))
+            Constants.fineZoomIncrement ** (-delta / Constants.fineZoomWheelStep)
+            |> bound
+            |> PhysicalWheelZoom
+            |> Some
         else
-            let factor = exp (-delta * Constants.pinchZoomSensitivity) |> clamp (1. / 1.3) 1.3
-            Some(PinchZoom factor)
+            exp (-delta * Constants.pinchZoomSensitivity)
+            |> bound
+            |> PinchZoom
+            |> Some
 
 /// Calculate the scroll position that keeps a sheet point at the centre of the viewport.
 let zoomCenteredScrollPosition (oldScreenCentre: XYPos) zoom clientWidth clientHeight : XYPos =

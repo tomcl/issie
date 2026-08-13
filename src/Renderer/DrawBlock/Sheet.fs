@@ -126,6 +126,11 @@ let wheelZoom deltaMode deltaY isZoomGesture physicalModifierHeld =
         else
             let factor = exp (-delta * Constants.pinchZoomSensitivity) |> clamp (1. / 1.3) 1.3
             Some(PinchZoom factor)
+
+/// Calculate the scroll position that keeps a sheet point at the centre of the viewport.
+let zoomCenteredScrollPosition (oldScreenCentre: XYPos) zoom clientWidth clientHeight : XYPos =
+    { X = oldScreenCentre.X * zoom - clientWidth / 2.0
+      Y = oldScreenCentre.Y * zoom - clientHeight / 2.0 }
     
 
 //---------------------------------------Derived constants----------------------------------------//

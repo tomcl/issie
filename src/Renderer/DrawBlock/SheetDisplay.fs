@@ -150,16 +150,26 @@ let displaySvgWithZoom
                 | _ -> ()
               OnWheel (fun ev -> wheelUpdate ev model dispatch)
         ]
+    let zoomCommitRef : IProp list =
+        match model.PendingZoomCenter with
+        | Some _ ->
+            [ (Ref (fun element ->
+                    if element <> null then
+                        JSHelpers.delayedDispatch dispatch 0 ApplyPendingZoomCenter |> ignore)
+              :> IProp) ]
+        | None -> []
+
     div (scrollAttrL @  attrs)
         [
           svg
-            [ Style
-                [
-                    Height sizeInPixels
-                    Width sizeInPixels
-                ]
-              Id "DrawBlockSVGTop"
-            ]
+            (zoomCommitRef @
+                [ Style
+                    [
+                        Height sizeInPixels
+                        Width sizeInPixels
+                    ]
+                  Id "DrawBlockSVGTop"
+                ])
             [ g // group list of elements with list of attributes
                 [ Style [Transform (sprintf "scale(%f)" zoom)]] // top-level transform style attribute for zoom
                     svgReact // the application code

@@ -159,6 +159,12 @@ let tests =
                 "an ordinary wheel event must not zoom"
         }
 
+        test "zoom centering preserves the requested sheet point" {
+            let centre = { X = 240.; Y = 180. }
+            let scroll = Sheet.zoomCenteredScrollPosition centre 1.5 800. 600.
+            Expect.equal scroll { X = -40.; Y = -30. } "the new scroll is computed from the new zoom and viewport"
+        }
+
         test "symbols are built from a canvas with no browser" {
             let comps, _ = canvasOf adderSheet
             let model = modelOf (comps, [])

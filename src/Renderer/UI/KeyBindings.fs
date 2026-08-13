@@ -363,16 +363,10 @@ let publishKeyLog () =
 
 /// Whether the space bar is currently held, which puts the canvas in pan mode.
 ///
-/// A held key rather than a chord, so it is tracked here beside ctrlHeld rather than in the
-/// shortcut table - which resolves one press to one action and has nowhere to say "while down".
+/// A held key rather than a chord, so it is tracked here beside the physical modifier state rather
+/// than in the shortcut table - which resolves one press to one action and has nowhere to say
+/// "while down".
 let mutable private spaceHeld = false
-
-/// Whether Ctrl (or Cmd) is currently held.
-///
-/// The draw block shows a custom component's draggable ports and resize corners while it is, so
-/// this has to follow the physical key. It is tracked here rather than in the model because the
-/// only interesting transitions are the edges, and it must survive the window losing focus.
-let mutable private ctrlHeld = false
 
 let private isModifierKey (key: string) =
     key = "Control" || key = "Meta" || key = "Alt" || key = "Shift"
@@ -413,8 +407,7 @@ let onKeyDown (dispatch: Msg -> unit) (e: Browser.Types.Event) =
                 ()
 
         // Ctrl held is a state, not a chord, so it is tracked separately from the table
-        if (ev.key = "Control" || ev.key = "Meta") && not ctrlHeld then
-            ctrlHeld <- true
+        if (ev.key = "Control" || ev.key = "Meta") && not (SheetDisplay.isPhysicalModifierHeld ()) then
             SheetDisplay.setPhysicalModifierHeld true
             dispatch <| Sheet SheetT.PortMovementStart
 
@@ -432,8 +425,7 @@ let onKeyUp (dispatch: Msg -> unit) (e: Browser.Types.Event) =
     let ev: Browser.Types.KeyboardEvent = unbox e
     // only Ctrl/Meta going up ends the mode. This used to fire on *any* keyup, so releasing some
     // other key while Ctrl was held left the model thinking Ctrl was up when it was not.
-    if (ev.key = "Control" || ev.key = "Meta") && ctrlHeld then
-        ctrlHeld <- false
+    if (ev.key = "Control" || ev.key = "Meta") && SheetDisplay.isPhysicalModifierHeld () then
         SheetDisplay.setPhysicalModifierHeld false
         dispatch <| Sheet SheetT.PortMovementEnd
 
@@ -443,8 +435,7 @@ let onKeyUp (dispatch: Msg -> unit) (e: Browser.Types.Event) =
 
 /// Ctrl released while the window is not focused produces no keyup at all.
 let onWindowBlur (dispatch: Msg -> unit) (_: Browser.Types.Event) =
-    if ctrlHeld then
-        ctrlHeld <- false
+    if SheetDisplay.isPhysicalModifierHeld () then
         SheetDisplay.setPhysicalModifierHeld false
         dispatch <| Sheet SheetT.PortMovementEnd
 

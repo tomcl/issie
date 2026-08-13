@@ -467,7 +467,12 @@ load unchanged. Files written by this version cannot be opened by an older Issie
     <span class="pn">|</span> <span class="uc">SplitNWidth</span> <span class="k">of</span> <span class="prop">Index</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs6', 27)" onmouseover="showTip(event, 'fs6', 27)" class="vt">int</span> <span class="c">// SplitN output width</span>
     <span class="pn">|</span> <span class="uc">SplitNLSB</span> <span class="k">of</span> <span class="prop">Index</span><span class="pn">:</span> <span onmouseout="hideTip(event, 'fs6', 28)" onmouseover="showTip(event, 'fs6', 28)" class="vt">int</span>   <span class="c">// SplitN output LSB</span>
     <span class="pn">|</span> <span class="uc">InputDefault</span>          <span class="c">// Value an Input1 takes when undriven</span>
+    <span class="pn">|</span> <span class="uc">MemoryAddressWidth</span>    <span class="c">// Bits of a memory&#39;s address, so 2^n locations</span>
+    <span class="pn">|</span> <span class="uc">MemoryWordWidth</span>       <span class="c">// Bits a memory holds at each location</span>
 </code></pre>
+<p>A memory has two widths and neither is "the" width, so neither can be <code>Buswidth</code>: they have slots
+of their own, which apply to all four memory components. What that costs is not the slots but the
+contents — see <a href="#memory-contents-and-memory-widths">Memory contents and memory widths</a>.</p>
 <p>The number of inputs of a gate or merge is deliberately not a slot: an input count sets how many
 ports a component has, and a parameter records a value, not a change of topology. It is edited as
 a plain number in Properties.</p>
@@ -972,6 +977,49 @@ bindings that instance gives (<code>CanvasExtractor.effectiveInstanceBindings</c
 candidate value, and runs <code>evaluateConstraints</code> over the child's slots with their derived
 constraints — the same call <code>editParameterBox</code> makes for the open sheet. Only the slots that <em>use</em>
 the parameter are checked, so a complaint can never name a box the user is not editing.</p>
+<h3><a name="Memory-contents-and-memory-widths" class="anchor" href="#Memory-contents-and-memory-widths">Memory contents and memory widths</a></h3>
+<p>A memory's widths can be parameters; its contents cannot. <code>Memory1.Data</code> is one map, and every
+instance of the sheet holds the same one — so a sheet used at two sizes has <strong>one set of contents
+that has to fit both</strong>, and "do the contents fit" becomes a question with an answer per instance.</p>
+<p><code>MemoryData</code> holds the question — does this map fit these widths — and three places ask it, each
+about different widths:</p>
+<table>
+<thead>
+<tr class="header">
+<th><p>when</p></th>
+<th><p>widths asked about</p></th>
+<th><p>where</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p>a width is edited</p></td>
+<td><p>none: nothing is checked, nothing is discarded</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="even">
+<td><p>contents are edited, or a <code>.ram</code> file is linked</p></td>
+<td><p><strong>every</strong> shape the memory has in the design</p></td>
+<td><p><code>MemoryEditorView</code>, <code>MenuHelpers.makeSourceMenu</code></p></td>
+</tr>
+<tr class="odd">
+<td><p>the design is simulated</p></td>
+<td><p>the shape <em>that instance</em> resolved to</p></td>
+<td><p><code>FastValidate.checkAndValidate</code></p></td>
+</tr>
+</tbody>
+</table>
+
+<p>Editing a width throws nothing away, deliberately: a memory passing through a size that does not
+hold its data is an ordinary step on the way to one that does, and the data is the only copy of
+what the user typed. The simulator is where a memory finally has <strong>one definite shape</strong> — the
+canvas it was drawn from has neither shape when a sheet is used at two sizes — so that is where
+contents that do not fit are an error rather than a state being passed through.</p>
+<p>The width sets come from <code>ParameterAnalysis.memoryWidthsInDesign</code>, over
+<code>bindingEnvironmentsOf</code>: one environment per distinct way the design binds the sheet. The
+per-parameter answer (<code>displayValuesOfSheet</code>) cannot be used for this, because both widths of a
+pair must come from the <em>same</em> instance and that function has already forgotten which instance each
+value came from.</p>
 <h2><a name="One-evaluator-one-slot-mapping-one-instance-signature" class="anchor" href="#One-evaluator-one-slot-mapping-one-instance-signature">One evaluator, one slot mapping, one instance signature</a></h2>
 <p>There is <strong>one</strong> expression evaluator, <code>ParameterTypes.evaluateParamExpression</code>. What differs
 between contexts is the environment it is given and what a failure means:</p>
@@ -1104,6 +1152,7 @@ might reach.</p>
 <li>Logic gates over a bus (<code>NbitsAnd</code>, <code>NbitsOr</code>, <code>NbitsNot</code>, <code>NbitsXor</code>), and <code>NbitSpreader</code></li>
 <li>Bus components (<code>BusCompare</code>, <code>BusCompare1</code>, <code>BusSelection</code>, <code>SplitWire</code>, <code>SplitN</code>)</li>
 <li>Counters (all variants), <code>Shift</code>, <code>Viewer</code></li>
+<li>Memories (<code>ROM1</code>, <code>RAM1</code>, <code>AsyncROM1</code>, <code>AsyncRAM1</code>) — both widths, one slot each</li>
 </ul>
 <p>Multiplexers and demultiplexers are <strong>not</strong> parameterisable: they have no case in
 <code>ComponentSlots.trySetSlotValue</code>, so <code>slotApplies</code> refuses a slot on one and the properties pane
@@ -1135,10 +1184,25 @@ sheet-description DSL all go through it, and <code>slotApplies</code> — which 
 written at all — is derived from the same match, so there is nothing else to keep in step
 </li>
 <li>
-Add a case to <code>ParameterView.updateComponentSlots</code> saying which sheet message writes the field
-on the canvas
+Add a case to <code>ComponentSlots.constraintsFor</code> giving the bounds a value must satisfy, named so
+that a message says which field it is about. A component with two of anything — a memory's two
+widths — needs one slot and one bound per field, since a message that says only "Width" cannot
+say which
 </li>
-<li>Add UI support in the component's properties, via <code>ParameterView.paramInputField</code></li>
+<li>
+Add a case to <code>ParameterView.updateComponentSlots</code> saying which sheet message writes the field
+on the canvas. If that message does not run width inference itself, as <code>UpdateMemory</code> does not,
+dispatch <code>DoBusWidthInference</code> after it or the attached wires keep their old widths
+</li>
+<li>
+Add UI support in the component's properties, via <code>ParameterView.paramInputField</code>, and an entry
+in <code>AppMessages.Fields.tips</code> under the label the box displays: every other field in the pane
+explains itself, and one that does not is the odd one out
+</li>
+<li>
+<code>ParameterView.slotFieldName</code> names the slot in messages that refuse to delete a property; the
+compiler will require it
+</li>
 </ol>
 <h2><a name="Usage-Examples" class="anchor" href="#Usage-Examples">Usage Examples</a></h2>
 <h3><a name="Example-1-Define-Sheet-Parameter" class="anchor" href="#Example-1-Define-Sheet-Parameter">Example 1: Define Sheet Parameter</a></h3>
@@ -1379,10 +1443,13 @@ pasted onto another sheet, and nothing reports it: neither <code>Model.Clipboard
 that loses bindings the same way <em>does</em> warn.
 </li>
 <li>
-<strong>Memories are not parameterisable</strong>: RAM and ROM address and word widths are plain numbers, not
-parameter slots. An input count is likewise not a slot — the number of inputs of a gate or a
-merge sets how many ports a symbol has, so a computed value would make <code>SymbolInfo.PortOrder</code>
-name ports the saved type does not have.
+An input count is not a slot — the number of inputs of a gate or a merge sets how many ports a
+symbol has, so a computed value would make <code>SymbolInfo.PortOrder</code> name ports the saved type does
+not have.
+</li>
+<li>
+A memory's contents cannot follow its widths. They are one map, shared by every instance of the
+sheet, so a sheet used at two sizes has one set of contents to fit both — see below.
 </li>
 <li>
 A sheet can be viewed only at one set of values. Opening it <em>as a particular instance</em>
@@ -1465,7 +1532,9 @@ belongs only between the two arguments of <code>min</code> or <code>max</code>
   | CustomCompParam of ParamName: string
   | SplitNWidth of Index: int
   | SplitNLSB of Index: int
-  | InputDefault</div>
+  | InputDefault
+  | MemoryAddressWidth
+  | MemoryWordWidth</div>
 <div class="fsdocs-tip" id="fs5">Multiple items<br />val string: value: &#39;T -&gt; string<br /><br />--------------------<br />type string = System.String</div>
 <div class="fsdocs-tip" id="fs6">Multiple items<br />val int: value: &#39;T -&gt; int (requires member op_Explicit)<br /><br />--------------------<br />type int = int32<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; =
   int</div>
@@ -1678,6 +1747,11 @@ type Result&lt;&#39;T,&#39;TError&gt; =
   <li class="level-3">
     <a href="#An-instance-binding-is-checked-against-the-sheet-inside-it">
       An instance binding is checked against the sheet inside it
+    </a>
+  </li>
+  <li class="level-3">
+    <a href="#Memory-contents-and-memory-widths">
+      Memory contents and memory widths
     </a>
   </li>
   <li class="level-2">

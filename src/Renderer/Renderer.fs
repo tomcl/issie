@@ -417,12 +417,8 @@ let appSubscriptions (_model: ModelType.Model) : Sub<Msg> =
 
 let program =
     Program.mkProgram init update view'
-    |> Program.withReactSynchronous "app"
-
-let setState = Program.setState program
+    |> Program.withReactBatched "app"
 
 program
-|> Program.withSetState (fun model dispatch ->
-    ReactDom.flushSync (fun () -> setState model dispatch))
 |> Program.withSubscription appSubscriptions
 |> Program.run

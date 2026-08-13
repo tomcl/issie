@@ -7,15 +7,15 @@
     <meta content="Renderer" name="author">
     <!-- Opengraph properties (https://ogp.me/) -->
     <meta property="og:site_name" content="issie">
-    <meta property="og:title" content="WorkerInterface (issie)" />
+    <meta property="og:title" content="MemoryData (issie)" />
     <meta property="og:url" content="/issie/{{fsdocs-source-basename}}.html">
     <meta property="og:type" content="website" />
     <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="/issie/">
-    <meta name="twitter:title" content="WorkerInterface (issie)">
+    <meta name="twitter:title" content="MemoryData (issie)">
     
-    <title>WorkerInterface (issie) | issie</title>
+    <title>MemoryData (issie) | issie</title>
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
@@ -400,7 +400,7 @@
     <div id="content">
         <div>
   <h2>
-    WorkerInterface Module
+    MemoryData Module
   </h2>
   <dl class="fsdocs-metadata">
     <dt>
@@ -439,24 +439,52 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2924', 2924)" onmouseover="showTip(event, '2924', 2924)">
+              <code onmouseout="hideTip(event, '1244', 1244)" onmouseover="showTip(event, '1244', 1244)">
                 <p>
-                  <a id="URL">
-                    <a href="#URL">
-                      <code><span>URL&#32;<span></span></span></code>
+                  <a id="dataProblem">
+                    <a href="#dataProblem">
+                      <code><span>dataProblem&#32;<span>addressWidth&#32;wordWidth&#32;data</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2924">
+              <div class="fsdocs-tip" id="1244">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>URL&#32;<span></span></span></code>
+                  <code><span>dataProblem&#32;<span>addressWidth&#32;wordWidth&#32;data</span></span></code>
                   <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        addressWidth
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        wordWidth
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        data
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>bigint,&#32;bigint</span>&gt;</span></code>
+                    </span>
+                    <br/>
+                  </ul>
                   <br/>
                   <span>
                     Returns: 
-                    <code>obj</code>
+                    <code><span>string&#32;option</span></code>
                   </span>
                   <br/>
                 </div>
@@ -464,50 +492,106 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>obj</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MemoryData.dataProblem`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MemoryData.dataProblem\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/MemoryData.fs#L46-46" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What is wrong with holding `data` in a memory of these widths, said as one sentence.
+
+ The lowest offending address is the one named, so that the same data reported twice reports the
+ same location, and the count says how much else is wrong - naming every one of them would be a
+ list as long as the memory.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    addressWidth
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wordWidth
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    data
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>bigint,&#32;bigint</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span>string&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2925', 2925)" onmouseover="showTip(event, '2925', 2925)">
+              <code onmouseout="hideTip(event, '1245', 1245)" onmouseover="showTip(event, '1245', 1245)">
                 <p>
-                  <a id="closeWorker">
-                    <a href="#closeWorker">
-                      <code><span>closeWorker&#32;<span>()</span></span></code>
+                  <a id="dataProblemAtWidths">
+                    <a href="#dataProblemAtWidths">
+                      <code><span>dataProblemAtWidths&#32;<span>widths&#32;data</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2925">
+              <div class="fsdocs-tip" id="1245">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>closeWorker&#32;<span>()</span></span></code>
+                  <code><span>dataProblemAtWidths&#32;<span>widths&#32;data</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        ()
+                        widths
                       </b>
                       :
-                      <code>unit</code>
+                      <code><span><span>(<span>int&#32;*&#32;int</span>)</span>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        data
+                      </b>
+                      :
+                      <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>bigint,&#32;bigint</span>&gt;</span></code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
                   <span>
                     Returns: 
-                    <code>'a</code>
+                    <code><span>string&#32;option</span></code>
                   </span>
                   <br/>
                 </div>
@@ -515,60 +599,115 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  ()
-                </span>
-                :
-                <code>unit</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>'a</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MemoryData.dataProblemAtWidths`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MemoryData.dataProblemAtWidths\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/MemoryData.fs#L68-68" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What is wrong with holding `data` in a memory that is EVERY one of these shapes.
+
+ One memory component has several shapes when its widths are parameters and the sheet it is on
+ is used at several sets of values. Data has to fit all of them - it is one map, copied into
+ every instance - so the shape that fails is the one reported, named so that the message points
+ at a size the user can see in the properties pane rather than at "some instance".
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    widths
+                  </span>
+                  :
+                  <code><span><span>(<span>int&#32;*&#32;int</span>)</span>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    data
+                  </span>
+                  :
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span>bigint,&#32;bigint</span>&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span>string&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2926', 2926)" onmouseover="showTip(event, '2926', 2926)">
+              <code onmouseout="hideTip(event, '1246', 1246)" onmouseover="showTip(event, '1246', 1246)">
                 <p>
-                  <a id="defineWorkerOnMsg">
-                    <a href="#defineWorkerOnMsg">
-                      <code><span>defineWorkerOnMsg&#32;<span>onMsgFn</span></span></code>
+                  <a id="locationProblem">
+                    <a href="#locationProblem">
+                      <code><span>locationProblem&#32;<span>addressWidth&#32;wordWidth&#32;address&#32;value</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2926">
+              <div class="fsdocs-tip" id="1246">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>defineWorkerOnMsg&#32;<span>onMsgFn</span></span></code>
+                  <code><span>locationProblem&#32;<span>addressWidth&#32;wordWidth&#32;address&#32;value</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        onMsgFn
+                        addressWidth
                       </b>
                       :
-                      <code>'a</code>
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        wordWidth
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        address
+                      </b>
+                      :
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        value
+                      </b>
+                      :
+                      <code>bigint</code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
                   <span>
                     Returns: 
-                    <code>'b</code>
+                    <code><span>string&#32;option</span></code>
                   </span>
                   <br/>
                 </div>
@@ -576,181 +715,121 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  onMsgFn
-                </span>
-                :
-                <code>'a</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>'b</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '2927', 2927)" onmouseover="showTip(event, '2927', 2927)">
-                <p>
-                  <a id="newWorkerUrl">
-                    <a href="#newWorkerUrl">
-                      <code><span>newWorkerUrl&#32;<span>url</span></span></code>
-                    </a>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MemoryData.locationProblem`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MemoryData.locationProblem\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/MemoryData.fs#L29-29" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="2927">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>newWorkerUrl&#32;<span>url</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        url
-                      </b>
-                      :
-                      <code>'a</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>'b</code>
+                  <p class="fsdocs-summary">
+                     One location, and what is wrong with holding it in a memory of these widths.
+
+ Addresses and words are unsigned: a memory location holds a bit pattern, and the sign of the
+ number Issie displays for it is a matter of how the pattern is read, not of what is stored.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    addressWidth
                   </span>
-                  <br/>
-                  Modifiers: 
-                  inline
-                  <br/>
-                  Type parameters: 
-                  &#39;a, &#39;b
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  url
-                </span>
-                :
-                <code>'a</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>'b</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    wordWidth
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    address
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    value
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span>string&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2928', 2928)" onmouseover="showTip(event, '2928', 2928)">
+              <code onmouseout="hideTip(event, '1247', 1247)" onmouseover="showTip(event, '1247', 1247)">
                 <p>
-                  <a id="postMessage">
-                    <a href="#postMessage">
-                      <code><span>postMessage&#32;<span>a</span></span></code>
+                  <a id="locationProblemAtWidths">
+                    <a href="#locationProblemAtWidths">
+                      <code><span>locationProblemAtWidths&#32;<span>widths&#32;address&#32;value</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2928">
+              <div class="fsdocs-tip" id="1247">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>postMessage&#32;<span>a</span></span></code>
+                  <code><span>locationProblemAtWidths&#32;<span>widths&#32;address&#32;value</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        a
+                        widths
                       </b>
                       :
-                      <code>'a</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  a
-                </span>
-                :
-                <code>'a</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '2929', 2929)" onmouseover="showTip(event, '2929', 2929)">
-                <p>
-                  <a id="sendWorkerMsg">
-                    <a href="#sendWorkerMsg">
-                      <code><span>sendWorkerMsg&#32;<span>msg&#32;worker</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="2929">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>sendWorkerMsg&#32;<span>msg&#32;worker</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        msg
-                      </b>
-                      :
-                      <code>'a</code>
+                      <code><span><span>(<span>int&#32;*&#32;int</span>)</span>&#32;list</span></code>
                     </span>
                     <br/>
                     <span>
                       <b>
-                        worker
+                        address
                       </b>
                       :
-                      <code>'b</code>
+                      <code>bigint</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        value
+                      </b>
+                      :
+                      <code>bigint</code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
                   <span>
                     Returns: 
-                    <code>'c</code>
+                    <code><span>string&#32;option</span></code>
                   </span>
                   <br/>
                 </div>
@@ -758,150 +837,96 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  msg
-                </span>
-                :
-                <code>'a</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  worker
-                </span>
-                :
-                <code>'b</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>'c</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '2930', 2930)" onmouseover="showTip(event, '2930', 2930)">
-                <p>
-                  <a id="setWorkerOnMsg">
-                    <a href="#setWorkerOnMsg">
-                      <code><span>setWorkerOnMsg&#32;<span>onMsgFun&#32;worker</span></span></code>
-                    </a>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MemoryData.locationProblemAtWidths`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MemoryData.locationProblemAtWidths\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/MemoryData.fs#L86-86" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="2930">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>setWorkerOnMsg&#32;<span>onMsgFun&#32;worker</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        onMsgFun
-                      </b>
-                      :
-                      <code>'a</code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        worker
-                      </b>
-                      :
-                      <code>'b</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>'c</code>
-                  </span>
-                  <br/>
-                  Modifiers: 
-                  inline
-                  <br/>
-                  Type parameters: 
-                  &#39;a, &#39;b, &#39;c
+                  <p class="fsdocs-summary">
+                     What is wrong with adding this one location to a memory that is every one of these shapes.
+ Written separately from dataProblemAtWidths so that editing one location reports that location
+ rather than the lowest bad address of the whole memory.
+                  </p>
                 </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  onMsgFun
-                </span>
-                :
-                <code>'a</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  worker
-                </span>
-                :
-                <code>'b</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>'c</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    widths
+                  </span>
+                  :
+                  <code><span><span>(<span>int&#32;*&#32;int</span>)</span>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    address
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    value
+                  </span>
+                  :
+                  <code>bigint</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span>string&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2931', 2931)" onmouseover="showTip(event, '2931', 2931)">
+              <code onmouseout="hideTip(event, '1248', 1248)" onmouseover="showTip(event, '1248', 1248)">
                 <p>
-                  <a id="terminateWorker">
-                    <a href="#terminateWorker">
-                      <code><span>terminateWorker&#32;<span>worker</span></span></code>
+                  <a id="memoryProblem">
+                    <a href="#memoryProblem">
+                      <code><span>memoryProblem&#32;<span>mem</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2931">
+              <div class="fsdocs-tip" id="1248">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>terminateWorker&#32;<span>worker</span></span></code>
+                  <code><span>memoryProblem&#32;<span>mem</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        worker
+                        mem
                       </b>
                       :
-                      <code>'a</code>
+                      <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
                     </span>
                     <br/>
                   </ul>
                   <br/>
                   <span>
                     Returns: 
-                    <code>'b</code>
+                    <code><span>string&#32;option</span></code>
                   </span>
                   <br/>
                 </div>
@@ -909,25 +934,43 @@
             </div>
           </td>
           <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  worker
-                </span>
-                :
-                <code>'a</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>'b</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MemoryData.memoryProblem`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MemoryData.memoryProblem\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Common/MemoryData.fs#L59-59" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What is wrong with the contents a memory is carrying, at its own widths.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    mem
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-memory1.html">Memory1</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span>string&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
           </td>
         </tr>
       </tbody>

@@ -56,10 +56,9 @@ structurally would cost more than recomputing.
 
 | Where | What |
 |---|---|
-| `DrawBlock/SheetDisplay.fs` | `mountedCanvas`, `modelScrollPos` — DOM refs |
+| `DrawBlock/SheetDisplay.fs` | `mountedCanvas`, `modelScrollPos` — DOM refs; `physicalModifierHeld` — the shared physical modifier state read by the wheel handler and the keyboard handler; DOM events need it synchronously to distinguish a real Ctrl/Cmd wheel from Chromium's pinch gesture |
 | `DrawBlock/Sheet.fs` | `recentProgrammaticScrollPos`, `scrollSequence`, `viewIsAfterUpdateScroll` — scroll bookkeeping driven by DOM events |
 | `Main/Main.fs` | `mainWindow`, `splashWindow` — the two Electron windows; `closeAfterSave`; `appStarted` — process lifecycle, and there is no Elmish model in the main process at all |
-| `DrawBlock/SheetDisplay.fs` | `physicalModifierHeld` — the shared physical modifier state read by the wheel handler and the keyboard handler; DOM events need it synchronously to distinguish a real Ctrl/Cmd wheel from Chromium's pinch gesture |
 | `UI/KeyBindings.fs` | `modelContext` — a cached projection of the model for DOM handlers, which cannot see it and must decide `preventDefault` synchronously; `spaceHeld` — physical space state, wanted on its edges and across focus loss, and a held key is not something the shortcut table can express; `keyLog` — debug-only log of what the dispatcher decided |
 | `Interface/JSHelpers.fs` | `debugLevel`, `loggingMemory`, `memSize` |
 | `UI/DevHarness.fs` | `latestModel`, `latestDispatch`, `waitingForRender` — the outside world's handle on a running Issie, in the same way `KeyBindings.modelContext` is the DOM's. Written by the view wrapper on every render and read only by the debug-build harness; there is no Elmish message that could carry them, since the point is to answer between renders |

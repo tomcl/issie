@@ -142,6 +142,23 @@ let tests =
             Expect.floatClose Accuracy.high (at "20px") (2. * at "10px") "twice the size, twice the width"
         }
 
+        test "wheel zoom classifies gestures and bounds pinch factors" {
+            match Sheet.wheelZoom 0.0 120.0 true true with
+            | Some (Sheet.PhysicalWheelZoom factor) ->
+                Expect.floatClose Accuracy.high (Sheet.Constants.fineZoomIncrement ** -4.0) factor
+                    "a 120-pixel physical wheel delta is four fine steps"
+            | _ -> failtest "a physical modifier wheel was not classified as discrete zoom"
+
+            match Sheet.wheelZoom 0.0 120.0 true false with
+            | Some (Sheet.PinchZoom factor) ->
+                Expect.floatClose Accuracy.high (1. / 1.3) factor
+                    "a large pinch delta is clamped instead of halving the zoom"
+            | _ -> failtest "a trackpad pinch was not classified as pinch zoom"
+
+            Expect.equal (Sheet.wheelZoom 0.0 120.0 false false) None
+                "an ordinary wheel event must not zoom"
+        }
+
         test "symbols are built from a canvas with no browser" {
             let comps, _ = canvasOf adderSheet
             let model = modelOf (comps, [])

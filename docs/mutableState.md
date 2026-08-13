@@ -47,10 +47,9 @@ looks like the exception and is not one.
 
 | Where | What |
 |---|---|
-| `DrawBlock/SheetDisplay.fs` | `mountedCanvas`, `modelScrollPos` — DOM refs |
+| `DrawBlock/SheetDisplay.fs` | `mountedCanvas`, `modelScrollPos` — DOM refs; `physicalModifierHeld` — the shared physical modifier state read by the wheel handler and the keyboard handler; DOM events need it synchronously to distinguish a real Ctrl/Cmd wheel from Chromium's pinch gesture |
 | `DrawBlock/Sheet.fs` | `recentProgrammaticScrollPos`, `scrollSequence`, `viewIsAfterUpdateScroll` — scroll bookkeeping driven by DOM events |
 | `Main/Main.fs` | `mainWindow`, `splashWindow` — the two Electron windows; `closeAfterSave`; `appStarted` — process lifecycle, and there is no Elmish model in the main process at all |
-| `DrawBlock/SheetDisplay.fs` | `physicalModifierHeld` — the shared physical modifier state read by the wheel handler and the keyboard handler; DOM events need it synchronously to distinguish a real Ctrl/Cmd wheel from Chromium's pinch gesture |
 | `UI/KeyBindings.fs` | `modelContext` — a cached projection of the model for DOM handlers, which cannot see it and must decide `preventDefault` synchronously; `spaceHeld` — physical space state, wanted on its edges and across focus loss, and a held key is not something the shortcut table can express; `keyLog` — debug-only log of what the dispatcher decided |
 | `Interface/JSHelpers.fs` | `debugLevel`, `loggingMemory`, `memSize` |
 | `Common/Log.fs` | `enabled` — which log categories are on, switched from a menu, a command-line flag or the console; `ring` / `ringNext` — a fixed buffer of the last few hundred lines, written one slot at a time so that logging allocates nothing, and read from outside the app the way `KeyBindings.keyLog` is; `warnedKeys`; the five counters (`msgCount`, `renderCount`, `updateMsTotal`, `slowestMs`, `slowestName`) with `lastSummary` and `summaryInterval`, updated on every message and every render, which is exactly the write frequency that rules out a model field |

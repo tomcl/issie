@@ -151,12 +151,28 @@ let tests =
 
             match Sheet.wheelZoom 0.0 120.0 true false with
             | Some (Sheet.PinchZoom factor) ->
-                Expect.floatClose Accuracy.high (1. / 1.3) factor
+                Expect.floatClose Accuracy.high (1. / Sheet.Constants.maxZoomFactorPerWheelEvent) factor
                     "a large pinch delta is clamped instead of halving the zoom"
             | _ -> failtest "a trackpad pinch was not classified as pinch zoom"
 
             Expect.equal (Sheet.wheelZoom 0.0 120.0 false false) None
                 "an ordinary wheel event must not zoom"
+        }
+
+        test "no single wheel event may zoom by more than the bound" {
+            // a precision touchpad or Magic Mouse sends trackpad-sized deltas while Ctrl is held,
+            // and deltaMode 2 scales a delta of 1 to 800, so both branches must be bounded
+            let factorOf deltaMode deltaY physicalModifierHeld =
+                match Sheet.wheelZoom deltaMode deltaY true physicalModifierHeld with
+                | Some (Sheet.PinchZoom factor) | Some (Sheet.PhysicalWheelZoom factor) -> factor
+                | None -> failtest "a zoom gesture was not classified as a zoom"
+            let bound = Sheet.Constants.maxZoomFactorPerWheelEvent
+            [ 0.0, 400.0, true; 0.0, -400.0, true; 2.0, 1.0, true; 2.0, -1.0, true
+              0.0, 400.0, false; 0.0, -400.0, false; 2.0, 1.0, false; 2.0, -1.0, false ]
+            |> List.iter (fun (deltaMode, deltaY, physical) ->
+                let factor = factorOf deltaMode deltaY physical
+                Expect.isTrue (factor >= 1. / bound && factor <= bound)
+                    $"deltaMode {deltaMode}, deltaY {deltaY}, physical {physical} gave {factor}")
         }
 
         test "zoom centering preserves the requested sheet point" {

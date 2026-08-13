@@ -138,12 +138,13 @@ let displaySvgWithZoom
               OnMouseDown (fun ev -> (mouseOp Down ev dispatch headerHeight))
               OnMouseUp (fun ev -> (mouseOp Up ev dispatch headerHeight))
               OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev dispatch headerHeight)
+              // Read the position when the event fires. A programmatic zoom correction can happen
+              // before React commits the next view, so the render-time value may already be stale.
               OnScroll (fun _ ->
-                match scrollOpt with
-                | None -> ()
-                | Some scrollPos ->
-                    if not firstView then
-                        dispatch <| UpdateScrollPosFromCanvas scrollPos)
+                if not firstView then
+                    getScrollProps()
+                    |> Option.iter (fun scrollPos ->
+                        dispatch <| UpdateScrollPosFromCanvas scrollPos))
               let sPos = model.ScreenScrollPos
               match not firstView, scrollOpt with
                 | true, Some scroll ->putScrollProps scroll |> ignore

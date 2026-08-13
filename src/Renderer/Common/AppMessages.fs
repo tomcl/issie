@@ -57,47 +57,46 @@ module Info =
     let gettingStarted = """
 # The first few minutes
 
-1. Press **Open demo project** and pick one. Five worked designs ship with Issie, from a full
-   adder to a CPU running a program. They reset every time you open them, so nothing you do to
-   them can be broken. Or press **New project** and start your own.
+1. Press **Open demo project** and pick one. The demos reset every time you open them, so nothing you do to
+   them can harm things. Or press **New project** and start your own.
 2. Place components from the **Catalogue** on the right: drag one onto the sheet, or click it and
-   click where you want it. Hover any of them to read what it does, or type in the search box to
-   find one by what it is for.
-3. Wire them up by dragging from one port to another. Issie routes and tidies the wires itself;
-   drag a wire segment if you want it somewhere else.
-4. Select a component and open **Properties** to set its width, its label and its options. Every
-   field there explains itself when you hover its name.
-5. Press **Simulations** → **Step Simulation** to set inputs and read outputs, or **Wave
+   click where you want it. Hover on any of them to read what it does, or type in the search box to
+   find something.
+3. Wire them up by dragging from one port to another. Issie routes and tidies the wires itself; When you move
+   a component the wires follow. You can drag a wire segment if you want to manually change the autorouting.
+4. Select a component and open **Properties** to set its width, its label and its options.
+   Hover for explanations.
+5. Press **Simulations** → **Step Simulation** to set inputs, read outputs, and step through clock cycles, or **Wave
    Simulation** to watch a clocked design over time.
+6. Check out **Tips and Features* tab here for things people often miss.
 
-# If something is wrong, Issie will say so
+# Issie will tell you if something is wrong
 
-You do not have to find mistakes yourself. Every error names what is wrong and how to correct it,
-highlights the components and wires responsible on the schematic, and where the correction is
-unambiguous offers a button that makes it for you.
+You do not have to find mistakes yourself. Every error says what is wrong and how to correct it,
+highlighting the components and wires responsible on the schematic.
 
 # Two things worth knowing early
 
-- Designs are hierarchical. Any sheet can be used inside another as a 'custom component', any
-  number of times - they are in the 'This project' section of the Catalogue. The Sheet menu draws
-  the whole hierarchy as a tree.
-- Every clocked component (drawn with a blue fill) uses the same clock, Clk. You never wire a
+- **Designs are hierarchical**. Any sheet can be used inside another as a 'custom component', any
+  number of times - they are in the 'This project' section of the Catalogue. Use them as you would
+  use any other component. The Sheet menu draws the whole hierarchy as a tree.
+- **Every clocked component (drawn with a blue fill) uses the same clock, Clk**. You never wire a
   clock up: all Clk ports are connected together automatically. In the waveform viewer the
   vertical lines are the active clock edges, one per cycle.
 
 # Where to read more
 
-- [User Tutorial](userGuide.html) — one page you can follow at the keyboard, building a design
-  from an AND gate up to a clocked circuit with a waveform simulation
-- [Features](features.html) — what Issie can do, in one page
-- [Schematic Editor Features](coolFeatures.html) — every editing operation and the key that does it
-- [Parameter System](parameterSystem.html) — building one sheet that works at any bus width
-- [Verilog Components](verilogComp.html) — writing a component's logic in SystemVerilog instead of
-  drawing it
+Issie, after 7 years of development, is now very feature-rich. It will try to show you features only when you need them without
+cluttering the screen. Some features are not obvious, and some are advanced. So you may want
+more structured information about Issie
 
-The other tabs of this window are worth a minute of your time: **Tips & Features** lists the things
-people most often do not find, and **Keyboard Shortcuts** is generated from the keys this build
-actually uses, for this platform.
+- [User Tutorial](userGuide.html) — beginner's tutorial:one page to follow, building a simple design
+  from an AND gate up to a clocked circuit with a waveform simulation
+- [Features](features.html) — what Issie can do
+- [Schematic Editor Features](coolFeatures.html) — the many ways the schematic editor lets you change a schematic.
+- [Custom Properties](parameterSystem.html) — Advanced. building one sheet that works at any bus width
+- [Verilog Components](verilogComp.html) — writing a component's logic in Verilog instead of
+  drawing it
 """
 
     /// Tab 2. The things people most often do not find. A table so that the name of each is
@@ -190,10 +189,10 @@ module Confirm =
     /// to explain what the feature is for, because until then nothing in the pane hints at it -
     /// and it is a feature a design can perfectly well never use.
     let usingParameters = """
-A named property is a value a sheet is built around - a width, a count - so that one sheet can
+A named property of a sheet has a value - a width, a count - so that one sheet can
 serve a family of designs. Defining one needs a name, a description, and a default value.
 
-Properties have integer values set separately in each instance of this sheet, and take the default
+Properties have integer values set separately in each instance (component on schematic) of this sheet, and take the default
 value when there are no instances. So the same sheet can appear at several sizes in one design.
 
 This is an advanced feature: designs that do not need it are unaffected by it.
@@ -204,7 +203,7 @@ This is an advanced feature: designs that do not need it are unaffected by it.
     let duplicateSheet = """
 Duplicating a sheet is only necessary if you intend to implement similar but different versions of
 the sheet. If you want copies of sheet hardware you can add the sheet multiple times as a component
-from this Project in the Catalog.
+from *This Project** in the Catalogue.
 """
 
     /// Opening a folder that holds sheets but no `.dprj` marker. Issie can open it either way, so
@@ -214,7 +213,7 @@ from this Project in the Catalog.
 '{folder}' holds Issie sheets but no .dprj project file, which is what marks a folder as an Issie
 project.
 
-Issie can open it either way. Adding {folder}.dprj lets it be recognised as a project in future.
+Issie can open it either way. Adding {folder}.dprj (which is usually an empty file)lets it be recognised as a project in future.
 """
 
 //---------------------------------------------------------------------------------------------//
@@ -242,18 +241,19 @@ module Fields =
         Map [
             // ---- identity ----
             "Name",
-                "The label drawn on the symbol and used for this component everywhere else: in error \
+                "The label drawn by the symbol taht identifies a component everywhere else: in error \
                  messages, in the waveform viewer, and in generated Verilog. It must be unique on this \
                  sheet."
             "Instance name",
-                "This copy's own label. The sheet it is an instance of keeps its own name - renaming \
+                "This custom component copy's own label. The sheet it is an instance of keeps its own name - renaming \
                  here renames only this copy."
 
             // ---- widths ----
             "Width (bits)",
                 "How many bits wide this component's bus is. Widths must agree at both ends of every \
-                 wire, so changing this here is usually the fix for a 'wrong wire width' error. It can \
-                 be an expression in the sheet's parameters, such as WIDTH or WIDTH+1."
+                 wire, so changing this here is usually the fix for a 'wrong wire width' error. It is usually
+                 a number greater than 0, but can
+                 be an expression that includes the sheet's parameters, such as WIDTH or WIDTH+1."
             "Output width (bits)",
                 "How many bits the output bus has. The single input bit is copied onto every one of \
                  them."
@@ -280,32 +280,32 @@ module Fields =
             // ---- shape ----
             "Number of inputs",
                 "How many input ports this component has. Reducing it deletes the wires on the ports \
-                 that go away, so this is a change to the schematic and cannot be set by a parameter."
+                 that go away."
             "Number of outputs",
-                "How many output ports this component has. Each gets its own width and starting bit \
-                 below. Reducing it deletes the wires on the ports that go away."
+                "How many output ports this component has. Reducing it deletes the wires on the ports \
+                 that go away."
             "Optional Ports",
-                "Ports you do not need can be removed rather than tied off. An unticked Cin behaves as \
-                 0; an unticked Cout simply is not there, so nothing has to be connected to it."
+                "Ports you do not need can be removed. An unticked Cin behaves as \
+                 0; an unticked Cout is not there, so nothing has to be connected to it."
             "Optional Inputs",
-                "Ports you do not need can be removed rather than tied off. Without Load the counter \
+                "Ports you do not need can be removed. Without Load the counter \
                  only counts; without Enable it counts every clock cycle."
             "Ports",
                 "The inputs and outputs this instance has, with their widths, taken from the sheet it \
-                 is an instance of. Hold Ctrl and drag a port to move it to another edge of the symbol."
+                 is an instance of. Right-click a symbol to change the order or edge of its ports."
 
             // ---- appearance ----
             "Width Scale",
                 "Stretches the symbol horizontally. Issie sizes a custom component to fit its port \
-                 labels; set this only when you want a particular shape."
+                 labels; use scale when that is not what you want."
             "Height Scale",
-                "Stretches the symbol vertically. Issie sizes a custom component to fit its ports; set \
-                 this only when you want a particular shape."
+                "Stretches the symbol vertically. Issie sizes a custom component to fit its port labels; use this
+                when that is not hat you want."
 
             // ---- values ----
             "Enter constant value in decimal, hex, or binary:",
                 "The value this component drives, written however is clearest: 42, 0x2a or 0b101010. \
-                 It is redisplayed in the form you typed it."
+                 It is displayed on the schematicin the form you typed it."
             "Enter bus compare value in decimal, hex, or binary:",
                 "The output is 1 when the input bus equals this value and 0 otherwise. Write it \
                  however is clearest: 42, 0x2a or 0b101010."
@@ -313,8 +313,7 @@ module Fields =
             // ---- the sheet itself ----
             "Sheet Description",
                 "A sentence about what this sheet does. It is shown against the sheet in the Sheet \
-                 menu, and in this pane wherever the sheet is used as a custom component - so it is \
-                 read by whoever uses your sheet, not only by you."
+                 menu, and in this pane wherever the sheet is used as a custom component."
         ]
 
 /// Why the Truth Table tab will not make a table, shown by its "Why is there no table?" button.
@@ -345,8 +344,7 @@ module TruthTable =
             "A truth table lists an output for every combination of the inputs, so it is made only \
              for logic up to %d bits wide. The components carrying wider buses are highlighted on \
              the schematic. To tabulate a narrower part, select the components you want and use \
-             'Truth Table for selected logic'; to see a wide design working, use the Wave \
-             Simulation tab."
+             'Truth Table for selected logic'"
             maxWidth
 
 /// The collapsible "Expression syntax" note under the Properties pane, shown only on a sheet that
@@ -361,26 +359,25 @@ module Expressions =
     /// explained where properties are declared, and repeating it here would bury the grammar,
     /// which is the one thing that cannot be guessed.
     let syntax = """
-Any numeric box in this pane takes an expression as well as a number. It is worked out whenever a
+Any numeric box in this pane takes a *property expression* as well as a number. It is worked out whenever a
 property changes, so a width written as `w*2` follows `w`.
+
+Property expressions can contain:
 
 **Values**: whole numbers of any size, and the name of any property this sheet declares. A name
 starts with a letter and continues with letters and digits.
 
 **Operators**: `+`, `-`, `*`, `/`, `%`, `<<`, `>>`, and brackets. Division and remainder are
 whole-number: `7/2` is `3`. `*`, `/` and `%` bind tighter than `+` and `-`, which bind tighter than
-the shifts - so `w+1<<2` shifts the sum, as it would in Verilog.
+the shifts `<<` and `>>` - so `w+1<<2` shifts the sum, as it would in Verilog.
 
 **Shifts**: `a<<b` doubles `a` `b` times, and `a>>b` halves it `b` times, so `1<<w` is the number of
-values a `w`-bit bus can take. Halving rounds down, and keeps the sign: `-1>>1` is `-1`. The number
-of places may not be negative, nor wider than the widest bus.
+values a `w`-bit bus can take. Halving rounds negatively, and keeps the sign: `-5>>1` is `-3`, `5>>1` is `2`. The number
+of places may not be negative.
 
 **Functions**: `clog2(n)` is the number of bits needed to count `n` things - the address width of
 an `n`-word memory. `min(a,b)` and `max(a,b)` take the smaller and the larger. Their names may be
 written in any case, and none of them can be used as a property name.
-
-A value that will not parse, or that breaks the box's own limits, is shown in red and left where it
-is: nothing reaches the design until it makes sense.
 """
 
 /// The Memories info button, beside a RAM or ROM's properties. How initial data works, which is

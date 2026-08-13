@@ -81,7 +81,13 @@ type CompSlotName =
     | SplitNWidth of Index: int // SplitN output width
     | SplitNLSB of Index: int   // SplitN output LSB
     | InputDefault          // Value an Input1 takes when undriven
+    | MemoryAddressWidth    // Bits of a memory's address, so 2^n locations
+    | MemoryWordWidth       // Bits a memory holds at each location
 ```
+
+A memory has two widths and neither is "the" width, so neither can be `Buswidth`: they have slots
+of their own, which apply to all four memory components. What that costs is not the slots but the
+contents — see [Memory contents and memory widths](#memory-contents-and-memory-widths).
 
 The number of inputs of a gate or merge is deliberately not a slot: an input count sets how many
 ports a component has, and a parameter records a value, not a change of topology. It is edited as
@@ -548,6 +554,33 @@ candidate value, and runs `evaluateConstraints` over the child's slots with thei
 constraints — the same call `editParameterBox` makes for the open sheet. Only the slots that *use*
 the parameter are checked, so a complaint can never name a box the user is not editing.
 
+### Memory contents and memory widths
+
+A memory's widths can be parameters; its contents cannot. `Memory1.Data` is one map, and every
+instance of the sheet holds the same one — so a sheet used at two sizes has **one set of contents
+that has to fit both**, and "do the contents fit" becomes a question with an answer per instance.
+
+`MemoryData` holds the question — does this map fit these widths — and three places ask it, each
+about different widths:
+
+| when | widths asked about | where |
+|---|---|---|
+| a width is edited | none: nothing is checked, nothing is discarded | — |
+| contents are edited, or a `.ram` file is linked | **every** shape the memory has in the design | `MemoryEditorView`, `MenuHelpers.makeSourceMenu` |
+| the design is simulated | the shape *that instance* resolved to | `FastValidate.checkAndValidate` |
+
+Editing a width throws nothing away, deliberately: a memory passing through a size that does not
+hold its data is an ordinary step on the way to one that does, and the data is the only copy of
+what the user typed. The simulator is where a memory finally has **one definite shape** — the
+canvas it was drawn from has neither shape when a sheet is used at two sizes — so that is where
+contents that do not fit are an error rather than a state being passed through.
+
+The width sets come from `ParameterAnalysis.memoryWidthsInDesign`, over
+`bindingEnvironmentsOf`: one environment per distinct way the design binds the sheet. The
+per-parameter answer (`displayValuesOfSheet`) cannot be used for this, because both widths of a
+pair must come from the *same* instance and that function has already forgotten which instance each
+value came from.
+
 ## One evaluator, one slot mapping, one instance signature
 
 There is **one** expression evaluator, `ParameterTypes.evaluateParamExpression`. What differs
@@ -653,6 +686,7 @@ might reach.
 - Logic gates over a bus (`NbitsAnd`, `NbitsOr`, `NbitsNot`, `NbitsXor`), and `NbitSpreader`
 - Bus components (`BusCompare`, `BusCompare1`, `BusSelection`, `SplitWire`, `SplitN`)
 - Counters (all variants), `Shift`, `Viewer`
+- Memories (`ROM1`, `RAM1`, `AsyncROM1`, `AsyncRAM1`) — both widths, one slot each
 
 Multiplexers and demultiplexers are **not** parameterisable: they have no case in
 `ComponentSlots.trySetSlotValue`, so `slotApplies` refuses a slot on one and the properties pane
@@ -679,9 +713,18 @@ one.
    `CompSlotName` maps onto a field of a `ComponentType`. The properties pane, elaboration and the
    sheet-description DSL all go through it, and `slotApplies` — which decides whether a slot may be
    written at all — is derived from the same match, so there is nothing else to keep in step
-3. Add a case to `ParameterView.updateComponentSlots` saying which sheet message writes the field
-   on the canvas
-4. Add UI support in the component's properties, via `ParameterView.paramInputField`
+3. Add a case to `ComponentSlots.constraintsFor` giving the bounds a value must satisfy, named so
+   that a message says which field it is about. A component with two of anything — a memory's two
+   widths — needs one slot and one bound per field, since a message that says only "Width" cannot
+   say which
+4. Add a case to `ParameterView.updateComponentSlots` saying which sheet message writes the field
+   on the canvas. If that message does not run width inference itself, as `UpdateMemory` does not,
+   dispatch `DoBusWidthInference` after it or the attached wires keep their old widths
+5. Add UI support in the component's properties, via `ParameterView.paramInputField`, and an entry
+   in `AppMessages.Fields.tips` under the label the box displays: every other field in the pane
+   explains itself, and one that does not is the odd one out
+6. `ParameterView.slotFieldName` names the slot in messages that refuse to delete a property; the
+   compiler will require it
 
 ## Usage Examples
 
@@ -927,10 +970,11 @@ instanceBindingProblem: LoadedComponent list -> string -> ParamBindings -> Param
   pasted onto another sheet, and nothing reports it: neither `Model.Clipboard` nor
   `SymbolT.Model.CopiedSymbols` records which sheet the copy came from. A custom component instance
   that loses bindings the same way *does* warn.
-- **Memories are not parameterisable**: RAM and ROM address and word widths are plain numbers, not
-  parameter slots. An input count is likewise not a slot — the number of inputs of a gate or a
-  merge sets how many ports a symbol has, so a computed value would make `SymbolInfo.PortOrder`
-  name ports the saved type does not have.
+- An input count is not a slot — the number of inputs of a gate or a merge sets how many ports a
+  symbol has, so a computed value would make `SymbolInfo.PortOrder` name ports the saved type does
+  not have.
+- A memory's contents cannot follow its widths. They are one map, shared by every instance of the
+  sheet, so a sheet used at two sizes has one set of contents to fit both — see below.
 - A sheet can be viewed only at one set of values. Opening it *as a particular instance*
   (`CPU_TOP > FetchUnit > Adder(W=16)`) is the strong answer for a multi-valued sheet and does not
   exist.

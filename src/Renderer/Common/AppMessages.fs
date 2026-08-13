@@ -261,6 +261,15 @@ module Fields =
                 "How many of the input's bits go to the top output. The rest go to the bottom one, so \
                  the two together always add up to the input width. Flip the component vertically \
                  (Ctrl+Down) if you want the least significant bits at the bottom instead."
+            "Address width (bits)",
+                "How many bits the address has, and so how many locations this memory has: 2^n of \
+                 them. It can be an expression in the sheet's properties, like any other width. \
+                 Contents already written stay as they are; a location the new size has no room for \
+                 is reported when the design is simulated."
+            "Data width (bits)",
+                "How many bits this memory holds at each location. It can be an expression in the \
+                 sheet's properties, like any other width. Contents already written stay as they \
+                 are; a value too large for the new width is reported when the design is simulated."
             "Width",
                 "How many bits this output takes from the input bus."
             "LSB",
@@ -305,7 +314,7 @@ module Fields =
             // ---- values ----
             "Enter constant value in decimal, hex, or binary:",
                 "The value this component drives, written however is clearest: 42, 0x2a or 0b101010. \
-                 It is displayed on the schematicin the form you typed it."
+                 It is displayed on the schematic in the form you typed it."
             "Enter bus compare value in decimal, hex, or binary:",
                 "The output is 1 when the input bus equals this value and 0 otherwise. Write it \
                  however is clearest: 42, 0x2a or 0b101010."
@@ -402,6 +411,11 @@ module Memories =
 - Linked memories will have initial data updated to latest file contents, if they change. Update is
   automatic when a new simulation is started and otherwise will happen if needed when the Issie
   screen refreshes.
+- A memory's address and data widths can be written as expressions in the sheet's properties, so
+  one memory can be several sizes in one design - one per set of values the sheet is used at. There
+  is still only one set of initial data for all of them, so the editor refuses a value that would
+  not fit the smallest of those sizes, as does linking a '.ram' file. Changing a width never throws
+  data away: data that no longer fits is reported when the design is simulated.
 """
 
 /// The waveform simulator's help panels. Three of these names come from the "WaveSimHelp"

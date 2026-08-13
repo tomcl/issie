@@ -65,7 +65,10 @@ such slot. That last one is `ComponentSlots.slotApplies`, and it is why a `GateN
 cannot be parameterised at all — their integer is an input count, and a parameter records a value,
 not a change of shape. A `SplitN` is the mixed case: its number of outputs is a shape, but the
 width and bit position of a given output are values, so `SplitNWidth i`/`SplitNLSB i` work for the
-outputs that exist and are refused past the end.
+outputs that exist and are refused past the end. A memory has two slots rather than one, since
+neither of its widths is "the" width: `withSlot "ROM" MemoryAddressWidth "clog2(WORDS)"` and
+`withSlot "ROM" MemoryWordWidth "W"`. Its contents are not parameterisable and are never resized —
+data that no longer fits the widths a design gives it is reported when that design is simulated.
 
 ## Layout
 

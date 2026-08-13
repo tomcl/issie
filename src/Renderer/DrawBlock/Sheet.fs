@@ -87,6 +87,8 @@ module Constants =
     let zoomIncrement = 1.2
     /// smaller step for physical Ctrl/Cmd-wheel zoom, so a wheel notch is not too coarse
     let fineZoomIncrement = 1.05
+    /// physical wheel delta represented by one fine zoom step
+    let fineZoomWheelStep = 30.0
     /// sensitivity for the continuous pinch gesture reported by trackpads
     let pinchZoomSensitivity = 0.007
     /// aspect ratio required before align or distribute can be done
@@ -99,6 +101,31 @@ module Constants =
             CanvasBorder = 0.5 // minimum scrollable white space border as fraction of circuit size after ctrlW
             CanvasExtensionFraction = 0.1 // fraction of screen size used to extend canvas by when going off edge
         |}
+
+type WheelZoom =
+    | PinchZoom of float
+    | PhysicalWheelZoom of float
+
+let private normalizedWheelDelta deltaMode deltaY =
+    match deltaMode with
+    | 1.0 -> deltaY * 16.0
+    | 2.0 -> deltaY * 800.0
+    | _ -> deltaY
+
+let private clamp minValue maxValue value =
+    min maxValue (max minValue value)
+
+/// Classify a modified wheel event and calculate its zoom factor without touching the DOM.
+let wheelZoom deltaMode deltaY isZoomGesture physicalModifierHeld =
+    if not isZoomGesture then
+        None
+    else
+        let delta = normalizedWheelDelta deltaMode deltaY
+        if physicalModifierHeld then
+            Some(PhysicalWheelZoom (Constants.fineZoomIncrement ** (-delta / Constants.fineZoomWheelStep)))
+        else
+            let factor = exp (-delta * Constants.pinchZoomSensitivity) |> clamp (1. / 1.3) 1.3
+            Some(PinchZoom factor)
     
 
 //---------------------------------------Derived constants----------------------------------------//

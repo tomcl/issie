@@ -12,28 +12,15 @@ open Operators
 open Sheet
 open SheetSnap
 
-module Constants =
-    let ZoomWheelStepThreshold = 30.0
-    let MaxZoomStepsPerWheelEvent = 4
-
-let mutable private zoomWheelAccumulator = 0.0
-
 // Chromium reports a trackpad pinch as a wheel event with ctrlKey/metaKey set, even though no
-// physical modifier key is held. KeyBindings updates this state for real Control/Meta presses so
-// the two gestures can be handled differently.
+// physical modifier key is held. This single flag is shared with KeyBindings so the two gestures
+// can be handled differently without keeping a second copy of the same state.
 let mutable private physicalModifierHeld = false
 
 let setPhysicalModifierHeld value =
     physicalModifierHeld <- value
-    if not value then
-        zoomWheelAccumulator <- 0.0
 
 let isPhysicalModifierHeld () = physicalModifierHeld
-
-let private floatSign value =
-    if value > 0.0 then 1.0
-    elif value < 0.0 then -1.0
-    else 0.0
 
 /// This actually writes to the DOM a new scroll position.
 /// In the special case that DOM has not yet been created it does nothing.
@@ -87,56 +74,14 @@ let getDrawBlockPos (ev: Types.MouseEvent) (headerHeight: float) (sheetModel:Mod
         Y = (ev.pageY - headerHeight + sheetModel.ScreenScrollPos.Y) / sheetModel.Zoom
     }
 
-let private normalizedWheelDelta (ev: Types.WheelEvent) =
-    match ev.deltaMode with
-    | 1.0 -> ev.deltaY * 16.0
-    | 2.0 -> ev.deltaY * 800.0
-    | _ -> ev.deltaY
-
 let wheelUpdate (ev: Types.WheelEvent) _model dispatch =
-    let delta = normalizedWheelDelta ev
     let isZoomGesture = ev.ctrlKey || ev.metaKey
-    let isPinchZoom = isZoomGesture && not (isPhysicalModifierHeld ())
-    let isDiscreteShortcutZoom = isZoomGesture && isPhysicalModifierHeld ()
-
-    if isPinchZoom then
-        ev.preventDefault()
-        zoomWheelAccumulator <- 0.0
-        let zoomFactor = exp (-delta * Sheet.Constants.pinchZoomSensitivity)
-
+    match Sheet.wheelZoom ev.deltaMode ev.deltaY isZoomGesture (isPhysicalModifierHeld ()) with
+    | None -> ()
+    | Some (PinchZoom zoomFactor)
+    | Some (PhysicalWheelZoom zoomFactor) ->
         if abs (zoomFactor - 1.0) > 0.0001 then
             dispatch <| PreciseZoom zoomFactor
-    elif isDiscreteShortcutZoom then
-        ev.preventDefault()
-        let previousAccumulator = zoomWheelAccumulator
-        let nextAccumulator =
-            if previousAccumulator <> 0.0 && floatSign previousAccumulator <> floatSign delta then
-                delta
-            else
-                previousAccumulator + delta
-
-        // Bound the synchronous work done for one wheel event. Keep only the fractional
-        // remainder below one step, so an unusually large delta cannot create delayed zoom debt.
-        let wholeSteps =
-            floor (abs nextAccumulator / Constants.ZoomWheelStepThreshold)
-        let steps =
-            min (float Constants.MaxZoomStepsPerWheelEvent) wholeSteps
-            |> int
-
-        if steps > 0 then
-            let zoomMsg =
-                if nextAccumulator > 0.0 then
-                    KeyPress ZoomOutFine
-                else
-                    KeyPress ZoomInFine
-
-            [ 1 .. steps ] |> List.iter (fun _ -> dispatch zoomMsg)
-
-        let remainder =
-            abs nextAccumulator - wholeSteps * Constants.ZoomWheelStepThreshold
-        zoomWheelAccumulator <- floatSign nextAccumulator * remainder
-    else
-        zoomWheelAccumulator <- 0.0
 
 /// Is the mouse button currently down?
 let mDown (ev:Types.MouseEvent) = ev.buttons <> 0.

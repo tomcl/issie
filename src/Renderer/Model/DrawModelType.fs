@@ -551,6 +551,7 @@ module SheetT =
         | KeyPress of KeyboardMsg
         | ToggleGrid
         | KeepZoomCentered of XYPos
+        | ApplyPendingZoomCenter
         | PreciseZoom of float
         | MouseMsg of MouseT
         | MouseMsgOrig of Browser.Types.MouseEvent * MouseOp * float
@@ -676,6 +677,8 @@ module SheetT =
         AutomaticScrolling: bool // True if mouse is near the edge of the screen and is currently scrolling. This improved performance for manual scrolling with mouse wheel (don't check for automatic scrolling if there is no reason to)
         /// html scrolling position: this is in screen pixels, draw block X,Y values are 1/model.Zoom of this
         ScreenScrollPos: XYPos // copies HTML canvas scrolling position: (canvas.scrollLeft,canvas.scrollTop)
+        /// Screen centre to restore after React has committed a zoom resize.
+        PendingZoomCenter: XYPos option
         /// this is Drawblock X,Y values
         LastMousePos: XYPos // For Symbol Movement
         ScalingBoxCentrePos: XYPos

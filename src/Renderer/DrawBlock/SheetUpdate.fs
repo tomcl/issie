@@ -300,6 +300,20 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
     | UpdateScrollPosFromCanvas(pos) ->
         {model with ScreenScrollPos = pos}, Cmd.none
 
+    | ApplyPendingZoomCenter ->
+        let pendingCenter = model.PendingZoomCenter
+        let model = {model with PendingZoomCenter = None}
+        match pendingCenter with
+        | None -> model, Cmd.none
+        | Some oldScreenCentre ->
+            let canvas = document.getElementById "Canvas"
+            if canvas = null then
+                model, Cmd.none
+            else
+                let scrollPos =
+                    zoomCenteredScrollPosition oldScreenCentre model.Zoom canvas.clientWidth canvas.clientHeight
+                model, sheetCmd (UpdateScrollPos scrollPos)
+
  
     | UpdateScrollPos scrollPos ->
         let scrollDif = scrollPos - model.ScreenScrollPos * (1. / model.Zoom)
@@ -378,19 +392,11 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             sheetCmd (KeepZoomCentered oldScreenCentre)
 
     | KeepZoomCentered oldScreenCentre ->
-        // The batched renderer has not resized the SVG when this command runs. Queue the scroll
-        // update after its render instead of writing against the old scroll extent.
-        let cmd =
-            Cmd.ofEffect (fun dispatch ->
-                window.requestAnimationFrame (fun _ ->
-                    let canvas = document.getElementById "Canvas"
-                    if canvas <> null then
-                        let scrollPos =
-                            { X = oldScreenCentre.X * model.Zoom - canvas.clientWidth / 2.0
-                              Y = oldScreenCentre.Y * model.Zoom - canvas.clientHeight / 2.0 }
-                        dispatch <| ModelType.Msg.Sheet (UpdateScrollPos scrollPos))
-                |> ignore)
-        model, cmd
+        // Keep the first centre while a burst of zoom messages is waiting for React to commit.
+        // SheetDisplay applies it from an SVG ref callback, after the resized canvas is mounted.
+        match model.PendingZoomCenter with
+        | Some _ -> model, Cmd.none
+        | None -> {model with PendingZoomCenter = Some oldScreenCentre}, Cmd.none
 
     // ManualKeyDown/Up used to live here, synthesising Ctrl+C/V/A/W by keeping a list of held
     // keys and discarding entries older than a second, because keyup was unreliable. KeyBindings
@@ -585,6 +591,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             TmpModel = None
             ScalingTmpModel = None
             Zoom = 1.0
+            PendingZoomCenter = None
             AutomaticScrolling = false
             ScrollingLastMousePos = {Pos={ X = 0.0; Y = 0.0 };Move={X=0.0; Y=0.0}}
             MouseCounter = 0
@@ -931,6 +938,7 @@ let init () =
         CursorType = Default
         LastCursorType = Default
         ScreenScrollPos = { X = 0.0; Y = 0.0 }
+        PendingZoomCenter = None
         LastValidPos = { X = 0.0; Y = 0.0 }
         LastValidSymbol = None
         SymbolEdit = None

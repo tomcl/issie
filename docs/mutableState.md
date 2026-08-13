@@ -59,7 +59,8 @@ structurally would cost more than recomputing.
 | `DrawBlock/SheetDisplay.fs` | `mountedCanvas`, `modelScrollPos` — DOM refs |
 | `DrawBlock/Sheet.fs` | `recentProgrammaticScrollPos`, `scrollSequence`, `viewIsAfterUpdateScroll` — scroll bookkeeping driven by DOM events |
 | `Main/Main.fs` | `mainWindow`, `splashWindow` — the two Electron windows; `closeAfterSave`; `appStarted` — process lifecycle, and there is no Elmish model in the main process at all |
-| `UI/KeyBindings.fs` | `modelContext` — a cached projection of the model for DOM handlers, which cannot see it and must decide `preventDefault` synchronously; `ctrlHeld` and `spaceHeld` — physical modifier state, wanted on its edges and across focus loss, and a held key is not something the shortcut table can express; `keyLog` — debug-only log of what the dispatcher decided |
+| `DrawBlock/SheetDisplay.fs` | `physicalModifierHeld` — the shared physical modifier state read by the wheel handler and the keyboard handler; DOM events need it synchronously to distinguish a real Ctrl/Cmd wheel from Chromium's pinch gesture |
+| `UI/KeyBindings.fs` | `modelContext` — a cached projection of the model for DOM handlers, which cannot see it and must decide `preventDefault` synchronously; `spaceHeld` — physical space state, wanted on its edges and across focus loss, and a held key is not something the shortcut table can express; `keyLog` — debug-only log of what the dispatcher decided |
 | `Interface/JSHelpers.fs` | `debugLevel`, `loggingMemory`, `memSize` |
 | `UI/DevHarness.fs` | `latestModel`, `latestDispatch`, `waitingForRender` — the outside world's handle on a running Issie, in the same way `KeyBindings.modelContext` is the DOM's. Written by the view wrapper on every render and read only by the debug-build harness; there is no Elmish message that could carry them, since the point is to answer between renders |
 | `Simulator/SimTypes.fs` | `SimulationBudget.maxTypedArrayBytes`, `SimulationBudget.maxHeapBytes` — how much memory a simulation may take, which is a fact about the machine rather than about the design. Read once from Electron at renderer startup (`setBudgetsFromMachine`) and never written again; the values compiled in are the fallback for a run with no Electron to ask, which is every run of the test suite |
@@ -86,4 +87,4 @@ would need the same judgement applied before moving: confirm the write frequency
 Not everything in this position moves into `Model`. A mutable that exists because a **DOM handler
 cannot read the model** — it must decide `preventDefault` synchronously, and the model is not
 reachable from inside the handler — belongs in the "not model state" table above instead. That is
-what `KeyBindings.modelContext` and `ctrlHeld` are.
+what `KeyBindings.modelContext` and `SheetDisplay.physicalModifierHeld` are.

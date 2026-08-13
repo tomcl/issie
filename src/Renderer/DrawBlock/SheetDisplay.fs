@@ -156,7 +156,10 @@ let displaySvgWithZoom
         | Some _ ->
             [ (Ref (fun element ->
                     if element <> null then
-                        JSHelpers.delayedDispatch dispatch 0 ApplyPendingZoomCenter |> ignore)
+                        // The ref runs during React's commit. Dispatch immediately so the resulting
+                        // UpdateScrollPos writes the corrected scroll before this rendering task
+                        // can yield to the browser for a paint.
+                        dispatch ApplyPendingZoomCenter)
               :> IProp) ]
         | None -> []
 

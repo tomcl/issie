@@ -195,6 +195,58 @@ endmodule
             }
         ]
 
+        testList "shifts" [
+            // issue #510: `>>` parsed and the component was created, but simulating it failed
+            // with "Legacy components, not Implemented" out of determineBigIntState
+            test "issue 510: variable right shift simulates" {
+                let src =
+                    """module right_shifter(data_in, shift_amount, data_out);
+input bit [10:0] data_in;
+input bit [4:0] shift_amount;
+output bit [10:0] data_out;
+assign data_out = data_in >> shift_amount;
+endmodule
+"""
+                for sh in 0..11 do
+                    let r = simulateVerilog src [ "data_in", 1365I; "shift_amount", bigint sh ]
+                    Expect.equal r["DATA_OUT"] (1365I >>> sh) $"1365 >> {sh}"
+            }
+            // issue #511: this module hung the app
+            test "issue 511: 16-way case of concatenations compiles and simulates" {
+                let src =
+                    """module shifter1 (in, shift, out);
+input bit [15:0] in;
+input bit [3:0] shift;
+output bit [31:0] out;
+always_comb begin
+    case (shift)
+      4'd0: out = {16'b0, in};
+      4'd1: out = {15'b0, in, 1'b0};
+      4'd2: out = {14'b0, in, 2'b0};
+      4'd3: out = {13'b0, in, 3'b0};
+      4'd4: out = {12'b0, in, 4'b0};
+      4'd5: out = {11'b0, in, 5'b0};
+      4'd6: out = {10'b0, in, 6'b0};
+      4'd7: out = {9'b0, in, 7'b0};
+      4'd8: out = {8'b0, in, 8'b0};
+      4'd9: out = {7'b0, in, 9'b0};
+      4'd10: out = {6'b0, in, 10'b0};
+      4'd11: out = {5'b0, in, 11'b0};
+      4'd12: out = {4'b0, in, 12'b0};
+      4'd13: out = {3'b0, in, 13'b0};
+      4'd14: out = {2'b0, in, 14'b0};
+      4'd15: out = {1'b0, in, 15'b0};
+      default: out = {16'b0, in};
+    endcase
+end
+endmodule
+"""
+                for sh in 0..15 do
+                    let r = simulateVerilog src [ "in", 43981I; "shift", bigint sh ]
+                    Expect.equal r["OUT"] (43981I <<< sh) $"43981 << {sh}"
+            }
+        ]
+
         testList "whitespace" [
             // the lexer's longest-match makes whitespace before '[' redundant; it was mandatory
             test "no space needed between bit and a range" {

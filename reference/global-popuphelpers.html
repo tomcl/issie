@@ -881,7 +881,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PopupHelpers.choicePopup``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L996-996" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L1014-1014" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1032,7 +1032,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PopupHelpers.choicePopupFunc\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L969-969" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L987-987" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1527,7 +1527,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PopupHelpers.confirmationPopup\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L957-957" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L975-975" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1622,7 +1622,7 @@
                         body
                       </b>
                       :
-                      <code><span><a href="/issie/reference/modeltype-model.html">Model</a>&#32;->&#32;<a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></span></code>
+                      <code><span><a href="/issie/reference/modeltype-model.html">Model</a>&#32;->&#32;'a</span></code>
                     </span>
                     <br/>
                     <span>
@@ -1680,18 +1680,25 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:PopupHelpers.dialogPopup`')">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('```cref:M:PopupHelpers.dialogPopup``1```')">
                     <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
                   </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PopupHelpers.dialogPopup\'/>')">
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PopupHelpers.dialogPopup``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L847-847" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L854-854" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      Popup with an input textbox and two buttons.
  The text is reflected in Model.PopupDialogText.
+
+ Return confirms the dialog, as it does in any other dialog with one obvious action. It used to
+ reach KeyTypes.ScLeaveTextBox, whose job is to hand the keyboard back to the schematic: inside a
+ popup that blurred the box the user had just typed into and did nothing else, which read as the
+ entry having been thrown away. Swallowed here whether or not the action is available, so that
+ Return means one thing inside a dialog rather than confirming it or emptying it depending on
+ whether what has been typed so far is valid.
                   </p>
                 </div>
               </summary>
@@ -1709,7 +1716,7 @@
                     body
                   </span>
                   :
-                  <code><span><a href="/issie/reference/modeltype-model.html">Model</a>&#32;->&#32;<a href="https://learn.microsoft.com/dotnet/api/fable.react.reactelement">ReactElement</a></span></code>
+                  <code><span><a href="/issie/reference/modeltype-model.html">Model</a>&#32;->&#32;'a</span></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -4140,7 +4147,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PopupHelpers.dialogVerilogPopup\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L896-896" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L914-914" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -5647,7 +5654,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:PopupHelpers.newBuildPopup\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L1003-1003" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/PopupHelpers.fs#L1021-1021" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

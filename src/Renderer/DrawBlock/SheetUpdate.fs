@@ -344,11 +344,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         { model with Zoom = min Constants.maxMagnification (model.Zoom*Constants.zoomIncrement) }, 
         sheetCmd (KeepZoomCentered oldScreenCentre)
 
-    | KeyPress ZoomInFine ->
-        let oldScreenCentre = getVisibleScreenCentre model
-        { model with Zoom = min Constants.maxMagnification (model.Zoom * Constants.fineZoomIncrement) },
-        sheetCmd (KeepZoomCentered oldScreenCentre)
-
     // Zooming out decreases the model.Zoom. The centre of the screen will stay centred (if possible)
     | KeyPress ZoomOut ->
         // get current screen edge coords
@@ -364,19 +359,6 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             { model with Zoom = newZoom }, 
             sheetCmd (KeepZoomCentered oldScreenCentre)
         | None-> model, Cmd.none
-
-    | KeyPress ZoomOutFine ->
-        match getScreenEdgeCoords model with
-        | Some edge ->
-            let newZoom =
-                let minXZoom = (edge.Right - edge.Left) / model.CanvasSize
-                let minYZoom = (edge.Top - edge.Bottom) / model.CanvasSize
-                List.max [model.Zoom / Constants.fineZoomIncrement; minXZoom; minYZoom]
-            let oldScreenCentre = getVisibleScreenCentre model
-
-            { model with Zoom = newZoom },
-            sheetCmd (KeepZoomCentered oldScreenCentre)
-        | None -> model, Cmd.none
 
     | PreciseZoom zoomFactor ->
         match getScreenEdgeCoords model with

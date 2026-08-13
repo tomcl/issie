@@ -323,14 +323,19 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
             sheetCmd (KeepZoomCentered oldScreenCentre)
 
     | KeepZoomCentered oldScreenCentre ->
-        let canvas = document.getElementById "Canvas"
-        let newScreenCentre = getVisibleScreenCentre model
-        let requiredOffset = oldScreenCentre - newScreenCentre
-
-        // Update screen so that the zoom is centred around the middle of the screen.
-        canvas.scrollLeft <- canvas.scrollLeft + requiredOffset.X * model.Zoom
-        canvas.scrollTop <- canvas.scrollTop + requiredOffset.Y * model.Zoom
-        model, Cmd.none
+        // The batched renderer has not resized the SVG when this command runs. Queue the scroll
+        // update after its render instead of writing against the old scroll extent.
+        let cmd =
+            Cmd.ofEffect (fun dispatch ->
+                window.requestAnimationFrame (fun _ ->
+                    let canvas = document.getElementById "Canvas"
+                    if canvas <> null then
+                        let scrollPos =
+                            { X = oldScreenCentre.X * model.Zoom - canvas.clientWidth / 2.0
+                              Y = oldScreenCentre.Y * model.Zoom - canvas.clientHeight / 2.0 }
+                        dispatch <| ModelType.Msg.Sheet (UpdateScrollPos scrollPos))
+                |> ignore)
+        model, cmd
 
     // ManualKeyDown/Up used to live here, synthesising Ctrl+C/V/A/W by keeping a list of held
     // keys and discarding entries older than a second, because keyup was unreliable. KeyBindings

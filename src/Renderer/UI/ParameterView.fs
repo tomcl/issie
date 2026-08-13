@@ -298,6 +298,17 @@ let updateComponentSlots dispatch (model: Model) (compIdStr: string) (slotValues
                 model.Sheet.ChangeLSB sheetDispatch compId value
             | _, Buswidth | _, IO _ ->
                 asInt slot value |> Option.iter (model.Sheet.ChangeWidth sheetDispatch compId)
+            // a memory's two widths. The new type comes from ComponentSlots, which is the one place
+            // that knows what a slot sets, and the memory inside it is what the draw block is given:
+            // going through UpdateMemory keeps the symbol and its component in step, as every other
+            // change to a memory does. The wires attached to the address and data ports follow the
+            // widths, so inference has to run - UpdateMemory, unlike ChangeWidth, does not run it.
+            | _, (MemoryAddressWidth | MemoryWordWidth) ->
+                match ComponentSlots.trySetSlotValue slot value comp.Type with
+                | Some (ROM1 mem | RAM1 mem | AsyncROM1 mem | AsyncRAM1 mem) ->
+                    model.Sheet.UpdateMemory sheetDispatch compId (fun _ -> mem)
+                    model.Sheet.DoBusWidthInference sheetDispatch
+                | _ -> Log.warn $"Memory width slot {slot} does not apply to {comp.Type}"
             | Input1 _, InputDefault -> model.Sheet.ChangeInputValue sheetDispatch compId value
             | _, InputDefault -> failwithf $"Default value cannot be set on {comp.Type}"
             | _, (SplitNWidth _ | SplitNLSB _) -> failwithf $"SplitN slots cannot be applied to {comp.Type}"
@@ -1071,6 +1082,8 @@ let slotFieldName (slot: CompSlotName) : string =
     | SplitNLSB idx -> $"SplitN output {idx} LSB"
     | CustomCompParam paramName -> $"Property {paramName}"
     | InputDefault -> "Default value"
+    | MemoryAddressWidth -> "Address width"
+    | MemoryWordWidth -> "Data width"
 
 /// Human readable name of the slot a parameter expression fills, for use in messages.
 let describeSlot (model: Model) (slot: ParamSlot) =

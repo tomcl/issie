@@ -197,10 +197,21 @@ let makeSourceMenu
                 let sheetDispatch sMsg = dispatch (Sheet sMsg)
                 let mem = FilesIO.initialiseMem mem1 p.ProjectPath
                 match mem with
-                | Ok mem' -> updateMem cid (fun _ -> mem')
-                | Error msg -> 
+                // The file is read at the widths the memory is drawn at, which need not be the
+                // widths it has everywhere: a parameterised memory is several sizes at once, and
+                // the file is the contents of all of them. Linking it is refused where it does not
+                // fit one, rather than leaving a design that cannot be simulated.
+                | Ok mem' ->
+                    match MemoryData.dataProblemAtWidths
+                            (ModelHelpers.memoryWidthsInDesign model cid mem') mem'.Data with
+                    | None -> updateMem cid (fun _ -> mem')
+                    | Some problem ->
+                        dispatch <| SetFilesNotification
+                                        (Notifications.errorFilesNotification
+                                            $"'{s}.ram' does not fit this memory: {problem}.")
+                | Error msg ->
                     dispatch <| SetFilesNotification
-                                    (Notifications.errorFilesNotification msg) 
+                                    (Notifications.errorFilesNotification msg)
             | _ ->
                 updateMem cid (fun mem -> {mem with Init = FromData})
                 

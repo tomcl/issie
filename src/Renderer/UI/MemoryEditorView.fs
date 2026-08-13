@@ -289,6 +289,8 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
             $"This memory is linked to File {fName}.ram, changes made here will be save dto that file"
         | _ -> ""
     let showRow = showRowWithAdrr memoryEditorData
+    /// Every shape this memory has in the design, which is what an edited location must fit.
+    let widths = ModelHelpers.memoryWidthsInDesign model compId memory
     let viewNumD = viewFilledNum memory.WordWidth memoryEditorData.NumberBase
     let viewNumA = viewFilledNum memory.AddressWidth memoryEditorData.NumberBase
     let numLocsToDisplay = 16I
@@ -317,6 +319,12 @@ let private makeEditorBody memory compId memoryEditorData model (dispatch: Msg -
                 let handleInput  (ev: Browser.Types.FocusEvent) =
                     let text = getTextEventValue ev
                     match strToIntCheckWidth memory.WordWidth text with
+                    // A value that fits the memory as drawn need not fit it everywhere: with a
+                    // parameterised width the sheet is used at several sizes and there is one set
+                    // of contents for all of them. Refused here rather than left to the simulator,
+                    // which would report a design the user has just been allowed to type.
+                    | Ok value when (MemoryData.locationProblemAtWidths widths addr value).IsSome ->
+                        showError (MemoryData.locationProblemAtWidths widths addr value).Value dispatch
                     | Ok value ->
                         // Close error notification.
                         closeError dispatch

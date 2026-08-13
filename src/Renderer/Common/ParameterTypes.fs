@@ -177,6 +177,11 @@ type CompSlotName =
     /// The value an Input takes when it is undriven. Distinct from IO, which is the input's width:
     /// both are edited from the same properties pane and so cannot share a slot.
     | InputDefault
+    /// How many bits a memory's address has, so how many locations it has: 2^n of them. Its own
+    /// slot rather than Buswidth because a memory has two widths and neither is "the" width.
+    | MemoryAddressWidth
+    /// How many bits a memory holds at each location.
+    | MemoryWordWidth
 
 /// A slot in a component instance that can be bound to a parameter expression
 /// CompId should be a ComponentId but then we would need these types to be defined after CommonTypes.

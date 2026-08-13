@@ -254,6 +254,26 @@ let private memoryFacts (mem1: Memory1) cType model : ReactElement list =
         sourceLine
     ]
 
+/// The shape of a memory: its two widths, each an expression like any other width in this pane.
+///
+/// A memory is the component with two widths, so neither of them can be the `Buswidth` slot every
+/// single-width component uses - they have slots of their own, and the boxes are otherwise the
+/// ordinary parameter boxes.
+///
+/// Changing a width does NOT change the contents. Data that no longer fits is reported when the
+/// design is simulated, because that is where the memory has one definite shape: with parameterised
+/// widths one component is several memories, one per set of bindings its sheet is used at. See
+/// MemoryData.
+let private makeMemoryWidthFields model (comp: Component) (mem: Memory1) dispatch =
+    let widthField prompt slot (width: int) =
+        ParameterView.paramInputField
+            model prompt 1I (Some (bigint width)) None
+            (ComponentSlots.constraintsFor slot comp.Type) None (Some comp) slot dispatch
+    div [] [
+        widthField "Address width (bits)" MemoryAddressWidth mem.AddressWidth
+        widthField "Data width (bits)" MemoryWordWidth mem.WordWidth
+    ]
+
 /// The things a memory component can be asked to DO. These are the reason for selecting a RAM, so
 /// they stay in the body of the pane rather than going behind the About disclosure with the prose.
 let private memoryActions mem compId cType model dispatch =
@@ -1097,7 +1117,10 @@ let private makeExtraInfo model (comp:Component) text dispatch : ReactElement =
     // The memory buttons are the reason for selecting a RAM, so they stay in the body of the pane
     // while the shape and data source of the memory go to About with the rest of the prose.
     | AsyncROM1 mem | ROM1 mem | RAM1 mem | AsyncRAM1 mem ->
-        memoryActions mem (ComponentId comp.Id) comp.Type model dispatch
+        div [] [
+            makeMemoryWidthFields model comp mem dispatch
+            memoryActions mem (ComponentId comp.Id) comp.Type model dispatch
+        ]
     // A custom component had no case here at all: everything it could be asked to do lived inside
     // the read-only description. Its parameter values are now edited exactly as a built-in width is.
     | Custom custom ->

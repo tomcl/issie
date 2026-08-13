@@ -29,7 +29,30 @@ let calculateTotalSimArraySizePerStep (activeComps: FastComponent array) (fs: Fa
             else
                 4))
     |> (fun size -> {fs with TotalArraySizePerStep = size})
-    
+
+/// The first memory of the simulation holding contents that do not fit it, as an error naming it.
+///
+/// Here, rather than with the canvas checks, because here is where a memory has ONE definite shape.
+/// Its widths may be parameter expressions, and what they come to is settled per instance during
+/// elaboration - so a sheet used at two sizes gives two memories to check, and the canvas they were
+/// both drawn from has neither shape. The contents themselves are never resized to fit: see
+/// MemoryData for why a width edit leaves them alone and this is what reports the result.
+let private memoryContentsError (activeComps: FastComponent array) : SimulationError option =
+    activeComps
+    |> Array.tryPick (fun fc ->
+        match fc.FType with
+        | ROM1 mem | RAM1 mem | AsyncROM1 mem | AsyncRAM1 mem ->
+            MemoryData.memoryProblem mem
+            |> Option.map (fun problem ->
+                { ErrType =
+                    GenericSimError
+                        $"The initial contents of memory {fc.FLabel} do not fit it: {problem}. Change \
+                          the memory's address and data widths in its Properties, or edit its contents \
+                          to fit the widths it has."
+                  InDependency = Some fc.SimSheetName
+                  ComponentsAffected = [fc.cId]
+                  ConnectionsAffected = [] })
+        | _ -> None)
 
 /// Check all the active FastComponents to ensure everything is valid
 /// Use data from initialisation to write any not-yet-written component output widths
@@ -101,9 +124,14 @@ let checkAndValidate (fs: FastSimulation) =
                 | _ -> () // Ok in this case
             ))
         instrumentTime "checkAndValidate" start
-        fs
-        |> calculateTotalSimArraySizePerStep activeComps
-        |> Ok
+        // contents a memory cannot hold: a fault in the design, so it is returned as an error
+        // rather than left for the reducer that would read the location
+        match memoryContentsError activeComps with
+        | Some err -> Error err
+        | None ->
+            fs
+            |> calculateTotalSimArraySizePerStep activeComps
+            |> Ok
 
 let checkAndValidateFData (fs: FastSimulation) =
     let start = getTimeMs ()
@@ -171,5 +199,9 @@ let checkAndValidateFData (fs: FastSimulation) =
             ))
 
         instrumentTime "checkAndValidate" start
-        Ok fs
+        // as in checkAndValidate above: a memory whose contents do not fit it is a fault in the
+        // design, and the algebraic backend reads the same contents
+        match memoryContentsError activeComps with
+        | Some err -> Error err
+        | None -> Ok fs
 

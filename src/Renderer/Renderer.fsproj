@@ -46,6 +46,7 @@
     <Compile Include="Common\AppMessages.fs" />
     <Compile Include="Common\KeyTypes.fs" />
     <Compile Include="Common\ComponentSlots.fs" />
+    <Compile Include="Common\MemoryData.fs" />
     <Compile Include="Common\SheetDescription.fs" />
     <Compile Include="Common\DrawHelpers.fs" />
     <Compile Include="Common\Helpers.fs" />

@@ -24,6 +24,21 @@ open CommonTypes
 /// The slots whose field is an `int` in ComponentType: a width, an index, a bit position. Split
 /// from trySetSlotValue only so that the narrowing from ParamInt happens once, before this is
 /// reached, rather than in every case.
+/// The component with `f` applied to the memory inside it, or None where it holds no memory.
+///
+/// The four memory components differ only in when they read and whether they can be written, so
+/// every slot that names part of a memory applies to all four. The legacy `RAM`/`ROM`/`AsyncROM`
+/// cases are deliberately absent: they carry the old Memory type with no Init field, and
+/// FilesIO.getLatestComp turns each into its numbered form as a sheet loads, so nothing a slot can
+/// reach is ever one of them.
+let private withMemory (f: Memory1 -> Memory1) (compType: ComponentType) : ComponentType option =
+    match compType with
+    | ROM1 mem -> Some (ROM1 (f mem))
+    | RAM1 mem -> Some (RAM1 (f mem))
+    | AsyncROM1 mem -> Some (AsyncROM1 (f mem))
+    | AsyncRAM1 mem -> Some (AsyncRAM1 (f mem))
+    | _ -> None
+
 let private trySetIntSlotValue (slot: CompSlotName) (value: int) (compType: ComponentType) : ComponentType option =
     match slot, compType with
     // the component's own width
@@ -60,6 +75,11 @@ let private trySetIntSlotValue (slot: CompSlotName) (value: int) (compType: Comp
     // the field that shares the IO slot for want of anywhere else. The other one, a BusCompare's
     // comparison value, is a bigint and so is set in trySetSlotValue itself.
     | IO _, BusSelection (w, _) -> Some (BusSelection (w, value))
+    // the two widths of a memory. The data a memory already holds is left exactly as it is: a
+    // width that no longer fits it is reported when the design is simulated, by
+    // MemoryData.dataFitsWidths, rather than by throwing away locations the user typed.
+    | MemoryAddressWidth, _ -> withMemory (fun mem -> {mem with AddressWidth = value}) compType
+    | MemoryWordWidth, _ -> withMemory (fun mem -> {mem with WordWidth = value}) compType
     // one output of a SplitN
     | SplitNWidth idx, SplitN (n, widths, lsbs) when idx >= 0 && idx < List.length widths ->
         Some (SplitN (n, widths |> List.mapi (fun i w -> if i = idx then value else w), lsbs))
@@ -166,6 +186,11 @@ let constraintsFor (slot: CompSlotName) (compType: ComponentType) : ParamConstra
         // and those are expressions in the child's parameters, which cannot be evaluated here.
         // ParameterView.instanceBindingProblem checks them by resolving the child sheet.
         | CustomCompParam _, _ -> []
+        // a memory's two widths. Both are bus widths - the address port and the data port are
+        // buses like any other - so both take the ordinary width bounds, named so that a message
+        // says which of the two was too large.
+        | MemoryAddressWidth, _ -> widthConstraints "Address width"
+        | MemoryWordWidth, _ -> widthConstraints "Word width"
         | SplitNWidth _, _ -> widthConstraints "Width"
         | SplitNLSB _, _ ->
             [ MinVal (PInt 0I, "LSB must be non-negative")

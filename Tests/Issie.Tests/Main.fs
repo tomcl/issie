@@ -24,6 +24,7 @@ let main argv =
         LibraryTests.tests
         ReadOnlySheetTests.tests
         ParameterUI.tests
+        MemoryParameters.tests
         InstanceSignatures.tests
         WaveSelection.tests
         RomComments.tests

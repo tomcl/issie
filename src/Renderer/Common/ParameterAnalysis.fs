@@ -307,6 +307,68 @@ let effectiveTopSheetFor (ldcs: LoadedComponent list) (sheetName: string) : stri
         | [] -> sheetName
         | first :: _ -> first
 
+/// Every parameter environment a sheet is used in: one set of values per distinct way its design
+/// binds it, and its own declared values where nothing uses it at all.
+///
+/// This is what makes "the width of that memory" a question with several answers. A sheet used
+/// twice at different sizes has two environments, so a component on it has two sets of widths, and
+/// anything that has to hold for the component - contents fitting a memory, above all - has to hold
+/// in every one of them. displayValuesOfSheet answers the same question one parameter at a time,
+/// which cannot be used here: two parameters' values must be taken from the SAME instance, and the
+/// per-parameter answer has already forgotten which instance each value came from.
+///
+/// Unknown values are dropped rather than guessed, so an expression using one fails to evaluate and
+/// the caller is left without an answer instead of with a wrong one.
+let bindingEnvironmentsOf (ldcs: LoadedComponent list) (sheetName: string) : ParamBindings list =
+    match ldcs |> List.tryFind (fun ldc -> ldc.Name = sheetName) with
+    | None -> [ Map.empty ]
+    | Some ldc ->
+        let instances =
+            analyseUnderTop ldcs (effectiveTopSheetFor ldcs sheetName)
+            |> Map.tryFind sheetName
+            |> Option.defaultValue []
+            |> instancesOnly
+        match instances with
+        // nothing instantiates it, so the sheet's own declared values are the only ones it has -
+        // the same fallback ParamDisplayValue.NotUsed stands for
+        | [] -> [ declaredParams ldc ]
+        | _ -> instances |> List.map (fun inst -> knownBindings inst.ParamValues) |> List.distinct
+
+/// The address and word widths one memory component has across the whole design: one pair per
+/// environment the sheet it sits on is used in, without duplicates.
+///
+/// A width that is not parameterised, or whose expression will not evaluate in some environment, is
+/// the one the component is carrying - which is what the sheet is drawn at, and the only answer
+/// there is. So this is never empty, and never invents a pairing: both widths of a pair come from
+/// the same environment, and crossing the two lists would make sizes no instance has.
+let memoryWidthsInDesign
+        (ldcs: LoadedComponent list)
+        (sheetName: string)
+        (compId: string)
+        (mem: Memory1)
+        : (int * int) list =
+    let slots =
+        ldcs
+        |> List.tryFind (fun ldc -> ldc.Name = sheetName)
+        |> Option.map sheetParamSlots
+        |> Option.defaultValue Map.empty
+    let widthOf (slotName: CompSlotName) (stored: int) (bindings: ParamBindings) =
+        slots
+        |> Map.tryPick (fun slot exprSpec ->
+            match sameSlot slot {CompId = compId; CompSlot = slotName} with
+            | true -> Some exprSpec.Expression
+            | false -> None)
+        |> Option.bind (fun expr ->
+            match evaluateParamExpression bindings expr with
+            | Ok value -> tryIntOfParamInt value
+            | Error _ -> None)
+        |> Option.defaultValue stored
+    bindingEnvironmentsOf ldcs sheetName
+    |> List.map (fun bindings ->
+        widthOf MemoryAddressWidth mem.AddressWidth bindings,
+        widthOf MemoryWordWidth mem.WordWidth bindings)
+    |> List.distinct
+
 /// Every sheet brought into line with what its design sets its parameters to: the parameter values
 /// a design settles are written into the sheet, and its parameterised slots are rewritten at them.
 ///

@@ -27,6 +27,7 @@
     <Compile Include="LibraryTests.fs" />
     <Compile Include="ReadOnlySheetTests.fs" />
     <Compile Include="ParameterUI.fs" />
+    <Compile Include="MemoryParameters.fs" />
     <Compile Include="InstanceSignatures.fs" />
     <Compile Include="WaveSelection.fs" />
     <Compile Include="RomComments.fs" />

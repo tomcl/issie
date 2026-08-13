@@ -403,6 +403,21 @@ let updateLdCompsWithCompOpt (newCompOpt:LoadedComponent option) (ldComps: Loade
         | None -> newComp :: ldComps
         | Some _ -> updateLdComps newComp.Name (fun _ -> newComp) ldComps
 
+/// The address and data widths one memory component of the open sheet has ACROSS ITS DESIGN: one
+/// pair per set of parameter values the sheet is used at, never empty.
+///
+/// Contents are one map shared by every instance of the sheet, so data offered to a memory - typed
+/// into the editor, or read from a .ram file it is linked to - has to fit every one of these, not
+/// merely the shape the sheet happens to be drawn at. Where nothing is parameterised there is one
+/// pair and this says what it always said.
+let memoryWidthsInDesign (model: Model) (compId: ComponentId) (mem: Memory1) : (int * int) list =
+    let (ComponentId compIdStr) = compId
+    match model.CurrentProj with
+    | None -> [ mem.AddressWidth, mem.WordWidth ]
+    | Some project ->
+        ParameterAnalysis.memoryWidthsInDesign
+            project.LoadedComponents project.OpenFileName compIdStr mem
+
 /// returns a string option representing the current file name if file is loaded, otherwise None
 let getCurrFile (model: Model) =
     match model.CurrentProj with

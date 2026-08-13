@@ -233,6 +233,54 @@ let tests =
             | Error e -> Expect.stringContains $"%A{e}" "divided by 0" "reports the zero divisor"
         }
 
+        // A memory's widths are parameters like any other value, and its contents are one map
+        // shared by every instance of the sheet. So the same memory can hold its data in one
+        // instance and not in another, and the instance that cannot is a fault in the design that
+        // only simulation can find - at which point the memory has one definite shape.
+        test "a memory whose contents do not fit its resolved width is a simulation error" {
+            let memWith addressWidth =
+                { Init = FromData
+                  AddressWidth = addressWidth
+                  WordWidth = 8
+                  // one word at the top of a 4-bit address space, so it fits at W=4 and not below
+                  Data = Map [ 15I, 200I ]
+                  Comments = None }
+            /// A sheet holding a ROM whose address width is its parameter W. Asynchronous, so
+            /// that the word read appears without a clock tick and one step is enough to see it.
+            let romSheet =
+                let addr = makeComp "maddr" 0 1 (Input1(4, None)) "ADDR"
+                let rom = makeComp "mrom" 1 1 (AsyncROM1 (memWith 4)) "ROM"
+                let dout = makeComp "mdout" 1 0 (Output 8) "DOUT"
+                let wExpr = { Expression = PParameter(ParamName "W"); Constraints = [] }
+                let defs =
+                    { DefaultBindings = Map [ declares "W" (PInt 4I) ]
+                      ParamSlots =
+                        Map [ { CompId = "mrom"; CompSlot = MemoryAddressWidth }, wExpr
+                              { CompId = "maddr"; CompSlot = IO "ADDR" }, wExpr ] }
+                makeLdc "pmem" (Some defs)
+                    ([ addr; rom; dout ], [ conn addr 0 rom 0; conn rom 0 dout 0 ])
+            /// A parent driving one instance of that sheet at the given address width.
+            let parentAt (w: int) =
+                let x = makeComp "mx" 0 1 (Input1(w, None)) "X"
+                let cc =
+                    makeComp "mcc" 1 1
+                        (customOf romSheet [ "ADDR", w ] [ "DOUT", 8 ]
+                            (Some (Map [ ParamName "W", PInt (bigint w) ])))
+                        "MCC"
+                let o = makeComp "mo" 1 0 (Output 8) "D"
+                makeLdc "pmemparent" None ([ x; cc; o ], [ conn x 0 cc 0; conn cc 0 o 0 ])
+
+            match run (parentAt 4) [ romSheet ] (Map [ "X", 15I ]) with
+            | Ok outputs -> Expect.equal outputs[ "D" ] 200I "at four address bits the word is read"
+            | Error e -> failtest $"expected the memory to fit at W=4: %A{e}"
+
+            match run (parentAt 3) [ romSheet ] (Map [ "X", 0I ]) with
+            | Ok _ -> failtest "expected a simulation error: address 15 has no place in 8 locations"
+            | Error e ->
+                Expect.stringContains $"%A{e}" "ROM" "names the memory that cannot hold its contents"
+                Expect.stringContains $"%A{e}" "15" "and the location that does not fit"
+        }
+
         test "self-referential parameter is an informative simulation error" {
             let a = makeComp "a" 0 1 (Input1(4, None)) "A"
             let s = makeComp "s" 1 0 (Output 4) "S"

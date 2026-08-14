@@ -386,24 +386,36 @@ let getSheetTreesFiltered (showLibrarySheet: string -> bool) (allowAllInstances:
         | Some ldc ->
             let comps,_ = ldc.CanvasState
             comps
-            |> List.collect (fun comp -> 
-                    match comp.Type with 
+            |> List.choose (fun comp ->
+                    match comp.Type with
                     | Custom ct when not (List.contains ct.Name path) && not (hidden ct.Name) ->
-                        [subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [ComponentId comp.Id])] 
-                    | _ -> 
-                        [])
+                        Some (comp, ct)
+                    | _ ->
+                        None)
+            // Where only one instance of each sheet is wanted, the others are dropped BEFORE their
+            // subtrees are built rather than after. Two instances of a sheet expand identically -
+            // same children, same depth - so this is the same tree; what it is not is the same
+            // amount of work. Built first and thinned afterwards, a design nested a few levels
+            // deep makes a node for every instance in the whole hierarchy, which is hundreds of
+            // thousands of them for a few hundred sheets, on every render of the menu bar.
+            |> (fun customs ->
+                    if allowAllInstances then customs
+                    else customs |> List.distinctBy (fun (_, ct) -> ct.Name))
+            |> List.map (fun (comp, ct) ->
+                    subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [ComponentId comp.Id]))
             |> (fun subs -> {
                     SheetName = sheet;
                     BreadcrumbName = sheet
                     LabelPath = labelPath
                     SheetAccessPath = sheetPath
+                    // A leaf is 0 deep and anything else is one deeper than its deepest child.
+                    // The `+ 1` used to be missing, which made every node in every tree 0 deep.
                     Depth =
-                        subs
-                        |> List.map (fun s -> s.Depth)
-                        |> fun l -> 0 :: l
-                        |> List.max
-                    Size = List.sumBy (fun sub -> sub.Size) subs + 1; 
-                    SubSheets = if allowAllInstances then subs else (subs |> List.distinctBy (fun sh -> sh.SheetName))
+                        match subs with
+                        | [] -> 0
+                        | subs -> 1 + (subs |> List.map (fun s -> s.Depth) |> List.max)
+                    Size = List.sumBy (fun sub -> sub.Size) subs + 1;
+                    SubSheets = subs
                     GridArea = None
                 })
         |> makeBreadcrumbNamesUnique

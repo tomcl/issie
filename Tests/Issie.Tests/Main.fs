@@ -22,6 +22,7 @@ let main argv =
         DrawBlockTests.tests
         MarkdownTests.tests
         LibraryTests.tests
+        SheetHierarchy.tests
         ReadOnlySheetTests.tests
         ParameterUI.tests
         MemoryParameters.tests

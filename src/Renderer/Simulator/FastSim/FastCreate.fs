@@ -932,8 +932,13 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
 
         | x -> failwithf "Unexpected link match: %A" x
 
-    let mutable linkCheck: Map<(FComponentId * InputPortNumber), (FComponentId * OutputPortNumber)> =
-        Map.empty
+    // One entry per driven input, to catch an input driven twice. Keyed by the unique Index of
+    // the input's own step array - read before linking replaces the array, so it identifies
+    // (component, input port) exactly - rather than by (FComponentId, port). The structural key
+    // compares two GUID strings and an access path per tree level of an immutable map, and this
+    // check grows an entry per LINK: on a 480,000-component design that map was a measured fifth
+    // of the whole build. An int key in a Dictionary is one native hash.
+    let linkCheck = System.Collections.Generic.Dictionary<int, FComponentId * OutputPortNumber>()
 
     f.FComps
     |> Map.iter (fun fDriverId fDriver ->
@@ -942,14 +947,15 @@ let linkFastComponents (g: GatherData) (f: FastSimulation) =
             getLinks fDriverId (OutputPortNumber iOut) None
             |> Array.map (fun (fid, _, ip) -> fid, iOut, ip)
             |> Array.iter (fun (fDrivenId, opn, (InputPortNumber ipn)) ->
-                let linked = Map.tryFind (fDrivenId, InputPortNumber ipn) linkCheck
-
-                match linked with
-                | None -> ()
-                | Some(fid, opn) -> failwithf "Multiple linkage: (previous driver was %A,%A)" (g.getFullSimName fid) opn
-
-                linkCheck <- Map.add (fDrivenId, InputPortNumber ipn) (fDriverId, OutputPortNumber opn) linkCheck
                 let fDriven = f.FComps[fDrivenId]
+                let inputKey = fDriven.InputLinks[ipn].Index
+
+                match linkCheck.TryGetValue inputKey with
+                | false, _ -> ()
+                | true, (fid, opn) ->
+                    failwithf "Multiple linkage: (previous driver was %A,%A)" (g.getFullSimName fid) opn
+
+                linkCheck[inputKey] <- (fDriverId, OutputPortNumber opn)
                 let (_, ap) = fDrivenId
 
                 // we have a link from fDriver to fDriven

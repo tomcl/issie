@@ -453,6 +453,14 @@ let updateUnpinned (msg : Msg) oldModel =
         |> withNoMsg
 
     | EndSimulation ->
+        // The step simulator's cache is a module-level mutable holding a whole FastSimulation, and
+        // ending the simulation was not releasing it: it is only replaced when the NEXT simulation
+        // is built, so the design just simulated stayed in memory for the rest of the session.
+        // Editing afterwards then pays for it on every major garbage collection - measured at
+        // roughly a second per gigabyte retained - which is what made editing feel slow after
+        // simulating a large design, with nothing on screen to say why. EndWaveSim below has
+        // always done this for its own cache.
+        Simulator.simCache <- Simulator.simCacheInit()
         model
         |> set currentStepSimulationStep_ None
         |> withNoMsg

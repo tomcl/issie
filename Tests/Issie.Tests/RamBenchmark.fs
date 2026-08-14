@@ -327,8 +327,9 @@ let private measureSieve (arraySize: int) =
         let live = sieveActivity fs (cycles - 1)
         sw.Elapsed.TotalMilliseconds, float (after - before) / 1.0e6, live, fs
     let _, _, _, fs0 = run ()
-    printfn "  design: %d components reduced per clock, %d bytes of step arrays per step"
-        (fs0.FClockedComps.Length + fs0.FOrderedComps.Length) fs0.TotalArraySizePerStep
+    printfn "  design: %d components reduced per clock, %d bytes of step arrays per step (%d typed, %d heap)"
+        (fs0.FClockedComps.Length + fs0.FOrderedComps.Length)
+        fs0.StepCost.TotalBytes fs0.StepCost.TypedArrayBytes fs0.StepCost.HeapBytes
     let results = [ for _ in 1..3 -> run () ]
     let ms = median (results |> List.map (fun (m, _, _, _) -> m))
     let heap = median (results |> List.map (fun (_, h, _, _) -> h))

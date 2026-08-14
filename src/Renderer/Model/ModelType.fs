@@ -535,6 +535,12 @@ type Msg =
     | UpdateProject of (Project -> Project)
     | UpdateModel of (Model -> Model)
     | DispatchDelayed of (int * Msg)
+    /// The Simulation tab has noticed its circuit check is out of date. Schedules RunCircuitCheck
+    /// after a delay, so that a burst of edits costs one check rather than one per edit.
+    | RequestCircuitCheck
+    /// Work out whether the open design builds, and store the verdict. Delayed, so by the time it
+    /// arrives the design may have changed again - in which case the view simply asks once more.
+    | RunCircuitCheck
     | UpdateImportDecisions of Map<string, ImportDecision option>
     | UpdateProjectWithoutSyncing of (Project->Project)
     | ShowPopup of ((Msg -> Unit) -> Model -> ReactElement)
@@ -793,6 +799,30 @@ type ProjectBrowserState = {
 /// Which half of the window the keyboard is pointing at.
 type Pane = | LeftPane | RightPane
 
+/// Whether the open design currently builds into a simulation, which is all the Simulation tab
+/// needs in order to decide whether its button reads "Start Simulation" or "See Problems", and
+/// whether to offer the waveform simulator.
+///
+/// It is here, in the model, because answering it means flattening the whole hierarchy: the tab
+/// used to ask on every render, so a large design was flattened again for every frame it was
+/// visible. Now it is answered once per edit, on a delay, and the last answer stands while a new
+/// one is worked out - a button that is briefly a moment out of date, in exchange for an editor
+/// that does not stop.
+///
+/// The verdict is reached by validateCircuitSimulation, which builds the graph and no
+/// FastSimulation, so answering it allocates no step arrays.
+type CircuitCheck = {
+    /// The last verdict - Ok carrying whether the design is synchronous - together with the
+    /// design it was reached from, which is what says whether it is still the current answer.
+    /// None until the first check has run.
+    Verdict: (Result<bool, SimulationError> * LoadedComponent list) option
+    /// Set while a delayed re-check is outstanding. The view asks whenever it sees a stale
+    /// verdict, and it renders many times per edit, so without this each one would schedule a check.
+    /// Named CheckPending rather than Pending because Model.Pending is the mouse-drag queue, and
+    /// two record fields of one name make every `{model with Pending = ...}` ambiguous.
+    CheckPending: bool
+}
+
 /// The draw block state a read-only sheet is held at, captured once the sheet has finished
 /// loading and written back over the live model after every message - see
 /// ModelHelpers.pinDrawBlock.
@@ -873,6 +903,8 @@ type Model = {
     RightPaneTabVisible : RightTab
     /// which of the subtabs for the right pane simulation is visible
     SimSubTabVisible: SimSubTab
+    /// whether the open design builds into a simulation, for the Simulation tab's buttons
+    CircuitCheck: CircuitCheck
     /// components and connections which are highlighted
     Hilighted : (ComponentId list * ConnectionId list) * ConnectionId list
     /// Components and connections that have been selected and copied.
@@ -965,6 +997,9 @@ let codeEditorState_ = Lens.create (fun a -> a.CodeEditorState) (fun s a -> {a w
 let runAfterRender_ = Lens.create (fun a -> a.RunAfterRenderWithSpinner) (fun s a -> {a with RunAfterRenderWithSpinner = s})
 let rightPaneTabVisible_ = Lens.create (fun a -> a.RightPaneTabVisible) (fun s a -> {a with RightPaneTabVisible = s})
 let simSubTabVisible_ = Lens.create (fun a -> a.SimSubTabVisible) (fun s a -> {a with SimSubTabVisible = s})
+let circuitCheck_ = Lens.create (fun a -> a.CircuitCheck) (fun s a -> {a with CircuitCheck = s})
+let verdict_ = Lens.create (fun (a: CircuitCheck) -> a.Verdict) (fun s (a: CircuitCheck) -> {a with Verdict = s})
+let checkPending_ = Lens.create (fun (a: CircuitCheck) -> a.CheckPending) (fun s (a: CircuitCheck) -> {a with CheckPending = s})
 let buildVisible_ = Lens.create (fun a -> a.BuildVisible) (fun s a -> {a with BuildVisible = s})
 let popupViewFunc_ = Lens.create (fun a -> a.PopupViewFunc) (fun s a -> {a with PopupViewFunc = s})
 

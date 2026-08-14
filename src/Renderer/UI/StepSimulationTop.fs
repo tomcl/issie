@@ -59,15 +59,27 @@ let viewSimulation canvasState model dispatch =
             not isSame
         | _ -> false
     
-    let simRes = simulateModel false None Constants.maxArraySize canvasState model
-    // let JSState = model.Diagram.GetCanvasState ()
+    // Whether the design builds, and whether it is synchronous, are read from the model rather than
+    // worked out here: this function runs on every render, and working them out means flattening the
+    // whole hierarchy. See ModelType.CircuitCheck. A verdict that no longer matches the canvas is
+    // still shown - a button a moment out of date is better than an editor that stops - and asking
+    // for a new one is all this does about it.
+    if circuitCheckIsNeeded model canvasState then
+        dispatch RequestCircuitCheck
+
+    /// The last verdict on the design: Ok carrying whether it is synchronous. None before the
+    /// first check has run, which is the only time the tab does not know.
+    let verdict = model.CircuitCheck.Verdict |> Option.map fst
+
+    /// A design not yet checked reads as buildable. The button does the real build when pressed
+    /// and reports any error then, so an optimistic colour costs nothing but a wasted click.
+    let buildsOk = match verdict with Some(Error _) -> false | _ -> true
+
     match model.CurrentStepSimulationStep with
     | None ->
-        let isSync = match simRes with | Ok {IsSynchronous=true},_ -> true | _ -> false
-        let buttonColor, buttonText = 
-            match simRes with
-            | Ok _, _ -> IsSuccess, "Start Simulation"
-            | Error _, _ -> IsWarning, "See Problems"
+        let isSync = verdict = Some(Ok true)
+        let buttonColor, buttonText =
+            if buildsOk then IsSuccess, "Start Simulation" else IsWarning, "See Problems"
         div [] [
             str "Simulate simple logic using this tab."
             br []
@@ -139,10 +151,8 @@ let viewSimulation canvasState model dispatch =
                     ] [ str "Reset" ]]
                 ]
 
-        let buttonColor, buttonIcon = 
-            match simRes with
-            | Ok _, _ -> IsSuccess, refreshSvg "white" "20px"
-            | Error _, _ -> IsWarning, str "See Problems"
+        let buttonColor, buttonIcon =
+            if buildsOk then IsSuccess, refreshSvg "white" "20px" else IsWarning, str "See Problems"
 
         let createRefreshButton buttonColor buttonIcon onClick =
             Button.button [
@@ -164,14 +174,14 @@ let viewSimulation canvasState model dispatch =
                         startSimulationUpdateCache clock)
                 else
                     createRefreshButton buttonColor buttonIcon (fun _ ->
-                    match simRes with
-                    | Ok _, _ ->
-                        dialogPopupRefresh
-                            "Refresh"
-                            (confirmRefreshPopup model dispatch simData)
-                            []
-                            dispatch
-                    | Error _, _ -> startSimulationUpdateCache simData.ClockTickNumber)
+                        if buildsOk then
+                            dialogPopupRefresh
+                                "Refresh"
+                                (confirmRefreshPopup model dispatch simData)
+                                []
+                                dispatch
+                        else
+                            startSimulationUpdateCache simData.ClockTickNumber)
             | _ -> emptyRefreshSVG
 
         let createRefreshButtonError =

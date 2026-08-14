@@ -79,6 +79,8 @@ let shortDisplayMsg (msg:Msg) =
     | CheckMemory
     | DispatchDelayed _
     | RunAfterRender _
+    | RequestCircuitCheck
+    | RunCircuitCheck
     | SaveModel -> None
     | SheetBackAction _ -> Some "SheetBackAction"
     | FileCommand(fc,_) -> Some $"{fc}"

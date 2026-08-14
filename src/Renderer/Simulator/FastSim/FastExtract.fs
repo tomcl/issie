@@ -136,7 +136,7 @@ let rec extractFastSimulationOutput
 
     | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent
-        match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with
+        match Map.tryFind ((cid, ap), opn) fs.FCustomOutputCompLookup with
         | Some(cid, ap) -> extractFastSimulationOutput fs step (cid, ap) (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"
 
@@ -168,7 +168,7 @@ let rec extractFastSimulationOutputFData
 
     | None ->
         // if it is a custom component output extract from the corresponding Output FastComponent
-        match Map.tryFind ((cid, ap), opn) fs.G.CustomOutputLookup with
+        match Map.tryFind ((cid, ap), opn) fs.FCustomOutputCompLookup with
         | Some(cid, ap) -> extractFastSimulationOutputFData fs step (cid, ap) (OutputPortNumber 0)
         | None -> failwithf "What? extracting component data failed - can't find component from id"
 

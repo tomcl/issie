@@ -27,6 +27,8 @@ let main argv =
         MemoryParameters.tests
         InstanceSignatures.tests
         WaveSelection.tests
+        CustomOutputExtraction.tests
+        SimulationBudget.tests
         RomComments.tests
         RamStoreTests.tests
         RamBenchmark.tests

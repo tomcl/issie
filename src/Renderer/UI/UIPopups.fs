@@ -420,22 +420,23 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
     let wsModel = getWSModel model
     let fs = resimulateWaveSimForErrors model
 
-    let arraySize (c:WSConfig) =
+    let arraySizeMessage (c: WSConfig) =
         match fs with
-        | Error _ -> Error "Unknown: correct schematic error to get size information"
+        | Error _ -> "Unknown: correct schematic error to get size information"
         | Ok sd ->
-            let stepCost = sd.FastSim.TotalArraySizePerStep
-            Ok <| float stepCost * float c.LastClock / (System.Math.Pow(1024.0, 3.0))
+            let cost = sd.FastSim.StepCost
+            let needed = float cost.TotalBytes * float c.LastClock
+            $"Simulating {c.LastClock} cycles of this design needs \
+              {FastCreate.formatBytes needed} of simulation memory. At most \
+              {FastCreate.maxCyclesFor cost} cycles of it can be simulated."
 
-    let warnSizeLarge c =    
-        match arraySize c with
-        | Error e -> c.LastClock > Constants.maxWarnSimulationSize
-        | Ok size -> size > 2.5
-
-    let arraySizeMessage c = 
-        match arraySize c  with
-        | Error e -> e
-        | Ok size -> $"Array memory use for the current design is estimated as %.1f{size} GB"    
+    /// Too big to simulate at all, rather than merely large. FastCreate.maxCyclesFor is the same
+    /// limit the simulator applies when it builds, so OK is disabled here rather than the
+    /// simulation being refused after the dialog has been closed.
+    let sizeIsRefused (c: WSConfig) =
+        match fs with
+        | Error _ -> c.LastClock > Constants.maxWarnSimulationSize
+        | Ok sd -> c.LastClock > FastCreate.maxCyclesFor sd.FastSim.StepCost
 
     let errorKeys, messages  =
         let c = model |> Optic.get configDialog_
@@ -446,11 +447,10 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
                                                                                              be at least {Constants.minScrollingWindow} cycles."
             ["fontsize"], not <| inBounds 12 24 c.FontSize, $"Font size must be between 12 and 24"
             ["fontweight"], not <| inBounds 100 900 c.FontWeight, $"Font weight must be between 100 and 900"
-            [], warnSizeLarge c, $"Warning: very large simulation lengths and big designs result in high memory use and low performance. \
-                                   Simulation data memory use for the current design is estimated as\n: \
-                                   {arraySizeMessage c}, in addition up to 5GB will be required for heap and code. \
-                                   Systems using more than around 3GB simulation array memory may to crash. This limit does not \
-                                   depend on PC physical memory."                                                                
+            // an error and not a warning: a simulation this size is refused when it is built, so
+            // letting OK through here would only move the refusal to somewhere it explains less
+            ["last"], sizeIsRefused c, $"{arraySizeMessage c} Reduce the last clock cycle, or \
+                                         simulate one subsheet rather than the whole design."
         ]  
         |> List.filter (fun (_, isError, _) -> isError)
         |> List.map (fun (key, _, message) -> key, message)

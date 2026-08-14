@@ -198,19 +198,36 @@ let compareIOs (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
     Set(ldc1.InputLabels) = Set(ldc2.InputLabels)
     && ldc1.Name = ldc2.Name
 
+(*
+    The reference check below is what makes comparing a whole design cheap.
+
+    Only the open sheet is rebuilt as the user edits: getUpdatedLoadedComponentState and
+    addStateToLoadedComponents both mint a new LoadedComponent for it and pass every other sheet
+    through as the object it already was. So in any comparison of a design against a stored copy of
+    itself, all but one sheet are reference-identical, and without this they were still walked
+    component by component - which is why comparing a stored simulation against the canvas cost the
+    whole design rather than the one sheet that can have changed.
+
+    It is a fast path and not a change of meaning: these compare four fields, and one object has
+    the same four as itself. Nothing float-valued is among them - compsAreEqual excludes geometry
+    and connsAreEqual compares only ports - so there is no value here that is unequal to itself.
+*)
+
 /// Is circuit (not geometry) the same for two LoadedComponents? They must also have the same name
 let loadedComponentIsEqual (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
-    ldc1.InputLabels = ldc2.InputLabels
-    && ldc1.OutputLabels = ldc2.OutputLabels
-    && stateIsEqual ldc1.CanvasState ldc2.CanvasState
-    && ldc1.Name = ldc2.Name
+    System.Object.ReferenceEquals(ldc1, ldc2)
+    || (ldc1.InputLabels = ldc2.InputLabels
+        && ldc1.OutputLabels = ldc2.OutputLabels
+        && stateIsEqual ldc1.CanvasState ldc2.CanvasState
+        && ldc1.Name = ldc2.Name)
 
 /// Is circuit (not geometry) the same for two LoadedComponents? They must also have the same name
 let loadedComponentIsEqualExInputDefault (ldc1: LoadedComponent) (ldc2: LoadedComponent) =
-    ldc1.InputLabels = ldc2.InputLabels
-    && ldc1.OutputLabels = ldc2.OutputLabels
-    && stateIsEqualExInputDefault ldc1.CanvasState ldc2.CanvasState
-    && ldc1.Name = ldc2.Name
+    System.Object.ReferenceEquals(ldc1, ldc2)
+    || (ldc1.InputLabels = ldc2.InputLabels
+        && ldc1.OutputLabels = ldc2.OutputLabels
+        && stateIsEqualExInputDefault ldc1.CanvasState ldc2.CanvasState
+        && ldc1.Name = ldc2.Name)
 
 /// get sheet I/O labels in correct order based on position of components
 let getOrderedCompLabels compType ((comps, _): CanvasState) =

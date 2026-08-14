@@ -189,6 +189,11 @@ let clearCache () : unit = jsNative
 [<Emit("window.issieBridge.diagnostics.processMemory()")>]
 let processMemory () : JS.Promise<obj> = jsNative
 
+/// The machine's total physical memory in kilobytes. Synchronous, so it can be asked once at
+/// startup and used to size the simulator's memory budget.
+[<Emit("window.issieBridge.diagnostics.systemMemory().total")>]
+let systemMemoryTotalKB () : float = jsNative
+
 /// Channel name to listener count, for the preload's own listeners.
 [<Emit("window.issieBridge.diagnostics.ipcListenerCounts()")>]
 let ipcListenerCounts () : obj = jsNative
@@ -289,6 +294,10 @@ let clearCache () : unit = ()
 
 let processMemory () : Fable.Core.JS.Promise<obj> =
     failwith "process memory reporting needs Electron"
+
+/// 0 rather than an exception: under .NET there is no Electron to ask, and the simulator's memory
+/// budget reads that as "machine unknown" and falls back to its built-in figures.
+let systemMemoryTotalKB () : float = 0.0
 
 let ipcListenerCounts () : obj = box null
 

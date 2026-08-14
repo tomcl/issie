@@ -41,7 +41,7 @@ let installReducers (fs: FastSimulation) : FastSimulation =
     Array.iter install fs.FOrderedComps
     fs
 
-let createFastArrays fs gather =
+let createFastArrays fs =
     let getArrayOf pred fComps =
         fComps
         |> Map.filter (fun cid comp -> pred comp)
@@ -61,9 +61,7 @@ let createFastArrays fs gather =
         FClockedComps =
             fs.FComps
             |> getArrayOf (fun fc -> couldBeSynchronousComponent fc.FType)
-        FOrderedComps = Array.empty
-        FSComps = gather.AllComps
-        G = gather }
+        FOrderedComps = Array.empty }
 
 /// Create a fast simulation data structure, with all necessary arrays, and components
 /// ordered for evaluation.
@@ -79,18 +77,23 @@ let buildFastSimulation
     
     let gather = gatherSimulation graph
 
-    let fs =
-        emptyFastSimulation diagramName
-        |> createInitFastCompPhase simulationArraySize gather
-        |> linkFastComponents gather
-        |> determineBigIntState // This step is not needed for TruthTable
+    // before createInitFastCompPhase, which is what allocates the step arrays
+    let cost = stepCostOfDesign gather
 
-    gather
-    |> createFastArrays fs
-    |> orderCombinationalComponents simulationArraySize
-    |> checkAndValidate
-    |> Result.map addWavesToFastSimulation
-    |> Result.map installReducers
+    checkSimulationFits simulationArraySize cost
+    |> Result.bind (fun () ->
+        let fs =
+            emptyFastSimulation diagramName
+            |> createInitFastCompPhase simulationArraySize gather
+            |> linkFastComponents gather
+            |> determineBigIntState // This step is not needed for TruthTable
+
+        createFastArrays fs
+        |> orderCombinationalComponents simulationArraySize
+        |> checkAndValidate
+        |> Result.map addWavesToFastSimulation
+        |> Result.map installReducers
+        |> Result.map (fun fs -> { fs with StepCost = cost }))
 
 /// The width limit the algebraic evaluator behind a truth table works to, checked at the door.
 ///
@@ -135,17 +138,22 @@ let buildFastSimulationFData
     =
     let gather = gatherSimulation graph
 
-    let fs =
-        emptyFastSimulation diagramName
-        |> createInitFastCompPhase simulationArraySize gather
-        |> linkFastComponents gather
+    // before createInitFastCompPhase, which is what allocates the step arrays
+    let cost = stepCostOfDesign gather
 
-    // before ordering, which reduces every component: a bus too wide to tabulate must not reach a
-    // reducer at all
-    gather
-    |> createFastArrays fs
-    |> checkWidthsForFData
-    |> Result.map (orderCombinationalComponentsFData simulationArraySize)
-    |> Result.bind checkAndValidateFData
-    |> Result.map addWavesToFastSimulation // REVIEW - Waves are not used in TruthTable, mark for removal
+    checkSimulationFits simulationArraySize cost
+    |> Result.bind (fun () ->
+        let fs =
+            emptyFastSimulation diagramName
+            |> createInitFastCompPhase simulationArraySize gather
+            |> linkFastComponents gather
+
+        // before ordering, which reduces every component: a bus too wide to tabulate must not reach a
+        // reducer at all
+        createFastArrays fs
+        |> checkWidthsForFData
+        |> Result.map (orderCombinationalComponentsFData simulationArraySize)
+        |> Result.bind checkAndValidateFData
+        |> Result.map addWavesToFastSimulation // REVIEW - Waves are not used in TruthTable, mark for removal
+        |> Result.map (fun fs -> { fs with StepCost = cost }))
 

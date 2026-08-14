@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -30,6 +30,8 @@
     <Compile Include="MemoryParameters.fs" />
     <Compile Include="InstanceSignatures.fs" />
     <Compile Include="WaveSelection.fs" />
+    <Compile Include="CustomOutputExtraction.fs" />
+    <Compile Include="SimulationBudget.fs" />
     <Compile Include="RomComments.fs" />
     <Compile Include="RamStoreTests.fs" />
     <Compile Include="RamBenchmark.fs" />

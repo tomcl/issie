@@ -1,4 +1,4 @@
-module Update
+﻿module Update
 
 open Elmish
 open Fable.React
@@ -365,6 +365,24 @@ let updateUnpinned (msg : Msg) oldModel =
               Async.StartImmediate delayedDispatch
 
           model, Cmd.ofEffect delayedCmd
+
+    | RequestCircuitCheck ->
+        // The view asks whenever it sees a stale verdict, which is on every render until a new one
+        // arrives - so an outstanding check absorbs all of them and the burst costs one flatten.
+        if model.CircuitCheck.CheckPending then
+            model, Cmd.none
+        else
+            model
+            |> Optic.set (circuitCheck_ >-> checkPending_) true
+            |> (fun model -> model, Cmd.ofMsg (DispatchDelayed(Constants.circuitCheckDelayMs, RunCircuitCheck)))
+
+    | RunCircuitCheck ->
+        // Whatever the design is NOW, not what it was when the check was asked for: edits made
+        // during the delay are what the delay is for. If it has changed again since, the view sees
+        // a stale verdict on the next render and asks once more.
+        model
+        |> Optic.set circuitCheck_ (runCircuitCheck model)
+        |> withNoMsg
 
     | UpdateImportDecisions importDecisions' ->
         let updatedModel = 

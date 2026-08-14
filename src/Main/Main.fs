@@ -52,6 +52,28 @@ let isMacos = Api.``process``.platform = Base.Darwin
 let isWin = Api.``process``.platform = Base.Win32
 
         
+/// The machine's total physical memory in kilobytes.
+[<Emit("process.getSystemMemoryInfo().total")>]
+let private systemMemoryTotalKB () : float = jsNative
+
+/// How large a V8 old space to ask for, in MB.
+///
+/// Measured on Electron 43: the limit that results is min(what is asked for, 4096) + 96 MB. 4096 is
+/// V8's pointer compression cage, and no flag lifts it - only a build of V8 without pointer
+/// compression would, which would mean compiling Electron. So 4096 is the most worth asking for.
+///
+/// Asking for the maximum on every machine would be wrong the other way. The limit is a ceiling
+/// V8 grows into before it collects in earnest, so promising 4GB on a machine with 8GB of RAM buys
+/// a simulation that swaps rather than one that runs. Chromium's own default is sized from physical
+/// memory for that reason, and setting this flag at all overrides that default - so it has to do
+/// the same sizing itself. A quarter of physical, never less than 2GB and never more than the cage.
+let private oldSpaceSizeMB () =
+    let physicalMB = systemMemoryTotalKB () / 1024.0
+    if physicalMB <= 0.0 then
+        3600 // no answer from the machine: what Issie asked for before this was worked out
+    else
+        physicalMB / 4.0 |> min 4096.0 |> max 2048.0 |> int
+
 // app.commandLine applies to every process Electron spawns - the GPU process, utility processes
 // and every renderer - so this list is the whole app's, not the simulator's. The heap sizes are
 // what Issie's simulations need. GC tracing writes a line per collection per process to stdout,
@@ -60,7 +82,7 @@ let isWin = Api.``process``.platform = Base.Win32
 // so V8 only ever rejected it, and Chromium logging comes from ELECTRON_ENABLE_LOGGING anyway.
 let jsFlags =
     [   "--expose-gc"
-        "--max-old-space-size=3600"
+        $"--max-old-space-size={oldSpaceSizeMB ()}"
         "--min-semi-space-size=64"
         if hasDebugArgs() then
             "--trace-gc"

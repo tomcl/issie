@@ -14,21 +14,11 @@ open FastOrder
 // evaluation order, which is how a cycle is reported, and that the array widths agree with the
 // widths the components declare.
 
-/// Calculates the size in bytes / clock step of the simulation arrays
-/// bigint arrayshave very uncertain size, so an estimate of 16 bytes is assumed.
-/// this should be revisited for more accuracy
-let calculateTotalSimArraySizePerStep (activeComps: FastComponent array) (fs: FastSimulation) =
-    let arraySumBy f a = if Array.length a = 0 then 0 else Array.sumBy f a
-    activeComps
-    |> arraySumBy (fun fc ->
-        fc.Outputs
-        |> arraySumBy (fun output ->
-            let width = output.Width
-            if width > 32 then
-                16
-            else
-                4))
-    |> (fun size -> {fs with TotalArraySizePerStep = size})
+// The size in bytes per clock step of the simulation arrays used to be worked out here, from the
+// built simulation, at 16 bytes for a bigint. It is now FastCreate.stepCostOfDesign, worked out
+// from the flattened design BEFORE the arrays are allocated - which is the only point at which
+// knowing the size can prevent anything - and it distinguishes the two memories the arrays come
+// out of, which one number could not.
 
 /// The first memory of the simulation holding contents that do not fit it, as an error naming it.
 ///
@@ -128,10 +118,7 @@ let checkAndValidate (fs: FastSimulation) =
         // rather than left for the reducer that would read the location
         match memoryContentsError activeComps with
         | Some err -> Error err
-        | None ->
-            fs
-            |> calculateTotalSimArraySizePerStep activeComps
-            |> Ok
+        | None -> Ok fs
 
 let checkAndValidateFData (fs: FastSimulation) =
     let start = getTimeMs ()

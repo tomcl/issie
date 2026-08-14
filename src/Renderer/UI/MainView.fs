@@ -226,6 +226,7 @@ let init() = {
     SelectedComponent = None
     LastUsedDialogWidth = 1
     CurrentStepSimulationStep = None
+    CircuitCheck = { Verdict = None; CheckPending = false }
     CurrentTruthTable = None
     TTConfig = TruthTableUpdate.tTTypeInit
     WaveSim = Map.empty

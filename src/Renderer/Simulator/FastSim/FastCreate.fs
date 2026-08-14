@@ -18,18 +18,10 @@ let inline assertThat cond msg =
     if not cond then
         failwithf "what? assert failed: %s" msg
 
-let emptyGather =
-    { Labels = Map.empty
-      Simulation = Map.empty
-      CustomInputCompLinks = Map.empty
-      CustomOutputCompLinks = Map.empty
-      CustomOutputLookup = Map.empty
-      AllComps = Map.empty }
-
 let emptyFastSimulation diagramName =
 
     { ClockTick = 0
-      TotalArraySizePerStep = 0
+      StepCost = { TypedArrayBytes = 0; HeapBytes = 0 }
       MaxArraySize = 0 // must be larger than max number of wavesim clocks
       FGlobalInputComps = Array.empty
       FConstantComps = Array.empty
@@ -40,9 +32,7 @@ let emptyFastSimulation diagramName =
       FComps = Map.empty
       FCustomComps = Map.empty
       WaveComps = Map.empty
-      FSComps = Map.empty
       FCustomOutputCompLookup = Map.empty
-      G = emptyGather
       NumStepArrays = 0 // this will be overwritten by createInitFastCompPhase
       Drivers = Array.empty
       WaveIndex = Array.empty
@@ -236,6 +226,167 @@ let makeIOArray size =
       Width = 0
       Index = stepArrayIndex }
 
+(*
+    What a simulation costs in memory, worked out before any of it is allocated.
+
+    The two branches of makeIOArrayW below do not merely differ in size, they come out of different
+    memory, with different limits, and a budget that added them together would be wrong about both:
+
+      w <= 32   a Uint32Array. Four bytes a step, held OUTSIDE the V8 heap, and one object for the
+                garbage collector to trace however long it is. Bounded by the machine.
+
+      w > 32    a plain array of BigInt. A reference a step, in the V8 heap, and - once the
+                simulation runs and each step is written with a value of its own - a separate
+                BigInt object per step: a header plus a 64-bit digit per 64 bits of width. This is
+                the memory capped by --max-old-space-size in Main.fs, which the model, the design
+                and everything else the renderer holds must also fit inside.
+
+    So most designs, which are 32 bits and under, are limited by the machine, and a design with wide
+    buses is limited by something much smaller and shared. Hence two budgets rather than one.
+*)
+
+/// One clock cycle of a bus of this width, in bytes of the memory it is stored in. See above, and
+/// keep in step with makeIOArrayW immediately below: they describe the same allocation.
+let stepBytesForWidth (w: int) =
+    if w <= 32 then
+        4 // one Uint32Array element
+    else
+        // the reference held in the array, then the BigInt it points at: object header, then one
+        // 64-bit digit per 64 bits of the bus
+        4 + 8 + 8 * ((w + 63) / 64)
+
+/// What one clock cycle of this design will cost, worked out from the flattened design before the
+/// arrays exist. createInitFastCompPhase allocates exactly one step array per output port of every
+/// component in AllComps, so that is what is counted here.
+///
+/// The per-step State array is counted too. Only RAMs ever write it, but createFastComponent
+/// allocates one for every component that could be synchronous - so on a register-heavy design it
+/// is real memory, and the estimate that omitted it said a design was smaller than it is.
+let stepCostOfDesign (g: GatherData) : StepCost =
+    ((0, 0), g.AllComps)
+    ||> Map.fold (fun (typed, heap) _ (sComp, _) ->
+        let typed, heap =
+            ((typed, heap), sComp.OutputWidths)
+            ||> Array.fold (fun (typed, heap) w ->
+                if w <= 32 then typed + stepBytesForWidth w, heap
+                else typed, heap + stepBytesForWidth w)
+        // a reference per step, pointing at NoState until a RAM writes it
+        if couldBeSynchronousComponent sComp.Type then typed, heap + 4 else typed, heap)
+    |> fun (typed, heap) -> { TypedArrayBytes = typed; HeapBytes = heap }
+
+(*
+    Sizes below are float and not int64 on purpose. Fable compiles int64 to BigInt, so every
+    multiplication and comparison here would allocate one - which is a poor thing to spend on
+    deciding whether a design is too big. A float carries integers exactly up to 2^53, and the
+    largest number this arithmetic reaches is a few hundred GB, so nothing is approximated.
+*)
+
+module Constants =
+    /// Share of the machine's physical memory a simulation's Uint32Arrays may take.
+    ///
+    /// A third, because that is comfortably clear of where the allocator actually gives up:
+    /// measured on a 32GB machine, Uint32Array allocation failed at 15.5GB, a little under half of
+    /// physical. A third leaves the operating system, the rest of Chromium and whatever else the
+    /// user has open their room, and still allows several million cycles of a real design.
+    let typedArrayShareOfMachine = 0.33
+
+    /// Share of the V8 heap limit a simulation's BigInt arrays and per-step state may take.
+    ///
+    /// Not half, although half of USABLE heap is the intention. The heap limit is not usable in
+    /// full: the scavenger needs its to-space free, mark-compact needs somewhere to evacuate pages
+    /// to, and what a simulation puts there is millions of small BigInts promoted out of new space,
+    /// which is the shape old space handles least well. Filling the cage with them makes the
+    /// renderer stop responding well before the limit is reached. A third of the limit is about
+    /// half of what can really be used.
+    let heapShareOfLimit = 0.35
+
+    /// The most Uint32Array step-array memory one simulation may take: memory outside the V8 heap,
+    /// so bounded by the machine rather than by anything Issie is built with. Most designs are 32
+    /// bits and under, so this is the budget that decides how long they may run.
+    ///
+    /// Mutable because it is a fact about the machine, discovered once at startup - see
+    /// setBudgetsFromMachine. The value here is the fallback for when there is no machine to ask,
+    /// which is every run of the test suite: those run under plain .NET with no Electron.
+    let mutable maxTypedArrayBytes = 2.0e9
+
+    /// The most V8-heap step-array memory one simulation may take: the BigInt arrays of buses wider
+    /// than 32 bits, and the per-step state references. Far smaller than the budget above, because
+    /// V8's pointer compression caps the whole heap at 4GB - a limit no flag can lift, since raising
+    /// it needs V8 built without pointer compression - and the model, the design, the waveforms and
+    /// everything else the renderer holds come out of that same 4GB.
+    let mutable maxHeapArrayBytes = 1.0e9
+
+    /// Size both budgets to the machine this is running on. Called once from renderer startup.
+    ///
+    /// physicalBytes comes from process.getSystemMemoryInfo, heapLimitBytes from
+    /// performance.memory.jsHeapSizeLimit - the limit actually in force, whatever Main.fs asked for
+    /// and whatever V8 decided to grant. Either being zero or absent leaves that budget at its
+    /// fallback, so a machine that cannot answer is never told it has no memory.
+    let setBudgetsFromMachine (physicalBytes: float) (heapLimitBytes: float) =
+        if physicalBytes > 0.0 then
+            maxTypedArrayBytes <- physicalBytes * typedArrayShareOfMachine
+        if heapLimitBytes > 0.0 then
+            maxHeapArrayBytes <- heapLimitBytes * heapShareOfLimit
+
+/// A size in bytes, written the way the message should read it.
+let formatBytes (bytes: float) =
+    let gb = bytes / 1024.0 ** 3.0
+    let mb = bytes / 1024.0 ** 2.0
+    if gb >= 1.0 then $"%.1f{gb} GB"
+    elif mb >= 1.0 then $"%.0f{mb} MB"
+    else $"%.0f{bytes / 1024.0} KB"
+
+/// The most clock cycles of a design costing this much that will be allowed, whichever of the two
+/// budgets binds first. Used both to refuse a simulation and to say in the waveform simulator's
+/// configuration what may be asked for, so that the two cannot disagree.
+let maxCyclesFor (cost: StepCost) : int =
+    let limit bytesPerStep budget =
+        if bytesPerStep = 0 then infinity else budget / float bytesPerStep
+    min
+        (limit cost.TypedArrayBytes Constants.maxTypedArrayBytes)
+        (limit cost.HeapBytes Constants.maxHeapArrayBytes)
+    // a design of a few narrow buses would otherwise be allowed more cycles than an int can hold
+    |> min (float System.Int32.MaxValue)
+    |> floor
+    |> int
+
+/// Refuse a simulation whose step arrays would not fit, before a byte of them is allocated.
+///
+/// Before rather than after, because the arrays ARE what exhausts memory: a check that had to build
+/// them first would be the thing it is meant to prevent. Everything it needs is known by then - the
+/// flattened design gives every width, and the caller has said how many cycles it wants - so the
+/// answer is exact rather than a guess.
+///
+/// A Result and not an exception: this is a limit an ordinary user reaches by asking for a long
+/// waveform simulation of a big design, so it travels the same path as any other simulation error
+/// and is shown the same way, saying what would fit instead.
+let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, SimulationError> =
+    let cycles = float arraySize
+
+    let check (bytesPerStep: int) (budget: float) (ofWhat: string) =
+        let needed = float bytesPerStep * cycles
+        if bytesPerStep = 0 || needed <= budget then
+            Ok()
+        else
+            Error
+                { ErrType =
+                    GenericSimError
+                        $"This design needs {formatBytes (float bytesPerStep)} of {ofWhat} for every \
+                          clock cycle, so simulating {arraySize} cycles of it would need \
+                          {formatBytes needed} - more than the {formatBytes budget} Issie will use. \
+                          Simulate at most {maxCyclesFor cost} cycles - the waveform simulator's last \
+                          clock cycle is set in its configuration - or simulate one subsheet rather \
+                          than the whole design."
+                  InDependency = None
+                  ComponentsAffected = []
+                  ConnectionsAffected = [] }
+
+    check cost.TypedArrayBytes Constants.maxTypedArrayBytes "simulation memory"
+    |> Result.bind (fun () ->
+        // said separately because it is a different, much smaller, resource: a design of wide buses
+        // can be refused while a design of the same size in 32-bit buses is allowed
+        check cost.HeapBytes Constants.maxHeapArrayBytes "heap memory, which buses wider than 32 bits need,")
+
 let makeIOArrayW w size =
     stepArrayIndex <- stepArrayIndex + 1
     match w with
@@ -426,12 +577,10 @@ let gatherSimulation (graph: SimulationGraph) =
 
     createFlattenedSimulation [] graph
     |> (fun g ->
-        { Simulation = graph
-          CustomInputCompLinks = Map.ofList g.CustomInputCompLinksT
+        { CustomInputCompLinks = Map.ofList g.CustomInputCompLinksT
           CustomOutputCompLinks = Map.ofList g.CustomOutputCompLinksT
           Labels = Map.ofList g.Labels
-          AllComps = Map.ofList g.AllCompsT
-          CustomOutputLookup = Map.ofList (List.map (fun (k, v) -> v, k) g.CustomOutputCompLinksT) })
+          AllComps = Map.ofList g.AllCompsT })
     |> instrumentInterval "gatherGraph" startTime
 
 /// Add one driver changing the fs.Driver array reference.
@@ -674,7 +823,6 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
         SimSheetNameMap = simSheetNames
         SimSheetStructure = simSheetStructure
         MaxArraySize = simulationArraySize
-        FSComps = g.AllComps
         FCustomOutputCompLookup = customOutLookup
         NumStepArrays = stepArrayIndex + 1
         Drivers = Array.empty }

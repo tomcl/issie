@@ -21,6 +21,12 @@ module Constants =
     /// How tall the project browser's list of folders is. Fixed, and scrolling inside itself, so
     /// that a folder of 200 subfolders does not push the path bar off the top of the dialog.
     let projectBrowserListHeight = "300px"
+    /// How long after an edit the Simulation tab works out whether the design still builds.
+    /// The check flattens the whole hierarchy, so this is what stops a burst of edits - drawing a
+    /// run of wires, dragging out a selection - costing one flatten each. Long enough to cover the
+    /// gap between two deliberate edits, short enough that the button follows the design rather
+    /// than lagging behind it.
+    let circuitCheckDelayMs = 300
     /// Needed to prevent possible overrun of simulation arrays
     let multipliers = [1;2;5;10;20;50;100;200;500;1000]
     let maxStepsOverflow = 3
@@ -432,10 +438,17 @@ let getCurrSheets (model: Model) =
         |> Some
     | None -> None
 
-/// For reasons of space efficiency, ensure that no non-empty unused FastSimulation records are kept
-/// FastSimulation records can be very large and at most one should exist, it must be for the sheet referenced by
-/// model.WaveSimSheet
-let removeAllSimulationsFromModel (model:Model) = model
+/// For reasons of space efficiency, ensure that no non-empty unused FastSimulation records are kept.
+/// A FastSimulation holds a step array per net and a SimulationGraph node per component instance, so a
+/// large design's is hundreds of MB: one left behind slows every later edit, because each major GC must
+/// trace all of it. Call this before building a new simulation.
+///
+/// CurrentStepSimulationStep is the only field of the model holding one. The truth table's
+/// TableSimData is deliberately left alone: it is what regenerates the table when a constraint
+/// changes, so it is in use rather than stale.
+let removeAllSimulationsFromModel (model:Model) =
+    model
+    |> Optic.set currentStepSimulationStep_ None
 
 /// True if a step simulation, truth table or waveform simulation is currently open.
 /// Parameters create dependencies across a whole design, so they cannot be changed while one is open.
@@ -646,6 +659,88 @@ let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationA
         (canvasState, otherComponents)
         ||> Simulator.prepareSimulationMemoized isWaveSim simulationArraySize project.OpenFileName simSheet 
         |> TimeHelpers.instrumentInterval "MakeSimData" start
+
+//------------------------------------------------------------------------------------------------//
+//--------------------------- Does the open design build into a simulation? ----------------------//
+//------------------------------------------------------------------------------------------------//
+
+(*
+    The Simulation tab shows a button whose colour says whether the design currently builds, and a
+    line of text saying whether it is synchronous. Both used to come from a full simulation built
+    during render - which on a large design meant flattening the whole hierarchy, and allocating a
+    step array for every net, for every frame the tab was visible.
+
+    What follows answers the same two questions without either cost: validateCircuitSimulation
+    stops once it has a checked graph, and the answer is stored in the model so that renders read
+    it rather than recompute it. See ModelType.CircuitCheck.
+
+    Deliberately NOT through prepareSimulationMemoized. That cache holds exactly one simulation, and
+    a check asking for a different array size would evict the simulation the user is running - so
+    this keeps out of its way entirely.
+*)
+
+/// The design as the simulator sees it: the open sheet as it is on the canvas now, and every other
+/// sheet as the project holds it. The same list prepareSimulationMemoized compares against, so a
+/// verdict and a simulation go stale together.
+///
+/// canvasState is passed in rather than taken from model.Sheet: extracting it walks every symbol
+/// and wire on the sheet, and the caller that runs per render already holds the one MainView
+/// extracted for this frame.
+let private designOf (project: Project) (canvasState: CanvasState) =
+    project.LoadedComponents
+    |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
+    |> CanvasExtractor.addStateToLoadedComponents project.OpenFileName canvasState
+
+/// Are two versions of a design the same circuit? Cheap in the ordinary case: only the open sheet
+/// is ever rebuilt, so loadedComponentIsEqual settles every other sheet by reference.
+let private designIsUnchanged (ldcs1: LoadedComponent list) (ldcs2: LoadedComponent list) =
+    List.length ldcs1 = List.length ldcs2
+    && ldcs1
+       |> List.forall (fun ldc ->
+            ldcs2
+            |> List.tryFind (fun ldc' -> ldc'.Name = ldc.Name)
+            |> Option.map (CanvasExtractor.loadedComponentIsEqual ldc)
+            |> (=) (Some true))
+
+/// Should the Simulation tab ask for a new verdict? True when the stored one is missing or no
+/// longer describes the design, and no check is already on its way.
+///
+/// The CheckPending test comes first, and not only to save the comparison: this is asked while
+/// rendering, and a render that asked again for a check already scheduled would be answered with
+/// another render, and so on without ever reaching the check.
+let circuitCheckIsNeeded (model: Model) (canvasState: CanvasState) =
+    if model.CircuitCheck.CheckPending then
+        false
+    else
+        match model.CircuitCheck.Verdict, model.CurrentProj with
+        | Some(_, checkedLdcs), Some project ->
+            not (designIsUnchanged checkedLdcs (designOf project canvasState))
+        | _, Some _ -> true
+        | _, None -> false
+
+/// Work out whether the open design builds into a simulation, and whether it is synchronous.
+/// Called from the update function on a delay, never while rendering.
+let runCircuitCheck (model: Model) : CircuitCheck =
+    match model.CurrentProj with
+    | None -> { Verdict = None; CheckPending = false }
+    | Some project ->
+        let ldcs = designOf project (model.Sheet.GetCanvasState())
+        // Caught rather than allowed to propagate: the checks reach a good deal of code, and one
+        // of them raising must not leave CheckPending set, which would stop every later check and
+        // freeze the button on whatever it last said.
+        let verdict =
+            try
+                let _, state, deps = CanvasExtractor.getStateAndDependencies project.OpenFileName ldcs
+                Simulator.validateCircuitSimulation project.OpenFileName state deps
+                |> Result.map SynchronousUtils.hasSynchronousComponents
+            with e ->
+                Log.error $"exception while checking the circuit: {e.Message}"
+                Error
+                    { ErrType = InternalError e
+                      InDependency = None
+                      ComponentsAffected = []
+                      ConnectionsAffected = [] }
+        { Verdict = Some(verdict, ldcs); CheckPending = false }
 
 let resimulateWaveSimForErrors (model: Model) : Result<SimulationData, SimulationError>  =
     let canv = model.Sheet.GetCanvasState()

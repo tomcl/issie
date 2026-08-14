@@ -665,7 +665,12 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         else 
             clock
     let numComps = simData.FastSim.FComps.Count
-    let initChunk = min steps (20000/(numComps + 1))
+    // Both floors matter. A design with more components than the sample budget got a sample of no
+    // clocks, which divides into an estimate of infinite time and a chunk of no clocks, and
+    // simulateWithProgressBar then redispatched itself for ever without advancing: "goto tick"
+    // hung the application on any design of more than 20000 components. A short run whose chunk
+    // rounds down to none hangs it the same way.
+    let initChunk = max 1 (min steps (20000/(numComps + 1)))
     let initTime = getTimeMs()
     let estimatedTime = 
         match clock - simData.FastSim.ClockTick with
@@ -676,7 +681,7 @@ let simulationClockChangeAction dispatch simData (model': Model) =
         | _ -> 
             (float steps / float initChunk) * (simulateWithTime None steps simData + 0.0000001)
     let chunkTime = min 2000. (estimatedTime / 5.)
-    let chunk = int <| float steps * chunkTime / estimatedTime
+    let chunk = max 1 (int <| float steps * chunkTime / estimatedTime)
     if steps > 2*initChunk && estimatedTime > 500. then 
         dispatch <| SetPopupProgress 
             (Some {

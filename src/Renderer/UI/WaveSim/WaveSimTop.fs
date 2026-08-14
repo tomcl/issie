@@ -102,10 +102,19 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                 |> Set.ofList)
             |> Option.defaultValue Set.empty
         let createWaves (wsModel: WaveSimModel) =
+            // Timed and measured alongside the build phases (see FastBuild.buildFastSimulation):
+            // this makes one Wave record per viewable port, which on a large flat simulation is
+            // more records than the design has components.
+            let t0, m0 = TimeHelpers.getTimeMs (), TimeHelpers.usedHeapBytes ()
             {wsModel with AllWaves = WaveSimSVGs.getWaves librarySheets wsModel (Simulator.getFastSim())}
             // a viewer with nothing in it is never what the user wants: give a first start the top
             // sheet's own ports. Does nothing once anything at all has been selected.
             |> WaveSimSelect.withDefaultSelectionIfEmpty (Simulator.getFastSim())
+            |> fun ws ->
+                if Log.isOn Log.Perf then
+                    let dt, dm = TimeHelpers.getTimeMs () - t0, TimeHelpers.usedHeapBytes () - m0
+                    Log.dbg Log.Perf $"createWaves {ws.AllWaves.Count} waves %8.0f{dt}ms  %+6.0f{dm / 1.0e6}MB"
+                ws
         validateSimParas wsModel
         |> if newSimulation then createWaves else id
 

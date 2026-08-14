@@ -75,7 +75,30 @@ let buildFastSimulation
     : Result<FastSimulation, SimulationError>
     =
     
-    let gather = gatherSimulation graph
+    // Each phase is marked with the time and the memory when it finished, and the table is
+    // logged under the perf category. Memory is usedJSHeapSize, so a phase's delta is all its
+    // allocation - step-array backing stores included - and garbage not yet collected counts,
+    // which is the point: the transient peak during a build is real occupancy, whether or not
+    // it survives. This is how the budget coefficients in SimulationBudget were measured, and
+    // how to check them again when the structures change.
+    let marks = ResizeArray<string * float * float>()
+    let mark name (x: 'a) : 'a =
+        if Log.isOn Log.Perf then marks.Add(name, getTimeMs (), usedHeapBytes ())
+        x
+
+    let logMarks (result: Result<FastSimulation, SimulationError>) =
+        if Log.isOn Log.Perf && marks.Count > 1 then
+            let name0, t0, m0 = marks[0]
+            ((name0, t0, m0), Seq.skip 1 marks)
+            ||> Seq.fold (fun (_, tPrev, mPrev) (name, t, m) ->
+                Log.dbg Log.Perf $"build %-12s{name} %8.0f{t - tPrev}ms  %+6.0f{(m - mPrev) / 1.0e6}MB"
+                (name, t, m))
+            |> fun (_, tLast, mLast) ->
+                Log.dbg Log.Perf $"build %-12s{diagramName} %8.0f{tLast - t0}ms  %+6.0f{(mLast - m0) / 1.0e6}MB total"
+        result
+
+    mark "start" () |> ignore
+    let gather = gatherSimulation graph |> mark "gather"
 
     // before createInitFastCompPhase, which is what allocates the step arrays
     let cost = stepCostOfDesign gather
@@ -85,15 +108,24 @@ let buildFastSimulation
         let fs =
             emptyFastSimulation diagramName
             |> createInitFastCompPhase simulationArraySize gather
+            |> mark "createInit"
             |> linkFastComponents gather
+            |> mark "link"
             |> determineBigIntState // This step is not needed for TruthTable
+            |> mark "bigIntState"
 
         createFastArrays fs
+        |> mark "arrays"
         |> orderCombinationalComponents simulationArraySize
+        |> mark "order"
         |> checkAndValidate
+        |> mark "validate"
         |> Result.map addWavesToFastSimulation
+        |> mark "waves"
         |> Result.map installReducers
+        |> mark "reducers"
         |> Result.map (fun fs -> { fs with StepCost = cost }))
+    |> logMarks
 
 /// The width limit the algebraic evaluator behind a truth table works to, checked at the door.
 ///

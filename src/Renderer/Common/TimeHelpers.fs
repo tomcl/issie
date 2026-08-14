@@ -212,12 +212,23 @@ let printStats() =
 
 
 /// returns absolute time in ms, works under both .Net and Fable
-let getTimeMs() = 
+let getTimeMs() =
 #if FABLE_COMPILER
     performanceNow()
 #else
-    let start = System.DateTime.UtcNow;           
+    let start = System.DateTime.UtcNow;
     float start.Ticks / float 10000
+#endif
+
+/// The memory the renderer is using, in bytes, as V8 reports it. This is usedJSHeapSize, which
+/// counts typed-array backing stores as well as ordinary objects - measured at 4.00 bytes per
+/// Uint32Array element - so a delta of it across a phase is the phase's whole allocation, not
+/// just its heap objects. Under .NET it is the CLR's figure, useful only for relative deltas.
+let usedHeapBytes () : float =
+#if FABLE_COMPILER
+    Fable.Core.JsInterop.emitJsExpr () "(performance.memory ? performance.memory.usedJSHeapSize : 0)"
+#else
+    float (System.GC.GetTotalMemory false)
 #endif
 
 let getInterval (startTime:float) =

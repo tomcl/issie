@@ -111,6 +111,42 @@ let private simRefs () =
            usedHeapMB = JSHelpers.usedHeap () / 1048576
            heapLimitMB = JSHelpers.heapLimit () / 1048576 |}
 
+/// Exact structure counts for whichever simulation is live, for checking the memory model in
+/// SimulationBudget against reality. The budget multiplies components by an estimated bytes-each;
+/// this is the census that says what "each" divides by: how many components, how many step
+/// arrays of which kind, how many of them synchronous. Counting from the built simulation is
+/// exact where estimating from the design would repeat the estimate being checked.
+let private simStats () =
+    let fs =
+        [ Simulator.simCacheWS.FastSim; Simulator.simCache.FastSim ]
+        |> List.tryFind (fun fs -> fs.FComps.Count > 0)
+    match fs with
+    | None -> box {| live = false |}
+    | Some fs ->
+        let outputArrays =
+            fs.FComps
+            |> Map.toSeq
+            |> Seq.collect (fun (_, fc) -> fc.Outputs |> Seq.map (fun io -> io.Width))
+        let widths = outputArrays |> Seq.toArray
+        box
+            {| live = true
+               sheet = fs.SimulatedTopSheet
+               comps = fs.FComps.Count
+               customComps = fs.FCustomComps.Count
+               maxArraySize = fs.MaxArraySize
+               numStepArrays = fs.NumStepArrays
+               outputPorts = widths.Length
+               outputPortsLe32 = widths |> Array.filter (fun w -> w <= 32) |> Array.length
+               outputPortsWide = widths |> Array.filter (fun w -> w > 32) |> Array.length
+               syncComps = fs.FClockedComps.Length
+               waves =
+                latestModel
+                |> Option.map (fun m ->
+                    m.WaveSim |> Map.toSeq |> Seq.sumBy (fun (_, ws) -> ws.AllWaves.Count))
+                |> Option.defaultValue 0
+               typedArrayMB = float fs.StepCost.TypedArrayBytes * float fs.MaxArraySize / 1.0e6
+               heapStepMB = float fs.StepCost.HeapBytes * float fs.MaxArraySize / 1.0e6 |}
+
 //------------------------------------------------------------------------------------------------//
 //------------------------------------- Sending a message ---------------------------------------//
 //------------------------------------------------------------------------------------------------//
@@ -209,6 +245,7 @@ let publish (dispatch: Msg -> unit) =
         Browser.Dom.window?issieDev <-
             {| state = state
                simRefs = simRefs
+               simStats = simStats
                send = send
                commands = fun () -> commands |> List.map fst |> Array.ofList
                onNextRender = onNextRender |}

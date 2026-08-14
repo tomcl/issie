@@ -256,23 +256,33 @@ module SimulationBudget =
     /// even then 70% of the limit is the boundary rather than past it.
     let heapShareOfLimit = 0.35
 
-    /// What one component of an expanded design costs in heap, by how many ports it has.
+    /// What one component of an expanded design costs in heap, by how many ports it has (ports
+    /// here is inputs plus outputs, as GraphMerger.expandedSize counts them).
     ///
-    /// Measured rather than derived, on hierarchies of 10,000 and 20,000 expanded components:
+    /// Measured rather than derived, on a hierarchy of 120,000 expanded components with one output
+    /// port each and 2.9 ports each in all, by GC-forced usedJSHeapSize deltas at two step-array
+    /// lengths (which separates the fixed cost from the per-step cost - the fixed part was the
+    /// same at both lengths to within noise). What one waveform simulation retains, per component:
     ///
-    ///   the SimulationGraph          ~15 bytes a component
-    ///   the FastComponents        ~1340 bytes a component at 3 ports, ~1712 at 6.9
+    ///   the SimulationGraph            ~15 bytes - merger shares non-custom nodes between
+    ///                                  instances of a sheet, so this is two orders of magnitude
+    ///                                  down on the rest
+    ///   the FastComponents            ~990 bytes fixed - the 25-field record, its map node, the
+    ///                                  output IOArrays with their typed-array wrappers (~120 B a
+    ///                                  wrapper, measured), path strings, reducer closures
+    ///   AllWaves                      ~430 bytes a wave, at ~0.6 waves per port - the Wave
+    ///                                  record's strings, built by the waveform simulator only,
+    ///                                  but charged here because this guard cannot know which
+    ///                                  simulator is coming and the waveform one is both the
+    ///                                  heavier and the one large designs are opened in
     ///
-    /// which is a slope of about 95 bytes a port on a base of about 1100. The graph is the minor
-    /// term by two orders of magnitude, and not because it holds little - because merger shares
-    /// every non-custom SimulationComponent between all instances of a sheet, and parameter
-    /// resolution shares whole sheet graphs between instances whose bindings agree. What is
-    /// expanded per instance is the FastComponents, which are a far larger record: 24 fields,
-    /// input and output link arrays, driver arrays, several names and a path.
-    ///
-    /// Both are live at once for the whole simulation - FastComponent.SimComponent holds the graph
-    /// node it was made from - so this is their sum rather than the larger of the two.
-    let heapBytesPerComponent (ports: float) = 1100.0 + 95.0 * ports
+    /// The step arrays themselves are NOT here - they scale with cycles, not components, and are
+    /// StepCost's business. The formula sits ~15% above the measured total at 2.9 ports, which is
+    /// the right side to miss on for a guard. To remeasure after changing these structures: build
+    /// phase deltas are logged under --log=perf (FastBuild.buildFastSimulation and the createWaves
+    /// line), and `node scripts/drive.js` + window.issieDev.simStats() gives the exact component,
+    /// port and wave counts to divide by.
+    let heapBytesPerComponent (ports: float) = 1000.0 + 350.0 * ports
 
     /// The most Uint32Array step-array memory one simulation may take: memory outside the V8 heap,
     /// so bounded by the machine rather than by anything Issie is built with. Most designs are 32

@@ -260,9 +260,17 @@ let stepBytesForWidth (w: int) =
 /// arrays exist. createInitFastCompPhase allocates exactly one step array per output port of every
 /// component in AllComps, so that is what is counted here.
 ///
+/// AllComps includes the custom components, whose output arrays are allocated and then replaced
+/// by links to the arrays inside them (linkFastCustomComponentsToDriverArrays) - so on a
+/// custom-heavy hierarchy this is ~25% above what a built simulation RETAINS (measured: 621MB
+/// counted, 503MB retained). It is left that way on purpose: the replaced arrays are real
+/// allocation until a collection runs, this figure guards the build's peak, and a guard that is
+/// high by a quarter refuses almost nothing that would have fit.
+///
 /// The per-step State array is counted too. Only RAMs ever write it, but createFastComponent
-/// allocates one for every component that could be synchronous - so on a register-heavy design it
-/// is real memory, and the estimate that omitted it said a design was smaller than it is.
+/// allocates one for every component that could be synchronous - customs included - so on a
+/// register-heavy design it is real memory, and the estimate that omitted it said a design was
+/// smaller than it is.
 let stepCostOfDesign (g: GatherData) : StepCost =
     ((0, 0), g.AllComps)
     ||> Map.fold (fun (typed, heap) _ (sComp, _) ->

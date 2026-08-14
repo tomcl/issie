@@ -220,6 +220,84 @@ type StepCost =
 
     member this.TotalBytes = this.TypedArrayBytes + this.HeapBytes
 
+/// How much memory a simulation may take, and of which kind.
+///
+/// Here rather than beside the code that spends it because two different parts of the simulator
+/// spend it: GraphMerger, which expands the design into a graph, and FastCreate, which allocates
+/// the step arrays. Both come out of the same memory and GraphMerger is compiled first.
+///
+/// Sizes are float and not int64 on purpose. Fable compiles int64 to BigInt, so every comparison
+/// here would allocate one - a poor thing to spend on deciding whether a design is too big. A float
+/// carries integers exactly to 2^53 and the largest number reached here is a few hundred GB.
+module SimulationBudget =
+
+    /// Share of the machine's physical memory a simulation's Uint32Arrays may take.
+    ///
+    /// A third, because that is comfortably clear of where the allocator actually gives up:
+    /// measured on a 32GB machine, Uint32Array allocation failed at 15.5GB, a little under half of
+    /// physical. A third leaves the operating system, the rest of Chromium and whatever else the
+    /// user has open their room, and still allows several million cycles of a real design.
+    let typedArrayShareOfMachine = 0.33
+
+    /// Share of the V8 heap limit a simulation may take, for the expanded design and for the step
+    /// arrays of buses wider than 32 bits.
+    ///
+    /// Not half, although half of USABLE heap is the intention. The heap limit is not usable in
+    /// full: the scavenger needs its to-space free, mark-compact needs somewhere to evacuate pages
+    /// to, and what a simulation puts there is millions of small objects promoted out of new space,
+    /// which is the shape old space handles least well. Filling the cage makes the renderer stop
+    /// responding well before the limit is reached. A third of the limit is about half of what can
+    /// really be used.
+    ///
+    /// The two heap checks - the expanded design, and the step arrays - are made separately and
+    /// each against this whole figure, so a design that passed both could in the worst case use
+    /// twice it. That needs a design that is both deeply instantiated AND full of wide buses, and
+    /// even then 70% of the limit is the boundary rather than past it.
+    let heapShareOfLimit = 0.35
+
+    /// What one component of the expanded design costs on the heap: the SimulationComponent, the
+    /// maps it holds for its outputs and input widths, and its node in the graph that holds it.
+    ///
+    /// Measured, not derived: 189,000 components of a real design took 186 MB, which is 986 bytes
+    /// each. Rounded up, since the figure varies with how many ports a component has.
+    let bytesPerGraphComponent = 1000.0
+
+    /// The most Uint32Array step-array memory one simulation may take: memory outside the V8 heap,
+    /// so bounded by the machine rather than by anything Issie is built with. Most designs are 32
+    /// bits and under, so this is the budget that decides how long they may run.
+    ///
+    /// Mutable because it is a fact about the machine, discovered once at startup - see
+    /// setBudgetsFromMachine. The value here is the fallback for when there is no machine to ask,
+    /// which is every run of the test suite: those run under plain .NET with no Electron.
+    let mutable maxTypedArrayBytes = 2.0e9
+
+    /// The most V8 heap one simulation may take, for the expanded design and for the BigInt step
+    /// arrays alike. Far smaller than the budget above, because V8's pointer compression caps the
+    /// whole heap at 4GB - a limit no flag can lift, since raising it needs V8 built without
+    /// pointer compression - and the model, the design, the waveforms and everything else the
+    /// renderer holds come out of that same 4GB.
+    let mutable maxHeapBytes = 1.0e9
+
+    /// Size both budgets to the machine this is running on. Called once from renderer startup.
+    ///
+    /// physicalBytes comes from process.getSystemMemoryInfo, heapLimitBytes from
+    /// performance.memory.jsHeapSizeLimit - the limit actually in force, whatever Main.fs asked for
+    /// and whatever V8 decided to grant. Either being zero or absent leaves that budget at its
+    /// fallback, so a machine that cannot answer is never told it has no memory.
+    let setBudgetsFromMachine (physicalBytes: float) (heapLimitBytes: float) =
+        if physicalBytes > 0.0 then
+            maxTypedArrayBytes <- physicalBytes * typedArrayShareOfMachine
+        if heapLimitBytes > 0.0 then
+            maxHeapBytes <- heapLimitBytes * heapShareOfLimit
+
+    /// A size in bytes, written the way a message should read it.
+    let formatBytes (bytes: float) =
+        let gb = bytes / 1024.0 ** 3.0
+        let mb = bytes / 1024.0 ** 2.0
+        if gb >= 1.0 then $"%.1f{gb} GB"
+        elif mb >= 1.0 then $"%.0f{mb} MB"
+        else $"%.0f{bytes / 1024.0} KB"
+
 // The fast simulation components are similar to the issie components they are based on but with addition of arrays
 // for direct lookup of inputs and fast access of outputs. The input arrays contain pointers to the output arrays the
 // inputs are connected to, the InputPortNumber integer indexes this.

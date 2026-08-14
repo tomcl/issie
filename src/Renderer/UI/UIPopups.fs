@@ -427,7 +427,7 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
             let cost = sd.FastSim.StepCost
             let needed = float cost.TotalBytes * float c.LastClock
             $"Simulating {c.LastClock} cycles of this design needs \
-              {FastCreate.formatBytes needed} of simulation memory. At most \
+              {SimTypes.SimulationBudget.formatBytes needed} of simulation memory. At most \
               {FastCreate.maxCyclesFor cost} cycles of it can be simulated."
 
     /// Too big to simulate at all, rather than merely large. FastCreate.maxCyclesFor is the same

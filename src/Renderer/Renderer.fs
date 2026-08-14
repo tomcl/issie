@@ -318,12 +318,12 @@ let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
     // How much memory a simulation may take is a fact about this machine, so it is settled here,
     // once, rather than built into the simulator as a number that suits no machine in particular.
     // The heap limit is read rather than assumed: Main.fs asks for one, and V8 grants what it will.
-    FastCreate.Constants.setBudgetsFromMachine
+    SimTypes.SimulationBudget.setBudgetsFromMachine
         (Bridge.systemMemoryTotalKB() * 1024.0)
         (float (JSHelpers.heapLimit()))
     Log.dbg Log.Sim
-        $"simulation memory budget: {FastCreate.formatBytes FastCreate.Constants.maxTypedArrayBytes} \
-          of step arrays, {FastCreate.formatBytes FastCreate.Constants.maxHeapArrayBytes} of heap"
+        $"simulation memory budget: {SimTypes.SimulationBudget.formatBytes SimTypes.SimulationBudget.maxTypedArrayBytes} \
+          of step arrays, {SimTypes.SimulationBudget.formatBytes SimTypes.SimulationBudget.maxHeapBytes} of heap"
     let userAppDir = getUserAppDir()
     dispatch <| ReadUserData userAppDir
     { new System.IDisposable with member _.Dispose() = () }

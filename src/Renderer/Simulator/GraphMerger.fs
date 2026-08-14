@@ -221,6 +221,122 @@ let private checkDependenciesAndBuildMap
             |> buildDependencyMap
 
 //====================//
+// How big will it be? //
+//====================//
+
+(*
+    merger, below, expands the design: it walks into every custom component and stores the whole
+    merged subtree on that INSTANCE. A sheet used twice is therefore merged twice, and since that
+    holds at every level the total multiplies down the hierarchy - eight sheets of eight instances
+    each is not 64 components but 16 million. Nothing about the design on disk looks large, so this
+    is the one way a modest-looking project exhausts memory, and it does it while the graph is
+    being built rather than while anything is simulated.
+
+    The size is exactly predictable, and much more cheaply than by building it: it depends only on
+    how many components each sheet has and which sheets it instantiates. So it is worked out first,
+    and a design too large to hold is refused before merger allocates any of it.
+*)
+
+/// The expanded size of the top sheet, and of every sheet it reaches, as the walk works them out.
+///
+/// float rather than int because these are precisely the numbers that can be astronomically large -
+/// an int would overflow into a small or negative answer on exactly the designs this exists to
+/// catch, and report them as tiny.
+///
+/// Each sheet is counted once however often it appears, so this is linear in the design even when
+/// what it is counting is not. Safe to recurse because checkDependenciesAndBuildMap has already
+/// rejected circular dependencies and missing sheets.
+let private expandedSizes (topSheet: string) (state: CanvasState) (ldcs: LoadedComponent list) =
+    let canvasOf =
+        ldcs
+        |> List.map (fun ldc -> ldc.Name, ldc.CanvasState)
+        |> Map.ofList
+        |> Map.add topSheet state
+
+    let instancesIn (sheet: string) =
+        match Map.tryFind sheet canvasOf with
+        | None -> [] // a missing sheet is reported by the dependency check, not by counting
+        | Some(comps, _) ->
+            comps
+            |> List.choose (fun comp ->
+                match comp.Type with
+                | Custom ct -> Some ct.Name
+                | _ -> None)
+
+    let ownCount (sheet: string) =
+        match Map.tryFind sheet canvasOf with
+        | None -> 0.0
+        | Some(comps, _) -> float (List.length comps)
+
+    /// sizeOf threads the memo through rather than holding it in a mutable, so that one sheet
+    /// reached by several paths is still counted once.
+    let rec sizeOf (memo: Map<string, float>) (sheet: string) : float * Map<string, float> =
+        match Map.tryFind sheet memo with
+        | Some size -> size, memo
+        | None ->
+            let childrenTotal, memo =
+                ((0.0, memo), instancesIn sheet)
+                ||> List.fold (fun (total, memo) child ->
+                    let childSize, memo = sizeOf memo child
+                    total + childSize, memo)
+            let size = ownCount sheet + childrenTotal
+            size, Map.add sheet size memo
+
+    sizeOf Map.empty topSheet
+
+/// How many SimulationComponents the merged graph will hold.
+let expandedComponentCount (topSheet: string) (state: CanvasState) (ldcs: LoadedComponent list) : float =
+    expandedSizes topSheet state ldcs |> fst
+
+/// The largest sheets below the top, which is where a design that is too large got its size.
+/// Named in the refusal because "too large" on a project of small sheets is not something a user
+/// can act on without being told where to look.
+///
+/// Read off the sizes the count already worked out, rather than counted again: those cover exactly
+/// the sheets the top sheet reaches, which is both cheaper and the only set it is safe to walk -
+/// a sheet elsewhere in the project may be part of a dependency cycle that was never checked.
+let private biggestContributors (topSheet: string) (state: CanvasState) (ldcs: LoadedComponent list) =
+    expandedSizes topSheet state ldcs
+    |> snd
+    |> Map.toList
+    |> List.filter (fun (name, _) -> name <> topSheet)
+    |> List.sortByDescending snd
+    |> List.truncate 3
+    |> List.map fst
+
+/// Refuse a design whose expanded graph will not fit in memory, before any of it is built.
+let checkExpansionFits
+    (topSheet: string)
+    (state: CanvasState)
+    (ldcs: LoadedComponent list)
+    : Result<unit, SimulationError>
+    =
+    let components = expandedComponentCount topSheet state ldcs
+    let needed = components * SimTypes.SimulationBudget.bytesPerGraphComponent
+
+    if needed <= SimTypes.SimulationBudget.maxHeapBytes then
+        Ok()
+    else
+        let fits = SimTypes.SimulationBudget.maxHeapBytes / SimTypes.SimulationBudget.bytesPerGraphComponent
+        let worst = biggestContributors topSheet state ldcs |> String.concat ", "
+        Error
+            { ErrType =
+                GenericSimError
+                    $"Simulating this design means expanding every sheet into every place it is \
+                      used, which comes to %.0f{components} components needing \
+                      {SimTypes.SimulationBudget.formatBytes needed} - more than the \
+                      {SimTypes.SimulationBudget.formatBytes SimTypes.SimulationBudget.maxHeapBytes} Issie will use \
+                      for it, and more than the %.0f{fits} components that would fit. This grows by \
+                      multiplication rather than addition: a sheet used four times, each of whose \
+                      four instances uses another sheet four times, is sixteen copies of the \
+                      innermost sheet. Most of the size here is in {worst}. \
+                      Simulate one subsheet on its own, or reduce how many times the sheets below \
+                      it are instantiated."
+              InDependency = None
+              ComponentsAffected = []
+              ConnectionsAffected = [] }
+
+//====================//
 // Merge dependencies //
 //====================//
 
@@ -575,8 +691,11 @@ let mergeDependencies
     match checkDependenciesAndBuildMap currDiagramName state loadedDependencies with
     | Error e -> Error e
     | Ok dependencyMap ->
+        // After the dependency check, which is what makes the count safe to walk, and before
+        // merger, which is what would allocate the design this refuses to hold.
+        checkExpansionFits currDiagramName state loadedDependencies
         // Recursively replace the dependencies, in a top down fashion.
-        Ok <| merger graph dependencyMap loadedDependencies
+        |> Result.map (fun () -> merger graph dependencyMap loadedDependencies)
     |> Result.bind (fun graph ->
         // Resolve the top sheet with its default bindings, and every sheet below it with the
         // bindings its instance gives. There is no separate instance-binding pass: the walk

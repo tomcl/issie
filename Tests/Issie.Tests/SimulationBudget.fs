@@ -1,19 +1,25 @@
-/// Refusing a simulation whose step arrays would not fit, before any of them are allocated.
+/// Refusing a simulation that will not fit in memory, before any of it is allocated.
 ///
-/// The point of the check is that it happens BEFORE the memory is taken: a design asked to run for
-/// more cycles than there is memory for used to allocate until the machine gave out. So the tests
-/// that matter here ask for absurd numbers of cycles and expect an ordinary SimulationError back,
-/// promptly, rather than a crash or a wait.
+/// There are two ways a design exhausts memory and both are refused here. Its step arrays may be
+/// too large, which is a question of how many cycles are asked for; or the design itself may expand
+/// too far, since every sheet is copied into every place it is used and that multiplies down the
+/// hierarchy. The second is the one that turns a small-looking project into millions of components.
 ///
-/// The two budgets are separate because the two memories are: buses of 32 bits and under are held
-/// in Uint32Arrays outside the V8 heap, wider ones as arrays of BigInt inside it. A design of wide
-/// buses can be refused while the same design in narrow buses is allowed, and the split asserted
-/// below is what keeps that true.
+/// The point of both checks is that they happen BEFORE the memory is taken: either used to allocate
+/// until the machine gave out. So the tests here ask for absurd sizes and expect an ordinary
+/// SimulationError back, promptly, rather than a crash or a wait - and a test that finishes at all
+/// is a good part of what is being asserted.
+///
+/// The two step-array budgets are separate because the two memories are: buses of 32 bits and under
+/// are held in Uint32Arrays outside the V8 heap, wider ones as arrays of BigInt inside it. A design
+/// of wide buses can be refused while the same design in narrow buses is allowed, and the split
+/// asserted below is what keeps that true.
 module SimulationBudget
 
 open Expecto
 open CommonTypes
 open SimTypes
+open SimGraphTypes
 open CanvasBuilder
 
 /// A + B -> S, all three at the given bus width. Combinational, so nothing here allocates the
@@ -27,6 +33,37 @@ let private adderSheet (name: string) (w: int) =
 
 let private simulate (cycles: int) (ldc: LoadedComponent) =
     Simulator.startCircuitSimulation cycles ldc.Name ldc.CanvasState [ ldc ]
+
+/// IN -> NOT -> OUT. Three components, and the bottom of every hierarchy below.
+let private leaf =
+    let i = makeComp "leaf-in" 0 1 (Input1(1, None)) "IN"
+    let n = makeComp "leaf-not" 1 1 Not "N"
+    let o = makeComp "leaf-out" 1 0 (Output 1) "OUT"
+    makeLdc "leaf" None ([ i; n; o ], [ conn i 0 n 0; conn n 0 o 0 ])
+
+/// A sheet holding `copies` instances of `child` in a chain from IN to OUT, so that every instance
+/// is properly driven and the sheet passes the checks that run before the size is looked at.
+let private chainSheet (name: string) (child: LoadedComponent) (copies: int) =
+    let inp = makeComp $"{name}-in" 0 1 (Input1(1, None)) "IN"
+    let out = makeComp $"{name}-out" 1 0 (Output 1) "OUT"
+    let instances =
+        [ for i in 1..copies ->
+            makeComp $"{name}-c{i}" 1 1 (customOf child [ "IN", 1 ] [ "OUT", 1 ] None) $"C{i}" ]
+    let chain = (inp :: instances) @ [ out ]
+    let conns = chain |> List.pairwise |> List.map (fun (a, b) -> conn a 0 b 0)
+    makeLdc name None (chain, conns)
+
+/// `levels` sheets stacked on the leaf, each instantiating the one below it `copies` times.
+/// Small on disk however deep it goes - which is the whole point.
+let private hierarchy (levels: int) (copies: int) : LoadedComponent * LoadedComponent list =
+    ((leaf, [ leaf ]), [ 1..levels ])
+    ||> List.fold (fun (child, all) k ->
+        let sheet = chainSheet $"lvl{k}" child copies
+        sheet, sheet :: all)
+
+let private expandedCount (levels: int) (copies: int) =
+    let top, sheets = hierarchy levels copies
+    GraphMerger.expandedComponentCount top.Name top.CanvasState sheets
 
 let private costOf (w: int) =
     match simulate 10 (adderSheet "budget" w) with
@@ -95,7 +132,7 @@ let tests =
             // memory's budget alone, so the two cannot mask each other
             let typedOnly = { TypedArrayBytes = 1000; HeapBytes = 0 }
             let heapOnly = { TypedArrayBytes = 0; HeapBytes = 1000 }
-            let cycles = int (FastCreate.Constants.maxHeapArrayBytes / 1000.0) + 1
+            let cycles = int (SimulationBudget.maxHeapBytes / 1000.0) + 1
             Expect.isError (FastCreate.checkSimulationFits cycles heapOnly)
                 "past the heap budget, with no typed array use at all"
             Expect.isOk (FastCreate.checkSimulationFits cycles typedOnly)
@@ -125,5 +162,52 @@ let tests =
             Expect.isOk
                 (FastCreate.checkSimulationFits 1_000_000 { TypedArrayBytes = 0; HeapBytes = 0 })
                 "no step arrays means no limit on how long it may run"
+        }
+
+        //--------------------------------------------------------------------------------------//
+        // The expanded design, which is the other thing that exhausts memory                    //
+        //--------------------------------------------------------------------------------------//
+
+        test "the expanded size of a hierarchy is counted, not the sheets on disk" {
+            // leaf is 3 components. Each level is IN + OUT + `copies` instances, and holds a whole
+            // expanded copy of the level below per instance, so the count multiplies.
+            Expect.equal (expandedCount 0 2) 3.0 "the leaf alone"
+            Expect.equal (expandedCount 1 2) (4.0 + 2.0 * 3.0) "one level of two instances"
+            Expect.equal (expandedCount 2 2) (4.0 + 2.0 * 10.0) "two levels: 24, not 3 + 4 + 4"
+            Expect.equal (expandedCount 3 8) (10.0 + 8.0 * (10.0 + 8.0 * (10.0 + 8.0 * 3.0)))
+                "eight-way, three deep"
+        }
+
+        test "a hierarchy that fits is simulated" {
+            let top, sheets = hierarchy 3 8
+            match Simulator.startCircuitSimulation 10 top.Name top.CanvasState sheets with
+            | Ok _ -> ()
+            | Error e -> failtest $"a design expanding to ~2000 components should simulate: %A{e}"
+        }
+
+        test "a hierarchy too large to expand is refused, without expanding it" {
+            // Eight sheets, none of them big, expanding to millions of components. The test
+            // finishing at all is most of the assertion: were the design built before being
+            // measured, this would take the machine down rather than fail.
+            let top, sheets = hierarchy 7 8
+            let predicted = GraphMerger.expandedComponentCount top.Name top.CanvasState sheets
+            Expect.isGreaterThan predicted 5_000_000.0 "this hierarchy expands to millions"
+            match Simulator.startCircuitSimulation 10 top.Name top.CanvasState sheets with
+            | Ok _ -> failtest "a design expanding to millions of components should be refused"
+            | Error e ->
+                match e.ErrType with
+                | GenericSimError msg ->
+                    Expect.stringContains msg "components" "the refusal says what the size is in"
+                    Expect.stringContains msg "lvl" "and names the sheets the size comes from"
+                | other -> failtest $"expected a plain simulation error, got %A{other}"
+        }
+
+        test "counting a hierarchy is linear in its sheets, not in its expansion" {
+            // 20 levels of 8 is 8^20 components - more than there are atoms to store them in. The
+            // count must still come back, and come back as a number rather than an overflow.
+            let top, sheets = hierarchy 20 8
+            let predicted = GraphMerger.expandedComponentCount top.Name top.CanvasState sheets
+            Expect.isGreaterThan predicted 1.0e18 "8^20 is a very large number of components"
+            Expect.isTrue (System.Double.IsFinite predicted) "and it must be a number, not infinity"
         }
     ]

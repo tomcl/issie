@@ -86,9 +86,23 @@ let electronStarted = false;
       const forApp = passedThrough.filter(isIssieSwitch).map(toElectron);
       const forChromium = passedThrough.filter(a => !isIssieSwitch(a));
 
+      // Keep rendering while the window is behind something else. Chromium decides a covered
+      // window is hidden, and a hidden page runs no requestAnimationFrame - which is how Issie
+      // renders, since Elmish batches the view into one. So a dev window sitting behind the
+      // terminal it is being driven from stops rendering entirely: drive.js waits for renders
+      // that never come, Input events take five seconds each to be acknowledged, and a profile
+      // of a drag says the app did nothing at all. None of that announces itself as "the window
+      // was covered"; it reads as the app being slow, which is the wrong conclusion to hand
+      // someone measuring why the app is slow. Development only - this script is not what a
+      // packaged app starts from.
+      const keepRendering = [
+          '--disable-features=CalculateNativeWinOcclusion',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding'];
+
       const electron = spawn(
           electronPath,
-          [`--remote-debugging-port=${debugPort}`, ...forChromium, buildFile, ...forApp],
+          [`--remote-debugging-port=${debugPort}`, ...keepRendering, ...forChromium, buildFile, ...forApp],
           {stdio: 'inherit', shell:true});
 
       electron.on('exit', function () {

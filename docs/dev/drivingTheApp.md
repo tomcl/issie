@@ -76,3 +76,24 @@ caller waiting for a render wants the state it then reads to be the state it wai
 
 A command that changes nothing renders nothing, so `send` bounds its wait rather than hanging, and
 reports `(no render within the timeout)` if none arrived.
+
+## A window nobody can see does not render
+
+Chromium treats a covered window as hidden, and a hidden page runs no `requestAnimationFrame` —
+which is how Issie renders, since Elmish batches the view into one. A dev window left behind the
+terminal driving it therefore stops rendering altogether: every `send` reports no render, every
+`Input.dispatchMouseEvent` takes five seconds to be acknowledged, and a CPU profile of a drag shows
+the renderer idle throughout. Nothing in any of that says "the window was covered"; it reads as the
+app being slow, which is the worst possible answer to give someone measuring why the app is slow.
+
+`scripts/start.js` turns occlusion tracking off for this reason, so `npm run dev` renders whether
+or not its window is visible. If you launch Electron yourself, pass the same switches:
+
+```
+--disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows
+--disable-renderer-backgrounding
+```
+
+`document.visibilityState` is what to check when results stop making sense: `hidden` while the
+window is plainly on screen means occlusion tracking has decided otherwise, and every timing taken
+in that state is worthless.

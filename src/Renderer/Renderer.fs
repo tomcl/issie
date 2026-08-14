@@ -285,6 +285,7 @@ let devMenu (dispatch) =
 /// One-shot application setup, run as an Elmish subscription so it receives dispatch:
 /// attach the Electron menu, the exit handler, and read the user data.
 /// There is nothing to tear down - what it attaches lives as long as the app.
+
 let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
     let template =
         [ if isMac then

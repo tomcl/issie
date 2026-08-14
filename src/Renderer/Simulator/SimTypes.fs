@@ -205,17 +205,18 @@ type SheetPort = {
 
 /// What one clock cycle of a design costs in step arrays, kept apart by which memory it comes from.
 ///
-/// The two are not interchangeable, and measurably so. Buses of 32 bits and under are held in
-/// Uint32Arrays, which allocate outside the V8 heap: 400MB of them grows the heap by nothing, and
-/// what bounds them is the machine. Wider buses are held as a plain array of BigInt, which is
-/// entirely heap-resident - 400MB of values cost 454MB of heap - inside the 4GB that V8's pointer
-/// compression allows and that the model, the design and the waveforms all share. So a design can
-/// be refused for the second while it is nowhere near the first.
+/// The two are not interchangeable, and measurably so - though not in the way performance.memory
+/// suggests. usedJSHeapSize counts Uint32Arrays at every size, so it cannot tell the two apart;
+/// what separates them is the LIMIT. Uint32Array allocation ran to 15.5GB on a 32GB machine
+/// against a jsHeapSizeLimit of 3.7GB, so those are bounded by the machine and not by V8's pointer
+/// compression cage. Buses wider than 32 bits are held as a plain array of BigInt, which is
+/// ordinary heap - 400MB of values cost 454MB - inside that 4GB cage, shared with the model, the
+/// design and the waveforms. So a design can be refused for the second while nowhere near the first.
 /// FastCreate.stepBytesForWidth works out one port's share; FastCreate.stepCostOfDesign totals it.
 type StepCost =
-    { /// Uint32Array storage, outside the V8 heap
+    { /// Uint32Array storage, which the V8 heap limit does not bind
       TypedArrayBytes: int
-      /// BigInt step arrays and the per-step state references, inside the V8 heap
+      /// BigInt step arrays and the per-step state references, which it does
       HeapBytes: int }
 
     member this.TotalBytes = this.TypedArrayBytes + this.HeapBytes
@@ -255,12 +256,23 @@ module SimulationBudget =
     /// even then 70% of the limit is the boundary rather than past it.
     let heapShareOfLimit = 0.35
 
-    /// What one component of the expanded design costs on the heap: the SimulationComponent, the
-    /// maps it holds for its outputs and input widths, and its node in the graph that holds it.
+    /// What one component of an expanded design costs in heap, by how many ports it has.
     ///
-    /// Measured, not derived: 189,000 components of a real design took 186 MB, which is 986 bytes
-    /// each. Rounded up, since the figure varies with how many ports a component has.
-    let bytesPerGraphComponent = 1000.0
+    /// Measured rather than derived, on hierarchies of 10,000 and 20,000 expanded components:
+    ///
+    ///   the SimulationGraph          ~15 bytes a component
+    ///   the FastComponents        ~1340 bytes a component at 3 ports, ~1712 at 6.9
+    ///
+    /// which is a slope of about 95 bytes a port on a base of about 1100. The graph is the minor
+    /// term by two orders of magnitude, and not because it holds little - because merger shares
+    /// every non-custom SimulationComponent between all instances of a sheet, and parameter
+    /// resolution shares whole sheet graphs between instances whose bindings agree. What is
+    /// expanded per instance is the FastComponents, which are a far larger record: 24 fields,
+    /// input and output link arrays, driver arrays, several names and a path.
+    ///
+    /// Both are live at once for the whole simulation - FastComponent.SimComponent holds the graph
+    /// node it was made from - so this is their sum rather than the larger of the two.
+    let heapBytesPerComponent (ports: float) = 1100.0 + 95.0 * ports
 
     /// The most Uint32Array step-array memory one simulation may take: memory outside the V8 heap,
     /// so bounded by the machine rather than by anything Issie is built with. Most designs are 32

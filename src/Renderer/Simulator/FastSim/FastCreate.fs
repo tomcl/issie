@@ -232,14 +232,15 @@ let makeIOArray size =
     The two branches of makeIOArrayW below do not merely differ in size, they come out of different
     memory, with different limits, and a budget that added them together would be wrong about both:
 
-      w <= 32   a Uint32Array. Four bytes a step, held OUTSIDE the V8 heap, and one object for the
-                garbage collector to trace however long it is. Bounded by the machine.
+      w <= 32   a Uint32Array. Four bytes a step, and one object for the garbage collector to
+                trace however long it is. Bounded by the machine rather than by V8: allocation ran
+                to 15.5GB on a 32GB machine, four times the heap limit in force.
 
-      w > 32    a plain array of BigInt. A reference a step, in the V8 heap, and - once the
-                simulation runs and each step is written with a value of its own - a separate
-                BigInt object per step: a header plus a 64-bit digit per 64 bits of width. This is
-                the memory capped by --max-old-space-size in Main.fs, which the model, the design
-                and everything else the renderer holds must also fit inside.
+      w > 32    a plain array of BigInt. A reference a step, and - once the simulation runs and
+                each step is written with a value of its own - a separate BigInt object per step: a
+                header plus a 64-bit digit per 64 bits of width. This is inside V8's 4GB pointer
+                compression cage, which the model, the design and everything else the renderer
+                holds must also fit inside, and which no flag lifts.
 
     So most designs, which are 32 bits and under, are limited by the machine, and a design with wide
     buses is limited by something much smaller and shared. Hence two budgets rather than one.

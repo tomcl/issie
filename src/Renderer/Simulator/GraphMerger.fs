@@ -263,30 +263,41 @@ let private expandedSizes (topSheet: string) (state: CanvasState) (ldcs: LoadedC
                 | Custom ct -> Some ct.Name
                 | _ -> None)
 
-    let ownCount (sheet: string) =
+    /// A sheet's own components, and its own ports. Both are needed: what a component costs in
+    /// memory depends on how many ports it has, and a sheet of wide components costs more than a
+    /// sheet of the same number of narrow ones.
+    let ownCounts (sheet: string) =
         match Map.tryFind sheet canvasOf with
-        | None -> 0.0
-        | Some(comps, _) -> float (List.length comps)
+        | None -> 0.0, 0.0
+        | Some(comps, _) ->
+            float (List.length comps),
+            comps |> List.sumBy (fun c -> float (List.length c.InputPorts + List.length c.OutputPorts))
 
     /// sizeOf threads the memo through rather than holding it in a mutable, so that one sheet
     /// reached by several paths is still counted once.
-    let rec sizeOf (memo: Map<string, float>) (sheet: string) : float * Map<string, float> =
+    let rec sizeOf (memo: Map<string, float * float>) (sheet: string) =
         match Map.tryFind sheet memo with
         | Some size -> size, memo
         | None ->
-            let childrenTotal, memo =
-                ((0.0, memo), instancesIn sheet)
-                ||> List.fold (fun (total, memo) child ->
-                    let childSize, memo = sizeOf memo child
-                    total + childSize, memo)
-            let size = ownCount sheet + childrenTotal
+            let (childComps, childPorts), memo =
+                (((0.0, 0.0), memo), instancesIn sheet)
+                ||> List.fold (fun ((comps, ports), memo) child ->
+                    let (cComps, cPorts), memo = sizeOf memo child
+                    (comps + cComps, ports + cPorts), memo)
+            let ownComps, ownPorts = ownCounts sheet
+            let size = ownComps + childComps, ownPorts + childPorts
             size, Map.add sheet size memo
 
     sizeOf Map.empty topSheet
 
+/// How many SimulationComponents the merged graph will hold, and how many ports they have between
+/// them - which is what says what they will cost.
+let expandedSize (topSheet: string) (state: CanvasState) (ldcs: LoadedComponent list) =
+    expandedSizes topSheet state ldcs |> fst
+
 /// How many SimulationComponents the merged graph will hold.
 let expandedComponentCount (topSheet: string) (state: CanvasState) (ldcs: LoadedComponent list) : float =
-    expandedSizes topSheet state ldcs |> fst
+    expandedSize topSheet state ldcs |> fst
 
 /// The largest sheets below the top, which is where a design that is too large got its size.
 /// Named in the refusal because "too large" on a project of small sheets is not something a user
@@ -300,7 +311,7 @@ let private biggestContributors (topSheet: string) (state: CanvasState) (ldcs: L
     |> snd
     |> Map.toList
     |> List.filter (fun (name, _) -> name <> topSheet)
-    |> List.sortByDescending snd
+    |> List.sortByDescending (snd >> fst)
     |> List.truncate 3
     |> List.map fst
 
@@ -311,13 +322,16 @@ let checkExpansionFits
     (ldcs: LoadedComponent list)
     : Result<unit, SimulationError>
     =
-    let components = expandedComponentCount topSheet state ldcs
-    let needed = components * SimTypes.SimulationBudget.bytesPerGraphComponent
+    let components, ports = expandedSize topSheet state ldcs
+    let portsEach = if components > 0.0 then ports / components else 0.0
+    let needed = components * SimTypes.SimulationBudget.heapBytesPerComponent portsEach
 
     if needed <= SimTypes.SimulationBudget.maxHeapBytes then
         Ok()
     else
-        let fits = SimTypes.SimulationBudget.maxHeapBytes / SimTypes.SimulationBudget.bytesPerGraphComponent
+        let fits =
+            SimTypes.SimulationBudget.maxHeapBytes
+            / SimTypes.SimulationBudget.heapBytesPerComponent portsEach
         let worst = biggestContributors topSheet state ldcs |> String.concat ", "
         Error
             { ErrType =

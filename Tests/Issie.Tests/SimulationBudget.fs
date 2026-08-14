@@ -202,6 +202,29 @@ let tests =
                 | other -> failtest $"expected a plain simulation error, got %A{other}"
         }
 
+        test "the expansion is measured in ports as well as components" {
+            // What a component costs depends on how many ports it has - the FastComponent holds a
+            // link, a driver and an output array per port - so a sheet of wide gates must be
+            // charged more than a sheet of the same number of narrow ones.
+            let gateSheet (name: string) (fanIn: int) =
+                let inp = makeComp $"{name}-in" 0 1 (Input1(1, None)) "IN"
+                let g = makeComp $"{name}-g" fanIn 1 (GateN(And, fanIn)) "G"
+                let out = makeComp $"{name}-out" 1 0 (Output 1) "OUT"
+                let feed = [ for i in 0 .. fanIn - 1 -> conn inp 0 g i ]
+                makeLdc name None ([ inp; g; out ], feed @ [ conn g 0 out 0 ])
+
+            let narrow = gateSheet "narrow" 2
+            let wide = gateSheet "wide" 8
+            let compsN, portsN = GraphMerger.expandedSize "narrow" narrow.CanvasState [ narrow ]
+            let compsW, portsW = GraphMerger.expandedSize "wide" wide.CanvasState [ wide ]
+            Expect.equal compsN compsW "both sheets have the same three components"
+            Expect.isGreaterThan portsW portsN "but the wide one has six more ports"
+            Expect.isGreaterThan
+                (SimulationBudget.heapBytesPerComponent (portsW / compsW))
+                (SimulationBudget.heapBytesPerComponent (portsN / compsN))
+                "so a component of the wide sheet is charged more than one of the narrow sheet"
+        }
+
         test "counting a hierarchy is linear in its sheets, not in its expansion" {
             // 20 levels of 8 is 8^20 components - more than there are atoms to store them in. The
             // count must still come back, and come back as a number rather than an overflow.

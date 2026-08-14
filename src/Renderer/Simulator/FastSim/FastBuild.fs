@@ -105,26 +105,35 @@ let buildFastSimulation
 
     checkSimulationFits simulationArraySize cost
     |> Result.bind (fun () ->
-        let fs =
-            emptyFastSimulation diagramName
-            |> createInitFastCompPhase simulationArraySize gather
-            |> mark "createInit"
-            |> linkFastComponents gather
-            |> mark "link"
-            |> determineBigIntState // This step is not needed for TruthTable
-            |> mark "bigIntState"
+        // The step arrays this build allocates come from arena slabs rather than one external
+        // allocation each - see the arena in FastCreate for what that buys and what it does not.
+        // finally, so that a build that raises cannot leave its arena open for an unrelated
+        // later build to draw from.
+        startStepArena ()
 
-        createFastArrays fs
-        |> mark "arrays"
-        |> orderCombinationalComponents simulationArraySize
-        |> mark "order"
-        |> checkAndValidate
-        |> mark "validate"
-        |> Result.map addWavesToFastSimulation
-        |> mark "waves"
-        |> Result.map installReducers
-        |> mark "reducers"
-        |> Result.map (fun fs -> { fs with StepCost = cost }))
+        try
+            let fs =
+                emptyFastSimulation diagramName
+                |> createInitFastCompPhase simulationArraySize gather
+                |> mark "createInit"
+                |> linkFastComponents gather
+                |> mark "link"
+                |> determineBigIntState // This step is not needed for TruthTable
+                |> mark "bigIntState"
+
+            createFastArrays fs
+            |> mark "arrays"
+            |> orderCombinationalComponents simulationArraySize
+            |> mark "order"
+            |> checkAndValidate
+            |> mark "validate"
+            |> Result.map addWavesToFastSimulation
+            |> mark "waves"
+            |> Result.map installReducers
+            |> mark "reducers"
+            |> Result.map (fun fs -> { fs with StepCost = cost })
+        finally
+            finishStepArena ())
     |> logMarks
 
 /// The width limit the algebraic evaluator behind a truth table works to, checked at the door.

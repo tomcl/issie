@@ -261,11 +261,10 @@ let stepBytesForWidth (w: int) =
 /// component in AllComps, so that is what is counted here.
 ///
 /// AllComps includes the custom components, whose output arrays are allocated and then replaced
-/// by links to the arrays inside them (linkFastCustomComponentsToDriverArrays) - so on a
-/// custom-heavy hierarchy this is ~25% above what a built simulation RETAINS (measured: 621MB
-/// counted, 503MB retained). It is left that way on purpose: the replaced arrays are real
-/// allocation until a collection runs, this figure guards the build's peak, and a guard that is
-/// high by a quarter refuses almost nothing that would have fit.
+/// by links to the arrays inside them (linkFastCustomComponentsToDriverArrays). Those arrays come
+/// out of the step-array arena along with everything else, and arena space is not reclaimed until
+/// the whole simulation goes - so this count is exactly what a built simulation occupies, the
+/// replaced quarter included, not an estimate of it.
 ///
 /// The per-step State array is counted too. Only RAMs ever write it, but createFastComponent
 /// allocates one for every component that could be synchronous - customs included - so on a
@@ -334,12 +333,99 @@ let checkSimulationFits (arraySize: int) (cost: StepCost) : Result<unit, Simulat
         // can be refused while a design of the same size in 32-bit buses is allowed
         check cost.HeapBytes SimulationBudget.maxHeapBytes "heap memory, which buses wider than 32 bits need,")
 
+(*
+    The step-array arena.
+
+    A large flattened design allocates one Uint32Array per output port - half a million of them on
+    the designs this was built for, each a separate external allocation for V8 to account, trigger
+    collections over, and sweep. While a simulation is being built, the ≤32-bit step arrays are
+    instead Uint32Array VIEWS into 256MB ArrayBuffer slabs, handed out bump-pointer fashion: the
+    external allocation count for a whole build falls from hundreds of thousands to dozens, and a
+    view behaves identically to an ordinary Uint32Array everywhere - same indexing, same length,
+    same emitted code on every read and write, and measured simulation speed unchanged.
+
+    Be honest about what this does and does not buy. A 480,000-component design at 2000 cycles
+    (5.8GB of step arrays) used to end its build ELEVEN MINUTES in with the renderer at 10GB and
+    no simulation to show for it; with the arena the same build completes. What it does not do is
+    make that build quick - the time was measured afterwards to be almost entirely algorithmic,
+    in phases that scale quadratically where gather stays linear (link, order, waves, and
+    AllWaves construction - see the perf-category phase table), and those are a separate fix.
+
+    Two consequences to know about:
+    - A slab is retained while ANY view into it lives, so a simulation's arrays free as one unit
+      when the last reference goes - and one leaked array pins its whole slab. Keeping ended
+      simulations properly released (ModelHelpers.releaseWaveSimData and friends) is what makes
+      this safe; it went in first.
+    - The custom-component output arrays that linking replaces now occupy arena space for the
+      simulation's whole life instead of becoming garbage, which is the same ~quarter that
+      stepCostOfDesign has always charged for. What the budget counts, the arena keeps: the
+      estimate is now exact rather than a peak.
+
+    Under .NET there is no arena - makeIOArrayW falls back to ordinary arrays - so the test suite
+    exercises the same logic over plain arrays. 256MB per slab stays far below any engine's
+    ArrayBuffer ceiling, and a single array bigger than a slab (a step count no budget would ever
+    allow) falls back to an ordinary allocation rather than failing.
+*)
+
+#if FABLE_COMPILER
+[<Fable.Core.Emit("new ArrayBuffer($0)")>]
+let private makeArrayBuffer (bytes: float) : obj = Fable.Core.Util.jsNative
+
+[<Fable.Core.Emit("new Uint32Array($0, $1, $2)")>]
+let private uint32View (buffer: obj) (byteOffset: float) (elements: int) : uint32 array =
+    Fable.Core.Util.jsNative
+#endif
+
+type private StepArena =
+    { mutable Slab: obj
+      mutable NextByte: float }
+
+let private slabBytes = 256.0 * 1024.0 * 1024.0
+
+/// The arena the build in progress is drawing step arrays from, or None outside a build (and
+/// always None under .NET). Module-level for the same reason as stepArrayIndex just above: the
+/// allocation sites are leaves of the build and threading an allocator through every layer would
+/// put plumbing in a dozen signatures for the benefit of two call sites. Reset by every build.
+let mutable private stepArena: StepArena option = None
+
+/// Start drawing ≤32-bit step arrays from arena slabs. Callers must pair this with
+/// finishStepArena however the build ends, or the next truth-table build would draw from a slab
+/// nobody meant it to share.
+let startStepArena () =
+#if FABLE_COMPILER
+    stepArena <- Some { Slab = makeArrayBuffer slabBytes; NextByte = 0.0 }
+#else
+    ()
+#endif
+
+let finishStepArena () = stepArena <- None
+
+/// One ≤32-bit step array: from the arena when a build has one open, ordinary otherwise.
+let private makeUInt32Step (size: int) : uint32 array =
+#if FABLE_COMPILER
+    match stepArena with
+    | Some arena ->
+        let bytes = float size * 4.0
+        if bytes > slabBytes then
+            Array.create size 0u
+        else
+            if arena.NextByte + bytes > slabBytes then
+                arena.Slab <- makeArrayBuffer slabBytes
+                arena.NextByte <- 0.0
+            let view = uint32View arena.Slab arena.NextByte size
+            arena.NextByte <- arena.NextByte + bytes
+            view
+    | None -> Array.create size 0u
+#else
+    Array.create size 0u
+#endif
+
 let makeIOArrayW w size =
     stepArrayIndex <- stepArrayIndex + 1
     match w with
     | w when w <= 32 ->
         { FDataStep = Array.create 2 (Data <| { Width = w; Dat = Word 0u }) // NOTE - 2 should be enough for FData arrays as they are only used in Truthtable
-          UInt32Step = Array.create size 0u
+          UInt32Step = makeUInt32Step size
           BigIntStep = Array.empty
           Width = w
           Index = stepArrayIndex }

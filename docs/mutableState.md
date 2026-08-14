@@ -35,7 +35,7 @@ this is about module-level state.
 | Where | What |
 |---|---|
 | `Simulator.fs` | `simCache`, `simCacheWS` |
-| `FastSim/FastCreate.fs` | `stepArrayIndex` |
+| `FastSim/FastCreate.fs` | `stepArrayIndex`, `stepArena` — build-scoped allocation state, reset by every build; threading either through the build would put plumbing in a dozen signatures for two leaf call sites |
 | `UI/TruthTable/TruthTableView.fs` | `selCache` |
 | `Common/TimeHelpers.fs` | `executionStats`, `instrumentation` |
 

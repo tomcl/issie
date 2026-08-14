@@ -250,6 +250,20 @@ let private isInsideLibraryComponent (fs: FastSimulation) (librarySheets: Set<st
                 | _ -> false
             | None -> false)
 
+/// Build the AllWaves map in a scope that holds nothing.
+///
+/// This exists because a Fable map carries the comparer it was built with, and Fable creates that
+/// comparer - an object holding a Compare closure - at the construction site. V8 gives all the
+/// closures of a function one shared context holding every variable any of them captures, so a
+/// comparer made inside getWaves shares a context with lambdas that capture the FastSimulation -
+/// and the map then pins the whole simulation, step arrays and all, for as long as the map lives.
+/// AllWaves lives in the WaveSimModel, which outlives its simulation by design, and a copy of it
+/// sits in every model generation React retains - which is how an ended simulation's memory
+/// survived every explicit release. Built here, where no closure can capture anything, the
+/// comparer retains nothing. Do not inline this back into its caller.
+let private makeWaveMap (pairs: (WaveIndexT * Wave) array) : Map<WaveIndexT, Wave> =
+    Map.ofArray pairs
+
 /// Get all simulatable waves from CanvasState. Includes top-level Input and Output ports.
 /// Waves contain info which will be used later to create the SVGs for those waves actually
 /// selected. Init value of these from this function is None.
@@ -261,7 +275,7 @@ let getWaves (librarySheets: Set<string>) (ws: WaveSimModel) (fs: FastSimulation
     |> TimeHelpers.instrumentInterval "getAllPorts" start
     |> Array.filter (fun wi -> not (isInsideLibraryComponent fs librarySheets fs.WaveComps[wi.Id]))
     |> Array.map (fun wi -> wi, makeWave ws fs wi)
-    |> Map.ofArray
+    |> makeWaveMap
     |> TimeHelpers.instrumentInterval "makeWavePipeline" start
 
 

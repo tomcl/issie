@@ -438,17 +438,42 @@ let getCurrSheets (model: Model) =
         |> Some
     | None -> None
 
+/// Release what a WaveSimModel holds that should live only as long as its simulation does.
+///
+/// AllWaves looks like plain data and is not. A Fable Map carries its comparer, a closure made
+/// where the map was built - inside getWaves, with the FastSimulation in scope - and a V8 closure
+/// context captures the scope's variables whether or not this closure uses them. So the comparer
+/// of every AllWaves map pins the whole simulation it was built from, step arrays and all.
+/// A wave simulation keeps its WaveSimModel after it ends, for its configuration and its selected
+/// waves; keeping AllWaves too kept the dead simulation - hundreds of MB on a large design, one
+/// per sheet ever wave-simulated - for the life of the project. Found with a heap snapshot, after
+/// every holder the code knows about was confirmed empty.
+///
+/// Success and Loading become Ended because AllWaves is what the viewer draws from: a state that
+/// says "showing waveforms" over an emptied map would be a lie some view would act on.
+let private releaseWaveSimData (ws: WaveSimModel) : WaveSimModel =
+    { ws with
+        AllWaves = Map.empty
+        State =
+            match ws.State with
+            | Success | Loading -> Ended
+            | s -> s }
+
 /// For reasons of space efficiency, ensure that no non-empty unused FastSimulation records are kept.
 /// A FastSimulation holds a step array per net and a SimulationGraph node per component instance, so a
 /// large design's is hundreds of MB: one left behind slows every later edit, because each major GC must
 /// trace all of it. Call this before building a new simulation.
 ///
-/// CurrentStepSimulationStep is the only field of the model holding one. The truth table's
-/// TableSimData is deliberately left alone: it is what regenerates the table when a constraint
-/// changes, so it is in use rather than stale.
+/// CurrentStepSimulationStep is the only field of the model holding one. Every WaveSim entry is
+/// released as well - see releaseWaveSimData - which covers the sheet the caller is about to
+/// resimulate (its AllWaves is rebuilt by the refresh), the sheets left behind by switching the
+/// waveform simulator between sheets, and the entry EndWaveSim is about to mark Ended. The truth
+/// table's TableSimData is deliberately left alone: it is what regenerates the table when a
+/// constraint changes, so it is in use rather than stale.
 let removeAllSimulationsFromModel (model:Model) =
     model
     |> Optic.set currentStepSimulationStep_ None
+    |> Optic.map waveSim_ (Map.map (fun _ -> releaseWaveSimData))
 
 /// True if a step simulation, truth table or waveform simulation is currently open.
 /// Parameters create dependencies across a whole design, so they cannot be changed while one is open.

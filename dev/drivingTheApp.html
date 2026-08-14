@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en" data-root="/issie/">
+<head>
+    <meta charset="UTF-8">
+    <meta content="IE=edge" http-equiv="X-UA-Compatible">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="Main" name="author">
+    <!-- Opengraph properties (https://ogp.me/) -->
+    <meta property="og:site_name" content="issie">
+    <meta property="og:title" content="Driving Issie from outside it
+" />
+    <meta property="og:url" content="/issie/dev/drivingTheApp.html">
+    <meta property="og:type" content="website" />
+    <!-- Twitter cards (https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/summary-card-with-large-image) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="/issie/">
+    <meta name="twitter:title" content="Driving Issie from outside it
+">
+    
+    <title>Driving Issie from outside it
+ | issie</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link crossorigin href="https://fonts.gstatic.com" rel="preconnect">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="/issie/img/favicon.ico" rel="icon" sizes="32x32" type="image/png"/>
+    <script type="application/javascript" src="/issie/content/fsdocs-theme-set-dark.js"></script>
+    <script type="application/javascript" src="/issie/content/fsdocs-details-set-expanded.js"></script>
+    <link href="/issie/content/fsdocs-default.css" rel="stylesheet" type="text/css"/>
+    <link href="/issie/content/fsdocs-theme.css" rel="stylesheet" type="text/css"/>
+    
+    
+</head>
+<body class="content">
+<header>
+    <div class="start">
+        <div id="menu-toggle">
+            <iconify-icon class="icon closed" height="22" icon="eva:menu-fill" width="22"></iconify-icon>
+            <iconify-icon class="icon open" height="22" icon="mi:close" width="22"></iconify-icon>
+            <input type="checkbox" name="mobile-menu" />
+            <ul class="menu">
+                <li class="nav-header">Links</li>
+                <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+                </li>
+                <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                        href="https://github.com/tomcl/issie/releases/">Release
+                    Notes</a></li>
+                <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+                    Repository</a></li>
+                <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+                <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+            </ul>
+        </div>
+        <a href="/issie/">
+            <img alt="Header menu logo" src="/issie//issieIcon.png">
+            <strong>issie</strong>
+        </a>
+    </div>
+    <div class="end">
+        <a href="https://github.com/tomcl/issie/" target="_blank">
+            <iconify-icon icon="uil:github" width="26" height="26"></iconify-icon>
+        </a>
+        <iconify-icon id="search-btn" icon="carbon:search" class="search" width="24" height="24"></iconify-icon>
+        <fsdocs-theme-toggle></fsdocs-theme-toggle>
+    </div>
+</header>
+<aside id="fsdocs-main-menu">
+    <ul class="menu">
+        <li class="nav-header">Links</li>
+        <li class="license-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/blob/master/LICENSE.md">License</a>
+        </li>
+        <li class="release-notes-menu-item builtin-menu-item nav-item"><a class="nav-link"
+                                href="https://github.com/tomcl/issie/releases/">Release
+            Notes</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/">Source
+            Repository</a></li>
+        <li class="repository-menu-item builtin-menu-item nav-item"><a class="nav-link" href="https://github.com/tomcl/issie/wiki">Developers Wiki
+                </a></li>
+    
+        <li class="nav-header ">
+  Documentation
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/features.html">
+    Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/gettingStarted.html">
+    Getting Started
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/userGuide.html">
+    User Tutorial
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/coolFeatures.html">
+    Schematic Editor Features
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogComp.html">
+    Verilog Components
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/verilogGenerate.html">
+    Verilog Output
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/parameterSystem.html">
+    Parameter System
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/reports.html">
+    Technical Reports
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/issiestick.html">
+    ISSIE-Stick FPGA hardware
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/contact.html">
+    Contacts
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/Updating the documentation.html">
+    Updating This Documentation
+  </a>
+</li>             
+<li class="nav-header active">
+  Other
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/BUILD_OPTIMIZATION.html">
+    Build Speed and Fable Caching
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/mutableState.html">
+    Global mutable state: policy and cleanup list
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/ramRepresentation.html">
+    How a RAM is represented in the fast simulator
+
+  </a>
+</li>             
+<li class="nav-item active">
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/simulatorStructure.html">
+    How the simulator is put together
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
+    Making sheets from a program
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
+
+  </a>
+</li>             
+<li class="nav-header ">
+  Blog Updates
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-09-five-years.html">
+    Five years of Issie
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2025-04-04-Issie-v5-9-3.html">
+    ISSIE v5.9.3
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2024-09-25-Issie-v5-2-0.html">
+    ISSIE v5.2.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-12-25-Issie-v3-0-9.html">
+    ISSIE v3.0.9  - Happy Christmas!
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-09-20-Issie-v3-0-1.html">
+    ISSIE v3.0.1
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2022-05-04-Issie-v3-0-0.html">
+    ISSIE v3.0.0
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/updates/2021-07-04-Issie-v2-1-0.html">
+    ISSIE v2.1.0
+  </a>
+</li>
+        <li class="nav-header">
+  API Reference
+</li>             
+<li class="nav-item">
+  <a class="nav-link" href="/issie/reference/index.html">
+    All Namespaces
+  </a>
+</li>
+    </ul>
+</aside>
+<main>
+    <div id="content">
+        <h1><a name="Driving-Issie-from-outside-it" class="anchor" href="#Driving-Issie-from-outside-it">Driving Issie from outside it</a></h1>
+<p><code>scripts/inspect-canvas.js</code> reads what the draw block is showing. This is the other half: sending
+Issie messages, asking what state it is in, and knowing when it has finished responding.</p>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">node scripts/drive.js state                 # what the app currently is, as JSON
+node scripts/drive.js refs                  # what is holding a simulation, and heap use
+node scripts/drive.js commands              # the commands send accepts
+node scripts/drive.js send &lt;name&gt; [arg]     # send one, and wait for the render it causes
+node scripts/drive.js script &lt;file.txt&gt;     # a command per line, each awaiting its render
+</code></pre></td></tr></table>
+<p>Issie must be running a <strong>debug build</strong> — <code>npm run app -- -d</code>, or <code>npm run dev</code>, since the harness
+is published only when <code>JSHelpers.debugLevel &gt; 0</code>. It can start simulations and open projects,
+which is not something a shipped build should offer a page.</p>
+<h2><a name="Why-it-exists" class="anchor" href="#Why-it-exists">Why it exists</a></h2>
+<p>The alternative is synthesising DOM events and reading rendered text back, and that fails in three
+ways that cost real time:</p>
+<ul>
+<li>
+<strong>Waiting.</strong> With nothing to wait <em>on</em>, every step becomes a guessed <code>sleep</code>. Too short and it
+races; too long and a five-step sequence takes a minute.
+</li>
+<li>
+<strong>Clicking.</strong> A click has to find the right element, and "the element whose text is X" is wrong
+often enough to matter — a tab that needs the event on its <code>&lt;a&gt;</code> and not its <code>&lt;li&gt;</code>, a menu left
+open over the canvas, a button whose text is <code>See Problems</code> because the design has an error.
+</li>
+<li>
+<strong>Reading.</strong> Text scraped from the DOM can be a frame out of date while looking authoritative.
+This is the one that causes wrong conclusions rather than slow ones.
+</li>
+</ul>
+<h2><a name="A-script" class="anchor" href="#A-script">A script</a></h2>
+<p>One <code>&lt;name&gt; [arg]</code> per line; <code>#</code> comments and blank lines ignored. Each line waits for the render
+its message caused before the next is sent, so no sleeps are needed anywhere.</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="id">openProject</span> <span class="id">C</span><span class="pn">:</span>
+<span class="id">openSheet</span> <span class="id">main5</span>
+<span class="id">rightTab</span> <span class="id">Simulation</span>
+<span class="id">simSubTab</span> <span class="id">StepSim</span>
+<span class="id">startSimulation</span>
+</code></pre>
+<h2><a name="What-is-for" class="anchor" href="#What-is-for">What <code>refs</code> is for</a></h2>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="json">{ "inModel": 120084, "stepCache": 120084, "waveCache": 0, "truthTable": 0,
+  "waveSimSheets": ["main5"], "usedHeapMB": 450, "heapLimitMB": 4192 }
+</code></pre></td></tr></table>
+<p>A <code>FastSimulation</code> is reachable from several places and only one of them is the model, so "is it
+still in memory" cannot be answered from the model alone. It also cannot reliably be answered from
+the heap: <code>usedJSHeapSize</code> counts typed arrays, does not shrink until a collection runs, and says
+nothing about <em>which</em> reference is keeping something alive. Ending a simulation shows
+<code>inModel</code> and <code>stepCache</code> drop to 0 immediately, while <code>usedHeapMB</code> stays where it was until the
+next GC — the counts are the truthful signal.</p>
+<p>This was added because finding one retained simulation took a heap snapshot with a retainer path
+and an A/B build. <code>refs</code> answers the same question in one call.</p>
+<h2><a name="Adding-a-command" class="anchor" href="#Adding-a-command">Adding a command</a></h2>
+<p><code>send</code> takes a <strong>name from a fixed table</strong>, not a serialised <code>Msg</code>. A <code>Msg</code> is an F# union carrying
+models, canvases and functions; nothing useful survives a round trip through JSON, and a
+dispatch-anything surface in a debug build is a hazard for the sake of messages nobody wanted to
+send. Add a row to <code>commands</code> in <a href="../../src/Renderer/UI/DevHarness.fs"><code>src/Renderer/UI/DevHarness.fs</code></a>
+— that is the intended way to extend it. Each row sends the message the corresponding UI element
+sends, so driving the app from here and driving it by hand cannot diverge.</p>
+<h2><a name="How-the-render-signal-works" class="anchor" href="#How-the-render-signal-works">How the render signal works</a></h2>
+<p><code>Renderer.view'</code> calls <code>DevHarness.recordModel</code> before the view runs and <code>DevHarness.renderDone</code>
+after it. Waiting callbacks are resolved on the <strong>next animation frame</strong> rather than immediately:
+the view returning means React has been given the new elements, not that the DOM holds them, and a
+caller waiting for a render wants the state it then reads to be the state it waited for.</p>
+<p>A command that changes nothing renders nothing, so <code>send</code> bounds its wait rather than hanging, and
+reports <code>(no render within the timeout)</code> if none arrived.</p>
+<h2><a name="A-window-nobody-can-see-does-not-render" class="anchor" href="#A-window-nobody-can-see-does-not-render">A window nobody can see does not render</a></h2>
+<p>Chromium treats a covered window as hidden, and a hidden page runs no <code>requestAnimationFrame</code> —
+which is how Issie renders, since Elmish batches the view into one. A dev window left behind the
+terminal driving it therefore stops rendering altogether: every <code>send</code> reports no render, every
+<code>Input.dispatchMouseEvent</code> takes five seconds to be acknowledged, and a CPU profile of a drag shows
+the renderer idle throughout. Nothing in any of that says "the window was covered"; it reads as the
+app being slow, which is the worst possible answer to give someone measuring why the app is slow.</p>
+<p><code>scripts/start.js</code> turns occlusion tracking off for this reason, so <code>npm run dev</code> renders whether
+or not its window is visible. If you launch Electron yourself, pass the same switches:</p>
+<pre class="fssnip highlighted"><code lang="fsharp"><span class="o">--</span><span class="id">disable</span><span class="o">-</span><span class="id">features</span><span class="o">=</span><span class="id">CalculateNativeWinOcclusion</span> <span class="o">--</span><span class="id">disable</span><span class="o">-</span><span class="id">backgrounding</span><span class="o">-</span><span class="id">occluded</span><span class="o">-</span><span class="id">windows</span>
+<span class="o">--</span><span class="id">disable</span><span class="o">-</span><span class="id">renderer</span><span class="o">-</span><span class="id">backgrounding</span>
+</code></pre>
+<p><code>document.visibilityState</code> is what to check when results stop making sense: <code>hidden</code> while the
+window is plainly on screen means occlusion tracking has decided otherwise, and every timing taken
+in that state is worthless.</p>
+
+        
+    </div>
+</main>
+<aside id="fsdocs-page-menu">
+    <p id="on-this-page">On this page</p>
+    <ul>
+  <li class="level-1">
+    <a href="#Driving-Issie-from-outside-it">
+      Driving Issie from outside it
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Why-it-exists">
+      Why it exists
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#A-script">
+      A script
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#Adding-a-command">
+      Adding a command
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#How-the-render-signal-works">
+      How the render signal works
+    </a>
+  </li>
+  <li class="level-2">
+    <a href="#A-window-nobody-can-see-does-not-render">
+      A window nobody can see does not render
+    </a>
+  </li>
+</ul>
+</aside>
+<dialog>
+    <input type="search" placeholder="Search docs" />
+    <div class="results">
+        <ul></ul>
+        <p class="empty">Type something to start searching.</p>
+    </div>
+</dialog>
+<script type="module" src="/issie/content/fsdocs-tips.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-details-toggle.js"></script>
+<script type="module" src="/issie/content/fsdocs-theme.js"></script>
+<script type="module" src="/issie/content/fsdocs-search.js"></script>
+
+</body>
+</html>

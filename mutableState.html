@@ -121,8 +121,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/repoReview.html">
-    Review of the documentation and code
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -133,14 +133,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
-    Inspecting the draw block from outside the app
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/openIssues.html">
-    Known rough edges
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
 
   </a>
 </li>             
@@ -151,14 +145,26 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogTesting.html">
-    Testing the Verilog subsystem
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -310,8 +316,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/repoReview.html">
-    Review of the documentation and code
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -322,14 +328,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
-    Inspecting the draw block from outside the app
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/openIssues.html">
-    Known rough edges
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
 
   </a>
 </li>             
@@ -340,14 +340,26 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogTesting.html">
-    Testing the Verilog subsystem
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -444,14 +456,18 @@ this is about module-level state.</p>
 <td><p><code>simCache</code>, <code>simCacheWS</code></p></td>
 </tr>
 <tr class="even">
-<td><p><code>FastSim/FastCreate.fs</code></p></td>
-<td><p><code>stepArrayIndex</code></p></td>
+<td><p><code>UI/ModelHelpers.fs</code></p></td>
+<td><p><code>waveSimCostMemo</code> — the waveform configuration dialog reads the design's per-cycle cost on every render</p></td>
 </tr>
 <tr class="odd">
+<td><p><code>FastSim/FastCreate.fs</code></p></td>
+<td><p><code>stepArrayIndex</code>, <code>stepArena</code> — build-scoped allocation state, reset by every build; threading either through the build would put plumbing in a dozen signatures for two leaf call sites</p></td>
+</tr>
+<tr class="even">
 <td><p><code>UI/TruthTable/TruthTableView.fs</code></p></td>
 <td><p><code>selCache</code></p></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><p><code>Common/TimeHelpers.fs</code></p></td>
 <td><p><code>executionStats</code>, <code>instrumentation</code></p></td>
 </tr>
@@ -489,6 +505,14 @@ looks like the exception and is not one.</p>
 <tr class="odd">
 <td><p><code>Interface/JSHelpers.fs</code></p></td>
 <td><p><code>debugLevel</code>, <code>loggingMemory</code>, <code>memSize</code></p></td>
+</tr>
+<tr class="even">
+<td><p><code>UI/DevHarness.fs</code></p></td>
+<td><p><code>latestModel</code>, <code>latestDispatch</code>, <code>waitingForRender</code> — the outside world's handle on a running Issie, in the same way <code>KeyBindings.modelContext</code> is the DOM's. Written by the view wrapper on every render and read only by the debug-build harness; there is no Elmish message that could carry them, since the point is to answer between renders</p></td>
+</tr>
+<tr class="odd">
+<td><p><code>Simulator/SimTypes.fs</code></p></td>
+<td><p><code>SimulationBudget.maxTypedArrayBytes</code>, <code>SimulationBudget.maxHeapBytes</code> — how much memory a simulation may take, which is a fact about the machine rather than about the design. Read once from Electron at renderer startup (<code>setBudgetsFromMachine</code>) and never written again; the values compiled in are the fallback for a run with no Electron to ask, which is every run of the test suite</p></td>
 </tr>
 <tr class="even">
 <td><p><code>Common/Log.fs</code></p></td>

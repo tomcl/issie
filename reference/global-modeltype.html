@@ -118,8 +118,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/repoReview.html">
-    Review of the documentation and code
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -130,14 +130,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
-    Inspecting the draw block from outside the app
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/openIssues.html">
-    Known rough edges
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
 
   </a>
 </li>             
@@ -148,14 +142,26 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogTesting.html">
-    Testing the Verilog subsystem
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -307,8 +313,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/repoReview.html">
-    Review of the documentation and code
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -319,14 +325,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
-    Inspecting the draw block from outside the app
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/openIssues.html">
-    Known rough edges
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
 
   </a>
 </li>             
@@ -337,14 +337,26 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogTesting.html">
-    Testing the Verilog subsystem
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -493,6 +505,44 @@
         <tr>
           <td class="fsdocs-entity-name">
             <p>
+              <a name="CircuitCheck">
+                <a href="/issie/reference/modeltype-circuitcheck.html">
+                  CircuitCheck
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:ModelType.CircuitCheck`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.CircuitCheck\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L814-814" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 Whether the open design currently builds into a simulation, which is all the Simulation tab
+ needs in order to decide whether its button reads "Start Simulation" or "See Problems", and
+ whether to offer the waveform simulator.
+
+ It is here, in the model, because answering it means flattening the whole hierarchy: the tab
+ used to ask on every render, so a large design was flattened again for every frame it was
+ visible. Now it is answered once per edit, on a delay, and the last answer stands while a new
+ one is worked out - a button that is briefly a moment out of date, in exchange for an editor
+ that does not stop.
+
+ The verdict is reached by validateCircuitSimulation, which builds the graph and no
+ FastSimulation, so answering it allocates no step arrays.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
               <a name="CodeEditorModel">
                 <a href="/issie/reference/modeltype-codeeditormodel.html">
                   CodeEditorModel
@@ -592,7 +642,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.DragAddition\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L738-738" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L744-744" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -623,7 +673,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.DragGhost\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L743-743" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L749-749" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -677,7 +727,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.DragPlacement\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L765-765" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L771-771" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -985,7 +1035,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.Model\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L821-821" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L851-851" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1039,7 +1089,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.Notifications\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L650-650" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L656-656" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1066,7 +1116,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.Pane\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L794-794" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L800-800" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1093,7 +1143,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.PinnedCanvas\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L810-810" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L840-840" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1187,7 +1237,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.ProjectBrowserState\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L778-778" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L784-784" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1245,7 +1295,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.RunData\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L728-728" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L734-734" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1353,7 +1403,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.SpinPayload\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L679-679" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L685-685" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1407,7 +1457,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.TTType\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L690-690" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L696-696" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1489,7 +1539,7 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:ModelType.UserData\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L667-667" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L673-673" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
@@ -1604,7 +1654,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1426', 1426)" onmouseover="showTip(event, '1426', 1426)">
+              <code onmouseout="hideTip(event, '1440', 1440)" onmouseover="showTip(event, '1440', 1440)">
                 <p>
                   <a id="algebraError_">
                     <a href="#algebraError_">
@@ -1613,7 +1663,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1426">
+              <div class="fsdocs-tip" id="1440">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>algebraError_&#32;<span></span></span></code>
@@ -1643,7 +1693,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1427', 1427)" onmouseover="showTip(event, '1427', 1427)">
+              <code onmouseout="hideTip(event, '1441', 1441)" onmouseover="showTip(event, '1441', 1441)">
                 <p>
                   <a id="algebraInputs_">
                     <a href="#algebraInputs_">
@@ -1652,7 +1702,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1427">
+              <div class="fsdocs-tip" id="1441">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>algebraInputs_&#32;<span></span></span></code>
@@ -1682,7 +1732,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1428', 1428)" onmouseover="showTip(event, '1428', 1428)">
+              <code onmouseout="hideTip(event, '1442', 1442)" onmouseover="showTip(event, '1442', 1442)">
                 <p>
                   <a id="algebraIns_">
                     <a href="#algebraIns_">
@@ -1691,7 +1741,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1428">
+              <div class="fsdocs-tip" id="1442">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>algebraIns_&#32;<span></span></span></code>
@@ -1721,7 +1771,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1429', 1429)" onmouseover="showTip(event, '1429', 1429)">
+              <code onmouseout="hideTip(event, '1443', 1443)" onmouseover="showTip(event, '1443', 1443)">
                 <p>
                   <a id="badLabel_">
                     <a href="#badLabel_">
@@ -1730,7 +1780,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1429">
+              <div class="fsdocs-tip" id="1443">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>badLabel_&#32;<span></span></span></code>
@@ -1760,7 +1810,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1430', 1430)" onmouseover="showTip(event, '1430', 1430)">
+              <code onmouseout="hideTip(event, '1444', 1444)" onmouseover="showTip(event, '1444', 1444)">
                 <p>
                   <a id="buildVisible_">
                     <a href="#buildVisible_">
@@ -1769,7 +1819,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1430">
+              <div class="fsdocs-tip" id="1444">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>buildVisible_&#32;<span></span></span></code>
@@ -1799,7 +1849,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1431', 1431)" onmouseover="showTip(event, '1431', 1431)">
+              <code onmouseout="hideTip(event, '1445', 1445)" onmouseover="showTip(event, '1445', 1445)">
                 <p>
                   <a id="catalogueSearch_">
                     <a href="#catalogueSearch_">
@@ -1808,7 +1858,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1431">
+              <div class="fsdocs-tip" id="1445">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>catalogueSearch_&#32;<span></span></span></code>
@@ -1838,7 +1888,85 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1432', 1432)" onmouseover="showTip(event, '1432', 1432)">
+              <code onmouseout="hideTip(event, '1446', 1446)" onmouseover="showTip(event, '1446', 1446)">
+                <p>
+                  <a id="checkPending_">
+                    <a href="#checkPending_">
+                      <code><span>checkPending_&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1446">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>checkPending_&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/modeltype-circuitcheck.html">CircuitCheck</a>,&#32;bool</span>&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/modeltype-circuitcheck.html">CircuitCheck</a>,&#32;bool</span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1447', 1447)" onmouseover="showTip(event, '1447', 1447)">
+                <p>
+                  <a id="circuitCheck_">
+                    <a href="#circuitCheck_">
+                      <code><span>circuitCheck_&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1447">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>circuitCheck_&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/modeltype-model.html">Model</a>,&#32;<a href="/issie/reference/modeltype-circuitcheck.html">CircuitCheck</a></span>&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/modeltype-model.html">Model</a>,&#32;<a href="/issie/reference/modeltype-circuitcheck.html">CircuitCheck</a></span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1448', 1448)" onmouseover="showTip(event, '1448', 1448)">
                 <p>
                   <a id="codeEditorState_">
                     <a href="#codeEditorState_">
@@ -1847,7 +1975,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1432">
+              <div class="fsdocs-tip" id="1448">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>codeEditorState_&#32;<span></span></span></code>
@@ -1877,7 +2005,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1433', 1433)" onmouseover="showTip(event, '1433', 1433)">
+              <code onmouseout="hideTip(event, '1449', 1449)" onmouseover="showTip(event, '1449', 1449)">
                 <p>
                   <a id="constraintErrorMsg_">
                     <a href="#constraintErrorMsg_">
@@ -1886,7 +2014,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1433">
+              <div class="fsdocs-tip" id="1449">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>constraintErrorMsg_&#32;<span></span></span></code>
@@ -1916,7 +2044,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1434', 1434)" onmouseover="showTip(event, '1434', 1434)">
+              <code onmouseout="hideTip(event, '1450', 1450)" onmouseover="showTip(event, '1450', 1450)">
                 <p>
                   <a id="constraintIOSel_">
                     <a href="#constraintIOSel_">
@@ -1925,7 +2053,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1434">
+              <div class="fsdocs-tip" id="1450">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>constraintIOSel_&#32;<span></span></span></code>
@@ -1955,7 +2083,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1435', 1435)" onmouseover="showTip(event, '1435', 1435)">
+              <code onmouseout="hideTip(event, '1451', 1451)" onmouseover="showTip(event, '1451', 1451)">
                 <p>
                   <a id="constraintTypeSel_">
                     <a href="#constraintTypeSel_">
@@ -1964,7 +2092,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1435">
+              <div class="fsdocs-tip" id="1451">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>constraintTypeSel_&#32;<span></span></span></code>
@@ -1994,7 +2122,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1436', 1436)" onmouseover="showTip(event, '1436', 1436)">
+              <code onmouseout="hideTip(event, '1452', 1452)" onmouseover="showTip(event, '1452', 1452)">
                 <p>
                   <a id="currentProj_">
                     <a href="#currentProj_">
@@ -2003,7 +2131,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1436">
+              <div class="fsdocs-tip" id="1452">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>currentProj_&#32;<span></span></span></code>
@@ -2033,7 +2161,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1437', 1437)" onmouseover="showTip(event, '1437', 1437)">
+              <code onmouseout="hideTip(event, '1453', 1453)" onmouseover="showTip(event, '1453', 1453)">
                 <p>
                   <a id="currentStepSimulationStep_">
                     <a href="#currentStepSimulationStep_">
@@ -2042,7 +2170,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1437">
+              <div class="fsdocs-tip" id="1453">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>currentStepSimulationStep_&#32;<span></span></span></code>
@@ -2072,7 +2200,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1438', 1438)" onmouseover="showTip(event, '1438', 1438)">
+              <code onmouseout="hideTip(event, '1454', 1454)" onmouseover="showTip(event, '1454', 1454)">
                 <p>
                   <a id="currentTruthTable_">
                     <a href="#currentTruthTable_">
@@ -2081,7 +2209,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1438">
+              <div class="fsdocs-tip" id="1454">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>currentTruthTable_&#32;<span></span></span></code>
@@ -2111,7 +2239,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1439', 1439)" onmouseover="showTip(event, '1439', 1439)">
+              <code onmouseout="hideTip(event, '1455', 1455)" onmouseover="showTip(event, '1455', 1455)">
                 <p>
                   <a id="cursorPos_">
                     <a href="#cursorPos_">
@@ -2120,7 +2248,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1439">
+              <div class="fsdocs-tip" id="1455">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>cursorPos_&#32;<span></span></span></code>
@@ -2150,7 +2278,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1440', 1440)" onmouseover="showTip(event, '1440', 1440)">
+              <code onmouseout="hideTip(event, '1456', 1456)" onmouseover="showTip(event, '1456', 1456)">
                 <p>
                   <a id="defaultCursor_">
                     <a href="#defaultCursor_">
@@ -2159,7 +2287,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1440">
+              <div class="fsdocs-tip" id="1456">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>defaultCursor_&#32;<span></span></span></code>
@@ -2189,7 +2317,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1441', 1441)" onmouseover="showTip(event, '1441', 1441)">
+              <code onmouseout="hideTip(event, '1457', 1457)" onmouseover="showTip(event, '1457', 1457)">
                 <p>
                   <a id="dragPlacement_">
                     <a href="#dragPlacement_">
@@ -2198,7 +2326,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1441">
+              <div class="fsdocs-tip" id="1457">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>dragPlacement_&#32;<span></span></span></code>
@@ -2228,7 +2356,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1442', 1442)" onmouseover="showTip(event, '1442', 1442)">
+              <code onmouseout="hideTip(event, '1458', 1458)" onmouseover="showTip(event, '1458', 1458)">
                 <p>
                   <a id="draggedColumn_">
                     <a href="#draggedColumn_">
@@ -2237,7 +2365,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1442">
+              <div class="fsdocs-tip" id="1458">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>draggedColumn_&#32;<span></span></span></code>
@@ -2267,7 +2395,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1443', 1443)" onmouseover="showTip(event, '1443', 1443)">
+              <code onmouseout="hideTip(event, '1459', 1459)" onmouseover="showTip(event, '1459', 1459)">
                 <p>
                   <a id="errors_">
                     <a href="#errors_">
@@ -2276,7 +2404,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1443">
+              <div class="fsdocs-tip" id="1459">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>errors_&#32;<span></span></span></code>
@@ -2306,7 +2434,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1444', 1444)" onmouseover="showTip(event, '1444', 1444)">
+              <code onmouseout="hideTip(event, '1460', 1460)" onmouseover="showTip(event, '1460', 1460)">
                 <p>
                   <a id="firstClock_">
                     <a href="#firstClock_">
@@ -2315,7 +2443,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1444">
+              <div class="fsdocs-tip" id="1460">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>firstClock_&#32;<span></span></span></code>
@@ -2345,7 +2473,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1445', 1445)" onmouseover="showTip(event, '1445', 1445)">
+              <code onmouseout="hideTip(event, '1461', 1461)" onmouseover="showTip(event, '1461', 1461)">
                 <p>
                   <a id="fontSize_">
                     <a href="#fontSize_">
@@ -2354,7 +2482,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1445">
+              <div class="fsdocs-tip" id="1461">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fontSize_&#32;<span></span></span></code>
@@ -2384,7 +2512,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1446', 1446)" onmouseover="showTip(event, '1446', 1446)">
+              <code onmouseout="hideTip(event, '1462', 1462)" onmouseover="showTip(event, '1462', 1462)">
                 <p>
                   <a id="fontWeight_">
                     <a href="#fontWeight_">
@@ -2393,7 +2521,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1446">
+              <div class="fsdocs-tip" id="1462">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fontWeight_&#32;<span></span></span></code>
@@ -2423,7 +2551,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1447', 1447)" onmouseover="showTip(event, '1447', 1447)">
+              <code onmouseout="hideTip(event, '1463', 1463)" onmouseover="showTip(event, '1463', 1463)">
                 <p>
                   <a id="fromDiagram_">
                     <a href="#fromDiagram_">
@@ -2432,7 +2560,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1447">
+              <div class="fsdocs-tip" id="1463">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fromDiagram_&#32;<span></span></span></code>
@@ -2462,7 +2590,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1448', 1448)" onmouseover="showTip(event, '1448', 1448)">
+              <code onmouseout="hideTip(event, '1464', 1464)" onmouseover="showTip(event, '1464', 1464)">
                 <p>
                   <a id="fromFiles_">
                     <a href="#fromFiles_">
@@ -2471,7 +2599,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1448">
+              <div class="fsdocs-tip" id="1464">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fromFiles_&#32;<span></span></span></code>
@@ -2501,7 +2629,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1449', 1449)" onmouseover="showTip(event, '1449', 1449)">
+              <code onmouseout="hideTip(event, '1465', 1465)" onmouseover="showTip(event, '1465', 1465)">
                 <p>
                   <a id="fromMemoryEditor_">
                     <a href="#fromMemoryEditor_">
@@ -2510,7 +2638,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1449">
+              <div class="fsdocs-tip" id="1465">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fromMemoryEditor_&#32;<span></span></span></code>
@@ -2540,7 +2668,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1450', 1450)" onmouseover="showTip(event, '1450', 1450)">
+              <code onmouseout="hideTip(event, '1466', 1466)" onmouseover="showTip(event, '1466', 1466)">
                 <p>
                   <a id="fromProperties_">
                     <a href="#fromProperties_">
@@ -2549,7 +2677,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1450">
+              <div class="fsdocs-tip" id="1466">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fromProperties_&#32;<span></span></span></code>
@@ -2579,7 +2707,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1451', 1451)" onmouseover="showTip(event, '1451', 1451)">
+              <code onmouseout="hideTip(event, '1467', 1467)" onmouseover="showTip(event, '1467', 1467)">
                 <p>
                   <a id="fromSimulation_">
                     <a href="#fromSimulation_">
@@ -2588,7 +2716,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1451">
+              <div class="fsdocs-tip" id="1467">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fromSimulation_&#32;<span></span></span></code>
@@ -2618,7 +2746,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1452', 1452)" onmouseover="showTip(event, '1452', 1452)">
+              <code onmouseout="hideTip(event, '1468', 1468)" onmouseover="showTip(event, '1468', 1468)">
                 <p>
                   <a id="fromWaveSim_">
                     <a href="#fromWaveSim_">
@@ -2627,7 +2755,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1452">
+              <div class="fsdocs-tip" id="1468">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fromWaveSim_&#32;<span></span></span></code>
@@ -2657,7 +2785,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1453', 1453)" onmouseover="showTip(event, '1453', 1453)">
+              <code onmouseout="hideTip(event, '1469', 1469)" onmouseover="showTip(event, '1469', 1469)">
                 <p>
                   <a id="gridCache_">
                     <a href="#gridCache_">
@@ -2666,7 +2794,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1453">
+              <div class="fsdocs-tip" id="1469">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>gridCache_&#32;<span></span></span></code>
@@ -2696,7 +2824,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1454', 1454)" onmouseover="showTip(event, '1454', 1454)">
+              <code onmouseout="hideTip(event, '1470', 1470)" onmouseover="showTip(event, '1470', 1470)">
                 <p>
                   <a id="gridStyles_">
                     <a href="#gridStyles_">
@@ -2705,7 +2833,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1454">
+              <div class="fsdocs-tip" id="1470">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>gridStyles_&#32;<span></span></span></code>
@@ -2735,7 +2863,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1455', 1455)" onmouseover="showTip(event, '1455', 1455)">
+              <code onmouseout="hideTip(event, '1471', 1471)" onmouseover="showTip(event, '1471', 1471)">
                 <p>
                   <a id="hiddenColumns_">
                     <a href="#hiddenColumns_">
@@ -2744,7 +2872,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1455">
+              <div class="fsdocs-tip" id="1471">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>hiddenColumns_&#32;<span></span></span></code>
@@ -2774,7 +2902,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1456', 1456)" onmouseover="showTip(event, '1456', 1456)">
+              <code onmouseout="hideTip(event, '1472', 1472)" onmouseover="showTip(event, '1472', 1472)">
                 <p>
                   <a id="hoveredColumn_">
                     <a href="#hoveredColumn_">
@@ -2783,7 +2911,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1456">
+              <div class="fsdocs-tip" id="1472">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>hoveredColumn_&#32;<span></span></span></code>
@@ -2813,7 +2941,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1457', 1457)" onmouseover="showTip(event, '1457', 1457)">
+              <code onmouseout="hideTip(event, '1473', 1473)" onmouseover="showTip(event, '1473', 1473)">
                 <p>
                   <a id="importDecisions_">
                     <a href="#importDecisions_">
@@ -2822,7 +2950,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1457">
+              <div class="fsdocs-tip" id="1473">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>importDecisions_&#32;<span></span></span></code>
@@ -2852,7 +2980,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1458', 1458)" onmouseover="showTip(event, '1458', 1458)">
+              <code onmouseout="hideTip(event, '1474', 1474)" onmouseover="showTip(event, '1474', 1474)">
                 <p>
                   <a id="inputConstraints_">
                     <a href="#inputConstraints_">
@@ -2861,7 +2989,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1458">
+              <div class="fsdocs-tip" id="1474">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>inputConstraints_&#32;<span></span></span></code>
@@ -2891,7 +3019,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1459', 1459)" onmouseover="showTip(event, '1459', 1459)">
+              <code onmouseout="hideTip(event, '1475', 1475)" onmouseover="showTip(event, '1475', 1475)">
                 <p>
                   <a id="int2_">
                     <a href="#int2_">
@@ -2900,7 +3028,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1459">
+              <div class="fsdocs-tip" id="1475">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>int2_&#32;<span></span></span></code>
@@ -2930,7 +3058,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1460', 1460)" onmouseover="showTip(event, '1460', 1460)">
+              <code onmouseout="hideTip(event, '1476', 1476)" onmouseover="showTip(event, '1476', 1476)">
                 <p>
                   <a id="int3_">
                     <a href="#int3_">
@@ -2939,7 +3067,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1460">
+              <div class="fsdocs-tip" id="1476">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>int3_&#32;<span></span></span></code>
@@ -2969,7 +3097,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1461', 1461)" onmouseover="showTip(event, '1461', 1461)">
+              <code onmouseout="hideTip(event, '1477', 1477)" onmouseover="showTip(event, '1477', 1477)">
                 <p>
                   <a id="int_">
                     <a href="#int_">
@@ -2978,7 +3106,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1461">
+              <div class="fsdocs-tip" id="1477">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>int_&#32;<span></span></span></code>
@@ -3008,7 +3136,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1462', 1462)" onmouseover="showTip(event, '1462', 1462)">
+              <code onmouseout="hideTip(event, '1478', 1478)" onmouseover="showTip(event, '1478', 1478)">
                 <p>
                   <a id="intlist2_">
                     <a href="#intlist2_">
@@ -3017,7 +3145,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1462">
+              <div class="fsdocs-tip" id="1478">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>intlist2_&#32;<span></span></span></code>
@@ -3047,7 +3175,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1463', 1463)" onmouseover="showTip(event, '1463', 1463)">
+              <code onmouseout="hideTip(event, '1479', 1479)" onmouseover="showTip(event, '1479', 1479)">
                 <p>
                   <a id="intlist_">
                     <a href="#intlist_">
@@ -3056,7 +3184,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1463">
+              <div class="fsdocs-tip" id="1479">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>intlist_&#32;<span></span></span></code>
@@ -3086,7 +3214,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1464', 1464)" onmouseover="showTip(event, '1464', 1464)">
+              <code onmouseout="hideTip(event, '1480', 1480)" onmouseover="showTip(event, '1480', 1480)">
                 <p>
                   <a id="ioOrder_">
                     <a href="#ioOrder_">
@@ -3095,7 +3223,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1464">
+              <div class="fsdocs-tip" id="1480">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ioOrder_&#32;<span></span></span></code>
@@ -3125,7 +3253,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1465', 1465)" onmouseover="showTip(event, '1465', 1465)">
+              <code onmouseout="hideTip(event, '1481', 1481)" onmouseover="showTip(event, '1481', 1481)">
                 <p>
                   <a id="lastClock_">
                     <a href="#lastClock_">
@@ -3134,7 +3262,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1465">
+              <div class="fsdocs-tip" id="1481">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>lastClock_&#32;<span></span></span></code>
@@ -3164,7 +3292,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1466', 1466)" onmouseover="showTip(event, '1466', 1466)">
+              <code onmouseout="hideTip(event, '1482', 1482)" onmouseover="showTip(event, '1482', 1482)">
                 <p>
                   <a id="ldcM">
                     <a href="#ldcM">
@@ -3173,7 +3301,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1466">
+              <div class="fsdocs-tip" id="1482">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ldcM&#32;<span></span></span></code>
@@ -3203,7 +3331,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1467', 1467)" onmouseover="showTip(event, '1467', 1467)">
+              <code onmouseout="hideTip(event, '1483', 1483)" onmouseover="showTip(event, '1483', 1483)">
                 <p>
                   <a id="ldcOptM">
                     <a href="#ldcOptM">
@@ -3212,7 +3340,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1467">
+              <div class="fsdocs-tip" id="1483">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ldcOptM&#32;<span></span></span></code>
@@ -3242,7 +3370,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1468', 1468)" onmouseover="showTip(event, '1468', 1468)">
+              <code onmouseout="hideTip(event, '1484', 1484)" onmouseover="showTip(event, '1484', 1484)">
                 <p>
                   <a id="lines_">
                     <a href="#lines_">
@@ -3251,7 +3379,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1468">
+              <div class="fsdocs-tip" id="1484">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>lines_&#32;<span></span></span></code>
@@ -3281,7 +3409,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1469', 1469)" onmouseover="showTip(event, '1469', 1469)">
+              <code onmouseout="hideTip(event, '1485', 1485)" onmouseover="showTip(event, '1485', 1485)">
                 <p>
                   <a id="memoryEditorData_">
                     <a href="#memoryEditorData_">
@@ -3290,7 +3418,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1469">
+              <div class="fsdocs-tip" id="1485">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>memoryEditorData_&#32;<span></span></span></code>
@@ -3320,7 +3448,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1470', 1470)" onmouseover="showTip(event, '1470', 1470)">
+              <code onmouseout="hideTip(event, '1486', 1486)" onmouseover="showTip(event, '1486', 1486)">
                 <p>
                   <a id="memorySetup_">
                     <a href="#memorySetup_">
@@ -3329,7 +3457,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1470">
+              <div class="fsdocs-tip" id="1486">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>memorySetup_&#32;<span></span></span></code>
@@ -3359,7 +3487,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1471', 1471)" onmouseover="showTip(event, '1471', 1471)">
+              <code onmouseout="hideTip(event, '1487', 1487)" onmouseover="showTip(event, '1487', 1487)">
                 <p>
                   <a id="nameM">
                     <a href="#nameM">
@@ -3368,7 +3496,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1471">
+              <div class="fsdocs-tip" id="1487">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>nameM&#32;<span></span></span></code>
@@ -3398,7 +3526,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1472', 1472)" onmouseover="showTip(event, '1472', 1472)">
+              <code onmouseout="hideTip(event, '1488', 1488)" onmouseover="showTip(event, '1488', 1488)">
                 <p>
                   <a id="nameOptM">
                     <a href="#nameOptM">
@@ -3407,7 +3535,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1472">
+              <div class="fsdocs-tip" id="1488">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>nameOptM&#32;<span></span></span></code>
@@ -3437,7 +3565,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1473', 1473)" onmouseover="showTip(event, '1473', 1473)">
+              <code onmouseout="hideTip(event, '1489', 1489)" onmouseover="showTip(event, '1489', 1489)">
                 <p>
                   <a id="newConstraint_">
                     <a href="#newConstraint_">
@@ -3446,7 +3574,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1473">
+              <div class="fsdocs-tip" id="1489">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>newConstraint_&#32;<span></span></span></code>
@@ -3476,7 +3604,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1474', 1474)" onmouseover="showTip(event, '1474', 1474)">
+              <code onmouseout="hideTip(event, '1490', 1490)" onmouseover="showTip(event, '1490', 1490)">
                 <p>
                   <a id="notifications_">
                     <a href="#notifications_">
@@ -3485,7 +3613,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1474">
+              <div class="fsdocs-tip" id="1490">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>notifications_&#32;<span></span></span></code>
@@ -3515,7 +3643,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1475', 1475)" onmouseover="showTip(event, '1475', 1475)">
+              <code onmouseout="hideTip(event, '1491', 1491)" onmouseover="showTip(event, '1491', 1491)">
                 <p>
                   <a id="openLibrary_">
                     <a href="#openLibrary_">
@@ -3524,7 +3652,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1475">
+              <div class="fsdocs-tip" id="1491">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openLibrary_&#32;<span></span></span></code>
@@ -3554,7 +3682,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1476', 1476)" onmouseover="showTip(event, '1476', 1476)">
+              <code onmouseout="hideTip(event, '1492', 1492)" onmouseover="showTip(event, '1492', 1492)">
                 <p>
                   <a id="openLoadedComponentOfModel_">
                     <a href="#openLoadedComponentOfModel_">
@@ -3563,7 +3691,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1476">
+              <div class="fsdocs-tip" id="1492">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openLoadedComponentOfModel_&#32;<span></span></span></code>
@@ -3593,7 +3721,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1477', 1477)" onmouseover="showTip(event, '1477', 1477)">
+              <code onmouseout="hideTip(event, '1493', 1493)" onmouseover="showTip(event, '1493', 1493)">
                 <p>
                   <a id="openedLibrarySheets_">
                     <a href="#openedLibrarySheets_">
@@ -3602,7 +3730,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1477">
+              <div class="fsdocs-tip" id="1493">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openedLibrarySheets_&#32;<span></span></span></code>
@@ -3632,7 +3760,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1478', 1478)" onmouseover="showTip(event, '1478', 1478)">
+              <code onmouseout="hideTip(event, '1494', 1494)" onmouseover="showTip(event, '1494', 1494)">
                 <p>
                   <a id="outputConstraints_">
                     <a href="#outputConstraints_">
@@ -3641,7 +3769,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1478">
+              <div class="fsdocs-tip" id="1494">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>outputConstraints_&#32;<span></span></span></code>
@@ -3671,7 +3799,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1479', 1479)" onmouseover="showTip(event, '1479', 1479)">
+              <code onmouseout="hideTip(event, '1495', 1495)" onmouseover="showTip(event, '1495', 1495)">
                 <p>
                   <a id="paramCompSpec_">
                     <a href="#paramCompSpec_">
@@ -3680,7 +3808,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1479">
+              <div class="fsdocs-tip" id="1495">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>paramCompSpec_&#32;<span></span></span></code>
@@ -3710,7 +3838,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1480', 1480)" onmouseover="showTip(event, '1480', 1480)">
+              <code onmouseout="hideTip(event, '1496', 1496)" onmouseover="showTip(event, '1496', 1496)">
                 <p>
                   <a id="pendingDragAddition_">
                     <a href="#pendingDragAddition_">
@@ -3719,7 +3847,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1480">
+              <div class="fsdocs-tip" id="1496">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>pendingDragAddition_&#32;<span></span></span></code>
@@ -3749,7 +3877,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1481', 1481)" onmouseover="showTip(event, '1481', 1481)">
+              <code onmouseout="hideTip(event, '1497', 1497)" onmouseover="showTip(event, '1497', 1497)">
                 <p>
                   <a id="popupDialogData_">
                     <a href="#popupDialogData_">
@@ -3758,7 +3886,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1481">
+              <div class="fsdocs-tip" id="1497">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>popupDialogData_&#32;<span></span></span></code>
@@ -3788,7 +3916,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1482', 1482)" onmouseover="showTip(event, '1482', 1482)">
+              <code onmouseout="hideTip(event, '1498', 1498)" onmouseover="showTip(event, '1498', 1498)">
                 <p>
                   <a id="popupViewFunc_">
                     <a href="#popupViewFunc_">
@@ -3797,7 +3925,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1482">
+              <div class="fsdocs-tip" id="1498">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>popupViewFunc_&#32;<span></span></span></code>
@@ -3827,7 +3955,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1483', 1483)" onmouseover="showTip(event, '1483', 1483)">
+              <code onmouseout="hideTip(event, '1499', 1499)" onmouseover="showTip(event, '1499', 1499)">
                 <p>
                   <a id="prevIOOrder_">
                     <a href="#prevIOOrder_">
@@ -3836,7 +3964,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1483">
+              <div class="fsdocs-tip" id="1499">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>prevIOOrder_&#32;<span></span></span></code>
@@ -3866,7 +3994,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1484', 1484)" onmouseover="showTip(event, '1484', 1484)">
+              <code onmouseout="hideTip(event, '1500', 1500)" onmouseover="showTip(event, '1500', 1500)">
                 <p>
                   <a id="progress_">
                     <a href="#progress_">
@@ -3875,7 +4003,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1484">
+              <div class="fsdocs-tip" id="1500">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>progress_&#32;<span></span></span></code>
@@ -3905,7 +4033,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1485', 1485)" onmouseover="showTip(event, '1485', 1485)">
+              <code onmouseout="hideTip(event, '1501', 1501)" onmouseover="showTip(event, '1501', 1501)">
                 <p>
                   <a id="projectBrowser_">
                     <a href="#projectBrowser_">
@@ -3914,7 +4042,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1485">
+              <div class="fsdocs-tip" id="1501">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>projectBrowser_&#32;<span></span></span></code>
@@ -3944,7 +4072,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1486', 1486)" onmouseover="showTip(event, '1486', 1486)">
+              <code onmouseout="hideTip(event, '1502', 1502)" onmouseover="showTip(event, '1502', 1502)">
                 <p>
                   <a id="projectOpt_">
                     <a href="#projectOpt_">
@@ -3953,7 +4081,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1486">
+              <div class="fsdocs-tip" id="1502">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>projectOpt_&#32;<span></span></span></code>
@@ -3983,7 +4111,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1487', 1487)" onmouseover="showTip(event, '1487', 1487)">
+              <code onmouseout="hideTip(event, '1503', 1503)" onmouseover="showTip(event, '1503', 1503)">
                 <p>
                   <a id="projectPath_">
                     <a href="#projectPath_">
@@ -3992,7 +4120,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1487">
+              <div class="fsdocs-tip" id="1503">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>projectPath_&#32;<span></span></span></code>
@@ -4022,7 +4150,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1488', 1488)" onmouseover="showTip(event, '1488', 1488)">
+              <code onmouseout="hideTip(event, '1504', 1504)" onmouseover="showTip(event, '1504', 1504)">
                 <p>
                   <a id="project_">
                     <a href="#project_">
@@ -4031,7 +4159,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1488">
+              <div class="fsdocs-tip" id="1504">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>project_&#32;<span></span></span></code>
@@ -4061,7 +4189,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1489', 1489)" onmouseover="showTip(event, '1489', 1489)">
+              <code onmouseout="hideTip(event, '1505', 1505)" onmouseover="showTip(event, '1505', 1505)">
                 <p>
                   <a id="putWaveSim">
                     <a href="#putWaveSim">
@@ -4070,7 +4198,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1489">
+              <div class="fsdocs-tip" id="1505">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>putWaveSim&#32;<span>wsm&#32;model</span></span></code>
@@ -4115,7 +4243,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:ModelType.putWaveSim\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L1001-1001" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Model/ModelType.fs#L1036-1036" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4156,7 +4284,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1490', 1490)" onmouseover="showTip(event, '1490', 1490)">
+              <code onmouseout="hideTip(event, '1506', 1506)" onmouseover="showTip(event, '1506', 1506)">
                 <p>
                   <a id="ramStartLocation_">
                     <a href="#ramStartLocation_">
@@ -4165,7 +4293,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1490">
+              <div class="fsdocs-tip" id="1506">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ramStartLocation_&#32;<span></span></span></code>
@@ -4195,7 +4323,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1491', 1491)" onmouseover="showTip(event, '1491', 1491)">
+              <code onmouseout="hideTip(event, '1507', 1507)" onmouseover="showTip(event, '1507', 1507)">
                 <p>
                   <a id="readOnlyBaseline_">
                     <a href="#readOnlyBaseline_">
@@ -4204,7 +4332,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1491">
+              <div class="fsdocs-tip" id="1507">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>readOnlyBaseline_&#32;<span></span></span></code>
@@ -4234,7 +4362,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1492', 1492)" onmouseover="showTip(event, '1492', 1492)">
+              <code onmouseout="hideTip(event, '1508', 1508)" onmouseover="showTip(event, '1508', 1508)">
                 <p>
                   <a id="rightPaneTabVisible_">
                     <a href="#rightPaneTabVisible_">
@@ -4243,7 +4371,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1492">
+              <div class="fsdocs-tip" id="1508">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>rightPaneTabVisible_&#32;<span></span></span></code>
@@ -4273,7 +4401,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1493', 1493)" onmouseover="showTip(event, '1493', 1493)">
+              <code onmouseout="hideTip(event, '1509', 1509)" onmouseover="showTip(event, '1509', 1509)">
                 <p>
                   <a id="runAfterRender_">
                     <a href="#runAfterRender_">
@@ -4282,7 +4410,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1493">
+              <div class="fsdocs-tip" id="1509">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>runAfterRender_&#32;<span></span></span></code>
@@ -4312,7 +4440,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1494', 1494)" onmouseover="showTip(event, '1494', 1494)">
+              <code onmouseout="hideTip(event, '1510', 1510)" onmouseover="showTip(event, '1510', 1510)">
                 <p>
                   <a id="savedSheetIsOutOfDate_">
                     <a href="#savedSheetIsOutOfDate_">
@@ -4321,7 +4449,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1494">
+              <div class="fsdocs-tip" id="1510">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>savedSheetIsOutOfDate_&#32;<span></span></span></code>
@@ -4351,7 +4479,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1495', 1495)" onmouseover="showTip(event, '1495', 1495)">
+              <code onmouseout="hideTip(event, '1511', 1511)" onmouseover="showTip(event, '1511', 1511)">
                 <p>
                   <a id="selectedComponent_">
                     <a href="#selectedComponent_">
@@ -4360,7 +4488,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1495">
+              <div class="fsdocs-tip" id="1511">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>selectedComponent_&#32;<span></span></span></code>
@@ -4390,7 +4518,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1496', 1496)" onmouseover="showTip(event, '1496', 1496)">
+              <code onmouseout="hideTip(event, '1512', 1512)" onmouseover="showTip(event, '1512', 1512)">
                 <p>
                   <a id="sheetSearchString_">
                     <a href="#sheetSearchString_">
@@ -4399,7 +4527,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1496">
+              <div class="fsdocs-tip" id="1512">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetSearchString_&#32;<span></span></span></code>
@@ -4429,7 +4557,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1497', 1497)" onmouseover="showTip(event, '1497', 1497)">
+              <code onmouseout="hideTip(event, '1513', 1513)" onmouseover="showTip(event, '1513', 1513)">
                 <p>
                   <a id="sheet_">
                     <a href="#sheet_">
@@ -4438,7 +4566,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1497">
+              <div class="fsdocs-tip" id="1513">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheet_&#32;<span></span></span></code>
@@ -4468,7 +4596,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1498', 1498)" onmouseover="showTip(event, '1498', 1498)">
+              <code onmouseout="hideTip(event, '1514', 1514)" onmouseover="showTip(event, '1514', 1514)">
                 <p>
                   <a id="showLibrarySheets_">
                     <a href="#showLibrarySheets_">
@@ -4477,7 +4605,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1498">
+              <div class="fsdocs-tip" id="1514">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>showLibrarySheets_&#32;<span></span></span></code>
@@ -4507,7 +4635,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1499', 1499)" onmouseover="showTip(event, '1499', 1499)">
+              <code onmouseout="hideTip(event, '1515', 1515)" onmouseover="showTip(event, '1515', 1515)">
                 <p>
                   <a id="showOnlySelected_">
                     <a href="#showOnlySelected_">
@@ -4516,7 +4644,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1499">
+              <div class="fsdocs-tip" id="1515">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>showOnlySelected_&#32;<span></span></span></code>
@@ -4546,7 +4674,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1500', 1500)" onmouseover="showTip(event, '1500', 1500)">
+              <code onmouseout="hideTip(event, '1516', 1516)" onmouseover="showTip(event, '1516', 1516)">
                 <p>
                   <a id="simSubTabVisible_">
                     <a href="#simSubTabVisible_">
@@ -4555,7 +4683,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1500">
+              <div class="fsdocs-tip" id="1516">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>simSubTabVisible_&#32;<span></span></span></code>
@@ -4585,7 +4713,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1501', 1501)" onmouseover="showTip(event, '1501', 1501)">
+              <code onmouseout="hideTip(event, '1517', 1517)" onmouseover="showTip(event, '1517', 1517)">
                 <p>
                   <a id="sortType_">
                     <a href="#sortType_">
@@ -4594,7 +4722,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1501">
+              <div class="fsdocs-tip" id="1517">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sortType_&#32;<span></span></span></code>
@@ -4624,7 +4752,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1502', 1502)" onmouseover="showTip(event, '1502', 1502)">
+              <code onmouseout="hideTip(event, '1518', 1518)" onmouseover="showTip(event, '1518', 1518)">
                 <p>
                   <a id="tTType_">
                     <a href="#tTType_">
@@ -4633,7 +4761,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1502">
+              <div class="fsdocs-tip" id="1518">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tTType_&#32;<span></span></span></code>
@@ -4663,7 +4791,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1503', 1503)" onmouseover="showTip(event, '1503', 1503)">
+              <code onmouseout="hideTip(event, '1519', 1519)" onmouseover="showTip(event, '1519', 1519)">
                 <p>
                   <a id="text2_">
                     <a href="#text2_">
@@ -4672,7 +4800,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1503">
+              <div class="fsdocs-tip" id="1519">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>text2_&#32;<span></span></span></code>
@@ -4702,7 +4830,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1504', 1504)" onmouseover="showTip(event, '1504', 1504)">
+              <code onmouseout="hideTip(event, '1520', 1520)" onmouseover="showTip(event, '1520', 1520)">
                 <p>
                   <a id="text_">
                     <a href="#text_">
@@ -4711,7 +4839,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1504">
+              <div class="fsdocs-tip" id="1520">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>text_&#32;<span></span></span></code>
@@ -4741,7 +4869,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1505', 1505)" onmouseover="showTip(event, '1505', 1505)">
+              <code onmouseout="hideTip(event, '1521', 1521)" onmouseover="showTip(event, '1521', 1521)">
                 <p>
                   <a id="topSheetChoiceDeclined_">
                     <a href="#topSheetChoiceDeclined_">
@@ -4750,7 +4878,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1505">
+              <div class="fsdocs-tip" id="1521">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>topSheetChoiceDeclined_&#32;<span></span></span></code>
@@ -4780,7 +4908,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1506', 1506)" onmouseover="showTip(event, '1506', 1506)">
+              <code onmouseout="hideTip(event, '1522', 1522)" onmouseover="showTip(event, '1522', 1522)">
                 <p>
                   <a id="uISheetTrail_">
                     <a href="#uISheetTrail_">
@@ -4789,7 +4917,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1506">
+              <div class="fsdocs-tip" id="1522">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>uISheetTrail_&#32;<span></span></span></code>
@@ -4819,7 +4947,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1507', 1507)" onmouseover="showTip(event, '1507', 1507)">
+              <code onmouseout="hideTip(event, '1523', 1523)" onmouseover="showTip(event, '1523', 1523)">
                 <p>
                   <a id="userData_">
                     <a href="#userData_">
@@ -4828,7 +4956,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1507">
+              <div class="fsdocs-tip" id="1523">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>userData_&#32;<span></span></span></code>
@@ -4858,7 +4986,46 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1508', 1508)" onmouseover="showTip(event, '1508', 1508)">
+              <code onmouseout="hideTip(event, '1524', 1524)" onmouseover="showTip(event, '1524', 1524)">
+                <p>
+                  <a id="verdict_">
+                    <a href="#verdict_">
+                      <code><span>verdict_&#32;<span></span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1524">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>verdict_&#32;<span></span></span></code>
+                  <br/>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/modeltype-circuitcheck.html">CircuitCheck</a>,&#32;<span><span>(<span><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>bool,&#32;<a href="/issie/reference/simgraphtypes-simulationerror.html">SimulationError</a></span>&gt;</span>&#32;*&#32;<span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></span>)</span>&#32;option</span></span>&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <dl class="fsdocs-returns">
+              <dt>
+                <span class="fsdocs-return-name">
+                  Returns: 
+                </span>
+                <code><span><a href="/issie/reference/optics-lens-2.html">Lens</a>&lt;<span><a href="/issie/reference/modeltype-circuitcheck.html">CircuitCheck</a>,&#32;<span><span>(<span><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span>bool,&#32;<a href="/issie/reference/simgraphtypes-simulationerror.html">SimulationError</a></span>&gt;</span>&#32;*&#32;<span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></span>)</span>&#32;option</span></span>&gt;</span></code>
+              </dt>
+              <dd class="fsdocs-return-docs"></dd>
+            </dl>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1525', 1525)" onmouseover="showTip(event, '1525', 1525)">
                 <p>
                   <a id="verilogCode_">
                     <a href="#verilogCode_">
@@ -4867,7 +5034,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1508">
+              <div class="fsdocs-tip" id="1525">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>verilogCode_&#32;<span></span></span></code>
@@ -4897,7 +5064,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1509', 1509)" onmouseover="showTip(event, '1509', 1509)">
+              <code onmouseout="hideTip(event, '1526', 1526)" onmouseover="showTip(event, '1526', 1526)">
                 <p>
                   <a id="verilogErrors_">
                     <a href="#verilogErrors_">
@@ -4906,7 +5073,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1509">
+              <div class="fsdocs-tip" id="1526">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>verilogErrors_&#32;<span></span></span></code>
@@ -4936,7 +5103,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1510', 1510)" onmouseover="showTip(event, '1510', 1510)">
+              <code onmouseout="hideTip(event, '1527', 1527)" onmouseover="showTip(event, '1527', 1527)">
                 <p>
                   <a id="wSConfigDialog_">
                     <a href="#wSConfigDialog_">
@@ -4945,7 +5112,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1510">
+              <div class="fsdocs-tip" id="1527">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wSConfigDialog_&#32;<span></span></span></code>
@@ -4975,7 +5142,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1511', 1511)" onmouseover="showTip(event, '1511', 1511)">
+              <code onmouseout="hideTip(event, '1528', 1528)" onmouseover="showTip(event, '1528', 1528)">
                 <p>
                   <a id="wSConfig_">
                     <a href="#wSConfig_">
@@ -4984,7 +5151,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1511">
+              <div class="fsdocs-tip" id="1528">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wSConfig_&#32;<span></span></span></code>
@@ -5014,7 +5181,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1512', 1512)" onmouseover="showTip(event, '1512', 1512)">
+              <code onmouseout="hideTip(event, '1529', 1529)" onmouseover="showTip(event, '1529', 1529)">
                 <p>
                   <a id="waveSimSheet_">
                     <a href="#waveSimSheet_">
@@ -5023,7 +5190,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1512">
+              <div class="fsdocs-tip" id="1529">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>waveSimSheet_&#32;<span></span></span></code>
@@ -5053,7 +5220,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1513', 1513)" onmouseover="showTip(event, '1513', 1513)">
+              <code onmouseout="hideTip(event, '1530', 1530)" onmouseover="showTip(event, '1530', 1530)">
                 <p>
                   <a id="waveSim_">
                     <a href="#waveSim_">
@@ -5062,7 +5229,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1513">
+              <div class="fsdocs-tip" id="1530">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>waveSim_&#32;<span></span></span></code>

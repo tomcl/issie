@@ -118,8 +118,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/repoReview.html">
-    Review of the documentation and code
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -130,14 +130,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
-    Inspecting the draw block from outside the app
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/openIssues.html">
-    Known rough edges
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
 
   </a>
 </li>             
@@ -148,14 +142,26 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogTesting.html">
-    Testing the Verilog subsystem
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -307,8 +313,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/repoReview.html">
-    Review of the documentation and code
+  <a class="nav-link" href="/issie/dev/verilogTesting.html">
+    Testing the Verilog subsystem
 
   </a>
 </li>             
@@ -319,14 +325,8 @@
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
-    Inspecting the draw block from outside the app
-
-  </a>
-</li>             
-<li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/openIssues.html">
-    Known rough edges
+  <a class="nav-link" href="/issie/dev/drivingTheApp.html">
+    Driving Issie from outside it
 
   </a>
 </li>             
@@ -337,14 +337,26 @@
   </a>
 </li>             
 <li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/inspectingTheCanvas.html">
+    Inspecting the draw block from outside the app
+
+  </a>
+</li>             
+<li class="nav-item ">
+  <a class="nav-link" href="/issie/dev/repoReview.html">
+    Review of the documentation and code
+
+  </a>
+</li>             
+<li class="nav-item ">
   <a class="nav-link" href="/issie/dev/sheetDescriptionDsl.html">
     Making sheets from a program
 
   </a>
 </li>             
 <li class="nav-item ">
-  <a class="nav-link" href="/issie/dev/verilogTesting.html">
-    Testing the Verilog subsystem
+  <a class="nav-link" href="/issie/dev/openIssues.html">
+    Known rough edges
 
   </a>
 </li>             
@@ -438,7 +450,12 @@
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-        
+         Scaffolding for building a FastSimulation, and alive only while one is built: the flattened
+ design indexed the several ways createInitFastCompPhase and linkFastComponents need it. It is
+ deliberately not kept afterwards - AllComps holds a SimulationComponent per component INSTANCE,
+ so on a large design it is one of the biggest things the simulator ever allocates, and a
+ FastSimulation left holding one made every later edit slower by giving each major GC all of it
+ to trace. What the built simulation still needs is copied out: FCustomOutputCompLookup.
       </p>
     </div>
   </div>
@@ -465,7 +482,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5933', 5933)" onmouseover="showTip(event, '5933', 5933)">
+              <code onmouseout="hideTip(event, '5965', 5965)" onmouseover="showTip(event, '5965', 5965)">
                 <p>
                   <a id="AllComps">
                     <a href="#AllComps">
@@ -474,7 +491,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5933">
+              <div class="fsdocs-tip" id="5965">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>AllComps</code>
@@ -493,7 +510,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L327-327" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L443-443" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -519,7 +536,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5934', 5934)" onmouseover="showTip(event, '5934', 5934)">
+              <code onmouseout="hideTip(event, '5966', 5966)" onmouseover="showTip(event, '5966', 5966)">
                 <p>
                   <a id="CustomInputCompLinks">
                     <a href="#CustomInputCompLinks">
@@ -528,7 +545,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5934">
+              <div class="fsdocs-tip" id="5966">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>CustomInputCompLinks</code>
@@ -547,7 +564,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L314-314" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L433-433" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -571,7 +588,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5935', 5935)" onmouseover="showTip(event, '5935', 5935)">
+              <code onmouseout="hideTip(event, '5967', 5967)" onmouseover="showTip(event, '5967', 5967)">
                 <p>
                   <a id="CustomOutputCompLinks">
                     <a href="#CustomOutputCompLinks">
@@ -580,7 +597,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5935">
+              <div class="fsdocs-tip" id="5967">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>CustomOutputCompLinks</code>
@@ -599,7 +616,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L316-316" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L435-435" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -622,59 +639,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5936', 5936)" onmouseover="showTip(event, '5936', 5936)">
-                <p>
-                  <a id="CustomOutputLookup">
-                    <a href="#CustomOutputLookup">
-                      <code>CustomOutputLookup</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5936">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>CustomOutputLookup</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><span>(<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;*&#32;<a href="/issie/reference/commontypes-outputportnumber.html">OutputPortNumber</a></span>)</span>,&#32;<a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a></span>&gt;</span></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L319-319" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Maps custom component output to corresponding output FastComponent.
- Inverse of CustomOutputCompLinks
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><span>(<span><a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a>&#32;*&#32;<a href="/issie/reference/commontypes-outputportnumber.html">OutputPortNumber</a></span>)</span>,&#32;<a href="/issie/reference/commontypes-fcomponentid.html">FComponentId</a></span>&gt;</span></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5937', 5937)" onmouseover="showTip(event, '5937', 5937)">
+              <code onmouseout="hideTip(event, '5968', 5968)" onmouseover="showTip(event, '5968', 5968)">
                 <p>
                   <a id="Labels">
                     <a href="#Labels">
@@ -683,7 +648,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5937">
+              <div class="fsdocs-tip" id="5968">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code>Labels</code>
@@ -702,7 +667,7 @@
             <details>
               <summary>
                 <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L322-322" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L438-438" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -717,57 +682,6 @@
                     Field type: 
                   </span>
                   <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpmap-2">Map</a>&lt;<span><a href="/issie/reference/commontypes-componentid.html">ComponentId</a>,&#32;string</span>&gt;</span></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '5938', 5938)" onmouseover="showTip(event, '5938', 5938)">
-                <p>
-                  <a id="Simulation">
-                    <a href="#Simulation">
-                      <code>Simulation</code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="5938">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code>Simulation</code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Field type: 
-                    <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L311-311" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Existing Issie data structure representing circuit for simulation - generated by runCanvasStateChecksAndBuildGraph
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Field type: 
-                  </span>
-                  <code><a href="/issie/reference/simgraphtypes-simulationgraph.html">SimulationGraph</a></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -798,7 +712,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5939', 5939)" onmouseover="showTip(event, '5939', 5939)">
+              <code onmouseout="hideTip(event, '5969', 5969)" onmouseover="showTip(event, '5969', 5969)">
                 <p>
                   <a id="getFullSimName">
                     <a href="#getFullSimName">
@@ -807,7 +721,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5939">
+              <div class="fsdocs-tip" id="5969">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.getFullSimName&#32;<span>arg1</span></span></code>
@@ -844,7 +758,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimTypes.GatherData.getFullSimName\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L331-331" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L447-447" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -878,7 +792,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '5940', 5940)" onmouseover="showTip(event, '5940', 5940)">
+              <code onmouseout="hideTip(event, '5970', 5970)" onmouseover="showTip(event, '5970', 5970)">
                 <p>
                   <a id="getFullSimPath">
                     <a href="#getFullSimPath">
@@ -887,7 +801,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="5940">
+              <div class="fsdocs-tip" id="5970">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.getFullSimPath&#32;<span>arg1</span></span></code>
@@ -924,7 +838,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:SimTypes.GatherData.getFullSimPath\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L343-343" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/SimTypes.fs#L459-459" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

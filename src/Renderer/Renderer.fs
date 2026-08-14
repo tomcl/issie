@@ -316,6 +316,7 @@ let attachMenusAndKeyShortcuts (dispatch: Msg -> unit) : System.IDisposable =
     attachExitHandler dispatch
     KeyBindings.publishKeyLog()
     Log.publish()
+    DevHarness.publish dispatch
     // How much memory a simulation may take is a fact about this machine, so it is settled here,
     // once, rather than built into the simulator as a number that suits no machine in particular.
     // The heap limit is read rather than assumed: Main.fs asks for one, and V8 grants what it will.
@@ -359,6 +360,8 @@ let view' model dispatch =
     // Counted unconditionally - one increment - because a re-render storm is Issie's classic
     // performance failure and nothing used to count renders at all.
     Log.countRender()
+    // the model the render is about to draw, for anything driving Issie from outside it
+    DevHarness.recordModel model
     let start = TimeHelpers.getTimeMs()
     view model dispatch
     |> (fun view ->
@@ -366,6 +369,10 @@ let view' model dispatch =
             TimeHelpers.instrumentInterval ">>>View" start view
         else
             view)
+    |> (fun view ->
+        // after the elements exist, so a caller waiting on a render is told once there is one
+        DevHarness.renderDone ()
+        view)
 
 /// A DOM event listener as an Elmish 4 subscription: attach on subscribe, detach on dispose.
 let private domListenerSub (eventName: string) (makeHandler: (Msg -> unit) -> (Browser.Types.Event -> unit)) =

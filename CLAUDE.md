@@ -39,6 +39,13 @@ screenshot, or arbitrary JavaScript evaluated in the renderer (which can click t
 it instead of guessing when the drawing and the model might disagree.
 See [docs/dev/inspectingTheCanvas.md](docs/dev/inspectingTheCanvas.md).
 
+**You can drive the running app.** `scripts/drive.js` sends Issie messages, reads its state as
+JSON, and waits for the render each message causes - so a sequence of steps needs no sleeps and no
+clicking on elements found by their text. `node scripts/drive.js refs` says what is currently
+holding a simulation, which neither the DOM nor the heap can reliably answer. Debug build only
+(`npm run app -- -d`). Prefer it to synthesising mouse events.
+See [docs/dev/drivingTheApp.md](docs/dev/drivingTheApp.md).
+
 **You can make sheets from a program.** A list of components and logical connections, written as
 data, becomes a laid-out `.dgm`, project or `.ldgm` library component — from plain .NET, with
 nothing running. Use it for test schematics rather than building canvases by hand.

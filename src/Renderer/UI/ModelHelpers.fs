@@ -767,16 +767,42 @@ let runCircuitCheck (model: Model) : CircuitCheck =
                       ConnectionsAffected = [] }
         { Verdict = Some(verdict, ldcs); CheckPending = false }
 
-let resimulateWaveSimForErrors (model: Model) : Result<SimulationData, SimulationError>  =
-    let canv = model.Sheet.GetCanvasState()
-    let ws = getWSModel model
-    let simSize =
-        match ws.State with
-        | Success | Loading -> Constants.waveSimRequiredArraySize ws
-        | _ -> 10 // small value does not matter what it is.
-    simulateModel true model.WaveSimSheet simSize canv model
-    |> fst
-    
+/// What the design (result * ldcs) the memoised waveform cost below was computed for.
+/// A cache in the simCache mould: the dialog that reads the cost renders per keystroke.
+let mutable private waveSimCostMemo: (string * LoadedComponent list * Result<SimTypes.StepCost, SimulationError>) option =
+    None
+
+/// The per-cycle memory cost of wave-simulating the open design: what the waveform configuration
+/// dialog's size message and its OK gating need, and nothing more.
+///
+/// This exists because the dialog used to get the same number by building a complete 10-cycle
+/// simulation - every FastComponent, every step array - and reading one field off the result:
+/// 49 seconds of frozen dialog on a 480,000-component design, and the waveform simulation cache
+/// evicted on the way. The cost is a fact about the flattened design, so this stops at the
+/// flattening: check the circuit, gather it, price it, allocate nothing.
+let waveSimStepCost (model: Model) : Result<SimTypes.StepCost, SimulationError> =
+    match model.CurrentProj with
+    | None -> Error (Simulator.makeDummySimulationError "No project is open")
+    | Some project ->
+        let simSheet =
+            match model.WaveSimSheet with
+            | Some s when s <> "" -> s
+            | _ -> project.OpenFileName
+        let ldcs = designOf project (model.Sheet.GetCanvasState())
+        match waveSimCostMemo with
+        | Some(memoSheet, memoLdcs, result) when memoSheet = simSheet && designIsUnchanged memoLdcs ldcs ->
+            result
+        | _ ->
+            let result =
+                try
+                    let _, state, deps = CanvasExtractor.getStateAndDependencies simSheet ldcs
+                    Simulator.validateCircuitSimulation simSheet state deps
+                    |> Result.map (FastCreate.gatherSimulation >> FastCreate.stepCostOfDesign)
+                with e ->
+                    Error (Simulator.makeDummySimulationError $"exception while pricing the design: {e.Message}")
+            waveSimCostMemo <- Some(simSheet, ldcs, result)
+            result
+
 
 //------------------------------------------------------------------------------------------------//
 //------------------------------------ Canvas inspection -----------------------------------------//

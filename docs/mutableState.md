@@ -35,6 +35,7 @@ this is about module-level state.
 | Where | What |
 |---|---|
 | `Simulator.fs` | `simCache`, `simCacheWS` |
+| `UI/ModelHelpers.fs` | `waveSimCostMemo` — the waveform configuration dialog reads the design's per-cycle cost on every render |
 | `FastSim/FastCreate.fs` | `stepArrayIndex`, `stepArena` — build-scoped allocation state, reset by every build; threading either through the build would put plumbing in a dozen signatures for two leaf call sites |
 | `UI/TruthTable/TruthTableView.fs` | `selCache` |
 | `Common/TimeHelpers.fs` | `executionStats`, `instrumentation` |

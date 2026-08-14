@@ -418,13 +418,14 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
     let configDialog_ = waveSimModel_ >->  wSConfigDialog_  >-> Option.withDefault_ (getWSModel model).WSConfig
     let initConfig = Optic.get configDialog_ model
     let wsModel = getWSModel model
-    let fs = resimulateWaveSimForErrors model
+    // the design's per-cycle cost, priced from the flattened design without building anything -
+    // this runs on every render of the dialog, so it must not be the thing it is budgeting for
+    let designCost = ModelHelpers.waveSimStepCost model
 
     let arraySizeMessage (c: WSConfig) =
-        match fs with
+        match designCost with
         | Error _ -> "Unknown: correct schematic error to get size information"
-        | Ok sd ->
-            let cost = sd.FastSim.StepCost
+        | Ok cost ->
             let needed = float cost.TotalBytes * float c.LastClock
             $"Simulating {c.LastClock} cycles of this design needs \
               {SimTypes.SimulationBudget.formatBytes needed} of simulation memory. At most \
@@ -434,9 +435,9 @@ let dialogWaveSimConfigPopup (dispatch: Msg -> unit) (model:Model) =
     /// limit the simulator applies when it builds, so OK is disabled here rather than the
     /// simulation being refused after the dialog has been closed.
     let sizeIsRefused (c: WSConfig) =
-        match fs with
+        match designCost with
         | Error _ -> c.LastClock > Constants.maxWarnSimulationSize
-        | Ok sd -> c.LastClock > FastCreate.maxCyclesFor sd.FastSim.StepCost
+        | Ok cost -> c.LastClock > FastCreate.maxCyclesFor cost
 
     let errorKeys, messages  =
         let c = model |> Optic.get configDialog_

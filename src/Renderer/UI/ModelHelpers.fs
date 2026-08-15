@@ -85,9 +85,10 @@ let clampSelection (index: int) (entries: 'a list) =
 /// message, so a view that read the disk would read it continuously - and the keyboard needs the
 /// number of rows before it can move between them.
 let readProjectBrowserFolder (folder: string) (selected: int) : ProjectBrowserState =
-    let listing =
-        if FilesIO.isDirectory folder then Ok (FilesIO.listFolderForOpening folder)
-        else Error "That folder does not exist."
+    // The reason comes from the read itself rather than from a separate isDirectory beforehand.
+    // Asking first said "That folder does not exist" about every folder Issie was not allowed to
+    // look in, which was most of them and never what the user was looking at.
+    let listing = FilesIO.browseFolderForOpening folder
     { Folder = folder
       Listing = listing
       Selected = listing |> Result.map (clampSelection selected) |> Result.defaultValue 0 }

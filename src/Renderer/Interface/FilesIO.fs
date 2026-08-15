@@ -338,15 +338,21 @@ type ProjectDirectory =
     /// Nothing here that Issie can open.
     | NotAProject
 
+/// Which combination of marker and sheets means what. The one place that rule lives: inspectFolder
+/// reads a folder to answer it, and the project browser is handed the same two facts by main
+/// without either of them having to agree about the meaning separately.
+let classifyFolder (hasMarker: bool) (sheetCount: int) : ProjectDirectory =
+    match hasMarker, sheetCount > 0 with
+    | true, _ -> IsProject
+    | false, true -> SheetsButNoMarker
+    | false, false -> NotAProject
+
 /// What a directory is to Issie, and how many sheets are in it, from the one read of it. The
 /// count is free once the classification has looked at the file names anyway.
 let inspectFolder (path: string) : ProjectDirectory * int =
     let files = readFilesFromDirectory path
     let sheets = files |> List.filter (hasExtn ".dgm") |> List.length
-    match files |> List.exists (hasExtn ".dprj"), sheets > 0 with
-    | true, _ -> IsProject, sheets
-    | false, true -> SheetsButNoMarker, sheets
-    | false, false -> NotAProject, sheets
+    classifyFolder (files |> List.exists (hasExtn ".dprj")) sheets, sheets
 
 let inspectProjectDirectory (path: string) : ProjectDirectory = inspectFolder path |> fst
 
@@ -366,21 +372,68 @@ type FolderEntry = {
     SheetCount: int
 }
 
-/// Every immediate subdirectory of `path`, classified, for the browser to draw.
+/// Ask for a folder chosen in the project browser to be made readable, and say whether it was.
 ///
-/// A native folder picker draws every folder alike, so it cannot show which of them hold projects -
-/// which is the whole reason Issie draws this list itself. Ordinary folders are included because
-/// the browser navigates into them; hidden ones are not, since nobody keeps projects in them and
-/// they would bury what is worth seeing. Openable folders sort first, so a project is never lost
-/// among unrelated ones. One level only: this lists a folder, it does not search a disk.
-let listFolderForOpening (path: string) : FolderEntry list =
-    readSubdirectories path
-    |> List.filter (fun dir -> not ((baseName dir).StartsWith "."))
-    |> List.map (fun dir ->
-        let kind, sheets = inspectFolder dir
-        { Path = dir; Kind = kind; SheetCount = sheets })
+/// Every other read here goes through a channel confined to directories Issie already has a reason
+/// to trust, and a folder just picked out of the browser is not yet one of them. Main decides, by
+/// looking at the folder itself rather than taking the renderer's word: it admits one that holds
+/// sheets or a project marker. False therefore means "no project there", not "refused".
+let admitProjectFolder (path: string) : bool =
+    #if FABLE_COMPILER
+    Bridge.admitProjectFolder path
+    #else
+    // Nothing confines a test run, so every folder is already as readable as it will ever be.
+    isDirectory path
+    #endif
+
+/// Ordinary folders are included because the browser navigates into them; hidden ones are not,
+/// since nobody keeps projects in them and they would bury what is worth seeing. Openable folders
+/// sort first, so a project is never lost among unrelated ones.
+let private forBrowsing (entries: FolderEntry list) =
+    entries
+    |> List.filter (fun entry -> not ((baseName entry.Path).StartsWith "."))
     |> List.sortBy (fun entry ->
         (match entry.Kind with NotAProject -> 1 | _ -> 0), String.toLower (baseName entry.Path))
+
+/// Every immediate subdirectory of `path`, classified, for the browser to draw - or why the folder
+/// could not be listed. One level only: this lists a folder, it does not search a disk.
+///
+/// A native folder picker draws every folder alike, so it cannot show which of them hold projects -
+/// which is the whole reason Issie draws this list itself.
+///
+/// Deliberately NOT readSubdirectories and inspectFolder, which reach the operating system through
+/// the confined filesystem channel. The folder being browsed is by definition one the user has not
+/// opened yet, so every folder worth showing was refused: the dialog opened on the folder holding
+/// the last project and reported that the user's Documents did not exist. The browse channel in
+/// src/Main/Bridge.fs answers this one question without that confinement, and carries names and
+/// counts rather than the contents of anything.
+let browseFolderForOpening (path: string) : Result<FolderEntry list, string> =
+    #if FABLE_COMPILER
+    let listing = Bridge.browseFolder path
+
+    if not listing.exists then
+        Error "That folder is not there."
+    else
+        listing.entries
+        |> Array.toList
+        |> List.map (fun entry ->
+            { Path = entry.path
+              Kind = classifyFolder entry.hasMarker entry.sheetCount
+              SheetCount = entry.sheetCount })
+        |> forBrowsing
+        |> Ok
+    #else
+    // Nothing confines a test run, so the ordinary directory reads answer this directly.
+    if not (isDirectory path) then
+        Error "That folder is not there."
+    else
+        readSubdirectories path
+        |> List.map (fun dir ->
+            let kind, sheets = inspectFolder dir
+            { Path = dir; Kind = kind; SheetCount = sheets })
+        |> forBrowsing
+        |> Ok
+    #endif
 
 let removeExtn extn fName = 
     if hasExtn extn fName

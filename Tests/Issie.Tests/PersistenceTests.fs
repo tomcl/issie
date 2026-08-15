@@ -108,7 +108,11 @@ let tests =
                 sub ".hidden" |> ignore                 // hidden: nobody keeps projects there
                 touch folder "loose.dgm"                // a file, so not a folder in the listing
 
-                let listed = FilesIO.listFolderForOpening folder
+                let listed =
+                    FilesIO.browseFolderForOpening folder
+                    |> function
+                        | Ok entries -> entries
+                        | Error msg -> failtest $"a folder that is there should list: {msg}"
                 Expect.equal (listed |> List.map (fun e -> System.IO.Path.GetFileName e.Path))
                     ["orphan"; "zebra"; "notes"]
                     "openable folders first in name order, then ordinary ones; hidden and files omitted"
@@ -119,18 +123,24 @@ let tests =
                     "and how many sheets it holds, which is what tells two projects apart")
         }
 
-        test "a folder holding nothing lists nothing" {
+        test "a folder holding nothing lists nothing, and says so as an empty listing" {
+            // An empty folder and a folder that cannot be listed are different things to be told:
+            // the browser draws "Nothing in this folder" for one and the reason for the other, and
+            // reporting a folder Issie could not read as empty is what this distinguishes.
             withTempDir (fun folder ->
-                Expect.isEmpty (FilesIO.listFolderForOpening folder) "an empty folder lists nothing")
+                match FilesIO.browseFolderForOpening folder with
+                | Ok entries -> Expect.isEmpty entries "an empty folder lists nothing"
+                | Error msg -> failtest $"an empty folder is still a folder: {msg}")
         }
 
-        test "a path that is not a folder lists nothing rather than failing" {
+        test "a path that is not a folder is an error rather than an empty listing" {
             withTempDir (fun folder ->
                 touch folder "a.dgm"
                 let notAFolder = System.IO.Path.Combine(folder, "a.dgm")
-                Expect.isEmpty (FilesIO.listFolderForOpening notAFolder) "a file has nothing inside it"
-                Expect.isEmpty (FilesIO.listFolderForOpening (System.IO.Path.Combine(folder, "nope")))
-                    "nor does a path that is not there")
+                Expect.isError (FilesIO.browseFolderForOpening notAFolder)
+                    "a file is not somewhere to browse"
+                Expect.isError (FilesIO.browseFolderForOpening (System.IO.Path.Combine(folder, "nope")))
+                    "nor is a path that is not there")
         }
 
         // The recent projects list is user data that survives restarts, so a list one too long, or

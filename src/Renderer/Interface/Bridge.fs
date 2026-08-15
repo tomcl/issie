@@ -86,6 +86,35 @@ let fsRename (oldPath: string) (newPath: string) : unit = jsNative
 [<Emit("window.issieBridge.fs.modifiedTimeMs($0)")>]
 let fsModifiedTimeMs (filePath: string) : float option = jsNative
 
+// ---- browsing for a project ----
+//
+// The two operations main does not confine to its roots, because a folder picker that may only show
+// folders already opened cannot be used to find a new one. See the browse channel in
+// src/Main/Bridge.fs for why that is safe: names and counts cross, never file contents.
+
+/// One subdirectory as main reports it: what is on the disk, not what it means. FilesIO turns the
+/// pair into a ProjectDirectory.
+type BrowseEntry = {
+    path: string
+    hasMarker: bool
+    sheetCount: int
+}
+
+/// `exists` is false when the folder is not there, which the caller must tell apart from a folder
+/// that is there and empty.
+type BrowseResult = {
+    exists: bool
+    entries: BrowseEntry array
+}
+
+[<Emit("window.issieBridge.browse.folder($0)")>]
+let browseFolder (folderPath: string) : BrowseResult = jsNative
+
+/// Ask main to make a folder chosen in the Open Project dialog readable. False when main did not
+/// agree it holds a project, in which case nothing in it can be loaded.
+[<Emit("window.issieBridge.browse.admitProject($0)")>]
+let admitProjectFolder (folderPath: string) : bool = jsNative
+
 // ---- dialogs, shell and window ----
 //
 // Main displays the dialogs, which is not only where Electron wants them once contextIsolation is

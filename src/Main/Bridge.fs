@@ -262,6 +262,12 @@ let private checkPath (needsWrite: bool) (p: string) : Result<string, string> =
 let private ok (value: obj) = {| ok = true; value = value; error = "" |}
 let private err (message: string) = {| ok = false; value = null; error = message |}
 
+let private isDirectorySync (p: string) =
+    try
+        fs.existsSync (U2.Case1 p) && fs.lstatSync(U2.Case1 p).isDirectory ()
+    with _ ->
+        false
+
 [<Emit("$0.readdirSync($1, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name)")>]
 let private subdirectoryNamesOf (fsModule: obj) (folderPath: string) : string array = jsNative
 
@@ -319,16 +325,97 @@ let private handleFs (request: obj) =
             err (string e?message)
 
 // ---------------------------------------------------------------------------------------------
+// The browse channel
+//
+// The one channel above that is NOT confined to the roots, and the reason it can be: what crosses
+// it is the names of directories and two counts of what is in them. No file is opened, nothing
+// here reaches readFile, and no path learned this way becomes readable by anything else.
+//
+// It exists because confinement and a folder picker are otherwise contradictory. A picker may only
+// list folders the user has already opened, but the whole point of opening it is to find one they
+// have not - so Issie's own Open Project dialog, which starts in the folder holding the last
+// project, was refused the moment it drew itself and reported "That folder does not exist" about
+// the user's Documents. The native dialog does not have the problem because main runs it, and shows
+// the user their whole filesystem regardless; drawing the list in the renderer instead is what
+// makes projects distinguishable from ordinary folders, and should not cost the user the ability
+// to go and look.
+//
+// So the capability granted here is knowing what a directory is called - which any file dialog
+// discloses anyway - and not the readFile-anywhere that confinement exists to prevent.
+// ---------------------------------------------------------------------------------------------
+
+/// The file names directly inside a folder. Empty when it cannot be read, which the caller tells
+/// apart from an empty folder by having already asked whether the folder is there.
+let private fileNamesOf (folderPath: string) : string array =
+    try
+        fs.readdirSync (U2.Case1 folderPath) |> Seq.toArray
+    with _ ->
+        [||]
+
+/// One subdirectory, as the two facts that tell an Issie project from an ordinary folder. Which
+/// combination means what is the renderer's rule (FilesIO.ProjectDirectory), not settled here:
+/// main reports what is on the disk and nothing about what it means.
+let private browseEntry (parent: string) (name: string) =
+    let full = path.join (parent, name)
+    let files = fileNamesOf full
+
+    {| path = full
+       hasMarker = files |> Array.exists (fun (f: string) -> f.EndsWith ".dprj")
+       sheetCount = files |> Array.filter (fun (f: string) -> f.EndsWith ".dgm") |> Array.length |}
+
+/// Every immediate subdirectory of a folder, for the project browser to draw. `exists` says whether
+/// the folder is there at all, so that a folder which is missing and one which cannot be read are
+/// not reported to the user as the same thing.
+let private handleBrowse (request: obj) =
+    let folderPath: string = unbox request?path
+
+    if not (isDirectorySync folderPath) then
+        {| exists = false; entries = [||] |} |> box
+    else
+        let names =
+            try
+                subdirectoryNamesOf fs folderPath
+            with e ->
+                Log.warn $"browse could not list '{folderPath}': {e?message}"
+                [||]
+
+        {| exists = true
+           entries = names |> Array.map (browseEntry folderPath) |}
+        |> box
+
+/// Admit a folder the user picked in Issie's own Open Project dialog, having checked here that it
+/// is what the renderer says it is: a directory that actually holds an Issie project.
+///
+/// The check is what makes this safe to offer, and it is the same one the recents list already
+/// passes through - so this grants nothing that was not reachable already. The comment on root
+/// confinement above states the residual gap plainly: the renderer writes IssieSettings.json, so it
+/// can already nominate any directory holding a .dprj and have it admitted on the next call. This
+/// admits exactly that set, without the round trip through the settings file.
+///
+/// Sheets without a marker are included because the browser offers to open those too, and refusing
+/// them here would make it offer something that then failed to load.
+let private handleAdmitProject (request: obj) =
+    let folderPath: string = unbox request?path
+
+    if folderPath = "" || not (isDirectorySync folderPath) then
+        false
+    else
+        let files = fileNamesOf folderPath
+        let looksLikeProject =
+            files |> Array.exists (fun (f: string) -> f.EndsWith ".dprj" || f.EndsWith ".dgm")
+
+        if looksLikeProject then
+            allowProjectRoot folderPath
+            true
+        else
+            Log.warn $"not admitting '{folderPath}': it holds no Issie project"
+            false
+
+// ---------------------------------------------------------------------------------------------
 // Dialogs, shell and window
 // ---------------------------------------------------------------------------------------------
 
 let private focusedWindow () = mainProcess.BrowserWindow.getFocusedWindow ()
-
-let private isDirectorySync (p: string) =
-    try
-        fs.existsSync (U2.Case1 p) && fs.lstatSync(U2.Case1 p).isDirectory ()
-    with _ ->
-        false
 
 /// A path the user picked in a dialog main itself displayed is, by construction, a path the user
 /// chose - so it and the directory holding it become reachable. This is the main way a project
@@ -710,6 +797,12 @@ let register () =
     // handleFs already answers {ok, error} for anything it can catch; onSync is the backstop for
     // anything it cannot, so that a bug here can never freeze the renderer.
     onSync "issie:fs" (handleFs >> box)
+
+    // Listing folders for the Open Project dialog, and admitting the one chosen from it. Kept as
+    // its own channel rather than two more filesystem operations, because these two are exactly
+    // the ones the roots do not confine and that difference should be visible at the wiring.
+    onSync "issie:browse" handleBrowse
+    onSync "issie:admitProject" (handleAdmitProject >> box)
 
     onSync "issie:dialog" handleDialog
 

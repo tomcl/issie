@@ -226,6 +226,17 @@ let rec openChosenFolder (path: string) model dispatch =
     /// way out of here that does not load something would otherwise leave it spinning over an
     /// unchanged app.
     let giveUp () = dispatch (Sheet (SheetT.SetSpinner false))
+
+    // Everything below this line reads the folder through the confined filesystem channel, and a
+    // folder just picked out of the browser is one Issie has no reason to trust yet - so ask first.
+    // Main decides, by looking for itself: it admits a directory that really does hold sheets or a
+    // project marker, and refuses anything else. Without this, choosing a project the browser had
+    // just drawn read as an empty folder and browsed into it instead of opening it.
+    //
+    // A folder it declines is not an error to report. It is a folder with no project in it, which
+    // is exactly the case below that carries on browsing.
+    admitProjectFolder path |> ignore
+
     match inspectProjectDirectory path with
     | IsProject -> openProjectFromPath path model dispatch
 

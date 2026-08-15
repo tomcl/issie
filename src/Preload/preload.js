@@ -51,6 +51,17 @@ const api = {
     modifiedTimeMs: (path) => fsOp('modifiedTimeMs', { path }),
   },
 
+  // The Open Project dialog, which Issie draws itself so that it can show which folders hold
+  // projects. These are the only two operations main does not confine to the roots it already
+  // knows: folder returns directory names and counts and never file contents, and admitProject
+  // checks for itself that the folder really is a project before making it readable.
+  browse: {
+    // {exists, entries: [{path, hasMarker, sheetCount}]}
+    folder: (path) => sync('issie:browse', { path }),
+    // true when the folder was admitted; false when main did not agree it is a project
+    admitProject: (path) => sync('issie:admitProject', { path }),
+  },
+
   // Dialogs. Main runs them, so a path the user picks is a path main watched them pick - which is
   // what lets it admit the containing directory as somewhere Issie may then read and write.
   // An empty array or empty string means the user cancelled.

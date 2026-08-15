@@ -593,13 +593,11 @@ let displayView model dispatch =
         then
             ScrollbarMouseMsg (event.clientX, ClearScrollbarDrag, dispatch) |> dispatch
 
-    let afterRenderHook: IHTMLProp list =
-        match model.RunAfterRenderWithSpinner with
-        | Some {FnToRun=fn} ->
-            [Ref (fun element ->
-                    if element <> null then
-                        dispatch <| DispatchDelayed (0, UpdateModel ((fun model -> { model with RunAfterRenderWithSpinner = None }) >> fn dispatch)))]
-        | None -> []
+    // Model.RunAfterRenderWithSpinner used to be run from a Ref on the div below, which fires in
+    // React's commit. That is not the same moment as the browser painting what was committed, so
+    // the spinner a function had just switched on could still be unpainted when the function
+    // blocked the thread for the length of a simulation build. Update.runWhenPainted schedules it
+    // instead, from the update that asks for it.
 
     match model.Spinner with
     | Some fn -> 
@@ -617,7 +615,7 @@ let displayView model dispatch =
         JSHelpers.delayedDispatch dispatch 1000 (SetTopMenu Closed) |> ignore
         div [] []
     else
-        div (afterRenderHook @ [
+        div [
                 HTMLAttr.Id "WholeApp"
                 OnMouseMove (processMouseMove false)
                 OnClick (processAppClick model.TopMenuOpenState dispatch)
@@ -630,7 +628,7 @@ let displayView model dispatch =
                     CSSProp.Custom("Overflow", "clip clip")
                     Height "calc(100%-4px)"
                     ]
-                ]) [
+                ] [
             // transient popups
             UIPopups.viewPopup model dispatch
 

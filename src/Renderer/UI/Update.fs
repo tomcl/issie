@@ -863,6 +863,54 @@ let updateUnpinned (msg : Msg) oldModel =
     |> UpdateHelpers.traceMessage startOfUpdateTime msg
     |> ModelHelpers.execOneAsyncJobIfPossible
 
+/// Start a function the model has asked to run after the render it has just caused - see
+/// `Model.RunAfterRenderWithSpinner` - once that render is ON SCREEN.
+///
+/// What runs here blocks the thread for as long as it takes, and building a wave simulation is
+/// seconds, so the render that has just switched a spinner on has to have been painted before it
+/// starts or the spinner only ever reaches the DOM. Being rendered does not mean being painted:
+/// Elmish calls React's `root.render` from an animation frame, but a `createRoot` render commits in
+/// a task of React's own afterwards, and a timer started from there can be the very next task, with
+/// no frame - and so no paint - in between.
+///
+/// `requestAnimationFrame` fires at the start of a frame's rendering steps. The first lands in the
+/// frame Elmish rendered from and the second in the frame after React's commit, so a timer started
+/// from inside the second runs once the frame carrying that commit has been painted. Waiting on the
+/// browser rather than on a millisecond count is what makes this hold on a slow machine as well as
+/// a fast one.
+///
+/// This is why starting a waveform simulation showed its spinner the first time and never again: a
+/// first start commits a far larger change than a restart, and only that took long enough to be
+/// painted before the build began.
+let private runWhenPainted (request: RunData) : Cmd<Msg> =
+    Cmd.ofEffect (fun dispatch ->
+        let run () =
+            DispatchDelayed(0, UpdateModel(fun model ->
+                // What is pending may have been replaced since this was scheduled, by a later
+                // request or by the previous one finishing. Only the request this was scheduled for
+                // may run, and it may run once.
+                match model.RunAfterRenderWithSpinner with
+                | Some pending when System.Object.ReferenceEquals(pending, request) ->
+                    { model with RunAfterRenderWithSpinner = None } |> request.FnToRun dispatch
+                | _ -> model))
+            |> dispatch
+        Browser.Dom.window.requestAnimationFrame (fun _ ->
+            Browser.Dom.window.requestAnimationFrame (fun _ -> run ()) |> ignore)
+        |> ignore)
+
+/// Schedule whatever after-render function this update has newly asked to run.
+///
+/// One place rather than each of the five that ask, because what they need is not "call me back"
+/// but "call me back when the user can see this", and none of them should have to know how a model
+/// change reaches the screen.
+let private scheduleAfterRender (oldModel: Model) (model: Model, cmd: Cmd<Msg>) =
+    match oldModel.RunAfterRenderWithSpinner, model.RunAfterRenderWithSpinner with
+    | _, None -> model, cmd
+    // the same request as before is already scheduled: an update that leaves it alone is not a new
+    // ask, and scheduling it again would run it twice
+    | Some before, Some after when System.Object.ReferenceEquals(before, after) -> model, cmd
+    | _, Some request -> model, Cmd.batch [ cmd; runWhenPainted request ]
+
 /// Main MVU model update function.
 ///
 /// Wraps the dispatch so that a library sheet opened for viewing is held at the state it loaded
@@ -875,3 +923,4 @@ let updateUnpinned (msg : Msg) oldModel =
 let update (msg : Msg) oldModel =
     updateUnpinned msg oldModel
     |> map fst_ (ModelHelpers.pinIfReadOnly msg)
+    |> scheduleAfterRender oldModel

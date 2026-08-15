@@ -30,7 +30,33 @@ module Constants =
     /// Needed to prevent possible overrun of simulation arrays
     let multipliers = [1;2;5;10;20;50;100;200;500;1000]
     let maxStepsOverflow = 3
-    let waveSimRequiredArraySize wsModel = wsModel.WSConfig.LastClock + maxStepsOverflow + List.last multipliers
+
+    /// How many cycles a waveform simulation must hold beyond its last clock.
+    ///
+    /// Zooming out samples every Nth cycle, and reading the last sample can run a multiplier past
+    /// LastClock - so the arrays carry a margin of one. It used to be the largest multiplier there
+    /// is, whatever the simulation was: a 200-cycle simulation allocated 1203 cycles of arrays, six
+    /// times what it could use. A multiplier bigger than LastClock samples nothing, so the margin
+    /// is the largest that is not, and the one in use whatever that is - the zoom menu offers the
+    /// current multiplier back even when the configuration has since shrunk under it.
+    let waveSimZoomMargin (wsModel: WaveSimModel) =
+        multipliers
+        |> List.filter (fun m -> m <= wsModel.WSConfig.LastClock)
+        |> List.fold max wsModel.SamplingZoom
+
+    let waveSimRequiredArraySize wsModel =
+        wsModel.WSConfig.LastClock + maxStepsOverflow + waveSimZoomMargin wsModel
+
+    /// Where a waveform simulation of a big design starts, in clock cycles. Enough to watch a
+    /// design work; short enough that starting one is seconds rather than minutes.
+    let shortStartClock = 200
+    /// The share of the heap budget its expanded design may take before a simulation is started at
+    /// shortStartClock rather than at what it was configured for.
+    let bigDesignHeapShare = 0.2
+    /// Clock cycles allowed per unit of that share, below the threshold. 40 / share, which is
+    /// exactly shortStartClock at the threshold and grows past any configured number as the design
+    /// gets small - so an ordinary design starts at what it asked for and nothing else changes.
+    let startClockPerHeapShare = 40.0
     let defaultWSConfig = {
             LastClock = 2000; // Simulation array limit during wave simulation
             FirstClock = 0; // first clock accessible - limits scroll range. NOT IMPLEMENTED
@@ -672,6 +698,44 @@ let validateWaveModel (simulatedSheet: string option) openSheetCanvasState model
 /// Return SimulationData that can be used to extend the simulation
 /// as needed, or error if simulation fails.
 /// Note that simulation is only redone if current canvas changes.
+/// What the design a simulation of this sheet would expand to costs in heap, worked out the way
+/// GraphMerger refuses on and from the same pair of canvas and project the simulation itself is
+/// assembled from.
+let simulationHeapEstimate (simulatedSheet: string option) (openSheetCanvasState: CanvasState) model : float =
+    match model.CurrentProj with
+    | None -> 0.0
+    | Some project ->
+        let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
+        // The open sheet as it is on the canvas now, every other sheet as the project holds it -
+        // which is the design simulateModel goes on to build.
+        let ldcs =
+            project.LoadedComponents
+            |> List.map (fun ldc ->
+                if ldc.Name = project.OpenFileName then { ldc with CanvasState = openSheetCanvasState } else ldc)
+        ldcs
+        |> List.tryFind (fun ldc -> ldc.Name = simSheet)
+        |> Option.map (fun ldc -> GraphMerger.expandedHeapEstimate simSheet ldc.CanvasState ldcs)
+        |> Option.defaultValue 0.0
+
+/// The clock cycle a waveform simulation should start at, given what its expanded design will cost
+/// in heap and what it was configured for.
+///
+/// A big design costs minutes to start, not seconds: main6 of the largeTest project is 480,000
+/// components, and at the configured 2000 cycles it spent three minutes building 6GB of step
+/// arrays and another two building 835,000 wave records - all before showing anything. Started
+/// short it is seconds, and the configuration is still there to raise once the user has seen the
+/// design work. This only ever lowers what was asked for.
+let startingLastClock (configured: int) (heapEstimate: float) =
+    let budget = SimTypes.SimulationBudget.maxHeapBytes
+    if heapEstimate <= 0.0 || budget <= 0.0 then
+        configured
+    else
+        let share = heapEstimate / budget
+        if share > Constants.bigDesignHeapShare then
+            min configured Constants.shortStartClock
+        else
+            min (float configured) (Constants.startClockPerHeapShare / share) |> int
+
 let simulateModel (isWaveSim: bool) (simulatedSheet: string option) (simulationArraySize: int) openSheetCanvasState model =
     let start = TimeHelpers.getTimeMs()
     match openSheetCanvasState, model.CurrentProj with

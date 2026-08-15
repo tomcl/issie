@@ -299,6 +299,22 @@ let refreshButtonAction canvasState model dispatch = fun _ ->
         let wsModel =
             getWSModel model
             |> fun wsModel -> {wsModel with ScrollbarBkgRepCycs= Constants.scrollbarBkgRepCyclesInit}
+            // A simulation being started is given a clock count its design can be started in.
+            // Only on starting: a Refresh of a running simulation keeps what the configuration
+            // says, so raising the clock count there and pressing Refresh does what it looks like.
+            |> fun wsModel ->
+                match wsModel.State with
+                | Success -> wsModel
+                | _ ->
+                    let estimate = ModelHelpers.simulationHeapEstimate model.WaveSimSheet canvasState model
+                    let lastClock = ModelHelpers.startingLastClock wsModel.WSConfig.LastClock estimate
+                    if lastClock = wsModel.WSConfig.LastClock then
+                        wsModel
+                    else
+                        Log.warn
+                            $"This design is large, so its waveform simulation starts at {lastClock} clock cycles \
+                              rather than {wsModel.WSConfig.LastClock}. Use Configure to ask for more."
+                        Optic.set (wSConfig_ >-> lastClock_) lastClock wsModel
         let simRes =
             // Here is where the new fast simulation is created
             ModelHelpers.simulateModel

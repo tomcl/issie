@@ -299,6 +299,15 @@ let expandedSize (topSheet: string) (state: CanvasState) (ldcs: LoadedComponent 
 let expandedComponentCount (topSheet: string) (state: CanvasState) (ldcs: LoadedComponent list) : float =
     expandedSize topSheet state ldcs |> fst
 
+/// What the expanded design will cost in heap, by the same reckoning checkExpansionFits refuses on.
+/// Costs a walk of each sheet's canvas and never of the expansion, so it is cheap enough to ask
+/// before every simulation - which the waveform simulator does, to decide how many clock cycles to
+/// start with rather than only whether to start at all.
+let expandedHeapEstimate (topSheet: string) (state: CanvasState) (ldcs: LoadedComponent list) : float =
+    let components, ports = expandedSize topSheet state ldcs
+    let portsEach = if components > 0.0 then ports / components else 0.0
+    components * SimTypes.SimulationBudget.heapBytesPerComponent portsEach
+
 /// The largest sheets below the top, which is where a design that is too large got its size.
 /// Named in the refusal because "too large" on a project of small sheets is not something a user
 /// can act on without being told where to look.
@@ -324,7 +333,7 @@ let checkExpansionFits
     =
     let components, ports = expandedSize topSheet state ldcs
     let portsEach = if components > 0.0 then ports / components else 0.0
-    let needed = components * SimTypes.SimulationBudget.heapBytesPerComponent portsEach
+    let needed = expandedHeapEstimate topSheet state ldcs
 
     if needed <= SimTypes.SimulationBudget.maxHeapBytes then
         Ok()

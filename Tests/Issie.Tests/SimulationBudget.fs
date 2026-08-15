@@ -233,4 +233,55 @@ let tests =
             Expect.isGreaterThan predicted 1.0e18 "8^20 is a very large number of components"
             Expect.isTrue (System.Double.IsFinite predicted) "and it must be a number, not infinity"
         }
+
+        //--------------------------------------------------------------------------------------//
+        // Where a waveform simulation starts.
+        //
+        // Fitting in memory is not the same as being worth waiting for. A design can pass every
+        // check above and still spend minutes building step arrays and wave records before showing
+        // anything, so a big one starts at a clock count it can be started in and says so.
+        //--------------------------------------------------------------------------------------//
+
+        test "a big design starts short and a small one starts where it was asked to" {
+            let budget = SimulationBudget.maxHeapBytes
+            let atShare share = ModelHelpers.startingLastClock 2000 (share * budget)
+            Expect.equal (atShare 0.5) ModelHelpers.Constants.shortStartClock
+                "half the heap budget is a design to start short"
+            Expect.equal (atShare 0.001) 2000 "a design of no size starts at what it was configured for"
+            Expect.equal (ModelHelpers.startingLastClock 2000 0.0) 2000
+                "and so does one whose size is not known"
+        }
+
+        test "the clock count falls smoothly to the short start, and does not jump at it" {
+            let budget = SimulationBudget.maxHeapBytes
+            let atShare share = ModelHelpers.startingLastClock 100000 (share * budget)
+            // 40 / share, so the threshold share of 0.2 is exactly the short start: a design just
+            // under it must not be given hugely more cycles than one just over.
+            Expect.equal (atShare 0.2) ModelHelpers.Constants.shortStartClock "at the threshold"
+            Expect.equal (atShare 0.1) 400 "half the size, twice the cycles"
+            Expect.equal (atShare 0.02) 2000 "a fiftieth of the budget is the ordinary default"
+            Expect.isLessThan (atShare 0.21) (atShare 0.19 + 1) "and nothing jumps upward across it"
+        }
+
+        test "a design is never started at more cycles than it asked for" {
+            let budget = SimulationBudget.maxHeapBytes
+            Expect.equal (ModelHelpers.startingLastClock 50 (0.5 * budget)) 50
+                "a configuration below the short start is left alone"
+            Expect.equal (ModelHelpers.startingLastClock 50 (0.0001 * budget)) 50
+                "and so is one on a design of no size"
+        }
+
+        test "the step arrays carry a zoom margin the simulation could use, not the largest there is" {
+            let ws lastClock zoom =
+                { ModelHelpers.initWSModel with
+                    WSConfig = { ModelHelpers.initWSModel.WSConfig with LastClock = lastClock }
+                    SamplingZoom = zoom }
+            // The margin covers reading one sample past the end at the multiplier in use.
+            Expect.equal (ModelHelpers.Constants.waveSimRequiredArraySize (ws 2000 1)) (2000 + 3 + 1000)
+                "a long simulation can be zoomed out the whole way, so it keeps the whole margin"
+            Expect.equal (ModelHelpers.Constants.waveSimRequiredArraySize (ws 200 1)) (200 + 3 + 200)
+                "a 200-cycle simulation used to allocate 1203 cycles of arrays for zooms it cannot use"
+            Expect.equal (ModelHelpers.Constants.waveSimRequiredArraySize (ws 200 500)) (200 + 3 + 500)
+                "the multiplier actually in use is covered whatever the configuration has shrunk to"
+        }
     ]

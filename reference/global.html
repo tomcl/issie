@@ -3789,6 +3789,42 @@
       <tr>
         <td class="fsdocs-entity-name">
           <p>
+            <a name="WaveSimHierarchy">
+              <a href="/issie/reference/global-wavesimhierarchy.html">
+                WaveSimHierarchy
+              </a>
+            </a>
+          </p>
+        </td>
+        <td class="fsdocs-entity-xmldoc">
+          <div>
+            <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:WaveSimHierarchy`')">
+              <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+            </div>
+            <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:WaveSimHierarchy\'/>')">
+              <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+            </div>
+            <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimHierarchy.fs#L11-11" class="fsdocs-source-link" title="Source on GitHub">
+              <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+            </a>
+            <p class="fsdocs-summary">
+               The collapsed design hierarchy the wave selector shows.
+
+ A design whose sheets instantiate one another multiplies out: seven sheets of a few instances
+ each is tens of thousands of instances, and a selector with one entry per instance grows with
+ that rather than with the design somebody wrote. So the hierarchy shown has one node per SHEET
+ at each point in the tree, and the user says which instance of it they mean.
+
+ This module works out, once per render, everything both panes of the selector need: which nodes
+ there are, which instances each one could show, and which one it is showing. Both panes read the
+ same answer, so they cannot disagree about it.
+            </p>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="fsdocs-entity-name">
+          <p>
             <a name="WaveSimNavigation">
               <a href="/issie/reference/global-wavesimnavigation.html">
                 WaveSimNavigation

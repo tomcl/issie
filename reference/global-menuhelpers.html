@@ -478,6 +478,71 @@
         <tr>
           <td class="fsdocs-entity-name">
             <p>
+              <a name="SheetInstance">
+                <a href="/issie/reference/menuhelpers-sheetinstance.html">
+                  SheetInstance
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:MenuHelpers.SheetInstance`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:MenuHelpers.SheetInstance\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L334-334" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 One custom component instance on a sheet's canvas. The field names are prefixed because F#
+ resolves an unannotated record field to the LAST type declaring it: `Label`, `Id` and `Sheet`
+ would each capture uses meant for Component and for the Elmish Model, in every file compiled
+ after this one.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="SheetShapes">
+                <a href="/issie/reference/menuhelpers-sheetshapes.html">
+                  SheetShapes
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:MenuHelpers.SheetShapes`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:MenuHelpers.SheetShapes\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L352-352" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 What is directly inside each sheet of a project, by sheet NAME - so one entry however many
+ times a sheet is instantiated, with the sheets inside it NAMED rather than held. That costs one
+ pass over each canvas and not the design's expansion, and it makes a sheet that contains itself
+ representable without anything lazy.
+
+ It deliberately holds nothing that depends on where a sheet sits: label path, access path,
+ breadcrumb name, size and depth are all properties of an OCCURRENCE, and a design several
+ routes reach one sheet by has many occurrences of one entry here. Those are filled in by
+ materialiseTree, for the occurrences that are going to be looked at.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
               <a name="SheetTree">
                 <a href="/issie/reference/menuhelpers-sheettree.html">
                   SheetTree
@@ -524,7 +589,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1276', 1276)" onmouseover="showTip(event, '1276', 1276)">
+              <code onmouseout="hideTip(event, '1279', 1279)" onmouseover="showTip(event, '1279', 1279)">
                 <p>
                   <a id="addToRecents">
                     <a href="#addToRecents">
@@ -533,7 +598,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1276">
+              <div class="fsdocs-tip" id="1279">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>addToRecents&#32;<span>path&#32;recents</span></span></code>
@@ -601,7 +666,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1277', 1277)" onmouseover="showTip(event, '1277', 1277)">
+              <code onmouseout="hideTip(event, '1280', 1280)" onmouseover="showTip(event, '1280', 1280)">
                 <p>
                   <a id="allRootSheets">
                     <a href="#allRootSheets">
@@ -610,7 +675,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1277">
+              <div class="fsdocs-tip" id="1280">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>allRootSheets&#32;<span>sTrees</span></span></code>
@@ -662,7 +727,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1278', 1278)" onmouseover="showTip(event, '1278', 1278)">
+              <code onmouseout="hideTip(event, '1281', 1281)" onmouseover="showTip(event, '1281', 1281)">
                 <p>
                   <a id="breadcrumbName_">
                     <a href="#breadcrumbName_">
@@ -671,7 +736,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1278">
+              <div class="fsdocs-tip" id="1281">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>breadcrumbName_&#32;<span></span></span></code>
@@ -701,7 +766,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1279', 1279)" onmouseover="showTip(event, '1279', 1279)">
+              <code onmouseout="hideTip(event, '1282', 1282)" onmouseover="showTip(event, '1282', 1282)">
                 <p>
                   <a id="currWaveSimModel">
                     <a href="#currWaveSimModel">
@@ -710,7 +775,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1279">
+              <div class="fsdocs-tip" id="1282">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>currWaveSimModel&#32;<span>model</span></span></code>
@@ -747,7 +812,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.currWaveSimModel\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1100-1100" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1222-1222" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -780,7 +845,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1280', 1280)" onmouseover="showTip(event, '1280', 1280)">
+              <code onmouseout="hideTip(event, '1283', 1283)" onmouseover="showTip(event, '1283', 1283)">
                 <p>
                   <a id="deleteFileConfirmationPopup">
                     <a href="#deleteFileConfirmationPopup">
@@ -789,7 +854,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1280">
+              <div class="fsdocs-tip" id="1283">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>deleteFileConfirmationPopup&#32;<span>sheetName&#32;model&#32;dispatch</span></span></code>
@@ -873,7 +938,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1281', 1281)" onmouseover="showTip(event, '1281', 1281)">
+              <code onmouseout="hideTip(event, '1284', 1284)" onmouseover="showTip(event, '1284', 1284)">
                 <p>
                   <a id="displayFileErrorNotification">
                     <a href="#displayFileErrorNotification">
@@ -882,7 +947,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1281">
+              <div class="fsdocs-tip" id="1284">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>displayFileErrorNotification&#32;<span>err&#32;dispatch</span></span></code>
@@ -950,7 +1015,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1282', 1282)" onmouseover="showTip(event, '1282', 1282)">
+              <code onmouseout="hideTip(event, '1285', 1285)" onmouseover="showTip(event, '1285', 1285)">
                 <p>
                   <a id="extractLabelBase">
                     <a href="#extractLabelBase">
@@ -959,7 +1024,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1282">
+              <div class="fsdocs-tip" id="1285">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>extractLabelBase&#32;<span>text</span></span></code>
@@ -1011,7 +1076,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1283', 1283)" onmouseover="showTip(event, '1283', 1283)">
+              <code onmouseout="hideTip(event, '1286', 1286)" onmouseover="showTip(event, '1286', 1286)">
                 <p>
                   <a id="fileEntryBox">
                     <a href="#fileEntryBox">
@@ -1020,7 +1085,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1283">
+              <div class="fsdocs-tip" id="1286">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>fileEntryBox&#32;<span>files&#32;fName&#32;dialog&#32;dispatch</span></span></code>
@@ -1138,7 +1203,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1284', 1284)" onmouseover="showTip(event, '1284', 1284)">
+              <code onmouseout="hideTip(event, '1287', 1287)" onmouseover="showTip(event, '1287', 1287)">
                 <p>
                   <a id="foldOverTree">
                     <a href="#foldOverTree">
@@ -1147,7 +1212,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1284">
+              <div class="fsdocs-tip" id="1287">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>foldOverTree&#32;<span>isSubSheet&#32;folder&#32;tree&#32;model</span></span></code>
@@ -1247,7 +1312,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1285', 1285)" onmouseover="showTip(event, '1285', 1285)">
+              <code onmouseout="hideTip(event, '1288', 1288)" onmouseover="showTip(event, '1288', 1288)">
                 <p>
                   <a id="forgetRecentProject">
                     <a href="#forgetRecentProject">
@@ -1256,7 +1321,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1285">
+              <div class="fsdocs-tip" id="1288">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>forgetRecentProject&#32;<span>path&#32;model&#32;dispatch</span></span></code>
@@ -1309,7 +1374,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.forgetRecentProject``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1016-1016" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1138-1138" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1358,7 +1423,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1286', 1286)" onmouseover="showTip(event, '1286', 1286)">
+              <code onmouseout="hideTip(event, '1289', 1289)" onmouseover="showTip(event, '1289', 1289)">
                 <p>
                   <a id="formatLabel">
                     <a href="#formatLabel">
@@ -1367,7 +1432,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1286">
+              <div class="fsdocs-tip" id="1289">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>formatLabel&#32;<span>comp&#32;text</span></span></code>
@@ -1435,7 +1500,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1287', 1287)" onmouseover="showTip(event, '1287', 1287)">
+              <code onmouseout="hideTip(event, '1290', 1290)" onmouseover="showTip(event, '1290', 1290)">
                 <p>
                   <a id="formatLabelAsBus">
                     <a href="#formatLabelAsBus">
@@ -1444,7 +1509,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1287">
+              <div class="fsdocs-tip" id="1290">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>formatLabelAsBus&#32;<span>width&#32;text</span></span></code>
@@ -1512,7 +1577,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1288', 1288)" onmouseover="showTip(event, '1288', 1288)">
+              <code onmouseout="hideTip(event, '1291', 1291)" onmouseover="showTip(event, '1291', 1291)">
                 <p>
                   <a id="formatLabelFromType">
                     <a href="#formatLabelFromType">
@@ -1521,7 +1586,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1288">
+              <div class="fsdocs-tip" id="1291">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>formatLabelFromType&#32;<span>compType&#32;text</span></span></code>
@@ -1589,7 +1654,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1289', 1289)" onmouseover="showTip(event, '1289', 1289)">
+              <code onmouseout="hideTip(event, '1292', 1292)" onmouseover="showTip(event, '1292', 1292)">
                 <p>
                   <a id="getFileInProject">
                     <a href="#getFileInProject">
@@ -1598,7 +1663,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1289">
+              <div class="fsdocs-tip" id="1292">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getFileInProject&#32;<span>name&#32;project</span></span></code>
@@ -1666,7 +1731,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1290', 1290)" onmouseover="showTip(event, '1290', 1290)">
+              <code onmouseout="hideTip(event, '1293', 1293)" onmouseover="showTip(event, '1293', 1293)">
                 <p>
                   <a id="getHintPaneElement">
                     <a href="#getHintPaneElement">
@@ -1675,7 +1740,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1290">
+              <div class="fsdocs-tip" id="1293">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getHintPaneElement&#32;<span>model</span></span></code>
@@ -1727,7 +1792,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1291', 1291)" onmouseover="showTip(event, '1291', 1291)">
+              <code onmouseout="hideTip(event, '1294', 1294)" onmouseover="showTip(event, '1294', 1294)">
                 <p>
                   <a id="getSavedWave">
                     <a href="#getSavedWave">
@@ -1736,7 +1801,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1291">
+              <div class="fsdocs-tip" id="1294">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getSavedWave&#32;<span>model</span></span></code>
@@ -1773,7 +1838,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.getSavedWave\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1150-1150" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1272-1272" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1806,7 +1871,112 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1292', 1292)" onmouseover="showTip(event, '1292', 1292)">
+              <code onmouseout="hideTip(event, '1295', 1295)" onmouseover="showTip(event, '1295', 1295)">
+                <p>
+                  <a id="getSheetShapes">
+                    <a href="#getSheetShapes">
+                      <code><span>getSheetShapes&#32;<span>showLibrarySheet&#32;p</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1295">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>getSheetShapes&#32;<span>showLibrarySheet&#32;p</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        showLibrarySheet
+                      </b>
+                      :
+                      <code><span>string&#32;->&#32;bool</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        p
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-project.html">Project</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/menuhelpers-sheetshapes.html">SheetShapes</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MenuHelpers.getSheetShapes`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.getSheetShapes\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L390-390" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What is directly inside each sheet of the project: one pass over each canvas, and so a cost
+ that is the design's own size whatever that design expands to.
+
+ showLibrarySheet: a library sheet it answers false for is left out, and so are the instances
+ that would put it inside someone else - a library component is one thing, not a sheet with
+ innards. It has to be decided here rather than by filtering the project first: the shapes are
+ read off each sheet's canvas, so a sheet removed from LoadedComponents still leaves its
+ instance naming it, with nothing to find under that name.
+
+ A predicate rather than one flag for the lot, because a library component the user has asked
+ to look inside appears in the Sheets menu while the rest of the library stays hidden.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    showLibrarySheet
+                  </span>
+                  :
+                  <code><span>string&#32;->&#32;bool</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    p
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-project.html">Project</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/menuhelpers-sheetshapes.html">SheetShapes</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1296', 1296)" onmouseover="showTip(event, '1296', 1296)">
                 <p>
                   <a id="getSheetTrees">
                     <a href="#getSheetTrees">
@@ -1815,7 +1985,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1292">
+              <div class="fsdocs-tip" id="1296">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getSheetTrees&#32;<span>allowAllInstances&#32;p</span></span></code>
@@ -1860,7 +2030,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.getSheetTrees\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L429-429" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L528-528" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1901,7 +2071,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1293', 1293)" onmouseover="showTip(event, '1293', 1293)">
+              <code onmouseout="hideTip(event, '1297', 1297)" onmouseover="showTip(event, '1297', 1297)">
                 <p>
                   <a id="getSheetTreesFiltered">
                     <a href="#getSheetTreesFiltered">
@@ -1910,7 +2080,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1293">
+              <div class="fsdocs-tip" id="1297">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getSheetTreesFiltered&#32;<span>showLibrarySheet&#32;allowAllInstances&#32;p</span></span></code>
@@ -1963,20 +2133,14 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.getSheetTreesFiltered\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L363-363" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L523-523" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      Get the subsheet tree for all sheets in the current project.
  Returns a map from sheet name to tree of SheetTree nodes.
- showLibrarySheet: a library sheet it answers false for is left out, and so are the instances
- that would put it in someone else's tree - a library component is one thing, not a sheet with
- innards. It has to be decided here rather than by filtering the project first: the tree is
- built by walking each sheet's canvas, so a sheet removed from LoadedComponents still leaves
- its instance making a node, with nothing in it.
-
- A predicate rather than one flag for the lot, because a library component the user has asked
- to look inside appears in the Sheets menu while the rest of the library stays hidden.
+ Every sheet is a root here and every node is built: callers that draw one hierarchy, and that
+ can leave part of it unopened, should use getSheetShapes and materialiseTree directly.
                   </p>
                 </div>
               </summary>
@@ -2021,7 +2185,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1294', 1294)" onmouseover="showTip(event, '1294', 1294)">
+              <code onmouseout="hideTip(event, '1298', 1298)" onmouseover="showTip(event, '1298', 1298)">
                 <p>
                   <a id="isFileInProject">
                     <a href="#isFileInProject">
@@ -2030,7 +2194,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1294">
+              <div class="fsdocs-tip" id="1298">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isFileInProject&#32;<span>name&#32;project</span></span></code>
@@ -2098,7 +2262,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1295', 1295)" onmouseover="showTip(event, '1295', 1295)">
+              <code onmouseout="hideTip(event, '1299', 1299)" onmouseover="showTip(event, '1299', 1299)">
                 <p>
                   <a id="librarySheetsShown">
                     <a href="#librarySheetsShown">
@@ -2107,7 +2271,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1295">
+              <div class="fsdocs-tip" id="1299">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>librarySheetsShown&#32;<span>model&#32;sheet</span></span></code>
@@ -2152,7 +2316,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.librarySheetsShown\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L434-434" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L533-533" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2194,7 +2358,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1296', 1296)" onmouseover="showTip(event, '1296', 1296)">
+              <code onmouseout="hideTip(event, '1300', 1300)" onmouseover="showTip(event, '1300', 1300)">
                 <p>
                   <a id="loadComponentWithRAMChanges">
                     <a href="#loadComponentWithRAMChanges">
@@ -2203,7 +2367,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1296">
+              <div class="fsdocs-tip" id="1300">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>loadComponentWithRAMChanges&#32;<span><span>(<span>arg1,&#32;arg2</span>)</span>&#32;savedWaveSim&#32;ldc&#32;model</span></span></code>
@@ -2319,86 +2483,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1297', 1297)" onmouseover="showTip(event, '1297', 1297)">
-                <p>
-                  <a id="makeBreadcrumbNamesUnique">
-                    <a href="#makeBreadcrumbNamesUnique">
-                      <code><span>makeBreadcrumbNamesUnique&#32;<span>tree</span></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="1297">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>makeBreadcrumbNamesUnique&#32;<span>tree</span></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        tree
-                      </b>
-                      :
-                      <code><a href="/issie/reference/menuhelpers-sheettree.html">SheetTree</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code><a href="/issie/reference/menuhelpers-sheettree.html">SheetTree</a></code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <details>
-              <summary>
-                <div class="fsdocs-summary">
-                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MenuHelpers.makeBreadcrumbNamesUnique`')">
-                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
-                  </div>
-                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.makeBreadcrumbNamesUnique\'/>')">
-                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
-                  </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L331-331" class="fsdocs-source-link" title="Source on GitHub">
-                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
-                  </a>
-                  <p class="fsdocs-summary">
-                     Throughout the tree of sheets adjust breadcrumbName so it is unique within the children of each sheet
-                  </p>
-                </div>
-              </summary>
-              <dl class="fsdocs-params">
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    tree
-                  </span>
-                  :
-                  <code><a href="/issie/reference/menuhelpers-sheettree.html">SheetTree</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-              </dl>
-              <dl class="fsdocs-returns">
-                <dt>
-                  <span class="fsdocs-return-name">
-                    Returns: 
-                  </span>
-                  <code><a href="/issie/reference/menuhelpers-sheettree.html">SheetTree</a></code>
-                </dt>
-                <dd class="fsdocs-return-docs"></dd>
-              </dl>
-            </details>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '1298', 1298)" onmouseover="showTip(event, '1298', 1298)">
+              <code onmouseout="hideTip(event, '1301', 1301)" onmouseover="showTip(event, '1301', 1301)">
                 <p>
                   <a id="makeSourceMenu">
                     <a href="#makeSourceMenu">
@@ -2407,7 +2492,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1298">
+              <div class="fsdocs-tip" id="1301">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>makeSourceMenu&#32;<span>model&#32;updateMem&#32;cid&#32;dispatch&#32;modelCurrent</span></span></code>
@@ -2541,7 +2626,247 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1299', 1299)" onmouseover="showTip(event, '1299', 1299)">
+              <code onmouseout="hideTip(event, '1302', 1302)" onmouseover="showTip(event, '1302', 1302)">
+                <p>
+                  <a id="materialiseTree">
+                    <a href="#materialiseTree">
+                      <code><span>materialiseTree&#32;<span>expand&#32;allInstances&#32;shapes&#32;root</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1302">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>materialiseTree&#32;<span>expand&#32;allInstances&#32;shapes&#32;root</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        expand
+                      </b>
+                      :
+                      <code><span><span>string&#32;list</span>&#32;->&#32;bool</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        allInstances
+                      </b>
+                      :
+                      <code>bool</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        shapes
+                      </b>
+                      :
+                      <code><a href="/issie/reference/menuhelpers-sheetshapes.html">SheetShapes</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        root
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/menuhelpers-sheettree.html">SheetTree</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MenuHelpers.materialiseTree`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.materialiseTree\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L427-427" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Build the part of a hierarchy that is going to be looked at.
+
+ `expand` is asked of each node's SheetPath: a node it says false to comes back as a leaf and
+ nothing below it is built at all. That is what lets a design many routes reach one sheet in be
+ drawn without being walked, since the drawn tree is then the only tree there is.
+ `fun _ -> true` builds the whole thing, which is what the Sheets menu asks for.
+
+ allInstances = false collapses several instances of one sheet inside one parent into one node,
+ dropping the others BEFORE their subtrees are built rather than after. Instances of a sheet
+ expand identically - same children, same depth - so this is the same tree; what it is not is
+ the same amount of work.
+
+ A sheet reached from inside itself is not descended into. The guard is on the ancestor path, so
+ the shapes may name each other in a cycle and this still terminates.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    expand
+                  </span>
+                  :
+                  <code><span><span>string&#32;list</span>&#32;->&#32;bool</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    allInstances
+                  </span>
+                  :
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    shapes
+                  </span>
+                  :
+                  <code><a href="/issie/reference/menuhelpers-sheetshapes.html">SheetShapes</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    root
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/menuhelpers-sheettree.html">SheetTree</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1303', 1303)" onmouseover="showTip(event, '1303', 1303)">
+                <p>
+                  <a id="multiPathSheets">
+                    <a href="#multiPathSheets">
+                      <code><span>multiPathSheets&#32;<span>shapes&#32;root</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1303">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>multiPathSheets&#32;<span>shapes&#32;root</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        shapes
+                      </b>
+                      :
+                      <code><a href="/issie/reference/menuhelpers-sheetshapes.html">SheetShapes</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        root
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpset-1">Set</a>&lt;string&gt;</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:MenuHelpers.multiPathSheets`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.multiPathSheets\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L485-485" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The sheets that more than one route from the root reaches, and which therefore appear more than
+ once in its hierarchy. Worked out from the design graph - each sheet's parents are counted, not
+ its occurrences - so a design whose expansion is astronomical still costs its own size.
+
+ Everything below such a sheet is one too: a sheet inside a sheet that appears twice appears
+ twice itself, however singular its own parent is.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    shapes
+                  </span>
+                  :
+                  <code><a href="/issie/reference/menuhelpers-sheetshapes.html">SheetShapes</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    root
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-collections-fsharpset-1">Set</a>&lt;string&gt;</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1304', 1304)" onmouseover="showTip(event, '1304', 1304)">
                 <p>
                   <a id="openDemoProjectFromPath">
                     <a href="#openDemoProjectFromPath">
@@ -2550,7 +2875,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1299">
+              <div class="fsdocs-tip" id="1304">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openDemoProjectFromPath&#32;<span>path&#32;model&#32;dispatch</span></span></code>
@@ -2603,7 +2928,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.openDemoProjectFromPath\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1058-1058" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1180-1180" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2652,7 +2977,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1300', 1300)" onmouseover="showTip(event, '1300', 1300)">
+              <code onmouseout="hideTip(event, '1305', 1305)" onmouseover="showTip(event, '1305', 1305)">
                 <p>
                   <a id="openFileInProject">
                     <a href="#openFileInProject">
@@ -2661,7 +2986,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1300">
+              <div class="fsdocs-tip" id="1305">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openFileInProject&#32;<span>name&#32;project&#32;model&#32;dispatch</span></span></code>
@@ -2747,7 +3072,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1301', 1301)" onmouseover="showTip(event, '1301', 1301)">
+              <code onmouseout="hideTip(event, '1306', 1306)" onmouseover="showTip(event, '1306', 1306)">
                 <p>
                   <a id="openFileInProject'">
                     <a href="#openFileInProject'">
@@ -2756,7 +3081,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1301">
+              <div class="fsdocs-tip" id="1306">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openFileInProject'&#32;<span>saveCurrent&#32;name&#32;project&#32;model&#32;dispatch</span></span></code>
@@ -2820,7 +3145,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.openFileInProject'\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1292-1292" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1414-1414" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2879,7 +3204,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1302', 1302)" onmouseover="showTip(event, '1302', 1302)">
+              <code onmouseout="hideTip(event, '1307', 1307)" onmouseover="showTip(event, '1307', 1307)">
                 <p>
                   <a id="openProjectFromPath">
                     <a href="#openProjectFromPath">
@@ -2888,7 +3213,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1302">
+              <div class="fsdocs-tip" id="1307">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>openProjectFromPath&#32;<span>path&#32;model&#32;dispatch</span></span></code>
@@ -2941,7 +3266,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.openProjectFromPath\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1075-1075" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1197-1197" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2990,7 +3315,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1303', 1303)" onmouseover="showTip(event, '1303', 1303)">
+              <code onmouseout="hideTip(event, '1308', 1308)" onmouseover="showTip(event, '1308', 1308)">
                 <p>
                   <a id="quantifyChanges">
                     <a href="#quantifyChanges">
@@ -2999,7 +3324,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1303">
+              <div class="fsdocs-tip" id="1308">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>quantifyChanges&#32;<span>ldc1&#32;ldc2</span></span></code>
@@ -3044,7 +3369,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.quantifyChanges\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L462-462" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L561-561" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3087,7 +3412,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1304', 1304)" onmouseover="showTip(event, '1304', 1304)">
+              <code onmouseout="hideTip(event, '1309', 1309)" onmouseover="showTip(event, '1309', 1309)">
                 <p>
                   <a id="raiseFileNotification">
                     <a href="#raiseFileNotification">
@@ -3096,7 +3421,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1304">
+              <div class="fsdocs-tip" id="1309">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>raiseFileNotification&#32;<span>dispatch&#32;msg</span></span></code>
@@ -3168,7 +3493,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1305', 1305)" onmouseover="showTip(event, '1305', 1305)">
+              <code onmouseout="hideTip(event, '1310', 1310)" onmouseover="showTip(event, '1310', 1310)">
                 <p>
                   <a id="readLastBackup">
                     <a href="#readLastBackup">
@@ -3177,7 +3502,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1305">
+              <div class="fsdocs-tip" id="1310">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>readLastBackup&#32;<span>comp</span></span></code>
@@ -3214,7 +3539,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.readLastBackup\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L565-565" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L664-664" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3248,7 +3573,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1306', 1306)" onmouseover="showTip(event, '1306', 1306)">
+              <code onmouseout="hideTip(event, '1311', 1311)" onmouseover="showTip(event, '1311', 1311)">
                 <p>
                   <a id="recentProjectItem">
                     <a href="#recentProjectItem">
@@ -3257,7 +3582,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1306">
+              <div class="fsdocs-tip" id="1311">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>recentProjectItem&#32;<span>path&#32;label&#32;openIt&#32;model&#32;dispatch</span></span></code>
@@ -3326,7 +3651,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.recentProjectItem\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1032-1032" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1154-1154" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3398,7 +3723,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1307', 1307)" onmouseover="showTip(event, '1307', 1307)">
+              <code onmouseout="hideTip(event, '1312', 1312)" onmouseover="showTip(event, '1312', 1312)">
                 <p>
                   <a id="recentProjects">
                     <a href="#recentProjects">
@@ -3407,7 +3732,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1307">
+              <div class="fsdocs-tip" id="1312">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>recentProjects&#32;<span>model</span></span></code>
@@ -3444,7 +3769,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.recentProjects\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1010-1010" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1132-1132" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3478,7 +3803,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1308', 1308)" onmouseover="showTip(event, '1308', 1308)">
+              <code onmouseout="hideTip(event, '1313', 1313)" onmouseover="showTip(event, '1313', 1313)">
                 <p>
                   <a id="removeAllCustomComps">
                     <a href="#removeAllCustomComps">
@@ -3487,7 +3812,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1308">
+              <div class="fsdocs-tip" id="1313">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>removeAllCustomComps&#32;<span>name&#32;project</span></span></code>
@@ -3555,7 +3880,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1309', 1309)" onmouseover="showTip(event, '1309', 1309)">
+              <code onmouseout="hideTip(event, '1314', 1314)" onmouseover="showTip(event, '1314', 1314)">
                 <p>
                   <a id="removeFileInProject">
                     <a href="#removeFileInProject">
@@ -3564,7 +3889,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1309">
+              <div class="fsdocs-tip" id="1314">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>removeFileInProject&#32;<span>name&#32;project&#32;model&#32;dispatch</span></span></code>
@@ -3620,7 +3945,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.removeFileInProject\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1372-1372" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1494-1494" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3668,7 +3993,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1310', 1310)" onmouseover="showTip(event, '1310', 1310)">
+              <code onmouseout="hideTip(event, '1315', 1315)" onmouseover="showTip(event, '1315', 1315)">
                 <p>
                   <a id="resolveComponentOpenPopup">
                     <a href="#resolveComponentOpenPopup">
@@ -3677,7 +4002,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1310">
+              <div class="fsdocs-tip" id="1315">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>resolveComponentOpenPopup&#32;<span>pPath&#32;components&#32;resolves&#32;model&#32;dispatch</span></span></code>
@@ -3741,7 +4066,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.resolveComponentOpenPopup\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L933-933" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1055-1055" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3797,7 +4122,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1311', 1311)" onmouseover="showTip(event, '1311', 1311)">
+              <code onmouseout="hideTip(event, '1316', 1316)" onmouseover="showTip(event, '1316', 1316)">
                 <p>
                   <a id="saveDirtyClosedSheets">
                     <a href="#saveDirtyClosedSheets">
@@ -3806,7 +4131,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1311">
+              <div class="fsdocs-tip" id="1316">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>saveDirtyClosedSheets&#32;<span>openSheet&#32;ldcs</span></span></code>
@@ -3851,7 +4176,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.saveDirtyClosedSheets\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L530-530" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L629-629" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3902,7 +4227,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1312', 1312)" onmouseover="showTip(event, '1312', 1312)">
+              <code onmouseout="hideTip(event, '1317', 1317)" onmouseover="showTip(event, '1317', 1317)">
                 <p>
                   <a id="saveOpenFileAction">
                     <a href="#saveOpenFileAction">
@@ -3911,7 +4236,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1312">
+              <div class="fsdocs-tip" id="1317">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>saveOpenFileAction&#32;<span>isAuto&#32;model&#32;dispatch</span></span></code>
@@ -3964,7 +4289,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.saveOpenFileAction\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1158-1158" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1280-1280" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4015,7 +4340,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1313', 1313)" onmouseover="showTip(event, '1313', 1313)">
+              <code onmouseout="hideTip(event, '1318', 1318)" onmouseover="showTip(event, '1318', 1318)">
                 <p>
                   <a id="saveOpenFileActionWithModelUpdate">
                     <a href="#saveOpenFileActionWithModelUpdate">
@@ -4024,7 +4349,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1313">
+              <div class="fsdocs-tip" id="1318">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>saveOpenFileActionWithModelUpdate&#32;<span>model&#32;dispatch</span></span></code>
@@ -4069,7 +4394,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.saveOpenFileActionWithModelUpdate\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1268-1268" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1390-1390" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4110,7 +4435,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1314', 1314)" onmouseover="showTip(event, '1314', 1314)">
+              <code onmouseout="hideTip(event, '1319', 1319)" onmouseover="showTip(event, '1319', 1319)">
                 <p>
                   <a id="saveOpenFileToModel">
                     <a href="#saveOpenFileToModel">
@@ -4119,7 +4444,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1314">
+              <div class="fsdocs-tip" id="1319">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>saveOpenFileToModel&#32;<span>model</span></span></code>
@@ -4156,7 +4481,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.saveOpenFileToModel\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1208-1208" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1330-1330" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4193,7 +4518,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1315', 1315)" onmouseover="showTip(event, '1315', 1315)">
+              <code onmouseout="hideTip(event, '1320', 1320)" onmouseover="showTip(event, '1320', 1320)">
                 <p>
                   <a id="saveOpenProjectInNewFormat">
                     <a href="#saveOpenProjectInNewFormat">
@@ -4202,7 +4527,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1315">
+              <div class="fsdocs-tip" id="1320">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>saveOpenProjectInNewFormat&#32;<span>model</span></span></code>
@@ -4254,7 +4579,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1316', 1316)" onmouseover="showTip(event, '1316', 1316)">
+              <code onmouseout="hideTip(event, '1321', 1321)" onmouseover="showTip(event, '1321', 1321)">
                 <p>
                   <a id="setComponentLabel">
                     <a href="#setComponentLabel">
@@ -4263,7 +4588,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1316">
+              <div class="fsdocs-tip" id="1321">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>setComponentLabel&#32;<span>model&#32;sheetDispatch&#32;comp&#32;text</span></span></code>
@@ -4349,7 +4674,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1317', 1317)" onmouseover="showTip(event, '1317', 1317)">
+              <code onmouseout="hideTip(event, '1322', 1322)" onmouseover="showTip(event, '1322', 1322)">
                 <p>
                   <a id="setTopSheetState">
                     <a href="#setTopSheetState">
@@ -4358,7 +4683,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1317">
+              <div class="fsdocs-tip" id="1322">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>setTopSheetState&#32;<span>sheetName&#32;model</span></span></code>
@@ -4403,7 +4728,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.setTopSheetState\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L544-544" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L643-643" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4446,7 +4771,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1318', 1318)" onmouseover="showTip(event, '1318', 1318)">
+              <code onmouseout="hideTip(event, '1323', 1323)" onmouseover="showTip(event, '1323', 1323)">
                 <p>
                   <a id="setupProjectFromComponents">
                     <a href="#setupProjectFromComponents">
@@ -4455,7 +4780,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1318">
+              <div class="fsdocs-tip" id="1323">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>setupProjectFromComponents&#32;<span>finishUI&#32;sheetName&#32;ldComps&#32;model&#32;dispatch</span></span></code>
@@ -4524,7 +4849,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.setupProjectFromComponents\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L795-795" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L894-894" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4591,7 +4916,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1319', 1319)" onmouseover="showTip(event, '1319', 1319)">
+              <code onmouseout="hideTip(event, '1324', 1324)" onmouseover="showTip(event, '1324', 1324)">
                 <p>
                   <a id="subSheets_">
                     <a href="#subSheets_">
@@ -4600,7 +4925,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1319">
+              <div class="fsdocs-tip" id="1324">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>subSheets_&#32;<span></span></span></code>
@@ -4630,7 +4955,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1320', 1320)" onmouseover="showTip(event, '1320', 1320)">
+              <code onmouseout="hideTip(event, '1325', 1325)" onmouseover="showTip(event, '1325', 1325)">
                 <p>
                   <a id="sweepUnusedLibrarySheets">
                     <a href="#sweepUnusedLibrarySheets">
@@ -4639,7 +4964,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1320">
+              <div class="fsdocs-tip" id="1325">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sweepUnusedLibrarySheets&#32;<span>model</span></span></code>
@@ -4676,7 +5001,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.sweepUnusedLibrarySheets\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L491-491" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L590-590" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4711,7 +5036,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1321', 1321)" onmouseover="showTip(event, '1321', 1321)">
+              <code onmouseout="hideTip(event, '1326', 1326)" onmouseover="showTip(event, '1326', 1326)">
                 <p>
                   <a id="updateLoadedComponents">
                     <a href="#updateLoadedComponents">
@@ -4720,7 +5045,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1321">
+              <div class="fsdocs-tip" id="1326">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>updateLoadedComponents&#32;<span>name&#32;setFun&#32;lcLst&#32;dispatch</span></span></code>
@@ -4781,7 +5106,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.updateLoadedComponents\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1108-1108" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1230-1230" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4839,7 +5164,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1322', 1322)" onmouseover="showTip(event, '1322', 1322)">
+              <code onmouseout="hideTip(event, '1327', 1327)" onmouseover="showTip(event, '1327', 1327)">
                 <p>
                   <a id="updateProjectFromCanvas">
                     <a href="#updateProjectFromCanvas">
@@ -4848,7 +5173,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1322">
+              <div class="fsdocs-tip" id="1327">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>updateProjectFromCanvas&#32;<span>model&#32;dispatch</span></span></code>
@@ -4893,7 +5218,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.updateProjectFromCanvas\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1122-1122" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L1244-1244" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -4935,7 +5260,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1323', 1323)" onmouseover="showTip(event, '1323', 1323)">
+              <code onmouseout="hideTip(event, '1328', 1328)" onmouseover="showTip(event, '1328', 1328)">
                 <p>
                   <a id="updateSymbolRAMs">
                     <a href="#updateSymbolRAMs">
@@ -4944,7 +5269,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1323">
+              <div class="fsdocs-tip" id="1328">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>updateSymbolRAMs&#32;<span>ramCheck&#32;sModel</span></span></code>
@@ -5012,7 +5337,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1324', 1324)" onmouseover="showTip(event, '1324', 1324)">
+              <code onmouseout="hideTip(event, '1329', 1329)" onmouseover="showTip(event, '1329', 1329)">
                 <p>
                   <a id="warnAppWidth">
                     <a href="#warnAppWidth">
@@ -5021,7 +5346,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1324">
+              <div class="fsdocs-tip" id="1329">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>warnAppWidth&#32;<span>dispatch&#32;afterFun</span></span></code>
@@ -5089,7 +5414,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1325', 1325)" onmouseover="showTip(event, '1325', 1325)">
+              <code onmouseout="hideTip(event, '1330', 1330)" onmouseover="showTip(event, '1330', 1330)">
                 <p>
                   <a id="writeComponentToBackupFile">
                     <a href="#writeComponentToBackupFile">
@@ -5098,7 +5423,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1325">
+              <div class="fsdocs-tip" id="1330">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeComponentToBackupFile&#32;<span>numCircuitChanges&#32;numHours&#32;comp&#32;dispatch</span></span></code>
@@ -5154,7 +5479,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.writeComponentToBackupFile\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L576-576" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L675-675" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -5205,7 +5530,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1326', 1326)" onmouseover="showTip(event, '1326', 1326)">
+              <code onmouseout="hideTip(event, '1331', 1331)" onmouseover="showTip(event, '1331', 1331)">
                 <p>
                   <a id="writeComponentToBackupFileNow">
                     <a href="#writeComponentToBackupFileNow">
@@ -5214,7 +5539,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1326">
+              <div class="fsdocs-tip" id="1331">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeComponentToBackupFileNow&#32;<span>numCircuitChanges&#32;numHours&#32;comp</span></span></code>
@@ -5262,7 +5587,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:MenuHelpers.writeComponentToBackupFileNow\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L636-636" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/MenuHelpers.fs#L735-735" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -5305,7 +5630,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1327', 1327)" onmouseover="showTip(event, '1327', 1327)">
+              <code onmouseout="hideTip(event, '1332', 1332)" onmouseover="showTip(event, '1332', 1332)">
                 <p>
                   <a id="writeComponentToFile">
                     <a href="#writeComponentToFile">
@@ -5314,7 +5639,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1327">
+              <div class="fsdocs-tip" id="1332">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>writeComponentToFile&#32;<span>comp</span></span></code>

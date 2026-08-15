@@ -451,7 +451,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1113', 1113)" onmouseover="showTip(event, '1113', 1113)">
+              <code onmouseout="hideTip(event, '1115', 1115)" onmouseover="showTip(event, '1115', 1115)">
                 <p>
                   <a id="checkExpansionFits">
                     <a href="#checkExpansionFits">
@@ -460,7 +460,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1113">
+              <div class="fsdocs-tip" id="1115">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>checkExpansionFits&#32;<span>topSheet&#32;<span>(<span>arg2,&#32;arg3</span>)</span>&#32;ldcs</span></span></code>
@@ -521,7 +521,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:GraphMerger.checkExpansionFits\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L319-319" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L328-328" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -578,7 +578,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1114', 1114)" onmouseover="showTip(event, '1114', 1114)">
+              <code onmouseout="hideTip(event, '1116', 1116)" onmouseover="showTip(event, '1116', 1116)">
                 <p>
                   <a id="expandedComponentCount">
                     <a href="#expandedComponentCount">
@@ -587,7 +587,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1114">
+              <div class="fsdocs-tip" id="1116">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>expandedComponentCount&#32;<span>topSheet&#32;<span>(<span>arg2,&#32;arg3</span>)</span>&#32;ldcs</span></span></code>
@@ -705,7 +705,137 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1115', 1115)" onmouseover="showTip(event, '1115', 1115)">
+              <code onmouseout="hideTip(event, '1117', 1117)" onmouseover="showTip(event, '1117', 1117)">
+                <p>
+                  <a id="expandedHeapEstimate">
+                    <a href="#expandedHeapEstimate">
+                      <code><span>expandedHeapEstimate&#32;<span>topSheet&#32;<span>(<span>arg2,&#32;arg3</span>)</span>&#32;ldcs</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1117">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>expandedHeapEstimate&#32;<span>topSheet&#32;<span>(<span>arg2,&#32;arg3</span>)</span>&#32;ldcs</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        topSheet
+                      </b>
+                      :
+                      <code>string</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg1
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        arg2
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        ldcs
+                      </b>
+                      :
+                      <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:GraphMerger.expandedHeapEstimate`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:GraphMerger.expandedHeapEstimate\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L306-306" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     What the expanded design will cost in heap, by the same reckoning checkExpansionFits refuses on.
+ Costs a walk of each sheet's canvas and never of the expansion, so it is cheap enough to ask
+ before every simulation - which the waveform simulator does, to decide how many clock cycles to
+ start with rather than only whether to start at all.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    topSheet
+                  </span>
+                  :
+                  <code>string</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg1
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-component.html">Component</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    arg2
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-connection.html">Connection</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ldcs
+                  </span>
+                  :
+                  <code><span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1118', 1118)" onmouseover="showTip(event, '1118', 1118)">
                 <p>
                   <a id="expandedSize">
                     <a href="#expandedSize">
@@ -714,7 +844,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1115">
+              <div class="fsdocs-tip" id="1118">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>expandedSize&#32;<span>topSheet&#32;<span>(<span>arg2,&#32;arg3</span>)</span>&#32;ldcs</span></span></code>
@@ -833,7 +963,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1116', 1116)" onmouseover="showTip(event, '1116', 1116)">
+              <code onmouseout="hideTip(event, '1119', 1119)" onmouseover="showTip(event, '1119', 1119)">
                 <p>
                   <a id="mergeDependencies">
                     <a href="#mergeDependencies">
@@ -842,7 +972,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1116">
+              <div class="fsdocs-tip" id="1119">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mergeDependencies&#32;<span>currDiagramName&#32;graph&#32;<span>(<span>arg3,&#32;arg4</span>)</span>&#32;loadedDependencies</span></span></code>
@@ -911,7 +1041,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:GraphMerger.mergeDependencies\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L698-698" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L707-707" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <pre> Try to resolve all the dependencies in a graph, and replace the reducer
@@ -1001,7 +1131,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1117', 1117)" onmouseover="showTip(event, '1117', 1117)">
+              <code onmouseout="hideTip(event, '1120', 1120)" onmouseover="showTip(event, '1120', 1120)">
                 <p>
                   <a id="resolveParametersInSimulationGraph">
                     <a href="#resolveParametersInSimulationGraph">
@@ -1010,7 +1140,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1117">
+              <div class="fsdocs-tip" id="1120">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>resolveParametersInSimulationGraph&#32;<span>bindings&#32;currDiagramName&#32;<span>(<span>arg3,&#32;arg4</span>)</span>&#32;loadedDependencies&#32;graph</span></span></code>
@@ -1087,7 +1217,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:GraphMerger.resolveParametersInSimulationGraph\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L659-659" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/GraphMerger.fs#L668-668" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

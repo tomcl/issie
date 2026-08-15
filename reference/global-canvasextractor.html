@@ -1860,7 +1860,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span>string&#32;*&#32;<a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></span></code>
+                    <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span>(<span>string&#32;*&#32;<a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></span>)</span>,&#32;string</span>&gt;</span></code>
                   </span>
                   <br/>
                 </div>
@@ -1877,12 +1877,18 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:CanvasExtractor.getStateAndDependencies\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L504-504" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/Simulator/CanvasExtractor.fs#L510-510" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      the inverse of addStateToLoadedConponents
- The loadedComponent list does NOT include diagramName
+ The loadedComponent list in the result does NOT include diagramName
+
+ A sheet that is not there is an Error rather than an exception because one of the callers runs
+ while rendering: the waveform viewer's buttons ask whether the sheet being simulated still
+ builds, and the sheet named by Model.WaveSimSheet can belong to a project that has since been
+ closed. Raising there threw out of the React render, which unmounted the UI and left every
+ later render throwing the same way - nothing short of reloading the app recovered.
                   </p>
                 </div>
               </summary>
@@ -1909,7 +1915,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span>string&#32;*&#32;<a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></span></code>
+                  <code><span><a href="https://fsharp.github.io/fsharp-core-docs/reference/fsharp-core-fsharpresult-2">Result</a>&lt;<span><span>(<span>string&#32;*&#32;<a href="/issie/reference/commontypes-canvasstate.html">CanvasState</a>&#32;*&#32;<span><a href="/issie/reference/commontypes-loadedcomponent.html">LoadedComponent</a>&#32;list</span></span>)</span>,&#32;string</span>&gt;</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>

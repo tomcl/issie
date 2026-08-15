@@ -171,6 +171,29 @@ let memoizeBy (keyFunc: 'a -> 'k) (funcToMemoize: 'a -> 'c) : 'a -> 'c =
             lastValue <- Some v
             v
 
+/// Return a memoized version of funcToMemoize whose stored result is reused for as long as it is
+/// called with the SAME OBJECT, by reference, rather than an equal one.
+///
+/// memoizeBy compares keys with =, which is what you want for a small key and quite wrong for a
+/// large one: on a Map, a FastSimulation or anything else with a deep structure the comparison
+/// costs more than the function being memoised, and on a value holding a closure it does not
+/// terminate sensibly at all. Identity is the right question for anything that is REBUILT rather
+/// than mutated - a simulation, or a map replaced wholesale when its contents change - because
+/// then a new object is exactly the signal that the answer is stale. It also means nothing has to
+/// remember to invalidate the memo.
+///
+/// One slot, like memoizeBy: these are used where the argument changes rarely and is asked about
+/// often, so alternating between two arguments would defeat it.
+let memoizeByIdentity (funcToMemoize: 'a -> 'b) : 'a -> 'b =
+    let mutable last: ('a * 'b) option = None
+    fun (a: 'a) ->
+        match last with
+        | Some(key, value) when System.Object.ReferenceEquals(key, a) -> value
+        | _ ->
+            let value = funcToMemoize a
+            last <- Some(a, value)
+            value
+
 /// replace new lines in a string by ';' for easier debug printing of records using %A
 let nocr (s:string) = 
     s.Replace("\n",";")

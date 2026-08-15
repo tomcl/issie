@@ -69,29 +69,21 @@ let emptyHierarchy = {
 ///
 /// Worked out once per simulation rather than once per render. It reads an entry per sheet INSTANCE
 /// - tens of thousands on a design that expands - and the hierarchy it feeds is rebuilt on every
-/// keystroke in the selector's search boxes. Keyed on the FastSimulation by identity, which is
-/// replaced whenever a simulation is built, so a stale index cannot be read.
-let mutable private instancesInsideMemo: (FastSimulation * Map<string * string, string list>) option =
-    None
-
-let instancesInside (fs: FastSimulation): Map<string * string, string list> =
-    match instancesInsideMemo with
-    | Some(memoOf, index) when System.Object.ReferenceEquals(memoOf, fs) -> index
-    | _ ->
-        let index =
-            fs.SimSheetStructure
-            |> Map.toList
-            |> List.choose (fun (simSheetName, parent) ->
-                parent
-                |> Option.bind (fun fc ->
-                    match fc.FType with
-                    | Custom ct -> Some ((fc.SimSheetName, ct.Name), simSheetName)
-                    | _ -> None))
-            |> List.groupBy fst
-            |> List.map (fun (key, entries) -> key, entries |> List.map snd |> List.sort)
-            |> Map.ofList
-        instancesInsideMemo <- Some(fs, index)
-        index
+/// keystroke in the selector's search boxes. A simulation is rebuilt rather than mutated, so a new
+/// one is exactly the signal that this is stale.
+let instancesInside: FastSimulation -> Map<string * string, string list> =
+    Helpers.memoizeByIdentity (fun fs ->
+        fs.SimSheetStructure
+        |> Map.toList
+        |> List.choose (fun (simSheetName, parent) ->
+            parent
+            |> Option.bind (fun fc ->
+                match fc.FType with
+                | Custom ct -> Some ((fc.SimSheetName, ct.Name), simSheetName)
+                | _ -> None))
+        |> List.groupBy fst
+        |> List.map (fun (key, entries) -> key, entries |> List.map snd |> List.sort)
+        |> Map.ofList)
 
 /// The SimSheetName of the design's top sheet, which every other instance is reached from.
 let private topInstance (fs: FastSimulation) =

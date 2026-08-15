@@ -48,6 +48,40 @@ let cancelSpinner (model:Model) =
 
 
 
+/// What identifies a wave across a rebuild of the simulation.
+///
+/// SimArrayIndex is part of WaveIndexT and changes when the simulation is rebuilt, so a wave the
+/// user selected before that cannot be looked up in AllWaves directly. These are the other three
+/// fields - exactly what the old isSameWave compared, one wave at a time, by scanning every wave in
+/// the design for each selected one.
+let private waveIdentity (wi: WaveIndexT) = wi.Id, wi.PortType, wi.PortNumber
+
+/// The wave each identity now names. Turns re-resolving a selection from a scan of the whole design
+/// per selected wave into one lookup per selected wave.
+let private currentWaveOfIdentity: Map<WaveIndexT, Wave> -> Map<FComponentId * PortType * int, WaveIndexT> =
+    Helpers.memoizeByIdentity (fun allWaves ->
+        allWaves
+        |> Map.toList
+        |> List.map (fun (wi, _) -> waveIdentity wi, wi)
+        |> Map.ofList)
+
+/// The RAM and ROM components of a simulation, in the order the RAM selector lists them.
+///
+/// A fact about the simulation and nothing else, but it was rebuilt on every GenerateWaveforms -
+/// which is every tick of a checkbox - by filtering and sorting every FastComponent in the design.
+/// main6 of largeTest has about 480,000 of them.
+let private ramCompIdsOf: FastSimulation -> FComponentId list =
+    Helpers.memoizeByIdentity (fun fs ->
+        fs.FComps
+        |> Map.filter (fun _ (fc: FastComponent) ->
+            match fc.FType with
+            | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ -> true
+            | _ -> false)
+        |> Map.toList
+        |> List.map snd
+        |> List.sortBy (fun fc -> fc.FullName)
+        |> List.map (fun fc -> fc.fId))
+
 /// Major function called after changes to extend simulation and/or redo waveforms.
 /// Note that after design change simulation must be recreated externally, and the function called with
 /// newSimulation = true. That is because this function has no way to know that the simulation has changed.
@@ -60,10 +94,6 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
     // the rest of the work into multiple function calls using a spinner to alert the user to the delay.
     // The Spinner (in reality a progress bar) is used if the estimated time to completion is longer than
     // a constant. To get the estimate some initial execution must be completed (1 clock cycle and one waveform).
-
-    /// Check whether two Wave structures are the same
-    let isSameWave (wi:WaveIndexT) (wi': WaveIndexT) =
-        wi.Id = wi'.Id && wi.PortNumber = wi'.PortNumber && wi.PortType = wi'.PortType
 
     /// Give the cursor-control box its focus back after the next render, but only if it had it
     /// when this refresh began.
@@ -197,17 +227,25 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         // TODO: maybe the viewer width check should be earlier in this function?
                         refreshWaveSim newSimulation wsModel model
                     else
-                        // need to use isSameWave here because array index may have changed
+                        // The array index of a wave changes when the simulation is rebuilt, so a
+                        // selection made before that names waves by their other three fields and
+                        // has to be resolved against what AllWaves holds now. Resolving it and
+                        // then asking which of those are stale is two lookups per SELECTED wave.
+                        // Both used to be a scan of every wave in the design, per selected wave:
+                        // on main6 of largeTest that is 208,896 x the selection, twice, on every
+                        // tick of a checkbox - which is why deselecting cost as much as selecting.
+                        let currentWave = currentWaveOfIdentity allWaves
+                        let selectedWaves =
+                            wsModel.SelectedWaves
+                            |> List.choose (fun wi -> Map.tryFind (waveIdentity wi) currentWave)
+                        // Only generate waveforms for selected waves, and only where the SVG they
+                        // hold is not the one the current view calls for.
                         let wavesToBeMade =
-                            allWaves
-                            |> Map.filter (fun wi wave ->
-                                // Only generate waveforms for selected waves.
-                                // Regenerate waveforms whenever they have changed
-                                let hasChanged = not <| WaveSimSVGs.waveformIsUptodate wsModel wave
-                                let isSelected = List.exists (fun wi' -> isSameWave wi wi') wsModel.SelectedWaves
-                                isSelected && hasChanged)
-                            |> Map.toList                   
-                            |> List.map fst
+                            selectedWaves
+                            |> List.filter (fun wi ->
+                                match Map.tryFind wi allWaves with
+                                | Some wave -> not <| WaveSimSVGs.waveformIsUptodate wsModel wave
+                                | None -> false)
                         if wsModel.StartCycle < 0 then
                             failwithf $"Sanity check failed: wsModel.StartCycle = {wsModel.StartCycle}"
                         let spinnerInfo =  
@@ -226,26 +264,9 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                                         let payload = Some ("Updating Waveform Display", refreshWaveSim false res.WSM >> fst)
                                         {| WSM=res.WSM; SpinnerPayload=payload; NumToDo=numToDo|})
 
-                        let ramComps =
-                            let isRAMOrROM fcid (fc: FastComponent) =
-                                match fc.FType with
-                                | RAM1 _ | ROM1 _ | AsyncRAM1 _ | AsyncROM1 _ ->
-                                    true
-                                | _ -> false
-                            Map.filter isRAMOrROM fs.FComps
-                            |> Map.toList
-                            |> List.map (fun (fcid,fc) -> fc)
-                            |> List.sortBy (fun fc -> fc.FullName)
-
-                        let ramCompIds = List.map (fun (fc: FastComponent) -> fc.fId) ramComps
-                        let allWaveA = Map.keysA allWaves
-                        // arrayIndex may have changed, so we have to use new arrayIndex
-                        // if we cannot find it, then the selected wave no longer exists and is dropped
-                        let selectedWaves = 
-                            wsModel.SelectedWaves
-                            |> List.collect (fun wi -> match Array.tryFind (isSameWave wi) allWaveA with Some w -> [w] | None -> [])
-
-                        let selectedRams = Map.filter (fun ramfId _ -> List.contains ramfId ramCompIds) wsModel.SelectedRams
+                        let ramCompIds = ramCompIdsOf fs
+                        let ramCompIdSet = Set.ofList ramCompIds
+                        let selectedRams = Map.filter (fun ramfId _ -> Set.contains ramfId ramCompIdSet) wsModel.SelectedRams
 
                         let ws =  
                             {

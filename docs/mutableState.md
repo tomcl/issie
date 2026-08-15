@@ -36,15 +36,21 @@ this is about module-level state.
 |---|---|
 | `Simulator.fs` | `simCache`, `simCacheWS` |
 | `UI/ModelHelpers.fs` | `waveSimCostMemo` — the waveform configuration dialog reads the design's per-cycle cost on every render |
-| `UI/WaveSim/WaveSimSelectHelpers.fs` | `wavesByInstanceMemo` — the waves of each sheet instance. The wave selector draws the waves of a handful of instances and reached them by reading every wave in the design, on every keystroke in a search box: 208,896 of them for main6 of largeTest. Keyed on the `AllWaves` map by identity, which is replaced whenever the waves are rebuilt, so nothing has to remember to clear it |
-| `UI/WaveSim/WaveSimHierarchy.fs` | `instancesInsideMemo` — which instances of each sheet lie inside each instance, read from an entry per sheet INSTANCE and rebuilt on every render of the same selector. Keyed on the `FastSimulation` by identity, on the same argument |
 | `FastSim/FastCreate.fs` | `stepArrayIndex`, `stepArena` — build-scoped allocation state, reset by every build; threading either through the build would put plumbing in a dozen signatures for two leaf call sites |
 | `UI/TruthTable/TruthTableView.fs` | `selCache` |
 | `Common/TimeHelpers.fs` | `executionStats`, `instrumentation` |
 
-`Common/Helpers.fs` has a `lastKey` / `lastValue` pair inside `memoizeBy`. It is local to each
-memoised function rather than module-level, so it is out of scope here — noted only because it
-looks like the exception and is not one.
+`Common/Helpers.fs` has a `lastKey` / `lastValue` pair inside `memoizeBy`, and a `last` slot inside
+`memoizeByIdentity`. Both are local to each memoised function rather than module-level, so they are
+out of scope here — noted only because they look like the exception and are not.
+
+`memoizeByIdentity` is what the wave selector works through: the waves of each sheet instance, the
+instances inside each instance, the wave each identity now names, and which components are RAMs.
+Each reads an entry per instance or per wave — tens of thousands on a design that expands — and each
+was being redone on every render, so on every keystroke in a search box and every tick of a
+checkbox. Identity rather than `=` because these arguments are rebuilt rather than mutated, so a new
+object is exactly the signal that the answer is stale; comparing two `Map`s or two `FastSimulation`s
+structurally would cost more than recomputing.
 
 ### Justified: not model state
 

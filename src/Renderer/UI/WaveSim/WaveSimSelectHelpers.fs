@@ -89,21 +89,13 @@ let wavePropsTable (rows: TableRow list) =
 /// them: it read every wave in the design and threw nearly all of them away, on every keystroke in
 /// a search box and every click on a pill. main6 of largeTest carries 208,896 waves.
 ///
-/// Keyed on the map itself by identity, which is what makes the memo safe without anything having
-/// to remember to clear it: AllWaves is replaced whenever the waves are rebuilt, so an index built
-/// from an older one can never be read.
-let mutable private wavesByInstanceMemo: (Map<WaveIndexT, Wave> * Map<string, Wave list>) option = None
-
-let wavesByInstance (allWaves: Map<WaveIndexT, Wave>) : Map<string, Wave list> =
-    match wavesByInstanceMemo with
-    | Some (memoOf, index) when System.Object.ReferenceEquals(memoOf, allWaves) -> index
-    | _ ->
-        let index =
-            Map.valuesL allWaves
-            |> List.groupBy (fun (wave: Wave) -> wave.SheetId)
-            |> Map.ofList
-        wavesByInstanceMemo <- Some(allWaves, index)
-        index
+/// AllWaves is replaced whenever the waves are rebuilt, so a new map is exactly the signal that an
+/// index built from the old one is stale - and nothing has to remember to clear it.
+let wavesByInstance: Map<WaveIndexT, Wave> -> Map<string, Wave list> =
+    Helpers.memoizeByIdentity (fun allWaves ->
+        Map.valuesL allWaves
+        |> List.groupBy (fun (wave: Wave) -> wave.SheetId)
+        |> Map.ofList)
 
 /// Ensures that only valid waves (and selected waves) are returned. A design edited under a running
 /// simulation can leave a wave naming a component the simulation no longer has.

@@ -285,11 +285,40 @@ let getName (index: WaveIndexT) (fastSim: FastSimulation) : string =
     | PortType.Output -> getOutputName true fc (OutputPortNumber index.PortNumber) fastSim
     |> caseCompAndPortName
 
-/// The sheet name here is the  runtime (simulation) sheet instance name
-/// Derived from sheet name with disambiguation if needed
+/// The design-time name of the sheet each instance is of - what the user called it, and what they
+/// see everywhere else.
+///
+/// SimSheetName is not that: it is a run-time identity, and where a sheet has several instances
+/// FastCreate makes it unique by appending whatever suffix tells their labels apart, or an ordinal
+/// where nothing does. That is why it must stay as it is - it keys SimSheetStructure and
+/// Wave.SheetId, so two instances sharing a name would be one instance to the selector - and also
+/// why it should never be shown to anyone.
+let private sheetNameOfInstance: FastSimulation -> Map<string, string> =
+    Helpers.memoizeByIdentity (fun fs ->
+        fs.SimSheetStructure
+        |> Map.toList
+        |> List.map (fun (simSheetName, parent) ->
+            match parent with
+            | Some fc ->
+                match fc.FType with
+                | Custom ct -> simSheetName, ct.Name
+                | _ -> simSheetName, simSheetName
+            | None -> simSheetName, fs.SimulatedTopSheet)
+        |> Map.ofList)
+
+/// sheet.component.port, which is what a waveform is called.
+///
+/// The sheet is named rather than the instance of it: which instance a waveform belongs to is said
+/// by where its row sits in the selector and by the combo box beside it, so a name carrying the
+/// run-time identity as well read MAIN4:1.U3.OUT and said the same thing twice - badly the second
+/// time, since ":1" means nothing on the schematic.
 let nameWithSheet (fastSim: FastSimulation) (dispName: string) (waveIndex:WaveIndexT) =
     let fc = fastSim.WaveComps[waveIndex.Id]
-    camelCaseDottedWords(fc.SimSheetName) + "." + dispName
+    let sheet =
+        sheetNameOfInstance fastSim
+        |> Map.tryFind fc.SimSheetName
+        |> Option.defaultValue fc.SimSheetName
+    camelCaseDottedWords sheet + "." + dispName
 
 /// Make Wave for each component and port on sheet
 let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wave =

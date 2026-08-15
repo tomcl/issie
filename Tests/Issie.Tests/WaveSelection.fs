@@ -444,6 +444,28 @@ let tests =
                   [ [ "top"; "b"; "other" ]; [ "top"; "b"; "shared" ] ]
                   "nodes of different sheets are open at the same time, which is the ordinary case"
 
+          testCase "a waveform is called sheet.component.port, with the sheet the user's name for it"
+          <| fun () ->
+              // The four leaves are four instances of one sheet, so FastCreate gives each a
+              // distinct SimSheetName - `leaf:1` and so on, or a bare ordinal where the labels do
+              // not tell themselves apart. That is a run-time identity and was being read out as
+              // the first component of every waveform's name.
+              let _, allWaves = deepSimulation.Force()
+              let names = allWaves |> Map.toList |> List.map (fun (_, w) -> w.ViewerDisplayName)
+              Expect.isNonEmpty names "the design has waves"
+              Expect.all names (fun name -> not (name.Contains ":"))
+                  "no waveform is named by the disambiguation FastCreate needed to tell instances apart"
+              Expect.isNonEmpty
+                  (names |> List.filter (fun name -> name.ToUpper().StartsWith "LEAF."))
+                  "a wave inside a leaf is named for the sheet the user drew, whichever instance it is in"
+              // A top sheet Input or Output is its own port, so it is named sheet.port and has no
+              // middle part; anything inside a sheet carries all three.
+              Expect.all names (fun name -> name.Split('.').Length >= 2)
+                  "every name starts with the sheet it is in"
+              Expect.isNonEmpty
+                  (names |> List.filter (fun name -> name.Split('.').Length >= 3))
+                  "and a component inside a sheet is named sheet, component and port"
+
           testCase "an instance is offered by the label on the canvas, not by its run-time name"
           <| fun () ->
               // FastCreate names an instance by whatever suffix of its label tells it apart from

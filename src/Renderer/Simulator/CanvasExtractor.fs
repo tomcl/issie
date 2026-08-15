@@ -500,10 +500,21 @@ let addStateToLoadedComponents openFileName canvasState loadedComponents =
     |> (fun ldcs -> ldc :: ldcs)
 
 /// the inverse of addStateToLoadedConponents
-/// The loadedComponent list does NOT include diagramName
-let getStateAndDependencies (diagramName: string) (ldcs: LoadedComponent list) =
+/// The loadedComponent list in the result does NOT include diagramName
+///
+/// A sheet that is not there is an Error rather than an exception because one of the callers runs
+/// while rendering: the waveform viewer's buttons ask whether the sheet being simulated still
+/// builds, and the sheet named by Model.WaveSimSheet can belong to a project that has since been
+/// closed. Raising there threw out of the React render, which unmounted the UI and left every
+/// later render throwing the same way - nothing short of reloading the app recovered.
+let getStateAndDependencies
+    (diagramName: string)
+    (ldcs: LoadedComponent list)
+    : Result<string * CanvasState * LoadedComponent list, string> =
     ldcs
     |> List.tryFind (fun ldc -> ldc.Name = diagramName)
-    |> Option.map (fun ldc -> ldc.CanvasState)
-    |> Option.map (fun cs -> diagramName, cs, List.filter (fun ldc -> ldc.Name <> diagramName) ldcs)
-    |> Option.defaultWith (fun () -> failwithf $"Error - can't find {diagramName} in dependencies")
+    |> function
+        | Some ldc ->
+            Ok (diagramName, ldc.CanvasState, List.filter (fun ldc -> ldc.Name <> diagramName) ldcs)
+        | None ->
+            Error $"Error - can't find {diagramName} in dependencies"

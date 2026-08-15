@@ -1,0 +1,109 @@
+/// Asking to simulate a sheet that is not in the project.
+///
+/// This is not a hypothetical. Model.WaveSimSheet names the sheet the waveform viewer is
+/// simulating, which is deliberately allowed to differ from the sheet on screen - so nothing about
+/// it is invalidated by an ordinary sheet change, and it survived a change of PROJECT too. The
+/// viewer's buttons ask, on every render, whether the sheet named there still builds; against the
+/// newly opened project's sheets that question has no answer, and the answer used to be an
+/// exception. Thrown from inside a React render it unmounted the whole UI, and since no message had
+/// changed the model, every later render threw in the same place: the application was unusable
+/// until it was reloaded.
+///
+/// Two things fixed it and both are asserted here. A missing sheet is now an ordinary
+/// SimulationError, which is what every caller is typed to carry anyway; and opening a project ends
+/// any running waveform simulation, so the name does not go stale in the first place. Only the
+/// first is testable outside the Elmish loop - the second is in MenuHelpers.setupProjectFromComponents.
+module StaleSheetName
+
+open Expecto
+open CommonTypes
+open SimGraphTypes
+open CanvasBuilder
+
+/// IN -> NOT -> OUT, under whatever name is asked for. Two projects' worth of these stand in for
+/// the real thing: what matters is only that a name from one is absent from the other.
+let private sheet (name: string) =
+    let i = makeComp $"{name}-in" 0 1 (Input1(1, None)) "IN"
+    let n = makeComp $"{name}-not" 1 1 Not "N"
+    let o = makeComp $"{name}-out" 1 0 (Output 1) "OUT"
+    makeLdc name None ([ i; n; o ], [ conn i 0 n 0; conn n 0 o 0 ])
+
+/// The project being left, and the one opened over it. No name is shared.
+let private oldProject = [ sheet "eep1" ]
+let private newProject = [ sheet "largeTest"; sheet "aluN" ]
+
+let private errorText (e: SimulationError) =
+    match e.ErrType with
+    | GenericSimError msg -> msg
+    | other -> $"%A{other}"
+
+let tests =
+    testList "StaleSheetName" [
+
+        test "a sheet that is in the design is returned with the others as its dependencies" {
+            match CanvasExtractor.getStateAndDependencies "largeTest" newProject with
+            | Error msg -> failtest $"largeTest is in this design: {msg}"
+            | Ok(name, state, deps) ->
+                Expect.equal name "largeTest" "the sheet asked for is the one named back"
+                Expect.equal state (List.head newProject).CanvasState "with its own canvas"
+                Expect.equal (deps |> List.map (fun ldc -> ldc.Name)) [ "aluN" ]
+                    "and the dependency list excludes the sheet itself"
+        }
+
+        test "a sheet that is not in the design is an error, not an exception" {
+            match CanvasExtractor.getStateAndDependencies "eep1" newProject with
+            | Ok _ -> failtest "eep1 is not a sheet of this design"
+            | Error msg ->
+                Expect.stringContains msg "eep1" "the message names the sheet that is missing"
+        }
+
+        test "validating a wave simulation of a sheet from a closed project returns an error" {
+            // The crash itself: WaveSimSheet still says eep1, the project is now largeTest. This
+            // runs during render, so raising here is what took the UI down.
+            let openSheet = List.head newProject
+            let result =
+                Simulator.validateWaveSimulation
+                    openSheet.Name "eep1" openSheet.CanvasState (List.tail newProject)
+            match result with
+            | Ok _ -> failtest "a sheet outside the project cannot validate"
+            | Error e ->
+                Expect.stringContains (errorText e) "eep1" "and the error says which sheet it was"
+        }
+
+        test "validating a wave simulation of a sheet that is present still works" {
+            // The error path must not have swallowed the ordinary one.
+            let openSheet = List.head newProject
+            let result =
+                Simulator.validateWaveSimulation
+                    openSheet.Name openSheet.Name openSheet.CanvasState (List.tail newProject)
+            Expect.isOk result "the open sheet is simulable"
+        }
+
+        test "a stale sheet name does not wedge the simulation cache" {
+            // prepareSimulationMemoized stores what it built. Storing nothing usable, and then
+            // reporting the design unchanged, would leave the error stuck to a project that is
+            // perfectly simulable - so the good simulation that follows must still be built.
+            let openSheet = List.head newProject
+            let deps = List.tail newProject
+            let stale, _ =
+                Simulator.prepareSimulationMemoized
+                    true 100 openSheet.Name "eep1" openSheet.CanvasState deps
+            Expect.isError stale "the stale name is refused"
+
+            let good, _ =
+                Simulator.prepareSimulationMemoized
+                    true 100 openSheet.Name openSheet.Name openSheet.CanvasState deps
+            Expect.isOk good "and the next simulation of a real sheet is built rather than cached away"
+
+            // this suite's other groups share these globals
+            Simulator.simCacheWS <- Simulator.simCacheInit ()
+            Simulator.simCache <- Simulator.simCacheInit ()
+        }
+
+        test "the old project's own sheet still simulates against the old project" {
+            // Nothing above is a fact about eep1: it is a fact about eep1 and the wrong sheet list.
+            match CanvasExtractor.getStateAndDependencies "eep1" oldProject with
+            | Error msg -> failtest $"eep1 is a sheet of the project it came from: {msg}"
+            | Ok(_, _, deps) -> Expect.isEmpty deps "and it is the only one there"
+        }
+    ]

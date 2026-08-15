@@ -906,25 +906,48 @@ let setupProjectFromComponents (finishUI:bool) (sheetName: string) (ldComps: Loa
             match comps |> List.tryFind (fun comp -> comp.Name = sheetName) with
             | None -> failwithf "What? can't find sheet %s in loaded sheets %A" sheetName (comps |> List.map (fun c -> c.Name))
             | Some comp -> comp
+    // This function is the one funnel for opening a project AND for changing sheet within one, so
+    // whether the project is changing has to be asked rather than assumed. It is the project the
+    // sheet being opened belongs to that decides, which is where the new Project record below gets
+    // its ProjectPath from.
+    let leavingProject =
+        match model.CurrentProj with
+        | Some p -> p.ProjectPath <> dirName compToSetup.FilePath
+        | None -> true
+
     match model.CurrentProj with
     | None -> ()
     | Some p ->
         dispatch EndSimulation // Message ends any running simulation.
         dispatch <|TruthTableMsg CloseTruthTable // Message closes any open Truth Table.
-        //dispatch EndWaveSim
+        // NOT unconditional, which is why the plain `dispatch EndWaveSim` that stood here was
+        // commented out: a waveform simulation is meant to survive a sheet change, since
+        // WaveSimSheet names the sheet being simulated and that need not be the one on screen.
+        // It must not survive a change of project. EndWaveSim is the only thing that clears
+        // WaveSimSheet, so without this the name of a sheet of the project being left reached
+        // the new project's sheet list on the next render of the waveform viewer - which used to
+        // raise, killing the UI until the app was reloaded, and now reports a simulation error
+        // about a sheet the user cannot see.
+        if leavingProject && model.WaveSimSheet <> None && model.WaveSimSheet <> Some "" then
+            dispatch EndWaveSim
         // TODO: make each sheet wavesim remember the list of waveforms.
 
     let savedWaveSim =
         compToSetup.WaveInfo
-        |> Option.map loadWSModelFromSavedWaveInfo 
+        |> Option.map loadWSModelFromSavedWaveInfo
         |> Option.defaultValue initWSModel
 
+    // Within a project the running simulation's model carries over, so that leaving a sheet and
+    // coming back finds the same waves selected. Across projects it cannot: its selected waves
+    // name components of a design that is no longer open, so the sheet's own saved WaveInfo - or
+    // nothing - is what the new project starts from.
     let waveSim =
-        model.WaveSimSheet
-        |> Option.map (fun sheet -> (Map.tryFind sheet  model.WaveSim))
-        |> Option.defaultValue None
-        |> Option.defaultValue savedWaveSim
-        
+        if leavingProject then
+            savedWaveSim
+        else
+            model.WaveSimSheet
+            |> Option.bind (fun sheet -> Map.tryFind sheet model.WaveSim)
+            |> Option.defaultValue savedWaveSim
 
 
     loadStateIntoModel finishUI compToSetup waveSim ldComps model dispatch

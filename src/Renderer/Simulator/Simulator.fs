@@ -378,8 +378,9 @@ let validateWaveSimulation
         (loadedDependencies : LoadedComponent list)
         : Result<SimulationGraph, SimulationError>  =
     let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
-    let name, state, ldcs = getStateAndDependencies diagramName ldcs
-    validateCircuitSimulation diagramName state ldcs
+    getStateAndDependencies diagramName ldcs
+    |> Result.mapError makeDummySimulationError
+    |> Result.bind (fun (_, state, ldcs) -> validateCircuitSimulation diagramName state ldcs)
 
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. 
@@ -404,8 +405,10 @@ let prepareSimulationMemoized
         else
             Log.dbg Log.Sim $"new waveform simulation of {simulationArraySize} clocks"
             simCacheWS <- {simCacheWS with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
-            let name, state, ldcs = getStateAndDependencies diagramName ldcs
-            let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs
+            let simResult =
+                getStateAndDependencies diagramName ldcs
+                |> Result.mapError makeDummySimulationError
+                |> Result.bind (fun (_, state, ldcs) -> startCircuitSimulation simulationArraySize diagramName state ldcs)
             let fastSim =
                 simResult
                 |> Result.map (fun sd -> sd.FastSim)
@@ -425,8 +428,10 @@ let prepareSimulationMemoized
         else
             Log.dbg Log.Sim $"new simulation of {simulationArraySize} clocks"
             simCache <- {simCache with StoredResult = Error <| makeDummySimulationError "Simulation deleted"; FastSim = FastCreate.simulationPlaceholder}
-            let name, state, ldcs = getStateAndDependencies diagramName ldcs
-            let simResult = startCircuitSimulation simulationArraySize diagramName state ldcs
+            let simResult =
+                getStateAndDependencies diagramName ldcs
+                |> Result.mapError makeDummySimulationError
+                |> Result.bind (fun (_, state, ldcs) -> startCircuitSimulation simulationArraySize diagramName state ldcs)
             let fastSim =
                 simResult
                 |> Result.map (fun sd -> sd.FastSim)

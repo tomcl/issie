@@ -756,8 +756,10 @@ let runCircuitCheck (model: Model) : CircuitCheck =
         // freeze the button on whatever it last said.
         let verdict =
             try
-                let _, state, deps = CanvasExtractor.getStateAndDependencies project.OpenFileName ldcs
-                Simulator.validateCircuitSimulation project.OpenFileName state deps
+                CanvasExtractor.getStateAndDependencies project.OpenFileName ldcs
+                |> Result.mapError Simulator.makeDummySimulationError
+                |> Result.bind (fun (_, state, deps) ->
+                    Simulator.validateCircuitSimulation project.OpenFileName state deps)
                 |> Result.map SynchronousUtils.hasSynchronousComponents
             with e ->
                 Log.error $"exception while checking the circuit: {e.Message}"
@@ -796,8 +798,10 @@ let waveSimStepCost (model: Model) : Result<SimTypes.StepCost, SimulationError> 
         | _ ->
             let result =
                 try
-                    let _, state, deps = CanvasExtractor.getStateAndDependencies simSheet ldcs
-                    Simulator.validateCircuitSimulation simSheet state deps
+                    CanvasExtractor.getStateAndDependencies simSheet ldcs
+                    |> Result.mapError Simulator.makeDummySimulationError
+                    |> Result.bind (fun (_, state, deps) ->
+                        Simulator.validateCircuitSimulation simSheet state deps)
                     |> Result.map (FastCreate.gatherSimulation >> FastCreate.stepCostOfDesign)
                 with e ->
                     Error (Simulator.makeDummySimulationError $"exception while pricing the design: {e.Message}")

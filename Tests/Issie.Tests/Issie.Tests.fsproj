@@ -33,6 +33,7 @@
     <Compile Include="WaveSelection.fs" />
     <Compile Include="CustomOutputExtraction.fs" />
     <Compile Include="SimulationBudget.fs" />
+    <Compile Include="StaleSheetName.fs" />
     <Compile Include="RomComments.fs" />
     <Compile Include="RamStoreTests.fs" />
     <Compile Include="RamBenchmark.fs" />

@@ -30,6 +30,7 @@ let main argv =
         WaveSelection.tests
         CustomOutputExtraction.tests
         SimulationBudget.tests
+        StaleSheetName.tests
         RomComments.tests
         RamStoreTests.tests
         RamBenchmark.tests

@@ -298,8 +298,14 @@ let init() = {
 
 let viewSimSubTab canvasState model dispatch =
     match model.SimSubTabVisible with
-    | StepSim -> 
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+    | StepSim ->
+        // A flex column of bounded height, so that the pane below can keep its controls in place
+        // and scroll only the signals - see StepSimulationTop.viewSimulation. Taken off the height
+        // are the sub-tab bar above this div, at the same 36px the tab bar above that is allowed,
+        // and its own top margin.
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px"
+                     Height "calc(100% - 51px)"
+                     Display DisplayOptions.Flex; FlexDirection "column" ] ] [
             Heading.h4 [] [ str "Step Simulation" ]
             StepSimulationTop.viewSimulation canvasState model dispatch
         ]
@@ -318,9 +324,14 @@ let private  viewRightTab canvasState model dispatch =
     match pane with
     | Catalogue | Transition ->
         
-        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100%-100px)"] ] [
+        // The height is the pane less this div's own top margin, and the line under the heading is
+        // sized by its text. Both used to say otherwise - an unparseable calc, and a one-line blurb
+        // asking for the full height - and neither meant anything while the tab body had no height
+        // for a percentage to be of. Give it one and the blurb fills the pane, pushing the
+        // catalogue itself out of sight.
+        div [ Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ; Height "calc(100% - 15px)"] ] [
             Heading.h4 [] [ str "Catalogue" ]
-            div [ Style [ MarginBottom "15px" ; Height "100%"; OverflowY OverflowOptions.Auto] ] 
+            div [ Style [ MarginBottom "15px" ] ]
                 [ str "Drag components to sheet, or click and click to drop. Hover for details." ]
             CatalogueView.viewCatalogue model dispatch
         ]
@@ -349,7 +360,12 @@ let private  viewRightTab canvasState model dispatch =
                     | _ -> None
                 "Component properties", blurb
             | _ -> "Component properties", None
-        div [ HTMLAttr.Id "PropertiesPane"; Style [Width "90%"; MarginLeft "5%"; MarginTop "15px" ] ] [
+        // A flex column, so that the heading and the line under it keep their place and the fields
+        // below them scroll. The height counts this div's own top margin, as the catalogue's does,
+        // so that a pane whose contents just fit does not scroll by the height of its margin.
+        div [ HTMLAttr.Id "PropertiesPane";
+              Style [Width "90%"; MarginLeft "5%"; MarginTop "15px"; Height "calc(100% - 15px)"
+                     Display DisplayOptions.Flex; FlexDirection "column" ] ] [
             Heading.h4 [] [ str heading ]
             (match blurb with
              | None -> null
@@ -483,7 +499,7 @@ let viewRightTabs canvasState model dispatch =
                 [ a [  OnClick (fun _ -> dispatch <| ChangeRightTab Simulation ) ] [str "Simulations"] ]
             buildTab
         ]
-        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px"; Style [OverflowY scrollType]] [viewRightTab canvasState model dispatch]
+        div [HTMLAttr.Id "TabBody"; belowHeaderStyle "36px" scrollType] [viewRightTab canvasState model dispatch]
 
     ]
 

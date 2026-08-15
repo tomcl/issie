@@ -1329,4 +1329,8 @@ let viewSelectedComponent (model: ModelType.Model) dispatch =
                       Style [Border "none"; Padding "0"; Margin "0"; MinWidth "0"; Opacity "0.85"] ]
                     [react]
             else react)
-    |> (fun react -> div [Style [Height "calc(100vh - 150px)"; OverflowY OverflowOptions.Auto]] [react])
+    // Fill what is left of the properties pane below the heading, and scroll inside it. This used
+    // to be measured from the window instead - calc(100vh - 150px) - which guessed the heading and
+    // the tab bars above it, and was 5px out: enough for the pane itself to scroll by 5px as well.
+    |> (fun react ->
+            div [Style [Flex "1 1 auto"; MinHeight "0px"; OverflowY OverflowOptions.Auto]] [react])

@@ -808,27 +808,34 @@ let viewSimulationData (step: int) (simData : SimulationData) model dispatch =
                             Width "80px"
                             TextAlign TextAlignOptions.Center]]
             ] [str txt] ]
-    div [] [
-        splittedLine maybeBaseSelector maybeClockTickBtn
-        Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
-        viewSimulationInputs
-            simData.NumberBase
-            simData
-            (FastExtract.extractFastSimulationIOs simData.Inputs simData)
-            dispatch
+    // The number base and clock tick controls apply to every signal below them, so they stay put
+    // while the signals scroll: a design with more of them than fit is exactly the one where
+    // stepping the clock and reading a viewer at the same time matters.
+    div [Style [Flex "1 1 auto"; MinHeight "0px"; Display DisplayOptions.Flex; FlexDirection "column"]] [
+        div [Style [Flex "0 0 auto"]] [
+            splittedLine maybeBaseSelector maybeClockTickBtn
+        ]
+        div [Style [Flex "1 1 auto"; MinHeight "0px"; OverflowY OverflowOptions.Auto]] [
+            Heading.h5 [ Heading.Props [ Style [ MarginTop "15px" ] ] ] [ str "Inputs" ]
+            viewSimulationInputs
+                simData.NumberBase
+                simData
+                (FastExtract.extractFastSimulationIOs simData.Inputs simData)
+                dispatch
 
 
-        Heading.h5 [ 
-            Heading.Props [ Style [ MarginTop "15px" ] ] 
-            ] [ 
-                str "Outputs &" 
-                tip "Add Viewer components to any sheet in the simulation" "Viewers"
-            ]
-        viewViewers simData.NumberBase <| List.sort (FastExtract.extractViewers simData)
-        viewSimulationOutputs simData.NumberBase
-        <| FastExtract.extractFastSimulationIOs simData.Outputs simData
+            Heading.h5 [
+                Heading.Props [ Style [ MarginTop "15px" ] ]
+                ] [
+                    str "Outputs &"
+                    tip "Add Viewer components to any sheet in the simulation" "Viewers"
+                ]
+            viewViewers simData.NumberBase <| List.sort (FastExtract.extractViewers simData)
+            viewSimulationOutputs simData.NumberBase
+            <| FastExtract.extractFastSimulationIOs simData.Outputs simData
 
-        maybeStatefulComponents()
+            maybeStatefulComponents()
+        ]
     ]
 
 

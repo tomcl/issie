@@ -84,9 +84,14 @@ let rightSectionStyle model =
         //UserSelect UserSelectOptions.None
 ]
 
-let belowHeaderStyle headerSize =
+/// Fill what is left of the height below a header of the given size, scrolling if the content does
+/// not fit. The overflow is a parameter rather than always Auto because the caller needs to switch
+/// it off for a moment, and saying so with a second Style prop does not work: React keeps the last
+/// style it is given and drops the rest, so the height quietly went with it - which left the right
+/// tab body with no height at all, and nothing in it able to scroll.
+let belowHeaderStyle headerSize overflow =
     Style [
-        OverflowY OverflowOptions.Auto
+        OverflowY overflow
         Height $"calc(100%% - {headerSize})"
         ]
 

@@ -95,7 +95,10 @@ let viewSimulation canvasState model dispatch =
     | Some sim ->
         let canvasStateChange = hasCanvasChanged canvasState simCache model
         let body = match sim with
-                    | Error simError -> viewSimulationError canvasState simError model StepSim dispatch
+                    | Error simError ->
+                        // The error report scrolls as one - it has no controls of its own to keep.
+                        div [Style [Flex "1 1 auto"; MinHeight "0px"; OverflowY OverflowOptions.Auto]]
+                            [viewSimulationError canvasState simError model StepSim dispatch]
                     | Ok simData -> 
                         if simCache.RestartSim then
                             let clock = simData.ClockTickNumber
@@ -195,24 +198,30 @@ let viewSimulation canvasState model dispatch =
             | true, Error _ -> createRefreshButtonError
             | _ -> emptyRefreshSVG
     
-        div [Style [Height "100%"]] [
-            div [Style [Height "40px"]] [
-            Button.button
-                [
-                    Button.Color IsDanger;
-                    Button.OnClick (fun _ ->
-                        simReset dispatch
-                        dispatch EndSimulation);
-                    Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left;]]]
-                [ str "End simulation" ]
-            refreshButton
-            setDefaultButton
+        // The pane is a flex column: what controls the simulation stays at the top whatever the
+        // design contains, and the signals below it scroll. A design with more inputs and viewers
+        // than fit would otherwise push End simulation, Refresh and the clock tick controls off
+        // the top of the pane, so that stepping the clock meant scrolling back up to reach them.
+        div [Style [Flex "1 1 auto"; MinHeight "0px"; Display DisplayOptions.Flex; FlexDirection "column"]] [
+            div [Style [Flex "0 0 auto"]] [
+                div [Style [Height "40px"]] [
+                Button.button
+                    [
+                        Button.Color IsDanger;
+                        Button.OnClick (fun _ ->
+                            simReset dispatch
+                            dispatch EndSimulation);
+                        Button.Props [Style [Display DisplayOptions.Inline; Float FloatOptions.Left;]]]
+                    [ str "End simulation" ]
+                refreshButton
+                setDefaultButton
+                ]
+                br [];
+                div [Style [Display DisplayOptions.Block;]] []
+                str "The simulation uses the diagram as it was at the moment of
+                     pressing the \"Start simulation\" or \"Refresh\" button using default input values."
+                hr []
             ]
-            br []; 
-            div [Style [Display DisplayOptions.Block;]] []
-            str "The simulation uses the diagram as it was at the moment of
-                 pressing the \"Start simulation\" or \"Refresh\" button using default input values."
-            hr []
             body
         ]
 

@@ -197,9 +197,9 @@ let portWidthsOfInstance
 let instanceBindingProblem
         (ldcs: LoadedComponent list)
         (childSheet: string)
-        /// The bindings the child sheet resolves at, before this value is applied:
-        /// CanvasExtractor.effectiveInstanceBindings, so the other parameters hold what the
-        /// instance actually gives them rather than the sheet's own defaults.
+        // The bindings the child sheet resolves at, before this value is applied:
+        // CanvasExtractor.effectiveInstanceBindings, so the other parameters hold what the
+        // instance actually gives them rather than the sheet's own defaults.
         (baseBindings: ParamBindings)
         (name: ParamName)
         (value: ParamInt)
@@ -446,15 +446,15 @@ let paramInputField
     (prompt: string)
     (defaultValue: ParamInt)
     (currentValue: Option<ParamInt>)
-    /// The expression this field is currently set to, where it is held somewhere other than a slot
-    /// of the open sheet - a custom component instance keeps its bindings on the instance. The box
-    /// shows what the value IS, so a value set to a symbol reads as that symbol.
+    // The expression this field is currently set to, where it is held somewhere other than a slot
+    // of the open sheet - a custom component instance keeps its bindings on the instance. The box
+    // shows what the value IS, so a value set to a symbol reads as that symbol.
     (currentExpr: Option<ParamExpression>)
     (constraints: ParamConstraint list)
-    /// A check the value must pass that cannot be written as a ParamConstraint, because its bounds
-    /// are not expressions in THIS sheet's parameters. The one such case is a custom component
-    /// instance's binding, whose bounds belong to the sheet inside it: see instanceBindingProblem.
-    /// None where the constraint list says everything.
+    // A check the value must pass that cannot be written as a ParamConstraint, because its bounds
+    // are not expressions in THIS sheet's parameters. The one such case is a custom component
+    // instance's binding, whose bounds belong to the sheet inside it: see instanceBindingProblem.
+    // None where the constraint list says everything.
     (extraCheck: (ParamInt -> Result<unit, ParamError>) option)
     (comp: Component option)
     (compSlotName: CompSlotName)

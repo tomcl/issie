@@ -782,18 +782,6 @@ let initialiseMem (mem: Memory1) (projectPath:string) =
     |> Result.map (fun (data, comments) ->
         {mem with Data = data; Comments = (if Map.isEmpty comments then None else Some comments)})
 
-
-
-
-
-/// Save a PNG file (encoded base64, as from draw2d).
-/// Overwrite existing file if needed.
-// savePngFile was here: a base64 writer for a schematic export that went away with Draw2D. It had
-// no callers and said so itself, and it held the last direct fs.writeFileSync in the renderer - so
-// rather than give it a bridge call it does not need, it is gone. Writing a PNG through the bridge
-// would be a few lines against Bridge.fsWriteFile if a schematic export ever comes back.
-
-
 /// Save state to normal file. Automatically add the .dgm suffix.
 /// This version will not correctly deal with bigint numbers.
 /// See svaStateToFileNew

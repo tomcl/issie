@@ -132,6 +132,53 @@ let private hierarchyWith (chosen: (string list * string) list) =
 let private midKey = [ "deep"; "mid" ]
 let private leafKey = [ "deep"; "mid"; "leaf" ]
 
+//-------------------------------------------------------------------------------------------//
+// A fourth design, for the rule that decides where a sheet's row is drawn in the signal list.
+//
+// `shared` is instantiated by both `left` and `right`, so two routes from the top reach it and it
+// appears in the hierarchy twice. There is nothing at top level to say which of them a single row
+// would stand for, so its row belongs inside each parent instead. `left` and `right` are each
+// reached one way, so theirs belong at top level.
+//
+// `shared` is a LEAF, which is the case that separates the two flags: it is reached more than one
+// way, so it is drawn inside its parents, but it has nothing inside it to open.
+//-------------------------------------------------------------------------------------------//
+
+let private sharedSheet = notSheet "shared" "A" "Y"
+
+/// A sheet whose whole content is one instance of `shared`.
+let private wrapperSheet name label =
+    let i = makeComp $"{name}-in" 0 1 (Input1(1, None)) "B"
+    let s = makeComp $"{name}-shared" 1 1 (customOf sharedSheet [ "A", 1 ] [ "Y", 1 ] None) label
+    let o = makeComp $"{name}-out" 1 0 (Output 1) "Z"
+    makeLdc name None ([ i; s; o ], [ conn i 0 s 0; conn s 0 o 0 ])
+
+let private leftSheet = wrapperSheet "left" "S1"
+let private rightSheet = wrapperSheet "right" "S2"
+
+let private forkSheet =
+    let i = makeComp "fork-in" 0 1 (Input1(1, None)) "IN"
+    let l = makeComp "fork-left" 1 1 (customOf leftSheet [ "B", 1 ] [ "Z", 1 ] None) "LEFT"
+    let r = makeComp "fork-right" 1 1 (customOf rightSheet [ "B", 1 ] [ "Z", 1 ] None) "RIGHT"
+    let o = makeComp "fork-out" 1 0 (Output 1) "OUT"
+    makeLdc "fork" None ([ i; l; r; o ], [ conn i 0 l 0; conn l 0 r 0; conn r 0 o 0 ])
+
+let private forkProject: Project =
+    { ProjectPath = "."
+      OpenFileName = "fork"
+      WorkingFileName = Some "fork"
+      LoadedComponents = [ forkSheet; leftSheet; rightSheet; sharedSheet ] }
+
+let private forkHierarchy =
+    lazy
+        (match
+            Simulator.startCircuitSimulation
+                maxArraySize "fork" forkSheet.CanvasState forkProject.LoadedComponents
+         with
+         | Error e -> failwith $"Simulation setup failed: %A{e}"
+         | Ok simData ->
+             WaveSimHierarchy.getSelectorHierarchy simData.FastSim forkProject ModelHelpers.initWSModel)
+
 let tests =
     testList
         "WaveSelection"
@@ -396,6 +443,73 @@ let tests =
                   (Set.toList ws.ShowSheetDetail)
                   [ [ "top"; "b"; "other" ]; [ "top"; "b"; "shared" ] ]
                   "nodes of different sheets are open at the same time, which is the ordinary case"
+
+          testCase "a sheet several routes reach is drawn inside its parents, not at top level"
+          <| fun () ->
+              let hierarchy = forkHierarchy.Force()
+              let nodeAt key = hierarchy.HierNodes[key]
+              // both parents hold it, so it is in the hierarchy under each of them
+              Expect.equal
+                  (hierarchy.HierOrder
+                   |> List.map (fun node -> node.NodeKey)
+                   |> List.filter (fun key -> List.tryLast key = Some "shared"))
+                  [ [ "fork"; "left"; "shared" ]; [ "fork"; "right"; "shared" ] ]
+                  "one node per place `shared` is reached, and no more"
+              Expect.all
+                  (hierarchy.HierOrder |> List.filter (fun node -> List.tryLast node.NodeKey = Some "shared"))
+                  (fun node -> node.NodeMultiRoute)
+                  "each is drawn inside the parent that instantiates it"
+
+          testCase "a sheet one route reaches is drawn at top level"
+          <| fun () ->
+              let hierarchy = forkHierarchy.Force()
+              Expect.all
+                  (hierarchy.HierOrder |> List.filter (fun node -> List.tryLast node.NodeKey <> Some "shared"))
+                  (fun node -> not node.NodeMultiRoute)
+                  "fork, left and right are each reached one way, so each is a flat top-level row"
+
+          testCase "a leaf several routes reach is placed inside its parents but has no toggle"
+          <| fun () ->
+              // The case that separates the two flags. Reading placement off NodeCollapsible put a
+              // shared leaf back at top level, once per parent, which is the duplication the flat
+              // list exists to avoid.
+              let hierarchy = forkHierarchy.Force()
+              let shared = hierarchy.HierNodes[[ "fork"; "left"; "shared" ]]
+              Expect.isTrue shared.NodeMultiRoute "two routes reach it, so its row is drawn nested"
+              Expect.isFalse shared.NodeCollapsible "and it holds nothing, so there is nothing to open"
+
+          testCase "the selector reads only the waves of the instances it is drawing"
+          <| fun () ->
+              // What makes the dialog affordable on a design that expands. `deep` has seven sheet
+              // instances and the collapsed hierarchy draws three of them, so a filter that read
+              // every wave would read more than twice what it can use - and the designs this was
+              // written for are four orders of magnitude worse.
+              let fs, allWaves = deepSimulation.Force()
+              // filterWaves reaches the simulation through the wave-sim cache, as the dialog does
+              Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
+              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
+              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs deepProject ws
+              let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
+              let filtered = WaveSimSelectHelpers.filterWaves (Some shown) ws
+
+              let everyInstance =
+                  allWaves |> Map.toList |> List.map (fun (_, w) -> w.SheetId) |> Set.ofList
+              Expect.isTrue (Set.count shown < Set.count everyInstance)
+                  "the design holds more instances than the dialog draws, which is what makes this matter"
+              Expect.isNonEmpty filtered.All "the instances on show have waves"
+              Expect.all filtered.All (fun wave -> Set.contains wave.SheetId shown)
+                  "and no wave of any other instance is read"
+
+              // Show Only Selected is the exception: a wave chosen inside an instance no combo box
+              // is showing has to stay reachable, or it could never be deselected.
+              let chosen = allWaves |> Map.toList |> List.map fst |> List.truncate 1
+              let unrestricted =
+                  WaveSimSelectHelpers.filterWaves
+                      None { ws with ShowOnlySelected = true; SelectedWaves = chosen }
+              Expect.equal (List.length unrestricted.All) 1
+                  "the selected wave is found wherever in the design it was chosen"
+
+              Simulator.simCacheWS <- Simulator.simCacheInit ()
 
           testCase "too many waveforms warns, and far too many is refused"
           <| fun () ->

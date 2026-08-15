@@ -36,6 +36,8 @@ this is about module-level state.
 |---|---|
 | `Simulator.fs` | `simCache`, `simCacheWS` |
 | `UI/ModelHelpers.fs` | `waveSimCostMemo` — the waveform configuration dialog reads the design's per-cycle cost on every render |
+| `UI/WaveSim/WaveSimSelectHelpers.fs` | `wavesByInstanceMemo` — the waves of each sheet instance. The wave selector draws the waves of a handful of instances and reached them by reading every wave in the design, on every keystroke in a search box: 208,896 of them for main6 of largeTest. Keyed on the `AllWaves` map by identity, which is replaced whenever the waves are rebuilt, so nothing has to remember to clear it |
+| `UI/WaveSim/WaveSimHierarchy.fs` | `instancesInsideMemo` — which instances of each sheet lie inside each instance, read from an entry per sheet INSTANCE and rebuilt on every render of the same selector. Keyed on the `FastSimulation` by identity, on the same argument |
 | `FastSim/FastCreate.fs` | `stepArrayIndex`, `stepArena` — build-scoped allocation state, reset by every build; threading either through the build would put plumbing in a dozen signatures for two leaf call sites |
 | `UI/TruthTable/TruthTableView.fs` | `selCache` |
 | `Common/TimeHelpers.fs` | `executionStats`, `instrumentation` |

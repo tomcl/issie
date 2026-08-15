@@ -30,8 +30,14 @@ type SelectorNode = {
     /// what selects the waves to list. None where the simulation has no instance here - a sheet
     /// with nothing on it, or a simulation of an earlier version of the design
     NodeInstance: string option
-    /// whether the user opens and closes this node, which is so for a sheet more than one route
-    /// reaches and which therefore appears in the hierarchy more than once
+    /// whether more than one route from the top sheet reaches this node's sheet, so that it appears
+    /// in the hierarchy more than once. Such a sheet has no place in the flat top level of the
+    /// signal list - which of the routes would a single row stand for? - so its row is drawn inside
+    /// each parent that instantiates it instead
+    NodeMultiRoute: bool
+    /// whether the user opens and closes this node. Not the same as NodeMultiRoute: a sheet with
+    /// nothing inside it has nothing to reveal, so it gets no toggle, and a leaf reached two ways
+    /// is exactly that case - which is why placement cannot be read off this
     NodeCollapsible: bool
     }
 
@@ -60,18 +66,32 @@ let emptyHierarchy = {
 /// SimSheetStructure maps a sheet instance to the custom component whose innards it is. That
 /// component carries both the instance it sits in, as its own SimSheetName, and the design-time
 /// name of what it instantiates, in its type - which is the whole of what is needed here.
+///
+/// Worked out once per simulation rather than once per render. It reads an entry per sheet INSTANCE
+/// - tens of thousands on a design that expands - and the hierarchy it feeds is rebuilt on every
+/// keystroke in the selector's search boxes. Keyed on the FastSimulation by identity, which is
+/// replaced whenever a simulation is built, so a stale index cannot be read.
+let mutable private instancesInsideMemo: (FastSimulation * Map<string * string, string list>) option =
+    None
+
 let instancesInside (fs: FastSimulation): Map<string * string, string list> =
-    fs.SimSheetStructure
-    |> Map.toList
-    |> List.choose (fun (simSheetName, parent) ->
-        parent
-        |> Option.bind (fun fc ->
-            match fc.FType with
-            | Custom ct -> Some ((fc.SimSheetName, ct.Name), simSheetName)
-            | _ -> None))
-    |> List.groupBy fst
-    |> List.map (fun (key, entries) -> key, entries |> List.map snd |> List.sort)
-    |> Map.ofList
+    match instancesInsideMemo with
+    | Some(memoOf, index) when System.Object.ReferenceEquals(memoOf, fs) -> index
+    | _ ->
+        let index =
+            fs.SimSheetStructure
+            |> Map.toList
+            |> List.choose (fun (simSheetName, parent) ->
+                parent
+                |> Option.bind (fun fc ->
+                    match fc.FType with
+                    | Custom ct -> Some ((fc.SimSheetName, ct.Name), simSheetName)
+                    | _ -> None))
+            |> List.groupBy fst
+            |> List.map (fun (key, entries) -> key, entries |> List.map snd |> List.sort)
+            |> Map.ofList
+        instancesInsideMemo <- Some(fs, index)
+        index
 
 /// The SimSheetName of the design's top sheet, which every other instance is reached from.
 let private topInstance (fs: FastSimulation) =
@@ -87,14 +107,21 @@ let getSelectorHierarchy (fs: FastSimulation) (p: Project) (ws: WaveSimModel): S
     let root = fs.SimulatedTopSheet
     let multiPath = multiPathSheets shapes root
 
-    /// A node the user opens and closes: its sheet is reached more than one way, and there is
-    /// something inside it to reveal.
-    let collapsible (key: string list) =
+    /// A sheet more than one route from the top reaches, and which is therefore in the hierarchy
+    /// more than once.
+    let multiRoute (key: string list) =
         match List.tryLast key with
-        | Some sheet ->
-            Set.contains sheet multiPath
-            && not (Map.tryFind sheet shapes |> Option.defaultValue [] |> List.isEmpty)
+        | Some sheet -> Set.contains sheet multiPath
         | None -> false
+
+    /// A node the user opens and closes: reached more than one way, AND with something inside it
+    /// to reveal. A leaf two routes reach is drawn inside each of its parents like any other
+    /// multi-route sheet, but there is nothing under it to open.
+    let collapsible (key: string list) =
+        multiRoute key
+        && (match List.tryLast key with
+            | Some sheet -> not (Map.tryFind sheet shapes |> Option.defaultValue [] |> List.isEmpty)
+            | None -> false)
 
     let tree =
         materialiseTree
@@ -117,6 +144,7 @@ let getSelectorHierarchy (fs: FastSimulation) (p: Project) (ws: WaveSimModel): S
             NodeKey = node.SheetPath
             NodeInstances = instances
             NodeInstance = chosen
+            NodeMultiRoute = multiRoute node.SheetPath
             NodeCollapsible = collapsible node.SheetPath
             }
         let below =

@@ -83,14 +83,37 @@ let wavePropsTable (rows: TableRow list) =
 
     
 
-/// Ensures that only valid waves (and selected waves) are returned.
-let ensureWaveConsistency (ws: WaveSimModel) =
+/// The waves of each sheet instance, worked out once per AllWaves map rather than once per render.
+///
+/// The selector wants the waves of the handful of instances it is drawing and had no way to ask for
+/// them: it read every wave in the design and threw nearly all of them away, on every keystroke in
+/// a search box and every click on a pill. main6 of largeTest carries 208,896 waves.
+///
+/// Keyed on the map itself by identity, which is what makes the memo safe without anything having
+/// to remember to clear it: AllWaves is replaced whenever the waves are rebuilt, so an index built
+/// from an older one can never be read.
+let mutable private wavesByInstanceMemo: (Map<WaveIndexT, Wave> * Map<string, Wave list>) option = None
+
+let wavesByInstance (allWaves: Map<WaveIndexT, Wave>) : Map<string, Wave list> =
+    match wavesByInstanceMemo with
+    | Some (memoOf, index) when System.Object.ReferenceEquals(memoOf, allWaves) -> index
+    | _ ->
+        let index =
+            Map.valuesL allWaves
+            |> List.groupBy (fun (wave: Wave) -> wave.SheetId)
+            |> Map.ofList
+        wavesByInstanceMemo <- Some(allWaves, index)
+        index
+
+/// Ensures that only valid waves (and selected waves) are returned. A design edited under a running
+/// simulation can leave a wave naming a component the simulation no longer has.
+let ensureWaveConsistency (ws: WaveSimModel) (candidates: Wave list) =
     let fs = Simulator.getFastSim()
     let okWaves =
-        Map.valuesL ws.AllWaves
+        candidates
         |> List.filter (fun wave -> Map.containsKey wave.WaveId.Id fs.WaveComps)
-    if okWaves.Length <> ws.AllWaves.Count then
-        Log.dbg Log.Wave $"wave consistency: {okWaves.Length} valid waves of {ws.AllWaves.Count}"
+    if okWaves.Length <> candidates.Length then
+        Log.dbg Log.Wave $"wave consistency: {okWaves.Length} valid waves of {candidates.Length}"
     let okSelectedWaves =
         ws.SelectedWaves |> List.filter (fun selW -> Map.containsKey selW ws.AllWaves)
     if okSelectedWaves.Length <> ws.SelectedWaves.Length then
@@ -116,26 +139,56 @@ let updateSheetString (newSheetName: string) (ws: WaveSimModel) =
 /// Filtering function that applies an AND operation across four search criteria.
 /// OfSheet is used to return the waves that match the sheet box
 /// All returns all filtered waves without any sheet filtering.
-let filterWaves (wsModel: WaveSimModel) =
+///
+/// `shown` is the sheet instances the two panes are going to draw - the handful the collapsed
+/// hierarchy resolved to, one per node. A wave of any other instance cannot appear in either pane,
+/// so it is dropped before anything else looks at it. That is the difference between work
+/// proportional to the design somebody wrote and work proportional to what it expands to: main6 of
+/// largeTest is seven sheets and tens of thousands of instances, carrying 208,896 waves between
+/// them, and the dialog draws seven rows.
+///
+/// None means no restriction, which is what Show Only Selected needs: a wave already chosen inside
+/// an instance no combo box is currently showing must stay reachable, or it could never be
+/// deselected.
+///
+/// Every membership test here is against a Set. They were lists as long as the expansion, tested
+/// once per wave, which is a product of two numbers that both grow with the design - the reason
+/// opening this dialog on a large design took minutes. The worst case was the DEFAULT one: an empty
+/// sheet box matches every instance, since every string contains the empty string.
+let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
     let fs = Simulator.getFastSim()
-    let waves, okSelectedWaves = ensureWaveConsistency wsModel
+    // Only the instances on show are read out of the index. This is the step that makes the cost
+    // the design's rather than its expansion's: everything below works on what it returns.
+    let candidates =
+        match shown with
+        | Some instances ->
+            let index = wavesByInstance wsModel.AllWaves
+            instances
+            |> Set.toList
+            |> List.collect (fun instance -> Map.tryFind instance index |> Option.defaultValue [])
+        | None -> Map.valuesL wsModel.AllWaves
+    let waves, okSelectedWaves = ensureWaveConsistency wsModel candidates
+    let selectedIds = Set.ofList okSelectedWaves
     let matchWithBox (searchString: string) (matcher:string) =
         let s = searchString.Trim().ToUpperInvariant()
         s = "" || s = "*" || matcher.ToUpperInvariant().Contains s
 
     let searchFilteredWaves =
         waves
-        |> List.filter (fun wave -> 
+        |> List.filter (fun wave ->
             matchWithBox wsModel.ComponentSearchString wave.CompLabel
             && matchWithBox wsModel.PortSearchString wave.PortLabel
-            && (not wsModel.ShowOnlySelected || List.contains wave.WaveId okSelectedWaves)
+            && (not wsModel.ShowOnlySelected || Set.contains wave.WaveId selectedIds)
         )
     let sheetBox = wsModel.SheetSearchString.Trim().ToUpperInvariant()
     let sheet = sheetBox.TrimEnd '*'
     let allSubSheets = sheetBox.EndsWith "*"
+    // The sheet box is matched against the instances on show, for the same reason: what it decides
+    // is which pills are highlighted and which rows are drawn, and both are drawn from those.
     let allSheets =
-        fs.SimSheetStructure.Keys
-        |> Seq.toList
+        match shown with
+        | Some instances -> Set.toList instances
+        | None -> fs.SimSheetStructure.Keys |> Seq.toList
 
     let filteredSheets =
         allSheets
@@ -146,10 +199,11 @@ let filterWaves (wsModel: WaveSimModel) =
         allSheets
         |> List.filter (fun sheet -> List.contains sheet filteredSheets ||
                                      (allSubSheets && isSubSheetOf sheet filteredSheets))
+        |> Set.ofList
 
     let sheetFilteredWaves =
         searchFilteredWaves
-        |> List.filter (fun wave -> List.contains wave.SheetId searchSheets)
+        |> List.filter (fun wave -> Set.contains wave.SheetId searchSheets)
 
     {| All = searchFilteredWaves; Sheets = searchSheets; OfSheet = sheetFilteredWaves|}
 
@@ -280,7 +334,7 @@ let portSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement
 let waveSelectBreadcrumbs
         (wsModel: WaveSimModel)
         (hierarchy: WaveSimHierarchy.SelectorHierarchy)
-        (filteredWaves: {| All: Wave list; Sheets: string list; OfSheet: Wave list|})
+        (filteredWaves: {| All: Wave list; Sheets: Set<string>; OfSheet: Wave list|})
         (dispatch: Msg -> unit)
         (model: Model) : ReactElement =
     match model.CurrentProj with
@@ -296,7 +350,7 @@ let waveSelectBreadcrumbs
             WaveSimHierarchy.nodeOf hierarchy sheet |> Option.bind (fun node -> node.NodeInstance)
         let sheetColor (sheet: SheetTree) =
             match instanceOf sheet with
-            | Some instance when List.contains instance filteredWaves.Sheets -> IColor.IsCustomColor "pink"
+            | Some instance when Set.contains instance filteredWaves.Sheets -> IColor.IsCustomColor "pink"
             | _ -> IColor.IsCustomColor "darkslategrey"
         let sheetMatches (sheet: SheetTree) =
             match instanceOf sheet with
@@ -315,20 +369,15 @@ let waveSelectBreadcrumbs
                     dispatch (UpdateWSModel (fun ws ->
                         { ws with SheetSearchString = updateSheetString instance ws }
                         |> fun ws -> setWaveSheetSelectionOpen ws [sheet.SheetPath] true))
-        /// The design-time sheet name, with the instance after it where there is a choice of them.
-        let sheetName (node: SheetTree) =
-            match WaveSimHierarchy.nodeOf hierarchy node with
-            | Some sel when sel.NodeInstances.Length > 1 ->
-                match sel.NodeInstance with
-                | Some instance -> $"{node.SheetName} ({instance})"
-                | None -> node.SheetName
-            | _ -> node.SheetName
         let breadcrumbConfig = {
             MiscMenuView.Constants.defaultConfig with
                 ClickAction = updateSearchStringHelper
                 ColorFun = sheetColor
                 NoWaves = sheetMatches
-                BreadcrumbText = Some sheetName
+                // The design-time sheet name and nothing else. A pill's place in the tree is what
+                // says which occurrence it is, and the combo box in the other pane says which
+                // instance - so naming the instance here repeated one and pre-empted the other.
+                BreadcrumbText = Some (fun sheet -> sheet.SheetName)
                 IsCollapsible = fun sheet ->
                     WaveSimHierarchy.nodeOf hierarchy sheet
                     |> Option.map (fun node -> node.NodeCollapsible)
@@ -570,9 +619,17 @@ let private makeInstanceRows showDetails (ws: WaveSimModel) (fs: FastSimulation)
                 makeFlatGroupRow showDetails ws [instance] grp groupWaves dispatch)
         makeSummaryItem showDetails ws (str instance) groupRows (SheetItem [instance]) wavesOfInstance dispatch)
 
-/// One row per node of the collapsed hierarchy, holding the signals of the instance that node is
-/// showing. A node whose instance has no waves left after filtering is left out, which is how the
+/// One row per sheet of the collapsed hierarchy, holding the signals of the instance that row is
+/// showing. A row whose instance has no waves left after filtering is left out, which is how the
 /// search boxes and the sheet filter narrow the list.
+///
+/// The list is flat for a sheet only one route reaches: wherever it sits in the design it appears
+/// at top level, once, and a combo box says which of the instances inside its one parent it is
+/// showing. A sheet SEVERAL routes reach cannot be there - at top level there is nothing to say
+/// which route it stands for - so its row sits inside each parent that instantiates it, and the
+/// combo boxes down that chain settle the occurrence between them. That is what keeps the rows
+/// drawn proportional to the sheets somebody wrote rather than to what the design expands to:
+/// largeTest is seven sheets and 49,152 instances of the innermost one.
 let private makeNodeRows
         showDetails
         (ws: WaveSimModel)
@@ -581,27 +638,57 @@ let private makeNodeRows
         (waves: Wave list)
         dispatch =
     let wavesByInstance = waves |> List.groupBy (fun w -> w.SheetId) |> Map.ofList
-    hierarchy.HierOrder
-    |> List.choose (fun node ->
-        node.NodeInstance
-        |> Option.bind (fun instance ->
-            Map.tryFind instance wavesByInstance
-            |> Option.map (fun wavesOfNode -> node, instance, wavesOfNode)))
-    |> List.map (fun (node, instance, wavesOfNode) ->
-        let groupRows =
-            wavesOfNode
-            |> List.groupBy (fun wave -> getCompGroup fs wave)
-            |> List.map (fun (grp, groupWaves) ->
-                makeFlatGroupRow showDetails ws node.NodeKey grp groupWaves dispatch)
-        // A node the user opens and closes is never opened by the auto-expand: only one node of a
-        // sheet is meant to be showing at a time, and forcing them all open would say otherwise.
-        let autoOpen = showDetails && not node.NodeCollapsible
-        let title =
-            let path = String.concat "." node.NodeKey
-            if node.NodeInstances.Length > 1 then $"{path} ({instance})" else path
-        makeSheetItem
-            autoOpen ws (str title) (instanceSelector node dispatch)
-            groupRows (SheetItem node.NodeKey) wavesOfNode dispatch)
+
+    /// The row for this sheet, and the rows of the sheets below it that belong at top level. The
+    /// second is in the order the nodes are walked, parents first, which is the order the flat
+    /// list had when every node was in it.
+    let rec rowsOf (sheet: SheetTree) =
+        match WaveSimHierarchy.nodeOf hierarchy sheet with
+        | None -> None, []
+        | Some node ->
+            // A sheet reached more than one way is drawn here, inside its parent. One reached only
+            // this way is drawn at top level, and so are the ones it in turn sends there.
+            let nested, flat =
+                sheet.SubSheets
+                |> List.map (fun sub ->
+                    let own, flat = rowsOf sub
+                    match WaveSimHierarchy.nodeOf hierarchy sub with
+                    | Some child when child.NodeMultiRoute -> Option.toList own, flat
+                    | _ -> [], Option.toList own @ flat)
+                |> List.unzip
+                |> fun (nested, flat) -> List.concat nested, List.concat flat
+
+            let wavesOfNode =
+                node.NodeInstance
+                |> Option.bind (fun instance -> Map.tryFind instance wavesByInstance)
+                |> Option.defaultValue []
+            let groupRows =
+                wavesOfNode
+                |> List.groupBy (fun wave -> getCompGroup fs wave)
+                |> List.map (fun (grp, groupWaves) ->
+                    makeFlatGroupRow showDetails ws node.NodeKey grp groupWaves dispatch)
+
+            // Nothing of its own and nothing underneath it means nothing to draw. Signals of its
+            // own are not required: a sheet that only passes wires through still has to be drawn
+            // when something inside it matched, since its row is the only way to reach that.
+            if List.isEmpty groupRows && List.isEmpty nested then
+                None, flat
+            else
+                // A node the user opens and closes is never opened by the auto-expand: only one
+                // node of a sheet is meant to be showing at a time, and forcing them all open
+                // would say otherwise.
+                let autoOpen = showDetails && not node.NodeCollapsible
+                // The sheet's own name, not its path and not its instance. Where the row sits says
+                // which occurrence it is and the combo box beside it says which instance, so the
+                // path was only ever length: main6.main5.main4.main3 to say main3.
+                let row =
+                    makeSheetItem
+                        autoOpen ws (str sheet.SheetName) (instanceSelector node dispatch)
+                        (groupRows @ nested) (SheetItem node.NodeKey) wavesOfNode dispatch
+                Some row, flat
+
+    let top, flat = rowsOf hierarchy.HierTree
+    Option.toList top @ flat
 
 let makeSelectionTable
         (ws: WaveSimModel)
@@ -684,9 +771,11 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
 
     if not wsModel.WaveModalActive then div [] []
     else
-        let filteredWaves = filterWaves wsModel
         // Both panes are drawn from one hierarchy, worked out here: which nodes there are and
         // which instance each of them is showing has to be one answer, not two.
+        //
+        // Before the waves are filtered, not after: what it resolves to is the handful of instances
+        // the panes will draw, and that is what stops the filter reading every wave in the design.
         let hierarchy =
             match model.CurrentProj with
             | None -> WaveSimHierarchy.emptyHierarchy
@@ -695,6 +784,17 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                     (Simulator.getFastSim())
                     (ModelHelpers.getUpdatedLoadedComponents project model)
                     wsModel
+        // Show Only Selected lists the instances a wave was chosen in rather than the ones on show,
+        // so it is the one mode that has to look wider than the hierarchy.
+        let shownInstances =
+            if wsModel.ShowOnlySelected then
+                None
+            else
+                hierarchy.HierOrder
+                |> List.choose (fun node -> node.NodeInstance)
+                |> Set.ofList
+                |> Some
+        let filteredWaves = filterWaves shownInstances wsModel
         Modal.modal [
             Modal.IsActive wsModel.WaveModalActive
             Modal.Props [ Style [ ZIndex 20000 ] ]

@@ -361,6 +361,37 @@ let viewWaveSelectConfirmationPopup numRequired numWaves action dispatch =
     let foot _ = div [] []
     choicePopup title warning "Select waveforms" "Change selection"  action dispatch
 
+/// Waveform selection refusal: more waveforms than the viewer can show at all.
+///
+/// Unlike the warning above this offers no way through - the one button returns to the selection -
+/// so it is a closablePopup with a foot of its own rather than a choicePopup. confirmationPopup is
+/// the near miss: its foot adds a Cancel beside the action button, and two buttons that both mean
+/// "go back" say less than one.
+let viewWaveSelectRefusalPopup numAllowed numWaves dispatch =
+    let bSpan txt = span [Style [FontWeight "bold"]] [str txt]
+    let body =
+        div [] [
+            str $"You have selected {numWaves} waveforms, which is more than the {numAllowed} the "
+            str "viewer can show. Deselect some before leaving this dialog."
+            br []; br []
+            bSpan "HINT. "
+            str "Clear the filter boxes above and tick "; bSpan "Show Only Selected"
+            str " to list what you have chosen, wherever in the design it came from. The check "
+            str "boxes then deselect it."
+        ]
+    let foot =
+        Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+            Level.left [] []
+            Level.right [] [
+                Level.item [] [
+                    Button.button
+                        [ Button.Color IsPrimary; Button.OnClick (fun _ -> dispatch ClosePopup) ]
+                        [ str "Back to selection" ]
+                ]
+            ]
+        ]
+    closablePopup "Too many waveforms" body foot [] dispatch
+
 /// Memory Properties Info Button Popup
 let memPropsInfoButton dispatch =
     let title = AppMessages.Memories.title

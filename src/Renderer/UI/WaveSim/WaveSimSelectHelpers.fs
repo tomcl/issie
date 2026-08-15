@@ -43,6 +43,27 @@ module Constants =
     let numPortColumns = 4
     let maxWarningViewerWaves = 25
     let maxRecommendedViewerWaves = 50
+    /// Above this many selected waveforms Done refuses rather than warns: the modal stays open and
+    /// the user has to deselect. Twice the recommended number - far enough above the warning that
+    /// reaching it takes deliberate work, and low enough that the viewer that opens still scrolls.
+    let maxAllowedViewerWaves = 100
+    /// Below this many waves on offer the selector opens every row, on the grounds that a list this
+    /// short is quicker to read than to click through.
+    let maxAutoExpandWaves = 50
+
+/// What leaving the wave selection dialog with a given number of waveforms selected does.
+type SelectionVerdict =
+    /// the dialog closes and the viewer shows them
+    | SelectionOk
+    /// the user is warned, and may go on
+    | SelectionWarn
+    /// the dialog stays open until some are deselected
+    | SelectionRefuse
+
+let selectionVerdict (numWaves: int) =
+    if numWaves > Constants.maxAllowedViewerWaves then SelectionRefuse
+    elif numWaves > Constants.maxRecommendedViewerWaves then SelectionWarn
+    else SelectionOk
 
 type TableRow = TableRow of ReactElement
 
@@ -252,48 +273,69 @@ let portSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement
 // -----------------------------------------
 
 /// Displays a breadcrumb of sheets based on the current search and wave matches.
+///
+/// One pill per NODE of the collapsed hierarchy, not per instance: a sheet instantiated four times
+/// inside one parent is one pill, and which of the four it stands for is the combo box in the
+/// other pane. Both panes are drawn from the same hierarchy, so they cannot disagree about it.
 let waveSelectBreadcrumbs
         (wsModel: WaveSimModel)
+        (hierarchy: WaveSimHierarchy.SelectorHierarchy)
         (filteredWaves: {| All: Wave list; Sheets: string list; OfSheet: Wave list|})
         (dispatch: Msg -> unit)
         (model: Model) : ReactElement =
     match model.CurrentProj with
     | None -> div [] [ str "No project open" ]
-    | Some project ->
+    | Some _ ->
         let fs = Simulator.getFastSim()
-        let updatedProject = ModelHelpers.getUpdatedLoadedComponents project model
-        let updatedModel = { model with CurrentProj = Some updatedProject }
         // Extract sheet names from wave names.
         let sheetCounts =
             filteredWaves.All |> List.countBy (fun wave -> wave.SheetLabel)
+        /// The instance a pill stands for. None where the simulation has nothing there - an empty
+        /// sheet, or a simulation of an earlier version of the design - and such a pill is inert.
+        let instanceOf (sheet: SheetTree) =
+            WaveSimHierarchy.nodeOf hierarchy sheet |> Option.bind (fun node -> node.NodeInstance)
         let sheetColor (sheet: SheetTree) =
-            let sheetName = sheet.SimName fs
-            let sheetSearch = wsModel.SheetSearchString.Trim().ToUpperInvariant()
-            // Collect the other search strings.
-            if List.contains sheetName filteredWaves.Sheets then
-                IColor.IsCustomColor "pink"
-            else
-                IColor.IsCustomColor "darkslategrey"
+            match instanceOf sheet with
+            | Some instance when List.contains instance filteredWaves.Sheets -> IColor.IsCustomColor "pink"
+            | _ -> IColor.IsCustomColor "darkslategrey"
         let sheetMatches (sheet: SheetTree) =
-            match List.tryFind (fun (name, _) -> name = sheet.SimName fs) sheetCounts with
-            | Some (_, count) -> count
+            match instanceOf sheet with
             | None -> 0
+            | Some instance ->
+                match List.tryFind (fun (name, _) -> name = instance) sheetCounts with
+                | Some (_, count) -> count
+                | None -> 0
+        /// Clicking a pill filters the signals by that sheet, and opens the node so that what it
+        /// filtered to is on screen rather than behind a closed row.
         let updateSearchStringHelper (sheet: SheetTree) : (Msg -> unit) -> unit =
             fun dispatch ->
-                dispatch (UpdateWSModel (fun ws -> { ws with SheetSearchString = updateSheetString (sheet.SimName fs) ws}))
+                match instanceOf sheet with
+                | None -> ()
+                | Some instance ->
+                    dispatch (UpdateWSModel (fun ws ->
+                        { ws with SheetSearchString = updateSheetString instance ws }
+                        |> fun ws -> setWaveSheetSelectionOpen ws [sheet.SheetPath] true))
+        /// The design-time sheet name, with the instance after it where there is a choice of them.
         let sheetName (node: SheetTree) =
-            node.SimName fs
-        let breadcrumbConfig = { 
+            match WaveSimHierarchy.nodeOf hierarchy node with
+            | Some sel when sel.NodeInstances.Length > 1 ->
+                match sel.NodeInstance with
+                | Some instance -> $"{node.SheetName} ({instance})"
+                | None -> node.SheetName
+            | _ -> node.SheetName
+        let breadcrumbConfig = {
             MiscMenuView.Constants.defaultConfig with
                 ClickAction = updateSearchStringHelper
                 ColorFun = sheetColor
                 NoWaves = sheetMatches
-                AllowDuplicateSheets = true
-                // A library component is opaque here whatever the Sheets menu is set to show: none
-                // of its innards are offered as waves, so it must not appear in the hierarchy that
-                // selects them either.
-                ShowLibrarySheet = fun _ -> false
                 BreadcrumbText = Some sheetName
+                IsCollapsible = fun sheet ->
+                    WaveSimHierarchy.nodeOf hierarchy sheet
+                    |> Option.map (fun node -> node.NodeCollapsible)
+                    |> Option.defaultValue false
+                ExpandAction = fun sheet dispatch ->
+                    let show = not (Set.contains sheet.SheetPath wsModel.ShowSheetDetail)
+                    dispatch (UpdateWSModel (fun ws -> setWaveSheetSelectionOpen ws [sheet.SheetPath] show))
         }
         let hierarchyText =
             let allSheets = fs.SimSheetStructure |> Map.keysL
@@ -320,7 +362,7 @@ let waveSelectBreadcrumbs
                 div [ Style [ TextAlign TextAlignOptions.Center; FontSize "20px" ; FontWeight 600; PaddingBottom "10px"] ] [
                     str hierarchyText
                     ]
-                MiscMenuView.hierarchyBreadcrumbs breadcrumbConfig dispatch updatedModel
+                MiscMenuView.breadcrumbsOfTree breadcrumbConfig hierarchy.HierTree dispatch
                 ]
         ]
         div [] breadcrumbs
@@ -411,14 +453,43 @@ let makeSummaryItem
         
     
 
+/// A summary row like makeSummaryItem, with one thing shown in the body above the rows. For a
+/// sheet that is the combo box choosing which of its instances the rows below belong to, which
+/// belongs there rather than in the summary: a click on the summary opens and closes the row.
+let makeSheetItem
+        showDetails
+        (ws: WaveSimModel)
+        (summaryItem: ReactElement)
+        (aboveRows: ReactElement)
+        (rows: TableRow list)
+        (cBox: CheckBoxStyle)
+        (waves: Wave list)
+        (dispatch: Msg -> unit) =
+    let wi = wavesToIds waves
+    waveRowIProps
+        (summaryProps false cBox ws dispatch)
+        [
+            waveCheckBoxItem ws wi dispatch
+            details
+                (detailsProps showDetails cBox ws dispatch)
+                [
+                    summary (summaryProps true cBox ws dispatch) [ summaryItem ]
+                    aboveRows
+                    wavePropsTable rows
+                ]
+        ]
+
 let makeFlatGroupRow
         showDetails
         (ws: WaveSimModel)
+        (nodeKey: string list)
         (grp: ComponentGroup)
         (wavesInGroup: Wave list)
         (dispatch: Msg -> unit) =
     let portsPerRow = Constants.numPortColumns
-    let cBox = GroupItem (grp, [])
+    // Keyed by the node the group sits in, so that opening the gates of one sheet does not open
+    // the gates of every other sheet in the list.
+    let cBox = GroupItem (grp, nodeKey)
     let summaryReact = summaryName ws cBox [] wavesInGroup
     let rowItems =
         wavesInGroup
@@ -460,8 +531,81 @@ let makeFlatGroupRow
             
     makeSummaryItem showDetails ws summaryReact rowItems cBox wavesInGroup dispatch
 
+/// The combo box choosing which instance of a sheet the signals below it belong to. Shown only
+/// where there is a choice to make - most sheets in most designs are instantiated once.
+let private instanceSelector (node: WaveSimHierarchy.SelectorNode) (dispatch: Msg -> unit) =
+    match node.NodeInstances, node.NodeInstance with
+    | _ :: _ :: _, Some shown ->
+        div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginLeft "10px"]] [
+            p [Style (MarginRight "8px" :: normalFontStyle)] [str "Instance"]
+            Select.select [Select.Size IsSmall] [
+                select [
+                    // Bulma gives the control a height and 5px of vertical padding, and something
+                    // in the app's CSS leaves select at content-box - so the box it is drawn in is
+                    // 10px taller than the box it is laid out in, and it covers the first group of
+                    // signals under it. Said here rather than in the CSS: this is the only select
+                    // inside a table row, which is what makes the overspill land on something.
+                    Style [BoxSizing BoxSizingOptions.BorderBox]
+                    Value shown
+                    OnChange (fun ev ->
+                        let chosen = ev.Value
+                        dispatch <| UpdateWSModel (fun ws ->
+                            { ws with SelectedSheetInstance = Map.add node.NodeKey chosen ws.SelectedSheetInstance }))
+                ] (node.NodeInstances |> List.map (fun instance -> option [Value instance] [str instance]))
+            ]
+        ]
+    | _ -> null
+
+/// One row per sheet instance, which is what the pane showed before the hierarchy was collapsed.
+/// Kept for Show Only Selected: a wave already chosen inside an instance that no combo box is
+/// currently showing has to stay reachable, or it could never be deselected.
+let private makeInstanceRows showDetails (ws: WaveSimModel) (fs: FastSimulation) waves dispatch =
+    waves
+    |> List.groupBy (fun (w: Wave) -> w.SheetId)
+    |> List.map (fun (instance, wavesOfInstance) ->
+        let groupRows =
+            wavesOfInstance
+            |> List.groupBy (fun wave -> getCompGroup fs wave)
+            |> List.map (fun (grp, groupWaves) ->
+                makeFlatGroupRow showDetails ws [instance] grp groupWaves dispatch)
+        makeSummaryItem showDetails ws (str instance) groupRows (SheetItem [instance]) wavesOfInstance dispatch)
+
+/// One row per node of the collapsed hierarchy, holding the signals of the instance that node is
+/// showing. A node whose instance has no waves left after filtering is left out, which is how the
+/// search boxes and the sheet filter narrow the list.
+let private makeNodeRows
+        showDetails
+        (ws: WaveSimModel)
+        (fs: FastSimulation)
+        (hierarchy: WaveSimHierarchy.SelectorHierarchy)
+        (waves: Wave list)
+        dispatch =
+    let wavesByInstance = waves |> List.groupBy (fun w -> w.SheetId) |> Map.ofList
+    hierarchy.HierOrder
+    |> List.choose (fun node ->
+        node.NodeInstance
+        |> Option.bind (fun instance ->
+            Map.tryFind instance wavesByInstance
+            |> Option.map (fun wavesOfNode -> node, instance, wavesOfNode)))
+    |> List.map (fun (node, instance, wavesOfNode) ->
+        let groupRows =
+            wavesOfNode
+            |> List.groupBy (fun wave -> getCompGroup fs wave)
+            |> List.map (fun (grp, groupWaves) ->
+                makeFlatGroupRow showDetails ws node.NodeKey grp groupWaves dispatch)
+        // A node the user opens and closes is never opened by the auto-expand: only one node of a
+        // sheet is meant to be showing at a time, and forcing them all open would say otherwise.
+        let autoOpen = showDetails && not node.NodeCollapsible
+        let title =
+            let path = String.concat "." node.NodeKey
+            if node.NodeInstances.Length > 1 then $"{path} ({instance})" else path
+        makeSheetItem
+            autoOpen ws (str title) (instanceSelector node dispatch)
+            groupRows (SheetItem node.NodeKey) wavesOfNode dispatch)
+
 let makeSelectionTable
         (ws: WaveSimModel)
+        (hierarchy: WaveSimHierarchy.SelectorHierarchy)
         (waves: Wave list)
         (dispatch: Msg -> unit)
         =
@@ -469,26 +613,18 @@ let makeSelectionTable
     let waves = List.sortBy (fun wave -> wave.ViewerDisplayName) waves
     let sheetNum = waves |> List.distinctBy (fun w -> w.SheetId) |> List.length
     let showDetails =
-        ((List.length waves < 50) ||
+        ((List.length waves < Constants.maxAutoExpandWaves) ||
         (ws.WaveSearchString.Length > 0)) ||
          ws.ShowOnlySelected ||
          sheetNum < 2
     let subSheetRows =
-        waves
-        |> List.groupBy (fun w -> w.SheetId)
-        |> List.map (fun (subSheetName, wavesInSubSheet) ->
-            let componentGroups =
-                wavesInSubSheet
-                |> List.groupBy (fun wave -> getCompGroup fs wave)
-            let groupRows =
-                componentGroups
-                |> List.map (fun (grp, groupWaves) ->
-                    makeFlatGroupRow showDetails ws grp groupWaves dispatch
-                )
-            makeSummaryItem showDetails ws (str subSheetName) groupRows (SheetItem [subSheetName]) wavesInSubSheet dispatch
-        )
+        if ws.ShowOnlySelected then
+            makeInstanceRows showDetails ws fs waves dispatch
+        else
+            makeNodeRows showDetails ws fs hierarchy waves dispatch
     let messageColour =
         match ws.SelectedWaves.Length with
+        | n when n > Constants.maxAllowedViewerWaves -> "darkred"
         | n when n > Constants.maxRecommendedViewerWaves -> "red"
         | n when n > Constants.maxWarningViewerWaves -> "orange"
         | _ -> "green"
@@ -518,17 +654,24 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
              ComponentTypeSearchString = ""
              HighlightedSheets = Set.empty
              ShowOnlySelected = false
+             SearchString = ""
         }
 
     let closeModal () =
-        dispatch (UpdateWSModel (fun ws -> 
+        dispatch (UpdateWSModel (fun ws ->
             resetSearchFilters { ws with WaveModalActive = false }
         ))
 
-    // Handler for closing the modal (with confirmation if >50 waves are selected).
+    /// Leaving the dialog - Done, the X in the header, or a click on the background. Above the
+    /// recommended number of waveforms this warns; above what the viewer can show at all it
+    /// refuses and the dialog stays open. The filters are not reset on that path: they are what
+    /// finds the waveforms to deselect, which is what the refusal asks the user to do.
     let handleModalClose _ =
         let numWaves = List.length wsModel.SelectedWaves
-        if numWaves > Constants.maxRecommendedViewerWaves then
+        match selectionVerdict numWaves with
+        | SelectionRefuse ->
+            UIPopups.viewWaveSelectRefusalPopup Constants.maxAllowedViewerWaves numWaves dispatch
+        | SelectionWarn ->
             UIPopups.viewWaveSelectConfirmationPopup
                 Constants.maxRecommendedViewerWaves
                 numWaves
@@ -536,21 +679,31 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                     dispatch ClosePopup
                     if finish then closeModal ())
                 dispatch
-        else
+        | SelectionOk ->
             closeModal ()
-        // Always reset the search string.
-        dispatch (UpdateWSModel (fun ws -> { ws with SearchString = "" }))
 
     if not wsModel.WaveModalActive then div [] []
     else
         let filteredWaves = filterWaves wsModel
+        // Both panes are drawn from one hierarchy, worked out here: which nodes there are and
+        // which instance each of them is showing has to be one answer, not two.
+        let hierarchy =
+            match model.CurrentProj with
+            | None -> WaveSimHierarchy.emptyHierarchy
+            | Some project ->
+                WaveSimHierarchy.getSelectorHierarchy
+                    (Simulator.getFastSim())
+                    (ModelHelpers.getUpdatedLoadedComponents project model)
+                    wsModel
         Modal.modal [
             Modal.IsActive wsModel.WaveModalActive
             Modal.Props [ Style [ ZIndex 20000 ] ]
         ] [
-            // Modal background to allow closing on click.
+            // Modal background to allow closing on click. Through the same handler as Done: this
+            // used to close the dialog directly, which dodged the warning about how many
+            // waveforms were selected, and would now dodge the refusal as well.
             Modal.background [
-                Props [ OnClick (fun _ -> dispatch (UpdateWSModel (fun ws -> { ws with WaveModalActive = false }))) ]
+                Props [ OnClick handleModalClose ]
             ] []
             // Main modal card.
             Modal.Card.card [ Props [ Style [ MinWidth "95%" ] ] ] [
@@ -628,7 +781,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                             OverflowY OverflowOptions.Auto
                         ]
                     ] [ 
-                        waveSelectBreadcrumbs wsModel filteredWaves dispatch model 
+                        waveSelectBreadcrumbs wsModel hierarchy filteredWaves dispatch model
                     ]
 
                     // Right column: wave selection with its own scrollbar.
@@ -638,7 +791,7 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                             OverflowY OverflowOptions.Auto
                         ]
                     ] [
-                        makeSelectionTable wsModel filteredWaves.OfSheet dispatch
+                        makeSelectionTable wsModel hierarchy filteredWaves.OfSheet dispatch
                     ]
                 ]
                 // Footer with Done button.

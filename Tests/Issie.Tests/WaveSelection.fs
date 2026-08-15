@@ -85,6 +85,53 @@ let private offered (compId: string) =
     let fs, allWaves = simulation.Force()
     WaveSimSelect.wavesOfComponent fs allWaves (ComponentId compId)
 
+//-------------------------------------------------------------------------------------------//
+// A third design, for the collapsed hierarchy the selector draws.
+//
+// Three levels, two instances at each: `deep` holds two `mid`, and each `mid` holds two `leaf`, so
+// there are four instances of `leaf` in two groups of two. That is the shape the selector has to
+// collapse - one node for `leaf`, standing for whichever two of the four lie inside the instance
+// of `mid` currently chosen.
+//-------------------------------------------------------------------------------------------//
+
+let private leafSheet = notSheet "leaf" "A" "Y"
+
+let private midSheet =
+    let i = makeComp "mid-in" 0 1 (Input1(1, None)) "B"
+    let l1 = makeComp "mid-leaf1" 1 1 (customOf leafSheet [ "A", 1 ] [ "Y", 1 ] None) "LEAF1"
+    let l2 = makeComp "mid-leaf2" 1 1 (customOf leafSheet [ "A", 1 ] [ "Y", 1 ] None) "LEAF2"
+    let o = makeComp "mid-out" 1 0 (Output 1) "Z"
+    makeLdc "mid" None ([ i; l1; l2; o ], [ conn i 0 l1 0; conn l1 0 l2 0; conn l2 0 o 0 ])
+
+let private deepSheet =
+    let i = makeComp "deep-in" 0 1 (Input1(1, None)) "IN"
+    let m1 = makeComp "deep-mid1" 1 1 (customOf midSheet [ "B", 1 ] [ "Z", 1 ] None) "MID1"
+    let m2 = makeComp "deep-mid2" 1 1 (customOf midSheet [ "B", 1 ] [ "Z", 1 ] None) "MID2"
+    let o = makeComp "deep-out" 1 0 (Output 1) "OUT"
+    makeLdc "deep" None ([ i; m1; m2; o ], [ conn i 0 m1 0; conn m1 0 m2 0; conn m2 0 o 0 ])
+
+let private deepProject: Project =
+    { ProjectPath = "."
+      OpenFileName = "deep"
+      WorkingFileName = Some "deep"
+      LoadedComponents = [ deepSheet; midSheet; leafSheet ] }
+
+let private deepSimulation =
+    lazy
+        (let sheets = [ deepSheet; midSheet; leafSheet ]
+         match Simulator.startCircuitSimulation maxArraySize "deep" deepSheet.CanvasState sheets with
+         | Error e -> failwith $"Simulation setup failed: %A{e}"
+         | Ok simData -> simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
+
+/// The hierarchy the selector would draw with the given instances chosen.
+let private hierarchyWith (chosen: (string list * string) list) =
+    let fs, _ = deepSimulation.Force()
+    let ws = { ModelHelpers.initWSModel with SelectedSheetInstance = Map.ofList chosen }
+    fs, WaveSimHierarchy.getSelectorHierarchy fs deepProject ws
+
+let private midKey = [ "deep"; "mid" ]
+let private leafKey = [ "deep"; "mid"; "leaf" ]
+
 let tests =
     testList
         "WaveSelection"
@@ -259,4 +306,106 @@ let tests =
                       match Map.tryFind wi.Id fs.WaveComps with
                       | Some fc -> fc.AccessPath = []
                       | None -> false)
-                  "a design with top-level ports never reaches into its subsheets" ]
+                  "a design with top-level ports never reaches into its subsheets"
+
+          //---------------------------------------------------------------------------------//
+          // The collapsed hierarchy.
+          //---------------------------------------------------------------------------------//
+
+          testCase "the hierarchy has one node per sheet, not one per instance"
+          <| fun () ->
+              let _, hierarchy = hierarchyWith []
+              Expect.equal
+                  (hierarchy.HierOrder |> List.map (fun node -> node.NodeKey))
+                  [ [ "deep" ]; midKey; leafKey ]
+                  "three sheets, three nodes - though there are two mids and four leaves"
+
+          testCase "a node offers the instances inside the one chosen above it"
+          <| fun () ->
+              let _, hierarchy = hierarchyWith []
+              let mid = hierarchy.HierNodes[midKey]
+              Expect.equal mid.NodeInstances.Length 2 "both instances of mid are on offer"
+              let leaf = hierarchy.HierNodes[leafKey]
+              Expect.equal leaf.NodeInstances.Length 2
+                  "two leaves and not four: the ones inside the mid that is chosen"
+
+              // choosing the other mid puts the other pair of leaves on offer, which is what makes
+              // the chain a chain: the choices always name one real path through the hierarchy
+              let _, other = hierarchyWith [ midKey, mid.NodeInstances[1] ]
+              Expect.isEmpty
+                  (Set.intersect
+                       (Set.ofList leaf.NodeInstances)
+                       (Set.ofList other.HierNodes[leafKey].NodeInstances))
+                  "no leaf is inside both instances of mid"
+
+          testCase "every node shows the alphabetically first instance until it is told otherwise"
+          <| fun () ->
+              let _, hierarchy = hierarchyWith []
+              Expect.all hierarchy.HierOrder (fun node -> node.NodeInstances = List.sort node.NodeInstances)
+                  "instances are offered in order"
+              Expect.all hierarchy.HierOrder (fun node -> node.NodeInstance = List.tryHead node.NodeInstances)
+                  "and the first of them is the one shown"
+
+              let leaf = hierarchy.HierNodes[leafKey]
+              let _, chosen = hierarchyWith [ leafKey, leaf.NodeInstances[1] ]
+              Expect.equal chosen.HierNodes[leafKey].NodeInstance (Some leaf.NodeInstances[1])
+                  "a recorded choice is what is shown"
+
+          testCase "a choice the parent's choice has invalidated is ignored, not obeyed"
+          <| fun () ->
+              let _, hierarchy = hierarchyWith []
+              let otherMid = hierarchy.HierNodes[midKey].NodeInstances[1]
+              let _, underOther = hierarchyWith [ midKey, otherMid ]
+              let leafOfOther = underOther.HierNodes[leafKey].NodeInstances[0]
+
+              // the leaf is recorded, but the mid it lives in is not the one now chosen
+              let _, stale = hierarchyWith [ leafKey, leafOfOther ]
+              let leaf = stale.HierNodes[leafKey]
+              Expect.notEqual leaf.NodeInstance (Some leafOfOther)
+                  "an instance outside the chosen parent is not shown"
+              Expect.equal leaf.NodeInstance (List.tryHead leaf.NodeInstances)
+                  "the default is used instead, without anything having had to rewrite the entry"
+
+          testCase "a node names the instance whose waves it stands for"
+          <| fun () ->
+              let fs, hierarchy = hierarchyWith []
+              let _, allWaves = deepSimulation.Force()
+              Expect.all
+                  hierarchy.HierOrder
+                  (fun node ->
+                      match node.NodeInstance with
+                      | Some instance -> Map.containsKey instance fs.SimSheetStructure
+                      | None -> false)
+                  "every node resolves to a sheet instance the simulation has"
+              let leaf = hierarchy.HierNodes[leafKey]
+              Expect.isNonEmpty
+                  (allWaves |> Map.toList |> List.filter (fun (_, w) -> Some w.SheetId = leaf.NodeInstance))
+                  "and the waves keyed by it are the ones the selector would list under it"
+
+          testCase "opening one occurrence of a sheet closes the others"
+          <| fun () ->
+              let opened keys ws = WaveSimStyle.setWaveSheetSelectionOpen ws keys true
+              let ws =
+                  ModelHelpers.initWSModel
+                  |> opened [ [ "top"; "a"; "shared" ] ]
+                  |> opened [ [ "top"; "b"; "shared" ] ]
+              Expect.equal (Set.toList ws.ShowSheetDetail) [ [ "top"; "b"; "shared" ] ]
+                  "the occurrence of `shared` under `a` closed when the one under `b` opened"
+              let ws = ws |> opened [ [ "top"; "b"; "other" ] ]
+              Expect.equal
+                  (Set.toList ws.ShowSheetDetail)
+                  [ [ "top"; "b"; "other" ]; [ "top"; "b"; "shared" ] ]
+                  "nodes of different sheets are open at the same time, which is the ordinary case"
+
+          testCase "too many waveforms warns, and far too many is refused"
+          <| fun () ->
+              let verdicts = [ 0; 25; 50; 51; 100; 101 ] |> List.map WaveSimSelectHelpers.selectionVerdict
+              Expect.equal
+                  verdicts
+                  [ WaveSimSelectHelpers.SelectionOk
+                    WaveSimSelectHelpers.SelectionOk
+                    WaveSimSelectHelpers.SelectionOk
+                    WaveSimSelectHelpers.SelectionWarn
+                    WaveSimSelectHelpers.SelectionWarn
+                    WaveSimSelectHelpers.SelectionRefuse ]
+                  "both limits are the number that may be selected, not the first that may not" ]

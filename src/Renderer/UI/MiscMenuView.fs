@@ -37,8 +37,15 @@ type BreadcrumbConfig = {
     ElementProps: IHTMLProp list
     ElementStyleProps: CSSProp list
     /// button options (other than OnClick and Color)
-    ButtonOptions: Button.Option list 
+    ButtonOptions: Button.Option list
     NoWaves: SheetTree -> int
+    /// Whether this node is one the user opens and closes. A collapsible node carries a + after
+    /// its name when the sheets inside it are not drawn and a - when they are, and clicking that
+    /// calls ExpandAction. Default: none is, and everything is drawn, which is the Sheets menu.
+    IsCollapsible: SheetTree -> bool
+    /// What clicking a node's + or - does. Nothing decides here whether the node then opens: the
+    /// tree the caller passes in next time is what says.
+    ExpandAction: SheetTree -> (Msg -> unit) -> unit
     }
 
 module Constants =
@@ -79,6 +86,8 @@ module Constants =
                 Button.Disabled false
                 ]
         NoWaves = (fun _ -> 0)
+        IsCollapsible = fun _ -> false
+        ExpandAction = fun _ _ -> ()
     }
 
 //--------------------------------------------------------------------------------------------//
@@ -120,10 +129,7 @@ let gridElement reactElementId props styleProps (pos: CSSGridPos) (contents: Rea
             Height "100%"
             GridArea (gridArea pos) ])]) contents
 
-let positionDesignHierarchyInGrid (rootSheet: string) (trees: Map<string,SheetTree>) =
-    let tree = trees[rootSheet]
-    let maxDepth = trees[rootSheet].Depth
-
+let positionTreeInGrid (tree: SheetTree) =
     let rec getTreeHeight (tree: SheetTree) =
         match tree.SubSheets with
         | [] -> 1
@@ -145,6 +151,9 @@ let positionDesignHierarchyInGrid (rootSheet: string) (trees: Map<string,SheetTr
             |> snd
             |> List.append [PosAreaSpan(startX, startY, 1, height), tree]
     getSheetPositions 1 1 tree
+
+let positionDesignHierarchyInGrid (rootSheet: string) (trees: Map<string,SheetTree>) =
+    positionTreeInGrid trees[rootSheet]
 
 let positionRootAndFocusChildrenInGrid (root: string) (pathToFocus:string list) (trees: Map<string,SheetTree>) =
     let tree = trees[root] // tree from root
@@ -227,6 +236,19 @@ let makeGridFromSheetsWithPositions
                             | _, true, path -> path[path.Length - 1]
                             | _, false, _ -> sheet.SheetName
                         str $"{name}"
+                        if cfg.IsCollapsible sheet then
+                            // Which way round the toggle is comes from the tree itself: a node
+                            // whose contents were not built has no children to show. The click
+                            // must not reach the pill under it, whose meaning is quite different -
+                            // filtering by the sheet rather than revealing what is inside it.
+                            span [
+                                Style [ MarginLeft "6px"; FontWeight "bold" ]
+                                OnClick (fun ev ->
+                                    ev.stopPropagation ()
+                                    cfg.ExpandAction sheet dispatch)
+                            ] [ str (if sheet.SubSheets = [] then "+" else "−") ]
+                        else
+                            null
                         if number > 0 then
                             div [
                                 Style [
@@ -263,6 +285,16 @@ let makeBreadcrumbsFromPositions
         |> positionSheetsInGrid
         |> makeGridFromSheetsWithPositions cfg dispatch
 
+/// Draw a hierarchy that has already been built. The wave selector builds its own, because the
+/// same tree decides what its other pane shows and the two must not be able to disagree.
+let breadcrumbsOfTree
+        (cfg: BreadcrumbConfig)
+        (tree: SheetTree)
+        (dispatch: Msg -> unit)
+             : ReactElement =
+    positionTreeInGrid tree
+    |> makeGridFromSheetsWithPositions cfg dispatch
+
 /// Breadcrumbs of entire simulated design hierarchy.
 /// Display as a ReactElement the breadcrumbs.
 /// ClickAction - what happens when a given breadcrumb (labelled by its path to root) is clicked.
@@ -272,8 +304,11 @@ let hierarchyBreadcrumbs
         (model: Model) =
     mapOverProject (div [] []) model (fun p ->
         let root = Option.defaultValue p.OpenFileName model.WaveSimSheet
-        let sheetTreeMap = getSheetTreesFiltered cfg.ShowLibrarySheet cfg.AllowDuplicateSheets p
-        makeBreadcrumbsFromPositions sheetTreeMap cfg (positionDesignHierarchyInGrid root) dispatch)
+        // One hierarchy is drawn, so one is built. getSheetTreesFiltered would build every sheet in
+        // the project as a root of its own, which for a design of any depth is most of the work.
+        let shapes = getSheetShapes cfg.ShowLibrarySheet p
+        let tree = materialiseTree (fun _ -> true) cfg.AllowDuplicateSheets shapes root
+        breadcrumbsOfTree cfg tree dispatch)
 
 
 
@@ -310,19 +345,6 @@ let allRootHierarchiesFromProjectBreadcrumbs
         // was the striping meant for the Verilog error table.
         |> List.map (fun el -> div [ Constants.rootHierarchyClass ] [ el ])
         |> fun rows -> div [] rows
-
-/// is there a duplicate sheet name anywhere in hierarchy?
-let hierarchiesHaveDuplicates (model: Model) =
-    mapOverProject false model (fun p ->
-        getSheetTrees true p
-        |> Map.toList
-        |> List.map (fun (_,sheet) ->
-            let sheetNames =
-                sheet.SubSheets
-                |> List.map (fun sheet -> sheet.SheetName)
-            sheetNames.Length = (List.distinct sheetNames).Length)
-        |> List.exists id)
-
 
 /// Breadcrumbs of the focus sheet, with sheets on its path to root, and its children.
 /// Provides navigation while occupying small vertical area. Untested.

@@ -99,6 +99,7 @@ let initWSModel  : WaveSimModel = {
     SearchString = ""
     ShowComponentDetail = Set.empty
     ShowSheetDetail = Set.empty
+    SelectedSheetInstance = Map.empty
     ShowGroupDetail = Set.empty
     HoveredLabel = None
     DraggedIndex = None

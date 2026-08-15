@@ -294,6 +294,11 @@ type SheetTree = {
     LabelPath: string list
     /// design-time name of sheet
     SheetName: string
+    /// design-time sheet names from the root of the tree down to and including this node.
+    /// This is what identifies a node once several instances of one sheet inside one parent are
+    /// collapsed into a single node: unlike LabelPath it does not depend on which of them was
+    /// kept, and unlike SheetName it tells apart the places one sheet is reached from.
+    SheetPath: string list
     /// path of sheet names to current sheet name - NB this is not unique
     SheetAccessPath: ComponentId list
     /// unique name to display on breadcrumbs
@@ -310,13 +315,8 @@ type SheetTree = {
     GridArea: CSSGridPos option
     } with
 
-     member this.SimName (fs:SimTypes.FastSimulation) =
-        if not <| fs.SimSheetNameMap.ContainsKey this.SheetAccessPath then
-            Log.warn $"sheet {this.LabelPath} is not in the simulation name map"
-            "Error"
-        else
-            fs.SimSheetNameMap.[this.SheetAccessPath]
-
+     /// Keyed by LabelPath, while the wave selector keys its nodes by SheetPath: a node stands for
+     /// every instance of its sheet at that point in the tree, so it has no one label path.
      member this.lookupPath path =
         let rec lookup sheet =
             match sheet.LabelPath = path with
@@ -327,21 +327,47 @@ type SheetTree = {
 let subSheets_ = Optics.Lens.create (fun a -> a.SubSheets) (fun s a -> {a with SubSheets = s})
 let breadcrumbName_ = Optics.Lens.create (fun a -> a.BreadcrumbName) (fun s a -> {a with BreadcrumbName = s})
 
-/// Throughout the tree of sheets adjust breadcrumbName so it is unique within the children of each sheet
-let rec makeBreadcrumbNamesUnique (tree: SheetTree) =
-    tree.SubSheets
+/// One custom component instance on a sheet's canvas. The field names are prefixed because F#
+/// resolves an unannotated record field to the LAST type declaring it: `Label`, `Id` and `Sheet`
+/// would each capture uses meant for Component and for the Elmish Model, in every file compiled
+/// after this one.
+type SheetInstance = {
+    /// the label the instance carries on the canvas it sits on
+    InstLabel: string
+    /// the id of the custom component on that canvas
+    InstId: ComponentId
+    /// the design-time name of the sheet it instantiates
+    InstSheet: string
+    }
+
+/// What is directly inside each sheet of a project, by sheet NAME - so one entry however many
+/// times a sheet is instantiated, with the sheets inside it NAMED rather than held. That costs one
+/// pass over each canvas and not the design's expansion, and it makes a sheet that contains itself
+/// representable without anything lazy.
+///
+/// It deliberately holds nothing that depends on where a sheet sits: label path, access path,
+/// breadcrumb name, size and depth are all properties of an OCCURRENCE, and a design several
+/// routes reach one sheet by has many occurrences of one entry here. Those are filled in by
+/// materialiseTree, for the occurrences that are going to be looked at.
+type SheetShapes = Map<string, SheetInstance list>
+
+/// Make each child's breadcrumb name unique among its siblings, and sort them by it - which is the
+/// order the breadcrumbs are drawn in. Applied to one node's children as that node is built, so
+/// each node is visited once; it used to be a recursion applied again at every level above, which
+/// walked a subtree once per ancestor it had.
+let private nameChildrenUniquely (subSheets: SheetTree list) =
+    subSheets
     |> List.map (fun subsheet ->
         let nameNotUnique =
-            tree.SubSheets
+            subSheets
             |> List.exists (fun subs' ->
                                 subsheet.SheetName = subs'.SheetName &&
                                 subsheet.LabelPath <> subs'.LabelPath)
         subsheet
         |> match nameNotUnique with
            | true -> Optic.set breadcrumbName_ $"{subsheet.SheetName}:{List.last subsheet.LabelPath}"
-           | false -> id
-        |> makeBreadcrumbNamesUnique)
-    |> fun subsheets -> {tree with SubSheets = List.sortBy (fun subs -> subs.BreadcrumbName) subsheets}
+           | false -> id)
+    |> List.sortBy (fun subs -> subs.BreadcrumbName)
 
             
 let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> Model) (tree: SheetTree) (model: Model)=
@@ -350,80 +376,153 @@ let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> M
     |> fun model -> List.fold (fun model tree -> foldOverTree false folder tree model) model tree.SubSheets
     
 
-/// Get the subsheet tree for all sheets in the current project.
-/// Returns a map from sheet name to tree of SheetTree nodes.
+/// What is directly inside each sheet of the project: one pass over each canvas, and so a cost
+/// that is the design's own size whatever that design expands to.
+///
 /// showLibrarySheet: a library sheet it answers false for is left out, and so are the instances
-/// that would put it in someone else's tree - a library component is one thing, not a sheet with
-/// innards. It has to be decided here rather than by filtering the project first: the tree is
-/// built by walking each sheet's canvas, so a sheet removed from LoadedComponents still leaves
-/// its instance making a node, with nothing in it.
+/// that would put it inside someone else - a library component is one thing, not a sheet with
+/// innards. It has to be decided here rather than by filtering the project first: the shapes are
+/// read off each sheet's canvas, so a sheet removed from LoadedComponents still leaves its
+/// instance naming it, with nothing to find under that name.
 ///
 /// A predicate rather than one flag for the lot, because a library component the user has asked
 /// to look inside appears in the Sheets menu while the rest of the library stays hidden.
-let getSheetTreesFiltered (showLibrarySheet: string -> bool) (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
+let getSheetShapes (showLibrarySheet: string -> bool) (p: Project): SheetShapes =
     let ldcMap =
         p.LoadedComponents
-        |> List.map (fun ldc -> ldc.Name,ldc)
+        |> List.map (fun ldc -> ldc.Name, ldc)
         |> Map.ofList
 
     let hidden (sheet: string) =
         not (showLibrarySheet sheet)
         && (Map.tryFind sheet ldcMap |> Option.map ComponentLibraries.isLibrarySheet |> Option.defaultValue false)
 
-    let rec subSheets (path: string list) (sheet: string) (labelPath: string list) (sheetPath: ComponentId list): SheetTree=
-        let ldc = Map.tryFind sheet ldcMap
-        match ldc with
-        | None -> {
-            SheetName=sheet
-            LabelPath = []
-            SheetAccessPath = []
-            Size = 1;
-            Depth = 0;
-            SubSheets = [];
-            GridArea = None
-            BreadcrumbName = ""
-            }
-        | Some ldc ->
-            let comps,_ = ldc.CanvasState
-            comps
-            |> List.choose (fun comp ->
-                    match comp.Type with
-                    | Custom ct when not (List.contains ct.Name path) && not (hidden ct.Name) ->
-                        Some (comp, ct)
-                    | _ ->
-                        None)
-            // Where only one instance of each sheet is wanted, the others are dropped BEFORE their
-            // subtrees are built rather than after. Two instances of a sheet expand identically -
-            // same children, same depth - so this is the same tree; what it is not is the same
-            // amount of work. Built first and thinned afterwards, a design nested a few levels
-            // deep makes a node for every instance in the whole hierarchy, which is hundreds of
-            // thousands of them for a few hundred sheets, on every render of the menu bar.
-            |> (fun customs ->
-                    if allowAllInstances then customs
-                    else customs |> List.distinctBy (fun (_, ct) -> ct.Name))
-            |> List.map (fun (comp, ct) ->
-                    subSheets (ct.Name :: path) ct.Name (labelPath @ [comp.Label]) (sheetPath @ [ComponentId comp.Id]))
-            |> (fun subs -> {
-                    SheetName = sheet;
-                    BreadcrumbName = sheet
-                    LabelPath = labelPath
-                    SheetAccessPath = sheetPath
-                    // A leaf is 0 deep and anything else is one deeper than its deepest child.
-                    // The `+ 1` used to be missing, which made every node in every tree 0 deep.
-                    Depth =
-                        match subs with
-                        | [] -> 0
-                        | subs -> 1 + (subs |> List.map (fun s -> s.Depth) |> List.max)
-                    Size = List.sumBy (fun sub -> sub.Size) subs + 1;
-                    SubSheets = subs
-                    GridArea = None
-                })
-        |> makeBreadcrumbNamesUnique
-
     p.LoadedComponents
     |> List.filter (fun ldc -> not (hidden ldc.Name))
-    |> List.map (fun ldc ->ldc.Name, subSheets [] ldc.Name [] [])
+    |> List.map (fun ldc ->
+        let comps, _ = ldc.CanvasState
+        ldc.Name,
+        comps
+        |> List.choose (fun comp ->
+            match comp.Type with
+            | Custom ct when not (hidden ct.Name) ->
+                Some { InstLabel = comp.Label; InstId = ComponentId comp.Id; InstSheet = ct.Name }
+            | _ -> None))
     |> Map.ofList
+
+/// Build the part of a hierarchy that is going to be looked at.
+///
+/// `expand` is asked of each node's SheetPath: a node it says false to comes back as a leaf and
+/// nothing below it is built at all. That is what lets a design many routes reach one sheet in be
+/// drawn without being walked, since the drawn tree is then the only tree there is.
+/// `fun _ -> true` builds the whole thing, which is what the Sheets menu asks for.
+///
+/// allInstances = false collapses several instances of one sheet inside one parent into one node,
+/// dropping the others BEFORE their subtrees are built rather than after. Instances of a sheet
+/// expand identically - same children, same depth - so this is the same tree; what it is not is
+/// the same amount of work.
+///
+/// A sheet reached from inside itself is not descended into. The guard is on the ancestor path, so
+/// the shapes may name each other in a cycle and this still terminates.
+let materialiseTree
+        (expand: string list -> bool)
+        (allInstances: bool)
+        (shapes: SheetShapes)
+        (root: string)
+        : SheetTree =
+    let rec node
+            (ancestors: string list)
+            (sheet: string)
+            (sheetPath: string list)
+            (labelPath: string list)
+            (accessPath: ComponentId list)
+            : SheetTree =
+        let leaf subs = {
+            SheetName = sheet
+            BreadcrumbName = sheet
+            LabelPath = labelPath
+            SheetPath = sheetPath
+            SheetAccessPath = accessPath
+            // A leaf is 0 deep and anything else is one deeper than its deepest child.
+            // The `+ 1` used to be missing, which made every node in every tree 0 deep.
+            Depth =
+                match subs with
+                | [] -> 0
+                | subs -> 1 + (subs |> List.map (fun s -> s.Depth) |> List.max)
+            Size = List.sumBy (fun sub -> sub.Size) subs + 1
+            SubSheets = subs
+            GridArea = None
+            }
+        // A sheet the project does not hold, and one whose contents are not being shown, are both
+        // leaves. Size and Depth describe what was built, so a suppressed node reads as 1 and 0.
+        match Map.tryFind sheet shapes with
+        | None -> leaf []
+        | Some _ when not (expand sheetPath) -> leaf []
+        | Some instances ->
+            instances
+            |> List.filter (fun inst -> not (List.contains inst.InstSheet ancestors))
+            |> (fun instances ->
+                    if allInstances then instances
+                    else instances |> List.distinctBy (fun inst -> inst.InstSheet))
+            |> List.map (fun inst ->
+                    node
+                        (inst.InstSheet :: ancestors)
+                        inst.InstSheet
+                        (sheetPath @ [inst.InstSheet])
+                        (labelPath @ [inst.InstLabel])
+                        (accessPath @ [inst.InstId]))
+            |> nameChildrenUniquely
+            |> leaf
+
+    node [] root [root] [] []
+
+/// The sheets that more than one route from the root reaches, and which therefore appear more than
+/// once in its hierarchy. Worked out from the design graph - each sheet's parents are counted, not
+/// its occurrences - so a design whose expansion is astronomical still costs its own size.
+///
+/// Everything below such a sheet is one too: a sheet inside a sheet that appears twice appears
+/// twice itself, however singular its own parent is.
+let multiPathSheets (shapes: SheetShapes) (root: string): Set<string> =
+    let childrenOf sheet =
+        match Map.tryFind sheet shapes with
+        | None -> []
+        | Some instances -> instances |> List.map (fun inst -> inst.InstSheet) |> List.distinct
+
+    let rec reach seen sheet =
+        if Set.contains sheet seen then seen
+        else childrenOf sheet |> List.fold reach (Set.add sheet seen)
+    let reachable = reach Set.empty root
+
+    /// Reached from two different sheets, or from itself, is reached more than once.
+    let seed =
+        reachable
+        |> Set.toList
+        |> List.collect (fun parent -> childrenOf parent |> List.map (fun child -> child, parent))
+        |> List.filter (fun (child, _) -> Set.contains child reachable)
+        |> List.groupBy fst
+        |> List.filter (fun (child, parents) ->
+            let parents = parents |> List.map snd |> Set.ofList
+            Set.count parents > 1 || Set.contains child parents)
+        |> List.map fst
+        |> Set.ofList
+
+    let rec spread found frontier =
+        match frontier with
+        | [] -> found
+        | sheet :: rest ->
+            let fresh =
+                childrenOf sheet
+                |> List.filter (fun child -> Set.contains child reachable && not (Set.contains child found))
+            spread (List.fold (fun found child -> Set.add child found) found fresh) (fresh @ rest)
+    spread seed (Set.toList seed)
+
+/// Get the subsheet tree for all sheets in the current project.
+/// Returns a map from sheet name to tree of SheetTree nodes.
+/// Every sheet is a root here and every node is built: callers that draw one hierarchy, and that
+/// can leave part of it unopened, should use getSheetShapes and materialiseTree directly.
+let getSheetTreesFiltered (showLibrarySheet: string -> bool) (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
+    let shapes = getSheetShapes showLibrarySheet p
+    shapes |> Map.map (fun sheet _ -> materialiseTree (fun _ -> true) allowAllInstances shapes sheet)
 
 /// Get the subsheet tree for all sheets in the current project, library sheets included.
 let getSheetTrees (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =

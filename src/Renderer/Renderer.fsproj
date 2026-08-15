@@ -162,6 +162,7 @@
     <Compile Include="UI\WaveSim\EvilHoverCache.fs" />
     <Compile Include="UI\WaveSim/WaveSimStyle.fs" />
     <Compile Include="UI\WaveSim/WaveSimHelpers.fs" />
+    <Compile Include="UI\WaveSim\WaveSimHierarchy.fs" />
     <Compile Include="UI\WaveSim\WaveSimNavigation.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelectHelpers.fs" />
     <Compile Include="UI\WaveSim\WaveSimSelect.fs" />

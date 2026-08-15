@@ -788,14 +788,27 @@ let topHalfStyle = Style [
 
 // It would be better to do this with one subfunction and Optics!
 
-/// Sets or clears a subset of ShowSheetDetail
+/// Open or close nodes of the wave selector's hierarchy, each named by its path of design-time
+/// sheet names.
+///
+/// Opening one closes any other node of the same sheet. A sheet that several routes reach appears
+/// in several places, and showing more than one of them at once is the multiplying that collapsing
+/// the hierarchy is there to prevent. Where only one route reaches a sheet this is vacuous - there
+/// is only one such node - so the rule needs no test for which kind of sheet it is.
 let setWaveSheetSelectionOpen (wsModel: WaveSimModel) (subSheets: string list list) (show: bool) =
     let setChange = Set.ofList subSheets
     let newSelect =
         match show with
         | false -> Set.difference wsModel.ShowSheetDetail setChange
-        | true -> Set.union setChange wsModel.ShowSheetDetail
-    {wsModel with ShowSheetDetail = newSelect}   
+        | true ->
+            let sheetsOpening = subSheets |> List.choose List.tryLast |> Set.ofList
+            wsModel.ShowSheetDetail
+            |> Set.filter (fun openKey ->
+                match List.tryLast openKey with
+                | Some sheet -> not (Set.contains sheet sheetsOpening)
+                | None -> true)
+            |> Set.union setChange
+    {wsModel with ShowSheetDetail = newSelect}
 
 /// Sets or clears a subset of ShowGroupDetail
 let setWaveGroupSelectionOpen (wsModel: WaveSimModel) (grps :(ComponentGroup*string list) list)  (show: bool) =

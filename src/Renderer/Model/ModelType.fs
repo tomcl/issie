@@ -361,12 +361,23 @@ type WaveSimModel = {
     RamStartLocation: Map<FComponentId, string * bigint>
     /// String which the user is searching the list of waves by.
     SearchString: string
-    /// What is shown in wave sim sheet detail elements
+    /// Which nodes of the design hierarchy the wave selector has open, each named by its path of
+    /// design-time sheet names from the top sheet down. An open node shows its signals, and - for
+    /// a sheet that more than one route reaches, whose contents are otherwise suppressed - shows
+    /// the sheets inside it. At most one node per sheet name is ever in here: opening one closes
+    /// the others, so both panes of the selector agree on which occurrence of a sheet is on show.
     ShowSheetDetail: Set<string list>
+    /// Which instance of each sheet the wave selector is showing, keyed the same way. The value is
+    /// the instance's SimSheetName, which is what Wave.SheetId holds. An entry that does not name
+    /// an instance inside the instance chosen at the parent node is ignored and the alphabetically
+    /// first used - so choosing a different instance high in the hierarchy needs no cascade of
+    /// updates to the entries below it.
+    SelectedSheetInstance: Map<string list, string>
     /// What is shown in wave sim component detail elements
     ShowComponentDetail: Set<FComponentId>
     /// What is shown in wave sim group detail elements
-    ShowGroupDetail: Set<ComponentGroup * string list>    /// The label which a user is hovering over.
+    ShowGroupDetail: Set<ComponentGroup * string list>
+    /// The label which a user is hovering over.
     HoveredLabel: WaveIndexT option
     /// The index of the wave which the user is dragging.
     DraggedIndex: WaveIndexT option

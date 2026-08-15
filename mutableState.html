@@ -474,9 +474,16 @@ this is about module-level state.</p>
 </tbody>
 </table>
 
-<p><code>Common/Helpers.fs</code> has a <code>lastKey</code> / <code>lastValue</code> pair inside <code>memoizeBy</code>. It is local to each
-memoised function rather than module-level, so it is out of scope here — noted only because it
-looks like the exception and is not one.</p>
+<p><code>Common/Helpers.fs</code> has a <code>lastKey</code> / <code>lastValue</code> pair inside <code>memoizeBy</code>, and a <code>last</code> slot inside
+<code>memoizeByIdentity</code>. Both are local to each memoised function rather than module-level, so they are
+out of scope here — noted only because they look like the exception and are not.</p>
+<p><code>memoizeByIdentity</code> is what the wave selector works through: the waves of each sheet instance, the
+instances inside each instance, the wave each identity now names, and which components are RAMs.
+Each reads an entry per instance or per wave — tens of thousands on a design that expands — and each
+was being redone on every render, so on every keystroke in a search box and every tick of a
+checkbox. Identity rather than <code>=</code> because these arguments are rebuilt rather than mutated, so a new
+object is exactly the signal that the answer is stale; comparing two <code>Map</code>s or two <code>FastSimulation</code>s
+structurally would cost more than recomputing.</p>
 <h3><a name="Justified-not-model-state" class="anchor" href="#Justified-not-model-state">Justified: not model state</a></h3>
 <table>
 <thead>

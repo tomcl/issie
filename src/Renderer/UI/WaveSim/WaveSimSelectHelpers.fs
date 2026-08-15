@@ -182,10 +182,17 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
         | Some instances -> Set.toList instances
         | None -> fs.SimSheetStructure.Keys |> Seq.toList
 
+    // Matched against the SHEET's name, not the instance's identity. The identity is the path of
+    // labels down to the instance, which is what makes it unique and what makes it unreadable: the
+    // box shows what it is filtering by, so filtering by an identity put main6.main5.main4 in front
+    // of the user. The panel already says which instance, by the row's place in it and by the combo
+    // box beside it, so there is nothing here for the path to add.
+    let nameOfSheet (instance: string) = (fs.getSheetNameOfInstance instance).ToUpperInvariant()
+
     let filteredSheets =
-        allSheets
-        |> List.tryPick (fun sheet' -> if sheet' = sheet then Some [sheet] else None)
-        |> Option.defaultValue (List.filter (fun (sheetId:string) -> sheetId.Contains sheet) allSheets)
+        match allSheets |> List.filter (fun instance -> nameOfSheet instance = sheet) with
+        | [] -> allSheets |> List.filter (fun instance -> (nameOfSheet instance).Contains sheet)
+        | exact -> exact
 
     let searchSheets =
         allSheets
@@ -357,9 +364,11 @@ let waveSelectBreadcrumbs
             fun dispatch ->
                 match instanceOf sheet with
                 | None -> ()
-                | Some instance ->
+                | Some _ ->
+                    // By the sheet's name, which is what the box then shows. Filtering by the
+                    // instance would have put the whole path to it in the box.
                     dispatch (UpdateWSModel (fun ws ->
-                        { ws with SheetSearchString = updateSheetString instance ws }
+                        { ws with SheetSearchString = updateSheetString sheet.SheetName ws }
                         |> fun ws -> setWaveSheetSelectionOpen ws [sheet.SheetPath] true))
         let breadcrumbConfig = {
             MiscMenuView.Constants.defaultConfig with
@@ -378,22 +387,16 @@ let waveSelectBreadcrumbs
                     let show = not (Set.contains sheet.SheetPath wsModel.ShowSheetDetail)
                     dispatch (UpdateWSModel (fun ws -> setWaveSheetSelectionOpen ws [sheet.SheetPath] show))
         }
+        // The box holds a sheet name, so this reads it back as one. It used to check the name
+        // against every sheet instance in the design first - Map.keysL over tens of thousands of
+        // them, on every render - and then say the same thing whichever way the check went.
         let hierarchyText =
-            let allSheets = fs.SimSheetStructure |> Map.keysL
             let sheetFilter = wsModel.SheetSearchString.ToUpperInvariant().Trim()
             let withSubsheets = sheetFilter.EndsWith "*"
-            let sheetFilter = sheetFilter.TrimEnd '*'
-            match sheetFilter, withSubsheets with
-            | "" , _  ->
-                "Design hierarchy: click to filter by sheet"
-            | sheet , false when List.contains sheet allSheets ->
-                $"Design hierarchy: filtered by {sheet} without subsheets"
-            | sheet , true when List.contains sheet allSheets ->
-                $"Design hierarchy: filtered by {sheet} with subsheets"
-            | sheet , true ->
-                $"Design hierarchy: filtered by {sheet} with subsheets"
-            | sheet , false ->
-                $"Design hierarchy: filtered by {sheet} without subsheets"
+            match sheetFilter.TrimEnd '*' with
+            | "" -> "Design hierarchy: click to filter by sheet"
+            | sheet when withSubsheets -> $"Design hierarchy: filtered by {sheet} with subsheets"
+            | sheet -> $"Design hierarchy: filtered by {sheet} without subsheets"
 
         let breadcrumbs = [
             // Heading and tree share the panel, as in the Sheet menu - the same tree should not
@@ -614,7 +617,12 @@ let private makeInstanceRows showDetails (ws: WaveSimModel) (fs: FastSimulation)
             |> List.groupBy (fun wave -> getCompGroup fs wave)
             |> List.map (fun (grp, groupWaves) ->
                 makeFlatGroupRow showDetails ws [instance] grp groupWaves dispatch)
-        makeSummaryItem showDetails ws (str instance) groupRows (SheetItem [instance]) wavesOfInstance dispatch)
+        // The sheet's name, as everywhere else. This is the one place a row can stand for an
+        // instance no combo box is showing, so which instance cannot be read off the panel - it is
+        // on hover, where a path is something the user asked for rather than something in the way.
+        let title =
+            span [HTMLAttr.Title instance] [str (fs.getSheetNameOfInstance instance)]
+        makeSummaryItem showDetails ws title groupRows (SheetItem [instance]) wavesOfInstance dispatch)
 
 /// One row per sheet of the collapsed hierarchy, holding the signals of the instance that row is
 /// showing. A row whose instance has no waves left after filtering is left out, which is how the

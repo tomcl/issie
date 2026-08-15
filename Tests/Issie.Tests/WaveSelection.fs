@@ -444,6 +444,33 @@ let tests =
                   [ [ "top"; "b"; "other" ]; [ "top"; "b"; "shared" ] ]
                   "nodes of different sheets are open at the same time, which is the ordinary case"
 
+          testCase "the sheet filter matches the sheet's name, not the instance's identity"
+          <| fun () ->
+              // Clicking a pill fills the filter box, and the box shows what it holds. An identity
+              // is the path of labels down to an instance - MID2.LEAF1 - which is unique and which
+              // no user wants to read out of a text box. The panel says which instance by its own
+              // shape, so the filter only has to say which sheet.
+              let fs, allWaves = deepSimulation.Force()
+              Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
+              let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
+              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs deepProject ws
+              let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
+
+              let filtered =
+                  WaveSimSelectHelpers.filterWaves (Some shown) { ws with SheetSearchString = "LEAF" }
+              Expect.isNonEmpty filtered.OfSheet "the sheet is found by the name the user gave it"
+              Expect.all
+                  filtered.OfSheet
+                  (fun wave -> fs.getSheetNameOfInstance wave.SheetId = "leaf")
+                  "and only that sheet's waves come back"
+
+              // the identity is no longer what the box is matched against
+              let byIdentity =
+                  WaveSimSelectHelpers.filterWaves (Some shown) { ws with SheetSearchString = "MID1.LEAF1" }
+              Expect.isEmpty byIdentity.OfSheet "a path through the hierarchy is not what this box takes"
+
+              Simulator.simCacheWS <- Simulator.simCacheInit ()
+
           testCase "a sheet instance is identified by the labels down to it, and nothing invented"
           <| fun () ->
               // `deep` holds MID1 and MID2, each holding LEAF1 and LEAF2 - so four instances of

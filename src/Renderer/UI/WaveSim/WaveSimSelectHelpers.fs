@@ -575,6 +575,11 @@ let makeFlatGroupRow
 /// The combo box choosing which instance of a sheet the signals below it belong to. Shown only
 /// where there is a choice to make - most sheets in most designs are instantiated once.
 let private instanceSelector (node: WaveSimHierarchy.SelectorNode) (dispatch: Msg -> unit) =
+    // The instance is chosen by its label on the canvas above it - what the user drew. The value
+    // behind each option stays the SimSheetName, which is what Wave.SheetId holds and so what
+    // selects the waves; it is a run-time identifier and not something to show anyone.
+    let labels = WaveSimHierarchy.instanceLabels (Simulator.getFastSim())
+    let labelOf instance = Map.tryFind instance labels |> Option.defaultValue instance
     match node.NodeInstances, node.NodeInstance with
     | _ :: _ :: _, Some shown ->
         div [Style [Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginLeft "10px"]] [
@@ -592,7 +597,7 @@ let private instanceSelector (node: WaveSimHierarchy.SelectorNode) (dispatch: Ms
                         let chosen = ev.Value
                         dispatch <| UpdateWSModel (fun ws ->
                             { ws with SelectedSheetInstance = Map.add node.NodeKey chosen ws.SelectedSheetInstance }))
-                ] (node.NodeInstances |> List.map (fun instance -> option [Value instance] [str instance]))
+                ] (node.NodeInstances |> List.map (fun instance -> option [Value instance] [str (labelOf instance)]))
             ]
         ]
     | _ -> null

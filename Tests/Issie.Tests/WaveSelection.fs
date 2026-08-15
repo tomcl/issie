@@ -444,6 +444,24 @@ let tests =
                   [ [ "top"; "b"; "other" ]; [ "top"; "b"; "shared" ] ]
                   "nodes of different sheets are open at the same time, which is the ordinary case"
 
+          testCase "an instance is offered by the label on the canvas, not by its run-time name"
+          <| fun () ->
+              // FastCreate names an instance by whatever suffix of its label tells it apart from
+              // every other instance of that sheet in the design - so the two `mid` here, labelled
+              // MID1 and MID2, are named "1" and "2", and a design whose labels share no
+              // distinguishing suffix gets bare ordinals. Neither is something to show a user.
+              let fs, _ = deepSimulation.Force()
+              let labels = WaveSimHierarchy.instanceLabels fs
+              let _, hierarchy = hierarchyWith []
+              let labelsOf (node: WaveSimHierarchy.SelectorNode) =
+                  node.NodeInstances
+                  |> List.map (fun instance -> Map.tryFind instance labels |> Option.defaultValue instance)
+                  |> List.sort
+              Expect.equal (labelsOf hierarchy.HierNodes[midKey]) [ "MID1"; "MID2" ]
+                  "the choice between the two mids is offered as what the user drew"
+              Expect.equal (labelsOf hierarchy.HierNodes[leafKey]) [ "LEAF1"; "LEAF2" ]
+                  "and so is the choice between the leaves inside whichever mid is chosen"
+
           testCase "a sheet several routes reach is drawn inside its parents, not at top level"
           <| fun () ->
               let hierarchy = forkHierarchy.Force()

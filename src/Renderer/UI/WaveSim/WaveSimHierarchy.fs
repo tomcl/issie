@@ -85,6 +85,26 @@ let instancesInside: FastSimulation -> Map<string * string, string list> =
         |> List.map (fun (key, entries) -> key, entries |> List.map snd |> List.sort)
         |> Map.ofList)
 
+/// The label each sheet instance carries on the canvas above it: what the user drew, and what tells
+/// two instances of one sheet apart when the selector offers a choice between them.
+///
+/// A SimSheetName is not that, and is not meant to be read. FastCreate makes one by taking whatever
+/// suffix of the instance's label distinguishes it from every other instance of the same sheet in
+/// the WHOLE design, and where no such suffix exists - identical labels under different parents, or
+/// one label a prefix of another - it falls back to a bare ordinal. So the combo box choosing
+/// between the instances of a sheet was offering things like "20" and "3".
+///
+/// SimSheetStructure maps an instance to the custom component whose innards it is, which is the
+/// component carrying that label. Instances offered together are siblings on one canvas, so their
+/// labels are distinct.
+let instanceLabels: FastSimulation -> Map<string, string> =
+    Helpers.memoizeByIdentity (fun fs ->
+        fs.SimSheetStructure
+        |> Map.toList
+        |> List.choose (fun (simSheetName, parent) ->
+            parent |> Option.map (fun fc -> simSheetName, fc.FLabel))
+        |> Map.ofList)
+
 /// The SimSheetName of the design's top sheet, which every other instance is reached from.
 let private topInstance (fs: FastSimulation) =
     Map.tryFind [] fs.SimSheetNameMap

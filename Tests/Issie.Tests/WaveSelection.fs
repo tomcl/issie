@@ -444,12 +444,27 @@ let tests =
                   [ [ "top"; "b"; "other" ]; [ "top"; "b"; "shared" ] ]
                   "nodes of different sheets are open at the same time, which is the ordinary case"
 
+          testCase "a sheet instance is identified by the labels down to it, and nothing invented"
+          <| fun () ->
+              // `deep` holds MID1 and MID2, each holding LEAF1 and LEAF2 - so four instances of
+              // `leaf`, told apart by which mid they are in. The identity used to be the sheet name
+              // with a disambiguator bolted on: `leaf:1`, or a bare ordinal where the labels shared
+              // no distinguishing suffix. Nothing had to be invented for it.
+              let fs, _ = deepSimulation.Force()
+              Expect.equal
+                  (fs.SimSheetStructure |> Map.toList |> List.map fst |> List.sort)
+                  [ "DEEP"; "MID1"; "MID1.LEAF1"; "MID1.LEAF2"; "MID2"; "MID2.LEAF1"; "MID2.LEAF2" ]
+                  "every instance is the path of custom component labels reaching it"
+              Expect.all
+                  (fs.SimSheetStructure |> Map.toList |> List.map fst)
+                  (fun name -> not (name.Contains ":"))
+                  "and none of them carries a disambiguator"
+
           testCase "a waveform is called sheet.component.port, with the sheet the user's name for it"
           <| fun () ->
-              // The four leaves are four instances of one sheet, so FastCreate gives each a
-              // distinct SimSheetName - `leaf:1` and so on, or a bare ordinal where the labels do
-              // not tell themselves apart. That is a run-time identity and was being read out as
-              // the first component of every waveform's name.
+              // The four leaves are four instances of one sheet, so each has its own identity -
+              // MID1.LEAF1 and so on. That is which instance, not which sheet, and it was being
+              // read out as the first component of every waveform's name.
               let _, allWaves = deepSimulation.Force()
               let names = allWaves |> Map.toList |> List.map (fun (_, w) -> w.ViewerDisplayName)
               Expect.isNonEmpty names "the design has waves"

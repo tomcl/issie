@@ -27,7 +27,7 @@ open FastOrder
 /// elaboration - so a sheet used at two sizes gives two memories to check, and the canvas they were
 /// both drawn from has neither shape. The contents themselves are never resized to fit: see
 /// MemoryData for why a width edit leaves them alone and this is what reports the result.
-let private memoryContentsError (activeComps: FastComponent array) : SimulationError option =
+let private memoryContentsError (fs: FastSimulation) (activeComps: FastComponent array) : SimulationError option =
     activeComps
     |> Array.tryPick (fun fc ->
         match fc.FType with
@@ -39,7 +39,9 @@ let private memoryContentsError (activeComps: FastComponent array) : SimulationE
                         $"The initial contents of memory {fc.FLabel} do not fit it: {problem}. Change \
                           the memory's address and data widths in its Properties, or edit its contents \
                           to fit the widths it has."
-                  InDependency = Some fc.SimSheetName
+                  // "Error found in sheet 'X' which is a dependency" - so the SHEET, not the
+                  // instance. It read as a sheet name only while a sheet had one instance
+                  InDependency = Some (fs.getSheetNameOfInstance fc.SimSheetName)
                   ComponentsAffected = [fc.cId]
                   ConnectionsAffected = [] })
         | _ -> None)
@@ -116,7 +118,7 @@ let checkAndValidate (fs: FastSimulation) =
         instrumentTime "checkAndValidate" start
         // contents a memory cannot hold: a fault in the design, so it is returned as an error
         // rather than left for the reducer that would read the location
-        match memoryContentsError activeComps with
+        match memoryContentsError fs activeComps with
         | Some err -> Error err
         | None -> Ok fs
 
@@ -188,7 +190,7 @@ let checkAndValidateFData (fs: FastSimulation) =
         instrumentTime "checkAndValidate" start
         // as in checkAndValidate above: a memory whose contents do not fit it is a fault in the
         // design, and the algebraic backend reads the same contents
-        match memoryContentsError activeComps with
+        match memoryContentsError fs activeComps with
         | Some err -> Error err
         | None -> Ok fs
 

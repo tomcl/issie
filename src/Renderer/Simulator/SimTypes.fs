@@ -398,6 +398,21 @@ type FastSimulation =
     member this.getSimSheetName(fId:FComponentId) =
         this.FCustomComps[fId].SimSheetName
 
+    /// The design-time name of the sheet an instance is of: what the user called it, and what they
+    /// see in the Sheets menu.
+    ///
+    /// SimSheetName is not a sheet name. It says WHICH INSTANCE, as the path of custom component
+    /// labels down to it, and is unique because it has to be - it keys SimSheetStructure and groups
+    /// waves. Anything telling the user which sheet something is in wants this instead.
+    member this.getSheetNameOfInstance(simSheetName: string) =
+        match Map.tryFind simSheetName this.SimSheetStructure with
+        | Some(Some fc) ->
+            match fc.FType with
+            | Custom ct -> ct.Name
+            | _ -> simSheetName
+        // no parent means the top sheet, which is the one instance named after its sheet
+        | _ -> this.SimulatedTopSheet
+
  
 
 /// GatherTemp is the output type used to accumulate lists of data links when recursively exploring SimulationGraph

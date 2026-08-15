@@ -780,27 +780,22 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
             else
                 Map.add (comp.Id, ap) (makeFastComp (comp.Id, ap)) m, mc)
 
+    /// What identifies one instance of a sheet: the labels of the custom components it sits inside,
+    /// from the root of the simulation, and then its own. SheetName already holds exactly that.
+    ///
+    /// A label is unique on the canvas it is drawn on, so a path of labels is unique in the design.
+    /// That is what this has to be - it keys SimSheetStructure, and Wave.SheetId groups waves by it,
+    /// so two instances sharing an identity would be one instance to everything downstream.
+    ///
+    /// It used to be the sheet's name with a disambiguator bolted on wherever several instances
+    /// shared it: whatever suffix told their labels apart, or a bare ordinal where nothing did. That
+    /// was unique and unreadable - MAIN4:1, or just 2 - and being a name it leaked to the user, in
+    /// waveform names, in the sheet filter box, and in the boxes choosing between instances. Nothing
+    /// had to be invented: the design already names every instance, at every level down to it.
     let customSimSheetNames =
         customComps
         |> Map.valuesL
-        |> List.groupBy (fun fc ->
-            match fc.FType with
-            | Custom {Name = name} -> name
-            | _ -> failwithf "What? This should be a custom component")
-        |> List.collect (fun (name, ccL) ->
-            match ccL with
-            | [cc] -> [cc.fId,name] // use the design-time name
-            | path ->
-                let labels = path |> List.map (fun fc -> fc.FLabel)
-                let labelPartStartIndex =
-                    [0..(List.minBy String.length labels).Length - 1]
-                    |> List.tryFind (fun i -> labels |> List.exists (fun lab -> lab[i] <> labels[0][i]))
-                labels
-                |> List.mapi (fun i lab -> match labelPartStartIndex with | Some index -> lab[index..] | None -> $"{i}")
-                |> List.groupBy id
-                |> List.collect (function | l, [lab] -> [lab] | l, labs -> labs |> List.mapi (fun i lab -> lab + $"{i}"))
-                |> List.zip path
-                |> List.map (fun (fc, partLabel) -> fc.fId, name + ":" + partLabel))
+        |> List.map (fun cc -> cc.fId, String.concat "." cc.SheetName)
         |> Map.ofList
 
 

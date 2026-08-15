@@ -206,7 +206,19 @@ let private viewSymbolButton (model: Model) (wave: Wave) (dispatch: Msg -> unit)
 /// This is because the wave viewer is comprised of three columns of many rows, rather
 /// than many rows of three columns.
 let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list =
-    selectedWaves wsModel
+    let shown = selectedWaves wsModel
+    /// Which names more than one of the waveforms on show carries.
+    ///
+    /// A waveform is called sheet.component.port, which does not say which INSTANCE of the sheet it
+    /// came from - deliberately, since naming the instance meant naming it as a path of labels in
+    /// every name whether it was needed or not. Two instances can therefore reach this column under
+    /// one name, and only then is there anything to disambiguate.
+    let ambiguous =
+        shown
+        |> List.countBy (fun wave -> wave.ViewerDisplayName)
+        |> List.choose (fun (name, count) -> if count > 1 then Some name else None)
+        |> Set.ofList
+    shown
     |> List.map (fun wave ->
         let visibility =
             if wsModel.HoveredLabel = Some wave.WaveId then
@@ -305,7 +317,15 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                 ]
             Level.right
                 [ Props [ Style [ PaddingRight Constants.labelPadding ] ] ]
-                [ label [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId) ] [ wave.ViewerDisplayName|> str ] ]
+                [ label
+                    [ nameLabelStyle (wsModel.HoveredLabel = Some wave.WaveId)
+                      // Only where the name alone cannot say which waveform this is. A tooltip on
+                      // every name would fire while the mouse was on its way somewhere else, which
+                      // is most of the time it is over this column.
+                      if Set.contains wave.ViewerDisplayName ambiguous then
+                          HTMLAttr.Title (
+                              String.concat "." (wave.SubSheet @ [wave.CompLabel; wave.PortLabel])) ]
+                    [ wave.ViewerDisplayName |> str ] ]
         ]
     )
 

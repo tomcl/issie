@@ -89,12 +89,18 @@ let wavePropsTable (rows: TableRow list) =
 /// them: it read every wave in the design and threw nearly all of them away, on every keystroke in
 /// a search box and every click on a pill. main6 of largeTest carries 208,896 waves.
 ///
-/// AllWaves is replaced whenever the waves are rebuilt, so a new map is exactly the signal that an
-/// index built from the old one is stale - and nothing has to remember to clear it.
-let wavesByInstance: Map<WaveIndexT, Wave> -> Map<string, Wave list> =
-    Helpers.memoizeByIdentity (fun allWaves ->
-        Map.valuesL allWaves
-        |> List.groupBy (fun (wave: Wave) -> wave.SheetId)
+/// Keyed on the SIMULATION, not on AllWaves. Which waves exist and which instance each belongs to
+/// are settled when the simulation is built; AllWaves holds the same waves with their drawn SVGs,
+/// and is REPLACED every time any waveform is generated - Map.change returns a new map - so keying
+/// on it meant selecting one wave rebuilt this index over every wave in the design.
+///
+/// It holds indices rather than the records, for the same reason: the records change as they are
+/// drawn, and the caller has AllWaves to look them up in.
+let waveIndicesByInstance: FastSimulation -> Map<string, WaveIndexT list> =
+    Helpers.memoizeByIdentity (fun fs ->
+        fs.WaveIndex
+        |> Array.toList
+        |> List.groupBy (fun wi -> fs.WaveComps[wi.Id].SimSheetName)
         |> Map.ofList)
 
 /// Ensures that only valid waves (and selected waves) are returned. A design edited under a running
@@ -154,10 +160,12 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
     let candidates =
         match shown with
         | Some instances ->
-            let index = wavesByInstance wsModel.AllWaves
+            let index = waveIndicesByInstance fs
             instances
             |> Set.toList
             |> List.collect (fun instance -> Map.tryFind instance index |> Option.defaultValue [])
+            // waves inside a library component are not offered, so are not in AllWaves
+            |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
         | None -> Map.valuesL wsModel.AllWaves
     let waves, okSelectedWaves = ensureWaveConsistency wsModel candidates
     let selectedIds = Set.ofList okSelectedWaves

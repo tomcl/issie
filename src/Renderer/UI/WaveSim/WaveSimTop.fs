@@ -228,16 +228,24 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
                         refreshWaveSim newSimulation wsModel model
                     else
                         // The array index of a wave changes when the simulation is rebuilt, so a
-                        // selection made before that names waves by their other three fields and
-                        // has to be resolved against what AllWaves holds now. Resolving it and
-                        // then asking which of those are stale is two lookups per SELECTED wave.
-                        // Both used to be a scan of every wave in the design, per selected wave:
-                        // on main6 of largeTest that is 208,896 x the selection, twice, on every
-                        // tick of a checkbox - which is why deselecting cost as much as selecting.
-                        let currentWave = currentWaveOfIdentity allWaves
+                        // selection made before that has to be re-resolved against what AllWaves
+                        // holds now, by the other three fields. That is the only time it can be
+                        // needed: generating waveforms replaces the Wave records but never the KEYS
+                        // - Map.change keeps the key set - so a selection that is already current
+                        // stays current however many times the SVGs are redrawn.
+                        //
+                        // Asking first costs one lookup per SELECTED wave and is the answer on
+                        // every refresh except the one after a rebuild. Reaching for the identity
+                        // map unconditionally cost a 208,896-entry map REBUILT on every scroll
+                        // step, since scrolling stales every selected wave and so returns a new
+                        // AllWaves each time, which is what the map is memoised on.
                         let selectedWaves =
-                            wsModel.SelectedWaves
-                            |> List.choose (fun wi -> Map.tryFind (waveIdentity wi) currentWave)
+                            if wsModel.SelectedWaves |> List.forall (fun wi -> Map.containsKey wi allWaves) then
+                                wsModel.SelectedWaves
+                            else
+                                let currentWave = currentWaveOfIdentity allWaves
+                                wsModel.SelectedWaves
+                                |> List.choose (fun wi -> Map.tryFind (waveIdentity wi) currentWave)
                         // Only generate waveforms for selected waves, and only where the SVG they
                         // hold is not the one the current view calls for.
                         let wavesToBeMade =

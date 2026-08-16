@@ -58,6 +58,40 @@ next GC — the counts are the truthful signal.
 This was added because finding one retained simulation took a heap snapshot with a retainer path
 and an A/B build. `refs` answers the same question in one call.
 
+## Measuring simulation speed: `benchmark` and `rerun`
+
+```bash
+node scripts/drive.js send benchmark "20 550"   # build the open sheet, then time 20 cycles
+node scripts/drive.js send rerun 20             # time it again, without rebuilding
+```
+
+```json
+{ "sheet": "main6", "comps": 480342, "syncComps": 24577, "ordered": 393217,
+  "maxArraySize": 550, "typedArrayMB": 1135.4, "usedHeapMB": 3689,
+  "steps": 20, "medianMs": 1900.2, "compStepPerMs": 5054,
+  "seriesMs": [1909.2, 1767.8, 1707.7, 1558.4, 1900.2, ...] }
+```
+
+Simulation speed must be measured in the app rather than under .NET
+([simulatorStructure.md](simulatorStructure.md)), and these are how. Four things they are shaped
+around, each of which caused a wrong answer before it was:
+
+- **The build is not the run.** On a 480,000-component design the build is ~33s and a run is
+  ~1.9s, so a profiler wrapped around `benchmark` profiles the build. Wrap it around `rerun`,
+  which reuses what `benchmark` built.
+- **`seriesMs` is every repetition, in order.** The median alone cannot show whether the warm-up
+  was long enough. A first repetition slower than the rest means the JIT is still tiering up; on a
+  small design that is the first 1–2ms and nothing after, and on a large one it is invisible.
+- **The second argument is the step array size**, overriding `SimulationView.Constants.maxArraySize`.
+  It is the only thing that changes the distance between the words a clock cycle touches without
+  changing the work, which is what makes "is this design memory-bound?" a question with an answer.
+- **A benchmark retains its simulation** so that `rerun` can use it, and a heap left near its limit
+  slows down everything measured afterwards. `endSimulation` drops it. Compare only measurements
+  taken in comparable heap states, and read `usedHeapMB` in the reply to know which one you were in.
+
+Run-to-run variance on a laptop with performance and efficiency cores is up to 2x, so repeat, and
+do not believe a single number.
+
 ## Adding a command
 
 `send` takes a **name from a fixed table**, not a serialised `Msg`. A `Msg` is an F# union carrying

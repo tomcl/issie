@@ -1,4 +1,4 @@
-/// Driving Issie from outside it, for development and for automated checking.
+﻿/// Driving Issie from outside it, for development and for automated checking.
 ///
 /// Published as `window.issieDev` in a debug build, and reached from a terminal through
 /// `scripts/drive.js`. It exists because the alternative - synthesising DOM events and reading
@@ -34,6 +34,16 @@ let mutable private latestDispatch: (Msg -> unit) option = None
 
 /// Callbacks waiting for the next completed render.
 let mutable private waitingForRender: (unit -> unit) list = []
+
+/// The simulation the last `benchmark` built, so that `rerun` can time the run loop on its own.
+/// Building a large design costs many times what running it does, and a profile of the two
+/// together says almost nothing about either.
+///
+/// This RETAINS a whole simulation until the next benchmark replaces it or `endSimulation` drops
+/// it, which on a large design is gigabytes. That is worth knowing while measuring: a heap left
+/// near its limit slows everything that follows, so a measurement taken after a big one is not
+/// comparable with the same measurement taken before it.
+let mutable private lastBenchmarkSim: SimTypes.FastSimulation option = None
 
 /// Called from the view wrapper, before the view runs.
 let recordModel (model: Model) = latestModel <- Some model
@@ -151,6 +161,37 @@ let private simStats () =
 //------------------------------------- Sending a message ---------------------------------------//
 //------------------------------------------------------------------------------------------------//
 
+/// Run `fs` for `steps` cycles, repeatedly, and report the median with what it was spread over.
+///
+/// Cycles are re-run from tick 0 over arrays that already hold data, which is what makes every
+/// repetition the same work. Nothing reads the results, so the values in them do not matter.
+/// Median of the repetitions after a warm-up, since the distribution is a tight cluster with
+/// occasional fast outliers (docs/dev/simulatorStructure.md).
+let private timeRuns (fs: SimTypes.FastSimulation) (steps: int) =
+    let once () =
+        fs.ClockTick <- 0
+        let t0 = TimeHelpers.getTimeMs ()
+        FastRun.runFastSimulation None steps fs |> ignore
+        TimeHelpers.getTimeMs () - t0
+    let warmUp = 3
+    let repeats = 7
+    // Every repetition is reported, in order, as well as the median of the ones after the warm-up.
+    // Whether the warm-up was long enough is not something to assume: if the first repetitions are
+    // slower than the rest, the run is still being tiered up by the JIT and the median is measuring
+    // that rather than the simulation.
+    let all = [ 1 .. warmUp + repeats ] |> List.map (fun _ -> once ())
+    let times = all |> List.skip warmUp |> List.sort
+    let median = times[times.Length / 2]
+    let series = all |> List.map (sprintf "%.1f") |> String.concat ", "
+    let comps = fs.FComps.Count + fs.FCustomComps.Count
+    let heapMB = float (JSHelpers.usedHeap ()) / 1048576.0
+    $"""{{"sheet": "{fs.SimulatedTopSheet}", "comps": {comps}, "syncComps": {fs.FClockedComps.Length}, """
+    + $""""ordered": {fs.FOrderedComps.Length}, "stepArrays": {fs.NumStepArrays}, """
+    + $""""maxArraySize": {fs.MaxArraySize}, "typedArrayMB": %.1f{float fs.StepCost.TypedArrayBytes * float fs.MaxArraySize / 1.0e6}, """
+    + $""""heapStepMB": %.1f{float fs.StepCost.HeapBytes * float fs.MaxArraySize / 1.0e6}, "usedHeapMB": %.0f{heapMB}, """
+    + $""""steps": {steps}, "medianMs": %.2f{median}, "compStepPerMs": %.0f{float (comps * steps) / median}, """
+    + $""""seriesMs": [{series}]}}"""
+
 /// The commands `send` accepts. Each takes the argument string - "" when there is none - and the
 /// model and dispatch it is being sent into, and returns what to report back.
 ///
@@ -160,6 +201,9 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
     [ "endSimulation",
       fun _ _ dispatch ->
           dispatch EndSimulation
+          // and whatever benchmark was holding, so that there is a way to get the heap back down
+          // between measurements without restarting the app
+          lastBenchmarkSim <- None
           "ended the step simulation"
 
       "endWaveSim",
@@ -222,7 +266,52 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
       "checkCircuit",
       fun _ _ dispatch ->
           dispatch RunCircuitCheck
-          "circuit check requested" ]
+          "circuit check requested"
+
+      "benchmark",
+      // What a clock cycle of the open sheet costs, and what it is spread over. The argument is the
+      // number of cycles per repetition, default 100.
+      //
+      // The BUILD is deliberately outside the timing, and the same built simulation is run over and
+      // over: the question is what the run loop costs per component, which is the number that falls
+      // away as a design gets bigger. Median of the repetitions after a warm-up, since the
+      // distribution is a tight cluster with occasional fast outliers (docs/dev/simulatorStructure).
+      //
+      // Cycles are re-run from tick 0 over arrays that already hold data, which is what makes every
+      // repetition the same work. Nothing reads the results, so the values in them do not matter.
+      fun arg model _ ->
+          // "<steps>" or "<steps> <stepArraySize>". The array size is variable because it is the
+          // one thing that changes the DISTANCE between the words a clock cycle touches without
+          // changing anything about the work: same components, same reducers, same allocation.
+          let parts = arg.Split(' ') |> Array.filter (fun s -> s <> "")
+          let intAt i dflt =
+              match Array.tryItem i parts |> Option.map System.Int32.TryParse with
+              | Some(true, n) when n > 0 -> n
+              | _ -> dflt
+          let steps = intAt 0 100
+          let arraySize = intAt 1 SimulationView.Constants.maxArraySize
+          let canvasState = model.Sheet.GetCanvasState()
+          let sheet = model.CurrentProj |> Option.map (fun p -> p.OpenFileName) |> Option.defaultValue ""
+          let ldcs = model.CurrentProj |> Option.map (fun p -> p.LoadedComponents) |> Option.defaultValue []
+          match Simulator.startCircuitSimulation arraySize sheet canvasState ldcs with
+          | Error e -> $"""{{"error": "{e.ErrType}"}}"""
+          | Ok simData ->
+              lastBenchmarkSim <- Some simData.FastSim
+              timeRuns simData.FastSim steps
+
+      "rerun",
+      // Time the run loop again on whatever `benchmark` last built, without rebuilding it. The
+      // argument is the number of cycles per repetition. This is the one to put a profiler round:
+      // building a large design costs many times what running it does, so a profile of the two
+      // together is a profile of the build.
+      fun arg _ _ ->
+          let steps =
+              match System.Int32.TryParse arg with
+              | true, n when n > 0 -> n
+              | _ -> 100
+          match lastBenchmarkSim with
+          | None -> """{"error": "nothing built yet - send benchmark first"}"""
+          | Some fs -> timeRuns fs steps ]
 
 let private send (name: string) (arg: string) =
     match latestModel, latestDispatch with

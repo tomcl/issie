@@ -1,4 +1,4 @@
-/// Which waveforms the schematic's right-click menu offers for a component on the canvas.
+﻿/// Which waveforms the schematic's right-click menu offers for a component on the canvas.
 ///
 /// A component on the canvas is not one thing in the simulation. A sheet instantiated twice holds
 /// two of everything in it, and neither copy is the symbol that was clicked on - so nothing is
@@ -127,7 +127,7 @@ let private deepSimulation =
 let private hierarchyWith (chosen: (string list * string) list) =
     let fs, _ = deepSimulation.Force()
     let ws = { ModelHelpers.initWSModel with SelectedSheetInstance = Map.ofList chosen }
-    fs, WaveSimHierarchy.getSelectorHierarchy fs deepProject ws
+    fs, WaveSimHierarchy.getSelectorHierarchy fs ws
 
 let private midKey = [ "deep"; "mid" ]
 let private leafKey = [ "deep"; "mid"; "leaf" ]
@@ -177,7 +177,35 @@ let private forkHierarchy =
          with
          | Error e -> failwith $"Simulation setup failed: %A{e}"
          | Ok simData ->
-             WaveSimHierarchy.getSelectorHierarchy simData.FastSim forkProject ModelHelpers.initWSModel)
+             WaveSimHierarchy.getSelectorHierarchy simData.FastSim ModelHelpers.initWSModel)
+
+//-------------------------------------------------------------------------------------------//
+// A fifth design, for the sheets the selector must not show at all.
+//
+// A library component is one thing, not a sheet with innards: none of what is inside it is offered
+// as a waveform, so it has no place in the hierarchy that chooses them. The hierarchy is built from
+// the design the SIMULATION holds, so this also says that what marks a sheet as a library one
+// survives the trip into the simulation.
+//-------------------------------------------------------------------------------------------//
+
+let private plainInnerSheet = notSheet "lib" "A" "Y"
+let private libSheet = { plainInnerSheet with Form = Some(Library("arithmetic", "lib")) }
+
+/// A top sheet with one instance of `inner`, which differs between the two runs only in its Form.
+let private usesSheet (inner: LoadedComponent) =
+    let i = makeComp "useslib-in" 0 1 (Input1(1, None)) "IN"
+    let l = makeComp "useslib-lib" 1 1 (customOf inner [ "A", 1 ] [ "Y", 1 ] None) "LIB1"
+    let o = makeComp "useslib-out" 1 0 (Output 1) "OUT"
+    makeLdc "useslib" None ([ i; l; o ], [ conn i 0 l 0; conn l 0 o 0 ])
+
+/// The nodes the selector would draw for a design whose one subsheet is `inner`.
+let private nodesUsing (inner: LoadedComponent) =
+    let top = usesSheet inner
+    match Simulator.startCircuitSimulation maxArraySize "useslib" top.CanvasState [ top; inner ] with
+    | Error e -> failwith $"Simulation setup failed: %A{e}"
+    | Ok simData ->
+        WaveSimHierarchy.getSelectorHierarchy simData.FastSim ModelHelpers.initWSModel
+        |> fun hierarchy -> hierarchy.HierOrder |> List.map (fun node -> node.NodeKey)
 
 let tests =
     testList
@@ -453,7 +481,7 @@ let tests =
               let fs, allWaves = deepSimulation.Force()
               Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
               let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
-              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs deepProject ws
+              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
 
               let filtered =
@@ -481,7 +509,7 @@ let tests =
               let fs, allWaves = deepSimulation.Force()
               Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
               let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
-              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs deepProject ws
+              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
               Expect.isFalse
                   (Set.contains "MID2.LEAF2" shown)
@@ -513,6 +541,24 @@ let tests =
                   "and only the instances they are in, not every sheet instance in the design"
 
               Simulator.simCacheWS <- Simulator.simCacheInit ()
+
+          testCase "a library sheet is not a node of the hierarchy the selector draws"
+          <| fun () ->
+              // Nothing inside a library component is offered as a waveform, so a node for it would
+              // be a node with nothing to choose under it. The hierarchy is built from the design
+              // the SIMULATION holds, so what marks a sheet as a library one has to survive into
+              // it - it is read off the LoadedComponents saveStateInSimulation kept.
+              //
+              // The two designs differ in nothing but that mark, so the second says the first is
+              // hiding the sheet rather than never having had it.
+              Expect.equal
+                  (nodesUsing plainInnerSheet)
+                  [ [ "useslib" ]; [ "useslib"; "lib" ] ]
+                  "an ordinary subsheet is a node of its own"
+              Expect.equal
+                  (nodesUsing libSheet)
+                  [ [ "useslib" ] ]
+                  "the same sheet marked as a library component is not"
 
           testCase "the viewer is sized by the rows it draws, not by the selection"
           <| fun () ->
@@ -638,7 +684,7 @@ let tests =
               // filterWaves reaches the simulation through the wave-sim cache, as the dialog does
               Simulator.simCacheWS <- { Simulator.simCacheInit () with FastSim = fs }
               let ws = { ModelHelpers.initWSModel with AllWaves = allWaves }
-              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs deepProject ws
+              let hierarchy = WaveSimHierarchy.getSelectorHierarchy fs ws
               let shown = hierarchy.HierOrder |> List.choose (fun node -> node.NodeInstance) |> Set.ofList
               let filtered = WaveSimSelectHelpers.filterWaves (Some shown) ws
 

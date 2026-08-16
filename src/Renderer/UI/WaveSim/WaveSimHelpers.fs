@@ -318,13 +318,30 @@ let endButtonAction canvasState model dispatch ev =
 
 /// Return info about current state of waveform simulator
 /// which is used to switch buttons on/off etc.
-let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel)  : WaveSimButtonOptions =
+///
+/// Runs on every render of the wave sim panel, so nothing here works out anything about the design
+/// that the model has already been told.
+let getWaveSimButtonOptions (canv: CanvasState) (model:Model) (ws:WaveSimModel) dispatch : WaveSimButtonOptions =
     let fs = Simulator.getFastSim()
     let simExists = model.WaveSimSheet <> Some "" && model.WaveSimSheet <> None
     let success = (ws.State = Success || ws.State=Loading)
 
-    let simCheck = validateWaveModel model.WaveSimSheet canv model
-    let hasSimErr = Result.isError simCheck
+    // Whether the design builds is read from the model rather than worked out here. It used to run
+    // the whole of validateCircuitSimulation - every sheet of the design checked and its widths
+    // inferred - once per render, to choose a word and a colour. See ModelType.CircuitCheck, and
+    // StepSimulationTop, which reads the same verdict for the same reason.
+    //
+    // The verdict is about the sheet that is OPEN. That is the sheet this is about whenever the
+    // answer changes anything: a waveform simulation running on some other sheet is running, and
+    // says "End Simulation", whether the design still builds or not.
+    if circuitCheckIsNeeded model canv then
+        dispatch RequestCircuitCheck
+    /// A design not yet checked reads as buildable, as in the step simulator: pressing the button
+    /// does the real build and reports any error then, so an optimistic colour costs a click.
+    let hasSimErr =
+        match model.CircuitCheck.Verdict with
+        | Some (Error _, _) -> true
+        | _ -> false
 
     let errored =
         match hasSimErr, ws.State with

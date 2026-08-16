@@ -78,7 +78,7 @@ let private nodeCount (tree: SheetTree) =
 let private treeOf allInstances (p: Project) =
     getSheetTreesFiltered (fun _ -> true) allInstances p |> Map.find p.OpenFileName
 
-let private shapesOf (p: Project) = getSheetShapes (fun _ -> true) p
+let private shapesOf (p: Project) = getSheetShapes (fun _ -> true) p.LoadedComponents
 
 /// What the wave selector asks of materialiseTree: the sheets inside a sheet that more than one
 /// route reaches are not built until the user opens one of the places it is reached.

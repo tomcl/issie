@@ -416,7 +416,7 @@ let topHalf canvasState (model: Model) dispatch : ReactElement * bool =
             refreshButtonAction canvasState model dispatch
 
         let waveEnd model = endButtonAction canvasState model dispatch
-        let wbo = getWaveSimButtonOptions canvasState model wsModel
+        let wbo = getWaveSimButtonOptions canvasState model wsModel dispatch
         let isLoading =
             match model.RunAfterRenderWithSpinner, model.SpinnerPayload with
             | Some {ButtonSpinnerOn = true}, _ -> true

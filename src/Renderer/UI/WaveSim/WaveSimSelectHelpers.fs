@@ -811,14 +811,18 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
         //
         // Before the waves are filtered, not after: what it resolves to is the handful of instances
         // the panes will draw, and that is what stops the filter reading every wave in the design.
+        //
+        // Built from the simulation, which is where its instances and its waves come from. It used
+        // to be built from the project with the open canvas merged into it, so an edit to the
+        // schematic moved the tree while everything else in the dialog stayed as it was simulated -
+        // and extracting that canvas was paid for on every keystroke in the search boxes.
+        let fs = Simulator.getFastSim()
         let hierarchy =
-            match model.CurrentProj with
-            | None -> WaveSimHierarchy.emptyHierarchy
-            | Some project ->
-                WaveSimHierarchy.getSelectorHierarchy
-                    (Simulator.getFastSim())
-                    (ModelHelpers.getUpdatedLoadedComponents project model)
-                    wsModel
+            // Nothing simulated means nothing to draw and nothing to look up. The test used to be
+            // for an open project, which was the same question only because this dialog is opened
+            // over a running simulation.
+            if fs.SimulatedTopSheet = "" then WaveSimHierarchy.emptyHierarchy
+            else WaveSimHierarchy.getSelectorHierarchy fs wsModel
         // Show Only Selected lists the instances a wave was chosen in rather than the ones on show,
         // so it is the one mode that has to look wider than the hierarchy.
         let shownInstances =

@@ -109,15 +109,32 @@ let instanceLabels: FastSimulation -> Map<string, string> =
 let private topInstance (fs: FastSimulation) =
     Map.tryFind [] fs.SimSheetNameMap
 
-/// The hierarchy to draw: the sheets of `p` below the simulated top sheet, collapsed so that
+/// What is inside each sheet of the SIMULATED design, and which of those sheets more than one route
+/// from the top reaches.
+///
+/// The design the simulation was built from, not the one on the canvas now. Every instance, every
+/// wave and every name in the selector comes from the simulation, so the tree they are drawn in has
+/// to come from there too: reading the live project instead meant an edit to the schematic moved
+/// half of the dialog and left the other half where it was, when an edit is meant to change nothing
+/// until the simulation is restarted or refreshed. SimulatedCanvasState is exactly the sheets that
+/// simulation needed, which is also what compareLoadedStates decides "needs refreshing" against.
+///
+/// Being a fact about the simulation, it is worked out once per simulation. It reads every
+/// component of every sheet, and the dialog is rebuilt on every keystroke in its search boxes -
+/// and it used to extract the whole open canvas from the draw block first, on each of them.
+let private simulatedShapes: FastSimulation -> SheetShapes * Set<string> =
+    Helpers.memoizeByIdentity (fun fs ->
+        // A library component is opaque here whatever the Sheets menu is set to show: none of its
+        // innards are offered as waves, so it must not appear in the hierarchy that selects them.
+        let shapes = getSheetShapes (fun _ -> false) fs.SimulatedCanvasState
+        shapes, multiPathSheets shapes fs.SimulatedTopSheet)
+
+/// The hierarchy to draw: the sheets of the simulated design below its top sheet, collapsed so that
 /// several instances of one sheet inside one parent are one node, cut off below any node the user
 /// has not opened, and resolved against `fs` so each node names the instance it is showing.
-let getSelectorHierarchy (fs: FastSimulation) (p: Project) (ws: WaveSimModel): SelectorHierarchy =
-    // A library component is opaque here whatever the Sheets menu is set to show: none of its
-    // innards are offered as waves, so it must not appear in the hierarchy that selects them.
-    let shapes = getSheetShapes (fun _ -> false) p
+let getSelectorHierarchy (fs: FastSimulation) (ws: WaveSimModel): SelectorHierarchy =
+    let shapes, multiPath = simulatedShapes fs
     let root = fs.SimulatedTopSheet
-    let multiPath = multiPathSheets shapes root
 
     /// A sheet more than one route from the top reaches, and which is therefore in the hierarchy
     /// more than once.

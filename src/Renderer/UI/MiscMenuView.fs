@@ -306,7 +306,7 @@ let hierarchyBreadcrumbs
         let root = Option.defaultValue p.OpenFileName model.WaveSimSheet
         // One hierarchy is drawn, so one is built. getSheetTreesFiltered would build every sheet in
         // the project as a root of its own, which for a design of any depth is most of the work.
-        let shapes = getSheetShapes cfg.ShowLibrarySheet p
+        let shapes = getSheetShapes cfg.ShowLibrarySheet p.LoadedComponents
         let tree = materialiseTree (fun _ -> true) cfg.AllowDuplicateSheets shapes root
         breadcrumbsOfTree cfg tree dispatch)
 

@@ -387,9 +387,13 @@ let rec foldOverTree (isSubSheet: bool) (folder: bool -> SheetTree -> Model -> M
 ///
 /// A predicate rather than one flag for the lot, because a library component the user has asked
 /// to look inside appears in the Sheets menu while the rest of the library stays hidden.
-let getSheetShapes (showLibrarySheet: string -> bool) (p: Project): SheetShapes =
+///
+/// The sheets are given as a list rather than as a project, because not every hierarchy is drawn
+/// from the project: the wave selector draws the design that was SIMULATED, which the simulation
+/// carries as a list of exactly the sheets it needed.
+let getSheetShapes (showLibrarySheet: string -> bool) (ldcs: LoadedComponent list): SheetShapes =
     let ldcMap =
-        p.LoadedComponents
+        ldcs
         |> List.map (fun ldc -> ldc.Name, ldc)
         |> Map.ofList
 
@@ -397,7 +401,7 @@ let getSheetShapes (showLibrarySheet: string -> bool) (p: Project): SheetShapes 
         not (showLibrarySheet sheet)
         && (Map.tryFind sheet ldcMap |> Option.map ComponentLibraries.isLibrarySheet |> Option.defaultValue false)
 
-    p.LoadedComponents
+    ldcs
     |> List.filter (fun ldc -> not (hidden ldc.Name))
     |> List.map (fun ldc ->
         let comps, _ = ldc.CanvasState
@@ -521,7 +525,7 @@ let multiPathSheets (shapes: SheetShapes) (root: string): Set<string> =
 /// Every sheet is a root here and every node is built: callers that draw one hierarchy, and that
 /// can leave part of it unopened, should use getSheetShapes and materialiseTree directly.
 let getSheetTreesFiltered (showLibrarySheet: string -> bool) (allowAllInstances: bool) (p:Project): Map<string,SheetTree> =
-    let shapes = getSheetShapes showLibrarySheet p
+    let shapes = getSheetShapes showLibrarySheet p.LoadedComponents
     shapes |> Map.map (fun sheet _ -> materialiseTree (fun _ -> true) allowAllInstances shapes sheet)
 
 /// Get the subsheet tree for all sheets in the current project, library sheets included.

@@ -98,7 +98,9 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                     sheetCmd UpdateBoundingBoxes
                   ]
     | KeyPress CtrlC ->
-        model,
+        // something has been copied and not yet pasted, which is when the canvas offers to paste
+        // it as an array
+        { model with OfferPasteArray = not model.SelectedComponents.IsEmpty },
         Cmd.batch [
             symbolCmd (SymbolT.CopySymbols model.SelectedComponents) // Better to have Symbol keep track of clipboard as symbols can get deleted before pasting.
             wireCmd (BusWireT.CopyWires model.SelectedWires)
@@ -110,6 +112,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
         { model with Wire = newBusWireModel
                      SelectedComponents = pastedCompIds
                      SelectedWires = pastedConnIds
+                     OfferPasteArray = false
                      TmpModel = Some model
                      Action = DragAndDrop },
         Cmd.batch [ sheetCmd UpdateBoundingBoxes
@@ -174,6 +177,7 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                          SelectedComponents = pastedCompIds
                          SelectedWires = pastedConnIds
                          Zoom = newZoom
+                         OfferPasteArray = false
                          TmpModel = Some model
                          Action = DragAndDrop },
             Cmd.batch [ sheetCmd UpdateBoundingBoxes
@@ -921,6 +925,7 @@ let init () =
         CtrlKeyDown = false
         SpaceKeyDown = false
         PrevWireSelection = []
+        OfferPasteArray = false
         Compiling = false
         CompilationStatus = {Synthesis = Queued; PlaceAndRoute = Queued; Generate = Queued; Upload = Queued}
         CompilationJob = None

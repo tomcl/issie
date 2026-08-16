@@ -221,12 +221,30 @@ let view
     /// annotations have an Annotation field and a dummy Component used to provide expected H,W
     let drawAnnotation (symbol:SymbolT.Symbol) boxH boxW=
         let transform = symbol.STransform
-        let outlineColour, strokeWidth = "black", "1.0"
+        // A near-black outline on mid-grey read as a rough drawing rather than as a control. These
+        // are the only things on the canvas that are pressed rather than wired up, so they are
+        // drawn as toolbar icons are: one dark shape, no outline of its own, on a pale disc that
+        // gives them an edge and lifts them off whatever they happen to be over.
+        let iconColour = "#5a6169"
+        let outlineColour, strokeWidth = iconColour, "0.6"
         let H,W = symbol.Component.H, symbol.Component.W
-        let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour = 
-            [makeAnyPath startingPoint pathAttr {defaultPath with Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour}]
+        let createAnyPath (startingPoint: XYPos) (pathAttr: string) colour strokeWidth outlineColour =
+            [makeAnyPath startingPoint pathAttr
+                {defaultPath with
+                    Fill = colour; StrokeWidth = strokeWidth; Stroke = outlineColour
+                    // the arrowheads are sharp corners meeting curves: rounding the ends stops
+                    // them reading as chipped at the sizes these are drawn at
+                    StrokeLinecap = "round" }]
+        /// The disc an icon sits on. The centre is passed in because the two annotations are drawn
+        /// from different origins: the scale button's shape is built around symbol.Pos, and the
+        /// rotate button's from it as a top-left corner.
+        let iconDisc (centre: XYPos) radius =
+            [ makeCircle centre.X centre.Y
+                { defaultCircle with
+                    R = radius; Fill = "#f7f8fa"; FillOpacity = 0.95
+                    Stroke = "#b9c0c7"; StrokeWidth = "1.0" } ]
         match symbol.Annotation with
-        | None -> 
+        | None ->
             failwithf "Should not be getting Annotation = None for drawing scalingBox buttons "
         | Some a ->
             match a with
@@ -248,7 +266,10 @@ let view
 
                 let arrowHeadTopRight = ((makeLineAttr (shapePoints[1].X) shapePoints[1].Y)) + ((makeLineAttr (shapePoints[2].X) shapePoints[2].Y)) + ((makeLineAttr (shapePoints[3].X) shapePoints[3].Y)) + ((makeLineAttr (shapePoints[4].X) shapePoints[4].Y))+ ((makeLineAttr (shapePoints[5].X) shapePoints[5].Y))
                 let arrowHeadBottomLeft = ((makeLineAttr (shapePoints[6].X) shapePoints[6].Y)) + ((makeLineAttr (shapePoints[7].X) shapePoints[7].Y)) + ((makeLineAttr (shapePoints[8].X) shapePoints[8].Y)) + ((makeLineAttr (shapePoints[9].X) shapePoints[9].Y))+ ((makeLineAttr (shapePoints[10].X) shapePoints[10].Y))
-                (createAnyPath (symbol.Pos+shapePoints[0])(arrowHeadTopRight+arrowHeadBottomLeft) "grey" strokeWidth outlineColour)
+                // 13, because the double arrow is 21 across and has to sit inside its disc
+                iconDisc symbol.Pos 13.
+                @ (createAnyPath (symbol.Pos+shapePoints[0])(arrowHeadTopRight+arrowHeadBottomLeft)
+                       iconColour strokeWidth outlineColour)
             
             | SymbolT.RotateButton _ ->
             
@@ -279,7 +300,9 @@ let view
                 let touchUp = ((makeLineAttr (curvyShape[7].X) curvyShape[7].Y)) + ((makeLineAttr (curvyShape[8].X) curvyShape[8].Y)) + ((makeLineAttr (curvyShape[9].X) curvyShape[9].Y)) 
                 let arcAttr2  = makePartArcAttr (7.*W/18.)(curvyShape[10].Y) (curvyShape[10].X) (curvyShape[11].Y) (curvyShape[11].X)
 
-                (createAnyPath (symbol.Pos + curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2) "grey" strokeWidth outlineColour) 
+                iconDisc (symbol.Pos + { X = W / 2.; Y = H / 2. }) 15.
+                @ (createAnyPath (symbol.Pos + curvyShape[0]) (arrowHead+arcAttr1+touchUp+arcAttr2)
+                       iconColour strokeWidth outlineColour)
 
 
     let scalingBox = 

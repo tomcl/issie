@@ -158,11 +158,12 @@ let canvasReadOnlyBannerStyle model = Style [
 let canvasSmallMenuStyle = Style [
     Display DisplayOptions.Block
     Position PositionOptions.Absolute // Required to work.
-    OverflowX OverflowOptions.Hidden
     OverflowY OverflowOptions.Hidden
     Left "10px"
     Bottom "25px"
-    Right (sprintf "calc(100%s - 300px)" "%")
+    // No right edge, so the row is exactly as wide as the buttons on it. It used to end at a
+    // fixed 300px with overflow hidden, which was enough for four buttons and cut the fifth -
+    // "paste array", which comes and goes - off halfway through its label.
     WhiteSpace WhiteSpaceOptions.Nowrap
 ]
 

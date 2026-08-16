@@ -682,6 +682,11 @@ module SheetT =
         /// chord, so it is tracked beside CtrlKeyDown rather than in the shortcut table.
         SpaceKeyDown : bool
         PrevWireSelection : ConnectionId list
+        /// Whether to offer "paste array" on the canvas: something has been copied and not yet
+        /// pasted. The feature is worth surfacing at the moment it applies - between copying and
+        /// pasting - and not worth a permanent button, so the offer is withdrawn once a paste of
+        /// either kind has happened. The Edit menu keeps it available either way.
+        OfferPasteArray : bool
         ScalingBox: ScalingBox Option
         Compiling: bool
         CompilationStatus: CompileStatus

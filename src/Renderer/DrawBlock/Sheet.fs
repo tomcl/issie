@@ -447,11 +447,24 @@ let symbolBBUnion (centresOnly: bool) (symbols: SymbolT.Symbol list) :BoundingBo
 // so it can be asked before anything is pasted - which is what the Paste array dialog does to
 // decide which way round to offer and how many copies to allow.
 
-/// The bounding box of what is on the clipboard, or None when nothing has been copied. Labels are
-/// included, since they are as much part of what the user sees arriving as the symbols are.
+/// The bounding box of what is on the clipboard, or None when nothing has been copied.
+///
+/// Labels are included, and have to be: a label sits below its symbol, so a fragment measured
+/// without them leaves a gap that the label of one copy hangs into the next through. A single
+/// copied component is the case that shows it - symbolBBUnion takes the first symbol's box
+/// without its label, which for one symbol is the whole answer.
+///
+/// Recalculated rather than read off the symbol, as symbolWireBBUnion does: the stored box is only
+/// as fresh as whatever last set it, and these symbols were put aside when they were copied.
 let copiedFragmentBox (model: Model) : BoundingBox option =
-    BlockHelpers.copiedSymbolsInPasteOrder model.Wire.Symbol
-    |> symbolBBUnion false
+    match BlockHelpers.copiedSymbolsInPasteOrder model.Wire.Symbol with
+    | [] -> None
+    | symbols ->
+        symbols
+        |> List.map (fun sym ->
+            boxUnion (symbolToBB false sym) (Symbol.calcLabelBoundingBox sym).LabelBoundingBox)
+        |> List.reduce boxUnion
+        |> Some
 
 /// The size of `box` along the direction an array runs.
 let alongArray (dir: ArrayDirection) (box: BoundingBox) =

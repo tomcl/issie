@@ -9,7 +9,10 @@ module PasteArrayGeometry
 
 open Expecto
 open CommonTypes
+open DrawModelType
 open DrawModelType.SheetT
+open SheetDescription
+open SheetDescription.Operators
 
 /// A box `w` by `h`, away from the origin so that a mistake using TopLeft as a size shows up.
 let private box w h = { TopLeft = { X = 500.; Y = 300. }; W = w; H = h }
@@ -17,8 +20,40 @@ let private box w h = { TopLeft = { X = 500.; Y = 300. }; W = w; H = h }
 /// what a sheet's canvas is, near enough: big compared with anything drawn on it
 let private canvas = 3500.
 
+/// A sheet model whose clipboard holds every symbol of `sheet`, as copying it would leave it.
+let private withCopied sheet =
+    let comps, _ =
+        match SheetLayout.toCanvasState sheet with
+        | Ok canvas -> canvas
+        | Error e -> failtest $"sheet would not build: {e}"
+    let wireModel, _ = BusWireUpdate.init ()
+    let symbols = SymbolUpdate.loadComponents [] wireModel.Symbol comps
+    let model, _ = SheetUpdate.init ()
+    { model with
+        Wire =
+            { wireModel with
+                Symbol = { symbols with CopiedSymbols = symbols.Symbols } } }
+
 let tests =
     testList "Issie.PasteArrayGeometry" [
+
+        // The bug this pins: symbolBBUnion takes the FIRST symbol's box without its label, which
+        // for a single copied component is the whole answer - so an array of one component was
+        // spaced by the symbol alone and each copy's label hung into the next.
+        test "the copied fragment is measured with its labels" {
+            let model = withCopied (describeSheet "one" [ comp "MUX1" (Mux2) ] [])
+            let sym = model.Wire.Symbol.Symbols |> Map.toList |> List.head |> snd
+            let label = (Symbol.calcLabelBoundingBox sym).LabelBoundingBox
+            match Sheet.copiedFragmentBox model with
+            | None -> failtest "nothing was copied"
+            | Some box ->
+                Expect.isGreaterThan (box.TopLeft.Y + box.H) (label.TopLeft.Y + label.H - 0.01)
+                    "the box reaches the bottom of the label"
+                Expect.isLessThanOrEqual box.TopLeft.Y (label.TopLeft.Y + 0.01)
+                    "and starts at or above its top"
+                Expect.isGreaterThan box.H (float sym.Component.H)
+                    "so it is taller than the symbol on its own"
+        }
 
         test "a wide fragment is arrayed vertically, a tall one horizontally" {
             // copies stack up beside each other rather than end to end

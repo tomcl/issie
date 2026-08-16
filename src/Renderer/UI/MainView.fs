@@ -170,6 +170,8 @@ let viewReadOnlyBanner (model: Model) =
 
 let viewOnDiagramButtons model dispatch =
     let sheetDispatch sMsg = dispatch (Sheet sMsg)
+    /// the whole app's dispatch, which the shadowing below hides from everything after it
+    let appDispatch = dispatch
     let dispatch = SheetT.KeyPress >> sheetDispatch
 
     // All four edit the sheet, so on a library component being looked at they are shown disabled
@@ -194,6 +196,12 @@ let viewOnDiagramButtons model dispatch =
         canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlC ) "copy"
         canvasBut (fun _ -> dispatch SheetT.KeyboardMsg.CtrlV ) "paste"
 
+        // Only between a copy and the paste that follows it - see SheetT.Model.OfferPasteArray.
+        // Repeating a fragment is worth putting in front of someone at the moment they have just
+        // copied one, and is not worth a button that is always there; the Edit menu has it either
+        // way. A fifth permanent button would also crowd the row, which sits over the schematic.
+        if model.Sheet.OfferPasteArray && not readOnly then
+            canvasBut (fun _ -> UIPopups.PasteArray.pasteArrayPopup model appDispatch) "paste array"
     ]
 
 // -- Init Model

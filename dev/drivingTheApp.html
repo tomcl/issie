@@ -464,6 +464,42 @@ nothing about <em>which</em> reference is keeping something alive. Ending a simu
 next GC — the counts are the truthful signal.</p>
 <p>This was added because finding one retained simulation took a heap snapshot with a retainer path
 and an A/B build. <code>refs</code> answers the same question in one call.</p>
+<h2><a name="Measuring-simulation-speed-and" class="anchor" href="#Measuring-simulation-speed-and">Measuring simulation speed: <code>benchmark</code> and <code>rerun</code></a></h2>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="bash">node scripts/drive.js send benchmark "20 550"   # build the open sheet, then time 20 cycles
+node scripts/drive.js send rerun 20             # time it again, without rebuilding
+</code></pre></td></tr></table>
+<table class="pre"><tr><td class="snippet"><pre class="fssnip"><code lang="json">{ "sheet": "main6", "comps": 480342, "syncComps": 24577, "ordered": 393217,
+  "maxArraySize": 550, "typedArrayMB": 1135.4, "usedHeapMB": 3689,
+  "steps": 20, "medianMs": 1900.2, "compStepPerMs": 5054,
+  "seriesMs": [1909.2, 1767.8, 1707.7, 1558.4, 1900.2, ...] }
+</code></pre></td></tr></table>
+<p>Simulation speed must be measured in the app rather than under .NET
+(<a href="simulatorStructure.html">simulatorStructure.md</a>), and these are how. Four things they are shaped
+around, each of which caused a wrong answer before it was:</p>
+<ul>
+<li>
+<strong>The build is not the run.</strong> On a 480,000-component design the build is ~33s and a run is
+~1.9s, so a profiler wrapped around <code>benchmark</code> profiles the build. Wrap it around <code>rerun</code>,
+which reuses what <code>benchmark</code> built.
+</li>
+<li>
+*<em><code>seriesMs</code> is every repetition, in order.*</em> The median alone cannot show whether the warm-up
+was long enough. A first repetition slower than the rest means the JIT is still tiering up; on a
+small design that is the first 1–2ms and nothing after, and on a large one it is invisible.
+</li>
+<li>
+<strong>The second argument is the step array size</strong>, overriding <code>SimulationView.Constants.maxArraySize</code>.
+It is the only thing that changes the distance between the words a clock cycle touches without
+changing the work, which is what makes "is this design memory-bound?" a question with an answer.
+</li>
+<li>
+<strong>A benchmark retains its simulation</strong> so that <code>rerun</code> can use it, and a heap left near its limit
+slows down everything measured afterwards. <code>endSimulation</code> drops it. Compare only measurements
+taken in comparable heap states, and read <code>usedHeapMB</code> in the reply to know which one you were in.
+</li>
+</ul>
+<p>Run-to-run variance on a laptop with performance and efficiency cores is up to 2x, so repeat, and
+do not believe a single number.</p>
 <h2><a name="Adding-a-command" class="anchor" href="#Adding-a-command">Adding a command</a></h2>
 <p><code>send</code> takes a <strong>name from a fixed table</strong>, not a serialised <code>Msg</code>. A <code>Msg</code> is an F# union carrying
 models, canvases and functions; nothing useful survives a round trip through JSON, and a

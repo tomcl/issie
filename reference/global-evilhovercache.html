@@ -623,7 +623,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:EvilHoverCache.changeToolTip\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/EvilHoverCache.fs#L143-143" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/EvilHoverCache.fs#L150-150" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -874,7 +874,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:EvilHoverCache.evilSvgToolTip\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/EvilHoverCache.fs#L110-110" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/EvilHoverCache.fs#L117-117" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1116,7 +1116,7 @@
                 <p>
                   <a id="getWaveToolTip">
                     <a href="#getWaveToolTip">
-                      <code><span>getWaveToolTip&#32;<span>cycle&#32;waveNum&#32;ws</span></span></code>
+                      <code><span>getWaveToolTip&#32;<span>cycle&#32;wave&#32;ws</span></span></code>
                     </a>
                   </a>
                 </p>
@@ -1124,7 +1124,7 @@
               <div class="fsdocs-tip" id="966">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>getWaveToolTip&#32;<span>cycle&#32;waveNum&#32;ws</span></span></code>
+                  <code><span>getWaveToolTip&#32;<span>cycle&#32;wave&#32;ws</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -1139,10 +1139,10 @@
                     <br/>
                     <span>
                       <b>
-                        waveNum
+                        wave
                       </b>
                       :
-                      <code>int</code>
+                      <code><a href="/issie/reference/modeltype-wave.html">Wave</a></code>
                     </span>
                     <br/>
                     <span>
@@ -1174,7 +1174,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:EvilHoverCache.getWaveToolTip\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/EvilHoverCache.fs#L85-85" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/EvilHoverCache.fs#L90-90" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1182,6 +1182,11 @@
  A value is given when the wave is too narrow there to have its number printed on it - the cached
  "gap" data says when that is - and a ROM's data output also gives the comment written against
  the location being read, so that both appear when the number is hidden as well.
+
+ The wave is passed in rather than counted off SelectedWaves by row number. The rows drawn are
+ the selected waves that AllWaves still HOLDS - see WaveSimStyle.selectedWaves, which the three
+ columns are all built from - so counting rows off SelectedWaves itself answered for a different
+ row wherever the two differ, and indexed AllWaves with a key it might not have.
                   </p>
                 </div>
               </summary>
@@ -1196,10 +1201,10 @@
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    waveNum
+                    wave
                   </span>
                   :
-                  <code>int</code>
+                  <code><a href="/issie/reference/modeltype-wave.html">Wave</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">

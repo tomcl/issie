@@ -536,7 +536,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2726', 2726)" onmouseover="showTip(event, '2726', 2726)">
+              <code onmouseout="hideTip(event, '2722', 2722)" onmouseover="showTip(event, '2722', 2722)">
                 <p>
                   <a id="emptyHierarchy">
                     <a href="#emptyHierarchy">
@@ -545,7 +545,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2726">
+              <div class="fsdocs-tip" id="2722">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>emptyHierarchy&#32;<span></span></span></code>
@@ -593,19 +593,19 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2727', 2727)" onmouseover="showTip(event, '2727', 2727)">
+              <code onmouseout="hideTip(event, '2723', 2723)" onmouseover="showTip(event, '2723', 2723)">
                 <p>
                   <a id="getSelectorHierarchy">
                     <a href="#getSelectorHierarchy">
-                      <code><span>getSelectorHierarchy&#32;<span>fs&#32;p&#32;ws</span></span></code>
+                      <code><span>getSelectorHierarchy&#32;<span>fs&#32;ws</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2727">
+              <div class="fsdocs-tip" id="2723">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>getSelectorHierarchy&#32;<span>fs&#32;p&#32;ws</span></span></code>
+                  <code><span>getSelectorHierarchy&#32;<span>fs&#32;ws</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
@@ -616,14 +616,6 @@
                       </b>
                       :
                       <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        p
-                      </b>
-                      :
-                      <code><a href="/issie/reference/commontypes-project.html">Project</a></code>
                     </span>
                     <br/>
                     <span>
@@ -655,11 +647,11 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimHierarchy.getSelectorHierarchy\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimHierarchy.fs#L115-115" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimHierarchy.fs#L141-141" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
-                     The hierarchy to draw: the sheets of `p` below the simulated top sheet, collapsed so that
+                     The hierarchy to draw: the sheets of the simulated design below its top sheet, collapsed so that
  several instances of one sheet inside one parent are one node, cut off below any node the user
  has not opened, and resolved against `fs` so each node names the instance it is showing.
                   </p>
@@ -672,14 +664,6 @@
                   </span>
                   :
                   <code><a href="/issie/reference/simtypes-fastsimulation.html">FastSimulation</a></code>
-                </dt>
-                <dd class="fsdocs-param-docs"></dd>
-                <dt class="fsdocs-param">
-                  <span class="fsdocs-param-name">
-                    p
-                  </span>
-                  :
-                  <code><a href="/issie/reference/commontypes-project.html">Project</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -706,7 +690,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2728', 2728)" onmouseover="showTip(event, '2728', 2728)">
+              <code onmouseout="hideTip(event, '2724', 2724)" onmouseover="showTip(event, '2724', 2724)">
                 <p>
                   <a id="instanceLabels">
                     <a href="#instanceLabels">
@@ -715,7 +699,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2728">
+              <div class="fsdocs-tip" id="2724">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>instanceLabels&#32;<span></span></span></code>
@@ -747,11 +731,11 @@
                      The label each sheet instance carries on the canvas above it: what the user drew, and what tells
  two instances of one sheet apart when the selector offers a choice between them.
 
- A SimSheetName is not that, and is not meant to be read. FastCreate makes one by taking whatever
- suffix of the instance's label distinguishes it from every other instance of the same sheet in
- the WHOLE design, and where no such suffix exists - identical labels under different parents, or
- one label a prefix of another - it falls back to a bare ordinal. So the combo box choosing
- between the instances of a sheet was offering things like "20" and "3".
+ A SimSheetName is not that. It is the whole path of labels down to the instance - MID2.LEAF1 -
+ which is what makes it unique and what makes it unreadable in a box offering a choice between
+ siblings, where everything but the last element is the same. (It was worse before: whatever
+ suffix of the label told it apart from every other instance of that sheet in the design, or a
+ bare ordinal where nothing did, so the box offered things like "20" and "3".)
 
  SimSheetStructure maps an instance to the custom component whose innards it is, which is the
  component carrying that label. Instances offered together are siblings on one canvas, so their
@@ -774,7 +758,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2729', 2729)" onmouseover="showTip(event, '2729', 2729)">
+              <code onmouseout="hideTip(event, '2725', 2725)" onmouseover="showTip(event, '2725', 2725)">
                 <p>
                   <a id="instancesInside">
                     <a href="#instancesInside">
@@ -783,7 +767,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2729">
+              <div class="fsdocs-tip" id="2725">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>instancesInside&#32;<span></span></span></code>
@@ -842,7 +826,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '2730', 2730)" onmouseover="showTip(event, '2730', 2730)">
+              <code onmouseout="hideTip(event, '2726', 2726)" onmouseover="showTip(event, '2726', 2726)">
                 <p>
                   <a id="nodeOf">
                     <a href="#nodeOf">
@@ -851,7 +835,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="2730">
+              <div class="fsdocs-tip" id="2726">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>nodeOf&#32;<span>hierarchy&#32;sheet</span></span></code>
@@ -896,7 +880,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:WaveSimHierarchy.nodeOf\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimHierarchy.fs#L177-177" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/UI/WaveSim/WaveSimHierarchy.fs#L200-200" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">

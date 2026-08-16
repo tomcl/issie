@@ -439,12 +439,24 @@
       <code><span><a href="https://learn.microsoft.com/dotnet/api/system.iequatable-1">IEquatable</a>&lt;<a href="/issie/reference/modeltype-checkboxstyle.html">CheckBoxStyle</a>&gt;</span></code>
       , 
       <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralequatable">IStructuralEquatable</a></code>
+      , 
+      <code><span><a href="https://learn.microsoft.com/dotnet/api/system.icomparable-1">IComparable</a>&lt;<a href="/issie/reference/modeltype-checkboxstyle.html">CheckBoxStyle</a>&gt;</span></code>
+      , 
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.icomparable">IComparable</a></code>
+      , 
+      <code><a href="https://learn.microsoft.com/dotnet/api/system.collections.istructuralcomparable">IStructuralComparable</a></code>
     </dt>
   </dl>
   <div class="fsdocs-xmldoc">
     <div>
       <p class="fsdocs-summary">
-         control checkboxes in waveform simulator wave selection
+         What one openable row of the wave selector stands for, which is both how it is styled and the
+ key under which the model remembers whether it is open.
+
+ A row is a group of components within one sheet instance, or the sheet instance itself. There
+ were also cases for a single component and a single port, from when the list was nested a level
+ deeper than it is; nothing has built one since, so the rows that would have used them are gone
+ and only their styling and their summary text remained.
       </p>
     </div>
   </div>
@@ -470,54 +482,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4698', 4698)" onmouseover="showTip(event, '4698', 4698)">
-                <p>
-                  <a id="ComponentItem">
-                    <a href="#ComponentItem">
-                      <code><span>ComponentItem&#32;<a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4698">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>ComponentItem&#32;<a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item
-                      </b>
-                      :
-                      <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item
-                </span>
-                :
-                <code><a href="/issie/reference/simtypes-fastcomponent.html">FastComponent</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4699', 4699)" onmouseover="showTip(event, '4699', 4699)">
+              <code onmouseout="hideTip(event, '4691', 4691)" onmouseover="showTip(event, '4691', 4691)">
                 <p>
                   <a id="GroupItem">
                     <a href="#GroupItem">
@@ -526,7 +491,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4699">
+              <div class="fsdocs-tip" id="4691">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>GroupItem(<span><a href="/issie/reference/modeltype-componentgroup.html">ComponentGroup</a>,&#32;<span>string&#32;list</span></span>)</span></code>
@@ -580,70 +545,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4700', 4700)" onmouseover="showTip(event, '4700', 4700)">
-                <p>
-                  <a id="PortItem">
-                    <a href="#PortItem">
-                      <code><span>PortItem(<span><a href="/issie/reference/modeltype-wave.html">Wave</a>,&#32;string</span>)</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4700">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>PortItem(<span><a href="/issie/reference/modeltype-wave.html">Wave</a>,&#32;string</span>)</span></code>
-                  <br/>
-                  <br/>
-                  Parameters: 
-                  <ul>
-                    <span>
-                      <b>
-                        Item1
-                      </b>
-                      :
-                      <code><a href="/issie/reference/modeltype-wave.html">Wave</a></code>
-                    </span>
-                    <br/>
-                    <span>
-                      <b>
-                        Item2
-                      </b>
-                      :
-                      <code>string</code>
-                    </span>
-                    <br/>
-                  </ul>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-params">
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item1
-                </span>
-                :
-                <code><a href="/issie/reference/modeltype-wave.html">Wave</a></code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-              <dt class="fsdocs-param">
-                <span class="fsdocs-param-name">
-                  Item2
-                </span>
-                :
-                <code>string</code>
-              </dt>
-              <dd class="fsdocs-param-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4701', 4701)" onmouseover="showTip(event, '4701', 4701)">
+              <code onmouseout="hideTip(event, '4692', 4692)" onmouseover="showTip(event, '4692', 4692)">
                 <p>
                   <a id="SheetItem">
                     <a href="#SheetItem">
@@ -652,7 +554,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4701">
+              <div class="fsdocs-tip" id="4692">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>SheetItem&#32;<span>string&#32;list</span></span></code>
@@ -712,46 +614,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4702', 4702)" onmouseover="showTip(event, '4702', 4702)">
-                <p>
-                  <a id="IsComponentItem">
-                    <a href="#IsComponentItem">
-                      <code><span>this.IsComponentItem</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4702">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsComponentItem</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4703', 4703)" onmouseover="showTip(event, '4703', 4703)">
+              <code onmouseout="hideTip(event, '4693', 4693)" onmouseover="showTip(event, '4693', 4693)">
                 <p>
                   <a id="IsGroupItem">
                     <a href="#IsGroupItem">
@@ -760,7 +623,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4703">
+              <div class="fsdocs-tip" id="4693">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsGroupItem</span></code>
@@ -790,46 +653,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '4704', 4704)" onmouseover="showTip(event, '4704', 4704)">
-                <p>
-                  <a id="IsPortItem">
-                    <a href="#IsPortItem">
-                      <code><span>this.IsPortItem</span></code>
-                    </a>
-                  </a>
-                </p>
-              </code>
-              <div class="fsdocs-tip" id="4704">
-                <div class="member-tooltip">
-                  Full Usage: 
-                  <code><span>this.IsPortItem</span></code>
-                  <br/>
-                  <br/>
-                  <span>
-                    Returns: 
-                    <code>bool</code>
-                  </span>
-                  <br/>
-                </div>
-              </div>
-            </div>
-          </td>
-          <td class="fsdocs-member-xmldoc">
-            <dl class="fsdocs-returns">
-              <dt>
-                <span class="fsdocs-return-name">
-                  Returns: 
-                </span>
-                <code>bool</code>
-              </dt>
-              <dd class="fsdocs-return-docs"></dd>
-            </dl>
-          </td>
-        </tr>
-        <tr>
-          <td class="fsdocs-member-usage">
-            <div>
-              <code onmouseout="hideTip(event, '4705', 4705)" onmouseover="showTip(event, '4705', 4705)">
+              <code onmouseout="hideTip(event, '4694', 4694)" onmouseover="showTip(event, '4694', 4694)">
                 <p>
                   <a id="IsSheetItem">
                     <a href="#IsSheetItem">
@@ -838,7 +662,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="4705">
+              <div class="fsdocs-tip" id="4694">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>this.IsSheetItem</span></code>

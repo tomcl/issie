@@ -611,14 +611,19 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
                 line1.PortId <> line2.PortId &&
                 hasOverlap line1.B line2.B)
            |> Seq.iter (fun line2 ->
-                let space1 = getSpacefromLine allLines line1 line2 2*maxSegmentSeparation
-                let space2 = getSpacefromLine allLines line2 line1 2*maxSegmentSeparation
-                if space1 < overlapTolerance && space2 < overlapTolerance then
+                // NB the offset must be bracketed: function application binds tighter than *, so
+                // an unbracketed `2*maxSegmentSeparation` here passed 2 and scaled the result by 30.
+                let maxOffset = 2. * maxSegmentSeparation
+                let space1 = getSpacefromLine allLines line1 line2 maxOffset
+                let space2 = getSpacefromLine allLines line2 line1 maxOffset
+                // space is signed: negative means the room is in the negative P direction, which
+                // is room. It is the magnitude that says whether there is anywhere to go.
+                if abs space1 < overlapTolerance && abs space2 < overlapTolerance then
                     Log.warnOnce "no-space-for-overlap" "no space to shift a fixed segment out of an overlap"
                 if abs space1 > abs space2 then
                     line1.P <- line1.P + space1 * 0.5
                 else
-                    line2.P <- line1.P + space2 * 0.5)))
+                    line2.P <- line2.P + space2 * 0.5)))
     allLines
     |> Array.toList
     |> adjustSegmentsInModel ori model
@@ -647,6 +652,11 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
 
 /// Return the index of the Line with the smallest value of P > p
 /// Use binary earch for speed.
+///
+/// The search narrows towards `lines[below].P < p <= lines[above].P`, so the bottom end has to be
+/// checked before it starts: with below = 0 taken on trust, an array whose first line is already
+/// at or above p returns 1 and the caller never looks at line 0.
+/// If every line is below p the last index is returned, which callers detect for themselves.
 let findInterval (lines: Line array) ( p: float): int =
     let rec find above below =
         if above - below < 2 then above
@@ -656,7 +666,10 @@ let findInterval (lines: Line array) ( p: float): int =
                 find above mid
             else
                 find mid below
-    find (lines.Length - 1) 0
+    if lines.Length = 0 || lines[0].P >= p then
+        0
+    else
+        find (lines.Length - 1) 0
 
 /// Return true if there is no overlap between line and lines array (with exception of excludedLine).
 /// All lines are the same type (parallel)
@@ -698,16 +711,19 @@ let checkExtensionNoCrossings
     let b = ext.ExtB
     let p = ext.ExtP
     let iMin = findInterval lines (b.MinB - overlap)
+    /// lines are sorted by P, which for the crossing lines is the coordinate the extension runs
+    /// along. So the scan stops once it is past the far end of the extension: comparing a line's
+    /// own P with its own B (as this used to) compares two different axes and stops arbitrarily.
     let rec check i =
-        if i >= lines.Length || i < 0 then 
+        if i >= lines.Length || i < 0 then
             true
         else
             let otherLine = lines[i]
-            if otherLine.P > otherLine.B.MaxB + overlap then 
+            if otherLine.P > b.MaxB + overlap then
                 true
-            else  
-                let b = otherLine.B; 
-                if lines[i].Wid = excludedWire || b.MinB > p || b.MaxB < p || not (lines[i].LType = BARRIERPOS || lines[i].LType = BARRIERNEG) then
+            else
+                let otherB = otherLine.B
+                if otherLine.Wid = excludedWire || otherB.MinB > p || otherB.MaxB < p || not (otherLine.LType = BARRIERPOS || otherLine.LType = BARRIERNEG) then
                     check (i+1)
                 else
                     false
@@ -743,11 +759,15 @@ let makeLineInfo (wiresToRoute: ConnectionId list) (model:Model) : LineInfo =
 /// If the new segment creates a part line segment
 /// that did not previouly exist this is checked for overlap
 /// with symbols and other wires.
+/// startShift is how far the start of the segment itself moves along its own axis: zero when the
+/// segment keeps its start point, negative when it is extended backwards (as the second segment of
+/// a removed corner is, since the segment before it has gone).
 let isSegmentExtensionOk
         (info: LineInfo)
         (wire: Wire)
         (segNum: int)
         (ori: Orientation)
+        (startShift: float)
         (newLength: float)
             : bool =
     let segs = wire.Segments
@@ -758,8 +778,16 @@ let isSegmentExtensionOk
         match ori with
         | Vertical -> aSegStart.X, aSegStart.Y
         | Horizontal -> aSegStart.Y, aSegStart.X
-    /// check there is room for the proposed segment extension
-    let extension = {ExtP = p; ExtOri = ori; ExtB = {MinB = min startC startC+newLength; MaxB = max startC startC+newLength}}
+    /// check there is room for the proposed segment extension.
+    /// NB both bounds must be bracketed: `min startC startC+newLength` parses as
+    /// `(min startC startC) + newLength`, which collapses the interval to a point.
+    let newStartC = startC + startShift
+    let extension =
+        {   ExtP = p
+            ExtOri = ori
+            ExtB =
+              { MinB = min newStartC (newStartC + newLength)
+                MaxB = max newStartC (newStartC + newLength) } }
     // a zero-length segment means the two segments on either side of it are parallel and may overlap.
     // if we change the length of a segment next to a zero-length segment we must ensure that it does not double back on itself.
     // usually that will mean coming thr wrong wau out of a component edge (inside the component)!
@@ -802,10 +830,16 @@ let findWireCorner (info: LineInfo) (cornerSizeLimit: float) (wire:Wire): WireCo
             else
                 let ori = wire.InitialOrientation
                 let startSegOrientation = if seg.Index % 2 = 0 then ori else switchOrientation ori
+                // removeCorner adds deletedSeg2 to the start segment and deletedSeg1 to the end
+                // segment. These must be the lengths checked, or the check is of a wire that will
+                // never exist. The end segment also starts deletedSeg1 earlier than it does now,
+                // since the segment which used to get it there is one of the two being deleted.
                 let newLength1 = seg.Length + deletedSeg2.Length
-                let newLength2 = deletedSeg1.Length - segs[start+3].Length
-                if isSegmentExtensionOk info wire start startSegOrientation newLength1 &&
-                    isSegmentExtensionOk info wire (start+3)  (switchOrientation startSegOrientation) newLength2
+                let newLength2 = segs[start+3].Length + deletedSeg1.Length
+                let endSegStartShift = -deletedSeg1.Length
+                if isSegmentExtensionOk info wire start startSegOrientation 0. newLength1 &&
+                    isSegmentExtensionOk info wire (start+3) (switchOrientation startSegOrientation)
+                        endSegStartShift newLength2
                 then
                     {
                         Wire = wire
@@ -858,26 +892,30 @@ let removeModelCorners wires (model: Model) =
 /// Spikes segments that turn back on previous ones (with a zero-length segment in between).
 /// Optimised for the case that there are no spikes and None is returned.
 let removeWireSpikes (wire: Wire) : Wire option =
-    let segs = wire.Segments
-    (None, segs)
-    ||> List.fold (fun segsOpt seg ->
-        let n = seg.Index
-        let segs = Option.defaultValue segs segsOpt
+    /// Scan for a spike at index n of segs, and rescan from n after removing one: the merged
+    /// segment can spike against what followed the pair just removed.
+    ///
+    /// This was a fold over the original segment list whose index was used to look into the
+    /// rebuilt one. That works - the two lists agree below the removal, and the fold's own guard
+    /// skips the steps that run off the shortened end - but it is only readable if you check
+    /// that, and it is the one window at the removal which it never looks at again.
+    let rec removeFrom (n: int) (removedAny: bool) (segs: Segment list) : Segment list option =
         let nSeg = segs.Length
-        if n > nSeg - 3 || not segs[n+1].IsZero || sign segs[n].Length = sign segs[n+2].Length then 
-            segsOpt
+        if n > nSeg - 3 then
+            if removedAny then Some segs else None
+        elif not segs[n+1].IsZero || sign segs[n].Length = sign segs[n+2].Length then
+            removeFrom (n+1) removedAny segs
         else
             let newSegN = {segs[n] with Length = segs[n].Length + segs[n+2].Length}
-            let lastSegs = 
-                segs[n+3..nSeg-1]
-                    
+            let lastSegs = segs[n+3..nSeg-1]
             [
                 segs[0..n-1]
                 [newSegN]
                 (List.mapi (fun i seg -> {seg with Index = i + n + 1}) lastSegs)
             ]
             |> List.concat
-            |> Some)  
+            |> removeFrom n true
+    removeFrom 0 false wire.Segments
     |> Option.map (fun segs ->
             {wire with Segments = segs})
 

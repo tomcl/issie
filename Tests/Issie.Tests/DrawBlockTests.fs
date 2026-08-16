@@ -28,6 +28,17 @@ let private adderSheet =
         comp "S" (Output 4)
     ] [ "A" ==> "ADD/P"; "B" ==> "ADD/Q"; "ADD/SUM" ==> "S" ]
 
+/// An input feeding a multiplexer's SEL port, which is on the bottom edge of the symbol. Placed
+/// up and to the left of it (see `muxSelPositions`) this is one of the wire shapes that
+/// makeInitialWireVerticesList gives 8 segments.
+let private muxSelSheet =
+    describeSheet "muxSel" [
+        comp "IN" (Input1(1, None))
+        comp "MUX" Mux2
+    ] [ "IN" ==> "MUX/SEL" ]
+
+let private muxSelPositions = [ "IN", { X = 100.; Y = 100. }; "MUX", { X = 400.; Y = 300. } ]
+
 let private canvasOf sheet =
     match SheetLayout.toCanvasState sheet with
     | Ok canvas -> canvas
@@ -51,6 +62,15 @@ let private modelOf (canvas: CanvasState) =
     { wireModel with
         Symbol = symbols
         Wires = conns |> List.map (fun c -> ConnectionId c.Id, wireOf c) |> Map.ofList }
+
+/// The DSL lays a sheet out for readability; a routing test needs the symbols somewhere chosen.
+let private movedTo (positions: (string * XYPos) list) ((comps, conns): CanvasState) : CanvasState =
+    let moved (comp: Component) =
+        positions
+        |> List.tryPick (fun (label, pos) -> if label = comp.Label then Some pos else None)
+        |> Option.map (fun pos -> { comp with X = pos.X; Y = pos.Y })
+        |> Option.defaultValue comp
+    List.map moved comps, conns
 
 let private routeAll (model: BusWireT.Model) =
     { model with Wires = model.Wires |> Map.map (fun _ w -> BusWireUpdateHelpers.autoroute model w) }
@@ -252,6 +272,86 @@ let tests =
             Expect.hasLength comp.OutputPorts 1 "one output port"
             Expect.stringContains (Symbol.getComponentLegend (NbitSpreader 8) Degree0) "8"
                 "the legend names the width it spreads to"
+        }
+
+        // makeInitialWireVerticesList produces wires of 6, 7, 8 and 9 segments. tryShiftHorizontalSeg
+        // handled every count but 8 and silently returned the wire it was given, so a wire reaching a
+        // top or bottom edge port from beyond it was never routed around anything: smartAutoroute
+        // spent its whole recursion budget re-testing an unchanged wire and then kept it.
+        test "a wire into a bottom-edge port can be shifted around an obstacle" {
+            let model =
+                canvasOf muxSelSheet |> movedTo muxSelPositions |> modelOf |> routeAll
+            let wire = model.Wires |> Map.toList |> List.map snd |> List.exactlyOne
+            Expect.equal wire.Segments.Length 8
+                "the shape this test is about: 8 segments, ending in a vertical nub"
+
+            // one obstacle, below both symbols, so that shifting the horizontal segment down to
+            // clear it cannot take the wire through either symbol
+            let obstacle = { TopLeft = { X = 300.; Y = 500. }; W = 40.; H = 40. }
+            match BusWireRoute.tryShiftHorizontalSeg 5 model [ obstacle ] wire with
+            | None -> failtest "no shifted route was found for an 8-segment wire"
+            | Some shifted ->
+                let lengths (w: BusWireT.Wire) = w.Segments |> List.map (fun s -> s.Length)
+                Expect.notEqual (lengths shifted) (lengths wire) "the wire actually moved"
+                checkWiresAreOrthogonalAndConnected
+                    { model with Wires = Map.add shifted.WId shifted model.Wires }
+                    "after shifting the horizontal segment"
+        }
+
+        test "the binary search over lines includes the first line" {
+            // findInterval narrows towards lines[below].P < p <= lines[above].P, and took the
+            // bottom end on trust: for a target at or below the first line it answered 1, hiding
+            // that line - normally a symbol edge - from both corner-removal checks.
+            let lineAt p : BusWireRoutingHelpers.Line =
+                { P = p
+                  B = { MinB = 0.; MaxB = 100. }
+                  Orientation = BusWireT.Horizontal
+                  Seg1 = None
+                  LType = BusWireRoutingHelpers.BARRIERPOS
+                  SameNetLink = []
+                  Wid = ConnectionId ""
+                  PortId = OutputPortId ""
+                  Lid = BusWireRoutingHelpers.LineId 0 }
+            let lines = [| 10.; 20.; 30. |] |> Array.map lineAt
+            let at p = BusWireSeparate.findInterval lines p
+            Expect.equal (at 5.) 0 "a target below every line starts the scan at the first line"
+            Expect.equal (at 10.) 0 "and so does a target on the first line"
+            Expect.equal (at 15.) 1 "otherwise the scan starts at the first line at or above it"
+            Expect.equal (at 25.) 2 "wherever in the array that is"
+        }
+
+        test "every spike in a wire is removed, and the wire still reaches the same place" {
+            // A spike is a segment doubling back on the one before it with a zero-length segment
+            // between. Removing one shortens the segment list, so the scan for the next has to be
+            // on the shortened list.
+            let seg i len : BusWireT.Segment =
+                { Index = i; Length = len; WireId = ConnectionId "w"
+                  IntersectOrJumpList = []; Mode = BusWireT.Auto; Draggable = i <> 0 }
+            let wire: BusWireT.Wire =
+                { WId = ConnectionId "w"
+                  InputPort = InputPortId "in"
+                  OutputPort = OutputPortId "out"
+                  Color = HighLightColor.Red
+                  Width = 1
+                  StartPos = { X = 0.; Y = 0. }
+                  InitialOrientation = BusWireT.Horizontal
+                  //          nub    0     out    0    back    down   0    back    nub
+                  Segments = [ 10.; 0.; 50.; 0.; -20.; 40.; 0.; -15.; 10. ]
+                             |> List.mapi seg }
+            let travel (w: BusWireT.Wire) =
+                w.Segments
+                |> List.mapi (fun i s -> if i % 2 = 0 then s.Length, 0. else 0., s.Length)
+                |> List.fold (fun (x, y) (dx, dy) -> x + dx, y + dy) (0., 0.)
+
+            match BusWireSeparate.removeWireSpikes wire with
+            | None -> failtest "the two spikes in this wire were not found"
+            | Some cleaned ->
+                Expect.equal cleaned.Segments.Length 5 "both spikes went, two segments each"
+                Expect.equal (travel cleaned) (travel wire) "the wire still ends where it ended"
+                Expect.equal (cleaned.Segments |> List.map (fun s -> s.Index)) [ 0 .. 4 ]
+                    "and the segments left are indexed in order"
+            Expect.isNone (BusWireSeparate.removeWireSpikes { wire with Segments = [ seg 0 10.; seg 1 0.; seg 2 10. ] })
+                "a wire with no spike is left alone"
         }
 
         test "the separation pass leaves every wire connected and orthogonal" {

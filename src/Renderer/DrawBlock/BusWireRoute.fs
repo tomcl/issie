@@ -110,8 +110,10 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
         let segments = List.pairwise wireVertices.[1 .. wireVertices.Length - 2] // do not consider the nubs
         List.zip (List.truncate segments.Length indexes) segments
 
-    let inputCompId = model.Symbol.Ports.[string wire.InputPort].HostId
-    let outputCompId = model.Symbol.Ports.[string wire.OutputPort].HostId
+    // NB inputPortStr, not `string`: InputPortId is [<Erase>], so `string` gives the bare id under
+    // Fable and "InputPortId \"...\"" under .NET, where the lookup then throws.
+    let inputCompId = model.Symbol.Ports.[inputPortStr wire.InputPort].HostId
+    let outputCompId = model.Symbol.Ports.[outputPortStr wire.OutputPort].HostId
 
     let componentIsMux (comp:Component) =
         match comp.Type with
@@ -123,7 +125,7 @@ let findWireSymbolIntersections (model: Model) (wire: Wire) : BoundingBox list =
         let inputSymbol = model.Symbol.Symbols.[ComponentId inputCompId]
         let inputCompInPorts = inputSymbol.Component.InputPorts
         
-        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = string wire.InputPort)
+        componentIsMux inputSymbol.Component && (inputCompInPorts.[List.length inputCompInPorts - 1].Id = inputPortStr wire.InputPort)
 
     let inputCompRotation =
         model.Symbol.Symbols.[ComponentId inputCompId].STransform.Rotation
@@ -340,11 +342,22 @@ let rec tryShiftHorizontalSeg
                     |> changeSegment 2 (wire.Segments.[2].Length + wire.Segments.[4].Length)
                     |> List.updateAt 4 { wire.Segments.[6] with Index = 4 }
 
+                | 8 ->
+                    // As for 9 segments, but the last segment is the nub perpendicular to the
+                    // moved segment rather than parallel to it, so it must keep its length.
+                    // These are the wires reaching a Top or Bottom port from beyond it.
+                    wire.Segments |> changeSegment 1 0. |> moveHorizSegment 4
+
                 | 9 ->
                     // Change segments index 1,3,5,7. Leave rest as is
                     wire.Segments |> changeSegment 1 0. |> moveHorizSegment 4 |> changeSegment 7 0.
 
-                | _ -> wire.Segments
+                | n ->
+                    // makeInitialWireVerticesList makes wires of 6-9 segments, all handled above.
+                    // Returning the wire unchanged here means the caller retries the same wire
+                    // until it runs out of recursion, so say so rather than route silently badly.
+                    Log.dbg Log.Wire $"cannot shift the horizontal segment of a {n} segment wire"
+                    wire.Segments
 
             { wire with Segments = newSegments }
 
@@ -460,10 +473,10 @@ let generateEndSegments (startIndex: int) (numOfSegs: int) (wire: Wire) : Segmen
 let snapToNet (model: Model) (wireToRoute: Wire) : Wire =
 
     let inputCompId =
-        ComponentId model.Symbol.Ports[string wireToRoute.InputPort].HostId
+        ComponentId model.Symbol.Ports[inputPortStr wireToRoute.InputPort].HostId
 
     let outputCompId =
-        ComponentId model.Symbol.Ports[string wireToRoute.OutputPort].HostId
+        ComponentId model.Symbol.Ports[outputPortStr wireToRoute.OutputPort].HostId
 
     let isRotated =
         model.Symbol.Symbols[inputCompId].STransform.Rotation = Degree90

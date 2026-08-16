@@ -55,7 +55,18 @@ Target.create "CleanNode" <| fun _ ->
     File.delete (__SOURCE_DIRECTORY__ @@ "package-lock.json")
 
 Target.create "DotnetRestore" (fun _ ->
-    Shell.Exec("dotnet","restore issie.sln") |> ignore)
+    // One project at a time. MSBuild restores a solution's projects on as many nodes as it has
+    // cores, and every project's restore spawns a `dotnet paket restore` of its own, so a whole
+    // set of them run at once - which the arm64 macOS CI runner does not have the memory for. It
+    // killed one during the v6.0.21 release build: `Paket.Restore.targets: error MSB3073: the
+    // command "dotnet paket restore" exited with code 137`, 137 being 128 + SIGKILL. Nothing was
+    // wrong with the restore itself; the same one succeeds on Linux, on Windows and in the Tests
+    // workflow.
+    //
+    // -m:1 is what stops the project restores overlapping. --disable-parallel is NuGet's own
+    // switch, covering the parallelism inside a single restore. Serial costs seconds here, since
+    // this is bounded by downloading packages rather than by the CPU.
+    Shell.Exec("dotnet","restore issie.sln -m:1 --disable-parallel") |> ignore)
 
 Target.create "NpmInstall" (fun _ ->
   Npm.exec "ci" id

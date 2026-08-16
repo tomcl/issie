@@ -15,6 +15,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const { reportRefreshStaleOutput } = require('./refresh-stale-output');
 const { outDirOf, outPathOf } = require('./fable-output');
+const { ensureRestored } = require('./fable-restore');
 
 const root = path.join(__dirname, '..');
 const once = process.argv.includes('--once');
@@ -79,10 +80,16 @@ function onReady(p) {
   }
 }
 
+// Restore here, once, rather than letting the two Fable processes below each do it as a side
+// effect of cracking their project: started together they race to write src/Shared's
+// project.assets.json and one of them aborts. See scripts/fable-restore.js.
+ensureRestored();
+
 for (const p of projects) {
   const args = ['fable'];
   if (!once) args.push('watch');
-  args.push(p.dir, '-s');
+  // --noRestore because that restore has just happened, once, above.
+  args.push(p.dir, '-s', '--noRestore');
   // Each project compiles to its own tree, including its copy of the shared sources and of Fable's
   // library. Without this both projects write src/Shared/*.fs.js, and whichever finishes last
   // decides which library that file imports - which put two copies of it in the main bundle and

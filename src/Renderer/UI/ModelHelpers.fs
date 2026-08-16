@@ -102,10 +102,8 @@ type CSSGridPos =
 
 let initWSModel  : WaveSimModel = {
     DefaultCursor = CursorType.Default
-    TopSheet = ""
     WSConfig = Constants.defaultWSConfig
     WSConfigDialog = None
-    Sheets = Map.empty
     State = Empty
     AllWaves = Map.empty
     SelectedWaves = List.empty
@@ -123,8 +121,6 @@ let initWSModel  : WaveSimModel = {
     RamComps = []
     SelectedRams = Map.empty
     RamStartLocation = Map.empty
-    SearchString = ""
-    ShowComponentDetail = Set.empty
     ShowSheetDetail = Set.empty
     SelectedSheetInstance = Map.empty
     ShowGroupDetail = Set.empty
@@ -138,12 +134,9 @@ let initWSModel  : WaveSimModel = {
     ScrollbarBkgWidth = 0.0 // overwritten when first rendered
     ScrollbarBkgRepCycs = Constants.scrollbarBkgRepCyclesInit // default value
     ScrollbarQueueIsEmpty = true // default value: empty scroll queue
-    WaveSearchString = ""
     SheetSearchString = ""
     ComponentSearchString = ""
     PortSearchString = ""
-    ComponentTypeSearchString = ""
-    HighlightedSheets = Set.empty
     ShowOnlySelected = false
 }
 
@@ -679,21 +672,6 @@ let simReset dispatch =
     dispatch ClosePropertiesNotification
     dispatch <| Sheet (DrawModelType.SheetT.ResetSelection) // Remove highlights.
     dispatch <| (JSDiagramMsg << InferWidths) () // Repaint connections.
-
-/// Return the waveform simulation graph, or an error if simulation would fail.
-/// This function does not create the simulation so is relatively fast.
-let validateWaveModel (simulatedSheet: string option) openSheetCanvasState model =
-    match openSheetCanvasState, model.CurrentProj with
-    | _, None -> 
-        Error (Simulator.makeDummySimulationError "What - Internal Simulation Error starting simulation - I don't think this can happen!")
-    | canvasState, Some project ->
-        let simSheet = Option.defaultValue project.OpenFileName simulatedSheet
-        let otherComponents = 
-            project.LoadedComponents 
-            |> List.filter (fun comp -> comp.Name <> project.OpenFileName)
-        (canvasState, otherComponents)
-        ||> Simulator.validateWaveSimulation project.OpenFileName simSheet
-    
 
 /// Start simulating the current Diagram.
 /// Return SimulationData that can be used to extend the simulation

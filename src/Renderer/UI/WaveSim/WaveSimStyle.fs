@@ -19,17 +19,11 @@ open WaveSimTypes
 
 
 
-// maybe these should be defined earlier in compile order? Or added as list functions?
-
-let listCollectSomes mapFn lst =
-    lst
-    |> List.collect (fun x -> match mapFn x with | Some r -> [r] | None -> [])
-
-/// List of selected waves (of type Wave)
-let selectedWaves (wsModel: WaveSimModel) : Wave list = 
+/// The waves the viewer draws: those the user has selected that the simulation still holds. All
+/// three columns are built from this, so it is also what a row number means anything against.
+let selectedWaves (wsModel: WaveSimModel) : Wave list =
     wsModel.SelectedWaves
-    |> List.map (fun wi -> Map.tryFind wi wsModel.AllWaves |> Option.toList)
-    |> List.concat
+    |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
 
 /// Convert XYPos list to string
 let pointsToString (points: XYPos array) : string =
@@ -425,11 +419,8 @@ let calcNamesColWidth (ws:WaveSimModel) : int =
         let getWidth (txt:string) =
             let sizeInPx = float (ws.WSConfig.FontSize)
             sizeInPx * DrawHelpers.getTextWidthInPixels refFont txt / 10.0
-        ws.SelectedWaves
-        |> listCollectSomes (
-            fun wi -> 
-                Map.tryFind wi ws.AllWaves
-                |> Option.map (fun wave -> wave.ViewerDisplayName))
+        selectedWaves ws
+        |> List.map (fun wave -> wave.ViewerDisplayName)
         |> (fun lst -> "Dummy" :: lst)
         |> List.map getWidth
         |> List.max
@@ -831,28 +822,24 @@ let setSelectionOpen (cBox: CheckBoxStyle) (show:bool) (wsModel: WaveSimModel)=
     match cBox with
     | GroupItem (grp,subSheet) -> setWaveGroupSelectionOpen wsModel [grp,subSheet] show
     | SheetItem subSheet -> setWaveSheetSelectionOpen wsModel [subSheet] show
-    | x -> failwithf $"What? setSelectionOpen cannot be called from a '{x}' item"
 
 /// Props for HTML Summary element
 /// <param name="isSummary">True if this is a summary element, false if it is a details element.</param>
 /// isSummary is used to determine if the click handler is used.
 let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = [
 
-    let summaryOpenCloseClickHandler (e:Browser.Types.Event) = 
+    let summaryOpenCloseClickHandler (e:Browser.Types.Event) =
         if isSummary then
             let show =
                 match cBox with
                 | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
                 | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
-                | _ -> failwithf "Not currently used"
             dispatch <| UpdateWSModel (setSelectionOpen cBox (not show))
 
     let size,weight =
-        match cBox with 
+        match cBox with
         | SheetItem _ -> "20px", "bold"
-        | ComponentItem _ -> "16px", "bold"
         | GroupItem _ -> "14px", "bold"
-        | PortItem _ -> "14px", "normal"
     Style [
         FontSize size
         FontWeight weight
@@ -861,12 +848,11 @@ let summaryProps (isSummary:bool) cBox (ws: WaveSimModel) (dispatch: Msg -> Unit
 ]
 
 /// Props for HTML Details element
-let detailsProps showDetails cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list = 
+let detailsProps showDetails cBox (ws: WaveSimModel) (dispatch: Msg -> Unit): IHTMLProp list =
     let show =
         match cBox with
         | SheetItem subGroup -> Set.contains subGroup ws.ShowSheetDetail
         | GroupItem (compGrp, subSheet) -> Set.contains (compGrp,subSheet) ws.ShowGroupDetail
-        | _ -> failwithf "Not currently used"
     [
         Open (show || showDetails)
     ]

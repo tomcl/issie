@@ -322,14 +322,12 @@ let makeWave (ws: WaveSimModel) (fastSim: FastSimulation) (wi: WaveIndexT) : Wav
         Radix = ws.Radix
         SubSheet = fc.SubSheet
         DisplayName = dispName
-        SheetLabel = fc.SimSheetName
         ViewerDisplayName = nameWithSheet fastSim dispName wi
         CompLabel = fc.FLabel
         PortLabel = portLabel
         Width = driver.DriverWidth
         DriverIndex = driver.Index
         SheetId = fc.SimSheetName
-        Conns = []
         SVG = None
         HatchedCycles = EvilHoverCache.initGapStore 0
     }

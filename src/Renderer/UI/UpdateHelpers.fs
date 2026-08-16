@@ -99,8 +99,7 @@ let shortDisplayMsg (msg:Msg) =
     | GenerateWaveforms ws -> Some $"GenerateWaveforms:{shortDWSM ws}"
     | GenerateCurrentWaveforms -> Some $"Generate Current Waveforms"
     | RefreshWaveSim ws -> Some "RefreshWaveSim"
-    | SetWaveSheetSelectionOpen _
-    | SetWaveComponentSelectionOpen _-> Some "SetWaveComponentSelectionOpen"
+    | SetWaveSheetSelectionOpen _ -> Some "SetWaveSheetSelectionOpen"
     | SetWaveGroupSelectionOpen _
     | LockTabsToWaveSim 
     | UnlockTabsFromWaveSim -> None

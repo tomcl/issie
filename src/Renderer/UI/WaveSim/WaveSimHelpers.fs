@@ -1,4 +1,4 @@
-///Miscellaneous helpers used tby waveform simulator
+﻿///Miscellaneous helpers used tby waveform simulator
 module WaveSimHelpers
 //---------------------------------------------------------------------------------------//
 //-----------------------Miscellaneous low=level helper functions------------------------//
@@ -59,65 +59,6 @@ let bitLimsString (a, b) =
 
 let portBits n = if n < 2 then "" else $"({n-1}:0)"
 
-
-/// determines how components are dispalyed in waveform selector
-let getCompDetails fs wave =
-    let fc = fs.WaveComps[wave.WaveId.Id]
-    let label = fc.FLabel
-    let descr, oneLine =
-        match fc.FType with
-        | Input1 _ -> "Input",true
-        | Output _ -> "Output", true
-        | Constant1 _ -> "What? can't happen", true
-        | Viewer _ -> "Viewer", true
-        | IOLabel-> "Net Label", true
-        | NotConnected -> "What? can't happen", true
-        | Not ->
-            let gateType = $"{fc.FType}".ToUpper()
-            $"{gateType} gate", false
-        | GateN (gateType, n) ->
-            $"{n} input {gateType} gate", false
-        | BusCompare (width,v) -> $"Bus Compare ='{v}'", false
-        | BusCompare1(width,v,s)-> $"Bus Compare ='{s}'", false
-        | Mux2 -> "2 input multiplexer", false
-        | Mux4 -> "4 input multiplexer", false
-        | Mux8 -> "8 input multiplexer", false
-        | Demux2 -> "2 input demultiplexer", false
-        | Demux4 -> "4 input demultiplexer", false
-        | Demux8 -> "8 input demultiplexer", false
-        | Decode4 -> "2 line decoder", false
-        | NbitsAdder n | NbitsAdderNoCin n 
-        | NbitsAdderNoCout n | NbitsAdderNoCinCout n     
-            -> $"{n} bit adder",false
-        | NbitsXor (n,None) -> $"{n} XOR gates",false
-        | NbitsXor(n, Some Multiply) -> $"{n} bit multiply",false
-        | NbitsAnd n -> $"{n} AND gates",false
-        | NbitsNot n -> $"{n} Not gates",false
-        | NbitSpreader n -> $"1 -> {n} bits spreader",false
-        | NbitsOr n -> $"{n} OR gates",false
-        | Custom x -> $"({x.Name} instance)",false
-        | DFF -> "D flipflip", false
-        | DFFE -> "D flipflop with enable", false
-        | Register n -> $"{n} bit D register", false
-        | RegisterE n -> $"{n} bit D register with enable", false
-        | Counter n -> $"{n} bit Counter with enable and load", false
-        | CounterNoLoad n -> $"{n} bit Counter with enable", false
-        | CounterNoEnable n -> $"{n} bit Counter with load", false
-        | CounterNoEnableLoad n -> $"{n} bit Counter", false
-        | AsyncROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false
-        | ROM1 mem -> $"ROM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
-        | RAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) synchronous read", false
-        | AsyncRAM1 mem -> $"RAM  ({1 <<< mem.AddressWidth} word X {mem.WordWidth} bit) asynchronous read", false             
-        | BusSelection _ | MergeWires | MergeN _ | SplitWire _ | SplitN _ ->
-            failwithf "Bus select, MergeWires, MergeN, SplitWire, SplitN should not appear"
-        | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
-            failwithf "Legacy component types should not appear"
-        | Shift _ ->
-            "Error: Shift is an internal component that should not appear", false
-    match oneLine with
-    | true -> $"{label}{portBits wave.Width} {descr}"
-    | false -> $"{label} {descr}"
-
 /// Which group (for selector classification) is a component in?
 let getCompGroup fs wave =
     match fs.WaveComps[wave.WaveId.Id].FType with
@@ -135,7 +76,7 @@ let getCompGroup fs wave =
     | DFF | DFFE | Register _ | RegisterE _ |Counter _ |CounterNoEnable _ |CounterNoLoad _ |CounterNoEnableLoad _ ->
         FFRegister
     | AsyncROM1 _ | ROM1 _ | RAM1 _ | AsyncRAM1 _ ->
-        Memories                
+        Memories
     | BusSelection _ | MergeWires | MergeN _ | SplitWire _ | SplitN _ ->
         failwithf "Bus select, MergeWires, MergeN, SplitWire should not appear"
     | Input _ | Constant _ | AsyncROM _ | ROM _ | RAM _ ->
@@ -143,24 +84,18 @@ let getCompGroup fs wave =
     | Shift _ ->
         failwithf "Shift is an internal-only component which should never appear on the canvas"
 
-
-/// Name for summary field in details element.
-/// NB: There are fields which are commented out: these can be added back in
-/// later on if we want to group those components together by type rather than
-/// separately by name.
-let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list) (waves: Wave list): ReactElement =
-    match cBox with
-    | PortItem (_,name) ->
-        str <| camelCaseDottedWords name
-    | ComponentItem fc->
-        let descr = getCompDetails (Simulator.getFastSim()) (waves[0])
-        str <| descr
-        
-    | GroupItem (compGroup,_) ->
+/// The heading over a group of components within one sheet of the wave selector.
+///
+/// Every case of ComponentGroup, so that adding one is a compile error rather than a row headed
+/// "What? Not used!" - which is what the wildcard this replaces would have given. Three of them,
+/// WireLabel, Viewers and Component, are not produced by getCompGroup: they are there for grouping
+/// components by type rather than by name, which the selector does not currently do.
+let groupHeading (compGroup: ComponentGroup): ReactElement =
+    let name =
         match compGroup with
         | InputOutput -> "Inputs / Outputs / Labels / Viewers"
-        //| Viewers -> "Viewers"
-        //| WireLabel -> "Wire Labels"
+        | Viewers -> "Viewers"
+        | WireLabel -> "Wire Labels"
         | Buses -> "Buses"
         | Gates -> "Logic Gates"
         | MuxDemux -> "Multiplexers"
@@ -169,18 +104,7 @@ let summaryName (ws: WaveSimModel) (cBox: CheckBoxStyle) (subSheet: string list)
         | Memories -> "RAMs and ROMs"
         | Component compLabel -> compLabel
         | CustomComp -> "Custom Components"
-        | _ -> "What? Not used!"
-        |> (fun name -> str $"""{name.ToUpper()}""")
-
-    | SheetItem subSheet ->
-        str <| $"Subsheet {camelCaseDottedWords subSheet[subSheet.Length-1]}"
-
-/// get react element to display a subsheet indication as a dotted string
-let subSheetsToNameReact (subSheets: string list) =
-    subSheets
-    |> String.concat "."
-    |> camelCaseDottedWords
-    |> str
+    str (name.ToUpper())
 
 /// Convert Wave list to list of WaveIndexT
 let wavesToIds (waves: Wave list) =

@@ -410,10 +410,7 @@ let updateUnpinned (msg : Msg) oldModel =
         let ws = getWSModel model
         WaveSimTop.refreshWaveSim false ws model
 
-    | SetWaveComponentSelectionOpen (fIdL, show) ->       
-        failwithf "Not implemented: SetWaveComponentSelectionOpen %A %A" fIdL show
-
-    | SetWaveGroupSelectionOpen (fIdL, show) -> 
+    | SetWaveGroupSelectionOpen (fIdL, show) ->
         model
         |> updateWSModel (fun ws -> WaveSimStyle.setWaveGroupSelectionOpen ws fIdL show)
         |> withNoMsg

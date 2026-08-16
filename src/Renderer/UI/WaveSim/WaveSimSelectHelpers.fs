@@ -245,26 +245,6 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
 /// A style to add some margin between search boxes.
 let searchBoxContainerStyle = Style [ MarginRight "10px" ]
 
-/// Search box for wave names.
-let waveSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
-    div [ searchBoxContainerStyle ] [
-        Input.text [
-            Input.Option.Props [ Style [ MarginBottom "1rem"; Width "100%" ] ]
-            Input.Option.Placeholder "Search wave names..."
-            Input.Option.OnChange (fun value -> 
-                dispatch (UpdateWSModel (fun wsm ->
-                    { wsm with
-                        WaveSearchString = value.Value.ToUpper()
-                        ComponentSearchString = "" // Clear component search when wave search changes.
-                        PortSearchString = ""        // Clear port search when wave search changes.
-                    }
-                ))
-            )
-        ]
-    ]
-
-
-
 /// Search box for sheet names.
 let sheetSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement =
     div [ searchBoxContainerStyle ] [
@@ -372,7 +352,7 @@ let waveSelectBreadcrumbs
         let fs = Simulator.getFastSim()
         // Extract sheet names from wave names.
         let sheetCounts =
-            filteredWaves.All |> List.countBy (fun wave -> wave.SheetLabel)
+            filteredWaves.All |> List.countBy (fun wave -> wave.SheetId)
         /// The instance a pill stands for. None where the simulation has nothing there - an empty
         /// sheet, or a simulation of an earlier version of the design - and such a pill is inert.
         let instanceOf (sheet: SheetTree) =
@@ -445,9 +425,9 @@ let waveSelectBreadcrumbs
 // Wave Selection UI (Left Column)
 // -----------------------------------------
 
-// The following functions (toggleWaveSelection, toggleSelectSubGroup, etc.) handle the UI for selecting/deselecting waves.
-// (Note: helper functions such as summaryProps, subSheetsToNameReact, isWaveSelected, checkboxInputProps,
-//  wavesToIds, details/summary helpers, getCompGroup, GroupItem, summaryName, SheetItem are assumed to exist.)
+// The following functions handle the UI for selecting and deselecting waves. The pieces they are
+// built from - summaryProps, detailsProps and the CheckBoxStyle keys - are in WaveSimStyle, and the
+// naming and grouping of components in WaveSimHelpers.
 
 let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: Msg -> unit) =
     let selectedWaves =
@@ -564,7 +544,7 @@ let makeFlatGroupRow
     // Keyed by the node the group sits in, so that opening the gates of one sheet does not open
     // the gates of every other sheet in the list.
     let cBox = GroupItem (grp, nodeKey)
-    let summaryReact = summaryName ws cBox [] wavesInGroup
+    let summaryReact = groupHeading grp
     let rowItems =
         wavesInGroup
         |> List.groupBy (fun (wave:Wave) -> wave.CompLabel)
@@ -734,11 +714,13 @@ let makeSelectionTable
     let fs = Simulator.getFastSim()
     let waves = List.sortBy (fun wave -> wave.ViewerDisplayName) waves
     let sheetNum = waves |> List.distinctBy (fun w -> w.SheetId) |> List.length
+    /// Whether to open every row rather than leaving the user to. A short list is quicker to read
+    /// than to click through, and so is one that is all in one sheet or has already been narrowed
+    /// to what was selected.
     let showDetails =
-        ((List.length waves < Constants.maxAutoExpandWaves) ||
-        (ws.WaveSearchString.Length > 0)) ||
-         ws.ShowOnlySelected ||
-         sheetNum < 2
+        List.length waves < Constants.maxAutoExpandWaves
+        || ws.ShowOnlySelected
+        || sheetNum < 2
     let subSheetRows =
         if ws.ShowOnlySelected then
             makeInstanceRows showDetails ws fs waves dispatch
@@ -768,15 +750,11 @@ let makeSelectionTable
 let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Model) : ReactElement =
     // Helper to close the modal and reset search string.
     let resetSearchFilters (ws: WaveSimModel) =
-        { ws with 
-             WaveSearchString = ""
+        { ws with
              SheetSearchString = ""
              ComponentSearchString = ""
              PortSearchString = ""
-             ComponentTypeSearchString = ""
-             HighlightedSheets = Set.empty
              ShowOnlySelected = false
-             SearchString = ""
         }
 
     let closeModal () =
@@ -888,7 +866,6 @@ let selectWavesModal (wsModel: WaveSimModel) (dispatch: Msg -> unit) (model: Mod
                         ]
                     ] [
                         // search boxes
-                        // waveSearchBox wsModel dispatch // Not needed currently
                         componentSearchBox wsModel dispatch
                         portSearchBox wsModel dispatch
                         sheetSearchBox wsModel dispatch

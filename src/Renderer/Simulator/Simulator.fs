@@ -370,18 +370,6 @@ let makeDummySimulationError msg = {
         ComponentsAffected = []
     }
 
-/// check a waveform simulation circuit for errors without actually creating the simulation
-let validateWaveSimulation
-        (openFileName: string)
-        (diagramName : string)
-        (canvasState : CanvasState)
-        (loadedDependencies : LoadedComponent list)
-        : Result<SimulationGraph, SimulationError>  =
-    let ldcs = addStateToLoadedComponents openFileName canvasState loadedDependencies
-    getStateAndDependencies diagramName ldcs
-    |> Result.mapError makeDummySimulationError
-    |> Result.bind (fun (_, state, ldcs) -> validateCircuitSimulation diagramName state ldcs)
-
 /// Start up a simulation, doing all necessary checks and generating simulation errors
 /// if necesary. The code to do this is quite long so results are memoized. 
 let prepareSimulationMemoized

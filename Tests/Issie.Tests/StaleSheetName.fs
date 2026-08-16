@@ -3,16 +3,18 @@
 /// This is not a hypothetical. Model.WaveSimSheet names the sheet the waveform viewer is
 /// simulating, which is deliberately allowed to differ from the sheet on screen - so nothing about
 /// it is invalidated by an ordinary sheet change, and it survived a change of PROJECT too. The
-/// viewer's buttons ask, on every render, whether the sheet named there still builds; against the
+/// viewer's buttons asked, on every render, whether the sheet named there still builds; against the
 /// newly opened project's sheets that question has no answer, and the answer used to be an
 /// exception. Thrown from inside a React render it unmounted the whole UI, and since no message had
 /// changed the model, every later render threw in the same place: the application was unusable
 /// until it was reloaded.
 ///
-/// Two things fixed it and both are asserted here. A missing sheet is now an ordinary
-/// SimulationError, which is what every caller is typed to carry anyway; and opening a project ends
-/// any running waveform simulation, so the name does not go stale in the first place. Only the
-/// first is testable outside the Elmish loop - the second is in MenuHelpers.setupProjectFromComponents.
+/// Three things now stand between that and the user, and the first two are asserted here. A missing
+/// sheet is an ordinary SimulationError, which is what every caller is typed to carry anyway; the
+/// check that asks the question runs from the update function rather than from a render, and
+/// catches (ModelHelpers.runCircuitCheck); and opening a project ends any running waveform
+/// simulation, so the name does not go stale in the first place - that last one is in
+/// MenuHelpers.setupProjectFromComponents and is not testable outside the Elmish loop.
 module StaleSheetName
 
 open Expecto
@@ -37,6 +39,14 @@ let private errorText (e: SimulationError) =
     | GenericSimError msg -> msg
     | other -> $"%A{other}"
 
+/// Does this sheet of this design build? Exactly the composition ModelHelpers.runCircuitCheck and
+/// Simulator.prepareSimulationMemoized both use - look the sheet up among the design's sheets, then
+/// check what that gives - which is the question the waveform viewer's buttons have an answer to.
+let private validateSheet (sheetName: string) (ldcs: LoadedComponent list) =
+    CanvasExtractor.getStateAndDependencies sheetName ldcs
+    |> Result.mapError Simulator.makeDummySimulationError
+    |> Result.bind (fun (_, state, deps) -> Simulator.validateCircuitSimulation sheetName state deps)
+
 let tests =
     testList "StaleSheetName" [
 
@@ -57,26 +67,18 @@ let tests =
                 Expect.stringContains msg "eep1" "the message names the sheet that is missing"
         }
 
-        test "validating a wave simulation of a sheet from a closed project returns an error" {
-            // The crash itself: WaveSimSheet still says eep1, the project is now largeTest. This
-            // runs during render, so raising here is what took the UI down.
-            let openSheet = List.head newProject
-            let result =
-                Simulator.validateWaveSimulation
-                    openSheet.Name "eep1" openSheet.CanvasState (List.tail newProject)
-            match result with
+        test "validating a sheet from a closed project returns an error" {
+            // The crash itself: WaveSimSheet still says eep1, the project is now largeTest.
+            match validateSheet "eep1" newProject with
             | Ok _ -> failtest "a sheet outside the project cannot validate"
             | Error e ->
                 Expect.stringContains (errorText e) "eep1" "and the error says which sheet it was"
         }
 
-        test "validating a wave simulation of a sheet that is present still works" {
+        test "validating a sheet that is present still works" {
             // The error path must not have swallowed the ordinary one.
-            let openSheet = List.head newProject
-            let result =
-                Simulator.validateWaveSimulation
-                    openSheet.Name openSheet.Name openSheet.CanvasState (List.tail newProject)
-            Expect.isOk result "the open sheet is simulable"
+            Expect.isOk (validateSheet (List.head newProject).Name newProject)
+                "a sheet of the design is simulable"
         }
 
         test "a stale sheet name does not wedge the simulation cache" {

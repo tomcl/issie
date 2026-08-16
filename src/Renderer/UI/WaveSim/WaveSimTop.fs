@@ -301,16 +301,7 @@ let rec refreshWaveSim (newSimulation: bool) (wsModel: WaveSimModel) (model: Mod
 /// Redo a new simulation. Set inputs to default values. Then call refreshWaveSim via RefreshWaveSim message.
 /// 1st parameter ofrefreshWaveSin will be set true which causes all waves to be necessarily regenerated.
 let refreshButtonAction canvasState model dispatch = fun _ ->
-    /// estimate of the memory resources used by this simulation
     let startWaveSimulation dispatch model =
-        let waveSimArraySteps =
-            ( 0, model.WaveSim)
-            ||> Map.fold (fun sum sheet ws  ->
-                    Simulator.getFastSim().MaxArraySize + sum)
-        let waves =
-            ( 0, model.WaveSim)
-            ||> Map.fold (fun sum sheet ws  ->
-                    ws.AllWaves.Count + sum)
         /// update the model memories to match any updated linked initial contents files
         let model = MemoryEditorView.updateAllMemoryComps model
         // the simulation is about to use these contents, so say if a linked file did not load

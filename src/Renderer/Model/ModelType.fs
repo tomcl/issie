@@ -1,4 +1,4 @@
-(*
+﻿(*
     ModelType.fs
 
     This module provides the type for the FRP UI.
@@ -42,10 +42,14 @@ type ComponentGroup =
     | Component of string
 
 
-/// control checkboxes in waveform simulator wave selection
+/// What one openable row of the wave selector stands for, which is both how it is styled and the
+/// key under which the model remembers whether it is open.
+///
+/// A row is a group of components within one sheet instance, or the sheet instance itself. There
+/// were also cases for a single component and a single port, from when the list was nested a level
+/// deeper than it is; nothing has built one since, so the rows that would have used them are gone
+/// and only their styling and their summary text remained.
 type CheckBoxStyle =
-    | PortItem of Wave * string
-    | ComponentItem of FastComponent
     | GroupItem of ComponentGroup * string list
     | SheetItem of string list
 
@@ -266,13 +270,13 @@ type Wave = {
     CycleWidth: float
     /// radix of waveform numbers
     Radix: NumberBase
-    /// Unique sheet identifier within the whole simulation.
-    /// Human-readable string representing the wave's sheet
+    /// Which INSTANCE of a sheet the waveform is in, as the path of custom component labels down to
+    /// it - the FastComponent's SimSheetName, which is unique across the simulation. Not something
+    /// to show anyone: for the sheet's own name use FastSimulation.getSheetNameOfInstance.
     SheetId: string
-    SubSheet: string list // SheetId mapped to custom component names
-    /// Wires connected to this waveform. Used to highlight wires
-    /// when hovering over wave label.
-    Conns: ConnectionId list
+    /// The labels of the custom component instances the waveform's component sits within, outermost
+    /// first, which is what tells two instances of one sheet apart when a name cannot.
+    SubSheet: string list
     DisplayName: string
     /// Name shown in the waveform viewer. Not guaranteed to be unique.
     ViewerDisplayName: string
@@ -280,8 +284,6 @@ type Wave = {
     CompLabel: string
     /// Label of the port the waveform is on.
     PortLabel: string
-    /// Custom Component Label of the sheet instance the waveform is on, or the top-level sheet.
-    SheetLabel: string
     /// width of the waveform's bus
     Width: int
     /// Array indexed by clock cycle to show value of wave.
@@ -310,10 +312,6 @@ type WaveSimModel = {
     WSConfigDialog: WSConfig option
     /// Current state of WaveSimModel.
     State: WaveSimState
-    /// Top-level sheet for current waveform simulation: copy of model.WaveSimSheet when simulation is running
-    TopSheet: string
-    /// Copy of all sheets used with reduced canvasState as simulated
-    Sheets: Map<string,CanvasState>
     /// Map of all simulatable waves
     AllWaves: Map<WaveIndexT, Wave>
     /// List of which waves are currently visible in the waveform viewer.
@@ -359,8 +357,6 @@ type WaveSimModel = {
     /// The first component of the tuple is the text used to define the location.
     /// The second component is the actual location.
     RamStartLocation: Map<FComponentId, string * bigint>
-    /// String which the user is searching the list of waves by.
-    SearchString: string
     /// Which nodes of the design hierarchy the wave selector has open, each named by its path of
     /// design-time sheet names from the top sheet down. An open node shows its signals, and - for
     /// a sheet that more than one route reaches, whose contents are otherwise suppressed - shows
@@ -373,8 +369,6 @@ type WaveSimModel = {
     /// first used - so choosing a different instance high in the hierarchy needs no cascade of
     /// updates to the entries below it.
     SelectedSheetInstance: Map<string list, string>
-    /// What is shown in wave sim component detail elements
-    ShowComponentDetail: Set<FComponentId>
     /// What is shown in wave sim group detail elements
     ShowGroupDetail: Set<ComponentGroup * string list>
     /// The label which a user is hovering over.
@@ -401,12 +395,11 @@ type WaveSimModel = {
     /// If true, queue is clear and can dispatch scrollbar update.
     /// Otherwise, an update is in progress and mouse event should not be pushed onto the queue.</summary>
     ScrollbarQueueIsEmpty: bool
-    WaveSearchString: string
+    /// The three filter boxes above the wave selector, each holding what the user typed in it,
+    /// upper-cased. A sheet box may end in '*', which means "and everything inside it".
     SheetSearchString: string
     ComponentSearchString: string
     PortSearchString: string
-    ComponentTypeSearchString: string
-    HighlightedSheets: Set<string list>
     /// if true, show only the selected waves in the waveform selector
     ShowOnlySelected: bool
 }
@@ -522,8 +515,6 @@ type Msg =
     | RefreshWaveSim of WaveSimModel
     /// Sets or clears ShowSheetDetail (clearing will remove all child values in the set)
     | SetWaveSheetSelectionOpen of (string list list * bool)
-    /// Sets or clears ShowComponentDetail
-    | SetWaveComponentSelectionOpen of (FComponentId list * bool)
     /// Sets or clears GroupDetail
     | SetWaveGroupSelectionOpen of ((ComponentGroup * string list) list * bool)
     | LockTabsToWaveSim

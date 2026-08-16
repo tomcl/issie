@@ -830,32 +830,31 @@ let viewTopMenu model dispatch =
             let topMenuOpenState = model.TopMenuOpenState
             let isPinned = model.SheetMenuPinned
 
-            /// Refit the open sheet once the click that asked for it is on screen. It has to wait:
-            /// the fit measures the menu in the DOM, and what says whether the menu is pinned is
-            /// the attribute this click is changing.
-            let refitAfterRender =
-                RunAfterRender(false, fun dispatch model ->
-                    dispatch <| ModelType.Msg.Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlW)
-                    model)
+            let refit = ModelType.Msg.Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlW)
 
             // Pinning and unpinning both change how much canvas the sheet has, so both refit it -
             // but only where that is the sheet's own doing. Pinning refits only when the canvas
             // beside the menu is worth using, so that a pin in a narrow window does not rescale a
             // sheet it cannot move; unpinning refits only a sheet still sitting where the pinned
-            // fit put it, since once it has been scrolled or zoomed that view is the user's.
-            // Both questions are answered here, while the menu on screen is still the pinned one.
+            // fit put it, since once it has been scrolled or zoomed that view is the user's. Both
+            // are asked of the pinned window, which is this model's or the one it is about to be.
             let pinClick (ev: Browser.Types.MouseEvent) =
                 // the dropdown below would take this for a use of the menu, and dismiss it
                 ev.stopPropagation()
+                let pinnedWindow = Sheet.fitWindowFor (Optic.set sheetMenuPinned_ true model)
                 if isPinned then
-                    let wasFitted = Sheet.isAtFittedPosition model.Sheet
+                    let wasFitted =
+                        pinnedWindow
+                        |> Option.map (fun win -> Sheet.isAtFittedPosition win model.Sheet)
+                        |> Option.defaultValue false
                     dispatch <| SetSheetMenuPinned false
                     dispatch <| SetTopMenu Closed
-                    if wasFitted then dispatch refitAfterRender
+                    if wasFitted then dispatch refit
                 else
-                    let willShrink = Sheet.pinningSheetMenuWouldRefit model.Sheet
+                    let willShrink =
+                        pinnedWindow |> Option.map (fun win -> win.Inset > 0.) |> Option.defaultValue false
                     dispatch <| SetSheetMenuPinned true
-                    if willShrink then dispatch refitAfterRender
+                    if willShrink then dispatch refit
 
             /// The pin, on the heading line rather than on a line of its own: a centred heading
             /// leaves the space either side empty, and a row of the pin's own would make the menu
@@ -908,10 +907,10 @@ let viewTopMenu model dispatch =
                       [ str "Sheet" ]
                   Navbar.Dropdown.div
                       [ Navbar.Dropdown.Props
-                          [ // measured by Sheet.openSheetMenuWidth and Sheet.sheetMenuIsPinned,
-                            // which size a fitted sheet to the canvas this menu leaves clear
+                          [ // measured by Sheet.openSheetMenuWidth, which is how much canvas a fit
+                            // leaves to this menu while it is pinned. Only the width is read here:
+                            // whether it is pinned comes from the model, not from the DOM.
                             HTMLAttr.Id Sheet.Constants.sheetMenuId
-                            HTMLAttr.Custom("data-pinned", (if isPinned then "true" else "false"))
                             // Anything picked from the menu dismisses it, as a click outside it
                             // does - unless it is pinned, when only the pin puts it away.
                             OnClick(fun _ ->

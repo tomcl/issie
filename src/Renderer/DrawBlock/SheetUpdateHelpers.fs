@@ -16,10 +16,14 @@ open Browser
 open Optics
 open Operators
 
-let fitCircuitToScreenUpdate (model: Model) =
-    let model', parasOpt = fitCircuitToWindowParas model
-    match parasOpt with
-    | Some paras ->
+/// Fit the circuit to `winOpt`, which is the drawing area less anything covering it - see
+/// Sheet.fitWindowFor, which works it out from the whole Issie model. None when there is no canvas
+/// to measure, and so nothing to fit to.
+let fitCircuitToScreenUpdate (winOpt: FitWindow option) (model: Model) =
+    match winOpt with
+    | None -> model, Cmd.none
+    | Some win ->
+        let model', paras = fitCircuitToWindowParas win model
         model',
         Cmd.batch
             [
@@ -29,7 +33,6 @@ let fitCircuitToScreenUpdate (model: Model) =
                     ModelType.Msg.RunAfterRender (false, (fun dispatch model -> (dispatch <| ModelType.Msg.Sheet (SheetT.Msg.KeyPress CtrlW)); model))
                     |> Cmd.ofMsg
             ]
-    | None -> model, Cmd.none
 
 let rotateLabel (sym:Symbol) =
     let newRot =

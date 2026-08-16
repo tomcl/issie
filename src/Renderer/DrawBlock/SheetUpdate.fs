@@ -162,7 +162,10 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                         wireCmd (BusWireT.SelectWires wires) ]
 
     | KeyPress CtrlW ->
-        fitCircuitToScreenUpdate model
+        // The window to fit to is not draw block state - a pinned Sheet menu covers part of the
+        // canvas, and only the Issie model knows it is pinned - so it is worked out here, where
+        // the whole model is in hand, and handed down.
+        fitCircuitToScreenUpdate (fitWindowFor issieModel) model
     
     // Ctrl is now only a selection modifier - holding it toggles items in and out of the
     // selection. It used to also reveal the draggable ports and resize corners of every custom

@@ -512,6 +512,14 @@ module SheetT =
 
     type Arrange = | AlignSymbols | DistributeSymbols
 
+    /// Which way the copies of a pasted array run. A fragment is arrayed across its short axis, so
+    /// that the copies stack up beside each other rather than end to end: a row of gates laid out
+    /// left to right becomes a vertical array, and a column of them a horizontal one.
+    ///
+    /// Prefixed because CommonTypes.Orientation is Horizontal | Vertical and is used unqualified
+    /// all over the draw block - two of these cases named the same would shadow it.
+    type ArrayDirection = | ArrayVertical | ArrayHorizontal
+
     type CompilationStage =
         | Completed of int
         | InProgress of int
@@ -570,6 +578,10 @@ module SheetT =
         | Rotate of Rotation
         | Flip of SymbolT.FlipType
         | Arrangement of Arrange
+        /// Paste what was copied as an array of `copies` copies stepped along `direction`, the
+        /// labels of each suffixed with its number counting from `firstSuffix`. Placed like an
+        /// ordinary paste: it arrives following the mouse.
+        | PasteArray of direction: ArrayDirection * copies: int * firstSuffix: int
         | RotateLabels
         | WireType of WireTypeMsg
         | IssieInterface of IssieInterfaceMsg

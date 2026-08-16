@@ -601,6 +601,18 @@ let private itemWithKeyIf (enabled: bool) (label: string) (id: KeyTypes.Shortcut
 let private itemWithKey (label: string) (id: KeyTypes.ShortcutId) (action: unit -> unit) =
     itemWithKeyIf true label id action
 
+/// A dropdown item with no keyboard shortcut, greyed and inert when not enabled. The shortcut
+/// column is left empty rather than absent, so items line up down the menu.
+let private itemIf (enabled: bool) (label: string) (action: unit -> unit) =
+    Navbar.Item.a
+        [ Navbar.Item.Props
+            [ if enabled then OnClick(fun _ -> action ())
+              Style [ Display DisplayOptions.Flex
+                      JustifyContent "space-between"
+                      if not enabled then Opacity "0.4"
+                      if not enabled then Cursor "default" ] ] ]
+        [ str label ]
+
 /// A non-clickable heading grouping the items under it. Bulma's navbar has no nested dropdown, so
 /// what were submenus on the Electron menus are flat groups here.
 let private itemGroupHeading (label: string) =
@@ -644,6 +656,12 @@ let private editMenuItems (model: Model) dispatch =
       itemWithKey "Select all" KeyTypes.ScSelectAll (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlA)
       editItem "Copy" KeyTypes.ScCopy (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlC)
       editItem "Paste" KeyTypes.ScPaste (fun () -> keyDispatch SheetT.KeyboardMsg.CtrlV)
+      // Greyed until something has been copied, because the dialog it opens is entirely about
+      // what was: which way round to array it, and how many of it fit.
+      itemIf
+          (not (openSheetIsReadOnly model) && (UIPopups.PasteArray.arrayChoices model).IsSome)
+          "Paste array..."
+          (fun () -> UIPopups.PasteArray.pasteArrayPopup model dispatch)
       editItem "Delete" KeyTypes.ScDelete (fun () -> keyDispatch SheetT.KeyboardMsg.DEL)
       Navbar.divider [] []
       editItem "Rotate clockwise" KeyTypes.ScRotateClockwise (fun () ->

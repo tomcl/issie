@@ -95,6 +95,15 @@ module Constants =
     /// whole canvas instead. Dodging a menu that leaves a tall slot costs more magnification than
     /// seeing the sheet whole under it, and the menu is see-through-able by unpinning.
     let maxFitAspectRatio = 3.
+    /// The gap between one copy of a pasted array and the next, as a fraction of the copied
+    /// fragment's own size along the direction the array runs.
+    let arrayGapFraction = 0.2
+    /// An array bigger than this fraction of the window in either direction is placed zoomed out,
+    /// so that there is room on screen to see where it is going.
+    let arrayScreenFraction = 0.5
+    /// How lopsided a fragment may be before arraying it along its LONG axis is worth warning
+    /// about: copies stacked end to end make a strip too long to place or to read.
+    let arrayAspectWarning = 3.
     /// geometry parameters for sizing circuits
     let boxParameters = {|
             BoxOfEmptyCircuit = ({X=100.;Y=100.}:XYPos)
@@ -430,6 +439,67 @@ let symbolBBUnion (centresOnly: bool) (symbols: SymbolT.Symbol list) :BoundingBo
         |> Some
     
 
+
+//-------------------------------------------------------------------------------------------------//
+//------------------------------ Geometry of a pasted array ---------------------------------------//
+//-------------------------------------------------------------------------------------------------//
+// Where the copies of an array go, and how many will fit. All of it follows from one bounding box,
+// so it can be asked before anything is pasted - which is what the Paste array dialog does to
+// decide which way round to offer and how many copies to allow.
+
+/// The bounding box of what is on the clipboard, or None when nothing has been copied. Labels are
+/// included, since they are as much part of what the user sees arriving as the symbols are.
+let copiedFragmentBox (model: Model) : BoundingBox option =
+    BlockHelpers.copiedSymbolsInPasteOrder model.Wire.Symbol
+    |> symbolBBUnion false
+
+/// The size of `box` along the direction an array runs.
+let alongArray (dir: ArrayDirection) (box: BoundingBox) =
+    match dir with
+    | ArrayVertical -> box.H
+    | ArrayHorizontal -> box.W
+
+/// From one copy of `box` to the next: the fragment's own size along the array, plus a gap.
+let arrayStep (dir: ArrayDirection) (box: BoundingBox) =
+    alongArray dir box * (1. + Constants.arrayGapFraction)
+
+/// Where the `i`th copy of an array goes, relative to the first.
+let arrayOffset (dir: ArrayDirection) (box: BoundingBox) (i: int) =
+    let d = arrayStep dir box * float i
+    match dir with
+    | ArrayVertical -> { X = 0.; Y = d }
+    | ArrayHorizontal -> { X = d; Y = 0. }
+
+/// The bounding box `copies` copies of `box` occupy once arrayed.
+let arrayBox (dir: ArrayDirection) (copies: int) (box: BoundingBox) =
+    let span = arrayStep dir box * float (max 0 (copies - 1))
+    match dir with
+    | ArrayVertical -> { box with H = box.H + span }
+    | ArrayHorizontal -> { box with W = box.W + span }
+
+/// The most copies of `box` that fit on a canvas `canvasSize` square, which is the whole of what a
+/// sheet has room for. Can be below 2, which means there is no array to paste at all.
+let maxArrayCopies (dir: ArrayDirection) (canvasSize: float) (box: BoundingBox) =
+    // copies*size + (copies-1)*gap <= canvasSize, with gap a fraction of size
+    let size = alongArray dir box
+    let g = Constants.arrayGapFraction
+    if size <= 0. then 0 else int ((canvasSize / size + g) / (1. + g))
+
+/// Whether arraying `box` this way runs it along its long axis, by more than
+/// Constants.arrayAspectWarning. Copies then stack end to end into a strip, which is what the
+/// dialog warns about rather than refuses: it is occasionally what is wanted.
+let arrayIsAgainstShape (dir: ArrayDirection) (box: BoundingBox) =
+    let along, across =
+        match dir with
+        | ArrayVertical -> box.H, box.W
+        | ArrayHorizontal -> box.W, box.H
+    across > 0. && along > across * Constants.arrayAspectWarning
+
+/// The direction a fragment of this shape should be arrayed in: across its short axis, so the
+/// copies stack up beside each other. A square fragment goes vertically, which is the way a row of
+/// repeated logic is normally built up.
+let arrayDirectionFor (box: BoundingBox) =
+    if box.H > box.W then ArrayHorizontal else ArrayVertical
 
 /// Returns the smallest BB that contains all symbols, labels, and wire segments.
 /// For empty circuit a BB is returned in middle of viewable screen.

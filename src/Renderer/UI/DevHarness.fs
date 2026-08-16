@@ -25,6 +25,7 @@ open CommonTypes
 open ModelType
 open ModelHelpers
 open Sheet.SheetInterface
+open DrawModelType
 
 /// The most recent model and dispatch, kept so that the harness can answer questions and send
 /// messages between renders. Not model state - this is the outside world's handle on the app, in
@@ -267,6 +268,44 @@ let private commands: (string * (string -> Model -> (Msg -> unit) -> string)) li
       fun _ _ dispatch ->
           dispatch RunCircuitCheck
           "circuit check requested"
+
+      "copyAll",
+      // Select the whole sheet and copy it, which is what fills the clipboard the paste commands
+      // work from. Two key messages rather than one, because that is what the user does.
+      fun _ _ dispatch ->
+          dispatch (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.CtrlA))
+          dispatch (Sheet(SheetT.KeyPress SheetT.KeyboardMsg.CtrlC))
+          "selected all and copied"
+
+      "pasteArray",
+      // "<vertical|horizontal> <copies> [firstSuffix]" - what the Paste array dialog sends when its
+      // button is pressed, so that the paste itself can be driven without going through the dialog.
+      //
+      // The dialog is where a suffix that clashes with a label already on the sheet is caught, so
+      // this can make duplicate labels that the dialog would have refused. That is the point of it
+      // being here rather than in the app: it drives the paste, not the checks in front of it.
+      fun arg _ dispatch ->
+          let parts = arg.Split(' ') |> Array.filter (fun s -> s <> "")
+          let intAt i dflt least =
+              match Array.tryItem i parts with
+              | None -> Some dflt
+              | Some s ->
+                  match System.Int32.TryParse s with
+                  | true, n when n >= least -> Some n
+                  | _ -> None
+          let direction =
+              match Array.tryItem 0 parts with
+              | Some "horizontal" -> Some SheetT.ArrayHorizontal
+              | Some "vertical" | None -> Some SheetT.ArrayVertical
+              | Some _ -> None
+          match direction, intAt 1 2 2, intAt 2 0 0 with
+          | Some dir, Some copies, Some firstSuffix ->
+              let way = if dir = SheetT.ArrayVertical then "vertical" else "horizontal"
+              dispatch (Sheet(SheetT.PasteArray(dir, copies, firstSuffix)))
+              $"pasting {copies} copies as a {way} array, suffixes from {firstSuffix}"
+          | _ ->
+              "pasteArray takes <vertical|horizontal> <copies> [firstSuffix], "
+              + "copies being 2 or more and firstSuffix 0 or more"
 
       "benchmark",
       // What a clock cycle of the open sheet costs, and what it is spread over. The argument is the

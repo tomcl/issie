@@ -20,6 +20,7 @@ let main argv =
         PersistenceTests.tests
         SheetDescriptionTests.tests
         DrawBlockTests.tests
+        PasteArrayGeometry.tests
         MarkdownTests.tests
         LibraryTests.tests
         SheetHierarchy.tests

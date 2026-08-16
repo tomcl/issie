@@ -23,6 +23,7 @@
     <Compile Include="PersistenceTests.fs" />
     <Compile Include="SheetDescriptionTests.fs" />
     <Compile Include="DrawBlockTests.fs" />
+    <Compile Include="PasteArrayGeometry.fs" />
     <Compile Include="MarkdownTests.fs" />
     <Compile Include="LibraryTests.fs" />
     <Compile Include="SheetHierarchy.fs" />

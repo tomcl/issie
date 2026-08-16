@@ -118,6 +118,72 @@ let update (msg : Msg) (issieModel : ModelType.Model): ModelType.Model*Cmd<Model
                     wireCmd (BusWireT.SelectWires [])
                     wireCmd (BusWireT.ColorWires (pastedConnIds, HighLightColor.Thistle)) ]
 
+    | PasteArray (dir, copies, firstSuffix) ->
+        match copiedFragmentBox model with
+        | None -> model, Cmd.none    // nothing has been copied, so there is nothing to array
+        | Some box ->
+            /// One copy's symbols take the original's label with that copy's suffix after it, which
+            /// is what makes an array readable: with suffix 0, MUX1 becomes MUX10.
+            ///
+            /// A symbol with no label keeps the one paste generated for it. Merge and split
+            /// components are the case: they carry no label on a sheet, there is nothing to put a
+            /// suffix on, and every one of them would otherwise want to be called "0".
+            ///
+            /// Nothing here guards against the suffixed label already being in use, because the
+            /// Paste array dialog will not let a clashing suffix be chosen - see
+            /// UIPopups.PasteArray, which reports it as an error while it can still be changed.
+            let suffixLabels (suffix: int) (pastedIds: ComponentId list) (symModel: SymbolT.Model) =
+                let copied = BlockHelpers.copiedSymbolsInPasteOrder symModel
+                (symModel, List.zip copied pastedIds)
+                ||> List.fold (fun m (oldSym: SymbolT.Symbol, id) ->
+                    match oldSym.Component.Label with
+                    | "" -> m
+                    | label -> SymbolUpdate.changeLabel m id (label + string suffix))
+
+            /// Paste the clipboard once, `i` steps along the array from where the mouse is.
+            let pasteCopy (wireModel: BusWireT.Model, compIds, connIds) i =
+                let atPos = model.LastMousePos + arrayOffset dir box i
+                let symModel, pastedComps =
+                    SymbolUpdate.pasteSymbols wireModel.Symbol wireModel.Wires atPos
+                let labelled = suffixLabels (firstSuffix + i) pastedComps symModel
+                let withWires, pastedConns =
+                    BusWireUpdate.pasteWires { wireModel with Symbol = labelled } pastedComps
+                withWires, compIds @ pastedComps, connIds @ pastedConns
+
+            let newWireModel, pastedCompIds, pastedConnIds =
+                ((model.Wire, [], []), [0 .. copies - 1]) ||> List.fold pasteCopy
+
+            // An array is several times the size of what was copied, so at the zoom the fragment
+            // was copied at there is often nowhere on screen to put it. Zoom out far enough that
+            // it takes up no more than Constants.arrayScreenFraction of the window - but no
+            // further than the canvas allows, and never in: a small array is left as it is.
+            let arrayOnScreen = arrayBox dir copies box
+            let newZoom =
+                getScreenEdgeCoords model
+                |> Option.map (fun edge ->
+                    let width, height = edge.Right - edge.Left, edge.Bottom - edge.Top
+                    let toFit =
+                        min (Constants.arrayScreenFraction * width / arrayOnScreen.W)
+                            (Constants.arrayScreenFraction * height / arrayOnScreen.H)
+                    let floor = max Constants.minMagnification (width / model.CanvasSize)
+                    min model.Zoom (max toFit floor))
+                |> Option.defaultValue model.Zoom
+            let oldScreenCentre = getVisibleScreenCentre model
+
+            { model with Wire = newWireModel
+                         SelectedComponents = pastedCompIds
+                         SelectedWires = pastedConnIds
+                         Zoom = newZoom
+                         TmpModel = Some model
+                         Action = DragAndDrop },
+            Cmd.batch [ sheetCmd UpdateBoundingBoxes
+                        symbolCmd (SymbolT.SelectSymbols [])
+                        symbolCmd (SymbolT.PasteSymbols pastedCompIds)
+                        wireCmd (BusWireT.SelectWires [])
+                        wireCmd (BusWireT.ColorWires (pastedConnIds, HighLightColor.Thistle))
+                        if abs (newZoom - model.Zoom) > 0.0001 then
+                            sheetCmd (KeepZoomCentered oldScreenCentre) ]
+
     | KeyPress ESC -> // Cancel Pasting Symbols, and other possible actions in the future
         match model.Action with
         | DragAndDrop ->

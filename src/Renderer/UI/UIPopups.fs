@@ -392,6 +392,289 @@ let viewWaveSelectRefusalPopup numAllowed numWaves dispatch =
         ]
     closablePopup "Too many waveforms" body foot [] dispatch
 
+//-------------------------------------------------------------------------------------------------------------------//
+//---------------------------------------------- Paste as an array --------------------------------------------------//
+//-------------------------------------------------------------------------------------------------------------------//
+
+module PasteArray =
+    open DrawModelType
+
+    /// Everything the Paste array dialog needs before anything is typed into it: what was copied,
+    /// how much of it fits, and the labels involved on both sides of the paste. Fixed for as long
+    /// as the dialog is open, since the dialog changes nothing on the sheet.
+    type Choices = {
+        /// the bounding box of the copied fragment, which is what an array is built out of
+        Box: BoundingBox
+        MaxVertical: int
+        MaxHorizontal: int
+        /// labels of the copied symbols that will take a suffix; the unlabelled ones are not here
+        CopiedLabels: string list
+        /// every label already on the sheet, which a suffixed one may not collide with
+        LabelsOnSheet: Set<string>
+    }
+
+    /// Which way round the dialog is currently set to array, kept in the dialog's spare text field.
+    /// A direction rather than a bool so that what is stored says what it means when read back.
+    let private directionOf (dialogData: PopupDialogData) =
+        match dialogData.Text with
+        | Some "horizontal" -> SheetT.ArrayHorizontal
+        | _ -> SheetT.ArrayVertical
+
+    let private nameOf =
+        function
+        | SheetT.ArrayVertical -> "vertical"
+        | SheetT.ArrayHorizontal -> "horizontal"
+
+    let private setDirection dir dispatch =
+        dispatch <| SetPopupDialogText(Some(nameOf dir))
+
+    /// Everything the dialog needs to know before anything is typed into it: the copied fragment's
+    /// box, how many copies of it fit each way on this sheet, and the labels involved on both
+    /// sides of the paste. None when nothing has been copied, which is what greys the menu item.
+    let arrayChoices (model: Model) : Choices option =
+        Sheet.copiedFragmentBox model.Sheet
+        |> Option.map (fun box ->
+            let fits dir = Sheet.maxArrayCopies dir model.Sheet.CanvasSize box
+            { Box = box
+              MaxVertical = fits SheetT.ArrayVertical
+              MaxHorizontal = fits SheetT.ArrayHorizontal
+              // Merge and split components have no label and are left without one, so they are
+              // not here: there is nothing to put a suffix on, and no name to collide.
+              CopiedLabels =
+                BlockHelpers.copiedSymbolsInPasteOrder model.Sheet.Wire.Symbol
+                |> List.map (fun s -> s.Component.Label)
+                |> List.filter (fun l -> l <> "")
+              LabelsOnSheet =
+                model.Sheet.Wire.Symbol.Symbols
+                |> Map.valuesL
+                |> List.map (fun s -> s.Component.Label)
+                |> Set.ofList })
+
+    /// Nothing that fits: the copied circuit is over half the sheet in both directions, so no
+    /// array of it - in any direction, at any count - has anywhere to go.
+    let private tooBigPopup dispatch =
+        let body =
+            div [] [
+                str "The copied circuit is too large for two of it to fit on one sheet, either "
+                str "above one another or side by side, so there is no array to paste."
+                br []; br []
+                str "Copy a smaller part of the circuit, or paste one copy at a time."
+            ]
+        let foot =
+            Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+                Level.left [] []
+                Level.right [] [
+                    Level.item [] [
+                        Button.button
+                            [ Button.Color IsPrimary; Button.OnClick(fun _ -> dispatch ClosePopup) ]
+                            [ str "Close" ]
+                    ]
+                ]
+            ]
+        closablePopup "Nothing to array" body foot [] dispatch
+
+    /// Do the paste, and get out of the way so that the array can be placed.
+    let private doPaste dir copies firstSuffix dispatch =
+        dispatch ClosePopup
+        dispatch <| Sheet(SheetT.PasteArray(dir, copies, firstSuffix))
+
+    /// The dialog itself, over choices already worked out. Separate from pasteArrayPopup because it
+    /// does not touch the dialog's fields: the warning below comes back here, and what the user had
+    /// chosen before being warned should still be chosen when they return to change it.
+    ///
+    /// Mutually recursive with the warning, which replaces this dialog rather than covering it -
+    /// Issie shows one popup at a time.
+    let rec private showArrayDialog (choices: Choices) dispatch =
+        let maxFor dir =
+            match dir with
+            | SheetT.ArrayVertical -> choices.MaxVertical
+            | SheetT.ArrayHorizontal -> choices.MaxHorizontal
+
+        /// What the dialog currently asks for, and the first thing wrong with it. An empty message
+        /// means it can be pasted. Every check is here rather than at paste time, so that what
+        /// cannot be done is said while it can still be changed.
+        let entry (dialogData: PopupDialogData) =
+            let dir = directionOf dialogData
+            let limit = maxFor dir
+            let first = int (getInt2 dialogData)
+            /// A suffixed label that some component on the sheet already has. Suffixes are the
+            /// point of an array, so a clash is the user's to resolve - by starting the numbering
+            /// somewhere else - and not something to paper over with a generated name.
+            let clash n =
+                Seq.allPairs (seq { first .. first + n - 1 }) choices.CopiedLabels
+                |> Seq.map (fun (i, label) -> label + string i)
+                |> Seq.tryFind (fun label -> Set.contains label choices.LabelsOnSheet)
+            match dialogData.Int with
+            | _ when limit < 2 ->
+                None, first, $"Two copies side by side {nameOf dir}ly do not fit on this sheet."
+            | None -> None, first, "Enter how many copies you want."
+            | Some n when n < 2 -> None, first, "An array is two copies or more."
+            | Some n when n > limit ->
+                None, first, $"At most {limit} copies fit {nameOf dir}ly on this sheet."
+            | Some _ when first < 0 -> None, first, "Suffixes start at 0 or above."
+            | Some n ->
+                match clash n with
+                | Some label ->
+                    None, first,
+                    $"{label} is already the label of a component on this sheet. Start the "
+                    + "suffixes somewhere else, or rename that component."
+                | None -> Some n, first, ""
+
+        let body =
+            fun (model: Model) ->
+                let dialogData = model.PopupDialogData
+                let dir = directionOf dialogData
+                let count, first, err = entry dialogData
+                /// The two directions as a pair of buttons, the chosen one filled in. A direction
+                /// with no room for two copies is still shown, disabled, so that the choice reads
+                /// as two ways round of which one is unavailable rather than as one way round.
+                let dirButton thisDir label =
+                    Button.button
+                        [ Button.Color(if dir = thisDir then IsPrimary else IsLight)
+                          Button.Disabled(maxFor thisDir < 2)
+                          Button.OnClick(fun _ -> setDirection thisDir dispatch) ]
+                        [ str label ]
+                /// What the numbering will come out as, said in full rather than as a rule, since
+                /// it is the thing most worth checking before pasting: which existing labels the
+                /// new ones sit next to is exactly what the two boxes are being set to control.
+                let suffixes =
+                    match count, dialogData.Int with
+                    | Some n, _ | None, Some n when n >= 2 ->
+                        $"Suffixes {first} to {first + n - 1} will be added to component labels."
+                    | _ -> ""
+                div [] [
+                    str "Copies are placed one after another with a gap of a fifth of the circuit "
+                    str "between them, and each copy's labels get its suffix after them: with "
+                    str "suffix 0, MUX1 becomes MUX10. Merge and split components have no label "
+                    str "and are left without one."
+                    br []; br []
+                    div [ Style [ Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center ] ] [
+                        span [ Style [ MarginRight "10px" ] ] [ str "Array runs" ]
+                        // CSSProp. because CommonTypes.ComponentType.Custom is also in scope
+                        div [ Style [ Display DisplayOptions.Flex; CSSProp.Custom("gap", "6px") ] ] [
+                            dirButton SheetT.ArrayVertical "Vertically"
+                            dirButton SheetT.ArrayHorizontal "Horizontally"
+                        ]
+                    ]
+                    br []
+                    div [ Style [ Display DisplayOptions.Flex; CSSProp.Custom("gap", "24px") ] ] [
+                        div [] [
+                            str $"Number of copies (2 to {maxFor dir}):"
+                            br []
+                            Input.number
+                                [ Input.Props [ OnPaste preventDefault; Style [ Width "70px" ]; AutoFocus true ]
+                                  Input.DefaultValue(string (Option.defaultValue 2 dialogData.Int))
+                                  Input.OnChange(JSHelpers.getIntEventValue >> Some >> SetPopupDialogInt >> dispatch) ]
+                        ]
+                        div [] [
+                            str "Suffixes start from:"
+                            br []
+                            Input.number
+                                [ Input.Props [ OnPaste preventDefault; Style [ Width "70px" ] ]
+                                  Input.DefaultValue(string first)
+                                  Input.OnChange(
+                                      JSHelpers.getIntEventValue >> bigint >> Some >> SetPopupDialogInt2 >> dispatch) ]
+                        ]
+                    ]
+                    br []
+                    div [] [ str suffixes ]
+                    span [ Style [ Color "Red" ] ] [ str err ]
+                ]
+
+        let foot =
+            fun (model: Model) ->
+                let dialogData = model.PopupDialogData
+                let dir = directionOf dialogData
+                let count, first, err = entry dialogData
+                let confirm _ =
+                    match count with
+                    | Some n when err = "" ->
+                        if Sheet.arrayIsAgainstShape dir choices.Box then
+                            againstShapeWarning choices dir n first dispatch
+                        else doPaste dir n first dispatch
+                    | _ -> ()
+                Level.level [ Level.Level.Props [ Style [ Width "100%" ] ] ] [
+                    Level.left [] []
+                    Level.right [] [
+                        Level.item [] [
+                            Button.button
+                                [ Button.Color IsLight; Button.OnClick(fun _ -> dispatch ClosePopup) ]
+                                [ str "Cancel" ]
+                        ]
+                        Level.item [] [
+                            Button.button
+                                [ Button.Color IsPrimary
+                                  Button.Disabled(err <> "")
+                                  Button.OnClick confirm ]
+                                [ str
+                                    (match count with
+                                     | Some n when err = "" -> $"Paste {n} copies as {nameOf dir} array"
+                                     | _ -> $"Paste as {nameOf dir} array") ]
+                        ]
+                    ]
+                ]
+
+        dynamicClosablePopup "Paste as array" body foot [] dispatch
+
+    /// Arraying a fragment along the side it is already long on: allowed, because it is sometimes
+    /// what is meant, but worth saying out loud first - the result is a strip several times longer
+    /// again, which is awkward to place and hard to read.
+    and private againstShapeWarning (choices: Choices) dir copies firstSuffix dispatch =
+        let box = choices.Box
+        let long, short, better =
+            match dir with
+            | SheetT.ArrayVertical -> "taller than it is wide", "horizontal", "horizontally"
+            | SheetT.ArrayHorizontal -> "wider than it is tall", "vertical", "vertically"
+        let arrayed = Sheet.arrayBox dir copies box
+        // The threshold is not quoted, so that the wording cannot go stale if
+        // Constants.arrayAspectWarning is changed. The sizes below say more anyway.
+        let body =
+            div [] [
+                str $"The copied circuit is much {long} - %.0f{box.W} by %.0f{box.H} - and a "
+                str $"{nameOf dir} array stacks the copies along that same side. {copies} of them "
+                str $"come to %.0f{arrayed.W} by %.0f{arrayed.H}, which is a long strip to place "
+                str "and to read."
+                br []; br []
+                str $"Arraying it {better} instead would keep the copies beside each other. To do "
+                str $"that, go back and choose the {short} direction - or lay the circuit out the "
+                str "other way round before copying it."
+            ]
+        choicePopup
+            "This array runs along the circuit's long side"
+            body
+            $"Paste {copies} copies anyway"
+            "Go back"
+            (fun proceed _ ->
+                if proceed then doPaste dir copies firstSuffix dispatch
+                // back to the dialog exactly as it was left: the fields are untouched by either
+                // of these, so what was chosen is still chosen
+                else showArrayDialog choices dispatch)
+            dispatch
+
+    /// Edit > Paste array. Sets the dialog up - which way round to offer, and how many copies -
+    /// and shows it.
+    let pasteArrayPopup (model: Model) dispatch =
+        match arrayChoices model with
+        | None -> ()      // nothing copied: the menu item is greyed, so this cannot normally happen
+        | Some choices when max choices.MaxVertical choices.MaxHorizontal < 2 -> tooBigPopup dispatch
+        | Some choices ->
+            // A fragment is arrayed across its short side, so a wide one stacks vertically. Where
+            // that way round has no room on the sheet the other one is offered instead.
+            let preferred =
+                let wanted = Sheet.arrayDirectionFor choices.Box
+                let fits =
+                    match wanted with
+                    | SheetT.ArrayVertical -> choices.MaxVertical >= 2
+                    | SheetT.ArrayHorizontal -> choices.MaxHorizontal >= 2
+                match fits, wanted with
+                | true, _ -> wanted
+                | false, SheetT.ArrayVertical -> SheetT.ArrayHorizontal
+                | false, SheetT.ArrayHorizontal -> SheetT.ArrayVertical
+            setDirection preferred dispatch
+            dispatch <| SetPopupDialogInt(Some 2)
+            dispatch <| SetPopupDialogInt2(Some 0I)
+            showArrayDialog choices dispatch
+
 /// Memory Properties Info Button Popup
 let memPropsInfoButton dispatch =
     let title = AppMessages.Memories.title

@@ -207,6 +207,35 @@ let private nodesUsing (inner: LoadedComponent) =
         WaveSimHierarchy.getSelectorHierarchy simData.FastSim ModelHelpers.initWSModel
         |> fun hierarchy -> hierarchy.HierOrder |> List.map (fun node -> node.NodeKey)
 
+//-------------------------------------------------------------------------------------------//
+// A sixth design, for the one identity that is not a path of labels.
+//
+// Every sheet instance is identified by the labels of the custom components reaching it. The top
+// sheet has none, so it is identified by its own name instead - which puts it in the same namespace
+// as a one-element path, and a custom component on the top sheet may be labelled anything the user
+// likes, including that sheet's name.
+//-------------------------------------------------------------------------------------------//
+
+let private innerSheet = notSheet "inner" "A" "Y"
+
+/// A top sheet named `clash` holding an instance of another sheet labelled CLASH. Both the top
+/// sheet and that instance would be identified by "CLASH".
+let private clashSheet =
+    let i = makeComp "clash-in" 0 1 (Input1(1, None)) "IN"
+    let s = makeComp "clash-inner" 1 1 (customOf innerSheet [ "A", 1 ] [ "Y", 1 ] None) "CLASH"
+    let o = makeComp "clash-out" 1 0 (Output 1) "OUT"
+    makeLdc "clash" None ([ i; s; o ], [ conn i 0 s 0; conn s 0 o 0 ])
+
+let private clashSimulation =
+    lazy
+        (match
+            Simulator.startCircuitSimulation
+                maxArraySize "clash" clashSheet.CanvasState [ clashSheet; innerSheet ]
+         with
+         | Error e -> failwith $"Simulation setup failed: %A{e}"
+         | Ok simData ->
+             simData.FastSim, WaveSimSVGs.getWaves Set.empty ModelHelpers.initWSModel simData.FastSim)
+
 let tests =
     testList
         "WaveSelection"
@@ -541,6 +570,29 @@ let tests =
                   "and only the instances they are in, not every sheet instance in the design"
 
               Simulator.simCacheWS <- Simulator.simCacheInit ()
+
+          testCase "an instance labelled with the top sheet's name is still a separate instance"
+          <| fun () ->
+              // The top sheet is identified by its sheet's name, everything else by the path of
+              // labels down to it - so a component on the top sheet labelled with that sheet's own
+              // name gives a one-element path reading as the same thing. Sharing an identity makes
+              // them one instance to everything downstream: one key in SimSheetStructure, one group
+              // of waves, one node of the selector.
+              let fs, allWaves = clashSimulation.Force()
+              Expect.equal
+                  (fs.SimSheetStructure |> Map.toList |> List.map fst |> List.sort)
+                  [ "CLASH"; "clash" ]
+                  "the two instances have identities of their own"
+
+              let instancesOfWaves =
+                  allWaves |> Map.toList |> List.map (fun (_, wave) -> wave.SheetId) |> List.distinct
+              Expect.equal (List.sort instancesOfWaves) [ "CLASH"; "clash" ]
+                  "and the waves of each are grouped under their own"
+              Expect.all
+                  instancesOfWaves
+                  (fun instance -> fs.getSheetNameOfInstance instance = "clash"
+                                   || fs.getSheetNameOfInstance instance = "inner")
+                  "each still knows which sheet the user drew"
 
           testCase "a library sheet is not a node of the hierarchy the selector draws"
           <| fun () ->

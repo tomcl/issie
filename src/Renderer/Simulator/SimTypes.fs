@@ -127,8 +127,11 @@ type FastComponent =
       FullName: string
       /// label of component
       FLabel: string
-      /// The unique name of the sheet the component is in, or the name of the custom component.
-      /// if needed be disambiguated by part of the custom component instances label.
+      /// Which INSTANCE of a sheet the component is in, as the dotted path of custom component
+      /// labels down to it, upper-cased - so it is unique, because a label is unique on the canvas
+      /// it is drawn on. The top sheet is the one instance with no such path, and is named by its
+      /// sheet instead. Not a sheet name and not meant to be read: for the sheet's own name use
+      /// getSheetNameOfInstance. Built in FastCreate.createInitFastCompPhase.
       SimSheetName: string
       /// SimSheetNamePath is the access path to the root of the simulation mapped to SimSheetNames of custom components
       /// The last element is the SimSheetName of the sheet the component is in.

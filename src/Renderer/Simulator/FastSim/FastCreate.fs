@@ -792,10 +792,25 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
     /// was unique and unreadable - MAIN4:1, or just 2 - and being a name it leaked to the user, in
     /// waveform names, in the sheet filter box, and in the boxes choosing between instances. Nothing
     /// had to be invented: the design already names every instance, at every level down to it.
+    ///
+    /// Upper-cased here rather than by addSimSheetNames below, because the one thing that has to be
+    /// decided about the whole string is decided here.
     let customSimSheetNames =
+        /// The identity of the top sheet, which is the one instance NOT named by a path of labels:
+        /// it is named by its sheet, since there is no instance of it to name it by.
+        let topName = f.SimulatedTopSheet.ToUpperInvariant()
+
         customComps
         |> Map.valuesL
-        |> List.map (fun cc -> cc.fId, String.concat "." cc.SheetName)
+        |> List.map (fun cc ->
+            let path = (String.concat "." cc.SheetName).ToUpperInvariant()
+            // A path that reads as the top sheet's name would BE the top sheet to everything
+            // downstream - one key in SimSheetStructure, one group of waves - and the two are
+            // different instances. It takes a custom component on the top sheet labelled with that
+            // sheet's own name, which is unusual and entirely allowed. Every other identity here is
+            // upper case, so lowering this one separates them while still saying which instance it
+            // is; a label with no cased characters at all is the one case that stays ambiguous.
+            cc.fId, (if path = topName then path.ToLowerInvariant() else path))
         |> Map.ofList
 
 
@@ -810,12 +825,14 @@ let rec createInitFastCompPhase (simulationArraySize: int) (g: GatherData) (f: F
 
     instrumentTime "createInitFastCompPhase" start
 
+    // customSimSheetNames is already upper-cased, and one of its entries deliberately is not - so
+    // nothing here may case them again.
     let addSimSheetNames (comps:Map<FComponentId,FastComponent>) =
         comps
         |> Map.map (fun (cid,ap) fc ->
             match fc.AccessPath with
             | [] -> {fc with SimSheetName = f.SimulatedTopSheet.ToUpperInvariant()}
-            | path -> {fc with SimSheetName = customSimSheetNames[List.last path,path[0..path.Length-2]].ToUpperInvariant()})
+            | path -> {fc with SimSheetName = customSimSheetNames[List.last path,path[0..path.Length-2]]})
 
     let comps = addSimSheetNames comps
     let customComps = addSimSheetNames customComps

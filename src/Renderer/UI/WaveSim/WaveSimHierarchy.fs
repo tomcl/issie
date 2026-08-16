@@ -88,11 +88,11 @@ let instancesInside: FastSimulation -> Map<string * string, string list> =
 /// The label each sheet instance carries on the canvas above it: what the user drew, and what tells
 /// two instances of one sheet apart when the selector offers a choice between them.
 ///
-/// A SimSheetName is not that, and is not meant to be read. FastCreate makes one by taking whatever
-/// suffix of the instance's label distinguishes it from every other instance of the same sheet in
-/// the WHOLE design, and where no such suffix exists - identical labels under different parents, or
-/// one label a prefix of another - it falls back to a bare ordinal. So the combo box choosing
-/// between the instances of a sheet was offering things like "20" and "3".
+/// A SimSheetName is not that. It is the whole path of labels down to the instance - MID2.LEAF1 -
+/// which is what makes it unique and what makes it unreadable in a box offering a choice between
+/// siblings, where everything but the last element is the same. (It was worse before: whatever
+/// suffix of the label told it apart from every other instance of that sheet in the design, or a
+/// bare ordinal where nothing did, so the box offered things like "20" and "3".)
 ///
 /// SimSheetStructure maps an instance to the custom component whose innards it is, which is the
 /// component carrying that label. Instances offered together are siblings on one canvas, so their

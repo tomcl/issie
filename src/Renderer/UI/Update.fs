@@ -761,6 +761,11 @@ let updateUnpinned (msg : Msg) oldModel =
         { model with TopMenuOpenState = t}
         |> withNoMsg
 
+    | SetSheetMenuPinned pinned ->
+        model
+        |> set sheetMenuPinned_ pinned
+        |> withNoMsg
+
     | ExecFuncInMessage (f,dispatch)->
         (f model dispatch; model)
         |> withNoMsg

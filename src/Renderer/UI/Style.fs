@@ -290,6 +290,26 @@ let refreshSvg (color:string) (height:string)=
             ] []
         ]
 
+/// A pushpin, upright when it is holding something and tilted when it is not - the same shape in
+/// both states, so the icon is recognised once and then read by its angle rather than by comparing
+/// two drawings. Colour reinforces it: grey while the menu is free to close, dark once pinned.
+let pinSvg (pinned: bool) =
+    svg [
+            ViewBox "0 0 24 24"
+            SVGAttr.Height "16px"
+            SVGAttr.Width "16px"
+            Style [
+                Display DisplayOptions.Block
+                Transform (if pinned then "none" else "rotate(-45deg)")
+            ]
+        ] [
+            path [
+                D "M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0
+                   1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"
+                Style [ Fill (if pinned then "#363636" else "#8a8a8a") ]
+            ] []
+        ]
+
 let emptyRefreshSVG =
     svg [
         SVGAttr.Height "20"

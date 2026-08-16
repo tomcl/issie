@@ -282,6 +282,7 @@ let init() = {
         FromProperties = None
     }
     TopMenuOpenState = Closed
+    SheetMenuPinned = false
     DividerDragMode = DragModeOff
     WaveSimViewerWidth = rightSectionWidthViewerDefault
     ConnsOfSelectedWavesAreHighlighted= false
@@ -528,12 +529,14 @@ let displayView model dispatch =
         int Browser.Dom.self.innerWidth, int Browser.Dom.self.innerHeight
 
     let inline processAppClick topMenu dispatch (ev: Browser.Types.MouseEvent) =
-        // Files is left out on purpose: its dropdown holds the sheet tree, which the user browses
-        // rather than picks a single item from, so it closes only by clicking Sheets again.
+        // A click anywhere else - the schematic, most of all - dismisses an open menu. The Sheet
+        // menu is the exception when pinned: the point of the pin is that the hierarchy stays in
+        // view while sheets are opened from it and the schematic is worked on.
         match topMenu with
-        | Project | Edit | View ->
+        | Files when model.SheetMenuPinned -> ()
+        | Project | Edit | View | Files ->
             dispatch <| Msg.SetTopMenu Closed
-        | Closed | Files | TransientClosed -> ()
+        | Closed | TransientClosed -> ()
     /// used only to make the divider bar draggable
     let dividerDragMode = model.DividerDragMode
     let wsViewerWidth = model.WaveSimViewerWidth

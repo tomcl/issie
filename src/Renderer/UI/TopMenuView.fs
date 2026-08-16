@@ -827,35 +827,98 @@ let viewTopMenu model dispatch =
                     BreadcrumbIdPrefix = "SheetMenuBreadcrumb"
                 }
 
+            let topMenuOpenState = model.TopMenuOpenState
+            let isPinned = model.SheetMenuPinned
+
+            /// Refit the open sheet once the click that asked for it is on screen. It has to wait:
+            /// the fit measures the menu in the DOM, and what says whether the menu is pinned is
+            /// the attribute this click is changing.
+            let refitAfterRender =
+                RunAfterRender(false, fun dispatch model ->
+                    dispatch <| ModelType.Msg.Sheet (SheetT.KeyPress SheetT.KeyboardMsg.CtrlW)
+                    model)
+
+            // Pinning and unpinning both change how much canvas the sheet has, so both refit it -
+            // but only where that is the sheet's own doing. Pinning refits only when the canvas
+            // beside the menu is worth using, so that a pin in a narrow window does not rescale a
+            // sheet it cannot move; unpinning refits only a sheet still sitting where the pinned
+            // fit put it, since once it has been scrolled or zoomed that view is the user's.
+            // Both questions are answered here, while the menu on screen is still the pinned one.
+            let pinClick (ev: Browser.Types.MouseEvent) =
+                // the dropdown below would take this for a use of the menu, and dismiss it
+                ev.stopPropagation()
+                if isPinned then
+                    let wasFitted = Sheet.isAtFittedPosition model.Sheet
+                    dispatch <| SetSheetMenuPinned false
+                    dispatch <| SetTopMenu Closed
+                    if wasFitted then dispatch refitAfterRender
+                else
+                    let willShrink = Sheet.pinningSheetMenuWouldRefit model.Sheet
+                    dispatch <| SetSheetMenuPinned true
+                    if willShrink then dispatch refitAfterRender
+
+            /// The pin, on the heading line rather than on a line of its own: a centred heading
+            /// leaves the space either side empty, and a row of the pin's own would make the menu
+            /// taller. Absolutely positioned, so that it neither pushes the heading off centre nor
+            /// has any say in how tall the line is.
+            let pin =
+                div [ HTMLAttr.ClassName $"{Tooltip.ClassName} {Tooltip.IsTooltipRight} {Tooltip.IsMultiline}"
+                      Tooltip.dataTooltip
+                          (if isPinned then
+                              "Unpin: the menu closes, and a sheet still sized to fit beside it \
+                               goes back to filling the schematic."
+                           else
+                              "Pin the menu open, so that it stays while you open sheets and work \
+                               on the schematic. Sheets are then sized to fit beside it.")
+                      Style [ Position PositionOptions.Absolute
+                              CSSProp.Left "0"     // CSSProp. because Edge.Left is also in scope
+                              CSSProp.Top "0"
+                              Cursor "pointer" ]
+                      OnClick pinClick ]
+                    [ DiagramStyle.pinSvg isPinned ]
+
             // Heading and tree share one panel, so the words sit on the tree's background rather
             // than on the menu's with a join between them.
             let breadcrumbs = [
                     div [ HTMLAttr.ClassName "treePanel" ] [
-                        div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"; PaddingBottom "10px"]]
-                            [str "Sheets with Design Hierarchy"]
+                        div [Style [TextAlign TextAlignOptions.Center; FontSize "15px"
+                                    PaddingBottom "10px"; Position PositionOptions.Relative]]
+                            [ pin
+                              str "Sheets with Design Hierarchy" ]
                         MiscMenuView.allRootHierarchiesFromProjectBreadcrumbs breadcrumbConfig dispatch updatedModel
                     ]]
-            let topMenuOpenState = model.TopMenuOpenState
+
             Navbar.Item.div
                 [ Navbar.Item.HasDropdown
                   Navbar.Item.Props
-                      [ OnClick(fun _ ->
-                          //printSheetNames model
-                          if topMenuOpenState = Files then Closed else Files
-                          |> SetTopMenu
-                          |> dispatch)
-                        // Bulma positions .navbar-dropdown against this item, which would start
-                        // the sheet tree wherever the "Sheet" label happens to sit. Taking the
-                        // item out of the positioning chain hands that job to the nearest
-                        // positioned ancestor - #TopMenu, whose left edge is the app's left edge.
-                        Style [ Position PositionOptions.Static ] ] ]
-                [ Navbar.Link.a [] [ str "Sheet" ]
+                      // Bulma positions .navbar-dropdown against this item, which would start
+                      // the sheet tree wherever the "Sheet" label happens to sit. Taking the
+                      // item out of the positioning chain hands that job to the nearest
+                      // positioned ancestor - #TopMenu, whose left edge is the app's left edge.
+                      [ Style [ Position PositionOptions.Static ] ] ]
+                  // The toggle is on the label rather than on the whole item, because the item
+                  // contains the dropdown: a click inside the tree would otherwise toggle here as
+                  // well, which is not what a pinned menu is for.
+                [ Navbar.Link.a
+                      [ Navbar.Link.Props
+                          [ OnClick(fun _ ->
+                              if topMenuOpenState = Files then Closed else Files
+                              |> SetTopMenu
+                              |> dispatch) ] ]
+                      [ str "Sheet" ]
                   Navbar.Dropdown.div
                       [ Navbar.Dropdown.Props
-                          [ Style
+                          [ // measured by Sheet.openSheetMenuWidth and Sheet.sheetMenuIsPinned,
+                            // which size a fitted sheet to the canvas this menu leaves clear
+                            HTMLAttr.Id Sheet.Constants.sheetMenuId
+                            HTMLAttr.Custom("data-pinned", (if isPinned then "true" else "false"))
+                            // Anything picked from the menu dismisses it, as a click outside it
+                            // does - unless it is pinned, when only the pin puts it away.
+                            OnClick(fun _ ->
+                                if not isPinned then dispatch <| SetTopMenu Closed)
+                            Style
                               [ Display
-                                  (if (let b = topMenuOpenState = Files
-                                       b) then
+                                  (if topMenuOpenState = Files then
                                       DisplayOptions.Block
                                    else
                                       DisplayOptions.None)

@@ -87,6 +87,13 @@ module Constants =
     let zoomIncrement = 1.2
     /// aspect ratio required before align or distribute can be done
     let boxAspectRatio = 2. 
+    /// id of the Sheet menu's dropdown, which when pinned covers the left of the canvas.
+    /// TopMenuView.fileTab puts this on the element; nothing else knows the two are the same.
+    let sheetMenuId = "SheetMenuDropdown"
+    /// How lopsided the canvas beside a pinned Sheet menu may be before a sheet is sized to the
+    /// whole canvas instead. Dodging a menu that leaves a tall slot costs more magnification than
+    /// seeing the sheet whole under it, and the menu is see-through-able by unpinning.
+    let maxFitAspectRatio = 3.
     /// geometry parameters for sizing circuits
     let boxParameters = {|
             BoxOfEmptyCircuit = ({X=100.;Y=100.}:XYPos)
@@ -463,17 +470,58 @@ let moveCircuit moveDelta (model: Model) =
     |> Optic.map wire_ (BlockHelpers.moveWires moveDelta)
     |> Optic.map wire_ (BusWireSeparate.updateWireSegmentJumpsAndSeparations [])
 
+/// Width of the canvas's left edge the Sheet menu is over, and 0 when the menu is closed - which
+/// is display:none, and so has no width. Read from the DOM, as the other screen geometry here is:
+/// the draw block has no view of the top menu's model.
+let openSheetMenuWidth () =
+    let menu = document.getElementById Constants.sheetMenuId
+    if menu = null then 0. else menu.offsetWidth
+
+/// Whether the Sheet menu is pinned, which is when it is there to be worked beside rather than
+/// dismissed, and so when a fit goes round it rather than under it.
+let sheetMenuIsPinned () =
+    let menu = document.getElementById Constants.sheetMenuId
+    menu <> null && menu.getAttribute "data-pinned" = "true"
+
+/// How much of the left of a `width` by `height` canvas a fit should leave to a menu `menuWidth`
+/// wide: all of it, unless what is left over is a slot more than Constants.maxFitAspectRatio times
+/// as tall as it is wide (or as wide as tall), where going round the menu would shrink the circuit
+/// further than the menu ever hides it.
+let fitInsetFor (menuWidth: float) (width: float) (height: float) =
+    let clear = width - menuWidth
+    if menuWidth > 0. && clear > 0. && height > 0.
+       && max (clear/height) (height/clear) <= Constants.maxFitAspectRatio
+    then menuWidth
+    else 0.
+
+/// Whether pinning the Sheet menu would shrink the sheet into the canvas beside it rather than
+/// leave it fitted to the whole canvas. Asked by the pin itself, which cannot go through
+/// sheetMenuIsPinned: it is in the middle of changing the attribute that reads.
+let pinningSheetMenuWouldRefit (model: Model) =
+    getScreenEdgeCoords model
+    |> Option.map (fun edge ->
+        fitInsetFor (openSheetMenuWidth ()) (edge.Right - edge.Left) (edge.Bottom - edge.Top) > 0.)
+    |> Option.defaultValue false
+
 /// get scroll and zoom paras to fit box all on screen centred and occupying as much of screen as possible
 let getWindowParasToFitBox model (box: BoundingBox)  =
     getScreenEdgeCoords model
-    |> Option.map (fun edge -> 
+    |> Option.map (fun edge ->
         let lh,rh,top,bottom = edge.Left,edge.Right,edge.Top,edge.Bottom
-        let wantedMag = min ((rh - lh)/box.W) ((bottom-top)/box.H)
+        let height = bottom - top
+        // A pinned Sheet menu is meant to be worked beside, so the circuit is fitted to the canvas
+        // it leaves clear rather than to the whole canvas.
+        let inset =
+            if sheetMenuIsPinned () then fitInsetFor (openSheetMenuWidth ()) (rh - lh) height else 0.
+        let width = rh - lh - inset
+        let wantedMag = min (width/box.W) (height/box.H)
         let magToUse = min wantedMag Constants.maxMagnification
         let xMiddle = (box.TopLeft.X + box.W/2.)*magToUse
-        let xScroll = xMiddle - (rh-lh)/2.
+        // lh is itself the scroll position, so what is subtracted is where in the window the
+        // circuit's centre is wanted: past the menu, and then half way across what is left
+        let xScroll = xMiddle - (inset + width/2.)
         let yMiddle = (box.TopLeft.Y + (box.H)/2.)*magToUse
-        let yScroll = yMiddle - (bottom-top)/2.
+        let yScroll = yMiddle - height/2.
         {|Scroll={X=xScroll; Y=yScroll}; MagToUse=magToUse|})
 
 let addBoxMargin (fractionalMargin:float) (absoluteMargin:float) (box: BoundingBox) =
@@ -539,32 +587,69 @@ let ensureCanvasExtendsBeyondScreen model : Model =
 
 
 
-/// shift circuit to middle of canvas, resizing canvas to allow enough border if needed.
-/// return scroll and zoom paras to display all of circuit in middle of window
-let fitCircuitToWindowParas (model:Model) =
+/// How big the canvas must be for the circuit to sit in the middle of it with room around it, how
+/// far the circuit has to move to get there, and where its bounding box lands once it has.
+/// Separate from the move itself, which reroutes every wire, so that a question about where a fit
+/// would put things can be asked without paying for one.
+let private centredCircuitBox (model: Model) =
     let boxParas = Constants.boxParameters
-
-    let minBox = {TopLeft = {X=100.; Y=100.}; W=100.; H=100.}
-    let sBox = 
+    let sBox =
         symbolWireBBUnion model
         |> addBoxMargin boxParas.BoxMarginFraction boxParas.BoxMin
-    let newCanvasSize = 
+    let newCanvasSize =
         max sBox.W sBox.H
         |> ((*) (1. + 2. * boxParas.CanvasBorder))
         |> max Constants.defaultCanvasSize
     let offsetToCentreCircuit =
         {X=newCanvasSize / 2.; Y = newCanvasSize/2.} - sBox.Centre()
-    let modelWithMovedCircuit =
-        {model with CanvasSize = newCanvasSize}
-        |> moveCircuit offsetToCentreCircuit
+    {| CanvasSize = newCanvasSize
+       Offset = offsetToCentreCircuit
+       Box = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} |}
 
-    let sBox = {sBox with TopLeft = sBox.TopLeft + offsetToCentreCircuit} 
-    match getWindowParasToFitBox model sBox with
+/// shift circuit to middle of canvas, resizing canvas to allow enough border if needed.
+/// return scroll and zoom paras to display all of circuit in middle of window
+let fitCircuitToWindowParas (model:Model) =
+    let centred = centredCircuitBox model
+    let modelWithMovedCircuit =
+        {model with CanvasSize = centred.CanvasSize}
+        |> moveCircuit centred.Offset
+
+    match getWindowParasToFitBox model centred.Box with
     | Some paras ->
         {modelWithMovedCircuit with
             Zoom = paras.MagToUse
             ScreenScrollPos = paras.Scroll}, Some paras
     | None -> model, None
+
+/// Whether the sheet is still exactly where a fit would put it, and so has not been scrolled,
+/// zoomed or edited since one. Undoing a fit - as unpinning the Sheet menu does - is only ever
+/// right for a view the fit itself chose: once the user has moved it, it is theirs.
+///
+/// A second fit of an already fitted circuit is a no-op, since the circuit is centred on the canvas
+/// already and the same box gives the same magnification, so this can ask by computing one.
+///
+/// Compared against where the canvas is actually scrolled to, not against the model's record of it:
+/// a fit that asks to scroll past a canvas edge gets what the browser allows instead, and it is
+/// that the user is looking at.
+let isAtFittedPosition (model: Model) =
+    let canvas = document.getElementById "Canvas"
+    match getWindowParasToFitBox model (centredCircuitBox model).Box with
+    | _ when canvas = null -> false
+    | None -> false
+    | Some paras ->
+        let asScrolled (wanted: float) (got: float) (limit: float) =
+            // a pixel either way is the browser's rounding, not the user moving anything
+            abs ((wanted |> max 0. |> min limit) - got) < 2.
+        let fitted =
+            abs (paras.MagToUse - model.Zoom) < 0.001
+            && asScrolled paras.Scroll.X canvas.scrollLeft (canvas.scrollWidth - canvas.clientWidth)
+            && asScrolled paras.Scroll.Y canvas.scrollTop (canvas.scrollHeight - canvas.clientHeight)
+        Log.dbg Log.Sheet
+            $"fitted={fitted}: zoom {model.Zoom} vs {paras.MagToUse}, \
+              scroll ({canvas.scrollLeft},{canvas.scrollTop}) vs \
+              ({paras.Scroll.X},{paras.Scroll.Y})"
+        fitted
+
 
 
 

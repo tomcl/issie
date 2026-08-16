@@ -593,6 +593,8 @@ type Msg =
     | SetPropertiesNotification of ((Msg -> unit) -> ReactElement)
     | ClosePropertiesNotification
     | SetTopMenu of TopMenu
+    /// Pin the Sheet menu open, or release it. See Model.SheetMenuPinned.
+    | SetSheetMenuPinned of bool
     | ReloadSelectedComponent of int
     | SetDragMode of DragMode
     /// A catalogue item has been pressed: start carrying it, drawing the given ghost at the
@@ -971,6 +973,11 @@ type Model = {
     Notifications : Notifications
     /// State of menus for sheets, projects etc
     TopMenuOpenState : TopMenu
+    /// The Sheet menu is normally dismissed by clicking anywhere outside it - a sheet in it, or
+    /// the schematic. Pinned, it stays open until the pin is clicked again, so that a design can
+    /// be navigated with the hierarchy in view. Sheets fitted while it is pinned are sized to the
+    /// canvas beside it rather than to the whole canvas - see Sheet.getWindowParasToFitBox.
+    SheetMenuPinned : bool
     /// used to determine whether mouse is currently dragging the divider, or used normally
     DividerDragMode: DragMode
     /// viewer width in pixels altered by dragging the divider
@@ -1003,6 +1010,7 @@ let circuitCheck_ = Lens.create (fun a -> a.CircuitCheck) (fun s a -> {a with Ci
 let verdict_ = Lens.create (fun (a: CircuitCheck) -> a.Verdict) (fun s (a: CircuitCheck) -> {a with Verdict = s})
 let checkPending_ = Lens.create (fun (a: CircuitCheck) -> a.CheckPending) (fun s (a: CircuitCheck) -> {a with CheckPending = s})
 let buildVisible_ = Lens.create (fun a -> a.BuildVisible) (fun s a -> {a with BuildVisible = s})
+let sheetMenuPinned_ = Lens.create (fun a -> a.SheetMenuPinned) (fun s a -> {a with SheetMenuPinned = s})
 let popupViewFunc_ = Lens.create (fun a -> a.PopupViewFunc) (fun s a -> {a with PopupViewFunc = s})
 
 let sheet_ = Lens.create (fun a -> a.Sheet) (fun s a -> {a with Sheet = s})

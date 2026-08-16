@@ -70,18 +70,27 @@ let radixButtons (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElement 
 // outer edge of each name goes there: it changes sheet if it has to, then scrolls the component to
 // the middle of the canvas.
 
-let highlightCircuit fs comps wave (dispatch: Msg -> Unit) =
+let highlightCircuit (model: Model) comps wave (dispatch: Msg -> Unit) =
     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols comps)))
-    // Filter out any non-existent wires
-    let conns = connsOfWave fs wave
-    dispatch <| Sheet (SheetT.Msg.SelectWires conns)
+    // Only wires the open sheet still has. The connections come from the simulation, which holds
+    // the design as it was when it was built, so an edit since then leaves ids naming nothing -
+    // and they would otherwise be added to the sheet's selection, where a later Delete would act
+    // on them. The wire colouring ignores them, which is why this went unnoticed.
+    let conns =
+        connsOfWave (Simulator.getFastSim()) wave
+        |> List.filter (fun cid -> Map.containsKey cid model.Sheet.Wire.Wires)
+    // UpdateSelectedWires, not SelectWires: this is the other half of what the mouse-out handler
+    // does, and it has to be the same operation in reverse. SheetT.SelectWires is the message a
+    // CLICK on a wire sends - it toggles against PrevWireSelection, the selection left by the last
+    // click on the canvas - so hovering a waveform whose wire the user had clicked deselected it
+    // instead of highlighting it.
+    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (conns, true))
 
 /// Highlight on the schematic the component a wave comes from, and the wires carrying that wave.
 /// An IOLabel is highlighted wherever it appears on the sheet, since every copy of it is the one
 /// signal. Does nothing when the component is not on the sheet now open.
 let highlightWaveComps (model: Model) (wave: Wave) (dispatch: Msg -> Unit) =
     let symbols = model.Sheet.Wire.Symbol.Symbols
-    let fs = Simulator.getFastSim()
     match Map.tryFind (fst wave.WaveId.Id) symbols with
     | Some {Component={Type=IOLabel;Label=lab}} ->
         symbols
@@ -89,9 +98,9 @@ let highlightWaveComps (model: Model) (wave: Wave) (dispatch: Msg -> Unit) =
         |> List.map (fun (_,sym) -> sym.Component)
         |> List.filter (function | {Type=IOLabel;Label = lab'} when lab' = lab -> true |_ -> false)
         |> List.map (fun comp -> ComponentId comp.Id)
-        |> fun labelComps -> highlightCircuit fs labelComps wave dispatch
+        |> fun labelComps -> highlightCircuit model labelComps wave dispatch
     | Some _ ->
-        highlightCircuit fs [fst wave.WaveId.Id] wave dispatch
+        highlightCircuit model [fst wave.WaveId.Id] wave dispatch
     | None -> ()
 
 /// The visible part of the schematic, in sheet coordinates, or None when it is not being shown.
@@ -228,14 +237,21 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
         Level.level [
             Level.Level.Option.Props [
                 nameRowLevelStyle (wsModel.HoveredLabel = Some wave.WaveId)
+                // Every handler below updates the wave sim model rather than REPLACING it with the
+                // one this row was drawn from. A row is drawn once and its handlers run for as
+                // long as it is on screen, so a replacement puts back whatever the rest of the
+                // column has changed since - which is how a drag that reordered the waveforms was
+                // undone by the mouse leaving the row it started on. Same reason as
+                // WaveSimSelect.toggleRamSelection.
                 let execWithModel (f: Model -> Unit) = ExecFuncInMessage((fun model _ -> f model), dispatch)
                 OnMouseOver (fun _ -> dispatch <| execWithModel (fun model ->
-                    if wsModel.DraggedIndex = None then
-                        dispatch <| SetWSModel {wsModel with HoveredLabel = Some wave.WaveId}
+                    if (getWSModel model).DraggedIndex = None then
+                        dispatch <| UpdateWSModel (fun ws -> {ws with HoveredLabel = Some wave.WaveId})
                         highlightWaveComps model wave dispatch)
                 )
                 OnMouseOut (fun _ ->
-                    dispatch <| SetWSModel {wsModel with HoveredLabel = None; DraggedIndex = None; PrevSelectedWaves = None }
+                    dispatch <| UpdateWSModel (fun ws ->
+                        {ws with HoveredLabel = None; DraggedIndex = None; PrevSelectedWaves = None })
                     dispatch <| Sheet (SheetT.Msg.Wire (BusWireT.Msg.Symbol (SymbolT.SelectSymbols [])))
                     dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (connsOfWave (Simulator.getFastSim()) wave, false))
                 )
@@ -245,14 +261,13 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                 OnDragStart (fun ev ->
                     ev.dataTransfer.effectAllowed <- "move"
                     ev.dataTransfer.dropEffect <- "move"
-                    dispatch <| SetWSModel {
-                        wsModel with
+                    dispatch <| UpdateWSModel (fun ws ->
+                        { ws with
                             DraggedIndex = Some wave.WaveId
-                            PrevSelectedWaves = Some wsModel.SelectedWaves
-                        }
+                            PrevSelectedWaves = Some ws.SelectedWaves })
                 )
 
-                OnDrag (fun ev -> 
+                OnDrag (fun ev ->
                     ev.dataTransfer.dropEffect <- "move"
                     let nameColEl = Browser.Dom.document.getElementById "namesColumn"
                     let bcr = nameColEl.getBoundingClientRect ()
@@ -261,13 +276,13 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                     if ev.clientX < bcr.left || ev.clientX > bcr.right ||
                         ev.clientY < bcr.top || ev.clientY > bcr.bottom
                     then
-                        dispatch <| SetWSModel {
-                            wsModel with
+                        dispatch <| UpdateWSModel (fun ws ->
+                            { ws with
                                 DraggedIndex = None
                                 HoveredLabel = Some wave.WaveId
-                                // Use wsModel.SelectedValues if somehow PrevSelectedWaves not set
-                                SelectedWaves = Option.defaultValue wsModel.SelectedWaves wsModel.PrevSelectedWaves
-                            }
+                                // the order before the drag started, or the current one if somehow
+                                // PrevSelectedWaves was not set
+                                SelectedWaves = Option.defaultValue ws.SelectedWaves ws.PrevSelectedWaves })
                 )
 
                 OnDragOver (fun ev -> ev.preventDefault ())
@@ -277,26 +292,23 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                     ev.dataTransfer.dropEffect <- "move"
                     let nameColEl = Browser.Dom.document.getElementById "namesColumn"
                     let bcr = nameColEl.getBoundingClientRect ()
-                    let index = int (ev.clientY - bcr.top) / Constants.rowHeight - 1 |> max 0 |> min (List.length wsModel.SelectedWaves)
-                    let draggedWave =
-                        match wsModel.DraggedIndex with
-                        | Some waveId -> [waveId]
-                        | None -> []
-
-                    let selectedWaves =
-                        wsModel.SelectedWaves
-                        |> List.except draggedWave
-                        |> List.insertManyAt index draggedWave
-
-                    dispatch <| SetWSModel {wsModel with SelectedWaves = selectedWaves}
+                    // Read from the event now: the update below runs after this handler has
+                    // returned, by which time the event object is no longer ours to read.
+                    let offsetY = ev.clientY - bcr.top
+                    dispatch <| UpdateWSModel (fun ws ->
+                        let draggedWave = Option.toList ws.DraggedIndex
+                        let others = ws.SelectedWaves |> List.except draggedWave
+                        // Bounded by what is left after the dragged row is taken out, which is what
+                        // it is being put back into. Bounding it by the whole list allowed an index
+                        // one past the end of that, which insertManyAt refuses.
+                        let index =
+                            int offsetY / Constants.rowHeight - 1 |> max 0 |> min (List.length others)
+                        {ws with SelectedWaves = others |> List.insertManyAt index draggedWave})
                 )
 
                 OnDragEnd (fun _ ->
-                    dispatch <| SetWSModel {
-                        wsModel with
-                            DraggedIndex = None
-                            PrevSelectedWaves = None
-                        }
+                    dispatch <| UpdateWSModel (fun ws ->
+                        {ws with DraggedIndex = None; PrevSelectedWaves = None})
                 )
             ]
         ] [ Level.left
@@ -309,8 +321,8 @@ let nameRows (model: Model) (wsModel: WaveSimModel) dispatch: ReactElement list 
                     Delete.Option.Size IsSmall
                     Delete.Option.Props [
                         OnClick (fun _ ->
-                            let selectedWaves = List.except [wave.WaveId] wsModel.SelectedWaves
-                            dispatch <| SetWSModel {wsModel with SelectedWaves = selectedWaves}
+                            dispatch <| UpdateWSModel (fun ws ->
+                                {ws with SelectedWaves = List.except [wave.WaveId] ws.SelectedWaves})
                         )
                     ]
                   ] []

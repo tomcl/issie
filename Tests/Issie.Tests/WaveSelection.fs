@@ -514,6 +514,31 @@ let tests =
 
               Simulator.simCacheWS <- Simulator.simCacheInit ()
 
+          testCase "the viewer is sized by the rows it draws, not by the selection"
+          <| fun () ->
+              // A selected wave AllWaves no longer holds is dropped from every column, since all
+              // three are built from selectedWaves. Anything sized or hit-tested by the selection's
+              // own length therefore disagreed with them by a row - which is how the tooltip on a
+              // waveform came to answer for the waveform above it.
+              let _, allWaves = deepSimulation.Force()
+              let chosen = allWaves |> Map.toList |> List.map fst |> List.truncate 3
+              Expect.equal (List.length chosen) 3 "the design has waves to select"
+              let stale = { chosen[0] with PortNumber = chosen[0].PortNumber + 100 }
+              Expect.isFalse (Map.containsKey stale allWaves) "and the stale one is not among them"
+
+              let ws =
+                  { ModelHelpers.initWSModel with
+                      AllWaves = allWaves
+                      SelectedWaves = stale :: chosen }
+              Expect.equal
+                  (List.length (WaveSimStyle.selectedWaves ws))
+                  3
+                  "only the selected waves the simulation still has are drawn"
+              Expect.equal
+                  (WaveSimStyle.calcWaveformHeight ws)
+                  (WaveSimStyle.calcWaveformHeight { ws with SelectedWaves = chosen })
+                  "and the table is sized for those, not for a selection naming one it has not got"
+
           testCase "a sheet instance is identified by the labels down to it, and nothing invented"
           <| fun () ->
               // `deep` holds MID1 and MID2, each holding LEAF1 and LEAF2 - so four instances of

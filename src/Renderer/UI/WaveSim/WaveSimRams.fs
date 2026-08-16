@@ -224,11 +224,14 @@ let ramTable (dispatch: Msg -> unit) (wsModel: WaveSimModel) (model: Model) ((ra
 
         
 
+        /// The window may start anywhere the memory has, which includes its last location - a window
+        /// showing one row is a window. The bound used to be strict, so the range refused was one
+        /// short of the range the message quoted.
         let goodStartAddress big =
-            if big >= 0I && big < lastLocation then  
+            if big >= 0I && big <= lastLocation then
                 ""
             else
-                $"Address ${big} is out of required range: 0 - {lastLocation}"
+                $"Address {big} is out of required range: 0 - {lastLocation}"
             
  
         let inputBox =

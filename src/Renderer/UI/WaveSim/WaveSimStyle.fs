@@ -577,8 +577,10 @@ let showWaveformsStyle = Style [
     OverflowX OverflowOptions.Visible
 ]
 
+/// The height the waveform table wants: one row per waveform DRAWN, which is a selected wave that
+/// AllWaves still holds, plus the row of clock cycle numbers above them.
 let calcWaveformHeight wsModel =
-    let rowPixels = Constants.rowHeight * wsModel.SelectedWaves.Length
+    let rowPixels = Constants.rowHeight * (selectedWaves wsModel).Length
     let wantedHeight = float rowPixels + 0.6 * Constants.viewBoxHeight + 20.0
     wantedHeight
 
@@ -665,7 +667,12 @@ let setWaveToolTip (m: WaveSimModel) (ev:Browser.Types.MouseEvent) =
     let bcr = svgHighlight.getBoundingClientRect ()
     let cycle = (int <| ((ev.clientX - bcr.left) / singleWaveWidth m)) + m.StartCycle
     let waveNum = (int <| (ev.clientY - bcr.top) / float Constants.rowHeight) - 1
-    let numValText = EvilHoverCache.getWaveToolTip cycle waveNum m
+    // The row under the pointer, counted off the rows that are DRAWN. Every column of the viewer
+    // is built from selectedWaves, so that is the only list a row number means anything against.
+    let numValText =
+        match List.tryItem waveNum (selectedWaves m) with
+        | None -> ""
+        | Some wave -> EvilHoverCache.getWaveToolTip cycle wave m
     let ttXPos = float (cycle - m.StartCycle) * singleWaveWidth m
     let ttYPos = ( float waveNum * float Constants.rowHeight + 16. / 2.)
     // getWaveToolTip labels the value itself, since what it has to say may be a hidden value, the
@@ -680,7 +687,8 @@ let setWaveToolTip (m: WaveSimModel) (ev:Browser.Types.MouseEvent) =
 
 /// Controls the background highlighting of which clock cycle is selected
 let cursorCycleHighlightSVG m dispatch =
-    let count = List.length m.SelectedWaves
+    // the rows drawn, as everywhere else: this sizes the SVG the rows are hit-tested in
+    let count = List.length (selectedWaves m)
     svg [
         SVGAttr.Fill Constants.cursorColumnColor
         SVGAttr.Opacity 1.0 //Constants.cursorColumnOpacity

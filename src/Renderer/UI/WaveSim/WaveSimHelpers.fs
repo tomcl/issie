@@ -206,6 +206,11 @@ let sheetOfWave (fs: FastSimulation) (wave: Wave) : string option =
 
 /// Work out a SheetPort from a wave, if one exists
 /// SheetPorts may not exist in some corner cases when simulation is ending etc.
+///
+/// Every step is best effort and gives nothing rather than throwing. The link between a wave and
+/// the schematic is only as good as the schematic still being the one that was simulated, and this
+/// runs from the mouse handlers on a waveform's name - where an exception is not caught by
+/// showWaveforms' error boundary, which has already returned by then.
 let waveToSheetPort fs (wave:Wave) =
     let wi = wave.WaveId
     sheetOfWave fs wave
@@ -214,12 +219,16 @@ let waveToSheetPort fs (wave:Wave) =
         |> Map.tryFind sheet
         |> Option.bind (Map.tryFind (fst wi.Id))
         |> Option.map (fun comp ->
-            let port =
+            // Which set of ports the wave's port number indexes. A component with neither - which
+            // is what the last case is - has nothing to connect and so nothing to highlight.
+            let ports =
                 match wi.PortType, comp.InputPorts.Length > 0, comp.OutputPorts.Length > 0 with
-                | PortType.Input, true, _ | PortType.Output, true, false -> comp.InputPorts[wi.PortNumber]
-                | PortType.Output ,_, true | PortType.Input, false, true -> comp.OutputPorts[wi.PortNumber]
-                | _ -> failwithf "What? no parts found in waveToSheetPort"
-            [{ Sheet = sheet; PortOnComp = port }]))
+                | PortType.Input, true, _ | PortType.Output, true, false -> comp.InputPorts
+                | PortType.Output ,_, true | PortType.Input, false, true -> comp.OutputPorts
+                | _ -> []
+            List.tryItem wi.PortNumber ports
+            |> Option.map (fun port -> [{ Sheet = sheet; PortOnComp = port }])
+            |> Option.defaultValue []))
     |> Option.defaultValue []
 
 

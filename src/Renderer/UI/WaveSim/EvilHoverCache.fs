@@ -82,27 +82,34 @@ let getRomCommentAtStep (fs: FastSimulation) (step: int) (wave: Wave) : string =
 /// A value is given when the wave is too narrow there to have its number printed on it - the cached
 /// "gap" data says when that is - and a ROM's data output also gives the comment written against
 /// the location being read, so that both appear when the number is hidden as well.
-let getWaveToolTip (cycle:int) (waveNum: int) (ws:WaveSimModel) =
-    match List.tryItem waveNum ws.SelectedWaves with
-    | None -> ""
-    | Some index ->
-        let wave = ws.AllWaves[index]
-        let arrayIndex = cycle * ws.SamplingZoom
-        let hiddenValue =
-            if checkIfHatched wave.HatchedCycles cycle then
-                match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
-                | Some {DriverData = data} ->
-                    if data.Width <= 32 then
-                        NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.UInt32Step[arrayIndex]
-                    else
-                        NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width data.BigIntStep[arrayIndex]
-                | None -> ""
-            else ""
-        match hiddenValue, getRomCommentAtStep Simulator.simCacheWS.FastSim arrayIndex wave with
-        | "", "" -> ""
-        | value, "" -> $"Value:{value}"
-        | "", comment -> comment
-        | value, comment -> $"Value:{value}. {comment}"
+///
+/// The wave is passed in rather than counted off SelectedWaves by row number. The rows drawn are
+/// the selected waves that AllWaves still HOLDS - see WaveSimStyle.selectedWaves, which the three
+/// columns are all built from - so counting rows off SelectedWaves itself answered for a different
+/// row wherever the two differ, and indexed AllWaves with a key it might not have.
+let getWaveToolTip (cycle:int) (wave: Wave) (ws:WaveSimModel) =
+    let arrayIndex = cycle * ws.SamplingZoom
+    let hiddenValue =
+        if checkIfHatched wave.HatchedCycles cycle then
+            match Simulator.simCacheWS.FastSim.Drivers[wave.DriverIndex] with
+            // The cursor can rest past the end of what has been simulated, so the step is asked
+            // for rather than taken: a read off the end of a JS typed array is undefined, which
+            // would be written into the tooltip as one.
+            | Some {DriverData = data} when data.Width <= 32 ->
+                Array.tryItem arrayIndex data.UInt32Step
+                |> Option.map (NumberHelpers.UInt32ToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width)
+                |> Option.defaultValue ""
+            | Some {DriverData = data} ->
+                Array.tryItem arrayIndex data.BigIntStep
+                |> Option.map (NumberHelpers.BigIntToPaddedString Constants.waveLegendMaxChars ws.Radix data.Width)
+                |> Option.defaultValue ""
+            | None -> ""
+        else ""
+    match hiddenValue, getRomCommentAtStep Simulator.simCacheWS.FastSim arrayIndex wave with
+    | "", "" -> ""
+    | value, "" -> $"Value:{value}"
+    | "", comment -> comment
+    | value, comment -> $"Value:{value}. {comment}"
 
 /// SVG group element for tooltip.
 /// The props of the tooltip, as well as its text, are set in the function <c>changeToolTip</c>.

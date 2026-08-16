@@ -28,6 +28,18 @@ Delete an entry when it is fixed. A list that keeps its history stops being read
 
 How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
 
+- **Separation does not settle on the two array cases.** `WireQuality.fs` records it:
+  `crossedArrays` needs five further passes before nothing moves, and `wrappedArrays` never
+  settles at all — it is a period-2 limit cycle, alternating between two layouts differing by 1.2%
+  of wire drawn, and the pass leaves the sheet on the worse of the two. Since separation runs after
+  every drag, paste and rotate, what a user is left with on such a sheet depends on how many times
+  it happened to run. Both sheets are an array of ports facing an array of ports, which is what
+  most of the clustering complexity exists for.
+- **`makeClusters` loses a segment from a cluster, reproducibly.** The same `crossedArrays` sheet
+  trips `"What? nextIndex has got lost from loc1 after expansion!"`, the diagnostic whose comment
+  says it "should probably never happen". There is now a test that provokes it, which is the hard
+  part of fixing it. Suspect the `lowestLoc2Index` misnomer below: the branch that splits a cluster
+  in two is chosen by a test on the *highest* index in a descending-sorted list.
 - **`string` on an `[<Erase>]` id means two different things.** `InputPortId`, `OutputPortId` and
   friends are erased by Fable, so `string portId` is the bare id in the app and
   `InputPortId "…"` under .NET. `BusWireRoute` used it for five `model.Symbol.Ports` lookups, which

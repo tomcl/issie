@@ -41,6 +41,46 @@ Three consequences run through everything below.
 not the last. That is deliberate — its callers in `tryShiftHorizontalSeg` want the point before the
 final nub — but it means it is the wrong function for "where does this wire end".
 
+## Why it is split into two passes
+
+The split is a response to a user-facing budget, not an implementation accident.
+
+**While a symbol is being dragged, only routing runs.** Every mouse move sends `UpdateWires`,
+which re-routes the affected wires and nothing else; separation runs on mouse-*up*. The reason is
+that someone dragging a component is judging the placement by the wiring they can see, so the
+route has to appear within a few tens of milliseconds of the symbol moving, and it has to be the
+same route they will end up with. Separation is then a **fine adjustment**: it moves segments
+sideways by tens of pixels, which reads as the drawing settling rather than as it changing.
+
+That is also why routing is deliberately *not* idempotent. A wire is re-routed from where the
+symbol now is, so dragging a symbol away and back does not always give the wiring you started
+with — see the round-trip test in `WireQuality.fs`. Making routing canonical (one wiring per set of
+positions, whatever the history) would cost the drag-time budget, and would take away the property
+that what you see mid-drag is what you get.
+
+**Separation, on the other hand, should settle.** It is applied to an already-separated sheet after
+every drag, paste and rotate, so if a second application moves wires then what the user is left
+with depends on how many times the pass happened to run. It does settle on ordinary sheets, and on
+two of the corpus sheets in `WireQuality.fs` it does not — see
+[openIssues](openIssues.md#wire-routing-and-separation).
+
+## The cases the complexity is for
+
+Most of the machinery in `BusWireSeparate` — clustering, same-net linking, the repeated passes,
+corner removal — exists for two shapes that are common in real designs and pathological for a
+local heuristic.
+
+- **An array of ports facing an array of ports**, with some of the connections crossed. Every wire
+  in the bundle wants the same channel, the order they should be in is decided by where they end,
+  and one wire's choice constrains every other's. This is what segment ordering
+  (`orderPairwiseToMinimiseCrossings`) is for.
+- **The same, but the two arrays are on opposite sides of a symbol**, so the whole bundle has to
+  turn back and go round it. Now the bundle competes with itself on both sides of the obstacle, and
+  the segments doing the going-round are exactly the ones that clustering will try to spread.
+
+`WireQuality.fs` holds both (`crossedArrays`, `wrappedArrays`). They are worth building first when
+changing anything here: sheets where every wire runs left to right will not show a difference.
+
 ## Routing
 
 ### The initial shape
@@ -225,6 +265,30 @@ zero-length segment between.
 wires and then discards only those clusters containing none of them. A wire not in the list can
 therefore still be moved, if it shares a cluster with one that is. That is intentional: the
 alternative is unrouted segments pinning newly routed ones in place.
+
+## Measuring it
+
+The user-facing requirement is that for *any* component positions the wiring looks good, which
+breaks down into objectives that conflict:
+
+- **Wire drawn** — the length of the *union* of what is on the canvas, so same-net segments lying
+  on top of each other count once. This is the metric to minimise, and the reason to define it as a
+  union is that it makes "short wires" and "same-net wires share a trunk" the same objective
+  instead of two that have to be traded off by hand.
+- **Bends**, **crossings between different nets**, and **overlap between different nets** (which
+  must be zero — it is the one thing separation guarantees).
+
+`Tests/Issie.Tests/WireQuality.fs` computes all of these over a corpus of the hard sheets and
+records the current scores, so a change to either pass has to say which way each number moved. Two
+traps it encodes:
+
+- **Crossings are meaningless before separation.** Unseparated wires do not cross, because they are
+  lying on top of each other. Anything comparing before and after must read the overlap column
+  alongside, or it will conclude that separation makes sheets worse.
+- **Separation is not the place most quality is won or lost.** Measured over the corpus it removes
+  every cross-net overlap while adding under 5% to the wire drawn, and adds bends only in the two
+  array cases. Length, bends and crossings are decided by the initial route — a 16-entry table with
+  no knowledge of other wires — and by where the symbols are.
 
 ## Testing it
 

@@ -26,7 +26,7 @@ Group runtimes (Release, warm build; add ~2s of startup per invocation):
 | `Properties` | 23 | 1.2s |
 | `VerilogOutput` | 45 | 1.1s |
 | `SheetDescription` | 18 | 1.0s |
-| everything else (`Algebra`, `DrawBlock`, `InstanceSignatures`, `KeyBindings`, `Library`, `Markdown`, `NumberHelpers`, `ParameterScenarios`, `ParameterUI`, `Persistence`, `ReadOnlySheet`, `RomComments`, `SourceHygiene`, `TruthTableSim`, `WaveSelection`) | 242 | < 1s each |
+| everything else (`Algebra`, `DrawBlock`, `InstanceSignatures`, `KeyBindings`, `Library`, `Markdown`, `NumberHelpers`, `ParameterScenarios`, `ParameterUI`, `Persistence`, `ReadOnlySheet`, `RomComments`, `SourceHygiene`, `TruthTableSim`, `WaveSelection`, `WireQuality`) | 249 | < 1s each |
 
 `VerilogCompiler` dominates: it spawns **node** for every parse (the real nearley parser, the
 same one the editor runs), so it needs node on PATH and costs over a third of the suite. Because
@@ -63,7 +63,8 @@ simulation, parameter resolution, persistence, the draw block and UI-module help
 | `VerilogCompiler.fs` | 11 | The Verilog *input* compiler end to end: real nearley parse via node, semantic checks, synthesis to a sheet, and the simulated behaviour of that sheet. Needs `node`; skipped when `CI` is set. |
 | `PersistenceTests.fs` | 10 | Project names and directories, the recent list, a canvas through the `.dgm` save path and back in through the load path, and every demo project loaded by `FilesIO`. |
 | `KeyBindingTests.fs` | 10 | The shortcut table: every `ShortcutId` bound, nothing shadowed, nothing that can never fire, and one chord per action across platforms — all invisible at runtime otherwise. |
-| `DrawBlockTests.fs` | 8 | Symbols built and wires routed with nothing running, plus the .NET text-width reconstruction checked against widths recorded from a real browser. |
+| `DrawBlockTests.fs` | 11 | Symbols built and wires routed with nothing running, plus the .NET text-width reconstruction checked against widths recorded from a real browser. |
+| `WireQuality.fs` | 4 | What "the wiring looks good" means as numbers - wire drawn, bends, crossings, cross-net overlap - over a corpus of the sheets that are hard to route, with the current scores recorded so a change to routing or separation has to argue for itself. |
 | `ReadOnlySheetTests.fs` | 7 | The invariant behind viewing a library sheet: whatever the draw block becomes, what the sheet would be *saved* as is unchanged, while display-only fields are left alone. |
 | `GoldenModel.fs` | 6 | Whole fixture projects simulated for many cycles, every output and clocked value compared against a stored golden file — including reference-versus-compiled-reducer agreement. |
 | `RomComments.fs` | 5 | Comments written against locations in a `.ram` file, and their appearance on the waveform of a ROM reading those locations. |
@@ -106,6 +107,29 @@ ISSIE_UPDATE_GOLDEN=1 npm run test     # rewrites every golden file
 change in simulation behaviour, so read the diff the failure prints and understand it before
 regenerating. Regenerating to make a failure go away destroys the only record of what the simulator
 did before the change.
+
+## Wire quality
+
+`WireQuality.fs` prints a table on every run and asserts that nothing in it got worse:
+
+```
+  sheet          wires                ink      bends    crossings      ms   settles
+  crossedArrays     10     2541 ->    2601   40 ->  44     0 ->   28     2.3   after 5
+  wrappedArrays     10     8104 ->   11094   49 ->  58     8 ->   36     1.4     NEVER
+  fanout            36     9778 ->    9778  144 -> 144     0 ->    0     3.3   at once
+  tangle            24    11040 ->   11040   96 ->  96     0 ->   74     2.4   at once
+```
+
+**ink** is the length of wire *drawn*: same-net segments lying on top of each other are one line
+and are counted once, so it rewards short wires and same-net sharing in a single number. **ms** is
+one separation pass under .NET, which is indicative only - the app runs this compiled to JS.
+**settles** is how many further passes it takes before nothing moves, and `NEVER` is a limit cycle.
+
+Two things to know before reading it. Crossings are meaningless before separation - unseparated
+wires do not cross because they are lying on top of each other, which is why the routed-only
+column is usually 0. And the recorded numbers are a *ratchet*, not a target: a change that trades
+crossings for ink is a judgement, so update `recorded` and say in the commit message which way each
+number moved.
 
 ## Draw-block tests and text measurement
 

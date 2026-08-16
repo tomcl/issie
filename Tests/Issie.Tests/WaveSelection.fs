@@ -571,6 +571,38 @@ let tests =
 
               Simulator.simCacheWS <- Simulator.simCacheInit ()
 
+          testCase "the waves of one row all sit at one depth, which is what its checkbox selects"
+          <| fun () ->
+              // A row of the signal list is the waves of one component group within one sheet
+              // INSTANCE, and a sheet's row is the waves of that instance - so every wave a checkbox
+              // covers shares an access path, and ticking the row means taking all of it. The rows
+              // could once hold a sheet's whole subtree, which is why the code that ticks one kept
+              // only the waves at the shallowest depth it found.
+              let fs, allWaves = deepSimulation.Force()
+              let waves = allWaves |> Map.toList |> List.map snd
+              let depthOf (wave: ModelType.Wave) = fs.WaveComps[wave.WaveId.Id].AccessPath.Length
+
+              Expect.isGreaterThan
+                  (waves |> List.map depthOf |> List.distinct |> List.length)
+                  1
+                  "the design nests, so its waves are not all at one depth to begin with"
+
+              // How makeNodeRows and makeFlatGroupRow between them divide an instance up: the
+              // instance's own row, and then one row per group of components in it.
+              let rowsOfWaves =
+                  waves
+                  |> List.groupBy (fun wave -> wave.SheetId)
+                  |> List.collect (fun (_, ofInstance) ->
+                      ofInstance
+                      :: (ofInstance
+                          |> List.groupBy (WaveSimHelpers.getCompGroup fs)
+                          |> List.map snd))
+              Expect.isNonEmpty rowsOfWaves "the design has rows"
+              Expect.all
+                  rowsOfWaves
+                  (fun row -> row |> List.map depthOf |> List.distinct |> List.length = 1)
+                  "and the waves of each row are all at one depth"
+
           testCase "an instance labelled with the top sheet's name is still a separate instance"
           <| fun () ->
               // The top sheet is identified by its sheet's name, everything else by the path of

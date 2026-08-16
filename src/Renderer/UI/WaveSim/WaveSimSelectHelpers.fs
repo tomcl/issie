@@ -103,20 +103,23 @@ let waveIndicesByInstance: FastSimulation -> Map<string, WaveIndexT list> =
         |> List.groupBy (fun wi -> fs.WaveComps[wi.Id].SimSheetName)
         |> Map.ofList)
 
-/// Ensures that only valid waves (and selected waves) are returned. A design edited under a running
-/// simulation can leave a wave naming a component the simulation no longer has.
-let ensureWaveConsistency (ws: WaveSimModel) (candidates: Wave list) =
-    let fs = Simulator.getFastSim()
-    let okWaves =
-        candidates
-        |> List.filter (fun wave -> Map.containsKey wave.WaveId.Id fs.WaveComps)
-    if okWaves.Length <> candidates.Length then
-        Log.dbg Log.Wave $"wave consistency: {okWaves.Length} valid waves of {candidates.Length}"
+/// The selected waves the simulation still has, which is what Show Only Selected shows and what the
+/// ticks in the dialog are drawn from.
+///
+/// A selection outliving what it names is the ordinary consequence of the simulation being rebuilt,
+/// and refreshWaveSim re-resolves it - but the dialog is drawn from whatever the model holds at that
+/// moment, so it has to be able to read a selection that has not been re-resolved yet. Says so when
+/// it happens, since a selection quietly shrinking is worth knowing about.
+///
+/// It used to check the CANDIDATES against the simulation as well. They are read out of WaveIndex or
+/// out of AllWaves, both of which the simulation is what defines, so there was nothing there to
+/// find.
+let consistentSelectedWaves (ws: WaveSimModel) =
     let okSelectedWaves =
         ws.SelectedWaves |> List.filter (fun selW -> Map.containsKey selW ws.AllWaves)
     if okSelectedWaves.Length <> ws.SelectedWaves.Length then
         Log.dbg Log.Wave $"wave consistency: {okSelectedWaves.Length} valid selected waves of {ws.SelectedWaves.Length}"
-    okWaves, okSelectedWaves
+    okSelectedWaves
 
 /// Whether a sheet instance is one of `sheets`, or lies inside one. Walks up the chain of parent
 /// instances, which is as deep as the design nests rather than as wide as it expands - so the set
@@ -179,14 +182,13 @@ let filterWaves (shown: Set<string> option) (wsModel: WaveSimModel) =
             // per port of every INSTANCE of every sheet - made the one mode the collapsed hierarchy
             // cannot narrow the one mode that scanned the whole expansion.
             wsModel.SelectedWaves |> List.choose (fun wi -> Map.tryFind wi wsModel.AllWaves)
-    let waves, okSelectedWaves = ensureWaveConsistency wsModel candidates
-    let selectedIds = Set.ofList okSelectedWaves
+    let selectedIds = Set.ofList (consistentSelectedWaves wsModel)
     let matchWithBox (searchString: string) (matcher:string) =
         let s = searchString.Trim().ToUpperInvariant()
         s = "" || s = "*" || matcher.ToUpperInvariant().Contains s
 
     let searchFilteredWaves =
-        waves
+        candidates
         |> List.filter (fun wave ->
             matchWithBox wsModel.ComponentSearchString wave.CompLabel
             && matchWithBox wsModel.PortSearchString wave.PortLabel
@@ -260,45 +262,46 @@ let sheetSearchBox (wsModel: WaveSimModel) (dispatch: Msg -> unit) : ReactElemen
         ]
     ]
 
-/// Checkbox to select all subsheets.
+/// A checkbox over one piece of the wave sim model, shown ticked or not by `isChecked` and toggled
+/// by `toggle`.
+///
+/// `toggle` is given the state as it is when the update runs, not as it was when the box was drawn.
+/// A box is drawn once and clicked later, and the model may have moved in between - the same reason
+/// every handler here dispatches UpdateWSModel rather than replacing the model wholesale.
 let waveCheckBox
         (state_: Lens<WaveSimModel,'STATE>)
         (isChecked: 'STATE -> bool)
-        (action: bool -> 'STATE -> 'STATE)
+        (toggle: 'STATE -> 'STATE)
         (name: string)
         (ws:WaveSimModel)
         dispatch =
-    let state = Optic.get state_ ws
-    let ticked = isChecked state
     div [ Style [ MarginLeft "15px"; Display DisplayOptions.Flex; AlignItems AlignItemsOptions.Center; MarginBottom "20px" ] ] [
         Checkbox.checkbox [] [
             Checkbox.input [
                 Props [
-                    Checked (isChecked state)
-                    OnChange (fun _ ->
-                        dispatch (UpdateWSModel <| Optic.map state_ (action ticked) )
-                    )
+                    Checked (isChecked (Optic.get state_ ws))
+                    OnChange (fun _ -> dispatch (UpdateWSModel <| Optic.map state_ toggle))
                 ]
             ]
             str name
         ]
     ]
 
+/// A sheet filter ending in '*' means that sheet and everything inside it.
 let selectAllSubsheetsBox (ws:WaveSimModel) dispatch =
     waveCheckBox
         sheetSearchString_
         (fun (s:string) -> s.EndsWith "*")
-        (fun _ (s:string) -> if s.EndsWith "*" then s.TrimEnd('*') else s + "*")
+        (fun (s:string) -> if s.EndsWith "*" then s.TrimEnd('*') else s + "*")
         "All Subsheets"
         ws
         dispatch
-
 
 let showOnlySelectedBox (ws:WaveSimModel) dispatch =
     waveCheckBox
         showOnlySelected_
         id
-        (fun _ ticked -> not ticked)
+        not
         "Show Only Selected"
         ws
         dispatch
@@ -438,32 +441,23 @@ let toggleWaveSelection (index: WaveIndexT) (wsModel: WaveSimModel) (dispatch: M
     let wsModel' = { wsModel with SelectedWaves = selectedWaves }
     dispatch (GenerateWaveforms wsModel')
 
+/// Select or deselect every wave a row covers.
+///
+/// All of them. Both this and the checkbox above it used to keep only the waves at the shallowest
+/// access path they were given, from when a sheet's row could hold the waves of its whole subtree
+/// and ticking it had to mean that sheet's own signals rather than its children's. A row is now the
+/// waves of one component group within one sheet INSTANCE, or of one instance, so they are all at
+/// one depth and the shallowest of them is all of them.
 let toggleSelectSubGroup (wsModel: WaveSimModel) (dispatch: Msg -> unit) (selected: bool) (waves: WaveIndexT list) =
-    let comps = (Simulator.getFastSim()).WaveComps
     let selectedWaves =
         if selected then
-            let wavesWithMinDepth =
-                if waves = [] then [] else
-                    waves
-                    |> List.groupBy (fun wave -> comps.[wave.Id].AccessPath.Length)
-                    |> List.sort
-                    |> List.head
-                    |> snd
-            List.append wsModel.SelectedWaves wavesWithMinDepth
+            List.append wsModel.SelectedWaves waves
         else
             List.except waves wsModel.SelectedWaves
     dispatch (GenerateWaveforms { wsModel with SelectedWaves = selectedWaves })
 
 let waveCheckBoxItem (wsModel: WaveSimModel) (waveIds: WaveIndexT list) dispatch =
-    let comps = (Simulator.getFastSim()).WaveComps
-    let minDepthSelectedWaves =
-        if waveIds = [] then [] else
-            waveIds
-            |> List.groupBy (fun waveId -> comps.[waveId.Id].AccessPath.Length)
-            |> List.sort
-            |> List.head
-            |> snd
-    let checkBoxState = List.exists (fun w -> List.contains w wsModel.SelectedWaves) minDepthSelectedWaves
+    let checkBoxState = List.exists (fun w -> List.contains w wsModel.SelectedWaves) waveIds
     Checkbox.checkbox  [] [
         Checkbox.input [
             Props [
@@ -476,41 +470,15 @@ let waveCheckBoxItem (wsModel: WaveSimModel) (waveIds: WaveIndexT list) dispatch
 
                         
 
-/// Makes a summary row which is one row of a table and
-/// can be expanded to show more details presented as a sub-table.
-/// The details are passed as:
-/// rows - a list of TableRow elements each representing a component with some ports or a group of components.
-/// waves: the corresponding list of waveforms to display.
-/// In general waves.Length > rows.Length since one row will typically have multiple ports and therefore multiple waves.
-/// The summary item is the ReactElement to display in the summary row: it is given Style etc from summaryProps.
+/// One row of the selection table: a checkbox over all of `waves`, and a summary that opens to show
+/// `rows` - each of which is a group of components, or a whole sheet, and may open in turn.
+///
+/// `aboveRows` goes in the body, between the summary and the table. For a sheet that is the combo
+/// box choosing which of its instances the rows belong to, which belongs there rather than in the
+/// summary, since a click on the summary opens and closes the row. `null` where there is nothing.
+///
+/// In general waves.Length > rows.Length, since one row typically holds several ports.
 let makeSummaryItem
-        showDetails
-        (ws: WaveSimModel)
-        (summaryItem: ReactElement)
-        (rows: TableRow list)
-        (cBox: CheckBoxStyle)
-        (waves: Wave list)
-        (dispatch: Msg -> unit) =
-    let wi = wavesToIds waves
-    waveRowIProps
-        (summaryProps false cBox ws dispatch)
-        [
-            waveCheckBoxItem ws wi dispatch             
-            details
-                (detailsProps showDetails cBox ws dispatch)
-                [
-                    summary (summaryProps true cBox ws dispatch) [ summaryItem ]
-                    wavePropsTable rows
-                ]
-        ]
-            
-        
-    
-
-/// A summary row like makeSummaryItem, with one thing shown in the body above the rows. For a
-/// sheet that is the combo box choosing which of its instances the rows below belong to, which
-/// belongs there rather than in the summary: a click on the summary opens and closes the row.
-let makeSheetItem
         showDetails
         (ws: WaveSimModel)
         (summaryItem: ReactElement)
@@ -519,11 +487,10 @@ let makeSheetItem
         (cBox: CheckBoxStyle)
         (waves: Wave list)
         (dispatch: Msg -> unit) =
-    let wi = wavesToIds waves
     waveRowIProps
         (summaryProps false cBox ws dispatch)
         [
-            waveCheckBoxItem ws wi dispatch
+            waveCheckBoxItem ws (wavesToIds waves) dispatch
             details
                 (detailsProps showDetails cBox ws dispatch)
                 [
@@ -583,7 +550,7 @@ let makeFlatGroupRow
 
                     
             
-    makeSummaryItem showDetails ws summaryReact rowItems cBox wavesInGroup dispatch
+    makeSummaryItem showDetails ws summaryReact null rowItems cBox wavesInGroup dispatch
 
 /// The combo box choosing which instance of a sheet the signals below it belong to. Shown only
 /// where there is a choice to make - most sheets in most designs are instantiated once.
@@ -632,7 +599,7 @@ let private makeInstanceRows showDetails (ws: WaveSimModel) (fs: FastSimulation)
         // on hover, where a path is something the user asked for rather than something in the way.
         let title =
             span [HTMLAttr.Title instance] [str (fs.getSheetNameOfInstance instance)]
-        makeSummaryItem showDetails ws title groupRows (SheetItem [instance]) wavesOfInstance dispatch)
+        makeSummaryItem showDetails ws title null groupRows (SheetItem [instance]) wavesOfInstance dispatch)
 
 /// One row per sheet of the collapsed hierarchy, holding the signals of the instance that row is
 /// showing. A row whose instance has no waves left after filtering is left out, which is how the
@@ -697,7 +664,7 @@ let private makeNodeRows
                 // which occurrence it is and the combo box beside it says which instance, so the
                 // path was only ever length: main6.main5.main4.main3 to say main3.
                 let row =
-                    makeSheetItem
+                    makeSummaryItem
                         autoOpen ws (str sheet.SheetName) (instanceSelector node dispatch)
                         (groupRows @ nested) (SheetItem node.NodeKey) wavesOfNode dispatch
                 Some row, flat

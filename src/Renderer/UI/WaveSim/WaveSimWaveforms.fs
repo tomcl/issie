@@ -79,12 +79,19 @@ let highlightCircuit (model: Model) comps wave (dispatch: Msg -> Unit) =
     let conns =
         connsOfWave (Simulator.getFastSim()) wave
         |> List.filter (fun cid -> Map.containsKey cid model.Sheet.Wire.Wires)
-    // UpdateSelectedWires, not SelectWires: this is the other half of what the mouse-out handler
-    // does, and it has to be the same operation in reverse. SheetT.SelectWires is the message a
-    // CLICK on a wire sends - it toggles against PrevWireSelection, the selection left by the last
-    // click on the canvas - so hovering a waveform whose wire the user had clicked deselected it
-    // instead of highlighting it.
-    dispatch <| Sheet (SheetT.Msg.UpdateSelectedWires (conns, true))
+    // ColourSelection, which records the wires as selected and paints them, in one message.
+    //
+    // Not SheetT.SelectWires: that is the message a CLICK on a wire sends, and it toggles against
+    // PrevWireSelection - the selection left by the last click on the canvas - so hovering a
+    // waveform whose wire the user had clicked deselected it instead of highlighting it. It reached
+    // this colour by dispatching ColourSelection itself, as a command, which is why it arrived
+    // AFTER the purple that BusWireT.SelectWires paints and won. Asking for the colour directly
+    // does not depend on which of two queued messages lands last.
+    //
+    // Sky blue rather than the purple of a selected wire: this is a wire the pointer is passing
+    // over, not one the user has chosen. The mouse-out handler's UpdateSelectedWires takes these
+    // back out of the selection, which repaints every wire and so clears it.
+    dispatch <| Sheet (SheetT.Msg.ColourSelection ([], conns, HighLightColor.SkyBlue))
 
 /// Highlight on the schematic the component a wave comes from, and the wires carrying that wave.
 /// An IOLabel is highlighted wherever it appears on the sheet, since every copy of it is the one

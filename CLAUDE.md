@@ -81,6 +81,12 @@ read [docs/dev/simulatorStructure.md](docs/dev/simulatorStructure.md): it has th
 invariants a compiled reducer depends on, how the three are held to agree, and how to measure
 simulation speed without being misled (measure in the app, not under .NET).
 
+**A wire segment has a signed length and no position**, and the wire's shape is decided by two
+passes that know nothing of each other: routing (`BusWireRoute.fs`, one wire at a time, pure) and
+separation (`BusWireSeparate.fs`, the whole sheet at once, working on a mutable array of `Line`).
+[docs/dev/wireRouting.md](docs/dev/wireRouting.md) has both algorithms, the invariant that lets
+separation move segments without moving ports, and why the mutation there is deliberate.
+
 **Component creation flows across four files** in this order: `CatalogueView.fs` (user picks a
 type) → `Sheet.fs` (mouse placement) → `Symbol.fs` (visual representation and ports) →
 `CanvasExtractor.fs` (simulation node).

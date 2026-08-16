@@ -24,6 +24,33 @@ Delete an entry when it is fixed. A list that keeps its history stops being read
   value it receives that number as "most recent bus width", which is what the properties pane then
   offers as the default width for the next component.
 
+## Wire routing and separation
+
+How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
+
+- **`string` on an `[<Erase>]` id means two different things.** `InputPortId`, `OutputPortId` and
+  friends are erased by Fable, so `string portId` is the bare id in the app and
+  `InputPortId "…"` under .NET. `BusWireRoute` used it for five `model.Symbol.Ports` lookups, which
+  therefore threw in any .NET test that routed a wire; those are now `inputPortStr`/`outputPortStr`.
+  Nothing checks for the pattern, and the same trap is open wherever an erased id meets `string`,
+  `sprintf` or an interpolation.
+- **`removeWireSpikes` and `removeModelSpikes` have no callers.** Spike removal is written, exported
+  and never run: `separateAndOrderModelSegments` ends with `removeModelCorners` and nothing calls
+  the spike pass. Either the artifact it removes no longer occurs, in which case delete it, or it
+  does and the pass was dropped by accident.
+- **`hasOverlap` and `hasNearOverlap` each have a clause that can only fire on exact equality.**
+  Both write `b1.MinB` where the third argument should be `b1.MaxB`. Harmless — the other two
+  clauses already decide overlap in every case — but it reads as if it were load-bearing.
+- **`makeClusters` calls the head of a descending-sorted list `lowestLoc2Index`.** It is the
+  highest index, so the test that follows it is not the "did the downward search fail to reach the
+  starting segment" check it appears to be. It errs towards the branch that splits off a second
+  cluster, which is the safe one.
+- **Dead code kept alive.** `snapToNet` (and `copySegments`, `generateEndSegments`, which serve only
+  it) is unreachable behind `match model.SnapToNet with | _ -> initialWire`. `expandCluster`
+  computes `lowestDownwardsIndex` for a guard that is commented out. `adjustSegmentsInModel` binds
+  `Option.get line.Seg1` and never uses it. The doc comment on `Constants.separateCaptureOverlap`
+  describes `maxCornerSize`.
+
 ## Component libraries
 
 - **A typed library name becomes a directory name unchecked.**

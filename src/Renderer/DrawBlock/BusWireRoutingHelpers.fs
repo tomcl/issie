@@ -136,6 +136,19 @@ module Constants =
     /// than a nub is long is not a separate line of the drawing.
     let sameNetTrunkCapture = 10.
     let maxCornerSize = 100.
+    /// What two nets drawn on top of each other cost, per unit length, relative to a unit of wire
+    /// drawn. Removing an overlap must always beat any saving in wire length.
+    let overlapCostWeight = 20.
+    /// Most rounds of (horizontal, then vertical) separation. A round is only entered while the
+    /// sheet is still improving, so this binds only where the two directions fight each other.
+    /// Measured at 2, 3 and 5 over the WireQuality corpus and a 192-wire sheet: wire drawn, bends
+    /// and crossings come out identical, and the extra rounds are time spent for nothing. Raising
+    /// it is safe - the loop leaves early when a round does not improve the sheet - so if a design
+    /// ever needs more, raise it and let the corpus say whether it helped.
+    let maxSettlingRounds = 2
+    /// Improvement in wiring cost below which another round is not worth keeping. Two layouts
+    /// within this of each other are a tie, and a tie is broken towards not moving.
+    let settlingTolerance = 1.0
     /// How close are segment extensions caused by corner removal allowed to
     /// get to other elements? Maybe needs to be smaller than some otehr things for
     /// successful corner removal?

@@ -58,11 +58,10 @@ with — see the round-trip test in `WireQuality.fs`. Making routing canonical (
 positions, whatever the history) would cost the drag-time budget, and would take away the property
 that what you see mid-drag is what you get.
 
-**Separation, on the other hand, should settle.** It is applied to an already-separated sheet after
-every drag, paste and rotate, so if a second application moves wires then what the user is left
-with depends on how many times the pass happened to run. It does settle on ordinary sheets, and on
-two of the corpus sheets in `WireQuality.fs` it does not — see
-[openIssues](openIssues.md#wire-routing-and-separation).
+**Separation, on the other hand, settles, and that is enforced rather than hoped for.** It is
+applied to an already-separated sheet after every drag, paste and rotate, so if a second
+application moved wires then what the user is left with would depend on how many times the pass
+happened to run. See "the settling loop" below.
 
 ## The cases the complexity is for
 
@@ -292,17 +291,44 @@ bounds too close together, the spacing shrinks to fit rather than the cluster ov
 `SameNetLink`, then converts each `P` change into a `moveSegment` on the wire — which, by the
 invariant at the top of this page, cannot move any port.
 
-### The pass sequence
+### The settling loop
 
 ```
-separate Horizontal → Vertical → Horizontal → Vertical → Horizontal
+repeat (up to maxSettlingRounds):  separate Horizontal → separate Vertical
+                               keep the round only if wiringCost improved
 separateFixedSegments Horizontal → Vertical
 removeModelCorners
 ```
 
-Five alternating passes, not one, because moving vertical segments changes which horizontal
-segments overlap, and clusters merge across iterations. The comment in the source says one pass
-each "should be enough in theory" and is honest that it is not; the count is empirical.
+The two orientations are separated **independently**, and that is what makes the pass fast: each
+is a one-dimensional problem over a sorted array. They are not independent in the answer, though —
+where a horizontal segment can go depends on where the vertical segments it joins ended up — so the
+passes alternate, and repeating the alternation resolves most of the coupling.
+
+Not all of it. Some pairs of decisions are mutually exclusive: doing what H wants means undoing
+what V did, and the other way about. Alternating then **oscillates** instead of converging. This
+was a fixed sequence of five passes, which on such a sheet landed on whichever phase the count
+ended on — so the wiring depended on how many passes there happened to be, and running the pass
+again flipped it.
+
+The loop replaces the count with a decision. `wiringCost` scores the sheet — wire drawn, plus a
+heavy penalty for two nets drawn on top of each other — and a round is kept only if it improved
+that score by more than `settlingTolerance`. Three properties follow, and they are the reason for
+the shape:
+
+- **Idempotence.** The pass returns what it was given unless it can show it improved it, so
+  applying it again changes nothing. That is a property of the acceptance rule, not of the round
+  count.
+- **An oscillation resolves to its better phase** rather than flipping for ever.
+- **Ties break towards not moving**, which is what makes a drawing feel stable to someone dragging
+  components.
+
+A round that moves nothing at all is detected without costing anything (`adjustSegmentsInModel`
+reports whether any segment moved), which is the common case after a drag and the reason the pass
+is now *faster* than the fixed five: measured on a 192-wire sheet, a drag end went from 62 ms to
+36 ms and re-separating a settled sheet from 41 ms to 16 ms. The first separation of a whole
+unseparated sheet — sheet open, or Ctrl-Shift-R — is slower, 64 ms to 79 ms, because that is where
+the extra rounds are actually earned.
 
 `separateFixedSegments` then handles what clustering deliberately would not touch: `FIXEDSEG`s that
 are exactly on top of each other, which it nudges apart into whatever space it can find nearby.

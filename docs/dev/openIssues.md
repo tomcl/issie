@@ -28,13 +28,6 @@ Delete an entry when it is fixed. A list that keeps its history stops being read
 
 How these two passes are meant to work is in [wireRouting.md](wireRouting.md).
 
-- **Separation does not settle on the two array cases.** `WireQuality.fs` records it:
-  `crossedArrays` needs five further passes before nothing moves, and `wrappedArrays` never
-  settles at all — it is a period-2 limit cycle, alternating between two layouts differing by 1.2%
-  of wire drawn, and the pass leaves the sheet on the worse of the two. Since separation runs after
-  every drag, paste and rotate, what a user is left with on such a sheet depends on how many times
-  it happened to run. Both sheets are an array of ports facing an array of ports, which is what
-  most of the clustering complexity exists for.
 - **A shift aims 0.0001 clear of a symbol; the check that accepts it demands 7.** The four shift
   sites use `smallOffset` while `findWireSymbolIntersections` expands every unconnected symbol's
   box by `minWireSeparation`, so a shift along the box it is avoiding can never satisfy the test.

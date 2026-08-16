@@ -562,23 +562,30 @@ let calcSegPositions model lines (loc: Cluster) =
         spreadFromMiddle idealMidpoint maxSep
 
 
-/// Given a list of segment changes of given orientation apply them to the model
-let adjustSegmentsInModel 
-        (ori: Orientation) 
-        (model: Model) 
-        (lines: Line list) 
-            : Model =
+/// Given a list of segment changes of given orientation apply them to the model.
+/// Also returns whether any segment actually moved: a settling round which moved nothing needs no
+/// further examination, and that is the common case after a drag.
+let adjustSegmentsInModel
+        (ori: Orientation)
+        (model: Model)
+        (lines: Line list)
+            : bool * Model =
     lines
     |> List.iter (fun line ->
             (line.SameNetLink |> List.iter (fun line2 -> line2.P <- line.P)))
     let lines = lines |> List.filter (fun line -> line.LType <> BARRIERPOS && line.LType <> BARRIERNEG)
-    let wires =
-        (model.Wires, lines)
-        ||> List.fold (fun wires line ->
-            let seg = Option.get line.Seg1
-            moveLine ori line.P line wires)
+    /// where the segment is now: Seg1 holds the position it had when the line was made, and
+    /// clustering changes only Line.P
+    let positionNow (line: Line) =
+        match line.Seg1 with
+        | None -> line.P
+        | Some seg -> match ori with | Horizontal -> seg.Start.Y | Vertical -> seg.Start.X
+    let wires, moved =
+        ((model.Wires, false), lines)
+        ||> List.fold (fun (wires, moved) line ->
+            moveLine ori line.P line wires, moved || line.P <> positionNow line)
 
-    Optic.set wires_ wires model
+    moved, Optic.set wires_ wires model
 
 /// Segments which could be moved, but would make an extra segment if moved, are marked Fixed
 /// and not moved by the normal cluster-based separation functions.
@@ -636,8 +643,9 @@ let separateFixedSegments (wiresToRoute: ConnectionId list) (ori: Orientation) (
     allLines
     |> Array.toList
     |> adjustSegmentsInModel ori model
+    |> snd
 
-    
+
 //-------------------------------------------------------------------------------------------------//
 //--------------------------------------WIRE ARTIFACT CLEANUP--------------------------------------//
 //-------------------------------------------------------------------------------------------------//
@@ -942,6 +950,96 @@ let removeModelSpikes (model: Model) =
 //----------------------------------------TOP LEVEL FUNCTIONS--------------------------------------//
 //-------------------------------------------------------------------------------------------------//
 
+/// A drawn segment reduced to one dimension for costing: which way it runs (0 horizontal, 1
+/// vertical), the coordinate perpendicular to it, the interval it covers along itself, and the
+/// net that drew it.
+type private DrawnSeg =
+    { Ori: int
+      P: float
+      Lo: float
+      Hi: float
+      Net: OutputPortId }
+
+/// State of the sweep in wiringCost. Segments arrive sorted by direction, then by perpendicular
+/// coordinate, then along themselves, so every interval that could merge with the one being
+/// tracked arrives while it is still open.
+type private CostSweep =
+    { /// wire drawn: closed runs, each net's own overlaps already merged away
+      Drawn: float
+      /// the same counting all nets together, so Drawn - Covered is what two nets share
+      Covered: float
+      /// direction and perpendicular coordinate of the line being swept
+      Line: (int * float) option
+      /// open run over every net on this line
+      AllNets: (float * float) option
+      /// open run for each net on this line - at most a handful, so a list beats a map
+      ByNet: (OutputPortId * float * float) list }
+
+/// How bad a wiring is: the length of wire actually drawn, plus a heavy penalty for two different
+/// nets drawn on top of each other.
+///
+/// Wire drawn is the length of the UNION of the segments on each line of the drawing, so two
+/// segments of one net lying on top of each other are one wire and are counted once. That makes
+/// "keep wires short" and "let a net share a trunk" the same objective rather than two which have
+/// to be traded off by hand.
+///
+/// This is called once per settling round, so it is one sort and one sweep. Deliberately not built
+/// on makeLines, which links same-net lines pairwise and costs as much as a separation pass.
+let wiringCost (model: Model) : float =
+    let drawn =
+        model.Wires
+        |> Map.toArray
+        |> Array.collect (fun (_, wire) ->
+            getFilteredAbsSegments (fun _ seg -> not seg.IsZero) wire
+            |> List.map (fun aSeg ->
+                match aSeg.Orientation with
+                | Horizontal ->
+                    { Ori = 0; P = aSeg.Start.Y; Net = wire.OutputPort
+                      Lo = min aSeg.Start.X aSeg.End.X; Hi = max aSeg.Start.X aSeg.End.X }
+                | Vertical ->
+                    { Ori = 1; P = aSeg.Start.X; Net = wire.OutputPort
+                      Lo = min aSeg.Start.Y aSeg.End.Y; Hi = max aSeg.Start.Y aSeg.End.Y })
+            |> Array.ofList)
+    Array.sortInPlaceBy (fun s -> s.Ori, s.P, s.Lo) drawn
+
+    /// close every open run: their lengths are now known
+    let flush (state: CostSweep) =
+        { state with
+            Drawn = state.Drawn + (state.ByNet |> List.sumBy (fun (_, lo, hi) -> hi - lo))
+            Covered = state.Covered + (match state.AllNets with Some (lo, hi) -> hi - lo | None -> 0.)
+            Line = None
+            AllNets = None
+            ByNet = [] }
+
+    let swept =
+        (   { Drawn = 0.; Covered = 0.; Line = None; AllNets = None; ByNet = [] }, drawn)
+        ||> Array.fold (fun state seg ->
+            // a new line of the drawing starts where the perpendicular gap opens
+            let state =
+                match state.Line with
+                | Some (ori, p) when ori = seg.Ori && abs (seg.P - p) < overlapTolerance -> state
+                | _ -> { flush state with Line = Some(seg.Ori, seg.P) }
+            let allNets, coveredNow =
+                match state.AllNets with
+                | Some (lo, hi) when seg.Lo <= hi -> Some(lo, max hi seg.Hi), 0.
+                | Some (lo, hi) -> Some(seg.Lo, seg.Hi), hi - lo
+                | None -> Some(seg.Lo, seg.Hi), 0.
+            let byNet, drawnNow =
+                match state.ByNet |> List.tryFind (fun (net, _, _) -> net = seg.Net) with
+                | Some ((_, lo, hi) as run) when seg.Lo <= hi ->
+                    (seg.Net, lo, max hi seg.Hi) :: List.except [ run ] state.ByNet, 0.
+                | Some ((_, lo, hi) as run) ->
+                    (seg.Net, seg.Lo, seg.Hi) :: List.except [ run ] state.ByNet, hi - lo
+                | None -> (seg.Net, seg.Lo, seg.Hi) :: state.ByNet, 0.
+            { state with
+                Drawn = state.Drawn + drawnNow
+                Covered = state.Covered + coveredNow
+                AllNets = allNets
+                ByNet = byNet })
+        |> flush
+
+    swept.Drawn + overlapCostWeight * (swept.Drawn - swept.Covered)
+
 /// Perform complete segment ordering and separation for segments of given orientation.
 /// wires: set of wires allowed to be moved.
 let separateModelSegmentsOneOrientation (wiresToRoute: ConnectionId list) (ori: Orientation) (model: Model) =
@@ -993,15 +1091,41 @@ let separateAndOrderModelSegments (wiresToRoute: ConnectionId list) (model: Mode
             /// convenience abbreviation
             let separate = separateModelSegmentsOneOrientation wiresToRoute
 
-            // In theory one run Vertical and Horizontal of separate should be enough. However multiple runs work better
-            // chunking togetherclusters that should be connected etc.
-            // TODO: revisit this and see how necessary it is.
+            // Horizontal and vertical segments are separated independently, which is what makes
+            // this fast: each pass is a one-dimensional problem. The two are not independent
+            // though - where a horizontal segment can go depends on where the vertical ones it
+            // joins ended up - so the passes alternate, and repetition resolves most of that.
+            //
+            // Not all of it. Some pairs of decisions are mutually exclusive: doing what the
+            // horizontal pass wants means undoing what the vertical pass did, and the other way
+            // about. Alternating then oscillates instead of converging, and a fixed number of
+            // passes lands on whichever phase the count happens to end on - so the wiring a user
+            // is left with would depend on how many passes there were. `wrappedArrays` in
+            // WireQuality.fs is such a sheet: an array of ports facing an array of ports on the
+            // far side of a symbol, so the whole bundle has to turn back and go round it.
+            //
+            // So rounds are repeated only while the sheet is getting better, and a round which
+            // does not improve it is discarded rather than kept. Two consequences, both wanted:
+            // an oscillation resolves to its better phase instead of flipping for ever, and the
+            // whole pass is idempotent - it returns what it was given unless it can show it
+            // improved it, so running it again changes nothing. Sheets which settle (nearly all
+            // of them) now cost two passes rather than five.
+            let rec settle roundsLeft (best: Model) (bestCost: float) (model: Model) =
+                if roundsLeft <= 0 then
+                    best
+                else
+                    let movedH, afterH = separate Horizontal model
+                    let movedV, next = separate Vertical afterH
+                    if not (movedH || movedV) then
+                        next // a fixed point, reached without having to cost anything
+                    else
+                        let cost = wiringCost next
+                        if cost < bestCost - settlingTolerance then
+                            settle (roundsLeft - 1) next cost next
+                        else
+                            best // the two directions are fighting: keep the best seen
 
-            separate Horizontal model // separate all horizontal wire segments
-            |> separate Vertical // separate all vertical wire segments
-            |> separate Horizontal // a final pair of checks allows ordering and "chunking" to work nicely in almost all cases
-            |> separate Vertical  //
-            |> separate Horizontal //
+            settle maxSettlingRounds model (wiringCost model) model
 
             // after normal separation there may be "fixed" segments which should be separated because they overlap
             // one run for Vert and then Horiz segments is enough for this

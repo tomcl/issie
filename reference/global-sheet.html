@@ -434,13 +434,13 @@
   </div>
   <div>
     <h3>
-      Nested modules
+      Types and nested modules
     </h3>
     <table class="table outer-list fsdocs-entity-list">
       <thead>
         <tr>
           <td>
-            Modules
+            Type/Module
           </td>
           <td>
             Description
@@ -493,11 +493,45 @@
               <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Sheet.SheetInterface\'/>')">
                 <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
               </div>
-              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L127-127" class="fsdocs-source-link" title="Source on GitHub">
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L144-144" class="fsdocs-source-link" title="Source on GitHub">
                 <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
               </a>
               <p class="fsdocs-summary">
                 
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-entity-name">
+            <p>
+              <a name="FitWindow">
+                <a href="/issie/reference/sheet-fitwindow.html">
+                  FitWindow
+                </a>
+              </a>
+            </p>
+          </td>
+          <td class="fsdocs-entity-xmldoc">
+            <div>
+              <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:T:Sheet.FitWindow`')">
+                <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+              </div>
+              <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'T:Sheet.FitWindow\'/>')">
+                <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+              </div>
+              <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L565-565" class="fsdocs-source-link" title="Source on GitHub">
+                <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+              </a>
+              <p class="fsdocs-summary">
+                 The window a fit has to work with. Normally the whole drawing area; with the Sheet menu pinned
+ open over the left of it, what the menu leaves - which is what makes a pinned menu something to
+ work beside rather than something in the way. Everything a fit does follows from this, so
+ nothing below has to know the Sheet menu exists.
+
+ Inset is how far in from the drawing area's left edge the usable part starts. Magnification does
+ not care where the window begins, but the scroll does: it has to put the circuit past the menu
+ and then half way across the rest.
               </p>
             </div>
           </td>
@@ -524,7 +558,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1927', 1927)" onmouseover="showTip(event, '1927', 1927)">
+              <code onmouseout="hideTip(event, '1929', 1929)" onmouseover="showTip(event, '1929', 1929)">
                 <p>
                   <a id="addBoxMargin">
                     <a href="#addBoxMargin">
@@ -533,7 +567,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1927">
+              <div class="fsdocs-tip" id="1929">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>addBoxMargin&#32;<span>fractionalMargin&#32;absoluteMargin&#32;box</span></span></code>
@@ -617,7 +651,597 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1928', 1928)" onmouseover="showTip(event, '1928', 1928)">
+              <code onmouseout="hideTip(event, '1930', 1930)" onmouseover="showTip(event, '1930', 1930)">
+                <p>
+                  <a id="alongArray">
+                    <a href="#alongArray">
+                      <code><span>alongArray&#32;<span>dir&#32;box</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1930">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>alongArray&#32;<span>dir&#32;box</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        dir
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        box
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.alongArray`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.alongArray\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L470-470" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The size of `box` along the direction an array runs.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dir
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    box
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1931', 1931)" onmouseover="showTip(event, '1931', 1931)">
+                <p>
+                  <a id="arrayBox">
+                    <a href="#arrayBox">
+                      <code><span>arrayBox&#32;<span>dir&#32;copies&#32;box</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1931">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayBox&#32;<span>dir&#32;copies&#32;box</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        dir
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        copies
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        box
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.arrayBox`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.arrayBox\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L487-487" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The bounding box `copies` copies of `box` occupy once arrayed.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dir
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    copies
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    box
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1932', 1932)" onmouseover="showTip(event, '1932', 1932)">
+                <p>
+                  <a id="arrayDirectionFor">
+                    <a href="#arrayDirectionFor">
+                      <code><span>arrayDirectionFor&#32;<span>box</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1932">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayDirectionFor&#32;<span>box</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        box
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.arrayDirectionFor`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.arrayDirectionFor\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L514-514" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The direction a fragment of this shape should be arrayed in: across its short axis, so the
+ copies stack up beside each other. A square fragment goes vertically, which is the way a row of
+ repeated logic is normally built up.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    box
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1933', 1933)" onmouseover="showTip(event, '1933', 1933)">
+                <p>
+                  <a id="arrayIsAgainstShape">
+                    <a href="#arrayIsAgainstShape">
+                      <code><span>arrayIsAgainstShape&#32;<span>dir&#32;box</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1933">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayIsAgainstShape&#32;<span>dir&#32;box</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        dir
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        box
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.arrayIsAgainstShape`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.arrayIsAgainstShape\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L504-504" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Whether arraying `box` this way runs it along its long axis, by more than
+ Constants.arrayAspectWarning. Copies then stack end to end into a strip, which is what the
+ dialog warns about rather than refuses: it is occasionally what is wanted.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dir
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    box
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1934', 1934)" onmouseover="showTip(event, '1934', 1934)">
+                <p>
+                  <a id="arrayOffset">
+                    <a href="#arrayOffset">
+                      <code><span>arrayOffset&#32;<span>dir&#32;box&#32;i</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1934">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayOffset&#32;<span>dir&#32;box&#32;i</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        dir
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        box
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        i
+                      </b>
+                      :
+                      <code>int</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.arrayOffset`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.arrayOffset\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L480-480" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Where the `i`th copy of an array goes, relative to the first.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dir
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    box
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    i
+                  </span>
+                  :
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><a href="/issie/reference/commontypes-xypos.html">XYPos</a></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1935', 1935)" onmouseover="showTip(event, '1935', 1935)">
+                <p>
+                  <a id="arrayStep">
+                    <a href="#arrayStep">
+                      <code><span>arrayStep&#32;<span>dir&#32;box</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1935">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>arrayStep&#32;<span>dir&#32;box</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        dir
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        box
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.arrayStep`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.arrayStep\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L476-476" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     From one copy of `box` to the next: the fragment's own size along the array, plus a gap.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dir
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    box
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1936', 1936)" onmouseover="showTip(event, '1936', 1936)">
                 <p>
                   <a id="boxPointUnion">
                     <a href="#boxPointUnion">
@@ -626,7 +1250,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1928">
+              <div class="fsdocs-tip" id="1936">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>boxPointUnion&#32;<span>box&#32;point</span></span></code>
@@ -671,7 +1295,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.boxPointUnion\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L387-387" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L404-404" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -713,7 +1337,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1929', 1929)" onmouseover="showTip(event, '1929', 1929)">
+              <code onmouseout="hideTip(event, '1937', 1937)" onmouseover="showTip(event, '1937', 1937)">
                 <p>
                   <a id="boxUnion">
                     <a href="#boxUnion">
@@ -722,7 +1346,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1929">
+              <div class="fsdocs-tip" id="1937">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>boxUnion&#32;<span>box&#32;box'</span></span></code>
@@ -767,7 +1391,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.boxUnion\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L374-374" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L391-391" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -808,7 +1432,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1930', 1930)" onmouseover="showTip(event, '1930', 1930)">
+              <code onmouseout="hideTip(event, '1938', 1938)" onmouseover="showTip(event, '1938', 1938)">
                 <p>
                   <a id="centreOfCanvas">
                     <a href="#centreOfCanvas">
@@ -817,7 +1441,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1930">
+              <div class="fsdocs-tip" id="1938">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>centreOfCanvas&#32;<span>model</span></span></code>
@@ -869,7 +1493,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1931', 1931)" onmouseover="showTip(event, '1931', 1931)">
+              <code onmouseout="hideTip(event, '1939', 1939)" onmouseover="showTip(event, '1939', 1939)">
                 <p>
                   <a id="centreOfScreen">
                     <a href="#centreOfScreen">
@@ -878,7 +1502,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1931">
+              <div class="fsdocs-tip" id="1939">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>centreOfScreen&#32;<span>model</span></span></code>
@@ -930,7 +1554,94 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1932', 1932)" onmouseover="showTip(event, '1932', 1932)">
+              <code onmouseout="hideTip(event, '1940', 1940)" onmouseover="showTip(event, '1940', 1940)">
+                <p>
+                  <a id="copiedFragmentBox">
+                    <a href="#copiedFragmentBox">
+                      <code><span>copiedFragmentBox&#32;<span>model</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1940">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>copiedFragmentBox&#32;<span>model</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.copiedFragmentBox`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.copiedFragmentBox\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L459-459" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The bounding box of what is on the clipboard, or None when nothing has been copied.
+
+ Labels are included, and have to be: a label sits below its symbol, so a fragment measured
+ without them leaves a gap that the label of one copy hangs into the next through. A single
+ copied component is the case that shows it - symbolBBUnion takes the first symbol's box
+ without its label, which for one symbol is the whole answer.
+
+ Recalculated rather than read off the symbol, as symbolWireBBUnion does: the stored box is only
+ as fresh as whatever last set it, and these symbols were put aside when they were copied.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1941', 1941)" onmouseover="showTip(event, '1941', 1941)">
                 <p>
                   <a id="ensureCanvasExtendsBeyondScreen">
                     <a href="#ensureCanvasExtendsBeyondScreen">
@@ -939,7 +1650,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1932">
+              <div class="fsdocs-tip" id="1941">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>ensureCanvasExtendsBeyondScreen&#32;<span>model</span></span></code>
@@ -976,7 +1687,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.ensureCanvasExtendsBeyondScreen\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L493-493" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L634-634" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1012,7 +1723,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1933', 1933)" onmouseover="showTip(event, '1933', 1933)">
+              <code onmouseout="hideTip(event, '1942', 1942)" onmouseover="showTip(event, '1942', 1942)">
                 <p>
                   <a id="findIntersectingComponents">
                     <a href="#findIntersectingComponents">
@@ -1021,7 +1732,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1933">
+              <div class="fsdocs-tip" id="1942">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findIntersectingComponents&#32;<span>model&#32;box1</span></span></code>
@@ -1066,7 +1777,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.findIntersectingComponents\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L615-615" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L799-799" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1107,7 +1818,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1934', 1934)" onmouseover="showTip(event, '1934', 1934)">
+              <code onmouseout="hideTip(event, '1943', 1943)" onmouseover="showTip(event, '1943', 1943)">
                 <p>
                   <a id="findNearbyComponents">
                     <a href="#findNearbyComponents">
@@ -1116,7 +1827,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1934">
+              <div class="fsdocs-tip" id="1943">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findNearbyComponents&#32;<span>model&#32;pos&#32;range</span></span></code>
@@ -1169,7 +1880,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.findNearbyComponents\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L633-633" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L817-817" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1219,7 +1930,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1935', 1935)" onmouseover="showTip(event, '1935', 1935)">
+              <code onmouseout="hideTip(event, '1944', 1944)" onmouseover="showTip(event, '1944', 1944)">
                 <p>
                   <a id="findNearbyComponentsOld">
                     <a href="#findNearbyComponentsOld">
@@ -1228,7 +1939,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1935">
+              <div class="fsdocs-tip" id="1944">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findNearbyComponentsOld&#32;<span>model&#32;pos&#32;range</span></span></code>
@@ -1281,7 +1992,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.findNearbyComponentsOld\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L625-625" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L809-809" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1330,7 +2041,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1936', 1936)" onmouseover="showTip(event, '1936', 1936)">
+              <code onmouseout="hideTip(event, '1945', 1945)" onmouseover="showTip(event, '1945', 1945)">
                 <p>
                   <a id="findNearbyPorts">
                     <a href="#findNearbyPorts">
@@ -1339,7 +2050,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1936">
+              <div class="fsdocs-tip" id="1945">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>findNearbyPorts&#32;<span>model</span></span></code>
@@ -1376,7 +2087,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.findNearbyPorts\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L661-661" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L845-845" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1409,23 +2120,31 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1937', 1937)" onmouseover="showTip(event, '1937', 1937)">
+              <code onmouseout="hideTip(event, '1946', 1946)" onmouseover="showTip(event, '1946', 1946)">
                 <p>
                   <a id="fitCircuitToWindowParas">
                     <a href="#fitCircuitToWindowParas">
-                      <code><span>fitCircuitToWindowParas&#32;<span>model</span></span></code>
+                      <code><span>fitCircuitToWindowParas&#32;<span>win&#32;model</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1937">
+              <div class="fsdocs-tip" id="1946">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>fitCircuitToWindowParas&#32;<span>model</span></span></code>
+                  <code><span>fitCircuitToWindowParas&#32;<span>win&#32;model</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
+                    <span>
+                      <b>
+                        win
+                      </b>
+                      :
+                      <code><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a></code>
+                    </span>
+                    <br/>
                     <span>
                       <b>
                         model
@@ -1438,7 +2157,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a>&#32;*&#32;<span>(type)&#32;option</span></span></code>
+                    <code><span><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a>&#32;*&#32;(type)</span></code>
                   </span>
                   <br/>
                 </div>
@@ -1455,16 +2174,24 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.fitCircuitToWindowParas\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L544-544" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L714-714" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
                      shift circuit to middle of canvas, resizing canvas to allow enough border if needed.
- return scroll and zoom paras to display all of circuit in middle of window
+ return scroll and zoom paras to display all of circuit in middle of the given window
                   </p>
                 </div>
               </summary>
               <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    win
+                  </span>
+                  :
+                  <code><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
                     model
@@ -1479,7 +2206,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a>&#32;*&#32;<span>(type)&#32;option</span></span></code>
+                  <code><span><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a>&#32;*&#32;(type)</span></code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -1489,7 +2216,205 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1938', 1938)" onmouseover="showTip(event, '1938', 1938)">
+              <code onmouseout="hideTip(event, '1947', 1947)" onmouseover="showTip(event, '1947', 1947)">
+                <p>
+                  <a id="fitInsetFor">
+                    <a href="#fitInsetFor">
+                      <code><span>fitInsetFor&#32;<span>menuWidth&#32;width&#32;height</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1947">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>fitInsetFor&#32;<span>menuWidth&#32;width&#32;height</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        menuWidth
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        width
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        height
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.fitInsetFor`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.fitInsetFor\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L582-582" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     How much of the left of a `width` by `height` drawing area a fit should leave to a menu
+ `menuWidth` wide: all of it, unless what is left over is a slot more than
+ Constants.maxFitAspectRatio times as tall as it is wide (or as wide as tall), where going round
+ the menu would shrink the circuit further than the menu ever hides it.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    menuWidth
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    width
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    height
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1948', 1948)" onmouseover="showTip(event, '1948', 1948)">
+                <p>
+                  <a id="fitWindowFor">
+                    <a href="#fitWindowFor">
+                      <code><span>fitWindowFor&#32;<span>issieModel</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1948">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>fitWindowFor&#32;<span>issieModel</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        issieModel
+                      </b>
+                      :
+                      <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code><span><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a>&#32;option</span></code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.fitWindowFor`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.fitWindowFor\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L595-595" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The window a fit should use, for the whole Issie model - which is what says whether the Sheet
+ menu is pinned. The draw block is handed this rather than working it out, because
+ Model.SheetMenuPinned is not draw block state: see SheetUpdate.update, which is given the whole
+ model for exactly this.
+
+ None when there is no canvas to measure, which is what the fit used to return None for.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    issieModel
+                  </span>
+                  :
+                  <code><a href="/issie/reference/modeltype-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code><span><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a>&#32;option</span></code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1949', 1949)" onmouseover="showTip(event, '1949', 1949)">
                 <p>
                   <a id="getScreenEdgeCoords">
                     <a href="#getScreenEdgeCoords">
@@ -1498,7 +2423,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1938">
+              <div class="fsdocs-tip" id="1949">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getScreenEdgeCoords&#32;<span>model</span></span></code>
@@ -1535,7 +2460,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.getScreenEdgeCoords\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L283-283" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L300-300" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1568,7 +2493,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1939', 1939)" onmouseover="showTip(event, '1939', 1939)">
+              <code onmouseout="hideTip(event, '1950', 1950)" onmouseover="showTip(event, '1950', 1950)">
                 <p>
                   <a id="getScrollProps">
                     <a href="#getScrollProps">
@@ -1577,7 +2502,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1939">
+              <div class="fsdocs-tip" id="1950">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getScrollProps&#32;<span>()</span></span></code>
@@ -1647,29 +2572,29 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1940', 1940)" onmouseover="showTip(event, '1940', 1940)">
+              <code onmouseout="hideTip(event, '1951', 1951)" onmouseover="showTip(event, '1951', 1951)">
                 <p>
                   <a id="getWindowParasToFitBox">
                     <a href="#getWindowParasToFitBox">
-                      <code><span>getWindowParasToFitBox&#32;<span>model&#32;box</span></span></code>
+                      <code><span>getWindowParasToFitBox&#32;<span>win&#32;box</span></span></code>
                     </a>
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1940">
+              <div class="fsdocs-tip" id="1951">
                 <div class="member-tooltip">
                   Full Usage: 
-                  <code><span>getWindowParasToFitBox&#32;<span>model&#32;box</span></span></code>
+                  <code><span>getWindowParasToFitBox&#32;<span>win&#32;box</span></span></code>
                   <br/>
                   <br/>
                   Parameters: 
                   <ul>
                     <span>
                       <b>
-                        model
+                        win
                       </b>
                       :
-                      <code><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a></code>
+                      <code><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a></code>
                     </span>
                     <br/>
                     <span>
@@ -1684,7 +2609,7 @@
                   <br/>
                   <span>
                     Returns: 
-                    <code><span>(type)&#32;option</span></code>
+                    <code>(type)</code>
                   </span>
                   <br/>
                 </div>
@@ -1701,7 +2626,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.getWindowParasToFitBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L467-467" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L610-610" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1712,10 +2637,10 @@
               <dl class="fsdocs-params">
                 <dt class="fsdocs-param">
                   <span class="fsdocs-param-name">
-                    model
+                    win
                   </span>
                   :
-                  <code><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a></code>
+                  <code><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a></code>
                 </dt>
                 <dd class="fsdocs-param-docs"></dd>
                 <dt class="fsdocs-param">
@@ -1732,7 +2657,7 @@
                   <span class="fsdocs-return-name">
                     Returns: 
                   </span>
-                  <code><span>(type)&#32;option</span></code>
+                  <code>(type)</code>
                 </dt>
                 <dd class="fsdocs-return-docs"></dd>
               </dl>
@@ -1742,7 +2667,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1941', 1941)" onmouseover="showTip(event, '1941', 1941)">
+              <code onmouseout="hideTip(event, '1952', 1952)" onmouseover="showTip(event, '1952', 1952)">
                 <p>
                   <a id="getWireBBox">
                     <a href="#getWireBBox">
@@ -1751,7 +2676,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1941">
+              <div class="fsdocs-tip" id="1952">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>getWireBBox&#32;<span>wire</span></span></code>
@@ -1788,7 +2713,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.getWireBBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L583-583" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L767-767" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1821,7 +2746,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1942', 1942)" onmouseover="showTip(event, '1942', 1942)">
+              <code onmouseout="hideTip(event, '1953', 1953)" onmouseover="showTip(event, '1953', 1953)">
                 <p>
                   <a id="insideBox">
                     <a href="#insideBox">
@@ -1830,7 +2755,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1942">
+              <div class="fsdocs-tip" id="1953">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>insideBox&#32;<span>pos&#32;boundingBox</span></span></code>
@@ -1875,7 +2800,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.insideBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L308-308" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L325-325" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -1917,7 +2842,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1943', 1943)" onmouseover="showTip(event, '1943', 1943)">
+              <code onmouseout="hideTip(event, '1954', 1954)" onmouseover="showTip(event, '1954', 1954)">
                 <p>
                   <a id="insideBoxMap">
                     <a href="#insideBoxMap">
@@ -1926,7 +2851,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1943">
+              <div class="fsdocs-tip" id="1954">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>insideBoxMap&#32;<span>boundingBoxes&#32;pos</span></span></code>
@@ -1974,7 +2899,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.insideBoxMap\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L313-313" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L330-330" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2015,7 +2940,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1944', 1944)" onmouseover="showTip(event, '1944', 1944)">
+              <code onmouseout="hideTip(event, '1955', 1955)" onmouseover="showTip(event, '1955', 1955)">
                 <p>
                   <a id="isAllVisible">
                     <a href="#isAllVisible">
@@ -2024,7 +2949,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1944">
+              <div class="fsdocs-tip" id="1955">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isAllVisible&#32;<span>model&#32;conns&#32;comps</span></span></code>
@@ -2108,7 +3033,111 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1945', 1945)" onmouseover="showTip(event, '1945', 1945)">
+              <code onmouseout="hideTip(event, '1956', 1956)" onmouseover="showTip(event, '1956', 1956)">
+                <p>
+                  <a id="isAtFittedPosition">
+                    <a href="#isAtFittedPosition">
+                      <code><span>isAtFittedPosition&#32;<span>win&#32;model</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1956">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>isAtFittedPosition&#32;<span>win&#32;model</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        win
+                      </b>
+                      :
+                      <code><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        model
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>bool</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.isAtFittedPosition`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.isAtFittedPosition\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L734-734" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Whether the sheet is still exactly where a fit to `win` would put it, and so has not been
+ scrolled, zoomed or edited since one. Undoing a fit - as unpinning the Sheet menu does - is only
+ ever right for a view the fit itself chose: once the user has moved it, it is theirs.
+
+ A second fit of an already fitted circuit is a no-op, since the circuit is centred on the canvas
+ already and the same box gives the same magnification, so this can ask by computing one.
+
+ Compared against where the canvas is actually scrolled to, not against the model's record of it:
+ a fit that asks to scroll past a canvas edge gets what the browser allows instead, and it is
+ that the user is looking at.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    win
+                  </span>
+                  :
+                  <code><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    model
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-sheett-model.html">Model</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>bool</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1957', 1957)" onmouseover="showTip(event, '1957', 1957)">
                 <p>
                   <a id="isBBoxAllVisible">
                     <a href="#isBBoxAllVisible">
@@ -2117,7 +3146,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1945">
+              <div class="fsdocs-tip" id="1957">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>isBBoxAllVisible&#32;<span>model&#32;bb</span></span></code>
@@ -2185,7 +3214,214 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1946', 1946)" onmouseover="showTip(event, '1946', 1946)">
+              <code onmouseout="hideTip(event, '1958', 1958)" onmouseover="showTip(event, '1958', 1958)">
+                <p>
+                  <a id="magToFitBox">
+                    <a href="#magToFitBox">
+                      <code><span>magToFitBox&#32;<span>win&#32;box</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1958">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>magToFitBox&#32;<span>win&#32;box</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        win
+                      </b>
+                      :
+                      <code><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        box
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.magToFitBox`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.magToFitBox\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L606-606" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The magnification that puts `box` in `win`, as large as the window and the zoom limit allow.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    win
+                  </span>
+                  :
+                  <code><a href="/issie/reference/sheet-fitwindow.html">FitWindow</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    box
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1959', 1959)" onmouseover="showTip(event, '1959', 1959)">
+                <p>
+                  <a id="maxArrayCopies">
+                    <a href="#maxArrayCopies">
+                      <code><span>maxArrayCopies&#32;<span>dir&#32;canvasSize&#32;box</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1959">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>maxArrayCopies&#32;<span>dir&#32;canvasSize&#32;box</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        dir
+                      </b>
+                      :
+                      <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        canvasSize
+                      </b>
+                      :
+                      <code>float</code>
+                    </span>
+                    <br/>
+                    <span>
+                      <b>
+                        box
+                      </b>
+                      :
+                      <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>int</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.maxArrayCopies`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.maxArrayCopies\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L495-495" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     The most copies of `box` that fit on a canvas `canvasSize` square, which is the whole of what a
+ sheet has room for. Can be below 2, which means there is no array to paste at all.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    dir
+                  </span>
+                  :
+                  <code><a href="/issie/reference/drawmodeltype-sheett-arraydirection.html">ArrayDirection</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    canvasSize
+                  </span>
+                  :
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    box
+                  </span>
+                  :
+                  <code><a href="/issie/reference/commontypes-boundingbox.html">BoundingBox</a></code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>int</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1960', 1960)" onmouseover="showTip(event, '1960', 1960)">
                 <p>
                   <a id="mouseOn">
                     <a href="#mouseOn">
@@ -2194,7 +3430,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1946">
+              <div class="fsdocs-tip" id="1960">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mouseOn&#32;<span>model&#32;pos</span></span></code>
@@ -2239,7 +3475,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.mouseOn\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L668-668" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L852-852" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2281,7 +3517,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1947', 1947)" onmouseover="showTip(event, '1947', 1947)">
+              <code onmouseout="hideTip(event, '1961', 1961)" onmouseover="showTip(event, '1961', 1961)">
                 <p>
                   <a id="mouseOnPort">
                     <a href="#mouseOnPort">
@@ -2290,7 +3526,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1947">
+              <div class="fsdocs-tip" id="1961">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>mouseOnPort&#32;<span>portList&#32;pos&#32;margin</span></span></code>
@@ -2343,7 +3579,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.mouseOnPort``1\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L647-647" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L831-831" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -2392,7 +3628,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1948', 1948)" onmouseover="showTip(event, '1948', 1948)">
+              <code onmouseout="hideTip(event, '1962', 1962)" onmouseover="showTip(event, '1962', 1962)">
                 <p>
                   <a id="moveCircuit">
                     <a href="#moveCircuit">
@@ -2401,7 +3637,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1948">
+              <div class="fsdocs-tip" id="1962">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>moveCircuit&#32;<span>moveDelta&#32;model</span></span></code>
@@ -2469,7 +3705,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1949', 1949)" onmouseover="showTip(event, '1949', 1949)">
+              <code onmouseout="hideTip(event, '1963', 1963)" onmouseover="showTip(event, '1963', 1963)">
                 <p>
                   <a id="notIntersectingComponents">
                     <a href="#notIntersectingComponents">
@@ -2478,7 +3714,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1949">
+              <div class="fsdocs-tip" id="1963">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>notIntersectingComponents&#32;<span>model&#32;box1&#32;inputId</span></span></code>
@@ -2562,7 +3798,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1950', 1950)" onmouseover="showTip(event, '1950', 1950)">
+              <code onmouseout="hideTip(event, '1964', 1964)" onmouseover="showTip(event, '1964', 1964)">
                 <p>
                   <a id="notIntersectingSelectedComponents">
                     <a href="#notIntersectingSelectedComponents">
@@ -2571,7 +3807,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1950">
+              <div class="fsdocs-tip" id="1964">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>notIntersectingSelectedComponents&#32;<span>model&#32;box1&#32;inputId</span></span></code>
@@ -2655,7 +3891,88 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1951', 1951)" onmouseover="showTip(event, '1951', 1951)">
+              <code onmouseout="hideTip(event, '1965', 1965)" onmouseover="showTip(event, '1965', 1965)">
+                <p>
+                  <a id="openSheetMenuWidth">
+                    <a href="#openSheetMenuWidth">
+                      <code><span>openSheetMenuWidth&#32;<span>()</span></span></code>
+                    </a>
+                  </a>
+                </p>
+              </code>
+              <div class="fsdocs-tip" id="1965">
+                <div class="member-tooltip">
+                  Full Usage: 
+                  <code><span>openSheetMenuWidth&#32;<span>()</span></span></code>
+                  <br/>
+                  <br/>
+                  Parameters: 
+                  <ul>
+                    <span>
+                      <b>
+                        ()
+                      </b>
+                      :
+                      <code>unit</code>
+                    </span>
+                    <br/>
+                  </ul>
+                  <br/>
+                  <span>
+                    Returns: 
+                    <code>float</code>
+                  </span>
+                  <br/>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="fsdocs-member-xmldoc">
+            <details>
+              <summary>
+                <div class="fsdocs-summary">
+                  <div class="fsdocs-source-link" title="Copy signature (Markdown)" onclick="Clipboard_CopyTo('`cref:M:Sheet.openSheetMenuWidth`')">
+                    <iconify-icon icon="bi:filetype-md" height="24" width="24"></iconify-icon>
+                  </div>
+                  <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.openSheetMenuWidth\'/>')">
+                    <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
+                  </div>
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L574-574" class="fsdocs-source-link" title="Source on GitHub">
+                    <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
+                  </a>
+                  <p class="fsdocs-summary">
+                     Width of the drawing area's left edge the Sheet menu is over, and 0 when the menu is closed -
+ which is display:none, and so has no width. Measured rather than derived because it is a
+ rendered fact: it depends on the design's tree and on how much room the canvas gives it.
+                  </p>
+                </div>
+              </summary>
+              <dl class="fsdocs-params">
+                <dt class="fsdocs-param">
+                  <span class="fsdocs-param-name">
+                    ()
+                  </span>
+                  :
+                  <code>unit</code>
+                </dt>
+                <dd class="fsdocs-param-docs"></dd>
+              </dl>
+              <dl class="fsdocs-returns">
+                <dt>
+                  <span class="fsdocs-return-name">
+                    Returns: 
+                  </span>
+                  <code>float</code>
+                </dt>
+                <dd class="fsdocs-return-docs"></dd>
+              </dl>
+            </details>
+          </td>
+        </tr>
+        <tr>
+          <td class="fsdocs-member-usage">
+            <div>
+              <code onmouseout="hideTip(event, '1966', 1966)" onmouseover="showTip(event, '1966', 1966)">
                 <p>
                   <a id="posAdd">
                     <a href="#posAdd">
@@ -2664,7 +3981,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1951">
+              <div class="fsdocs-tip" id="1966">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>posAdd&#32;<span>pos&#32;<span>(<span>a,&#32;b</span>)</span></span></span></code>
@@ -2748,7 +4065,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1952', 1952)" onmouseover="showTip(event, '1952', 1952)">
+              <code onmouseout="hideTip(event, '1967', 1967)" onmouseover="showTip(event, '1967', 1967)">
                 <p>
                   <a id="putScrollProps">
                     <a href="#putScrollProps">
@@ -2757,7 +4074,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1952">
+              <div class="fsdocs-tip" id="1967">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>putScrollProps&#32;<span>props</span></span></code>
@@ -2809,7 +4126,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1953', 1953)" onmouseover="showTip(event, '1953', 1953)">
+              <code onmouseout="hideTip(event, '1968', 1968)" onmouseover="showTip(event, '1968', 1968)">
                 <p>
                   <a id="recentProgrammaticScrollPos">
                     <a href="#recentProgrammaticScrollPos">
@@ -2818,7 +4135,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1953">
+              <div class="fsdocs-tip" id="1968">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>recentProgrammaticScrollPos&#32;<span></span></span></code>
@@ -2867,7 +4184,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1954', 1954)" onmouseover="showTip(event, '1954', 1954)">
+              <code onmouseout="hideTip(event, '1969', 1969)" onmouseover="showTip(event, '1969', 1969)">
                 <p>
                   <a id="scrollSequence">
                     <a href="#scrollSequence">
@@ -2876,7 +4193,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1954">
+              <div class="fsdocs-tip" id="1969">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>scrollSequence&#32;<span></span></span></code>
@@ -2926,7 +4243,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1955', 1955)" onmouseover="showTip(event, '1955', 1955)">
+              <code onmouseout="hideTip(event, '1970', 1970)" onmouseover="showTip(event, '1970', 1970)">
                 <p>
                   <a id="sheetCmd">
                     <a href="#sheetCmd">
@@ -2935,7 +4252,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1955">
+              <div class="fsdocs-tip" id="1970">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>sheetCmd&#32;<span>msg</span></span></code>
@@ -2987,7 +4304,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1956', 1956)" onmouseover="showTip(event, '1956', 1956)">
+              <code onmouseout="hideTip(event, '1971', 1971)" onmouseover="showTip(event, '1971', 1971)">
                 <p>
                   <a id="standardiseBox">
                     <a href="#standardiseBox">
@@ -2996,7 +4313,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1956">
+              <div class="fsdocs-tip" id="1971">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>standardiseBox&#32;<span>box</span></span></code>
@@ -3033,7 +4350,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.standardiseBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L360-360" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L377-377" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3067,7 +4384,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1957', 1957)" onmouseover="showTip(event, '1957', 1957)">
+              <code onmouseout="hideTip(event, '1972', 1972)" onmouseover="showTip(event, '1972', 1972)">
                 <p>
                   <a id="symDiff">
                     <a href="#symDiff">
@@ -3076,7 +4393,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1957">
+              <div class="fsdocs-tip" id="1972">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>symDiff&#32;<span>lst1&#32;lst2</span></span></code>
@@ -3144,7 +4461,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1958', 1958)" onmouseover="showTip(event, '1958', 1958)">
+              <code onmouseout="hideTip(event, '1973', 1973)" onmouseover="showTip(event, '1973', 1973)">
                 <p>
                   <a id="symbolBBUnion">
                     <a href="#symbolBBUnion">
@@ -3153,7 +4470,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1958">
+              <div class="fsdocs-tip" id="1973">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>symbolBBUnion&#32;<span>centresOnly&#32;symbols</span></span></code>
@@ -3221,7 +4538,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1959', 1959)" onmouseover="showTip(event, '1959', 1959)">
+              <code onmouseout="hideTip(event, '1974', 1974)" onmouseover="showTip(event, '1974', 1974)">
                 <p>
                   <a id="symbolCmd">
                     <a href="#symbolCmd">
@@ -3230,7 +4547,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1959">
+              <div class="fsdocs-tip" id="1974">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>symbolCmd&#32;<span>msg</span></span></code>
@@ -3267,7 +4584,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.symbolCmd\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L112-112" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L129-129" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3300,7 +4617,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1960', 1960)" onmouseover="showTip(event, '1960', 1960)">
+              <code onmouseout="hideTip(event, '1975', 1975)" onmouseover="showTip(event, '1975', 1975)">
                 <p>
                   <a id="symbolToBB">
                     <a href="#symbolToBB">
@@ -3309,7 +4626,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1960">
+              <div class="fsdocs-tip" id="1975">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>symbolToBB&#32;<span>centresOnly&#32;symbol</span></span></code>
@@ -3377,7 +4694,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1961', 1961)" onmouseover="showTip(event, '1961', 1961)">
+              <code onmouseout="hideTip(event, '1976', 1976)" onmouseover="showTip(event, '1976', 1976)">
                 <p>
                   <a id="symbolToCentre">
                     <a href="#symbolToCentre">
@@ -3386,7 +4703,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1961">
+              <div class="fsdocs-tip" id="1976">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>symbolToCentre&#32;<span>symbol</span></span></code>
@@ -3438,7 +4755,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1962', 1962)" onmouseover="showTip(event, '1962', 1962)">
+              <code onmouseout="hideTip(event, '1977', 1977)" onmouseover="showTip(event, '1977', 1977)">
                 <p>
                   <a id="symbolWireBBUnion">
                     <a href="#symbolWireBBUnion">
@@ -3447,7 +4764,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1962">
+              <div class="fsdocs-tip" id="1977">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>symbolWireBBUnion&#32;<span>model</span></span></code>
@@ -3484,7 +4801,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.symbolWireBBUnion\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L428-428" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L519-519" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3518,7 +4835,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1963', 1963)" onmouseover="showTip(event, '1963', 1963)">
+              <code onmouseout="hideTip(event, '1978', 1978)" onmouseover="showTip(event, '1978', 1978)">
                 <p>
                   <a id="transformScreenToPos">
                     <a href="#transformScreenToPos">
@@ -3527,7 +4844,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1963">
+              <div class="fsdocs-tip" id="1978">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>transformScreenToPos&#32;<span>screenPos&#32;scrollPos&#32;mag</span></span></code>
@@ -3611,7 +4928,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1964', 1964)" onmouseover="showTip(event, '1964', 1964)">
+              <code onmouseout="hideTip(event, '1979', 1979)" onmouseover="showTip(event, '1979', 1979)">
                 <p>
                   <a id="tryInsideLabelBox">
                     <a href="#tryInsideLabelBox">
@@ -3620,7 +4937,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1964">
+              <div class="fsdocs-tip" id="1979">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryInsideLabelBox&#32;<span>model&#32;pos</span></span></code>
@@ -3668,7 +4985,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.tryInsideLabelBox\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L321-321" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L338-338" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3709,7 +5026,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1965', 1965)" onmouseover="showTip(event, '1965', 1965)">
+              <code onmouseout="hideTip(event, '1980', 1980)" onmouseover="showTip(event, '1980', 1980)">
                 <p>
                   <a id="tryInsideSymCorner">
                     <a href="#tryInsideSymCorner">
@@ -3718,7 +5035,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1965">
+              <div class="fsdocs-tip" id="1980">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>tryInsideSymCorner&#32;<span>model&#32;pos</span></span></code>
@@ -3766,7 +5083,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.tryInsideSymCorner\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L328-328" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L345-345" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3808,7 +5125,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1966', 1966)" onmouseover="showTip(event, '1966', 1966)">
+              <code onmouseout="hideTip(event, '1981', 1981)" onmouseover="showTip(event, '1981', 1981)">
                 <p>
                   <a id="viewIsAfterUpdateScroll">
                     <a href="#viewIsAfterUpdateScroll">
@@ -3817,7 +5134,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1966">
+              <div class="fsdocs-tip" id="1981">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>viewIsAfterUpdateScroll&#32;<span></span></span></code>
@@ -3866,7 +5183,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1967', 1967)" onmouseover="showTip(event, '1967', 1967)">
+              <code onmouseout="hideTip(event, '1982', 1982)" onmouseover="showTip(event, '1982', 1982)">
                 <p>
                   <a id="wireCmd">
                     <a href="#wireCmd">
@@ -3875,7 +5192,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1967">
+              <div class="fsdocs-tip" id="1982">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wireCmd&#32;<span>msg</span></span></code>
@@ -3912,7 +5229,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.wireCmd\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L115-115" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L132-132" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
@@ -3945,7 +5262,7 @@
         <tr>
           <td class="fsdocs-member-usage">
             <div>
-              <code onmouseout="hideTip(event, '1968', 1968)" onmouseover="showTip(event, '1968', 1968)">
+              <code onmouseout="hideTip(event, '1983', 1983)" onmouseover="showTip(event, '1983', 1983)">
                 <p>
                   <a id="wireToBB">
                     <a href="#wireToBB">
@@ -3954,7 +5271,7 @@
                   </a>
                 </p>
               </code>
-              <div class="fsdocs-tip" id="1968">
+              <div class="fsdocs-tip" id="1983">
                 <div class="member-tooltip">
                   Full Usage: 
                   <code><span>wireToBB&#32;<span>wire</span></span></code>
@@ -3991,7 +5308,7 @@
                   <div class="fsdocs-source-link" title="Copy signature (XML)" onclick="Clipboard_CopyTo('<see cref=\'M:Sheet.wireToBB\'/>')">
                     <iconify-icon icon="bi:filetype-xml" height="24" width="24"></iconify-icon>
                   </div>
-                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L405-405" class="fsdocs-source-link" title="Source on GitHub">
+                  <a href="https://github.com/tomcl/issie/tree/master/src/Renderer/DrawBlock/Sheet.fs#L422-422" class="fsdocs-source-link" title="Source on GitHub">
                     <iconify-icon icon="ri:github-fill" height="24" width="24"></iconify-icon>
                   </a>
                   <p class="fsdocs-summary">
